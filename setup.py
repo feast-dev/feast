@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-import glob
 import json
 import os
 import pathlib
@@ -22,6 +21,7 @@ import subprocess
 import sys
 from distutils.cmd import Command
 from distutils.dir_util import copy_tree
+from distutils.spawn import find_executable
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -32,7 +32,6 @@ try:
     from setuptools.command.build_py import build_py
     from setuptools.command.build_ext import build_ext as _build_ext
     from setuptools.command.develop import develop
-    from setuptools.command.install import install
 
 except ImportError:
     from distutils.command.build_py import build_py
@@ -199,7 +198,6 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
@@ -210,13 +208,9 @@ class BuildPythonProtosCommand(Command):
     ]
 
     def initialize_options(self):
-        self.python_protoc = [
-            sys.executable,
-            "-m",
-            "grpc_tools.protoc",
-        ]  # find_executable("protoc")
+        self.buf = [find_executable("buf")]
         self.proto_folder = os.path.join(repo_root, "protos")
-        self.sub_folders = PROTO_SUBDIRS
+        self.path_val = _generate_path_with_gopath()
         self.build_lib = None
         self.inplace = 0
 
@@ -226,58 +220,47 @@ class BuildPythonProtosCommand(Command):
     @property
     def python_folder(self):
         if self.inplace:
-            return os.path.join(
+            return Path(
                 os.path.dirname(__file__) or os.getcwd(), "sdk/python/feast/protos"
             )
 
-        return os.path.join(self.build_lib, "feast/protos")
-
-    def _generate_python_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-        Path(self.python_folder).mkdir(parents=True, exist_ok=True)
-        subprocess.check_call(
-            self.python_protoc
-            + [
-                "-I",
-                self.proto_folder,
-                "--python_out",
-                self.python_folder,
-                "--grpc_python_out",
-                self.python_folder,
-                "--mypy_out",
-                self.python_folder,
-            ]
-            + proto_files,
-        )
+        return Path(self.build_lib, "feast/protos")
 
     def run(self):
-        for sub_folder in self.sub_folders:
-            self._generate_python_protos(f"feast/{sub_folder}/*.proto")
+        # Generate the Python code using `buf`
+        subprocess.check_call(
+            self.buf
+            + [
+                "generate",
+                "--template",
+                "protos/buf.python.gen.yaml",
+                self.proto_folder
+            ],
+            env={"PATH": self.path_val},
+        )
+
+        for sub_folder in Path(self.python_folder).rglob("**/"):
             # We need the __init__ files for each of the generated subdirs
             # so that they are regular packages, and don't need the `--namespace-packages` flags
             # when being typechecked using mypy.
-            with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", "w"):
-                pass
+            (sub_folder / "__init__.py").touch()
 
-        with open(f"{self.python_folder}/__init__.py", "w"):
-            pass
-        with open(f"{self.python_folder}/feast/__init__.py", "w"):
-            pass
+
+        (self.python_folder / "__init__.py").touch()
+        (self.python_folder / "feast/__init__.py").touch()
 
         for path in Path(self.python_folder).rglob("*.py"):
-            for folder in self.sub_folders:
+            for folder in Path(self.python_folder).rglob("**/"):
                 # Read in the file
-                with open(path, "r") as file:
-                    filedata = file.read()
+                filedata = path.read_text()
 
                 # Replace the target string
                 filedata = filedata.replace(
-                    f"from feast.{folder}", f"from feast.protos.feast.{folder}"
+                    f"from feast.{folder.name}", f"from feast.protos.feast.{folder.name}"
                 )
 
                 # Write the file out again
-                with open(path, "w") as file:
-                    file.write(filedata)
+                path.write_text(filedata)
 
 
 def _generate_path_with_gopath():
@@ -316,47 +299,29 @@ class BuildGoProtosCommand(Command):
     user_options = []
 
     def initialize_options(self):
-        self.go_protoc = [
-            sys.executable,
-            "-m",
-            "grpc_tools.protoc",
-        ]  # find_executable("protoc")
+        self.buf = [find_executable("buf")]
         self.proto_folder = os.path.join(repo_root, "protos")
-        self.go_folder = os.path.join(repo_root, "go/protos")
-        self.sub_folders = PROTO_SUBDIRS
         self.path_val = _generate_path_with_gopath()
 
     def finalize_options(self):
         pass
 
-    def _generate_go_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-
+    def run(self):
+        # Generate the Go code using `buf`
         try:
             subprocess.check_call(
-                self.go_protoc
+                self.buf
                 + [
-                    "-I",
-                    self.proto_folder,
-                    "--go_out",
-                    self.go_folder,
-                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
-                    "--go-grpc_out",
-                    self.go_folder,
-                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
-                ]
-                + proto_files,
+                    "generate",
+                    "--template",
+                    "protos/buf.go.gen.yaml",
+                    self.proto_folder
+                ],
                 env={"PATH": self.path_val},
             )
         except CalledProcessError as e:
             print(f"Stderr: {e.stderr}")
             print(f"Stdout: {e.stdout}")
-
-    def run(self):
-        go_dir = Path(repo_root) / "go" / "protos"
-        go_dir.mkdir(exist_ok=True)
-        for sub_folder in self.sub_folders:
-            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
 
 
 class BuildCommand(build_py):

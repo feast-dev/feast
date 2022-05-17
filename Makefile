@@ -46,7 +46,7 @@ lock-python-ci-dependencies:
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-compile-protos-python:
+compile-protos-python: install-go-proto-dependencies
 	python setup.py build_python_protos --inplace
 
 install-python:
@@ -166,6 +166,7 @@ kill-trino-locally:
 # Go SDK & embedded
 
 install-go-proto-dependencies:
+	go install github.com/bufbuild/buf/cmd/buf@v1.4.0
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
@@ -177,10 +178,7 @@ install-go-ci-dependencies:
 	go install github.com/go-python/gopy
 	python -m pip install pybindgen==0.22.0
 
-install-protoc-dependencies:
-	pip install grpcio-tools==1.44.0 mypy-protobuf==3.1.0
-
-compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
+compile-protos-go: install-go-proto-dependencies
 	python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies

@@ -1,0 +1,9 @@
+version: v1
+plugins:
+  - name: python-grpc
+    path: grpc_python_plugin
+    out: sdk/python/feast/protos
+  - name: python
+    out: sdk/python/feast/protos
+  - name: mypy
+    out: sdk/python/feast/protos
