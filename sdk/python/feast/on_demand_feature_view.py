@@ -443,7 +443,9 @@ class OnDemandFeatureView(BaseFeatureView):
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
+        # Note: Pandas will cast string or mixed number / string values to object. Assume this is string.
         rand_df_value: Dict[str, Any] = {
+            "object": "hello world",
             "float": 1.0,
             "int": 1,
             "str": "hello world",
