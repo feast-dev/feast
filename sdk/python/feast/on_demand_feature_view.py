@@ -443,9 +443,7 @@ class OnDemandFeatureView(BaseFeatureView):
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
-        # Note: Pandas will cast string or mixed number / string values to object. Assume this is string.
         rand_df_value: Dict[str, Any] = {
-            "object": "hello world",
             "float": 1.0,
             "int": 1,
             "str": "hello world",
@@ -461,13 +459,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 df[f"{feature_view_projection.name}__{feature.name}"] = pd.Series(
                     dtype=dtype
                 )
-                df[f"{feature.name}"] = pd.Series(
-                    data=rand_df_value[dtype], dtype=dtype
-                )
+                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
+                df[f"{feature.name}"] = pd.Series(data=sample_val, dtype=dtype)
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
-                df[f"{field.name}"] = pd.Series(rand_df_value[dtype], dtype=dtype)
+                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
+                df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
         output_df: pd.DataFrame = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
