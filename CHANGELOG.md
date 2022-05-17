@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.2](https://github.com/feast-dev/feast/compare/v0.21.1...v0.21.2) (2022-05-17)
+
+
+### Bug Fixes
+
+* Correct feature statuses during feature logging test ([#2709](https://github.com/feast-dev/feast/issues/2709)) ([c529d58](https://github.com/feast-dev/feast/commit/c529d583134f0627e6dca16595e44d0cce2d8f78))
+* Fix on demand feature view crash from inference when it uses df.apply ([#2713](https://github.com/feast-dev/feast/issues/2713)) ([0f6da6c](https://github.com/feast-dev/feast/commit/0f6da6c4b17dcd25ef673a14c8e0ffc71200d192))
+* Random port allocation for python server in tests ([#2710](https://github.com/feast-dev/feast/issues/2710)) ([e714b16](https://github.com/feast-dev/feast/commit/e714b1678435c4a0abe3ed53e3a273d46ed477d7))
+
 ## [0.21.1](https://github.com/feast-dev/feast/compare/v0.21.0...v0.21.1) (2022-05-17)
 
 
