@@ -11,6 +11,7 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"net/http"
+	"time"
 )
 
 type httpServer struct {
@@ -190,7 +191,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		}
 		var timestamps []string
 		for _, timestamp := range vector.Timestamps {
-			timestamps = append(timestamps, timestamp.String())
+			timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
 		}
 
 		result["statuses"] = statuses
