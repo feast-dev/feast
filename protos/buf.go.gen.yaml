@@ -4,9 +4,9 @@ managed:
   go_package_prefix:
     default: github.com/feast-dev/feast/go/protos/feast
 plugins:
-  - name: go
+  - remote: buf.build/protocolbuffers/plugins/go:v1.28.0-1
     out: go/protos
     opt: paths=source_relative
-  - name: go-grpc
+  - remote: buf.build/grpc/plugins/go:v1.2.0-1
     out: go/protos
     opt: paths=source_relative

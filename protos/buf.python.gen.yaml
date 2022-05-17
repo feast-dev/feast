@@ -1,9 +1,10 @@
 version: v1
 plugins:
-  - name: python-grpc
-    path: grpc_python_plugin
+  - remote: buf.build/protocolbuffers/plugins/python:v3.20.1-1
     out: sdk/python/feast/protos
-  - name: python
+  - remote: buf.build/grpc/plugins/python:v1.46.2-1
     out: sdk/python/feast/protos
-  - name: mypy
+  - remote: buf.build/jeffsawatzky/plugins/mypy-protobuf:v3.2.0-1
+    out: sdk/python/feast/protos
+  - remote: buf.build/jeffsawatzky/plugins/mypy-grpc-protobuf:v3.2.0-1
     out: sdk/python/feast/protos
