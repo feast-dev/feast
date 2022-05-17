@@ -237,6 +237,80 @@ def test_apply_feature_view_success(test_registry):
 @pytest.mark.parametrize(
     "test_registry", [lazy_fixture("local_registry")],
 )
+def test_apply_on_demand_feature_view_success(test_registry):
+    # Create Feature Views
+    driver_stats = FileSource(
+        name="driver_stats_source",
+        path="data/driver_stats_lat_lon.parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+        description="A table describing the stats of a driver based on hourly logs",
+        owner="test2@gmail.com",
+    )
+
+    driver_daily_features_view = FeatureView(
+        name="driver_daily_features",
+        entities=["driver"],
+        ttl=timedelta(seconds=8640000000),
+        schema=[
+            Field(name="daily_miles_driven", dtype=Float32),
+            Field(name="lat", dtype=Float32),
+            Field(name="lon", dtype=Float32),
+            Field(name="string_feature", dtype=String),
+        ],
+        online=True,
+        source=driver_stats,
+        tags={"production": "True"},
+        owner="test2@gmail.com",
+    )
+
+    @on_demand_feature_view(
+        sources=[driver_daily_features_view],
+        schema=[Field(name="first_char", dtype=String)],
+    )
+    def location_features_from_push(inputs: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["first_char"] = inputs["string_feature"].str[:1].astype("string")
+        return df
+
+    project = "project"
+
+    # Register Feature View
+    test_registry.apply_feature_view(location_features_from_push, project)
+
+    feature_views = test_registry.list_on_demand_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "location_features_from_push"
+        and feature_views[0].features[0].name == "first_char"
+        and feature_views[0].features[0].dtype == String
+    )
+
+    feature_view = test_registry.get_on_demand_feature_view(
+        "location_features_from_push", project
+    )
+    assert (
+        feature_view.name == "location_features_from_push"
+        and feature_view.features[0].name == "first_char"
+        and feature_view.features[0].dtype == String
+    )
+
+    test_registry.delete_feature_view("location_features_from_push", project)
+    feature_views = test_registry.list_on_demand_feature_views(project)
+    assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto()
+
+
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("local_registry")],
+)
 # TODO(kevjumba): remove this in feast 0.23 when deprecating
 @pytest.mark.parametrize(
     "request_source_schema",
