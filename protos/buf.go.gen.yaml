@@ -2,7 +2,7 @@ version: v1
 managed:
   enabled: true
   go_package_prefix:
-    default: github.com/feast-dev/feast/go/protos/feast
+    default: github.com/feast-dev/feast/go/protos
 plugins:
   - remote: buf.build/protocolbuffers/plugins/go:v1.28.0-1
     out: go/protos
