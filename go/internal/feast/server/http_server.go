@@ -7,7 +7,9 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/feast-dev/feast/go/types"
 	"net/http"
 )
 
@@ -152,6 +154,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error getting feature service from registry: %+v", err), http.StatusInternalServerError)
+			return
 		}
 	}
 	entitiesProto := make(map[string]*prototypes.RepeatedValue)
@@ -173,6 +176,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
+		return
 	}
 
 	var featureNames []string
@@ -209,9 +213,42 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error encoding response: %+v", err), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
+	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
+		logger, err := s.loggingService.GetOrCreateLogger(featureService)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Couldn't instantiate logger for feature service %s: %+v", featureService.Name, err), http.StatusInternalServerError)
+			return
+		}
+
+		requestId := GenerateRequestId()
+
+		// Note: we're converting arrow to proto for feature logging. In the future we should
+		// base feature logging on arrow so that we don't have to do this extra conversion.
+		var featureVectorProtos []*serving.GetOnlineFeaturesResponse_FeatureVector
+		for _, vector := range featureVectors[len(request.Entities):] {
+			values, err := types.ArrowValuesToProtoValues(vector.Values)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Couldn't convert arrow values into protobuf: %+v", err), http.StatusInternalServerError)
+				return
+			}
+			featureVectorProtos = append(featureVectorProtos, &serving.GetOnlineFeaturesResponse_FeatureVector{
+				Values:          values,
+				Statuses:        vector.Statuses,
+				EventTimestamps: vector.Timestamps,
+			})
+		}
+
+		err = logger.Log(entitiesProto, featureVectorProtos, featureNames, requestContextProto, requestId)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("LoggerImpl error[%s]: %+v", featureService.Name, err), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func (s *httpServer) Serve(host string, port int) error {

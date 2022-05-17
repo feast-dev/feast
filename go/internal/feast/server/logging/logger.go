@@ -42,7 +42,7 @@ type LogSink interface {
 }
 
 type Logger interface {
-	Log(joinKeyToEntityValues map[string][]*types.Value, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error
+	Log(joinKeyToEntityValues map[string]*types.RepeatedValue, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error
 }
 
 type LoggerImpl struct {
@@ -207,7 +207,7 @@ func getFullFeatureName(featureViewName string, featureName string) string {
 	return fmt.Sprintf("%s__%s", featureViewName, featureName)
 }
 
-func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error {
+func (l *LoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error {
 	if len(featureVectors) == 0 {
 		return nil
 	}
@@ -250,7 +250,7 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 			if !ok {
 				return errors.Errorf("Missing join key %s in log data", joinKey)
 			}
-			entityValues[idx] = rows[rowIdx]
+			entityValues[idx] = rows.Val[rowIdx]
 		}
 
 		requestDataValues := make([]*types.Value, len(l.schema.RequestData))
@@ -283,6 +283,6 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featur
 
 type DummyLoggerImpl struct{}
 
-func (l *DummyLoggerImpl) Log(joinKeyToEntityValues map[string][]*types.Value, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error {
+func (l *DummyLoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, featureVectors []*serving.GetOnlineFeaturesResponse_FeatureVector, featureNames []string, requestData map[string]*types.RepeatedValue, requestId string) error {
 	return nil
 }
