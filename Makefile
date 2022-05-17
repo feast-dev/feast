@@ -36,7 +36,7 @@ build: protos build-java build-docker
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
+install-python-ci-dependencies: install-go-ci-dependencies
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 	COMPILE_GO=true python setup.py develop
 
@@ -46,7 +46,7 @@ lock-python-ci-dependencies:
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-compile-protos-python: install-go-proto-dependencies
+compile-protos-python:
 	python setup.py build_python_protos --inplace
 
 install-python:
@@ -165,11 +165,6 @@ kill-trino-locally:
 
 # Go SDK & embedded
 
-install-go-proto-dependencies:
-	go install github.com/bufbuild/buf/cmd/buf@v1.4.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
-
 install-go-ci-dependencies:
 	# ToDo: currently gopy installation doesn't work w/o explicit go get in the next line
 	# ToDo: there should be a better way to install gopy
@@ -178,10 +173,10 @@ install-go-ci-dependencies:
 	go install github.com/go-python/gopy
 	python -m pip install pybindgen==0.22.0
 
-compile-protos-go: install-go-proto-dependencies
+compile-protos-go:
 	python setup.py build_go_protos
 
-compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
+compile-go-lib: install-go-ci-dependencies
 	COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
