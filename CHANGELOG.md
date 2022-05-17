@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.21.1](https://github.com/feast-dev/feast/compare/v0.21.0...v0.21.1) (2022-05-17)
+
+
+### Bug Fixes
+
+* Add S3FS dependency (which Dask depends on for S3 files) ([#2701](https://github.com/feast-dev/feast/issues/2701)) ([1f893f1](https://github.com/feast-dev/feast/commit/1f893f1f6c60927616f2edc9687059a1254562ab))
+* Fix broken roadmap links ([#2690](https://github.com/feast-dev/feast/issues/2690)) ([079395a](https://github.com/feast-dev/feast/commit/079395ab09e9ed6e8546a24b88815d6aa22c9ac7))
+* Fix issue when user specifies a port for feast ui  ([#2692](https://github.com/feast-dev/feast/issues/2692)) ([00a9de9](https://github.com/feast-dev/feast/commit/00a9de92b818723acaf843f2d1e433d194949ad8))
+* Python server is not correctly starting in integration tests ([#2706](https://github.com/feast-dev/feast/issues/2706)) ([4525336](https://github.com/feast-dev/feast/commit/45253366d09a69385d0e688b6cb017119d31883e))
+* Support push sources in stream feature views ([#2704](https://github.com/feast-dev/feast/issues/2704)) ([6531685](https://github.com/feast-dev/feast/commit/65316859662fbb857d5158c491ed9bfbb717a141))
+
 # [0.21.0](https://github.com/feast-dev/feast/compare/v0.20.0...v0.21.0) (2022-05-13)
 
 
