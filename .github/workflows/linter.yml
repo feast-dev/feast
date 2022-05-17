@@ -9,6 +9,11 @@ jobs:
       PYTHON: 3.7
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Buf
+        id: setup-buf
+        uses: bufbuild/buf-setup-action@v1.4.0
+        with:
+          version: 1.4.0
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v2
