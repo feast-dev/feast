@@ -55,6 +55,7 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test Python
         env:
+          IS_TEST: "True"
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
           SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
           SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
