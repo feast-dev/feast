@@ -108,7 +108,7 @@ class Entity:
             warnings.warn(
                 (
                     "The `value_type` parameter is being deprecated. Instead, the type of an entity "
-                    "should be specified as a Field in the schema of a feature view. Feast 0.22 and "
+                    "should be specified as a Field in the schema of a feature view. Feast 0.23 and "
                     "onwards will not support the `value_type` parameter. The `entities` parameter of "
                     "feature views should also be changed to a List[Entity] instead of a List[str]; if "
                     "this is not done, entity columns will be mistakenly interpreted as feature columns."

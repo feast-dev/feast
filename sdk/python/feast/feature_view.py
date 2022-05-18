@@ -178,7 +178,7 @@ class FeatureView(BaseFeatureView):
             warnings.warn(
                 (
                     "The `entities` parameter should be a list of `Entity` objects. "
-                    "Feast 0.22 and onwards will not support passing in a list of "
+                    "Feast 0.23 and onwards will not support passing in a list of "
                     "strings to define entities."
                 ),
                 DeprecationWarning,
