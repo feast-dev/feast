@@ -608,6 +608,7 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
+            ValidationReference,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -669,6 +670,9 @@ class FeatureStore:
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
         }
+        validation_references_to_update = [
+            ob for ob in objects if isinstance(ob, ValidationReference)
+        ]
 
         for fv in views_to_update:
             data_sources_set_to_update.add(fv.batch_source)
@@ -719,6 +723,10 @@ class FeatureStore:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
             )
+        for validation_references in validation_references_to_update:
+            self._registry.apply_validation_reference(
+                validation_references, project=self.project, commit=False
+            )
 
         if not partial:
             # Delete all registry objects that should not exist.
@@ -739,6 +747,9 @@ class FeatureStore:
             ]
             data_sources_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, DataSource)
+            ]
+            validation_references_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
             ]
 
             for data_source in data_sources_to_delete:
@@ -764,6 +775,10 @@ class FeatureStore:
             for service in services_to_delete:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
+                )
+            for validation_references in validation_references_to_delete:
+                self._registry.delete_validation_reference(
+                    validation_references.name, project=self.project, commit=False
                 )
 
         self._get_provider().update_infra(
@@ -2117,6 +2132,19 @@ class FeatureStore:
             return exc
 
         return None
+
+    def get_validation_reference(
+        self, name: str, allow_cache: bool = False
+    ) -> ValidationReference:
+        """
+            Retrieves a validation reference.
+
+            Raises:
+                ValidationReferenceNotFoundException: The validation reference could not be found.
+        """
+        return self._registry.get_validation_reference(
+            name, project=self.project, allow_cache=allow_cache
+        )
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

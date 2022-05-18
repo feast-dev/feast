@@ -39,9 +39,20 @@ message GEValidationProfile {
 }
 
 message ValidationReference {
-  SavedDataset dataset = 1;
+  // Unique name of validation reference within the project
+  string name = 1;
+  // Name of saved dataset used as reference dataset
+  string reference_dataset_name = 2;
+  // Name of Feast project that this object source belongs to
+  string project = 3;
 
+  // validation profiler
   oneof profiler {
-    GEValidationProfiler ge_profiler = 2;
+    GEValidationProfiler ge_profiler = 4;
+  }
+
+  // (optional) cached validation profile (to avoid constant recalculation)
+  oneof cached_profile {
+    GEValidationProfile ge_profile = 5;
   }
 }

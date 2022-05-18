@@ -1,17 +1,21 @@
 from abc import abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Type, cast
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union, cast
 
 import pandas as pd
 import pyarrow
 from google.protobuf.json_format import MessageToJson
 
 from feast.data_source import DataSource
+from feast.dqm.profilers.ge_profiler import GEProfile, GEProfiler
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
+)
+from feast.protos.feast.core.ValidationProfile_pb2 import (
+    ValidationReference as ValidationReferenceProto,
 )
 
 if TYPE_CHECKING:
@@ -178,8 +182,8 @@ class SavedDataset:
         if self.feature_service_name:
             spec.feature_service_name = self.feature_service_name
 
-        feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
-        return feature_service_proto
+        saved_dataset_proto = SavedDatasetProto(spec=spec, meta=meta)
+        return saved_dataset_proto
 
     def with_retrieval_job(self, retrieval_job: "RetrievalJob") -> "SavedDataset":
         self._retrieval_job = retrieval_job
@@ -203,21 +207,62 @@ class SavedDataset:
 
         return self._retrieval_job.to_arrow()
 
-    def as_reference(self, profiler: "Profiler") -> "ValidationReference":
-        return ValidationReference(profiler=profiler, dataset=self)
+    def as_reference(self, name: str, profiler: "Profiler") -> "ValidationReference":
+        return ValidationReference(name=name, profiler=profiler, reference_dataset=self)
 
     def get_profile(self, profiler: Profiler) -> Profile:
         return profiler.analyze_dataset(self.to_df())
 
 
 class ValidationReference:
-    dataset: SavedDataset
+    name: str
+    reference_dataset: SavedDataset
     profiler: Profiler
 
-    def __init__(self, dataset: SavedDataset, profiler: Profiler):
-        self.dataset = dataset
+    _cached_profile: Optional[Profile] = None
+
+    def __init__(self, name: str, reference_dataset: SavedDataset, profiler: Profiler):
+        self.name = name
+        self.reference_dataset = reference_dataset
         self.profiler = profiler
 
     @property
     def profile(self) -> Profile:
-        return self.profiler.analyze_dataset(self.dataset.to_df())
+        if not self._cached_profile:
+            self._cached_profile = self.profiler.analyze_dataset(
+                self.reference_dataset.to_df()
+            )
+        return self._cached_profile
+
+    @classmethod
+    def from_proto(
+        cls, proto: ValidationReferenceProto, saved_datasets: List[SavedDatasetProto]
+    ) -> "ValidationReference":
+        profiler = GEProfiler.from_proto(proto.ge_profiler)
+        saved_dataset_proto = [
+            sd for sd in saved_datasets if sd.spec.name == proto.reference_dataset_name
+        ][0]
+        self = ValidationReference(
+            name=proto.name,
+            reference_dataset=SavedDataset.from_proto(saved_dataset_proto),
+            profiler=profiler,
+        )
+
+        if proto.ge_profile:
+            self._cached_profile = GEProfile.from_proto(proto.ge_profile)
+
+        return self
+
+    def to_proto(self) -> ValidationReferenceProto:
+        proto = ValidationReferenceProto(
+            name=self.name,
+            reference_dataset_name=self.reference_dataset.name,
+            ge_profiler=self.profiler.to_proto()
+            if isinstance(self.profiler, GEProfiler)
+            else None,
+            ge_profile=self._cached_profile.to_proto()
+            if isinstance(self._cached_profile, GEProfile)
+            else None,
+        )
+
+        return proto

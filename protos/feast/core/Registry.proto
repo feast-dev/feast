@@ -30,6 +30,7 @@ import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/RequestFeatureView.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/SavedDataset.proto";
+import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 
 // Next id: 13
@@ -42,6 +43,7 @@ message Registry {
     repeated RequestFeatureView request_feature_views = 9;
     repeated FeatureService feature_services = 7;
     repeated SavedDataset saved_datasets = 11;
+    repeated ValidationReference validation_references = 13;
     Infra infra = 10;
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed

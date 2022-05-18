@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import json
 import logging
 import warnings
 from datetime import datetime
@@ -23,6 +23,7 @@ import pkg_resources
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
+from pygments import formatters, highlight, lexers
 
 from feast import flags, flags_helper, utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
@@ -756,6 +757,64 @@ def disable_alpha_features(ctx: click.Context):
 
     store.config.flags = None
     store.config.write_to_path(Path(repo_path))
+
+
+@click.option(
+    "--feature_service", "-f", help="Specify a feature service name",
+)
+@click.option(
+    "--reference", "-r", help="Specify a validation reference name",
+)
+@click.option(
+    "--store-profile-cache", is_flag=True, help="Store cached profile in registry",
+)
+@click.argument("start_ts")
+@click.argument("end_ts")
+@click.pass_context
+def validate(
+    ctx: click.Context,
+    feature_service: str,
+    reference: str,
+    start_ts: str,
+    end_ts: str,
+    store_profile_cache,
+):
+    """
+    Perform validation of logged features (produced by a given feature service) against provided reference.
+
+    START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    store = FeatureStore(repo_path=str(repo))
+
+    feature_service = store.get_feature_service(name=feature_service)
+    reference = store.get_validation_reference(reference)
+
+    result = store.validate_logged_features(
+        source=feature_service,
+        reference=reference,
+        start=datetime.fromisoformat(start_ts),
+        end=datetime.fromisoformat(end_ts),
+        throw_exception=False,
+    )
+
+    if not result:
+        print(f"{Style.BRIGHT + Fore.GREEN}Validation successful!{Style.RESET_ALL}")
+
+        if store_profile_cache:
+            store.apply(reference)
+
+        return
+
+    errors = [e.to_dict() for e in result.report.errors]
+    formatted_json = json.dumps(errors, indent=4)
+    colorful_json = highlight(
+        formatted_json, lexers.JsonLexer(), formatters.TerminalFormatter()
+    )
+    print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
+    print(colorful_json)
+    exit(1)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,6 @@ message FeatureServiceMeta {
 
 message LoggingConfig {
   float sample_rate = 1;
-  google.protobuf.Duration partition_interval = 2;
 
   oneof destination {
     FileDestination file_destination = 3;

@@ -38,6 +38,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     OnDemandFeatureViewNotFoundException,
     SavedDatasetNotFound,
+    ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -49,7 +50,7 @@ from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
-from feast.saved_dataset import SavedDataset
+from feast.saved_dataset import SavedDataset, ValidationReference
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -795,7 +796,7 @@ class Registry:
         self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
         """
-        Registers a single entity with Feast
+        Stores a saved dataset metadata with Feast
 
         Args:
             saved_dataset: SavedDataset that will be added / updated to registry
@@ -869,6 +870,87 @@ class Registry:
             for saved_dataset in registry_proto.saved_datasets
             if saved_dataset.spec.project == project
         ]
+
+    def apply_validation_reference(
+        self,
+        validation_reference: ValidationReference,
+        project: str,
+        commit: bool = True,
+    ):
+        """
+        Persist a validation reference
+
+        Args:
+            validation_reference: ValidationReference that will be added / updated to registry
+            project: Feast project that this dataset belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        validation_reference_proto = validation_reference.to_proto()
+        validation_reference_proto.project = project
+
+        registry_proto = self._prepare_registry_for_changes()
+        for idx, existing_validation_reference in enumerate(
+            registry_proto.validation_references
+        ):
+            if (
+                existing_validation_reference.name == validation_reference_proto.name
+                and existing_validation_reference.project == project
+            ):
+                del registry_proto.validation_references[idx]
+                break
+
+        registry_proto.validation_references.append(validation_reference_proto)
+        if commit:
+            self.commit()
+
+    def get_validation_reference(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ValidationReference:
+        """
+            Retrieves a validation reference.
+
+            Args:
+                name: Name of dataset
+                project: Feast project that this dataset belongs to
+                allow_cache: Whether to allow returning this dataset from a cached registry
+
+            Returns:
+                Returns either the specified ValidationReference, or raises an exception if
+                none is found
+            """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        for validation_reference in registry_proto.validation_references:
+            if (
+                validation_reference.name == name
+                and validation_reference.project == project
+            ):
+                return ValidationReference.from_proto(
+                    validation_reference, list(registry_proto.saved_datasets)
+                )
+        raise ValidationReferenceNotFound(name, project=project)
+
+    def delete_validation_reference(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a validation reference or raises an exception if not found.
+
+        Args:
+            name: Name of validation reference
+            project: Feast project that this object belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        registry_proto = self._prepare_registry_for_changes()
+        for idx, existing_validation_reference in enumerate(
+            registry_proto.validation_references
+        ):
+            if (
+                existing_validation_reference.name == name
+                and existing_validation_reference.project == project
+            ):
+                del registry_proto.validation_references[idx]
+                if commit:
+                    self.commit()
+                return
+        raise ValidationReferenceNotFound(name, project=project)
 
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""

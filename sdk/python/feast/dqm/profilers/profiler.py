@@ -86,3 +86,12 @@ class ValidationError:
 
     def __repr__(self):
         return f"<ValidationError {self.check_name}:{self.column_name}>"
+
+    def to_dict(self):
+        return dict(
+            check_name=self.check_name,
+            column_name=self.column_name,
+            check_config=self.check_config,
+            missing_count=self.missing_count,
+            missing_percent=self.missing_percent,
+        )

@@ -11,7 +11,11 @@ from .protos.feast.core.FeatureService_pb2 import FeatureServiceSpec
 from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from .protos.feast.core.RequestFeatureView_pb2 import RequestFeatureViewSpec
+from .protos.feast.core.ValidationProfile_pb2 import (
+    ValidationReference as ValidationReferenceProto,
+)
 from .request_feature_view import RequestFeatureView
+from .saved_dataset import ValidationReference
 
 # Convenience type representing all Feast objects
 FeastObject = Union[
@@ -21,6 +25,7 @@ FeastObject = Union[
     Entity,
     FeatureService,
     DataSource,
+    ValidationReference,
 ]
 
 FeastObjectSpecProto = Union[
@@ -30,4 +35,5 @@ FeastObjectSpecProto = Union[
     EntitySpecV2,
     FeatureServiceSpec,
     DataSourceProto,
+    ValidationReferenceProto,
 ]
