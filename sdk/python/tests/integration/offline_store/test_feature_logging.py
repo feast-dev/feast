@@ -16,7 +16,11 @@ from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    location,
+)
 from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
 from tests.utils.logged_features import prepare_logs, to_logs_dataset
 
@@ -30,7 +34,7 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
     (_, datasets, data_sources) = universal_data_sources
 
     feature_views = construct_universal_feature_views(data_sources)
-    store.apply([driver(), *feature_views.values()])
+    store.apply([customer(), driver(), location(), *feature_views.values()])
 
     feature_service = FeatureService(
         name="test_service",

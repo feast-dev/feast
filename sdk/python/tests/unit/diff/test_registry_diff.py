@@ -2,34 +2,36 @@ from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
 )
+from feast.entity import Entity
 from feast.feature_view import FeatureView
 from tests.utils.data_source_utils import prep_file_source
 
 
 def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="id", join_keys=["id"])
         to_delete = FeatureView(
-            name="to_delete", entities=["id"], batch_source=file_source, ttl=None,
+            name="to_delete", entities=[entity], batch_source=file_source, ttl=None,
         )
         unchanged_fv = FeatureView(
-            name="fv1", entities=["id"], batch_source=file_source, ttl=None,
+            name="fv1", entities=[entity], batch_source=file_source, ttl=None,
         )
         pre_changed = FeatureView(
             name="fv2",
-            entities=["id"],
+            entities=[entity],
             batch_source=file_source,
             ttl=None,
             tags={"when": "before"},
         )
         post_changed = FeatureView(
             name="fv2",
-            entities=["id"],
+            entities=[entity],
             batch_source=file_source,
             ttl=None,
             tags={"when": "after"},
         )
         to_add = FeatureView(
-            name="to_add", entities=["id"], batch_source=file_source, ttl=None,
+            name="to_add", entities=[entity], batch_source=file_source, ttl=None,
         )
 
         keep, delete, update, add = tag_objects_for_keep_delete_update_add(
@@ -52,16 +54,17 @@ def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
 
 def test_diff_registry_objects_feature_views(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="id", join_keys=["id"])
         pre_changed = FeatureView(
             name="fv2",
-            entities=["id"],
+            entities=[entity],
             batch_source=file_source,
             ttl=None,
             tags={"when": "before"},
         )
         post_changed = FeatureView(
             name="fv2",
-            entities=["id"],
+            entities=[entity],
             batch_source=file_source,
             ttl=None,
             tags={"when": "after"},

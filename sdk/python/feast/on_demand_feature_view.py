@@ -666,7 +666,7 @@ def on_demand_feature_view(
 
 
 def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
-    return BatchFeatureView(
+    bfv = BatchFeatureView(
         name=fv.name,
         entities=fv.entities,
         ttl=fv.ttl,
@@ -676,3 +676,7 @@ def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
         schema=fv.schema,
         source=fv.source,
     )
+
+    bfv.features = copy.copy(fv.features)
+    bfv.entities = copy.copy(fv.entities)
+    return bfv

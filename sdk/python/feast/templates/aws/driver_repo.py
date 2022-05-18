@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from feast import Entity, FeatureService, FeatureView, Field, RedshiftSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, RedshiftSource
 from feast.types import Float32, Int64
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
@@ -13,8 +13,6 @@ driver = Entity(
     # features can be looked up. The join keys are also used to join feature
     # tables/views when building feature vectors
     join_keys=["driver_id"],
-    # The storage level type for an entity
-    value_type=ValueType.INT64,
 )
 
 # Indicates a data source from which feature values can be retrieved. Sources are queried when building training
@@ -41,7 +39,7 @@ driver_stats_fv = FeatureView(
     # The list of entities specifies the keys required for joining or looking
     # up features from this feature view. The reference provided in this field
     # correspond to the name of a defined entity (or entities)
-    entities=["driver"],
+    entities=[driver],
     # The timedelta is the maximum age that each feature value may have
     # relative to its lookup time. For historical features (used in training),
     # TTL is relative to each timestamp provided in the entity dataframe.

@@ -8,10 +8,17 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
-from feast.entity import Entity
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.types import Array, Bool, Float32, Int32, Int64, UnixTimestamp
-from feast.value_type import ValueType
+from feast.types import (
+    Array,
+    Bool,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
 from tests.data.data_creator import create_dataset
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
@@ -89,10 +96,7 @@ def get_fixtures(request, environment):
     ).lower()
     config = request.param
     df = create_dataset(
-        ValueType.INT64,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
+        Int64, config.feature_dtype, config.feature_is_list, config.has_empty_list,
     )
     data_source = environment.data_source_creator.create_data_source(
         df, destination_name=destination_name, field_mapping={"ts_1": "ts"},
@@ -110,18 +114,11 @@ def get_fixtures(request, environment):
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.parametrize(
-    "entity_type", [ValueType.INT32, ValueType.INT64, ValueType.STRING]
-)
+@pytest.mark.parametrize("entity_type", [Int32, Int64, String])
 def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    entity = Entity(
-        name=f"driver_{entity_type.name.lower()}",
-        value_type=ValueType.UNKNOWN,
-        join_key="driver_id",
-    )
     df = create_dataset(entity_type, feature_dtype="int32",)
     data_source = environment.data_source_creator.create_data_source(
         df,
@@ -134,20 +131,30 @@ def test_entity_inference_types_match(environment, entity_type):
         feature_is_list=False,
         has_empty_list=False,
         data_source=data_source,
-        entity=entity.name,
+        entity_type=entity_type,
     )
+
+    # TODO(felixwang9817): Refactor this by finding a better way to force type inference.
+    # Override the schema and entity_columns to force entity inference.
+    entity = driver()
+    fv.schema = list(filter(lambda x: x.name != entity.join_key, fv.schema))
+    fv.entity_columns = []
     fs.apply([fv, entity])
 
-    inferred_entity = fs.get_entity(entity.name)
     entity_type_to_expected_inferred_entity_type = {
-        ValueType.INT32: {ValueType.INT32, ValueType.INT64},
-        ValueType.INT64: {ValueType.INT32, ValueType.INT64},
-        ValueType.FLOAT: {ValueType.DOUBLE},
-        ValueType.STRING: {ValueType.STRING},
+        Int32: {Int32, Int64},
+        Int64: {Int32, Int64},
+        Float32: {Float64},
+        String: {String},
     }
+
+    entity_columns = list(
+        filter(lambda x: x.name == entity.join_key, fv.entity_columns)
+    )
+    assert len(entity_columns) == 1
+    entity_column = entity_columns[0]
     assert (
-        inferred_entity.value_type
-        in entity_type_to_expected_inferred_entity_type[entity_type]
+        entity_column.dtype in entity_type_to_expected_inferred_entity_type[entity_type]
     )
 
 
@@ -263,7 +270,12 @@ def test_feature_get_online_features_types_match(
 
 
 def create_feature_view(
-    name, feature_dtype, feature_is_list, has_empty_list, data_source, entity="driver"
+    name,
+    feature_dtype,
+    feature_is_list,
+    has_empty_list,
+    data_source,
+    entity_type=Int64,
 ):
     if feature_is_list is True:
         if feature_dtype == "int32":
@@ -288,7 +300,9 @@ def create_feature_view(
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
 
-    return driver_feature_view(data_source, name=name, dtype=dtype, entities=[entity])
+    return driver_feature_view(
+        data_source, name=name, dtype=dtype, entity_type=entity_type
+    )
 
 
 def assert_expected_historical_feature_types(

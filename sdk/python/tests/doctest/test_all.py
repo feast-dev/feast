@@ -11,15 +11,13 @@ def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
     from datetime import datetime, timedelta
 
-    from feast import Entity, FeatureStore, FeatureView, Field, FileSource, ValueType
+    from feast import Entity, FeatureStore, FeatureView, Field, FileSource
     from feast.repo_operations import init_repo
     from feast.types import Float32, Int64
 
     init_repo("feature_repo", "local")
     fs = FeatureStore(repo_path="feature_repo")
-    driver = Entity(
-        name="driver_id", value_type=ValueType.INT64, description="driver id",
-    )
+    driver = Entity(name="driver_id", description="driver id",)
     driver_hourly_stats = FileSource(
         path="feature_repo/data/driver_stats.parquet",
         timestamp_field="event_timestamp",
@@ -27,7 +25,7 @@ def setup_feature_store():
     )
     driver_hourly_stats_view = FeatureView(
         name="driver_hourly_stats",
-        entities=["driver_id"],
+        entities=[driver],
         ttl=timedelta(seconds=86400 * 1),
         schema=[
             Field(name="conv_rate", dtype=Float32),

@@ -19,22 +19,23 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver_id", description="driver id")
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=Duration(seconds=86400 * 7),
     schema=[
         Field(name="conv_rate", dtype=Float64),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 
@@ -75,11 +76,11 @@ entity = Entity(name="entity", value_type=ValueType.STRING,)
 benchmark_feature_views = [
     FeatureView(
         name=f"feature_view_{i}",
-        entities=["entity"],
+        entities=[entity],
         ttl=Duration(seconds=86400),
         schema=[Field(name=f"feature_{10 * i + j}", dtype=Int64) for j in range(10)],
         online=True,
-        batch_source=generated_data_source,
+        source=generated_data_source,
     )
     for i in range(25)
 ]
