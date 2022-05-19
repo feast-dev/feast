@@ -66,6 +66,7 @@ REQUIRED = [
     "pydantic>=1,<2",
     "pygments==2.12.0",
     "PyYAML>=5.4.*,<7",
+    "SQLAlchemy[mypy]>1,<2",
     "tabulate==0.8.*",
     "tenacity>=7,<9",
     "toml==0.10.*",
