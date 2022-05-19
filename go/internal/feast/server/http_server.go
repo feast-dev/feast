@@ -244,7 +244,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		err = logger.Log(entitiesProto, featureVectorProtos, featureNames, requestContextProto, requestId)
+		err = logger.Log(entitiesProto, featureVectorProtos, featureNames[len(request.Entities):], requestContextProto, requestId)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("LoggerImpl error[%s]: %+v", featureService.Name, err), http.StatusInternalServerError)
 			return
