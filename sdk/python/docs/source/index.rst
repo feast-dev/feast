@@ -21,17 +21,18 @@ Data Source
 ==================
 
 .. automodule:: feast.data_source
+    :inherited-members:
     :members:
-    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource, RequestSource
+    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource, RequestSource, RequestDataSource
 
 Request Source
-==================
+------------------
 
 .. automodule:: feast.data_source
     :members: RequestSource
 
 Push Source
-==================
+------------------
 
 .. automodule:: feast.data_source
     :members: PushSource
