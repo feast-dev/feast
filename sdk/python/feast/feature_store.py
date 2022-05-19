@@ -599,7 +599,7 @@ class FeatureStore:
         self._registry.update_infra(new_infra, self.project, commit=True)
 
     @log_exceptions_and_usage
-    def apply(  # noqa: C901
+    def apply(
         self,
         objects: Union[
             DataSource,
