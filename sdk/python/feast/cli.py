@@ -759,14 +759,15 @@ def disable_alpha_features(ctx: click.Context):
     store.config.write_to_path(Path(repo_path))
 
 
+@cli.command("validate")
 @click.option(
-    "--feature_service", "-f", help="Specify a feature service name",
+    "--feature-service", "-f", help="Specify a feature service name",
 )
 @click.option(
     "--reference", "-r", help="Specify a validation reference name",
 )
 @click.option(
-    "--store-profile-cache", is_flag=True, help="Store cached profile in registry",
+    "--no-profile-cache", is_flag=True, help="Do not store cached profile in registry",
 )
 @click.argument("start_ts")
 @click.argument("end_ts")
@@ -777,7 +778,7 @@ def validate(
     reference: str,
     start_ts: str,
     end_ts: str,
-    store_profile_cache,
+    no_profile_cache,
 ):
     """
     Perform validation of logged features (produced by a given feature service) against provided reference.
@@ -797,14 +798,11 @@ def validate(
         start=datetime.fromisoformat(start_ts),
         end=datetime.fromisoformat(end_ts),
         throw_exception=False,
+        cache_profile=not no_profile_cache,
     )
 
     if not result:
         print(f"{Style.BRIGHT + Fore.GREEN}Validation successful!{Style.RESET_ALL}")
-
-        if store_profile_cache:
-            store.apply(reference)
-
         return
 
     errors = [e.to_dict() for e in result.report.errors]

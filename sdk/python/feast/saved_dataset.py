@@ -208,7 +208,9 @@ class SavedDataset:
         return self._retrieval_job.to_arrow()
 
     def as_reference(self, name: str, profiler: "Profiler") -> "ValidationReference":
-        return ValidationReference(name=name, profiler=profiler, reference_dataset=self)
+        return ValidationReference.from_saved_dataset(
+            name=name, profiler=profiler, dataset=self
+        )
 
     def get_profile(self, profiler: Profiler) -> Profile:
         return profiler.analyze_dataset(self.to_df())
@@ -216,52 +218,70 @@ class SavedDataset:
 
 class ValidationReference:
     name: str
-    reference_dataset: SavedDataset
+    dataset_name: str
     profiler: Profiler
 
-    _cached_profile: Optional[Profile] = None
+    _profile: Optional[Profile] = None
+    _dataset: Optional[SavedDataset] = None
 
-    def __init__(self, name: str, reference_dataset: SavedDataset, profiler: Profiler):
+    def __init__(self, name: str, dataset_name: str, profiler: Profiler):
         self.name = name
-        self.reference_dataset = reference_dataset
+        self.dataset_name = dataset_name
         self.profiler = profiler
+
+    @classmethod
+    def from_saved_dataset(cls, name: str, dataset: SavedDataset, profiler: Profiler):
+        ref = ValidationReference(name, dataset.name, profiler)
+        ref._dataset = dataset
+        return ref
 
     @property
     def profile(self) -> Profile:
-        if not self._cached_profile:
-            self._cached_profile = self.profiler.analyze_dataset(
-                self.reference_dataset.to_df()
-            )
-        return self._cached_profile
+        if not self._profile:
+            if not self._dataset:
+                raise RuntimeError(
+                    "In order to calculate a profile validation reference must be instantiated from a saved dataset. "
+                    "Use ValidationReference.from_saved_dataset constructor or FeatureStore.get_validation_reference "
+                    "to get validation reference object."
+                )
+
+            self._profile = self.profiler.analyze_dataset(self._dataset.to_df())
+        return self._profile
 
     @classmethod
-    def from_proto(
-        cls, proto: ValidationReferenceProto, saved_datasets: List[SavedDatasetProto]
-    ) -> "ValidationReference":
-        profiler = GEProfiler.from_proto(proto.ge_profiler)
-        saved_dataset_proto = [
-            sd for sd in saved_datasets if sd.spec.name == proto.reference_dataset_name
-        ][0]
-        self = ValidationReference(
+    def from_proto(cls, proto: ValidationReferenceProto) -> "ValidationReference":
+        profiler_attr = proto.WhichOneof("profiler")
+        if profiler_attr == "ge_profiler":
+            profiler = GEProfiler.from_proto(proto.ge_profiler)
+        else:
+            raise RuntimeError("Unrecognized profiler")
+
+        profile_attr = proto.WhichOneof("cached_profile")
+        if profile_attr == "ge_profile":
+            profile = GEProfile.from_proto(proto.ge_profile)
+        elif not profile_attr:
+            profile = None
+        else:
+            raise RuntimeError("Unrecognized profile")
+
+        ref = ValidationReference(
             name=proto.name,
-            reference_dataset=SavedDataset.from_proto(saved_dataset_proto),
+            dataset_name=proto.reference_dataset_name,
             profiler=profiler,
         )
+        ref._profile = profile
 
-        if proto.ge_profile:
-            self._cached_profile = GEProfile.from_proto(proto.ge_profile)
-
-        return self
+        return ref
 
     def to_proto(self) -> ValidationReferenceProto:
         proto = ValidationReferenceProto(
             name=self.name,
-            reference_dataset_name=self.reference_dataset.name,
+            reference_dataset_name=self.dataset_name,
             ge_profiler=self.profiler.to_proto()
             if isinstance(self.profiler, GEProfiler)
             else None,
-            ge_profile=self._cached_profile.to_proto()
-            if isinstance(self._cached_profile, GEProfile)
+            ge_profile=self._profile.to_proto()
+            if isinstance(self._profile, GEProfile)
             else None,
         )
 

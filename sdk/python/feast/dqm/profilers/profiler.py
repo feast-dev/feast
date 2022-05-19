@@ -69,6 +69,7 @@ class ValidationError:
 
     missing_count: Optional[int]
     missing_percent: Optional[float]
+    observed_value: Optional[float]
 
     def __init__(
         self,
@@ -77,12 +78,14 @@ class ValidationError:
         check_config: Optional[Any] = None,
         missing_count: Optional[int] = None,
         missing_percent: Optional[float] = None,
+        observed_value: Optional[float] = None,
     ):
         self.check_name = check_name
         self.column_name = column_name
         self.check_config = check_config
         self.missing_count = missing_count
         self.missing_percent = missing_percent
+        self.observed_value = observed_value
 
     def __repr__(self):
         return f"<ValidationError {self.check_name}:{self.column_name}>"
@@ -94,4 +97,5 @@ class ValidationError:
             check_config=self.check_config,
             missing_count=self.missing_count,
             missing_percent=self.missing_percent,
+            observed_value=self.observed_value,
         )

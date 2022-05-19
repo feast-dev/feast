@@ -2054,6 +2054,7 @@ class FeatureStore:
     def _teardown_go_server(self):
         self._go_server = None
 
+    @log_exceptions_and_usage
     def write_logged_features(
         self, logs: Union[pa.Table, Path], source: Union[FeatureService]
     ):
@@ -2081,6 +2082,7 @@ class FeatureStore:
             registry=self._registry,
         )
 
+    @log_exceptions_and_usage
     def validate_logged_features(
         self,
         source: Union[FeatureService],
@@ -2088,6 +2090,7 @@ class FeatureStore:
         end: datetime,
         reference: ValidationReference,
         throw_exception: bool = True,
+        cache_profile: bool = True,
     ) -> Optional[ValidationFailed]:
         """
         Load logged features from an offline store and validate them against provided validation reference.
@@ -2098,6 +2101,7 @@ class FeatureStore:
             end:  upper bound for loading logged features
             reference: validation reference
             throw_exception: throw exception or return it as a result
+            cache_profile: store cached profile in Feast registry
 
         Returns:
             Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
@@ -2131,8 +2135,12 @@ class FeatureStore:
 
             return exc
 
+        if cache_profile:
+            self.apply(reference)
+
         return None
 
+    @log_exceptions_and_usage
     def get_validation_reference(
         self, name: str, allow_cache: bool = False
     ) -> ValidationReference:
@@ -2142,9 +2150,11 @@ class FeatureStore:
             Raises:
                 ValidationReferenceNotFoundException: The validation reference could not be found.
         """
-        return self._registry.get_validation_reference(
+        ref = self._registry.get_validation_reference(
             name, project=self.project, allow_cache=allow_cache
         )
+        ref._dataset = self.get_saved_dataset(ref.dataset_name)
+        return ref
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

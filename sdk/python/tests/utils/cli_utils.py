@@ -33,7 +33,9 @@ class CliRunner:
     """
 
     def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, cli.__file__] + args, cwd=cwd)
+        return subprocess.run(
+            [sys.executable, cli.__file__] + args, cwd=cwd, capture_output=True
+        )
 
     def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
         try:

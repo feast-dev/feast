@@ -29,8 +29,13 @@ def prepare_logs(
 
     for projection in feature_service.feature_view_projections:
         for feature in projection.features:
-            logs_df[f"{projection.name_to_use()}__{feature.name}"] = source_df[
+            source_field = (
                 feature.name
+                if feature.name in source_df.columns
+                else f"{projection.name_to_use()}__{feature.name}"
+            )
+            logs_df[f"{projection.name_to_use()}__{feature.name}"] = source_df[
+                source_field
             ]
             logs_df[
                 f"{projection.name_to_use()}__{feature.name}__timestamp"

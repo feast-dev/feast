@@ -924,9 +924,7 @@ class Registry:
                 validation_reference.name == name
                 and validation_reference.project == project
             ):
-                return ValidationReference.from_proto(
-                    validation_reference, list(registry_proto.saved_datasets)
-                )
+                return ValidationReference.from_proto(validation_reference)
         raise ValidationReferenceNotFound(name, project=project)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
