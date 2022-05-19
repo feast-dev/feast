@@ -29,7 +29,18 @@ def prepare_logs(
     logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for projection in feature_service.feature_view_projections:
-        feature_view = store.get_feature_view(projection.name)
+        try:
+            view = store.get_feature_view(projection.name)
+        except FeatureViewNotFoundException:
+            view = store.get_on_demand_feature_view(projection.name)
+            for source in view.source_request_sources.values():
+                for field in source.schema:
+                    logs_df[field.name] = source_df[field.name]
+        else:
+            for entity_name in view.entities:
+                entity = store.get_entity(entity_name)
+                logs_df[entity.join_key] = source_df[entity.join_key]
+
         for feature in projection.features:
             source_field = (
                 feature.name
@@ -42,26 +53,14 @@ def prepare_logs(
                 "event_timestamp"
             ].dt.floor("s")
             logs_df[f"{destination_field}__status"] = FieldStatus.PRESENT
-            if feature_view.ttl:
+            if view.ttl:
                 logs_df[f"{destination_field}__status"] = logs_df[
                     f"{destination_field}__status"
                 ].mask(
                     source_df["event_timestamp"]
-                    < (make_tzaware(datetime.datetime.utcnow()) - feature_view.ttl),
+                    < (make_tzaware(datetime.datetime.utcnow()) - view.ttl),
                     FieldStatus.OUTSIDE_MAX_AGE,
                 )
-
-        try:
-            view = store.get_feature_view(projection.name)
-        except FeatureViewNotFoundException:
-            view = store.get_on_demand_feature_view(projection.name)
-            for source in view.source_request_sources.values():
-                for field in source.schema:
-                    logs_df[field.name] = source_df[field.name]
-        else:
-            for entity_name in view.entities:
-                entity = store.get_entity(entity_name)
-                logs_df[entity.join_key] = source_df[entity.join_key]
 
     return logs_df
 

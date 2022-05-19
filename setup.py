@@ -64,6 +64,7 @@ REQUIRED = [
     "proto-plus<1.19.7",
     "pyarrow>=4,<7",
     "pydantic>=1,<2",
+    "pygments==2.12.0",
     "PyYAML>=5.4.*,<7",
     "tabulate==0.8.*",
     "tenacity>=7,<9",

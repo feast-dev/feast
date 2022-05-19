@@ -491,6 +491,7 @@ pyflakes==2.4.0
     # via flake8
 pygments==2.12.0
     # via
+    #   feast (setup.py)
     #   ipython
     #   sphinx
 pyjwt[crypto]==2.4.0
