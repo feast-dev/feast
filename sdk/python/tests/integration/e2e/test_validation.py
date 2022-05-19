@@ -1,6 +1,5 @@
 import datetime
 import shutil
-from pathlib import Path
 
 import pandas as pd
 import pyarrow as pa
@@ -131,7 +130,7 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
     saved_dataset = store.get_saved_dataset("my_training_dataset")
 
     # If validation pass there will be no exceptions on this point
-    reference = saved_dataset.as_reference(profiler=configurable_profiler)
+    reference = saved_dataset.as_reference(name="ref", profiler=configurable_profiler)
     job.to_df(validation_reference=reference)
 
 
@@ -164,7 +163,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         job.to_df(
             validation_reference=store.get_saved_dataset(
                 "my_other_dataset"
-            ).as_reference(profiler=profiler_with_unrealistic_expectations)
+            ).as_reference(name="ref", profiler=profiler_with_unrealistic_expectations)
         )
 
     failed_expectations = exc_info.value.report.errors
@@ -178,6 +177,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
 
 
 @pytest.mark.integration
+@pytest.mark.universal_offline_stores
 def test_logged_features_validation(environment, universal_data_sources):
     store = environment.feature_store
 
@@ -247,7 +247,7 @@ def test_logged_features_validation(environment, universal_data_sources):
                 start=logs_df[LOG_TIMESTAMP_FIELD].min(),
                 end=logs_df[LOG_TIMESTAMP_FIELD].max() + datetime.timedelta(seconds=1),
                 reference=reference_dataset.as_reference(
-                    profiler=profiler_with_feature_metadata
+                    name="ref", profiler=profiler_with_feature_metadata
                 ),
             )
         except ValidationFailed:
