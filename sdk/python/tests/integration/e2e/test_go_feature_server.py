@@ -99,7 +99,10 @@ def server_port(environment, server_type: str):
     )
 
     yield port
-    embedded.stop_server()
+    if server_type == "grpc":
+        embedded.stop_grpc_server()
+    else:
+        embedded.stop_http_server()
     # wait for graceful stop
     time.sleep(2)
 

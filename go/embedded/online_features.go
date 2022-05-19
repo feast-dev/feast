@@ -29,8 +29,9 @@ import (
 )
 
 type OnlineFeatureService struct {
-	fs           *feast.FeatureStore
-	serverStopCh chan os.Signal
+	fs         *feast.FeatureStore
+	grpcStopCh chan os.Signal
+	httpStopCh chan os.Signal
 }
 
 type OnlineFeatureServiceConfig struct {
@@ -63,11 +64,13 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 		log.Fatalln(err)
 	}
 
-	// Notify this channel when receiving interrupt or termination signals from OS
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	// Notify these channels when receiving interrupt or termination signals from OS
+	httpStopCh := make(chan os.Signal, 1)
+	grpcStopCh := make(chan os.Signal, 1)
+	signal.Notify(httpStopCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(grpcStopCh, syscall.SIGINT, syscall.SIGTERM)
 
-	return &OnlineFeatureService{fs: fs, serverStopCh: c}
+	return &OnlineFeatureService{fs: fs, httpStopCh: httpStopCh, grpcStopCh: grpcStopCh}
 }
 
 func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
@@ -279,7 +282,7 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-s.serverStopCh
+		<-s.grpcStopCh
 		fmt.Println("Stopping the gRPC server...")
 		grpcServer.GracefulStop()
 		if loggingService != nil {
@@ -324,7 +327,7 @@ func (s *OnlineFeatureService) StartHttpServerWithLogging(host string, port int,
 
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-s.serverStopCh
+		<-s.httpStopCh
 		fmt.Println("Stopping the HTTP server...")
 		err := ser.Stop()
 		if err != nil {
@@ -335,8 +338,12 @@ func (s *OnlineFeatureService) StartHttpServerWithLogging(host string, port int,
 	return ser.Serve(host, port)
 }
 
-func (s *OnlineFeatureService) Stop() {
-	s.serverStopCh <- syscall.SIGINT
+func (s *OnlineFeatureService) StopHttpServer() {
+	s.httpStopCh <- syscall.SIGINT
+}
+
+func (s *OnlineFeatureService) StopGrpcServer() {
+	s.grpcStopCh <- syscall.SIGINT
 }
 
 /*

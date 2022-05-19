@@ -177,8 +177,11 @@ class EmbeddedOnlineFeatureServer:
         else:
             self._service.StartHttpServer(host, port)
 
-    def stop_server(self):
-        self._service.Stop()
+    def stop_grpc_server(self):
+        self._service.StopGrpcServer()
+
+    def stop_http_server(self):
+        self._service.StopHttpServer()
 
 
 def _to_arrow(value, type_hint: Optional[ValueType]) -> pa.Array:
