@@ -12,6 +12,7 @@ Subpackages
    feast.infra
    feast.loaders
    feast.protos
+   feast.ui
 
 Submodules
 ----------
@@ -100,6 +101,14 @@ feast.feature module
 --------------------
 
 .. automodule:: feast.feature
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.feature\_logging module
+-----------------------------
+
+.. automodule:: feast.feature_logging
    :members:
    :undoc-members:
    :show-inheritance:
@@ -300,6 +309,14 @@ feast.types module
 ------------------
 
 .. automodule:: feast.types
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.ui\_server module
+-----------------------
+
+.. automodule:: feast.ui_server
    :members:
    :undoc-members:
    :show-inheritance:

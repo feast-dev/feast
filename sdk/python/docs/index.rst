@@ -21,8 +21,21 @@ Data Source
 ==================
 
 .. automodule:: feast.data_source
+    :inherited-members:
     :members:
-    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource
+    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource, RequestSource, RequestDataSource
+
+Request Source
+------------------
+
+.. automodule:: feast.data_source
+    :members: RequestSource
+
+Push Source
+------------------
+
+.. automodule:: feast.data_source
+    :members: PushSource
 
 BigQuery Source
 ------------------
@@ -120,6 +133,13 @@ Registry Store
     :inherited-members:
     :members:
     :exclude-members: NoopRegistryStore
+
+PostgreSQL Registry Store
+-----------------------
+
+.. automodule:: feast.infra.registry_stores.contrib.postgres.registry_store
+    :members:
+    :noindex:
 
 
 Provider
@@ -241,5 +261,12 @@ PostgreSQL Online Store
 -----------------------
 
 .. automodule:: feast.infra.online_stores.contrib.postgres
+    :members:
+    :noindex:
+
+HBase Online Store
+-----------------------
+
+.. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
     :members:
     :noindex:

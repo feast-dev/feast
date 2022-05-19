@@ -9,6 +9,7 @@ Subpackages
 
    feast.infra.offline_stores.contrib.trino_offline_store.connectors
    feast.infra.offline_stores.contrib.trino_offline_store.test_config
+   feast.infra.offline_stores.contrib.trino_offline_store.tests
 
 Submodules
 ----------

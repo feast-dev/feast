@@ -1,6 +1,14 @@
 feast.infra.offline\_stores.contrib.postgres\_offline\_store package
 ====================================================================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.offline_stores.contrib.postgres_offline_store.tests
+
 Submodules
 ----------
 
