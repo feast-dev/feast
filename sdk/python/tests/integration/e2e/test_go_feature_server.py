@@ -103,8 +103,9 @@ def server_port(environment, server_type: str):
         embedded.stop_grpc_server()
     else:
         embedded.stop_http_server()
+
     # wait for graceful stop
-    time.sleep(2)
+    time.sleep(5)
 
 
 @pytest.fixture

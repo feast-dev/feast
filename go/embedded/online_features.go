@@ -269,12 +269,12 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
 		<-s.grpcStopCh
-		fmt.Println("Stopping the gRPC server...")
+		log.Println("Stopping the gRPC server...")
 		grpcServer.GracefulStop()
 		if loggingService != nil {
 			loggingService.Stop()
 		}
-		fmt.Println("gRPC server terminated")
+		log.Println("gRPC server terminated")
 	}()
 
 	err = grpcServer.Serve(lis)
@@ -314,11 +314,15 @@ func (s *OnlineFeatureService) StartHttpServerWithLogging(host string, port int,
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
 		<-s.httpStopCh
-		fmt.Println("Stopping the HTTP server...")
+		log.Println("Stopping the HTTP server...")
 		err := ser.Stop()
 		if err != nil {
-			fmt.Printf("Error when stopping the HTTP server: %v\n", err)
+			log.Printf("Error when stopping the HTTP server: %v\n", err)
 		}
+		if loggingService != nil {
+			loggingService.Stop()
+		}
+		log.Println("HTTP server terminated")
 	}()
 
 	return ser.Serve(host, port)

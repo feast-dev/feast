@@ -9,11 +9,10 @@ import numpy as np
 import pandas as pd
 import pyarrow
 
-from feast import FeatureService, FeatureStore
+from feast import FeatureService, FeatureStore, FeatureView
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_ID_FIELD
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
-from feast.utils import make_tzaware
 
 
 def prepare_logs(
@@ -52,13 +51,17 @@ def prepare_logs(
             logs_df[f"{destination_field}__timestamp"] = source_df[
                 "event_timestamp"
             ].dt.floor("s")
+            if logs_df[f"{destination_field}__timestamp"].dt.tz:
+                logs_df[f"{destination_field}__timestamp"] = logs_df[
+                    f"{destination_field}__timestamp"
+                ].dt.tz_convert(None)
             logs_df[f"{destination_field}__status"] = FieldStatus.PRESENT
-            if view.ttl:
+            if isinstance(view, FeatureView) and view.ttl:
                 logs_df[f"{destination_field}__status"] = logs_df[
                     f"{destination_field}__status"
                 ].mask(
-                    source_df["event_timestamp"]
-                    < (make_tzaware(datetime.datetime.utcnow()) - view.ttl),
+                    logs_df[f"{destination_field}__timestamp"]
+                    < (datetime.datetime.utcnow() - view.ttl),
                     FieldStatus.OUTSIDE_MAX_AGE,
                 )
 
