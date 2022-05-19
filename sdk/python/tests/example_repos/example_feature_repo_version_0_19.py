@@ -2,7 +2,8 @@ from datetime import timedelta
 
 import pandas as pd
 
-from feast import Entity, Feature, FeatureView, FileSource, RequestSource, ValueType
+from feast import Entity, Feature, FeatureView, FileSource, ValueType
+from feast.data_source import RequestDataSource
 from feast.on_demand_feature_view import on_demand_feature_view
 
 driver_hourly_stats = FileSource(
@@ -55,7 +56,7 @@ global_stats_feature_view = FeatureView(
 )
 
 
-request_source = RequestSource(
+request_source = RequestDataSource(
     name="conv_rate_input", schema={"val_to_add": ValueType.INT64},
 )
 
