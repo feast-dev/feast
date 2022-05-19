@@ -90,7 +90,17 @@ func TestLogAndFlushToFile(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Nil(t, logger.Log(
-		map[string][]*types.Value{"driver_id": {{Val: &types.Value_Int32Val{Int32Val: 111}}}},
+		map[string]*types.RepeatedValue{
+			"driver_id": {
+				Val: []*types.Value{
+					{
+						Val: &types.Value_Int32Val{
+							Int32Val: 111,
+						},
+					},
+				},
+			},
+		},
 		[]*serving.GetOnlineFeaturesResponse_FeatureVector{
 			{
 				Values:          []*types.Value{{Val: &types.Value_DoubleVal{DoubleVal: 2.0}}},

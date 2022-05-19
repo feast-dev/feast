@@ -31,6 +31,7 @@ import (
 type OnlineFeatureService struct {
 	fs         *feast.FeatureStore
 	grpcStopCh chan os.Signal
+	httpStopCh chan os.Signal
 }
 
 type OnlineFeatureServiceConfig struct {
@@ -63,11 +64,13 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 		log.Fatalln(err)
 	}
 
-	// Notify this channel when receiving interrupt or termination signals from OS
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	// Notify these channels when receiving interrupt or termination signals from OS
+	httpStopCh := make(chan os.Signal, 1)
+	grpcStopCh := make(chan os.Signal, 1)
+	signal.Notify(httpStopCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(grpcStopCh, syscall.SIGINT, syscall.SIGTERM)
 
-	return &OnlineFeatureService{fs: fs, grpcStopCh: c}
+	return &OnlineFeatureService{fs: fs, httpStopCh: httpStopCh, grpcStopCh: grpcStopCh}
 }
 
 func (s *OnlineFeatureService) GetEntityTypesMap(featureRefs []string) (map[string]int32, error) {
@@ -225,15 +228,12 @@ func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string
 	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
 }
 
-// StartGprcServerWithLogging starts gRPC server with enabled feature logging
-// Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
-func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) (*logging.LoggingService, error) {
 	var loggingService *logging.LoggingService = nil
-	var err error
 	if writeLoggedFeaturesCallback != nil {
 		sink, err := logging.NewOfflineStoreSink(writeLoggedFeaturesCallback)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		loggingService, err = logging.NewLoggingService(s.fs, sink, logging.LoggingOptions{
@@ -243,8 +243,18 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 			FlushInterval:   loggingOpts.FlushInterval,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
+	}
+	return loggingService, nil
+}
+
+// StartGprcServerWithLogging starts gRPC server with enabled feature logging
+// Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
+func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
+	if err != nil {
+		return err
 	}
 	ser := server.NewGrpcServingServiceServer(s.fs, loggingService)
 	log.Printf("Starting a gRPC server on host %s port %d\n", host, port)
@@ -274,7 +284,51 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 	return nil
 }
 
-func (s *OnlineFeatureService) Stop() {
+// StartHttpServer starts HTTP server with disabled feature logging and blocks the thread
+func (s *OnlineFeatureService) StartHttpServer(host string, port int) error {
+	return s.StartHttpServerWithLogging(host, port, nil, LoggingOptions{})
+}
+
+// StartHttpServerWithLoggingDefaultOpts starts HTTP server with enabled feature logging but default configuration for logging
+// Caller of this function must provide Python callback to flush buffered logs
+func (s *OnlineFeatureService) StartHttpServerWithLoggingDefaultOpts(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback) error {
+	defaultOpts := LoggingOptions{
+		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
+		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
+		WriteInterval:   logging.DefaultOptions.WriteInterval,
+		FlushInterval:   logging.DefaultOptions.FlushInterval,
+	}
+	return s.StartHttpServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
+}
+
+// StartHttpServerWithLogging starts HTTP server with enabled feature logging
+// Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
+func (s *OnlineFeatureService) StartHttpServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
+	if err != nil {
+		return err
+	}
+	ser := server.NewHttpServer(s.fs, loggingService)
+	log.Printf("Starting a HTTP server on host %s port %d\n", host, port)
+
+	go func() {
+		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
+		<-s.httpStopCh
+		fmt.Println("Stopping the HTTP server...")
+		err := ser.Stop()
+		if err != nil {
+			fmt.Printf("Error when stopping the HTTP server: %v\n", err)
+		}
+	}()
+
+	return ser.Serve(host, port)
+}
+
+func (s *OnlineFeatureService) StopHttpServer() {
+	s.httpStopCh <- syscall.SIGINT
+}
+
+func (s *OnlineFeatureService) StopGrpcServer() {
 	s.grpcStopCh <- syscall.SIGINT
 }
 

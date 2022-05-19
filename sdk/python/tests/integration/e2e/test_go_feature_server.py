@@ -9,6 +9,7 @@ import grpc
 import pandas as pd
 import pytest
 import pytz
+import requests
 
 from feast import FeatureService, FeatureView, ValueType
 from feast.embedded_go.lib.embedded import LoggingOptions
@@ -61,8 +62,7 @@ def initialized_registry(environment, universal_data_sources):
     fs.materialize(environment.start_date, environment.end_date)
 
 
-@pytest.fixture
-def grpc_server_port(environment, initialized_registry):
+def server_port(environment, server_type: str):
     if not environment.test_repo_config.go_feature_retrieval:
         pytest.skip("Only for Go path")
 
@@ -72,9 +72,15 @@ def grpc_server_port(environment, initialized_registry):
         repo_path=str(fs.repo_path.absolute()), repo_config=fs.config, feature_store=fs,
     )
     port = free_port()
+    if server_type == "grpc":
+        target = embedded.start_grpc_server
+    elif server_type == "http":
+        target = embedded.start_http_server
+    else:
+        raise ValueError("Server Type must be either 'http' or 'grpc'")
 
     t = threading.Thread(
-        target=embedded.start_grpc_server,
+        target=target,
         args=("127.0.0.1", port),
         kwargs=dict(
             enable_logging=True,
@@ -93,9 +99,22 @@ def grpc_server_port(environment, initialized_registry):
     )
 
     yield port
-    embedded.stop_grpc_server()
+    if server_type == "grpc":
+        embedded.stop_grpc_server()
+    else:
+        embedded.stop_http_server()
     # wait for graceful stop
     time.sleep(2)
+
+
+@pytest.fixture
+def grpc_server_port(environment, initialized_registry):
+    yield from server_port(environment, "grpc")
+
+
+@pytest.fixture
+def http_server_port(environment, initialized_registry):
+    yield from server_port(environment, "http")
 
 
 @pytest.fixture
@@ -128,6 +147,44 @@ def test_go_grpc_server(grpc_client):
     ]
     for vector in resp.results:
         assert all([s == FieldStatus.PRESENT for s in vector.statuses])
+
+
+@pytest.mark.integration
+@pytest.mark.goserver
+def test_go_http_server(http_server_port):
+    response = requests.post(
+        f"http://localhost:{http_server_port}/get-online-features",
+        json={
+            "feature_service": "driver_features",
+            "entities": {"driver_id": [5001, 5002]},
+            "full_feature_names": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    response = response.json()
+    assert set(response.keys()) == {"metadata", "results"}
+    metadata = response["metadata"]
+    results = response["results"]
+    assert response["metadata"] == {
+        "feature_names": [
+            "driver_id",
+            "driver_stats__conv_rate",
+            "driver_stats__acc_rate",
+            "driver_stats__avg_daily_trips",
+        ]
+    }, metadata
+    assert len(results) == 4, results
+    assert all(
+        set(result.keys()) == {"event_timestamps", "statuses", "values"}
+        for result in results
+    ), results
+    assert all(
+        result["statuses"] == ["PRESENT", "PRESENT"] for result in results
+    ), results
+    assert results[0]["values"] == [5001, 5002], results
+    for result in results[1:]:
+        assert len(result["values"]) == 2, result
+        assert all(value is not None for value in result["values"]), result
 
 
 @pytest.mark.integration
