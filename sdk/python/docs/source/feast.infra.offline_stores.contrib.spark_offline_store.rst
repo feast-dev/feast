@@ -1,6 +1,14 @@
 feast.infra.offline\_stores.contrib.spark\_offline\_store package
 =================================================================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.offline_stores.contrib.spark_offline_store.tests
+
 Submodules
 ----------
 

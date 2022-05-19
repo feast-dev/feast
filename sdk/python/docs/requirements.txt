@@ -1,1 +1,1 @@
--e "./sdk/python/[ci]"
+-e ".[ci]"

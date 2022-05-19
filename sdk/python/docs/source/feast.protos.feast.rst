@@ -10,6 +10,7 @@ Subpackages
    feast.protos.feast.core
    feast.protos.feast.serving
    feast.protos.feast.storage
+   feast.protos.feast.types
 
 Module contents
 ---------------

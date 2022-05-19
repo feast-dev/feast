@@ -243,3 +243,10 @@ PostgreSQL Online Store
 .. automodule:: feast.infra.online_stores.contrib.postgres
     :members:
     :noindex:
+
+HBase Online Store
+-----------------------
+
+.. automodule:: feast.infra.online_stores.contrib.hbase
+    :members:
+    :noindex:
