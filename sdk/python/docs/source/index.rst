@@ -22,7 +22,13 @@ Data Source
 
 .. automodule:: feast.data_source
     :members:
-    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource
+    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource, RequestSource
+
+Request Source
+==================
+
+.. automodule:: feast.data_source
+    :members: RequestSource
 
 Push Source
 ==================
