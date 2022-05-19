@@ -13,6 +13,7 @@ from feast import FeatureService, FeatureStore
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_ID_FIELD
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
+from feast.utils import make_tzaware
 
 
 def prepare_logs(
@@ -28,21 +29,27 @@ def prepare_logs(
     logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for projection in feature_service.feature_view_projections:
+        feature_view = store.get_feature_view(projection.name)
         for feature in projection.features:
             source_field = (
                 feature.name
                 if feature.name in source_df.columns
                 else f"{projection.name_to_use()}__{feature.name}"
             )
-            logs_df[f"{projection.name_to_use()}__{feature.name}"] = source_df[
-                source_field
-            ]
-            logs_df[
-                f"{projection.name_to_use()}__{feature.name}__timestamp"
-            ] = source_df["event_timestamp"].dt.floor("s")
-            logs_df[
-                f"{projection.name_to_use()}__{feature.name}__status"
-            ] = FieldStatus.PRESENT
+            destination_field = f"{projection.name_to_use()}__{feature.name}"
+            logs_df[destination_field] = source_df[source_field]
+            logs_df[f"{destination_field}__timestamp"] = source_df[
+                "event_timestamp"
+            ].dt.floor("s")
+            logs_df[f"{destination_field}__status"] = FieldStatus.PRESENT
+            if feature_view.ttl:
+                logs_df[f"{destination_field}__status"] = logs_df[
+                    f"{destination_field}__status"
+                ].mask(
+                    source_df["event_timestamp"]
+                    < (make_tzaware(datetime.datetime.utcnow()) - feature_view.ttl),
+                    FieldStatus.OUTSIDE_MAX_AGE,
+                )
 
         try:
             view = store.get_feature_view(projection.name)

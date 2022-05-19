@@ -7,7 +7,6 @@ import pyarrow
 from google.protobuf.json_format import MessageToJson
 
 from feast.data_source import DataSource
-from feast.dqm.profilers.ge_profiler import GEProfile, GEProfiler
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
@@ -252,12 +251,16 @@ class ValidationReference:
     def from_proto(cls, proto: ValidationReferenceProto) -> "ValidationReference":
         profiler_attr = proto.WhichOneof("profiler")
         if profiler_attr == "ge_profiler":
+            from feast.dqm.profilers.ge_profiler import GEProfiler
+
             profiler = GEProfiler.from_proto(proto.ge_profiler)
         else:
             raise RuntimeError("Unrecognized profiler")
 
         profile_attr = proto.WhichOneof("cached_profile")
         if profile_attr == "ge_profile":
+            from feast.dqm.profilers.ge_profiler import GEProfile
+
             profile = GEProfile.from_proto(proto.ge_profile)
         elif not profile_attr:
             profile = None
@@ -274,6 +277,8 @@ class ValidationReference:
         return ref
 
     def to_proto(self) -> ValidationReferenceProto:
+        from feast.dqm.profilers.ge_profiler import GEProfile, GEProfiler
+
         proto = ValidationReferenceProto(
             name=self.name,
             reference_dataset_name=self.dataset_name,
