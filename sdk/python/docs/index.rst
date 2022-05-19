@@ -247,6 +247,6 @@ PostgreSQL Online Store
 HBase Online Store
 -----------------------
 
-.. automodule:: feast.infra.online_stores.contrib.hbase_online_store
+.. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
     :members:
     :noindex:
