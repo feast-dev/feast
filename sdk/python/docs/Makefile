@@ -3,7 +3,7 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    	=
-SPHINXBUILD   	= sphinx-build
+SPHINXBUILD   	= python -m sphinx
 SPHINXPROJ    	= Feast
 SOURCEDIR     	= source
 BUILDDIR      	= build
@@ -23,7 +23,7 @@ build-api-source:
 	cp conf.py index.rst source/
 
 html: clean-html build-api-source
-	sphinx-build -b html source html
+	python -m sphinx -b html source html
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
