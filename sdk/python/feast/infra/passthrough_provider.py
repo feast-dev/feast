@@ -278,6 +278,6 @@ class PassthroughProvider(Provider):
             join_key_columns=[],
             feature_name_columns=columns,
             timestamp_field=ts_column,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=make_tzaware(start_date),
+            end_date=make_tzaware(end_date),
         )

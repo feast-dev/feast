@@ -57,6 +57,14 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "goserver: mark tests that use the go feature server"
     )
+    config.addinivalue_line(
+        "markers",
+        "universal_online_stores: mark tests that can be run against different online stores",
+    )
+    config.addinivalue_line(
+        "markers",
+        "universal_offline_stores: mark tests that can be run against different offline stores",
+    )
 
 
 def pytest_addoption(parser):

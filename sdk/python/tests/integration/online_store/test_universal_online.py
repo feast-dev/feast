@@ -325,7 +325,6 @@ def get_online_features_dict(
 
 
 @pytest.mark.integration
-@pytest.mark.universal
 def test_online_retrieval_with_shared_batch_source(environment, universal_data_sources):
     # Addresses https://github.com/feast-dev/feast/issues/2576
 

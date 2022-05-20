@@ -94,6 +94,13 @@ class SavedDatasetNotFound(FeastObjectNotFoundException):
         super().__init__(f"Saved dataset {name} does not exist in project {project}")
 
 
+class ValidationReferenceNotFound(FeastObjectNotFoundException):
+    def __init__(self, name: str, project: str):
+        super().__init__(
+            f"Validation reference {name} does not exist in project {project}"
+        )
+
+
 class FeastProviderLoginError(Exception):
     """Error class that indicates a user has not authenticated with their provider."""
 

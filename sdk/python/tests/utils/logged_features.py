@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 
-from feast import FeatureService, FeatureStore
+from feast import FeatureService, FeatureStore, FeatureView
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_ID_FIELD
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
@@ -28,17 +28,6 @@ def prepare_logs(
     logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for projection in feature_service.feature_view_projections:
-        for feature in projection.features:
-            logs_df[f"{projection.name_to_use()}__{feature.name}"] = source_df[
-                feature.name
-            ]
-            logs_df[
-                f"{projection.name_to_use()}__{feature.name}__timestamp"
-            ] = source_df["event_timestamp"].dt.floor("s")
-            logs_df[
-                f"{projection.name_to_use()}__{feature.name}__status"
-            ] = FieldStatus.PRESENT
-
         try:
             view = store.get_feature_view(projection.name)
         except FeatureViewNotFoundException:
@@ -50,6 +39,31 @@ def prepare_logs(
             for entity_name in view.entities:
                 entity = store.get_entity(entity_name)
                 logs_df[entity.join_key] = source_df[entity.join_key]
+
+        for feature in projection.features:
+            source_field = (
+                feature.name
+                if feature.name in source_df.columns
+                else f"{projection.name_to_use()}__{feature.name}"
+            )
+            destination_field = f"{projection.name_to_use()}__{feature.name}"
+            logs_df[destination_field] = source_df[source_field]
+            logs_df[f"{destination_field}__timestamp"] = source_df[
+                "event_timestamp"
+            ].dt.floor("s")
+            if logs_df[f"{destination_field}__timestamp"].dt.tz:
+                logs_df[f"{destination_field}__timestamp"] = logs_df[
+                    f"{destination_field}__timestamp"
+                ].dt.tz_convert(None)
+            logs_df[f"{destination_field}__status"] = FieldStatus.PRESENT
+            if isinstance(view, FeatureView) and view.ttl:
+                logs_df[f"{destination_field}__status"] = logs_df[
+                    f"{destination_field}__status"
+                ].mask(
+                    logs_df[f"{destination_field}__timestamp"]
+                    < (datetime.datetime.utcnow() - view.ttl),
+                    FieldStatus.OUTSIDE_MAX_AGE,
+                )
 
     return logs_df
 

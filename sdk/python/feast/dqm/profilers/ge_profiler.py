@@ -1,4 +1,5 @@
 import json
+from types import FunctionType
 from typing import Any, Callable, Dict, List
 
 import dill
@@ -140,9 +141,12 @@ class GEProfiler(Profiler):
         return GEProfile(expectation_suite=self.user_defined_profiler(dataset))
 
     def to_proto(self):
+        # keep only the code and drop context for now
+        # ToDo (pyalex): include some context, but not all (dill tries to pull too much)
+        udp = FunctionType(self.user_defined_profiler.__code__, {})
         return GEValidationProfilerProto(
             profiler=GEValidationProfilerProto.UserDefinedProfiler(
-                body=dill.dumps(self.user_defined_profiler, recurse=True)
+                body=dill.dumps(udp, recurse=False)
             )
         )
 

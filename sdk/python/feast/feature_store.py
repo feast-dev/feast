@@ -608,6 +608,7 @@ class FeatureStore:
             OnDemandFeatureView,
             RequestFeatureView,
             FeatureService,
+            ValidationReference,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -669,6 +670,9 @@ class FeatureStore:
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
         }
+        validation_references_to_update = [
+            ob for ob in objects if isinstance(ob, ValidationReference)
+        ]
 
         for fv in views_to_update:
             data_sources_set_to_update.add(fv.batch_source)
@@ -719,6 +723,10 @@ class FeatureStore:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
             )
+        for validation_references in validation_references_to_update:
+            self._registry.apply_validation_reference(
+                validation_references, project=self.project, commit=False
+            )
 
         if not partial:
             # Delete all registry objects that should not exist.
@@ -739,6 +747,9 @@ class FeatureStore:
             ]
             data_sources_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, DataSource)
+            ]
+            validation_references_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
             ]
 
             for data_source in data_sources_to_delete:
@@ -764,6 +775,10 @@ class FeatureStore:
             for service in services_to_delete:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
+                )
+            for validation_references in validation_references_to_delete:
+                self._registry.delete_validation_reference(
+                    validation_references.name, project=self.project, commit=False
                 )
 
         self._get_provider().update_infra(
@@ -2039,6 +2054,7 @@ class FeatureStore:
     def _teardown_go_server(self):
         self._go_server = None
 
+    @log_exceptions_and_usage
     def write_logged_features(
         self, logs: Union[pa.Table, Path], source: Union[FeatureService]
     ):
@@ -2066,6 +2082,7 @@ class FeatureStore:
             registry=self._registry,
         )
 
+    @log_exceptions_and_usage
     def validate_logged_features(
         self,
         source: Union[FeatureService],
@@ -2073,6 +2090,7 @@ class FeatureStore:
         end: datetime,
         reference: ValidationReference,
         throw_exception: bool = True,
+        cache_profile: bool = True,
     ) -> Optional[ValidationFailed]:
         """
         Load logged features from an offline store and validate them against provided validation reference.
@@ -2083,6 +2101,7 @@ class FeatureStore:
             end:  upper bound for loading logged features
             reference: validation reference
             throw_exception: throw exception or return it as a result
+            cache_profile: store cached profile in Feast registry
 
         Returns:
             Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
@@ -2116,7 +2135,26 @@ class FeatureStore:
 
             return exc
 
+        if cache_profile:
+            self.apply(reference)
+
         return None
+
+    @log_exceptions_and_usage
+    def get_validation_reference(
+        self, name: str, allow_cache: bool = False
+    ) -> ValidationReference:
+        """
+            Retrieves a validation reference.
+
+            Raises:
+                ValidationReferenceNotFoundException: The validation reference could not be found.
+        """
+        ref = self._registry.get_validation_reference(
+            name, project=self.project, allow_cache=allow_cache
+        )
+        ref._dataset = self.get_saved_dataset(ref.dataset_name)
+        return ref
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

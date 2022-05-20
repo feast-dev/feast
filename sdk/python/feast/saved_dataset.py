@@ -13,6 +13,9 @@ from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedData
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
+from feast.protos.feast.core.ValidationProfile_pb2 import (
+    ValidationReference as ValidationReferenceProto,
+)
 
 if TYPE_CHECKING:
     from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -178,8 +181,8 @@ class SavedDataset:
         if self.feature_service_name:
             spec.feature_service_name = self.feature_service_name
 
-        feature_service_proto = SavedDatasetProto(spec=spec, meta=meta)
-        return feature_service_proto
+        saved_dataset_proto = SavedDatasetProto(spec=spec, meta=meta)
+        return saved_dataset_proto
 
     def with_retrieval_job(self, retrieval_job: "RetrievalJob") -> "SavedDataset":
         self._retrieval_job = retrieval_job
@@ -203,21 +206,123 @@ class SavedDataset:
 
         return self._retrieval_job.to_arrow()
 
-    def as_reference(self, profiler: "Profiler") -> "ValidationReference":
-        return ValidationReference(profiler=profiler, dataset=self)
+    def as_reference(self, name: str, profiler: "Profiler") -> "ValidationReference":
+        return ValidationReference.from_saved_dataset(
+            name=name, profiler=profiler, dataset=self
+        )
 
     def get_profile(self, profiler: Profiler) -> Profile:
         return profiler.analyze_dataset(self.to_df())
 
 
 class ValidationReference:
-    dataset: SavedDataset
+    name: str
+    dataset_name: str
+    description: str
+    tags: Dict[str, str]
     profiler: Profiler
 
-    def __init__(self, dataset: SavedDataset, profiler: Profiler):
-        self.dataset = dataset
+    _profile: Optional[Profile] = None
+    _dataset: Optional[SavedDataset] = None
+
+    def __init__(
+        self,
+        name: str,
+        dataset_name: str,
+        profiler: Profiler,
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+    ):
+        """
+        Validation reference combines a reference dataset (currently only a saved dataset object can be used as
+        a reference) and a profiler function to generate a validation profile.
+        The validation profile can be cached in this object, and in this case
+        the saved dataset retrieval and the profiler call will happen only once.
+
+        Validation reference is being stored in the Feast registry and can be retrieved by its name, which
+        must be unique within one project.
+
+        Args:
+            name: the unique name for validation reference
+            dataset_name: the name of the saved dataset used as a reference
+            description: a human-readable description
+            tags: a dictionary of key-value pairs to store arbitrary metadata
+            profiler: the profiler function used to generate profile from the saved dataset
+        """
+        self.name = name
+        self.dataset_name = dataset_name
         self.profiler = profiler
+        self.description = description
+        self.tags = tags or {}
+
+    @classmethod
+    def from_saved_dataset(cls, name: str, dataset: SavedDataset, profiler: Profiler):
+        """
+        Internal constructor to create validation reference object with actual saved dataset object
+        (regular constructor requires only its name).
+        """
+        ref = ValidationReference(name, dataset.name, profiler)
+        ref._dataset = dataset
+        return ref
 
     @property
     def profile(self) -> Profile:
-        return self.profiler.analyze_dataset(self.dataset.to_df())
+        if not self._profile:
+            if not self._dataset:
+                raise RuntimeError(
+                    "In order to calculate a profile validation reference must be instantiated from a saved dataset. "
+                    "Use ValidationReference.from_saved_dataset constructor or FeatureStore.get_validation_reference "
+                    "to get validation reference object."
+                )
+
+            self._profile = self.profiler.analyze_dataset(self._dataset.to_df())
+        return self._profile
+
+    @classmethod
+    def from_proto(cls, proto: ValidationReferenceProto) -> "ValidationReference":
+        profiler_attr = proto.WhichOneof("profiler")
+        if profiler_attr == "ge_profiler":
+            from feast.dqm.profilers.ge_profiler import GEProfiler
+
+            profiler = GEProfiler.from_proto(proto.ge_profiler)
+        else:
+            raise RuntimeError("Unrecognized profiler")
+
+        profile_attr = proto.WhichOneof("cached_profile")
+        if profile_attr == "ge_profile":
+            from feast.dqm.profilers.ge_profiler import GEProfile
+
+            profile = GEProfile.from_proto(proto.ge_profile)
+        elif not profile_attr:
+            profile = None
+        else:
+            raise RuntimeError("Unrecognized profile")
+
+        ref = ValidationReference(
+            name=proto.name,
+            dataset_name=proto.reference_dataset_name,
+            profiler=profiler,
+            description=proto.description,
+            tags=dict(proto.tags),
+        )
+        ref._profile = profile
+
+        return ref
+
+    def to_proto(self) -> ValidationReferenceProto:
+        from feast.dqm.profilers.ge_profiler import GEProfile, GEProfiler
+
+        proto = ValidationReferenceProto(
+            name=self.name,
+            reference_dataset_name=self.dataset_name,
+            tags=self.tags,
+            description=self.description,
+            ge_profiler=self.profiler.to_proto()
+            if isinstance(self.profiler, GEProfiler)
+            else None,
+            ge_profile=self._profile.to_proto()
+            if isinstance(self._profile, GEProfile)
+            else None,
+        )
+
+        return proto

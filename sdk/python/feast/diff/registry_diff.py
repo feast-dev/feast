@@ -20,6 +20,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
+from feast.protos.feast.core.ValidationProfile_pb2 import (
+    ValidationReference as ValidationReferenceProto,
+)
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_contents import RepoContents
 
@@ -103,6 +106,7 @@ FeastObjectProto = TypeVar(
     FeatureServiceProto,
     OnDemandFeatureViewProto,
     RequestFeatureViewProto,
+    ValidationReferenceProto,
 )
 
 
@@ -120,9 +124,9 @@ def diff_registry_objects(
 
     current_spec: FeastObjectSpecProto
     new_spec: FeastObjectSpecProto
-    if isinstance(current_proto, DataSourceProto) or isinstance(
-        new_proto, DataSourceProto
-    ):
+    if isinstance(
+        current_proto, (DataSourceProto, ValidationReferenceProto)
+    ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
         assert type(current_proto) == type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)
