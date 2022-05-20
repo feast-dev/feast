@@ -23,6 +23,7 @@
   * [Offline store](getting-started/architecture-and-components/offline-store.md)
   * [Online store](getting-started/architecture-and-components/online-store.md)
   * [Provider](getting-started/architecture-and-components/provider.md)
+* [Feast Workshop](getting-started/feast-workshop.md)
 * [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
