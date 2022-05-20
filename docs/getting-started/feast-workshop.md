@@ -1,5 +1,3 @@
-## Workshop: Learning Feast 
-
 This workshop aims to teach users about Feast.
 
 We explain concepts & best practices by example, and also showcase how to address common use cases.
