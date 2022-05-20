@@ -41,6 +41,7 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
+from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
     try:
         level = getattr(logging, log_level.upper())
         logging.basicConfig(
-            format="%(asctime)s %(levelname)s:%(message)s",
+            format="%(asctime)s %(name)s %(levelname)s: %(message)s",
             datefmt="%m/%d/%Y %I:%M:%S %p",
             level=level,
         )
@@ -98,7 +99,6 @@ def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
             if "feast" in logger_name:
                 logger = logging.getLogger(logger_name)
                 logger.setLevel(level)
-
     except Exception as e:
         raise e
     pass
@@ -823,6 +823,26 @@ def validate(
     print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
     print(colorful_json)
     exit(1)
+
+
+@cli.command("repo-upgrade", cls=NoOptionDefaultFormat)
+@click.option(
+    "--write",
+    is_flag=True,
+    default=False,
+    help="Upgrade a feature repo to use the API expected by feast 0.23.",
+)
+@click.pass_context
+def repo_upgrade(ctx: click.Context, write: bool):
+    """
+    Upgrade a feature repo in place.
+    """
+    repo = ctx.obj["CHDIR"]
+    cli_check_repo(repo)
+    try:
+        RepoUpgrader(repo, write).upgrade()
+    except FeastProviderLoginError as e:
+        print(str(e))
 
 
 if __name__ == "__main__":
