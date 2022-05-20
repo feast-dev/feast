@@ -224,12 +224,30 @@ class ValidationReference:
     _dataset: Optional[SavedDataset] = None
 
     def __init__(self, name: str, dataset_name: str, profiler: Profiler):
+        """
+        Validation reference combines a reference dataset (currently only a saved dataset object can be used as
+        a reference) and a profiler function to generate a validation profile.
+        The validation profile can be cached in this object, and in this case
+        the saved dataset retrieval and the profiler call will happen only once.
+
+        Validation reference is being stored in the Feast registry and can be retrieved by its name, which
+        must be unique within one project.
+
+        Args:
+            name: unique name
+            dataset_name: name of a saved dataset
+            profiler: profiler function used to generate profile from a saved dataset
+        """
         self.name = name
         self.dataset_name = dataset_name
         self.profiler = profiler
 
     @classmethod
     def from_saved_dataset(cls, name: str, dataset: SavedDataset, profiler: Profiler):
+        """
+        Internal constructor to create validation reference object with actual saved dataset object
+        (regular constructor requires only its name).
+        """
         ref = ValidationReference(name, dataset.name, profiler)
         ref._dataset = dataset
         return ref
