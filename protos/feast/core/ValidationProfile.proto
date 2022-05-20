@@ -45,14 +45,18 @@ message ValidationReference {
   string reference_dataset_name = 2;
   // Name of Feast project that this object source belongs to
   string project = 3;
+  // Description of the validation reference
+  string description = 4;
+  // User defined metadata
+  map<string,string> tags = 5;
 
   // validation profiler
   oneof profiler {
-    GEValidationProfiler ge_profiler = 4;
+    GEValidationProfiler ge_profiler = 6;
   }
 
   // (optional) cached validation profile (to avoid constant recalculation)
   oneof cached_profile {
-    GEValidationProfile ge_profile = 5;
+    GEValidationProfile ge_profile = 7;
   }
 }

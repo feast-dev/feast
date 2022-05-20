@@ -218,12 +218,21 @@ class SavedDataset:
 class ValidationReference:
     name: str
     dataset_name: str
+    description: str
+    tags: Dict[str, str]
     profiler: Profiler
 
     _profile: Optional[Profile] = None
     _dataset: Optional[SavedDataset] = None
 
-    def __init__(self, name: str, dataset_name: str, profiler: Profiler):
+    def __init__(
+        self,
+        name: str,
+        dataset_name: str,
+        profiler: Profiler,
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+    ):
         """
         Validation reference combines a reference dataset (currently only a saved dataset object can be used as
         a reference) and a profiler function to generate a validation profile.
@@ -234,13 +243,17 @@ class ValidationReference:
         must be unique within one project.
 
         Args:
-            name: unique name
-            dataset_name: name of a saved dataset
-            profiler: profiler function used to generate profile from a saved dataset
+            name: the unique name for validation reference
+            dataset_name: the name of the saved dataset used as a reference
+            description: a human-readable description
+            tags: a dictionary of key-value pairs to store arbitrary metadata
+            profiler: the profiler function used to generate profile from the saved dataset
         """
         self.name = name
         self.dataset_name = dataset_name
         self.profiler = profiler
+        self.description = description
+        self.tags = tags or {}
 
     @classmethod
     def from_saved_dataset(cls, name: str, dataset: SavedDataset, profiler: Profiler):
@@ -289,6 +302,8 @@ class ValidationReference:
             name=proto.name,
             dataset_name=proto.reference_dataset_name,
             profiler=profiler,
+            description=proto.description,
+            tags=dict(proto.tags),
         )
         ref._profile = profile
 
@@ -300,6 +315,8 @@ class ValidationReference:
         proto = ValidationReferenceProto(
             name=self.name,
             reference_dataset_name=self.dataset_name,
+            tags=self.tags,
+            description=self.description,
             ge_profiler=self.profiler.to_proto()
             if isinstance(self.profiler, GEProfiler)
             else None,

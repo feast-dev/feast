@@ -33,7 +33,7 @@ import "feast/core/SavedDataset.proto";
 import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 
-// Next id: 13
+// Next id: 14
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
