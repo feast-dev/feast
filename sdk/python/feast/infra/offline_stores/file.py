@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
@@ -5,6 +6,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow
+import pyarrow.dataset
 import pyarrow.parquet
 import pytz
 from pydantic.typing import Literal
@@ -384,17 +386,22 @@ class FileOfflineStore(OfflineStore):
         assert isinstance(destination, FileLoggingDestination)
 
         if isinstance(data, Path):
-            data = pyarrow.parquet.read_table(data)
+            # Since this code will be mostly used from Go-created thread, it's better to avoid producing new threads
+            data = pyarrow.parquet.read_table(data, use_threads=False, pre_buffer=False)
 
         filesystem, path = FileSource.create_filesystem_and_path(
             destination.path, destination.s3_endpoint_override,
         )
 
-        pyarrow.parquet.write_to_dataset(
+        pyarrow.dataset.write_dataset(
             data,
-            root_path=path,
-            partition_cols=destination.partition_by,
+            base_dir=path,
+            basename_template=f"{uuid.uuid4().hex}-{{i}}.parquet",
+            partitioning=destination.partition_by,
             filesystem=filesystem,
+            use_threads=False,
+            format=pyarrow.dataset.ParquetFileFormat(),
+            existing_data_behavior="overwrite_or_ignore",
         )
 
 

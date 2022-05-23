@@ -34,7 +34,7 @@ func NewFileLogSink(path string) (*FileLogSink, error) {
 	return &FileLogSink{path: absPath}, nil
 }
 
-func (s *FileLogSink) Write(record arrow.Record) error {
+func (s *FileLogSink) Write(records []arrow.Record) error {
 	fileName, _ := uuid.NewUUID()
 
 	var writer io.Writer
@@ -42,7 +42,7 @@ func (s *FileLogSink) Write(record arrow.Record) error {
 	if err != nil {
 		return err
 	}
-	table := array.NewTableFromRecords(record.Schema(), []arrow.Record{record})
+	table := array.NewTableFromRecords(records[0].Schema(), records)
 
 	props := parquet.NewWriterProperties(parquet.WithDictionaryDefault(false))
 	arrProps := pqarrow.DefaultWriterProps()

@@ -24,7 +24,7 @@ import (
 
 type DummySink struct{}
 
-func (s *DummySink) Write(rec arrow.Record) error {
+func (s *DummySink) Write(recs []arrow.Record) error {
 	return nil
 }
 
@@ -42,7 +42,7 @@ func TestLoggingChannelTimeout(t *testing.T) {
 			WriteInterval:   DefaultOptions.WriteInterval,
 		},
 	}
-	logger, err := NewLogger(nil, "testFS", &DummySink{}, config)
+	logger, err := NewLogger(&FeatureServiceSchema{}, "testFS", &DummySink{}, config)
 
 	// stop log processing to check buffering channel
 	logger.Stop()

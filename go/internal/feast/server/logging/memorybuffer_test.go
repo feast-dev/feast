@@ -37,10 +37,6 @@ func TestArrowSchemaGeneration(t *testing.T) {
 		},
 	}
 
-	b := &MemoryBuffer{
-		schema: schema,
-	}
-
 	expectedArrowSchema := []arrow.Field{
 		{Name: "driver_id", Type: arrow.PrimitiveTypes.Int32},
 		{Name: "featureView1__int64", Type: arrow.PrimitiveTypes.Int64},
@@ -60,7 +56,7 @@ func TestArrowSchemaGeneration(t *testing.T) {
 		{Name: "__request_id", Type: arrow.BinaryTypes.String},
 	}
 
-	actualSchema, err := b.getArrowSchema()
+	actualSchema, err := getArrowSchema(schema)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedArrowSchema, actualSchema.Fields())
 }
@@ -84,51 +80,46 @@ func TestSerializeToArrowTable(t *testing.T) {
 	}
 
 	ts := timestamppb.New(time.Now())
-	b := &MemoryBuffer{
-		schema: schema,
-		logs: []*Log{
-			{
-				EntityValue: []*types.Value{
-					{Val: &types.Value_Int64Val{Int64Val: 1001}},
-				},
-				FeatureValues: []*types.Value{
-					{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
-					{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
-				},
-				FeatureStatuses: []serving.FieldStatus{
-					serving.FieldStatus_PRESENT,
-					serving.FieldStatus_OUTSIDE_MAX_AGE,
-				},
-				EventTimestamps: []*timestamppb.Timestamp{
-					ts, ts,
-				},
-				RequestId:    "aaa",
-				LogTimestamp: time.Now(),
-			},
-			{
-				EntityValue: []*types.Value{
-					{Val: &types.Value_Int64Val{Int64Val: 1003}},
-				},
-				FeatureValues: []*types.Value{
-					{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
-					{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
-				},
-				FeatureStatuses: []serving.FieldStatus{
-					serving.FieldStatus_PRESENT,
-					serving.FieldStatus_PRESENT,
-				},
-				EventTimestamps: []*timestamppb.Timestamp{
-					ts, ts,
-				},
-				RequestId:    "bbb",
-				LogTimestamp: time.Now(),
-			},
+	b, _ := NewMemoryBuffer(schema)
+	b.Append(&Log{
+		EntityValue: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1001}},
 		},
-	}
+		FeatureValues: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
+			{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
+		},
+		FeatureStatuses: []serving.FieldStatus{
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_OUTSIDE_MAX_AGE,
+		},
+		EventTimestamps: []*timestamppb.Timestamp{
+			ts, ts,
+		},
+		RequestId:    "aaa",
+		LogTimestamp: time.Now(),
+	})
+	b.Append(&Log{
+		EntityValue: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 1003}},
+		},
+		FeatureValues: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: rand.Int63()}},
+			{Val: &types.Value_FloatVal{FloatVal: rand.Float32()}},
+		},
+		FeatureStatuses: []serving.FieldStatus{
+			serving.FieldStatus_PRESENT,
+			serving.FieldStatus_PRESENT,
+		},
+		EventTimestamps: []*timestamppb.Timestamp{
+			ts, ts,
+		},
+		RequestId:    "bbb",
+		LogTimestamp: time.Now(),
+	})
 
 	pool := memory.NewGoAllocator()
-	arrowSchema, _ := b.getArrowSchema()
-	builder := array.NewRecordBuilder(pool, arrowSchema)
+	builder := array.NewRecordBuilder(pool, b.arrowSchema)
 	defer builder.Release()
 
 	// join key: driver_id

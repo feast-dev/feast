@@ -33,7 +33,7 @@ type LogSink interface {
 	// Write is used to unload logs from memory buffer.
 	// Logs are not guaranteed to be flushed to sink on this point.
 	// The data can just be written to local disk (depending on implementation).
-	Write(data arrow.Record) error
+	Write(data []arrow.Record) error
 
 	// Flush actually send data to a sink.
 	// We want to control amount to interaction with sink, since it could be a costly operation.
@@ -75,6 +75,10 @@ func NewLoggerConfig(sampleRate float32, opts LoggingOptions) LoggerConfig {
 }
 
 func NewLogger(schema *FeatureServiceSchema, featureServiceName string, sink LogSink, config LoggerConfig) (*LoggerImpl, error) {
+	buffer, err := NewMemoryBuffer(schema)
+	if err != nil {
+		return nil, err
+	}
 	logger := &LoggerImpl{
 		featureServiceName: featureServiceName,
 
@@ -82,10 +86,7 @@ func NewLogger(schema *FeatureServiceSchema, featureServiceName string, sink Log
 		signalCh: make(chan interface{}, 2),
 		sink:     sink,
 
-		buffer: &MemoryBuffer{
-			logs:   make([]*Log, 0),
-			schema: schema,
-		},
+		buffer: buffer,
 		schema: schema,
 		config: config,
 
