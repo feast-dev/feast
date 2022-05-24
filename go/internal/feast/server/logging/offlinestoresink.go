@@ -41,15 +41,6 @@ func (s *OfflineStoreSink) getOrCreateDatasetDir() (string, error) {
 	return s.datasetDir, nil
 }
 
-func (s *OfflineStoreSink) cleanCurrentDatasetDir() error {
-	if s.datasetDir == "" {
-		return nil
-	}
-	datasetDir := s.datasetDir
-	s.datasetDir = ""
-	return os.RemoveAll(datasetDir)
-}
-
 func (s *OfflineStoreSink) Write(records []arrow.Record) error {
 	fileName, _ := uuid.NewUUID()
 	datasetDir, err := s.getOrCreateDatasetDir()

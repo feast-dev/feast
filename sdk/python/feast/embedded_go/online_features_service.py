@@ -230,7 +230,6 @@ def transformation_callback(
 def logging_callback(
     fs: "FeatureStore", feature_service_name: str, dataset_dir: str,
 ) -> bytes:
-    print(feature_service_name, dataset_dir)
     feature_service = fs.get_feature_service(feature_service_name, allow_cache=True)
     try:
         fs.write_logged_features(logs=Path(dataset_dir), source=feature_service)
