@@ -1,10 +1,10 @@
 package logging
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -41,16 +41,7 @@ func (s *OfflineStoreSink) getOrCreateDatasetDir() (string, error) {
 	return s.datasetDir, nil
 }
 
-func (s *OfflineStoreSink) cleanCurrentDatasetDir() error {
-	if s.datasetDir == "" {
-		return nil
-	}
-	datasetDir := s.datasetDir
-	s.datasetDir = ""
-	return os.RemoveAll(datasetDir)
-}
-
-func (s *OfflineStoreSink) Write(record arrow.Record) error {
+func (s *OfflineStoreSink) Write(records []arrow.Record) error {
 	fileName, _ := uuid.NewUUID()
 	datasetDir, err := s.getOrCreateDatasetDir()
 	if err != nil {
@@ -62,7 +53,7 @@ func (s *OfflineStoreSink) Write(record arrow.Record) error {
 	if err != nil {
 		return err
 	}
-	table := array.NewTableFromRecords(record.Schema(), []arrow.Record{record})
+	table := array.NewTableFromRecords(records[0].Schema(), records)
 
 	props := parquet.NewWriterProperties(parquet.WithDictionaryDefault(false))
 	arrProps := pqarrow.DefaultWriterProps()
@@ -74,10 +65,16 @@ func (s *OfflineStoreSink) Flush(featureServiceName string) error {
 		return nil
 	}
 
-	errMsg := s.writeCallback(featureServiceName, s.datasetDir)
-	if errMsg != "" {
-		return errors.New(errMsg)
-	}
+	datasetDir := s.datasetDir
+	s.datasetDir = ""
 
-	return s.cleanCurrentDatasetDir()
+	go func() {
+		errMsg := s.writeCallback(featureServiceName, datasetDir)
+		if errMsg != "" {
+			log.Println(errMsg)
+		}
+		os.RemoveAll(datasetDir)
+	}()
+
+	return nil
 }

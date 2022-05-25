@@ -622,16 +622,24 @@ def init_command(project_directory, minimal: bool, template: str):
 @click.option(
     "--no-access-log", is_flag=True, help="Disable the Uvicorn access log.",
 )
+@click.option(
+    "--no-feature-log", is_flag=True, help="Disable logging served features",
+)
 @click.pass_context
 def serve_command(
-    ctx: click.Context, host: str, port: int, type_: str, no_access_log: bool
+    ctx: click.Context,
+    host: str,
+    port: int,
+    type_: str,
+    no_access_log: bool,
+    no_feature_log: bool,
 ):
     """Start a feature server locally on a given port."""
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
 
-    store.serve(host, port, type_, no_access_log)
+    store.serve(host, port, type_, no_access_log, no_feature_log)
 
 
 @cli.command("serve_transformations")

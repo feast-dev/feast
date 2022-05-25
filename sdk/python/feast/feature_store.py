@@ -1995,16 +1995,27 @@ class FeatureStore:
         return views_to_use
 
     @log_exceptions_and_usage
-    def serve(self, host: str, port: int, type_: str, no_access_log: bool) -> None:
+    def serve(
+        self,
+        host: str,
+        port: int,
+        type_: str,
+        no_access_log: bool,
+        no_feature_log: bool,
+    ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
         if self.config.go_feature_retrieval:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
             if type_ == "http":
-                self._go_server.start_http_server(host, port)
+                self._go_server.start_http_server(
+                    host, port, enable_logging=not no_feature_log
+                )
             elif type_ == "grpc":
-                self._go_server.start_grpc_server(host, port)
+                self._go_server.start_grpc_server(
+                    host, port, enable_logging=not no_feature_log
+                )
             else:
                 raise ValueError(
                     f"Unsupported server type '{type_}'. Must be one of 'http' or 'grpc'."

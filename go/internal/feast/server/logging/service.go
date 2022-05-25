@@ -42,7 +42,7 @@ type LoggingService struct {
 
 var (
 	DefaultOptions = LoggingOptions{
-		ChannelCapacity: 1000,
+		ChannelCapacity: 100000,
 		FlushInterval:   10 * time.Minute,
 		WriteInterval:   10 * time.Second,
 		EmitTimeout:     10 * time.Millisecond,
