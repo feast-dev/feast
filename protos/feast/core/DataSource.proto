@@ -216,7 +216,6 @@ message DataSource {
     map<string, feast.types.ValueType.Enum> deprecated_schema = 2;
 
     repeated FeatureSpecV2 schema = 3;
-
   }
 
   // Defines options for DataSource that supports pushing data to it. This allows data to be pushed to

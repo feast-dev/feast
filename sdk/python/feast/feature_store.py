@@ -45,7 +45,6 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
-from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -66,11 +65,12 @@ from feast.feature_view import (
 )
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
-    update_feature_views_with_inferred_features_and_entities,
+    update_entities_with_inferred_types_from_feature_views,
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -83,7 +83,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
-from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.saved_dataset import SavedDataset, SavedDatasetStorage
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -255,7 +255,6 @@ class FeatureStore:
         ):
             if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
                 fv.entities = []
-                fv.entity_columns = []
             feature_views.append(fv)
         return feature_views
 
@@ -480,6 +479,10 @@ class FeatureStore:
         feature_services_to_update: List[FeatureService],
     ):
         """Makes inferences for entities, feature views, odfvs, and feature services."""
+        update_entities_with_inferred_types_from_feature_views(
+            entities_to_update, views_to_update, self.config
+        )
+
         update_data_sources_with_inferred_event_timestamp_col(
             data_sources_to_update, self.config
         )
@@ -490,7 +493,7 @@ class FeatureStore:
 
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
-        update_feature_views_with_inferred_features_and_entities(
+        update_feature_views_with_inferred_features(
             views_to_update, entities + entities_to_update, self.config
         )
 
@@ -520,11 +523,11 @@ class FeatureStore:
         Examples:
             Generate a plan adding an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", description="driver id")
+            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
@@ -532,7 +535,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=[driver],
+            ...     entities=["driver_id"],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
@@ -607,8 +610,8 @@ class FeatureStore:
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
+            StreamFeatureView,
             FeatureService,
-            ValidationReference,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -634,10 +637,10 @@ class FeatureStore:
         Examples:
             Register an Entity and a FeatureView.
 
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, ValueType, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
-            >>> driver = Entity(name="driver_id", description="driver id")
+            >>> driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
             >>> driver_hourly_stats = FileSource(
             ...     path="feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
@@ -645,7 +648,7 @@ class FeatureStore:
             ... )
             >>> driver_hourly_stats_view = FeatureView(
             ...     name="driver_hourly_stats",
-            ...     entities=[driver],
+            ...     entities=["driver_id"],
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
@@ -670,9 +673,6 @@ class FeatureStore:
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
         }
-        validation_references_to_update = [
-            ob for ob in objects if isinstance(ob, ValidationReference)
-        ]
 
         for fv in views_to_update:
             data_sources_set_to_update.add(fv.batch_source)
@@ -695,9 +695,6 @@ class FeatureStore:
 
         data_sources_to_update = list(data_sources_set_to_update)
 
-        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
-        entities_to_update.append(DUMMY_ENTITY)
-
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
             views_to_update, odfvs_to_update, request_views_to_update
@@ -709,6 +706,9 @@ class FeatureStore:
             odfvs_to_update,
             services_to_update,
         )
+
+        # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
+        entities_to_update.append(DUMMY_ENTITY)
 
         # Add all objects to the registry and update the provider's infrastructure.
         for ds in data_sources_to_update:
@@ -722,10 +722,6 @@ class FeatureStore:
         for feature_service in services_to_update:
             self._registry.apply_feature_service(
                 feature_service, project=self.project, commit=False
-            )
-        for validation_references in validation_references_to_update:
-            self._registry.apply_validation_reference(
-                validation_references, project=self.project, commit=False
             )
 
         if not partial:
@@ -747,9 +743,6 @@ class FeatureStore:
             ]
             data_sources_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, DataSource)
-            ]
-            validation_references_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
             ]
 
             for data_source in data_sources_to_delete:
@@ -775,10 +768,6 @@ class FeatureStore:
             for service in services_to_delete:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
-                )
-            for validation_references in validation_references_to_delete:
-                self._registry.delete_validation_reference(
-                    validation_references.name, project=self.project, commit=False
                 )
 
         self._get_provider().update_infra(
@@ -1573,12 +1562,12 @@ class FeatureStore:
     def _get_entity_maps(
         self, feature_views
     ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
-        # TODO(felixwang9817): Support entities that have different types for different feature views.
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
         entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
+            entity_type_map[entity.name] = entity.value_type
         for feature_view in feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
@@ -1593,11 +1582,7 @@ class FeatureStore:
                     entity.join_key, entity.join_key
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
-            for entity_column in feature_view.entity_columns:
-                entity_type_map[
-                    entity_column.name
-                ] = entity_column.dtype.to_value_type()
-
+                entity_type_map[join_key] = entity.value_type
         return (
             entity_name_to_join_key_map,
             entity_type_map,
@@ -1995,36 +1980,14 @@ class FeatureStore:
         return views_to_use
 
     @log_exceptions_and_usage
-    def serve(
-        self,
-        host: str,
-        port: int,
-        type_: str,
-        no_access_log: bool,
-        no_feature_log: bool,
-    ) -> None:
+    def serve(self, host: str, port: int, no_access_log: bool) -> None:
         """Start the feature consumption server locally on a given port."""
-        type_ = type_.lower()
         if self.config.go_feature_retrieval:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
-            if type_ == "http":
-                self._go_server.start_http_server(
-                    host, port, enable_logging=not no_feature_log
-                )
-            elif type_ == "grpc":
-                self._go_server.start_grpc_server(
-                    host, port, enable_logging=not no_feature_log
-                )
-            else:
-                raise ValueError(
-                    f"Unsupported server type '{type_}'. Must be one of 'http' or 'grpc'."
-                )
+            # TODO(tsotne) add http/grpc flag in CLI and call appropriate method here depending on that
+            self._go_server.start_grpc_server(host, port)
         else:
-            if type_ != "http":
-                raise ValueError(
-                    f"Python server only supports 'http'. Got '{type_}' instead."
-                )
             # Start the python server if go server isn't enabled
             feature_server.start_server(self, host, port, no_access_log)
 
@@ -2065,7 +2028,6 @@ class FeatureStore:
     def _teardown_go_server(self):
         self._go_server = None
 
-    @log_exceptions_and_usage
     def write_logged_features(
         self, logs: Union[pa.Table, Path], source: Union[FeatureService]
     ):
@@ -2092,80 +2054,6 @@ class FeatureStore:
             config=self.config,
             registry=self._registry,
         )
-
-    @log_exceptions_and_usage
-    def validate_logged_features(
-        self,
-        source: Union[FeatureService],
-        start: datetime,
-        end: datetime,
-        reference: ValidationReference,
-        throw_exception: bool = True,
-        cache_profile: bool = True,
-    ) -> Optional[ValidationFailed]:
-        """
-        Load logged features from an offline store and validate them against provided validation reference.
-
-        Args:
-            source: Logs source object (currently only feature services are supported)
-            start: lower bound for loading logged features
-            end:  upper bound for loading logged features
-            reference: validation reference
-            throw_exception: throw exception or return it as a result
-            cache_profile: store cached profile in Feast registry
-
-        Returns:
-            Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
-            or None if successful.
-
-        """
-        warnings.warn(
-            "Logged features validation is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
-
-        if not isinstance(source, FeatureService):
-            raise ValueError("Only feature service is currently supported as a source")
-
-        j = self._get_provider().retrieve_feature_service_logs(
-            feature_service=source,
-            start_date=start,
-            end_date=end,
-            config=self.config,
-            registry=self.registry,
-        )
-
-        # read and run validation
-        try:
-            j.to_arrow(validation_reference=reference)
-        except ValidationFailed as exc:
-            if throw_exception:
-                raise
-
-            return exc
-
-        if cache_profile:
-            self.apply(reference)
-
-        return None
-
-    @log_exceptions_and_usage
-    def get_validation_reference(
-        self, name: str, allow_cache: bool = False
-    ) -> ValidationReference:
-        """
-            Retrieves a validation reference.
-
-            Raises:
-                ValidationReferenceNotFoundException: The validation reference could not be found.
-        """
-        ref = self._registry.get_validation_reference(
-            name, project=self.project, allow_cache=allow_cache
-        )
-        ref._dataset = self.get_saved_dataset(ref.dataset_name)
-        return ref
 
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):

@@ -26,7 +26,7 @@ option java_package = "feast.proto.core";
 message FileFormat {
   // Defines options for the Parquet data format
   message ParquetFormat {}
-  
+
   oneof format {
     ParquetFormat parquet_format = 1;
   }
@@ -40,7 +40,7 @@ message StreamFormat {
     // Feature data from the obtained stream message
     string class_path = 1;
   }
-  
+
   // Defines options for the avro data format
   message AvroFormat {
     // Optional if used in a File DataSource as schema is embedded in avro file.
@@ -48,9 +48,14 @@ message StreamFormat {
     string schema_json = 1;
   }
 
+  message JsonFormat {
+    string schema_json = 1;
+  }
+
   // Specifies the data format and format specific options
   oneof format {
     AvroFormat avro_format = 1;
     ProtoFormat proto_format = 2;
+    JsonFormat json_format = 3;
   }
 }
