@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from great_expectations.core import ExpectationSuite
 from great_expectations.dataset import PandasDataset
-from great_expectations.profile.base import ProfilerTypeMapping
 
 from feast.dqm.profilers.profiler import (
     Profile,
@@ -29,9 +28,7 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
     dataset_copy = dataset.copy(deep=True)
 
     for column in dataset.columns:
-        if dataset.expect_column_values_to_be_in_type_list(
-            column, type_list=sorted(list(ProfilerTypeMapping.DATETIME_TYPE_NAMES))
-        ).success:
+        if pd.api.types.is_datetime64_any_dtype(dataset[column]):
             # GE cannot parse Timestamp or other pandas datetime time
             dataset_copy[column] = dataset[column].dt.strftime("%Y-%m-%dT%H:%M:%S")
 
