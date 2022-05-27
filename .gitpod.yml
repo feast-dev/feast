@@ -4,12 +4,8 @@ tasks:
       pip install pre-commit
       pre-commit install --hook-type pre-commit --hook-type pre-push
       pip install -e '.[dev]'
-      git config --global alias.ci 'commit -s'
-      git config --global alias.sw switch
-      git config --global alias.st status
-      git config --global alias.co checkout
-      git config --global alias.br branch
-      git config --global alias.df diff
+      make compile-protos-go
+      make compile-go-lib
 github:
   prebuilds:
     # enable for the default branch (defaults to true)
