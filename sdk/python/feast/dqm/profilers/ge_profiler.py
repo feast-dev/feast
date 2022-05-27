@@ -39,7 +39,9 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
 
         status_column = f"{column}__status"
         if status_column in dataset.columns:
-            dataset_copy[column] = dataset[column].mask(dataset[status_column] == FieldStatus.NOT_FOUND, np.nan)
+            dataset_copy[column] = dataset[column].mask(
+                dataset[status_column] == FieldStatus.NOT_FOUND, np.nan
+            )
 
     return dataset_copy
 
@@ -173,6 +175,8 @@ class GEValidationReport(ValidationReport):
                 check_config=res.expectation_config.kwargs,
                 missing_count=res["result"].get("missing_count"),
                 missing_percent=res["result"].get("missing_percent"),
+                unexpected_count=res["result"].get("unexpected_count"),
+                unexpected_percent=res["result"].get("unexpected_percent"),
             )
             for res in self._validation_result["results"]
             if not res["success"]
