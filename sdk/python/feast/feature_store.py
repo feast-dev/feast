@@ -139,7 +139,7 @@ class FeatureStore:
             raise ValueError("Please specify one of repo_path or config.")
 
         registry_config = self.config.get_registry_config()
-        if registry_config.reqistry_type == "sql":
+        if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, None)
         else:
             self._registry = Registry(registry_config, repo_path=self.repo_path)
