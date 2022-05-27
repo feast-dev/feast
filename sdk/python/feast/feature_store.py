@@ -2008,13 +2008,30 @@ class FeatureStore:
         if self.config.go_feature_retrieval:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
+            enable_logging = (
+                self.config.feature_server
+                and self.config.feature_server.feature_logging
+                and self.config.feature_server.feature_logging.enabled
+                and not no_feature_log
+            )
+            logging_options = (
+                self.config.feature_server.feature_logging
+                if enable_logging and self.config.feature_server
+                else None
+            )
             if type_ == "http":
                 self._go_server.start_http_server(
-                    host, port, enable_logging=not no_feature_log
+                    host,
+                    port,
+                    enable_logging=enable_logging,
+                    logging_options=logging_options,
                 )
             elif type_ == "grpc":
                 self._go_server.start_grpc_server(
-                    host, port, enable_logging=not no_feature_log
+                    host,
+                    port,
+                    enable_logging=enable_logging,
+                    logging_options=logging_options,
                 )
             else:
                 raise ValueError(
@@ -2139,12 +2156,14 @@ class FeatureStore:
 
         # read and run validation
         try:
-            j.to_arrow(validation_reference=reference)
+            t = j.to_arrow(validation_reference=reference)
         except ValidationFailed as exc:
             if throw_exception:
                 raise
 
             return exc
+        else:
+            print(f"{t.shape[0]} rows were validated.")
 
         if cache_profile:
             self.apply(reference)

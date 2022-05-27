@@ -17,6 +17,8 @@ from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_da
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
+from feast.infra.feature_servers.base_config import FeatureLoggingConfig
+from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -386,8 +388,9 @@ def construct_test_environment(
             f"s3://feast-integration-tests/registries/{project}/registry.db"
         )  # type: Union[str, RegistryConfig]
     else:
-        # Note: even if it's a local feature server, the repo config does not have this configured
-        feature_server = None
+        feature_server = LocalFeatureServerConfig(
+            feature_logging=FeatureLoggingConfig(enabled=True)
+        )
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
         )

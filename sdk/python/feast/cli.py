@@ -41,8 +41,10 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
+from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="(?!feast)")
 
 
 class NoOptionDefaultFormat(click.Command):
@@ -803,8 +805,8 @@ def validate(
     result = store.validate_logged_features(
         source=feature_service,
         reference=reference,
-        start=datetime.fromisoformat(start_ts),
-        end=datetime.fromisoformat(end_ts),
+        start=maybe_local_tz(datetime.fromisoformat(start_ts)),
+        end=maybe_local_tz(datetime.fromisoformat(end_ts)),
         throw_exception=False,
         cache_profile=not no_profile_cache,
     )

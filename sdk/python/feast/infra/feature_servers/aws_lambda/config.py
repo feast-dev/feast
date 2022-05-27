@@ -1,17 +1,14 @@
 from pydantic import StrictBool, StrictStr
 from pydantic.typing import Literal
 
-from feast.repo_config import FeastConfigBaseModel
+from feast.infra.feature_servers.base_config import BaseFeatureServerConfig
 
 
-class AwsLambdaFeatureServerConfig(FeastConfigBaseModel):
+class AwsLambdaFeatureServerConfig(BaseFeatureServerConfig):
     """Feature server config for AWS Lambda."""
 
     type: Literal["aws_lambda"] = "aws_lambda"
     """Feature server type selector."""
-
-    enabled: StrictBool = False
-    """Whether the feature server should be launched."""
 
     public: StrictBool = True
     """Whether the endpoint should be publicly accessible."""
