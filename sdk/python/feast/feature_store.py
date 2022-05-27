@@ -34,6 +34,7 @@ from typing import (
     cast,
 )
 
+from feast.stream_processor import SparkStreamKafkaProcessor
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
@@ -71,6 +72,7 @@ from feast.inference import (
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -91,6 +93,8 @@ from feast.type_map import (
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
+from pyspark.sql import SparkSession
+# from feast.test import SparkStreamKafkaProcessor
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -568,6 +572,7 @@ class FeatureStore:
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
+            # StreamFeatureView,
             FeatureService,
             ValidationReference,
             List[FeastObject],
@@ -618,6 +623,7 @@ class FeatureStore:
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
         request_views_to_update = [
             ob for ob in objects if isinstance(ob, RequestFeatureView)
         ]
@@ -630,7 +636,7 @@ class FeatureStore:
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
 
-        for fv in views_to_update:
+        for fv in itertools.chain(views_to_update, sfvs_to_update):
             data_sources_set_to_update.add(fv.batch_source)
             if fv.stream_source:
                 data_sources_set_to_update.add(fv.stream_source)
@@ -670,7 +676,7 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(
-            views_to_update, odfvs_to_update, request_views_to_update
+            views_to_update, odfvs_to_update, request_views_to_update, sfvs_to_update
         ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
@@ -766,6 +772,34 @@ class FeatureStore:
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
         self._teardown_go_server()
+
+    def _write_stream_row(self, feature_view, row, join_keys, input_timestamp_field, output_timestamp_column=""):
+        row: pd.DataFrame = row.toPandas()
+
+        row = row.sort_values(by=join_keys + [input_timestamp_field], ascending=True).groupby(join_keys).nth(0)
+        if output_timestamp_column and output_timestamp_column != input_timestamp_field:
+            row = row.rename(columns = {input_timestamp_field, output_timestamp_column})
+        row['created'] = pd.to_datetime('now', utc=True)
+        # print("========================")
+        # print(row)s
+        self.write_to_online_store(
+            feature_view,
+            row,
+        )
+
+    def ingest_stream_feature_view(self, sfv_name: str, spark_session: SparkSession) -> bool:
+        # TODO: Actually write the code to get the stream feature view.
+        for fv in self.list_feature_views():
+            if fv.name == sfv_name:
+                sfv = fv
+
+        join_keys = [self.get_entity(entity, allow_registry_cache=True).join_key for entity in sfv.entities]
+
+        skp = SparkStreamKafkaProcessor(sfv=sfv, spark_session=spark_session, write_function=lambda row, input_timestamp, output_timestamp: self._write_stream_row(feature_view=sfv.name, row=row, join_keys=join_keys, input_timestamp_field=input_timestamp, output_timestamp_column=output_timestamp))
+        query = skp.ingest_stream_feature_view()
+        # Handle query(set up monitoring thread, etc)
+        # Return success
+        return True
 
     @log_exceptions_and_usage
     def get_historical_features(

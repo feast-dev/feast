@@ -1,4 +1,4 @@
-import abc
+import dill
 from datetime import timedelta
 from types import MethodType
 from typing import Dict, List, Optional, Union, Callable, Tuple
@@ -7,7 +7,18 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from google.protobuf.duration_pb2 import Duration
+from feast.protos.feast.core.StreamFeatureView_pb2 import StreamFeatureView as StreamFeatureViewProto
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureViewMeta as StreamFeatureViewMetaProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureViewSpec as StreamFeatureViewSpecProto,
+)
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    UserDefinedFunction as UserDefinedFunctionProto,
+)
+from isort import stream
 from regex import R
 
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "KinesisSource", "PushSource"}
@@ -87,3 +98,96 @@ class StreamFeatureView(FeatureView):
     def __hash__(self):
         return super().__hash__()
 
+    def to_proto(self):
+        meta = StreamFeatureViewMetaProto()
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+
+        ttl_duration = None
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
+
+        if self.batch_source:
+            batch_source_proto = self.batch_source.to_proto()
+            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+
+        stream_source_proto = None
+        if self.stream_source:
+            stream_source_proto = self.stream_source.to_proto()
+            stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+
+        spec = StreamFeatureViewSpecProto(
+            name=self.name,
+            entities=self.entities,
+            entity_columns=[field.to_proto() for field in self.entity_columns],
+            features=[field.to_proto() for field in self.features],
+            user_defined_function=UserDefinedFunctionProto(
+                name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
+            ),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+            ttl=(ttl_duration if ttl_duration is not None else None),
+            online=self.online,
+            batch_source=batch_source_proto,
+            stream_source=stream_source_proto,
+            timestamp_field=self.timestamp_field,
+        )
+
+        return StreamFeatureViewProto(spec=spec, meta=meta)
+
+    @classmethod
+    def from_proto(cls, sfv_proto: StreamFeatureViewProto):
+        batch_source = (
+            DataSource.from_proto(sfv_proto.spec.batch_source)
+            if sfv_proto.spec.HasField("batch_source")
+            else None
+        )
+        stream_source = (
+            DataSource.from_proto(sfv_proto.spec.stream_source)
+            if sfv_proto.spec.HasField("stream_source")
+            else None
+        )
+        sfv_feature_view = cls(
+            name=sfv_proto.spec.name,
+            description=sfv_proto.spec.description,
+            tags=dict(sfv_proto.spec.tags),
+            owner=sfv_proto.spec.owner,
+            online=sfv_proto.spec.online,
+            ttl=(
+                timedelta(days=0)
+                if sfv_proto.spec.ttl.ToNanoseconds() == 0
+                else sfv_proto.spec.ttl.ToTimedelta()
+            ),
+            source=stream_source,
+            udf=dill.loads(
+                sfv_feature_view.spec.user_defined_function.body
+            ),
+        )
+
+        if batch_source:
+            sfv_feature_view.batch_source = batch_source
+
+        if stream_source:
+            sfv_feature_view.stream_source = stream_source
+
+        sfv_feature_view.entities = sfv_proto.spec.entities
+
+        sfv_feature_view.features = [
+            Field.from_proto(field_proto)
+            for field_proto in sfv_proto.spec.features
+        ]
+
+        if sfv_proto.meta.HasField("created_timestamp"):
+            sfv_feature_view.created_timestamp = (
+                sfv_proto.meta.created_timestamp.ToDatetime()
+            )
+        if sfv_proto.meta.HasField("last_updated_timestamp"):
+            sfv_feature_view.last_updated_timestamp = (
+                sfv_proto.meta.last_updated_timestamp.ToDatetime()
+            )
+
+        return sfv_feature_view
