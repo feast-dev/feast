@@ -1,11 +1,20 @@
 #  https://www.gitpod.io/docs/config-gitpod-file
+image:
+  file: .gitpod.Dockerfile
 tasks:
   - init: |
       pip install pre-commit
       pre-commit install --hook-type pre-commit --hook-type pre-push
-      pip install -e '.[dev]'
+      pip install '.[dev]'
       make compile-protos-go
       make compile-go-lib
+    command: |
+      git config --global alias.ci 'commit -s'
+      git config --global alias.sw switch
+      git config --global alias.st status
+      git config --global alias.co checkout
+      git config --global alias.br branch
+      git config --global alias.df diff
 github:
   prebuilds:
     # enable for the default branch (defaults to true)
