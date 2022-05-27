@@ -287,17 +287,17 @@ class RepoConfig(FeastBaseModel):
         if "provider" not in values:
             raise FeastProviderNotSetError()
 
-        feature_server_type = FEATURE_SERVER_TYPE_FOR_PROVIDER.get(values["provider"])
-        defined_type = values["feature_server"].get("type")
+        default_type = FEATURE_SERVER_TYPE_FOR_PROVIDER.get(values["provider"])
+        defined_type = values["feature_server"].get("type", default_type)
         # Make sure that the type is either not set, or set correctly, since it's defined by the provider
-        if defined_type not in (None, feature_server_type):
+        if defined_type not in (default_type, "local"):
             raise FeastFeatureServerTypeSetError(defined_type)
-        values["feature_server"]["type"] = feature_server_type
+        values["feature_server"]["type"] = defined_type
 
         # Validate the dict to ensure one of the union types match
         try:
             feature_server_config_class = get_feature_server_config_from_type(
-                feature_server_type
+                defined_type
             )
             feature_server_config_class(**values["feature_server"])
         except ValidationError as e:
