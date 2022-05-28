@@ -317,8 +317,8 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
             feature_service.name,
             "--reference",
             reference.name,
-            (datetime.datetime.utcnow() - datetime.timedelta(days=7)).isoformat(),
-            datetime.datetime.utcnow().isoformat(),
+            (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat(),
+            datetime.datetime.now().isoformat(),
         ]
         p = runner.run(validate_args, cwd=local_repo.repo_path)
 
@@ -335,7 +335,10 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
                 "current_balance": [0],
                 "avg_passenger_count": [0],
                 "lifetime_trip_count": [0],
-                "event_timestamp": [make_tzaware(datetime.datetime.utcnow())],
+                "event_timestamp": [
+                    make_tzaware(datetime.datetime.utcnow())
+                    - datetime.timedelta(hours=1)
+                ],
             }
         )
         invalid_logs = prepare_logs(invalid_data, feature_service, store)
