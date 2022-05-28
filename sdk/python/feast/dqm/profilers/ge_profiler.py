@@ -39,7 +39,7 @@ def _prepare_dataset(dataset: PandasDataset) -> PandasDataset:
 
         status_column = f"{column}__status"
         if status_column in dataset.columns:
-            dataset_copy[column] = dataset[column].mask(
+            dataset_copy[column] = dataset_copy[column].mask(
                 dataset[status_column] == FieldStatus.NOT_FOUND, np.nan
             )
 
