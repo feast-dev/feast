@@ -249,6 +249,7 @@ class BuildPythonProtosCommand(Command):
                 self.python_folder,
             ]
             + proto_files,
+            env=os.environ
         )
 
     def run(self):
@@ -334,6 +335,8 @@ class BuildGoProtosCommand(Command):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
         try:
+            e = os.environ.copy()
+            e["PATH"] = self.path_val
             subprocess.check_call(
                 self.go_protoc
                 + [
@@ -347,7 +350,7 @@ class BuildGoProtosCommand(Command):
                     "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
                 ]
                 + proto_files,
-                env={"PATH": self.path_val},
+                env=e,
             )
         except CalledProcessError as e:
             print(f"Stderr: {e.stderr}")

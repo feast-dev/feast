@@ -11,6 +11,7 @@ from feast.errors import (
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.feature_service import FeatureService
+from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types import Value_pb2
@@ -29,6 +30,11 @@ from .type_map import FEAST_TYPE_TO_ARROW_TYPE, arrow_array_to_array_of_proto
 
 if TYPE_CHECKING:
     from feast.feature_store import FeatureStore
+
+NANO_SECOND = 1
+MICRO_SECOND = 1000 * NANO_SECOND
+MILLI_SECOND = 1000 * MICRO_SECOND
+SECOND = 1000 * MILLI_SECOND
 
 
 class EmbeddedOnlineFeatureServer:
@@ -144,12 +150,22 @@ class EmbeddedOnlineFeatureServer:
         host: str,
         port: int,
         enable_logging: bool = True,
-        logging_options: Optional[LoggingOptions] = None,
+        logging_options: Optional[FeatureLoggingConfig] = None,
     ):
         if enable_logging:
             if logging_options:
                 self._service.StartGprcServerWithLogging(
-                    host, port, self._logging_callback, logging_options
+                    host,
+                    port,
+                    self._logging_callback,
+                    LoggingOptions(
+                        FlushInterval=logging_options.flush_interval_secs * SECOND,
+                        WriteInterval=logging_options.write_to_disk_interval_secs
+                        * SECOND,
+                        EmitTimeout=logging_options.emit_timeout_micro_secs
+                        * MICRO_SECOND,
+                        ChannelCapacity=logging_options.queue_capacity,
+                    ),
                 )
             else:
                 self._service.StartGprcServerWithLoggingDefaultOpts(
@@ -163,12 +179,22 @@ class EmbeddedOnlineFeatureServer:
         host: str,
         port: int,
         enable_logging: bool = True,
-        logging_options: Optional[LoggingOptions] = None,
+        logging_options: Optional[FeatureLoggingConfig] = None,
     ):
         if enable_logging:
             if logging_options:
                 self._service.StartHttpServerWithLogging(
-                    host, port, self._logging_callback, logging_options
+                    host,
+                    port,
+                    self._logging_callback,
+                    LoggingOptions(
+                        FlushInterval=logging_options.flush_interval_secs * SECOND,
+                        WriteInterval=logging_options.write_to_disk_interval_secs
+                        * SECOND,
+                        EmitTimeout=logging_options.emit_timeout_micro_secs
+                        * MICRO_SECOND,
+                        ChannelCapacity=logging_options.queue_capacity,
+                    ),
                 )
             else:
                 self._service.StartHttpServerWithLoggingDefaultOpts(
