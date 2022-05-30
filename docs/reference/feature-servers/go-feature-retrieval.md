@@ -35,6 +35,36 @@ go_feature_retrieval: True
 ```
 {% endcode %}
 
+## Feature logging
+
+Go feature server can log all requested entities and served features to a configured destination inside an offline store.
+This allows users to create new datasets from features served online. Those datasets could be used for future trainings or for
+feature validations. To enable feature logging we need to edit `feature_store.yaml`:
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  connection_string: "localhost:6379"
+go_feature_retrieval: True
+feature_server:
+  feature_logging:
+    enable: True
+```
+
+Feature logging configuration in `feature_store.yaml` also allows to tweak some low-level parameters to achieve the best performance:
+```yaml
+feature_server:
+  feature_logging:
+    enable: True
+    flush_interval_secs: 300
+    write_to_disk_interval_secs: 30
+    emit_timeout_micro_secs: 10000
+    queue_capacity: 10000
+```
+All these parameters are optional. 
+
 ## Future/Current Work
 
 The Go feature retrieval online feature logging for Data Quality Monitoring is currently in development. More information can be found [here](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit#heading=h.9gaqqtox9jg6).

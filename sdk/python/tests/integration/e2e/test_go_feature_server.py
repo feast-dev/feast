@@ -12,10 +12,10 @@ import pytz
 import requests
 
 from feast import FeatureService, FeatureView, ValueType
-from feast.embedded_go.lib.embedded import LoggingOptions
 from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 from feast.feast_object import FeastObject
 from feast.feature_logging import LoggingConfig
+from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesRequest,
@@ -33,10 +33,6 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-
-NANOSECOND = 1
-MILLISECOND = 1000_000 * NANOSECOND
-SECOND = 1000 * MILLISECOND
 
 
 @pytest.fixture(scope="session")
@@ -84,11 +80,12 @@ def server_port(environment, server_type: str):
         args=("127.0.0.1", port),
         kwargs=dict(
             enable_logging=True,
-            logging_options=LoggingOptions(
-                ChannelCapacity=100,
-                WriteInterval=100 * MILLISECOND,
-                FlushInterval=1 * SECOND,
-                EmitTimeout=10 * MILLISECOND,
+            logging_options=FeatureLoggingConfig(
+                enabled=True,
+                queue_capacity=100,
+                write_to_disk_interval_secs=1,
+                flush_interval_secs=1,
+                emit_timeout_micro_secs=10000,
             ),
         ),
     )

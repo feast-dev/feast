@@ -285,6 +285,10 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 				&types.Value{Val: &types.Value_UnixTimestampVal{
 					UnixTimestampVal: int64(arr.(*array.Timestamp).Value(idx))}})
 		}
+	case arrow.Null:
+		for idx := 0; idx < arr.Len(); idx++ {
+			values = append(values, &types.Value{})
+		}
 	default:
 		return nil, fmt.Errorf("unsupported arrow to proto conversion for type %s", arr.DataType())
 	}
