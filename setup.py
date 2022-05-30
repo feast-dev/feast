@@ -51,7 +51,7 @@ REQUIRED = [
     "dill==0.3.*",
     "fastavro>=1.1.0,<2",
     "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos==1.52.*,<2",
+    "googleapis-common-protos>=1.52.*,<2",
     "grpcio>=1.34.0,<2",
     "grpcio-reflection>=1.34.0,<2",
     "Jinja2>=2,<4",
@@ -137,7 +137,7 @@ CI_REQUIRED = (
         "mypy==0.931",
         "mypy-protobuf==3.1",
         "avro==1.10.0",
-        "gcsfs>=0.4.0,<=2022.01.0"
+        "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
         "pytest>=6.0.0,<8",
