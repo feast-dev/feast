@@ -6,8 +6,10 @@ tasks:
       pip install pre-commit
       pre-commit install --hook-type pre-commit --hook-type pre-push
       pip install '.[dev]'
-      make compile-protos-go
-      make compile-go-lib
+      make PYTHONUSERBASE="/workspace/.pip-modules" compile-protos-go
+      make PYTHONUSERBASE="/workspace/.pip-modules" compile-go-lib
+    env:
+      PYTHONUSERBASE: "/workspace/.pip-modules"
     command: |
       git config --global alias.ci 'commit -s'
       git config --global alias.sw switch
