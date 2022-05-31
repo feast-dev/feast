@@ -536,14 +536,17 @@ class FeatureStore:
         self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
+
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
         a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
         command are for informational purposes, and are not actually applied to the registry.
 
         Args:
             desired_repo_contents: The desired repo state.
+
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
+
         Examples:
             Generate a plan adding an Entity and a FeatureView.
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
@@ -645,6 +648,7 @@ class FeatureStore:
         partial: bool = True,
     ):
         """Register objects to metadata store and update related infrastructure.
+
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
         objects in the Feast registry. Once the apply method has updated the infrastructure (e.g., create tables in
         an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
@@ -656,10 +660,13 @@ class FeatureStore:
                 provider's infrastructure. This deletion will only be performed if partial is set to False.
             partial: If True, apply will only handle the specified objects; if False, apply will also delete
                 all the objects in objects_to_delete, and tear down any associated cloud resources.
+
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
+
         Examples:
             Register an Entity and a FeatureView.
+
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from datetime import timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
@@ -854,11 +861,14 @@ class FeatureStore:
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
+
         This method joins historical feature data from one or more feature views to an entity dataframe by using a time
         travel join.
+
         Each feature view is joined to the entity dataframe using all entities configured for the respective feature
         view. All configured entities must be available in the entity dataframe. Therefore, the entity dataframe must
         contain all entities found in all feature views, but the individual feature views can have different entities.
+
         Time travel is based on the configured TTL for each feature view. A shorter TTL will limit the
         amount of scanning that will be done in order to find feature data for a specific entity key. Setting a short
         TTL may result in null values being returned.
@@ -874,6 +884,7 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+
         Returns:
             RetrievalJob which can be used to materialize the results.
 
@@ -1035,7 +1046,9 @@ class FeatureStore:
         """
         Find a saved dataset in the registry by provided name and
         create a retrieval job to pull whole dataset from storage (offline store).
+
         If dataset couldn't be found by provided name SavedDatasetNotFound exception will be raised.
+
         Data will be retrieved from globally configured offline store.
 
         Returns:
@@ -1065,6 +1078,7 @@ class FeatureStore:
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
+
         This method loads incremental new feature data up to the specified end time from either
         the specified feature views, or all feature views if none are specified,
         into the online store where it is available for online serving. The start time of
@@ -1075,10 +1089,13 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
+
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
+
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
@@ -1165,6 +1182,7 @@ class FeatureStore:
     ) -> None:
         """
         Materialize data from the offline store into the online store.
+
         This method loads feature data in the specified interval from either
         the specified feature views, or all feature views if none are specified,
         into the online store where it is available for online serving.
@@ -1174,8 +1192,10 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
+
         Examples:
             Materialize all features into the online store over the interval
+
             from 3 hours ago to 10 minutes ago.
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
@@ -1308,6 +1328,7 @@ class FeatureStore:
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
+
         Note: This method will download the full feature registry the first time it is run. If you are using a
         remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
         duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
@@ -1710,6 +1731,7 @@ class FeatureStore:
         entity_name_to_join_key_map: Dict[str, str],
     ) -> Tuple[Tuple[Dict[str, Value], ...], Tuple[List[int], ...]]:
         """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
+
         This method allows us to query the OnlineStore for data we need only once
         rather than requesting and processing data for the same combination of
         Entities multiple times.
@@ -1749,9 +1771,11 @@ class FeatureStore:
         table: FeatureView,
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """Read and process data from the OnlineStore for a given FeatureView.
+
         This method guarantees that the order of the data in each element of the
         List returned is the same as the order of `requested_features`.
-        This method assumes that `provider.online_read` returns data for each
+
+       This method assumes that `provider.online_read` returns data for each
         combination of Entities in `entity_rows` in the same order as they
         are provided.
         """
@@ -1862,6 +1886,7 @@ class FeatureStore:
         full_feature_names: bool,
     ):
         """Computes on demand feature values and adds them to the result rows.
+
         Assumes that 'online_features_response' already contains the necessary request data and input feature
         views for the on demand feature views. Unneeded feature values such as request data and
         unrequested input feature views will be removed from 'online_features_response'.
@@ -2153,6 +2178,7 @@ class FeatureStore:
         Returns:
             Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
             or None if successful.
+
         """
         warnings.warn(
             "Logged features validation is an experimental feature. "
@@ -2192,6 +2218,7 @@ class FeatureStore:
     ) -> ValidationReference:
         """
             Retrieves a validation reference.
+
             Raises:
                 ValidationReferenceNotFoundException: The validation reference could not be found.
         """
