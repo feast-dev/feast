@@ -120,6 +120,7 @@ class StreamFeatureView(FeatureView):
         self.timestamp_field = timestamp_field
         self.udf = udf
         self.aggregations = aggregations
+        _batch_source = None
         if isinstance(source, KafkaSource):
             _batch_source = source.batch_source if source.batch_source else None
 
