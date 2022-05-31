@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-from numpy import equal
 
 from feast import Field, PushSource
 from feast.batch_feature_view import BatchFeatureView
@@ -69,12 +68,14 @@ def test_create_stream_feature_view():
         ttl=timedelta(days=30),
         source=push_source,
         aggregations=[],
-
     )
 
     with pytest.raises(ValueError):
         StreamFeatureView(
-            name="test batch feature view", entities=[], ttl=timedelta(days=30), aggregations=[],
+            name="test batch feature view",
+            entities=[],
+            ttl=timedelta(days=30),
+            aggregations=[],
         )
 
     with pytest.raises(ValueError):
@@ -107,7 +108,7 @@ def test_stream_feature_view_serialization():
         ttl=timedelta(days=30),
         owner="test@example.com",
         online=True,
-        schema=[Field(name="dummy_field", dtype=Float32),],
+        schema=[Field(name="dummy_field", dtype=Float32)],
         description="desc",
         aggregations=[
             Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])

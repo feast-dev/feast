@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 import dill
 from google.protobuf.duration_pb2 import Duration
 
-from feast.data_source import DataSource
+from feast.data_source import DataSource, KafkaSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -120,8 +120,8 @@ class StreamFeatureView(FeatureView):
         self.timestamp_field = timestamp_field
         self.udf = udf
         self.aggregations = aggregations
-
-        _batch_source = source.batch_source if source.batch_source else None
+        if isinstance(source, KafkaSource):
+            _batch_source = source.batch_source if source.batch_source else None
 
         super().__init__(
             name=name,
@@ -212,7 +212,7 @@ class StreamFeatureView(FeatureView):
         return StreamFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
-    def from_proto(cls, sfv_proto: StreamFeatureViewProto):
+    def from_proto(cls, sfv_proto):
         batch_source = (
             DataSource.from_proto(sfv_proto.spec.batch_source)
             if sfv_proto.spec.HasField("batch_source")
@@ -288,6 +288,7 @@ def stream_feature_view(
     """
     Creates an StreamFeatureView object with the given user function as udf.
     """
+
     def mainify(obj):
         # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
         # name as the original file defining the ODFV.
@@ -309,11 +310,9 @@ def stream_feature_view(
             owner=owner,
             aggregations=aggregations,
             mode=mode,
-            timestamp_field=timestamp_field
+            timestamp_field=timestamp_field,
         )
-        functools.update_wrapper(
-            wrapper=stream_feature_view_obj, wrapped=user_function
-        )
+        functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj
 
     return decorator

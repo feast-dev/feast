@@ -11,7 +11,6 @@ from typing import List, Set, Union
 
 import click
 from click.exceptions import BadParameter
-from isort import stream
 
 from feast import PushSource
 from feast.data_source import DataSource

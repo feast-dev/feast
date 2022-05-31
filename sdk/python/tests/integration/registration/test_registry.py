@@ -324,7 +324,7 @@ def test_apply_stream_feature_view_success(test_registry):
         ttl=timedelta(days=30),
         owner="test@example.com",
         online=True,
-        schema=[Field(name="dummy_field", dtype=Float32),],
+        schema=[Field(name="dummy_field", dtype=Float32)],
         description="desc",
         aggregations=[
             Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])
