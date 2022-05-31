@@ -52,38 +52,41 @@ message StreamFeatureViewSpec {
     repeated FeatureSpecV2 features = 4;
 
     // List of specifications for each entity defined as part of this feature view.
-    repeated FeatureSpecV2 entity_columns = 12;
+    repeated FeatureSpecV2 entity_columns = 5;
 
     // Description of the feature view.
-    string description = 10;
+    string description = 6;
 
     // User defined metadata
-    map<string,string> tags = 5;
+    map<string,string> tags = 7;
 
     // Owner of the feature view.
-    string owner = 11;
+    string owner = 8;
 
     // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between
     // the feature's event timestamp and when the feature is retrieved
     // Feature values outside ttl will be returned as unset values and indicated to end user
-    google.protobuf.Duration ttl = 6;
+    google.protobuf.Duration ttl = 9;
 
     // Batch/Offline DataSource where this view can retrieve offline feature data.
-    DataSource batch_source = 7;
+    DataSource batch_source = 10;
     // Streaming DataSource from where this view can consume "online" feature data.
-    DataSource stream_source = 9;
+    DataSource stream_source = 11;
 
     // Whether these features should be served online or not
-    bool online = 8;
+    bool online = 12;
 
     UserDefinedFunction user_defined_function = 13;
 
     // Mode of execution
     string mode = 14;
 
+    // Aggregation definitions
+    repeated Aggregation aggregations = 15;
+
     // Timestamp field for aggregation
-    string timestamp_field = 15;
+    string timestamp_field = 16;
 }
 
 message StreamFeatureViewMeta {
@@ -92,4 +95,10 @@ message StreamFeatureViewMeta {
 
     // Time where this Feature View is last updated
     google.protobuf.Timestamp last_updated_timestamp = 2;
+}
+
+message Aggregation {
+    string column = 1;
+    string function = 2;
+    repeated string time_windows = 3;
 }
