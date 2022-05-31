@@ -37,10 +37,11 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
+from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
-from feast.saved_dataset import SavedDataset
+from feast.saved_dataset import SavedDataset, ValidationReference
 
 metadata = MetaData()
 
@@ -101,16 +102,34 @@ feature_services = Table(
     Column("feature_service_proto", LargeBinary, nullable=False),
 )
 
-APPLY_OPERATIONS = {"entity": (entities, entities.c.entity_id)}
+saved_datasets = Table(
+    "saved_datasets",
+    metadata,
+    Column("saved_dataset_name", String, primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("saved_dataset_proto", LargeBinary, nullable=False),
+)
+
+validation_references = Table(
+    "validation_references",
+    metadata,
+    Column("validation_reference_name", String, primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("validation_reference_proto", LargeBinary, nullable=False),
+)
 
 
 class SqlRegistry(Registry):
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
-        assert registry_config
+        assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
         metadata.create_all(self.engine)
+
+        # _refresh_lock is not used by the SqlRegistry, but is present to conform to the
+        # Registry class.
+        # TODO: remove external references to _refresh_lock and remove field.
         self._refresh_lock = Lock()
 
     def teardown(self):
@@ -120,6 +139,8 @@ class SqlRegistry(Registry):
             data_sources,
             on_demand_feature_views,
             request_feature_views,
+            saved_datasets,
+            validation_references,
         }:
             with self.engine.connect() as conn:
                 stmt = delete(t)
@@ -129,31 +150,7 @@ class SqlRegistry(Registry):
         pass
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
-        with self.engine.connect() as conn:
-            stmt = select(entities).where(entities.c.entity_id == entity.name)
-            entity.last_updated_timestamp = datetime.utcnow()
-            row = conn.execute(stmt).first()
-            if row:
-                update_stmt = (
-                    update(entities)
-                    .where(entities.c.entity_id == entity.name,)
-                    .values(
-                        entity_proto=entity.to_proto().SerializeToString(),
-                        last_updated_timestamp=int(
-                            entity.last_updated_timestamp.timestamp()
-                        ),
-                    )
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(entities).values(
-                    entity_id=entity.name,
-                    entity_proto=entity.to_proto().SerializeToString(),
-                    last_updated_timestamp=int(
-                        entity.last_updated_timestamp.timestamp()
-                    ),
-                )
-                conn.execute(insert_stmt)
+        return self._apply_object(entities, "entity_id", entity, "entity_proto")
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         with self.engine.connect() as conn:
@@ -211,29 +208,9 @@ class SqlRegistry(Registry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
-        with self.engine.connect() as conn:
-            stmt = select(data_sources).where(
-                data_sources.c.data_source_name == data_source.name
-            )
-            row = conn.execute(stmt).first()
-            update_time = int(datetime.utcnow().timestamp())
-            if row:
-                update_stmt = (
-                    update(data_sources)
-                    .where(data_sources.c.data_source_name == data_source.name,)
-                    .values(
-                        data_source_proto=data_source.to_proto().SerializeToString(),
-                        last_updated_timestamp=update_time,
-                    )
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(data_sources).values(
-                    data_source_name=data_source.name,
-                    data_source_proto=data_source.to_proto().SerializeToString(),
-                    last_updated_timestamp=update_time,
-                )
-                conn.execute(insert_stmt)
+        return self._apply_object(
+            data_sources, "data_source_name", data_source, "data_source_proto"
+        )
 
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
@@ -247,60 +224,19 @@ class SqlRegistry(Registry):
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
-        with self.engine.connect() as conn:
-            stmt = select(fv_table).where(
-                fv_table.c.feature_view_name == feature_view.name
-            )
-            row = conn.execute(stmt).first()
-            feature_view.last_updated_timestamp = datetime.utcnow()
-            update_time = int(feature_view.last_updated_timestamp.timestamp())
-            if row:
-                update_stmt = (
-                    update(fv_table)
-                    .where(fv_table.c.feature_view_name == feature_view.name,)
-                    .values(
-                        feature_view_proto=feature_view.to_proto().SerializeToString(),
-                        last_updated_timestamp=update_time,
-                    )
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(fv_table).values(
-                    feature_view_name=feature_view.name,
-                    feature_view_proto=feature_view.to_proto().SerializeToString(),
-                    last_updated_timestamp=update_time,
-                )
-                conn.execute(insert_stmt)
+        return self._apply_object(
+            fv_table, "feature_view_name", feature_view, "feature_view_proto"
+        )
 
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
-        with self.engine.connect() as conn:
-            stmt = select(feature_services).where(
-                feature_services.c.feature_service_name == feature_service.name
-            )
-            row = conn.execute(stmt).first()
-            feature_service.last_updated_timestamp = datetime.utcnow()
-            update_time = int(feature_service.last_updated_timestamp.timestamp())
-            if row:
-                update_stmt = (
-                    update(feature_services)
-                    .where(
-                        feature_services.c.feature_service_name == feature_service.name,
-                    )
-                    .values(
-                        feature_service_proto=feature_service.to_proto().SerializeToString(),
-                        last_updated_timestamp=update_time,
-                    )
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(feature_services).values(
-                    feature_service_name=feature_service.name,
-                    feature_service_proto=feature_service.to_proto().SerializeToString(),
-                    last_updated_timestamp=update_time,
-                )
-                conn.execute(insert_stmt)
+        return self._apply_object(
+            feature_services,
+            "feature_service_name",
+            feature_service,
+            "feature_service_proto",
+        )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
@@ -342,6 +278,16 @@ class SqlRegistry(Registry):
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
+        with self.engine.connect() as conn:
+            stmt = select(saved_datasets)
+            rows = conn.execute(stmt).all()
+            if rows:
+                return [
+                    SavedDataset.from_proto(
+                        SavedDatasetProto.FromString(row["saved_dataset_proto"])
+                    )
+                    for row in rows
+                ]
         return []
 
     def list_request_feature_views(
@@ -373,3 +319,56 @@ class SqlRegistry(Registry):
                     for row in rows
                 ]
         return []
+
+    def apply_saved_dataset(
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+    ):
+        return self._apply_object(
+            saved_datasets, "saved_dataset_name", saved_dataset, "saved_dataset_proto"
+        )
+
+    def apply_validation_reference(
+        self,
+        validation_reference: ValidationReference,
+        project: str,
+        commit: bool = True,
+    ):
+        return self._apply_object(
+            validation_references,
+            "validation_reference_name",
+            validation_reference,
+            "validation_reference_proto",
+        )
+
+    def _apply_object(
+        self, table, id_field_name, obj, proto_field_name,
+    ):
+        name = obj.name
+        with self.engine.connect() as conn:
+            stmt = select(table).where(getattr(table.c, id_field_name) == name)
+            row = conn.execute(stmt).first()
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
+            if hasattr(obj, "last_updated_timestamp"):
+                obj.last_updated_timestamp = update_datetime
+            if row:
+                update_stmt = (
+                    update(table)
+                    .where(getattr(table.c, id_field_name) == name)
+                    .values(
+                        **{
+                            proto_field_name: obj.to_proto().SerializeToString(),
+                            "last_updated_timestamp": update_time,
+                        },
+                    )
+                )
+                conn.execute(update_stmt)
+            else:
+                insert_stmt = insert(feature_services).values(
+                    **{
+                        id_field_name: name,
+                        proto_field_name: obj.to_proto().SerializeToString(),
+                        "last_updated_timestamp": update_time,
+                    },
+                )
+                conn.execute(insert_stmt)
