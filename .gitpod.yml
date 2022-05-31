@@ -11,6 +11,7 @@ tasks:
     env:
       PYTHONUSERBASE: "/workspace/.pip-modules"
     command: |
+      pip install '.[dev]'
       git config --global alias.ci 'commit -s'
       git config --global alias.sw switch
       git config --global alias.st status
