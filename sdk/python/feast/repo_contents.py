@@ -13,7 +13,7 @@
 # limitations under the License.
 from typing import List, NamedTuple
 
-from feast import StreamFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService

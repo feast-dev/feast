@@ -57,6 +57,7 @@ def test_create_stream_feature_view():
         entities=[],
         ttl=timedelta(days=30),
         source=stream_source,
+        aggregations=[],
     )
 
     push_source = PushSource(
@@ -67,11 +68,13 @@ def test_create_stream_feature_view():
         entities=[],
         ttl=timedelta(days=30),
         source=push_source,
+        aggregations=[],
+
     )
 
     with pytest.raises(ValueError):
         StreamFeatureView(
-            name="test batch feature view", entities=[], ttl=timedelta(days=30)
+            name="test batch feature view", entities=[], ttl=timedelta(days=30), aggregations=[],
         )
 
     with pytest.raises(ValueError):
@@ -80,6 +83,7 @@ def test_create_stream_feature_view():
             entities=[],
             ttl=timedelta(days=30),
             source=FileSource(path="some path"),
+            aggregations=[],
         )
 
 

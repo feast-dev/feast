@@ -93,7 +93,7 @@ class StreamFeatureView(FeatureView):
         owner: Optional[str] = "",
         schema: Optional[List[Field]] = None,
         source: Optional[DataSource] = None,
-        aggregations: List[Aggregation],
+        aggregations: Optional[List[Aggregation]] = None,
         mode: Optional[str] = "spark",  # Mode of ingestion/transformation
         timestamp_field: Optional[str] = "",  # Timestamp for aggregation
         udf: Optional[MethodType] = None,

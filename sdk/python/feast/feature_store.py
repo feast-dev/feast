@@ -86,7 +86,6 @@ from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.stream_processor import SparkStreamKafkaProcessor
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -94,8 +93,6 @@ from feast.type_map import (
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
-
-# from feast.test import SparkStreamKafkaProcessor
 
 warnings.simplefilter("once", DeprecationWarning)
 
