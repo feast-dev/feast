@@ -427,7 +427,7 @@ class build_ext(_build_ext):
                 "-no-make",
                 *ext.sources,
             ],
-            env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **os.environ, **go_env,},
+            env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **go_env,},
         )
 
     def copy_extensions_to_source(self):
