@@ -26,6 +26,7 @@ from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
+from isort import stream
 
 
 def py_path_to_module(path: Path) -> str:
@@ -107,6 +108,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_views=[],
         feature_services=[],
         on_demand_feature_views=[],
+        stream_feature_views=[],
         request_feature_views=[],
     )
 

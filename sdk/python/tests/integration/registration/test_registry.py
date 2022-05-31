@@ -20,7 +20,8 @@ import pytest
 from pytest_lazyfixture import lazy_fixture
 
 from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast.data_format import AvroFormat, ParquetFormat
+from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
@@ -28,6 +29,7 @@ from feast.field import Field
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
+from feast.stream_feature_view import Aggregation, StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 
@@ -290,6 +292,62 @@ def test_apply_on_demand_feature_view_success(test_registry):
 
     test_registry.delete_feature_view("location_features_from_push", project)
     feature_views = test_registry.list_on_demand_feature_views(project)
+    assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto()
+
+
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("local_registry")],
+)
+def test_apply_stream_feature_view_success(test_registry):
+    # Create Feature Views
+    def simple_udf(x: int):
+        return x + 3
+
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="",
+        bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+
+    sfv = StreamFeatureView(
+        name="test kafka stream feature view",
+        entities=["driver"],
+        ttl=timedelta(days=30),
+        owner="test@example.com",
+        online=True,
+        schema=[Field(name="dummy_field", dtype=Float32),],
+        description="desc",
+        aggregations=[
+            Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])
+        ],
+        timestamp_field="event_timestamp",
+        mode="spark",
+        source=stream_source,
+        udf=simple_udf,
+        tags={},
+    )
+
+    project = "project"
+
+    # Register Feature View
+    test_registry.apply_feature_view(sfv, project)
+
+    feature_views = test_registry.list_stream_feature_views(project)
+
+    # List Feature Views
+    assert feature_views[0] == sfv
+
+    test_registry.delete_feature_view("test kafka stream feature view", project)
+    feature_views = test_registry.list_stream_feature_views(project)
     assert len(feature_views) == 0
 
     test_registry.teardown()

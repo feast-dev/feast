@@ -1,34 +1,46 @@
 import abc
-from time import time
-import dill
+import warnings
 from datetime import timedelta
 from types import MethodType
-from typing import Dict, List, Optional, Union, Callable, Tuple
+from typing import Dict, List, Optional, Union
+
+import dill
+from google.protobuf.duration_pb2 import Duration
 
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from google.protobuf.duration_pb2 import Duration
-from feast.protos.feast.core.StreamFeatureView_pb2 import StreamFeatureView as StreamFeatureViewProto
-from feast.protos.feast.core.StreamFeatureView_pb2 import (
-    StreamFeatureViewMeta as StreamFeatureViewMetaProto,
-    StreamFeatureViewSpec as StreamFeatureViewSpecProto,
-    Aggregation as AggregationProto
-)
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
-from isort import stream
-from regex import R
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    Aggregation as AggregationProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureViewMeta as StreamFeatureViewMetaProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureViewSpec as StreamFeatureViewSpecProto,
+)
 
-SUPPORTED_STREAM_SOURCES = {"KafkaSource", "KinesisSource", "PushSource"}
+warnings.simplefilter("once", RuntimeWarning)
+
+SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 
 
 class Aggregation(abc.ABC):
-    column: str # Column name of the feature we are aggregating.
-    function: str # Provided built in aggregations sum, max, min, count mean
-    time_windows: List[str] # The time window. Example ["1h", "24h"]
+    """
+    NOTE: Feast-handled aggregations are not yet supported. This class provides a way to register user-defined aggregations.
+    """
+
+    column: str  # Column name of the feature we are aggregating.
+    function: str  # Provided built in aggregations sum, max, min, count mean
+    time_windows: List[str]  # The time window. Example ["1h", "24h"]
 
     def __init__(self, column: str, function: str, time_windows: List[str]):
         self.column = column
@@ -37,32 +49,38 @@ class Aggregation(abc.ABC):
 
     def to_proto(self) -> AggregationProto:
         return AggregationProto(
-            column=self.column,
-            function=self.function,
-            time_windows=self.time_windows,
+            column=self.column, function=self.function, time_windows=self.time_windows,
         )
 
     @classmethod
     def from_proto(cls, agg_proto: AggregationProto):
         aggregation = cls(
-            column = agg_proto.column,
-            function = agg_proto.function,
-            time_windows = agg_proto.time_windows,
+            column=agg_proto.column,
+            function=agg_proto.function,
+            time_windows=list(agg_proto.time_windows),
         )
         return aggregation
 
     def __eq__(self, other):
         if not isinstance(other, Aggregation):
-            raise TypeError(
-                "Comparisons should only involve Aggregation"
-            )
+            raise TypeError("Comparisons should only involve Aggregations.")
 
-        if self.column != other.column or self.function != other.function or self.time_windows != other.time_windows:
+        if (
+            self.column != other.column
+            or self.function != other.function
+            or self.time_windows != other.time_windows
+        ):
             return False
 
         return True
 
+
 class StreamFeatureView(FeatureView):
+    """
+    NOTE: Stream Feature Views are not yet fully implemented and exist to allow users to register their stream sources and
+    schemas with Feast.
+    """
+
     def __init__(
         self,
         *,
@@ -76,33 +94,39 @@ class StreamFeatureView(FeatureView):
         schema: Optional[List[Field]] = None,
         source: Optional[DataSource] = None,
         aggregations: List[Aggregation],
-        mode: Optional[str] = "spark", # Mode of ingestion/transformation
-        timestamp_field: Optional[str] = "", # Timestamp for aggregation
+        mode: Optional[str] = "spark",  # Mode of ingestion/transformation
+        timestamp_field: Optional[str] = "",  # Timestamp for aggregation
         udf: Optional[MethodType] = None,
     ):
-
+        warnings.warn(
+            "Stream Feature Views are experimental features in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         if source is None:
             raise ValueError("Stream Feature views need a source specified")
         # source uses the batch_source of the kafkasource in feature_view
         if (
             type(source).__name__ not in SUPPORTED_STREAM_SOURCES
-            # and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
+            and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
         ):
             raise ValueError(
                 f"Stream feature views need a stream source, expected one of {SUPPORTED_STREAM_SOURCES} "
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
-        # self.aggregations = aggregations
+        self.aggregations = aggregations
         self.mode = mode
         self.timestamp_field = timestamp_field
         self.udf = udf
         self.aggregations = aggregations
 
+        _batch_source = source.batch_source if source.batch_source else None
+
         super().__init__(
             name=name,
             entities=entities,
             ttl=ttl,
-            batch_source=source.batch_source or None,
+            batch_source=_batch_source,
             stream_source=source,
             tags=tags,
             online=online,
@@ -114,19 +138,18 @@ class StreamFeatureView(FeatureView):
 
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
-            raise TypeError(
-                "Comparisons should only involve StreamFeatureViews"
-            )
+            raise TypeError("Comparisons should only involve StreamFeatureViews")
 
         if not super().__eq__(other):
             return False
 
-        if ( self.mode != other.mode or self.timestamp_field != other.timestamp_field
-        or self.udf.__code__.co_code != other.udf.__code__.co_code
-        or self.aggregations != other.aggregations
-        or self.timestamp_field != other.timestamp_field):
-            print(self.udf.__code__.co_code != other.udf.__code__.co_code)
-            print(self.aggregations != other.aggregations)
+        if (
+            self.mode != other.mode
+            or self.timestamp_field != other.timestamp_field
+            or self.udf.__code__.co_code != other.udf.__code__.co_code
+            or self.aggregations != other.aggregations
+            or self.timestamp_field != other.timestamp_field
+        ):
             return False
 
         return True
@@ -170,7 +193,9 @@ class StreamFeatureView(FeatureView):
             features=[field.to_proto() for field in self.schema],
             user_defined_function=UserDefinedFunctionProto(
                 name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
-            ) if self.udf else None,
+            )
+            if self.udf
+            else None,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -180,7 +205,7 @@ class StreamFeatureView(FeatureView):
             stream_source=stream_source_proto,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=self.mode
+            mode=self.mode,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -204,8 +229,7 @@ class StreamFeatureView(FeatureView):
             owner=sfv_proto.spec.owner,
             online=sfv_proto.spec.online,
             schema=[
-                Field.from_proto(field_proto)
-                for field_proto in sfv_proto.spec.features
+                Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
             ],
             ttl=(
                 timedelta(days=0)
@@ -214,11 +238,12 @@ class StreamFeatureView(FeatureView):
             ),
             source=stream_source,
             mode=sfv_proto.spec.mode,
-            udf=dill.loads(
-                sfv_proto.spec.user_defined_function.body
-            ),
-            aggregations=[Aggregation.from_proto(agg_proto) for agg_proto in sfv_proto.spec.aggregations],
-            timestamp_field = sfv_proto.spec.timestamp_field,
+            udf=dill.loads(sfv_proto.spec.user_defined_function.body),
+            aggregations=[
+                Aggregation.from_proto(agg_proto)
+                for agg_proto in sfv_proto.spec.aggregations
+            ],
+            timestamp_field=sfv_proto.spec.timestamp_field,
         )
 
         if batch_source:
@@ -227,11 +252,10 @@ class StreamFeatureView(FeatureView):
         if stream_source:
             sfv_feature_view.stream_source = stream_source
 
-        sfv_feature_view.entities = sfv_proto.spec.entities
+        sfv_feature_view.entities = list(sfv_proto.spec.entities)
 
         sfv_feature_view.features = [
-            Field.from_proto(field_proto)
-            for field_proto in sfv_proto.spec.features
+            Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
         ]
 
         if sfv_proto.meta.HasField("created_timestamp"):

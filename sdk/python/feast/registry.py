@@ -51,6 +51,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -476,7 +477,11 @@ class Registry:
 
         self._check_conflicting_feature_view_names(feature_view)
         existing_feature_views_of_same_type: RepeatedCompositeFieldContainer
-        if isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, StreamFeatureView):
+            existing_feature_views_of_same_type = (
+                self.cached_registry_proto.stream_feature_views
+            )
+        elif isinstance(feature_view, FeatureView):
             existing_feature_views_of_same_type = (
                 self.cached_registry_proto.feature_views
             )
@@ -506,10 +511,33 @@ class Registry:
                 else:
                     del existing_feature_views_of_same_type[idx]
                     break
-
+        print(type(existing_feature_views_of_same_type))
+        print(feature_view_proto)
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
             self.commit()
+
+    def list_stream_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[StreamFeatureView]:
+        """
+        Retrieve a list of stream feature views from the registry
+
+        Args:
+            project: Filter stream feature views based on project name
+            allow_cache: Whether to allow returning stream feature views from a cached registry
+
+        Returns:
+            List of stream feature views
+        """
+        registry = self._get_registry_proto(allow_cache=allow_cache)
+        stream_feature_views = []
+        for stream_feature_view in registry.stream_feature_views:
+            if stream_feature_view.spec.project == project:
+                stream_feature_views.append(
+                    StreamFeatureView.from_proto(stream_feature_view)
+                )
+        return stream_feature_views
 
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
@@ -760,6 +788,18 @@ class Registry:
                 and existing_on_demand_feature_view_proto.spec.project == project
             ):
                 del self.cached_registry_proto.on_demand_feature_views[idx]
+                if commit:
+                    self.commit()
+                return
+
+        for idx, existing_stream_feature_view_proto in enumerate(
+            self.cached_registry_proto.stream_feature_views
+        ):
+            if (
+                existing_stream_feature_view_proto.spec.name == name
+                and existing_stream_feature_view_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.stream_feature_views[idx]
                 if commit:
                     self.commit()
                 return

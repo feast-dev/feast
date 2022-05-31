@@ -1,15 +1,15 @@
 from datetime import timedelta
-from numpy import equal
 
 import pytest
+from numpy import equal
 
-from feast import PushSource, Field
-from feast.types import Float32
+from feast import Field, PushSource
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
 from feast.infra.offline_stores.file_source import FileSource
-from feast.stream_feature_view import StreamFeatureView, Aggregation
+from feast.stream_feature_view import Aggregation, StreamFeatureView
+from feast.types import Float32
 
 
 def test_create_batch_feature_view():
@@ -86,6 +86,7 @@ def test_create_stream_feature_view():
 def simple_udf(x: int):
     return x + 3
 
+
 def test_stream_feature_view_serialization():
     stream_source = KafkaSource(
         name="kafka",
@@ -102,12 +103,11 @@ def test_stream_feature_view_serialization():
         ttl=timedelta(days=30),
         owner="test@example.com",
         online=True,
-        schema=[
-            Field(name="dummy_field", dtype=Float32),
-        ],
+        schema=[Field(name="dummy_field", dtype=Float32),],
         description="desc",
         aggregations=[
-            Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])],
+            Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])
+        ],
         timestamp_field="event_timestamp",
         mode="spark",
         source=stream_source,

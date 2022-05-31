@@ -95,6 +95,7 @@ class StreamFormat(ABC):
             return ProtoFormat(class_path=proto.proto_format.class_path)
         raise NotImplementedError(f"StreamFormat is unsupported: {fmt}")
 
+
 class AvroFormat(StreamFormat):
     """
     Defines the Avro streaming data format that encodes data in Avro format
@@ -134,6 +135,7 @@ class JsonFormat(StreamFormat):
     def to_proto(self):
         proto = StreamFormatProto.JsonFormat(schema_json=self.schema_json)
         return StreamFormatProto(json_format=proto)
+
 
 class ProtoFormat(StreamFormat):
     """

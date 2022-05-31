@@ -1,4 +1,5 @@
 import abc
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,20 +17,22 @@ from typing import (
 )
 
 import pandas as pd
-from feast.stream_feature_view import StreamFeatureView
-from feast.data_source import DataSource, KafkaSource
-from feast.data_format import AvroFormat, JsonFormat
-from datetime import timedelta
-
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import StructType, IntegerType, DoubleType, TimestampType
-from pyspark.sql.functions import col, from_json
 from pyspark.sql.avro.functions import from_avro
+from pyspark.sql.functions import col, from_json
+from pyspark.sql.types import DoubleType, IntegerType, StructType, TimestampType
 
-StreamTable = DataFrame # Can add more to this later(change to union).
+from feast.data_format import AvroFormat, JsonFormat
+from feast.data_source import DataSource, KafkaSource
+from feast.stream_feature_view import StreamFeatureView
+
+StreamTable = DataFrame  # Can add more to this later(change to union).
+
+
 class StreamProcessor(abc.ABC):
     data_source: DataSource
     sfv: StreamFeatureView
+
     def __init__(self, sfv: StreamFeatureView, data_source: DataSource):
         self.sfv = sfv
         self.data_source = data_source
@@ -71,23 +74,33 @@ class SparkStreamKafkaProcessor(StreamProcessor):
     format: str
     write_function: Callable
     join_keys: List[str]
+
     def __init__(
         self,
         sfv: StreamFeatureView,
         spark_session: SparkSession,
-        write_function: Callable):
+        write_function: Callable,
+    ):
         if not isinstance(sfv.stream_source, KafkaSource):
             raise ValueError("data source is not kafka source")
-        if not isinstance(sfv.stream_source.kafka_options.message_format, AvroFormat) and not isinstance(sfv.stream_source.kafka_options.message_format, JsonFormat):
-            raise ValueError("spark streaming currently only supports json or avro format for kafka source schema")
+        if not isinstance(
+            sfv.stream_source.kafka_options.message_format, AvroFormat
+        ) and not isinstance(
+            sfv.stream_source.kafka_options.message_format, JsonFormat
+        ):
+            raise ValueError(
+                "spark streaming currently only supports json or avro format for kafka source schema"
+            )
         # if not sfv.mode == "spark":
         #     raise ValueError(f"stream feature view mode is {sfv.mode}, but only supports spark")
-        self.format = "json" if isinstance(sfv.stream_source.kafka_options.message_format, JsonFormat) else "avro"
+        self.format = (
+            "json"
+            if isinstance(sfv.stream_source.kafka_options.message_format, JsonFormat)
+            else "avro"
+        )
         self.spark = spark_session
         self.write_function = write_function
         super().__init__(sfv=sfv, data_source=sfv.stream_source)
-
-
 
     def _ingest_stream_data(self) -> StreamTable:
         """
@@ -97,28 +110,44 @@ class SparkStreamKafkaProcessor(StreamProcessor):
         if self.format == "json":
             streamingDF = (
                 self.spark.readStream.format("kafka")
-                .option("kafka.bootstrap.servers", self.data_source.kafka_options.bootstrap_servers)
+                .option(
+                    "kafka.bootstrap.servers",
+                    self.data_source.kafka_options.bootstrap_servers,
+                )
                 .option("subscribe", self.data_source.kafka_options.topic)
-                .option("startingOffsets", "latest") # Query start
+                .option("startingOffsets", "latest")  # Query start
                 .load()
-                .selectExpr('CAST(value AS STRING)')
-                .select(from_json(col('value'), self.data_source.kafka_options.message_format.schema_json).alias("table"))
+                .selectExpr("CAST(value AS STRING)")
+                .select(
+                    from_json(
+                        col("value"),
+                        self.data_source.kafka_options.message_format.schema_json,
+                    ).alias("table")
+                )
                 .select("table.*")
             )
         else:
             streamingDF = (
                 self.spark.readStream.format("kafka")
-                .option("kafka.bootstrap.servers", self.data_source.kafka_options.bootstrap_servers)
+                .option(
+                    "kafka.bootstrap.servers",
+                    self.data_source.kafka_options.bootstrap_servers,
+                )
                 .option("subscribe", self.data_source.kafka_options.topic)
-                .option("startingOffsets", "latest") # Query start
+                .option("startingOffsets", "latest")  # Query start
                 .load()
-                .selectExpr('CAST(value AS STRING)')
-                .select(from_avro(col('value'), self.data_source.kafka_options.message_format.schema_json).alias("table"))
+                .selectExpr("CAST(value AS STRING)")
+                .select(
+                    from_avro(
+                        col("value"),
+                        self.data_source.kafka_options.message_format.schema_json,
+                    ).alias("table")
+                )
                 .select("table.*")
             )
         return streamingDF
 
-    def _construct_transformation_plan(self, df : StreamTable) -> StreamTable:
+    def _construct_transformation_plan(self, df: StreamTable) -> StreamTable:
         """
         Applies transformations on top of StreamTable object. Since stream engines use lazy
         evaluation, the StreamTable will not be materialized until it is actually evaluated.
@@ -135,13 +164,17 @@ class SparkStreamKafkaProcessor(StreamProcessor):
         Returns query for writing stream.
         """
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
-        query = df \
-            .writeStream \
-            .outputMode("update") \
-            .option("checkpointLocation", "/tmp/checkpoint/") \
-            .trigger(processingTime="30 seconds") \
-            .foreachBatch(lambda row, batch_id: self.write_function(row, input_timestamp="event_timestamp", output_timestamp="")) \
+        query = (
+            df.writeStream.outputMode("update")
+            .option("checkpointLocation", "/tmp/checkpoint/")
+            .trigger(processingTime="30 seconds")
+            .foreachBatch(
+                lambda row, batch_id: self.write_function(
+                    row, input_timestamp="event_timestamp", output_timestamp=""
+                )
+            )
             .start()
+        )
         query.awaitTermination(timeout=30)
         return query
 

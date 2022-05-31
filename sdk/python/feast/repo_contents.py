@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import List, NamedTuple
+from feast import StreamFeatureView
 
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -31,6 +32,7 @@ class RepoContents(NamedTuple):
     feature_views: List[FeatureView]
     on_demand_feature_views: List[OnDemandFeatureView]
     request_feature_views: List[RequestFeatureView]
+    stream_feature_views: List[StreamFeatureView]
     entities: List[Entity]
     feature_services: List[FeatureService]
 
@@ -49,5 +51,8 @@ class RepoContents(NamedTuple):
         )
         registry_proto.feature_services.extend(
             [fs.to_proto() for fs in self.feature_services]
+        )
+        registry_proto.stream_feature_views.extend(
+            [fv.to_proto() for fv in self.stream_feature_views]
         )
         return registry_proto
