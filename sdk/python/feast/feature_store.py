@@ -38,7 +38,6 @@ import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
-from pyspark.sql import SparkSession
 from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, ui_server, utils
@@ -103,6 +102,7 @@ if TYPE_CHECKING:
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
+
     Args:
         repo_path (optional): Path to a `feature_store.yaml` used to configure the
             feature store.
@@ -183,6 +183,7 @@ class FeatureStore:
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieves the list of entities from the registry.
+
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
         Returns:
@@ -206,6 +207,7 @@ class FeatureStore:
     def list_feature_services(self) -> List[FeatureService]:
         """
         Retrieves the list of feature services from the registry.
+
         Returns:
             A list of feature services.
         """
@@ -215,6 +217,7 @@ class FeatureStore:
     def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
+
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
         Returns:
@@ -228,6 +231,7 @@ class FeatureStore:
     ) -> List[RequestFeatureView]:
         """
         Retrieves the list of feature views from the registry.
+
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
         Returns:
@@ -256,6 +260,7 @@ class FeatureStore:
     ) -> List[OnDemandFeatureView]:
         """
         Retrieves the list of on demand feature views from the registry.
+
         Returns:
             A list of on demand feature views.
         """
@@ -269,6 +274,7 @@ class FeatureStore:
     ) -> List[StreamFeatureView]:
         """
         Retrieves the list of stream feature views from the registry.
+
         Returns:
             A list of stream feature views.
         """
@@ -280,6 +286,7 @@ class FeatureStore:
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
         """
         Retrieves the list of data sources from the registry.
+
         Args:
             allow_cache: Whether to allow returning data sources from a cached registry.
         Returns:
@@ -291,6 +298,7 @@ class FeatureStore:
     def get_entity(self, name: str, allow_registry_cache: bool = False) -> Entity:
         """
         Retrieves an entity.
+
         Args:
             name: Name of entity.
             allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
@@ -309,6 +317,7 @@ class FeatureStore:
     ) -> FeatureService:
         """
         Retrieves a feature service.
+
         Args:
             name: Name of feature service.
             allow_cache: Whether to allow returning feature services from a cached registry.
@@ -325,6 +334,7 @@ class FeatureStore:
     ) -> FeatureView:
         """
         Retrieves a feature view.
+
         Args:
             name: Name of feature view.
             allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
@@ -352,6 +362,7 @@ class FeatureStore:
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
+
         Args:
             name: Name of feature view.
         Returns:
@@ -365,6 +376,7 @@ class FeatureStore:
     def get_data_source(self, name: str) -> DataSource:
         """
         Retrieves the list of data sources from the registry.
+
         Args:
             name: Name of the data source.
         Returns:
@@ -378,6 +390,7 @@ class FeatureStore:
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view.
+
         Args:
             name: Name of feature view.
         Raises:
@@ -389,6 +402,7 @@ class FeatureStore:
     def delete_feature_service(self, name: str):
         """
         Deletes a feature service.
+
         Args:
             name: Name of feature service.
         Raises:
@@ -507,6 +521,7 @@ class FeatureStore:
         The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
         a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
         command are for informational purposes, and are not actually applied to the registry.
+
         Args:
             desired_repo_contents: The desired repo state.
         Raises:
@@ -581,6 +596,7 @@ class FeatureStore:
         self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
     ):
         """Applies the given diffs to the metadata store and infrastructure.
+
         Args:
             registry_diff: The diff between the current registry and the desired registry.
             infra_diff: The diff between the current infra and the desired infra.
@@ -615,6 +631,7 @@ class FeatureStore:
         objects in the Feast registry. Once the apply method has updated the infrastructure (e.g., create tables in
         an online store), it will commit the updated registry. All operations are idempotent, meaning they can safely
         be rerun.
+
         Args:
             objects: A single object, or a list of objects that should be registered with the Feature Store.
             objects_to_delete: A list of objects to be deleted from the registry and removed from the
@@ -827,6 +844,7 @@ class FeatureStore:
         Time travel is based on the configured TTL for each feature view. A shorter TTL will limit the
         amount of scanning that will be done in order to find feature data for a specific entity key. Setting a short
         TTL may result in null values being returned.
+
         Args:
             entity_df (Union[pd.DataFrame, str]): An entity dataframe is a collection of rows containing all entity
                 columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
@@ -947,6 +965,7 @@ class FeatureStore:
         After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
         Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
         with the same name.
+
         Returns:
             SavedDataset object with attached RetrievalJob
         Raises:
@@ -996,6 +1015,7 @@ class FeatureStore:
         create a retrieval job to pull whole dataset from storage (offline store).
         If dataset couldn't be found by provided name SavedDatasetNotFound exception will be raised.
         Data will be retrieved from globally configured offline store.
+
         Returns:
             SavedDataset with RetrievalJob attached
         Raises:
@@ -1027,6 +1047,7 @@ class FeatureStore:
         into the online store where it is available for online serving. The start time of
         the interval materialized is either the most recent end time of a prior materialization or
         (now - ttl) if no such prior materialization exists.
+
         Args:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
@@ -1124,6 +1145,7 @@ class FeatureStore:
         This method loads feature data in the specified interval from either
         the specified feature views, or all feature views if none are specified,
         into the online store where it is available for online serving.
+
         Args:
             start_date (datetime): Start date for time range of data to materialize into the online store
             end_date (datetime): End date for time range of data to materialize into the online store
@@ -1201,6 +1223,7 @@ class FeatureStore:
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
+
         Args:
             push_source_name: The name of the push source we want to push data to.
             df: the data being pushed.
@@ -1269,6 +1292,7 @@ class FeatureStore:
         introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
         refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
         infinity (cache forever).
+
         Args:
             features: The list of features that should be retrieved from the online store. These features can be
                 specified either as a list of string feature references or as a feature service. String feature
@@ -1277,12 +1301,16 @@ class FeatureStore:
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+
         Returns:
             OnlineResponse containing the feature data in records.
+
         Raises:
             Exception: No entity with the specified name exists.
+
         Examples:
             Retrieve online features from an online store.
+
             >>> from feast import FeatureStore, RepoConfig
             >>> fs = FeatureStore(repo_path="feature_repo")
             >>> online_response = fs.get_online_features(
@@ -1763,6 +1791,7 @@ class FeatureStore:
         This method assumes that `_read_from_online_store` returns data for each
         combination of Entities in `entity_rows` in the same order as they
         are provided.
+
         Args:
             feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
             indexes: A list of indexes which should be the same length as `feature_data`. Each list
@@ -1813,6 +1842,7 @@ class FeatureStore:
         Assumes that 'online_features_response' already contains the necessary request data and input feature
         views for the on demand feature views. Unneeded feature values such as request data and
         unrequested input feature views will be removed from 'online_features_response'.
+
         Args:
             online_features_response: Protobuf object to populate
             feature_refs: List of all feature references to be returned.
@@ -1877,6 +1907,7 @@ class FeatureStore:
         """
         Unneeded feature values such as request data and unrequested input feature views will
         be removed from 'online_features_response'.
+
         Args:
             online_features_response: Protobuf object to populate
             requested_result_row_names: Fields from 'result_rows' that have been requested, and
@@ -2054,6 +2085,7 @@ class FeatureStore:
         """
         Write logs produced by a source (currently only feature service is supported as a source)
         to an offline store.
+
         Args:
             logs: Arrow Table or path to parquet dataset directory on disk
             source: Object that produces logs
@@ -2086,6 +2118,7 @@ class FeatureStore:
     ) -> Optional[ValidationFailed]:
         """
         Load logged features from an offline store and validate them against provided validation reference.
+
         Args:
             source: Logs source object (currently only feature services are supported)
             start: lower bound for loading logged features
@@ -2093,6 +2126,7 @@ class FeatureStore:
             reference: validation reference
             throw_exception: throw exception or return it as a result
             cache_profile: store cached profile in Feast registry
+
         Returns:
             Throw or return (depends on parameter) ValidationFailed exception if validation was not successful
             or None if successful.
@@ -2155,11 +2189,13 @@ def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     """
     Validates that there are no collisions among the feature references.
+
     Args:
         feature_refs: List of feature references to validate. Feature references must have format
             "feature_view:feature", e.g. "customer_fv:daily_transactions".
         full_feature_names: If True, the full feature references are compared for collisions; if False,
             only the feature names are compared.
+
     Raises:
         FeatureNameCollisionError: There is a collision among the feature references.
     """
