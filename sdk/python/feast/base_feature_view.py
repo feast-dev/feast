@@ -130,6 +130,7 @@ class BaseFeatureView(ABC):
             raise TypeError(
                 "Comparisons should only involve BaseFeatureView class objects."
             )
+
         if (
             self.name != other.name
             or sorted(self.features) != sorted(other.features)

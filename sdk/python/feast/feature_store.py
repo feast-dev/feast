@@ -1775,7 +1775,7 @@ class FeatureStore:
         This method guarantees that the order of the data in each element of the
         List returned is the same as the order of `requested_features`.
 
-       This method assumes that `provider.online_read` returns data for each
+        This method assumes that `provider.online_read` returns data for each
         combination of Entities in `entity_rows` in the same order as they
         are provided.
         """
@@ -1835,6 +1835,7 @@ class FeatureStore:
         table: FeatureView,
     ):
         """Populate the GetOnlineFeaturesResponse with feature data.
+
         This method assumes that `_read_from_online_store` returns data for each
         combination of Entities in `entity_rows` in the same order as they
         are provided.
