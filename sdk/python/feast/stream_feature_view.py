@@ -3,7 +3,7 @@ import warnings
 from datetime import timedelta
 from types import MethodType
 from typing import Dict, List, Optional, Union
-
+import functools
 import dill
 from google.protobuf.duration_pb2 import Duration
 
@@ -268,3 +268,51 @@ class StreamFeatureView(FeatureView):
             )
 
         return sfv_feature_view
+
+
+def stream_feature_view(
+    *,
+    entities: Optional[Union[List[Entity], List[str]]] = None,
+    ttl: Optional[timedelta] = None,
+    tags: Optional[Dict[str, str]] = None,
+    online: Optional[bool] = True,
+    description: Optional[str] = "",
+    owner: Optional[str] = "",
+    schema: Optional[List[Field]] = None,
+    source: Optional[DataSource] = None,
+    aggregations: Optional[List[Aggregation]] = None,
+    mode: Optional[str] = "spark",  # Mode of ingestion/transformation
+    timestamp_field: Optional[str] = "",  # Timestamp for aggregation
+):
+    """
+    Creates an StreamFeatureView object with the given user function as udf.
+    """
+    def mainify(obj):
+        # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
+        # name as the original file defining the ODFV.
+        if obj.__module__ != "__main__":
+            obj.__module__ = "__main__"
+
+    def decorator(user_function):
+        mainify(user_function)
+        stream_feature_view_obj = StreamFeatureView(
+            name=user_function.__name__,
+            entities=entities,
+            ttl=ttl,
+            source=source,
+            schema=schema,
+            udf=user_function,
+            description=description,
+            tags=tags,
+            online=online,
+            owner=owner,
+            aggregations=aggregations,
+            mode=mode,
+            timestamp_field=timestamp_field
+        )
+        functools.update_wrapper(
+            wrapper=stream_feature_view_obj, wrapped=user_function
+        )
+        return stream_feature_view_obj
+
+    return decorator

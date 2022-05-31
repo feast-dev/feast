@@ -254,7 +254,7 @@ class FeatureView(BaseFeatureView):
 
         super().__init__(
             name=_name,
-            features=self.schema,
+            features=_features,
             description=description,
             tags=tags,
             owner=owner,
@@ -328,7 +328,6 @@ class FeatureView(BaseFeatureView):
             )
 
         if not super().__eq__(other):
-            print("ASdfsf")
             return False
 
         if (
@@ -339,7 +338,6 @@ class FeatureView(BaseFeatureView):
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
         ):
-            print("ASdfsfd")
             return False
 
         return True
