@@ -499,6 +499,7 @@ setup(
         "grpcio",
         "grpcio-tools==1.44.0",
         "mypy-protobuf==3.1",
+        "pybindgen==0.22.0",
         "sphinx!=4.0.0",
     ],
     cmdclass={
