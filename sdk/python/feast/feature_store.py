@@ -121,6 +121,7 @@ class FeatureStore:
     ):
         """
         Creates a FeatureStore object.
+
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
         """
@@ -163,11 +164,13 @@ class FeatureStore:
     @log_exceptions_and_usage
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
+
         Explicitly calling this method allows for direct control of the state of the registry cache. Every time this
         method is called the complete registry state will be retrieved from the remote registry store backend
         (e.g., GCS, S3), and the cache timer will be reset. If refresh_registry() is run before get_online_features()
         is called, then get_online_features() will use the cached registry instead of retrieving (and caching) the
         registry itself.
+
         Additionally, the TTL for the registry cache can be set to infinity (by setting it to 0), which means that
         refresh_registry() will become the only way to update the cached registry. If the TTL is set to a value
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
@@ -186,6 +189,7 @@ class FeatureStore:
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+
         Returns:
             A list of entities.
         """
@@ -220,6 +224,7 @@ class FeatureStore:
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+
         Returns:
             A list of feature views.
         """
@@ -234,6 +239,7 @@ class FeatureStore:
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+
         Returns:
             A list of feature views.
         """
@@ -289,6 +295,7 @@ class FeatureStore:
 
         Args:
             allow_cache: Whether to allow returning data sources from a cached registry.
+
         Returns:
             A list of data sources.
         """
@@ -302,6 +309,7 @@ class FeatureStore:
         Args:
             name: Name of entity.
             allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
+
         Returns:
             The specified entity.
         Raises:
@@ -321,8 +329,10 @@ class FeatureStore:
         Args:
             name: Name of feature service.
             allow_cache: Whether to allow returning feature services from a cached registry.
+
         Returns:
             The specified feature service.
+
         Raises:
             FeatureServiceNotFoundException: The feature service could not be found.
         """
@@ -338,8 +348,10 @@ class FeatureStore:
         Args:
             name: Name of feature view.
             allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
+
         Returns:
             The specified feature view.
+
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
@@ -365,8 +377,10 @@ class FeatureStore:
 
         Args:
             name: Name of feature view.
+
         Returns:
             The specified feature view.
+
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
@@ -379,8 +393,10 @@ class FeatureStore:
 
         Args:
             name: Name of the data source.
+
         Returns:
             The specified data source.
+
         Raises:
             DataSourceObjectNotFoundException: The data source could not be found.
         """
@@ -393,6 +409,7 @@ class FeatureStore:
 
         Args:
             name: Name of feature view.
+
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
@@ -405,6 +422,7 @@ class FeatureStore:
 
         Args:
             name: Name of feature service.
+
         Raises:
             FeatureServiceNotFoundException: The feature view could not be found.
         """
@@ -858,10 +876,13 @@ class FeatureStore:
                 changes to "customer_fv__daily_transactions").
         Returns:
             RetrievalJob which can be used to materialize the results.
+
         Raises:
             ValueError: Both or neither of features and feature_refs are specified.
+
         Examples:
             Retrieve historical features from a local offline store.
+
             >>> from feast import FeatureStore, RepoConfig
             >>> import pandas as pd
             >>> fs = FeatureStore(repo_path="feature_repo")
@@ -968,6 +989,7 @@ class FeatureStore:
 
         Returns:
             SavedDataset object with attached RetrievalJob
+
         Raises:
             ValueError if given retrieval job doesn't have metadata
         """
@@ -1018,6 +1040,7 @@ class FeatureStore:
 
         Returns:
             SavedDataset with RetrievalJob attached
+
         Raises:
             SavedDatasetNotFound
         """
