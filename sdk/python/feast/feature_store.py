@@ -814,59 +814,6 @@ class FeatureStore:
         self._registry.teardown()
         self._teardown_go_server()
 
-    def _write_stream_row(
-        self,
-        feature_view,
-        row,
-        join_keys,
-        input_timestamp_field,
-        output_timestamp_column="",
-    ):
-        row: pd.DataFrame = row.toPandas()
-
-        row = (
-            row.sort_values(by=join_keys + [input_timestamp_field], ascending=True)
-            .groupby(join_keys)
-            .nth(0)
-        )
-        if output_timestamp_column and output_timestamp_column != input_timestamp_field:
-            row = row.rename(columns={input_timestamp_field, output_timestamp_column})
-        row["created"] = pd.to_datetime("now", utc=True)
-        # print("========================")
-        # print(row)s
-        self.write_to_online_store(
-            feature_view, row,
-        )
-
-    def ingest_stream_feature_view(
-        self, sfv_name: str, spark_session: SparkSession
-    ) -> bool:
-        # TODO: Actually write the code to get the stream feature view.
-        for fv in self.list_feature_views():
-            if fv.name == sfv_name:
-                sfv = fv
-
-        join_keys = [
-            self.get_entity(entity, allow_registry_cache=True).join_key
-            for entity in sfv.entities
-        ]
-
-        skp = SparkStreamKafkaProcessor(
-            sfv=sfv,
-            spark_session=spark_session,
-            write_function=lambda row, input_timestamp, output_timestamp: self._write_stream_row(
-                feature_view=sfv.name,
-                row=row,
-                join_keys=join_keys,
-                input_timestamp_field=input_timestamp,
-                output_timestamp_column=output_timestamp,
-            ),
-        )
-        query = skp.ingest_stream_feature_view()
-        # Handle query(set up monitoring thread, etc)
-        # Return success
-        return True
-
     @log_exceptions_and_usage
     def get_historical_features(
         self,
@@ -1956,7 +1903,12 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView], List[StreamFeatureView]]:
+    ) -> Tuple[
+        List[FeatureView],
+        List[RequestFeatureView],
+        List[OnDemandFeatureView],
+        List[StreamFeatureView],
+    ]:
 
         fvs = {
             fv.name: fv

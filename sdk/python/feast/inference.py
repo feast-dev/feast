@@ -89,7 +89,9 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 
 def update_feature_views_with_inferred_features_and_entities(
-    fvs: List[Union[FeatureView, StreamFeatureView]], entities: List[Entity], config: RepoConfig
+    fvs: List[Union[FeatureView, StreamFeatureView]],
+    entities: List[Entity],
+    config: RepoConfig,
 ) -> None:
     """
     Infers the features and entities associated with each feature view and updates it in place.

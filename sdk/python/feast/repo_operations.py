@@ -11,6 +11,7 @@ from typing import List, Set, Union
 
 import click
 from click.exceptions import BadParameter
+from isort import stream
 
 from feast import PushSource
 from feast.data_source import DataSource
@@ -26,7 +27,6 @@ from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.usage import log_exceptions_and_usage
-from isort import stream
 
 
 def py_path_to_module(path: Path) -> str:
