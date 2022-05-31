@@ -1,14 +1,20 @@
 #  https://www.gitpod.io/docs/config-gitpod-file
-image:
-  file: .gitpod.Dockerfile
 tasks:
   - init: |
+      python -m venv venv
+      source venv/bin/activate
+
       pip install pre-commit
       pre-commit install --hook-type pre-commit --hook-type pre-push
       pip install '.[dev]'
+      make compile-protos-python
       make compile-protos-go
       make compile-go-lib
+    env:
+      PYTHONUSERBASE: "/workspace/.pip-modules"
     command: |
+      source venv/bin/activate
+
       git config --global alias.ci 'commit -s'
       git config --global alias.sw switch
       git config --global alias.st status
@@ -31,3 +37,7 @@ github:
     addComment: false
     # add a "Review in Gitpod" button to the pull request's description (defaults to false)
     addBadge: false
+
+vscode:
+  extensions:
+    - ms-python.python
