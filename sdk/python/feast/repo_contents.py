@@ -13,7 +13,6 @@
 # limitations under the License.
 from typing import List, NamedTuple
 
-from feast.stream_feature_view import StreamFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -21,6 +20,7 @@ from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.request_feature_view import RequestFeatureView
+from feast.stream_feature_view import StreamFeatureView
 
 
 class RepoContents(NamedTuple):

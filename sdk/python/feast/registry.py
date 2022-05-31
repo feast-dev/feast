@@ -511,8 +511,6 @@ class Registry:
                 else:
                     del existing_feature_views_of_same_type[idx]
                     break
-        print(type(existing_feature_views_of_same_type))
-        print(feature_view_proto)
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
             self.commit()

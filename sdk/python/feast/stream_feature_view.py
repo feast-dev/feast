@@ -1,9 +1,10 @@
 import abc
+import functools
 import warnings
 from datetime import timedelta
 from types import MethodType
 from typing import Dict, List, Optional, Union
-import functools
+
 import dill
 from google.protobuf.duration_pb2 import Duration
 
