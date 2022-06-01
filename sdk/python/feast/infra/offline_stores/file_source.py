@@ -180,8 +180,8 @@ class FileSource(DataSource):
             self.path, self.file_options.s3_endpoint_override
         )
         schema = ParquetDataset(
-            path if filesystem is None else filesystem.open_input_file(path)
-        ).schema.to_arrow_schema()
+            path, filesystem=None if filesystem is None else filesystem
+        ).schema
         return zip(schema.names, map(str, schema.types))
 
     @staticmethod
