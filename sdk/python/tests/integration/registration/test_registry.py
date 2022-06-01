@@ -29,7 +29,8 @@ from feast.field import Field
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
-from feast.stream_feature_view import Aggregation, StreamFeatureView
+from feast.stream_feature_view import StreamFeatureView
+from feast.aggregation import Aggregation
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 
@@ -341,14 +342,15 @@ def test_apply_stream_feature_view_success(test_registry):
     # Register Feature View
     test_registry.apply_feature_view(sfv, project)
 
-    feature_views = test_registry.list_stream_feature_views(project)
+    stream_feature_views = test_registry.list_stream_feature_views(project)
 
     # List Feature Views
-    assert feature_views[0] == sfv
+    assert len(stream_feature_views) == 1
+    assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)
-    feature_views = test_registry.list_stream_feature_views(project)
-    assert len(feature_views) == 0
+    stream_feature_views = test_registry.list_stream_feature_views(project)
+    assert len(stream_feature_views) == 0
 
     test_registry.teardown()
 

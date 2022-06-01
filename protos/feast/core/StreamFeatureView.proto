@@ -26,10 +26,9 @@ option java_package = "feast.proto.core";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/OnDemandFeatureView.proto";
-import "feast/core/FeatureView.proto";
-import "feast/core/FeatureViewProjection.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
+import "feast/core/Aggregation.proto";
 
 message StreamFeatureView {
     // User-specified specifications of this feature view.
@@ -37,7 +36,7 @@ message StreamFeatureView {
     StreamFeatureViewMeta meta = 2;
 }
 
-// Next available id: 10
+// Next available id: 17
 message StreamFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -77,6 +76,7 @@ message StreamFeatureViewSpec {
     // Whether these features should be served online or not
     bool online = 12;
 
+    // Serialized function that is encoded in the streamfeatureview
     UserDefinedFunction user_defined_function = 13;
 
     // Mode of execution
@@ -95,10 +95,4 @@ message StreamFeatureViewMeta {
 
     // Time where this Feature View is last updated
     google.protobuf.Timestamp last_updated_timestamp = 2;
-}
-
-message Aggregation {
-    string column = 1;
-    string function = 2;
-    repeated string time_windows = 3;
 }

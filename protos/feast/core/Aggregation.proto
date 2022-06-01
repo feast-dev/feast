@@ -1,0 +1,12 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "AggregationProto";
+option java_package = "feast.proto.core";
+
+message Aggregation {
+    string column = 1;
+    string function = 2;
+    repeated string time_windows = 3;
+}

@@ -1,4 +1,3 @@
-import abc
 import functools
 import warnings
 from datetime import timedelta
@@ -12,12 +11,13 @@ from feast.data_source import DataSource, KafkaSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.aggregation import Aggregation
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.Aggregation_pb2 import (
+    Aggregation as AggregationProto
+)
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
-)
-from feast.protos.feast.core.StreamFeatureView_pb2 import (
-    Aggregation as AggregationProto,
 )
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
@@ -34,46 +34,6 @@ warnings.simplefilter("once", RuntimeWarning)
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 
 
-class Aggregation(abc.ABC):
-    """
-    NOTE: Feast-handled aggregations are not yet supported. This class provides a way to register user-defined aggregations.
-    """
-
-    column: str  # Column name of the feature we are aggregating.
-    function: str  # Provided built in aggregations sum, max, min, count mean
-    time_windows: List[str]  # The time window. Example ["1h", "24h"]
-
-    def __init__(self, column: str, function: str, time_windows: List[str]):
-        self.column = column
-        self.function = function
-        self.time_windows = time_windows
-
-    def to_proto(self) -> AggregationProto:
-        return AggregationProto(
-            column=self.column, function=self.function, time_windows=self.time_windows,
-        )
-
-    @classmethod
-    def from_proto(cls, agg_proto: AggregationProto):
-        aggregation = cls(
-            column=agg_proto.column,
-            function=agg_proto.function,
-            time_windows=list(agg_proto.time_windows),
-        )
-        return aggregation
-
-    def __eq__(self, other):
-        if not isinstance(other, Aggregation):
-            raise TypeError("Comparisons should only involve Aggregations.")
-
-        if (
-            self.column != other.column
-            or self.function != other.function
-            or self.time_windows != other.time_windows
-        ):
-            return False
-
-        return True
 
 
 class StreamFeatureView(FeatureView):
@@ -119,7 +79,6 @@ class StreamFeatureView(FeatureView):
         self.mode = mode
         self.timestamp_field = timestamp_field
         self.udf = udf
-        self.aggregations = aggregations
         _batch_source = None
         if isinstance(source, KafkaSource):
             _batch_source = source.batch_source if source.batch_source else None
@@ -150,7 +109,6 @@ class StreamFeatureView(FeatureView):
             or self.timestamp_field != other.timestamp_field
             or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.aggregations != other.aggregations
-            or self.timestamp_field != other.timestamp_field
         ):
             return False
 
@@ -180,14 +138,14 @@ class StreamFeatureView(FeatureView):
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
-        aggregation_proto_lst = []
+        aggregation_proto_list = []
         for aggregations in self.aggregations:
             agg_proto = AggregationProto(
                 column=aggregations.column,
                 function=aggregations.function,
                 time_windows=aggregations.time_windows,
             )
-            aggregation_proto_lst.append(agg_proto)
+            aggregation_proto_list.append(agg_proto)
         spec = StreamFeatureViewSpecProto(
             name=self.name,
             entities=self.entities,

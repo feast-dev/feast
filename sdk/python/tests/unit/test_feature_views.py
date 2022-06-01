@@ -2,12 +2,13 @@ from datetime import timedelta
 
 import pytest
 
-from feast import Field, PushSource
+from feast import Field, PushSource, Entity
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
 from feast.infra.offline_stores.file_source import FileSource
-from feast.stream_feature_view import Aggregation, StreamFeatureView
+from feast.stream_feature_view import StreamFeatureView
+from feast.aggregation import Aggregation
 from feast.types import Float32
 
 
@@ -93,6 +94,8 @@ def simple_udf(x: int):
 
 
 def test_stream_feature_view_serialization():
+
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="",

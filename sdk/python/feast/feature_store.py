@@ -312,6 +312,7 @@ class FeatureStore:
 
         Returns:
             The specified entity.
+
         Raises:
             EntityNotFoundException: The entity could not be found.
         """
@@ -549,6 +550,7 @@ class FeatureStore:
 
         Examples:
             Generate a plan adding an Entity and a FeatureView.
+
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
@@ -1195,7 +1197,6 @@ class FeatureStore:
 
         Examples:
             Materialize all features into the online store over the interval
-
             from 3 hours ago to 10 minutes ago.
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
