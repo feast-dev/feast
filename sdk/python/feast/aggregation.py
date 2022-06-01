@@ -2,9 +2,10 @@ import abc
 from datetime import timedelta
 from typing import List, Union
 
-from feast.protos.feast.core.Aggregation_pb2 import (
-    Aggregation as AggregationProto,
-)
+from google.protobuf.duration_pb2 import Duration
+
+from feast.protos.feast.core.Aggregation_pb2 import Aggregation as AggregationProto
+
 
 class Aggregation(abc.ABC):
     """
@@ -20,23 +21,44 @@ class Aggregation(abc.ABC):
     function: str
     time_windows: List[timedelta]
 
-    def __init__(self, column: str, function: str, time_windows: Union[timedelta, List[timedelta]]):
+    def __init__(
+        self,
+        column: str,
+        function: str,
+        time_windows: Union[timedelta, List[timedelta]],
+    ):
         self.column = column
         self.function = function
-        _time_windows = [time_windows] if not isinstance(time_windows, list) else time_windows
+        _time_windows = (
+            [time_windows] if not isinstance(time_windows, list) else time_windows
+        )
         self.time_windows = _time_windows
 
     def to_proto(self) -> AggregationProto:
+        duration_windows = []
+        for time_window in self.time_windows:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(time_window)
+            duration_windows.append(ttl_duration)
+
         return AggregationProto(
-            column=self.column, function=self.function, time_windows=self.time_windows,
+            column=self.column, function=self.function, time_windows=duration_windows,
         )
 
     @classmethod
     def from_proto(cls, agg_proto: AggregationProto):
+        time_windows = []
+        for duration in list(agg_proto.time_windows):
+            time_windows.append(
+                timedelta(days=0)
+                if duration.ToNanoseconds() == 0
+                else duration.ToTimedelta()
+            )
+
         aggregation = cls(
             column=agg_proto.column,
             function=agg_proto.function,
-            time_windows=list(agg_proto.time_windows),
+            time_windows=time_windows,
         )
         return aggregation
 

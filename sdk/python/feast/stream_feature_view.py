@@ -7,15 +7,12 @@ from typing import Dict, List, Optional, Union
 import dill
 from google.protobuf.duration_pb2 import Duration
 
+from feast.aggregation import Aggregation
 from feast.data_source import DataSource, KafkaSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.aggregation import Aggregation
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.Aggregation_pb2 import (
-    Aggregation as AggregationProto
-)
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
@@ -32,8 +29,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 warnings.simplefilter("once", RuntimeWarning)
 
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
-
-
 
 
 class StreamFeatureView(FeatureView):
@@ -138,14 +133,6 @@ class StreamFeatureView(FeatureView):
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
-        aggregation_proto_list = []
-        for aggregations in self.aggregations:
-            agg_proto = AggregationProto(
-                column=aggregations.column,
-                function=aggregations.function,
-                time_windows=aggregations.time_windows,
-            )
-            aggregation_proto_list.append(agg_proto)
         spec = StreamFeatureViewSpecProto(
             name=self.name,
             entities=self.entities,

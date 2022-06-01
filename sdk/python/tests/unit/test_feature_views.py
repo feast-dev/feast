@@ -2,13 +2,13 @@ from datetime import timedelta
 
 import pytest
 
-from feast import Field, PushSource, Entity
+from feast import Entity, Field, PushSource
+from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.stream_feature_view import StreamFeatureView
-from feast.aggregation import Aggregation
 from feast.types import Float32
 
 
@@ -107,14 +107,16 @@ def test_stream_feature_view_serialization():
 
     sfv = StreamFeatureView(
         name="test kafka stream feature view",
-        entities=["driver"],
+        entities=[entity],
         ttl=timedelta(days=30),
         owner="test@example.com",
         online=True,
         schema=[Field(name="dummy_field", dtype=Float32)],
         description="desc",
         aggregations=[
-            Aggregation(column="dummy_field", function="max", time_windows=["1h", "24"])
+            Aggregation(
+                column="dummy_field", function="max", time_windows=[timedelta(days=1)]
+            )
         ],
         timestamp_field="event_timestamp",
         mode="spark",
