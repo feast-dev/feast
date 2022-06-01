@@ -61,7 +61,7 @@ REQUIRED = [
     "pandas>=1,<2",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
-    "proto-plus<1.19.7",
+    "proto-plus==1.20.*",
     "pyarrow>=4,<7",
     "pydantic>=1,<2",
     "pygments==2.12.0",
@@ -72,7 +72,6 @@ REQUIRED = [
     "tqdm==4.*",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "proto-plus<1.19.7",
     "tensorflow-metadata>=1.0.0,<2.0.0",
     "dask>=2021.*,<2022.02.0",
 ]
@@ -90,14 +89,10 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = [
-    "boto3>=1.17.0,<=1.20.23",
-    "docker>=5.0.2",
-    "s3fs>=0.4.0,<=2022.01.0"
-]
+AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3,<3",
+    "snowflake-connector-python[pandas]>=2.7.3,<=2.7.8",
 ]
 
 SPARK_REQUIRED = [
@@ -125,7 +120,7 @@ GO_REQUIRED = [
 CI_REQUIRED = (
     [
         "build",
-        "cryptography==3.4.8",
+        "cryptography==35.0",
         "flake8",
         "black==19.10b0",
         "isort>=5,<6",
@@ -249,6 +244,7 @@ class BuildPythonProtosCommand(Command):
                 self.python_folder,
             ]
             + proto_files,
+            env=os.environ,
         )
 
     def run(self):

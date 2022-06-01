@@ -89,7 +89,7 @@ pandavro==1.5.2
     # via feast (setup.py)
 partd==1.2.0
     # via dask
-proto-plus==1.19.6
+proto-plus==1.20.5
     # via feast (setup.py)
 protobuf==3.19.4
     # via
