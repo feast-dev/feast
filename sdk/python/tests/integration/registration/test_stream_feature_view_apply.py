@@ -2,12 +2,13 @@ from datetime import timedelta
 
 import pytest
 
-from feast import Entity, Field, FileSource, StreamFeatureView
-from feast.stream_feature_view import stream_feature_view
+from feast import Entity, Field, FileSource
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
+from feast.stream_feature_view import stream_feature_view
 from feast.types import Float32
+
 
 @pytest.mark.integration
 def test_read_pre_applied(environment) -> None:
@@ -27,6 +28,7 @@ def test_read_pre_applied(environment) -> None:
         topic="topic",
         batch_source=FileSource(path="test_path", timestamp_field="event_timestamp"),
     )
+
     @stream_feature_view(
         entities=[entity],
         ttl=timedelta(days=30),

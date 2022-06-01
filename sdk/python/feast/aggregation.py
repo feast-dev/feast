@@ -1,6 +1,5 @@
-from curses import window
 from datetime import timedelta
-from typing import List, Optional, Union
+from typing import Optional
 
 from google.protobuf.duration_pb2 import Duration
 
