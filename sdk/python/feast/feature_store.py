@@ -42,6 +42,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
@@ -85,7 +86,6 @@ from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.batch_feature_view import BatchFeatureView
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -520,11 +520,12 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
-        #TODO(kevjumba): Update schema inferrence
+        # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
             if not sfv.schema:
                 raise ValueError(
-                    f"schema inference not yet supported for stream feature views. please define schema for stream feature view: {sfv.name}")
+                    f"schema inference not yet supported for stream feature views. please define schema for stream feature view: {sfv.name}"
+                )
 
         for odfv in odfvs_to_update:
             odfv.infer_features()
@@ -699,7 +700,15 @@ class FeatureStore:
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        views_to_update = [ob for ob in objects if (isinstance(ob, FeatureView) and not isinstance(ob, StreamFeatureView) and not isinstance(ob, BatchFeatureView))]
+        views_to_update = [
+            ob
+            for ob in objects
+            if (
+                isinstance(ob, FeatureView)
+                and not isinstance(ob, StreamFeatureView)
+                and not isinstance(ob, BatchFeatureView)
+            )
+        ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
         request_views_to_update = [
             ob for ob in objects if isinstance(ob, RequestFeatureView)

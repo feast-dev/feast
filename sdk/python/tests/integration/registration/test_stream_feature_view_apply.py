@@ -1,11 +1,13 @@
-import pytest
 from datetime import timedelta
 
-from feast.types import Float32
-from feast import StreamFeatureView, FileSource, Entity, Field
-from feast.data_source import KafkaSource
-from feast.data_format import AvroFormat
+import pytest
+
+from feast import Entity, Field, FileSource, StreamFeatureView
+from feast.stream_feature_view import stream_feature_view
 from feast.aggregation import Aggregation
+from feast.data_format import AvroFormat
+from feast.data_source import KafkaSource
+from feast.types import Float32
 
 @pytest.mark.integration
 def test_read_pre_applied(environment) -> None:
@@ -17,23 +19,15 @@ def test_read_pre_applied(environment) -> None:
     # Create Feature Views
     entity = Entity(name="driver_entity", join_keys=["test_key"])
 
-    def simple_udf(x: int):
-        return x + 3
-
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
-        batch_source=FileSource(
-            path="test_path",
-            timestamp_field="event_timestamp"
-        )
+        batch_source=FileSource(path="test_path", timestamp_field="event_timestamp"),
     )
-
-    sfv = StreamFeatureView(
-        name="test kafka stream feature view",
+    @stream_feature_view(
         entities=[entity],
         ttl=timedelta(days=30),
         owner="test@example.com",
@@ -42,26 +36,24 @@ def test_read_pre_applied(environment) -> None:
         description="desc",
         aggregations=[
             Aggregation(
-                column="dummy_field",
-                function="max",
-                time_window=timedelta(days=1),
+                column="dummy_field", function="max", time_window=timedelta(days=1),
             ),
             Aggregation(
-                column="dummy_field2",
-                function="count",
-                time_window=timedelta(days=24),
-            )
+                column="dummy_field2", function="count", time_window=timedelta(days=24),
+            ),
         ],
         timestamp_field="event_timestamp",
         mode="spark",
         source=stream_source,
-        udf=simple_udf,
         tags={},
     )
-    fs.apply([entity, sfv])
+    def simple_sfv(df):
+        return df
+
+    fs.apply([entity, simple_sfv])
     stream_feature_views = fs.list_stream_feature_views()
     assert len(stream_feature_views) == 1
-    assert stream_feature_views[0] == sfv
+    assert stream_feature_views[0] == simple_sfv
 
     entities = fs.list_entities()
     assert len(entities) == 1

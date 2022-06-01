@@ -1,13 +1,13 @@
 from curses import window
 from datetime import timedelta
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from google.protobuf.duration_pb2 import Duration
 
 from feast.protos.feast.core.Aggregation_pb2 import Aggregation as AggregationProto
 
 
-class Aggregation():
+class Aggregation:
     """
     NOTE: Feast-handled aggregations are not yet supported. This class provides a way to register user-defined aggregations.
 
@@ -19,7 +19,7 @@ class Aggregation():
 
     column: str
     function: str
-    time_window: timedelta
+    time_window: Optional[timedelta]
 
     def __init__(
         self,
@@ -27,8 +27,8 @@ class Aggregation():
         function: Optional[str] = "",
         time_window: Optional[timedelta] = None,
     ):
-        self.column = column
-        self.function = function
+        self.column = column or ""
+        self.function = function or ""
         self.time_window = time_window
 
     def to_proto(self) -> AggregationProto:
@@ -44,7 +44,7 @@ class Aggregation():
     @classmethod
     def from_proto(cls, agg_proto: AggregationProto):
         time_window = (
-                timedelta(days=0)
+            timedelta(days=0)
             if agg_proto.time_window.ToNanoseconds() == 0
             else agg_proto.time_window.ToTimedelta()
         )
