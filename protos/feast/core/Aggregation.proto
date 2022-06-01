@@ -11,7 +11,4 @@ message Aggregation {
     string column = 1;
     string function = 2;
     google.protobuf.Duration time_window = 3;
-
-    // Column name after aggregation
-    string name = 4;
 }
