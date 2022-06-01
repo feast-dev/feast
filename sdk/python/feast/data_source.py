@@ -410,6 +410,9 @@ class KafkaSource(DataSource):
         if _message_format is None:
             raise ValueError("Message format must be specified for Kafka source")
 
+        if not timestamp_field and not _event_timestamp_column:
+            raise ValueError("Timestamp field must be specified for Kafka source")
+
         super().__init__(
             event_timestamp_column=_event_timestamp_column,
             created_timestamp_column=created_timestamp_column,

@@ -5,7 +5,6 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureServiceProto";
 option java_package = "feast.proto.core";
 
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureViewProjection.proto";
 

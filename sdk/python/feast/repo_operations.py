@@ -107,6 +107,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_views=[],
         feature_services=[],
         on_demand_feature_views=[],
+        stream_feature_views=[],
         request_feature_views=[],
     )
 

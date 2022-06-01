@@ -28,12 +28,13 @@ import "feast/core/FeatureView.proto";
 import "feast/core/InfraObject.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/RequestFeatureView.proto";
+import "feast/core/StreamFeatureView.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/SavedDataset.proto";
 import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 
-// Next id: 14
+// Next id: 15
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
@@ -41,6 +42,7 @@ message Registry {
     repeated DataSource data_sources = 12;
     repeated OnDemandFeatureView on_demand_feature_views = 8;
     repeated RequestFeatureView request_feature_views = 9;
+    repeated StreamFeatureView stream_feature_views = 14;
     repeated FeatureService feature_services = 7;
     repeated SavedDataset saved_datasets = 11;
     repeated ValidationReference validation_references = 13;

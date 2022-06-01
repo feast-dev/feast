@@ -1,5 +1,5 @@
 import re
-from typing import List, Set
+from typing import List, Set, Union
 
 from feast.data_source import DataSource, PushSource, RequestSource
 from feast.entity import Entity
@@ -11,6 +11,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.repo_config import RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 from feast.types import String
 from feast.value_type import ValueType
 
@@ -19,7 +20,6 @@ def update_data_sources_with_inferred_event_timestamp_col(
     data_sources: List[DataSource], config: RepoConfig
 ) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
-
     for data_source in data_sources:
         if isinstance(data_source, RequestSource):
             continue
@@ -88,7 +88,9 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 
 def update_feature_views_with_inferred_features_and_entities(
-    fvs: List[FeatureView], entities: List[Entity], config: RepoConfig
+    fvs: Union[List[FeatureView], List[StreamFeatureView]],
+    entities: List[Entity],
+    config: RepoConfig,
 ) -> None:
     """
     Infers the features and entities associated with each feature view and updates it in place.

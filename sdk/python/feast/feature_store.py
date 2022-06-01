@@ -42,6 +42,7 @@ from tqdm import tqdm
 
 from feast import feature_server, flags, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
@@ -84,6 +85,7 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -274,6 +276,20 @@ class FeatureStore:
         )
 
     @log_exceptions_and_usage
+    def list_stream_feature_views(
+        self, allow_cache: bool = False
+    ) -> List[StreamFeatureView]:
+        """
+        Retrieves the list of stream feature views from the registry.
+
+        Returns:
+            A list of stream feature views.
+        """
+        return self._registry.list_stream_feature_views(
+            self.project, allow_cache=allow_cache
+        )
+
+    @log_exceptions_and_usage
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
         """
         Retrieves the list of data sources from the registry.
@@ -457,6 +473,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         request_views_to_update: List[RequestFeatureView],
+        sfvs_to_update: List[StreamFeatureView],
     ):
         """Validates all feature views."""
         if (
@@ -468,7 +485,12 @@ class FeatureStore:
         set_usage_attribute("odfv", bool(odfvs_to_update))
 
         _validate_feature_views(
-            [*views_to_update, *odfvs_to_update, *request_views_to_update]
+            [
+                *views_to_update,
+                *odfvs_to_update,
+                *request_views_to_update,
+                *sfvs_to_update,
+            ]
         )
 
     def _make_inferences(
@@ -477,6 +499,7 @@ class FeatureStore:
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
+        sfvs_to_update: List[StreamFeatureView],
         feature_services_to_update: List[FeatureService],
     ):
         """Makes inferences for entities, feature views, odfvs, and feature services."""
@@ -488,16 +511,28 @@ class FeatureStore:
             [view.batch_source for view in views_to_update], self.config
         )
 
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in sfvs_to_update], self.config
+        )
+
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
         update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
+        # TODO(kevjumba): Update schema inferrence
+        for sfv in sfvs_to_update:
+            if not sfv.schema:
+                raise ValueError(
+                    f"schema inference not yet supported for stream feature views. please define schema for stream feature view: {sfv.name}"
+                )
 
         for odfv in odfvs_to_update:
             odfv.infer_features()
 
-        fvs_to_update_map = {view.name: view for view in views_to_update}
+        fvs_to_update_map = {
+            view.name: view for view in [*views_to_update, *sfvs_to_update]
+        }
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
@@ -540,6 +575,7 @@ class FeatureStore:
             ...     data_sources=[driver_hourly_stats],
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
+            ...     stream_feature_views=list(),
             ...     request_feature_views=list(),
             ...     entities=[driver],
             ...     feature_services=list())) # register entity and feature view
@@ -549,6 +585,7 @@ class FeatureStore:
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.request_feature_views,
+            desired_repo_contents.stream_feature_views,
         )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
@@ -556,6 +593,7 @@ class FeatureStore:
             desired_repo_contents.entities,
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.stream_feature_views,
             desired_repo_contents.feature_services,
         )
 
@@ -607,6 +645,7 @@ class FeatureStore:
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
+            StreamFeatureView,
             FeatureService,
             ValidationReference,
             List[FeastObject],
@@ -661,7 +700,16 @@ class FeatureStore:
 
         # Separate all objects into entities, feature services, and different feature view types.
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
-        views_to_update = [ob for ob in objects if isinstance(ob, FeatureView)]
+        views_to_update = [
+            ob
+            for ob in objects
+            if (
+                isinstance(ob, FeatureView)
+                and not isinstance(ob, StreamFeatureView)
+                and not isinstance(ob, BatchFeatureView)
+            )
+        ]
+        sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
         request_views_to_update = [
             ob for ob in objects if isinstance(ob, RequestFeatureView)
         ]
@@ -674,7 +722,7 @@ class FeatureStore:
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
 
-        for fv in views_to_update:
+        for fv in itertools.chain(views_to_update, sfvs_to_update):
             data_sources_set_to_update.add(fv.batch_source)
             if fv.stream_source:
                 data_sources_set_to_update.add(fv.stream_source)
@@ -700,13 +748,14 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, request_views_to_update
+            views_to_update, odfvs_to_update, request_views_to_update, sfvs_to_update
         )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
             views_to_update,
             odfvs_to_update,
+            sfvs_to_update,
             services_to_update,
         )
 
@@ -714,7 +763,7 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(
-            views_to_update, odfvs_to_update, request_views_to_update
+            views_to_update, odfvs_to_update, request_views_to_update, sfvs_to_update
         ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
@@ -741,6 +790,9 @@ class FeatureStore:
             ]
             odfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
+            ]
+            sfvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, StreamFeatureView)
             ]
             services_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, FeatureService)
@@ -771,6 +823,10 @@ class FeatureStore:
             for odfv in odfvs_to_delete:
                 self._registry.delete_feature_view(
                     odfv.name, project=self.project, commit=False
+                )
+            for sfv in sfvs_to_delete:
+                self._registry.delete_feature_view(
+                    sfv.name, project=self.project, commit=False
                 )
             for service in services_to_delete:
                 self._registry.delete_feature_service(
@@ -879,6 +935,7 @@ class FeatureStore:
             all_feature_views,
             all_request_feature_views,
             all_on_demand_feature_views,
+            all_stream_feature_views,
         ) = self._get_feature_views_to_use(features)
 
         if all_request_feature_views:
@@ -1153,7 +1210,6 @@ class FeatureStore:
         Examples:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago.
-
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="feature_repo")
@@ -1223,6 +1279,7 @@ class FeatureStore:
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
+
         Args:
             push_source_name: The name of the push source we want to push data to.
             df: the data being pushed.
@@ -1399,6 +1456,7 @@ class FeatureStore:
             requested_feature_views,
             requested_request_feature_views,
             requested_on_demand_feature_views,
+            request_stream_feature_views,
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
@@ -1935,7 +1993,12 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
+    ) -> Tuple[
+        List[FeatureView],
+        List[RequestFeatureView],
+        List[OnDemandFeatureView],
+        List[StreamFeatureView],
+    ]:
 
         fvs = {
             fv.name: fv
@@ -1956,8 +2019,15 @@ class FeatureStore:
             )
         }
 
+        sfvs = {
+            fv.name: fv
+            for fv in self._registry.list_stream_feature_views(
+                project=self.project, allow_cache=allow_cache
+            )
+        }
+
         if isinstance(features, FeatureService):
-            fvs_to_use, request_fvs_to_use, od_fvs_to_use = [], [], []
+            fvs_to_use, request_fvs_to_use, od_fvs_to_use, sfvs_to_use = [], [], [], []
             for fv_name, projection in [
                 (projection.name, projection)
                 for projection in features.feature_view_projections
@@ -1978,18 +2048,23 @@ class FeatureStore:
                         fv = fvs[projection.name].with_projection(copy.copy(projection))
                         if fv not in fvs_to_use:
                             fvs_to_use.append(fv)
+                elif fv_name in sfvs:
+                    sfvs_to_use.append(
+                        sfvs[fv_name].with_projection(copy.copy(projection))
+                    )
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
-            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use)
+            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use, sfvs_to_use)
         else:
             views_to_use = (
                 [*fvs.values()],
                 [*request_fvs.values()],
                 [*od_fvs.values()],
+                [*sfvs.values()],
             )
 
         return views_to_use

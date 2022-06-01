@@ -89,6 +89,8 @@ class StreamFormat(ABC):
         fmt = proto.WhichOneof("format")
         if fmt == "avro_format":
             return AvroFormat(schema_json=proto.avro_format.schema_json)
+        if fmt == "json_format":
+            return JsonFormat(schema_json=proto.json_format.schema_json)
         if fmt == "proto_format":
             return ProtoFormat(class_path=proto.proto_format.class_path)
         raise NotImplementedError(f"StreamFormat is unsupported: {fmt}")
@@ -111,6 +113,28 @@ class AvroFormat(StreamFormat):
     def to_proto(self):
         proto = StreamFormatProto.AvroFormat(schema_json=self.schema_json)
         return StreamFormatProto(avro_format=proto)
+
+
+class JsonFormat(StreamFormat):
+    """
+    Defines the Json streaming data format that encodes data in Json format
+    """
+
+    def __init__(self, schema_json: str):
+        """
+        Construct a new Json data format.
+
+        For spark, uses pyspark ddl string format. Example shown here:
+        https://vincent.doba.fr/posts/20211004_spark_data_description_language_for_defining_spark_schema/
+
+        Args:
+            schema_json: Json schema definition
+        """
+        self.schema_json = schema_json
+
+    def to_proto(self):
+        proto = StreamFormatProto.JsonFormat(schema_json=self.schema_json)
+        return StreamFormatProto(json_format=proto)
 
 
 class ProtoFormat(StreamFormat):
