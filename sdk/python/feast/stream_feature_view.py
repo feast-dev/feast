@@ -237,7 +237,7 @@ def stream_feature_view(
 
     def mainify(obj):
         # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
-        # name as the original file defining the ODFV.
+        # name as the original file defining the sfv.
         if obj.__module__ != "__main__":
             obj.__module__ = "__main__"
 
