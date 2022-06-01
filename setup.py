@@ -243,8 +243,7 @@ class BuildPythonProtosCommand(Command):
                 "--mypy_out",
                 self.python_folder,
             ]
-            + proto_files,
-            env=os.environ,
+            + proto_files
         )
 
     def run(self):
