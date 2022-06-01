@@ -10,13 +10,13 @@ anyio==3.6.1
     # via
     #   starlette
     #   watchgod
-asgiref==3.5.1
+asgiref==3.5.2
     # via uvicorn
 attrs==21.4.0
     # via jsonschema
-cachetools==5.1.0
+cachetools==5.2.0
     # via google-auth
-certifi==2021.10.8
+certifi==2022.5.18.1
     # via requests
 charset-normalizer==2.0.12
     # via requests
@@ -24,36 +24,36 @@ click==8.0.1
     # via
     #   feast (setup.py)
     #   uvicorn
-cloudpickle==2.0.0
+cloudpickle==2.1.0
     # via dask
 colorama==0.4.4
     # via feast (setup.py)
 dask==2022.1.1
     # via feast (setup.py)
-dill==0.3.4
+dill==0.3.5.1
     # via feast (setup.py)
 fastapi==0.78.0
     # via feast (setup.py)
-fastavro==1.4.11
+fastavro==1.4.12
     # via
     #   feast (setup.py)
     #   pandavro
-fsspec==2022.3.0
+fsspec==2022.5.0
     # via dask
-google-api-core==2.7.3
+google-api-core==2.8.1
     # via feast (setup.py)
 google-auth==2.6.6
     # via google-api-core
-googleapis-common-protos==1.52.0
+googleapis-common-protos==1.56.2
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-grpcio==1.46.1
+grpcio==1.46.3
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.46.1
+grpcio-reflection==1.46.3
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
@@ -109,7 +109,7 @@ pyasn1==0.4.8
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
-pydantic==1.9.0
+pydantic==1.9.1
     # via
     #   fastapi
     #   feast (setup.py)

@@ -597,10 +597,10 @@ responses==0.20.0
     # via moto
 rsa==4.8
     # via google-auth
-ruamel.yaml==0.17.17
+ruamel-yaml==0.17.17
     # via great-expectations
-ruamel.yaml.clib==0.2.6
-    # via ruamel.yaml
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 s3fs==2022.1.0
     # via feast (setup.py)
 s3transfer==0.5.2
@@ -735,6 +735,7 @@ uritemplate==4.1.1
 urllib3==1.26.9
     # via
     #   botocore
+    #   feast (setup.py)
     #   great-expectations
     #   minio
     #   requests

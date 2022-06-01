@@ -741,6 +741,7 @@ uritemplate==4.1.1
 urllib3==1.26.9
     # via
     #   botocore
+    #   feast (setup.py)
     #   great-expectations
     #   minio
     #   requests
