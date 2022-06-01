@@ -159,7 +159,7 @@ class DataSource(ABC):
 
     Args:
         name: Name of data source, which should be unique within a project
-        timestamp_field (optional): (Deprecated) Event timestamp column used for point in time
+        event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
             joins of feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
             was created, used for deduplicating rows.
