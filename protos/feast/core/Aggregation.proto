@@ -10,5 +10,8 @@ import "google/protobuf/duration.proto";
 message Aggregation {
     string column = 1;
     string function = 2;
-    repeated google.protobuf.Duration time_windows = 3;
+    google.protobuf.Duration time_window = 3;
+
+    // Column name after aggregation
+    string name = 4;
 }

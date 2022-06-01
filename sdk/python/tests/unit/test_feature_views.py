@@ -2,11 +2,12 @@ from datetime import timedelta
 
 import pytest
 
-from feast import Entity, Field, PushSource
+from feast.entity import Entity
+from feast.field import Field
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
-from feast.data_source import KafkaSource
+from feast.data_source import KafkaSource, PushSource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Float32
@@ -28,7 +29,7 @@ def test_create_batch_feature_view():
 
     stream_source = KafkaSource(
         name="kafka",
-        timestamp_field="",
+        timestamp_field="event_timestamp",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
@@ -46,7 +47,7 @@ def test_create_batch_feature_view():
 def test_create_stream_feature_view():
     stream_source = KafkaSource(
         name="kafka",
-        timestamp_field="",
+        timestamp_field="event_timestamp",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
@@ -94,11 +95,10 @@ def simple_udf(x: int):
 
 
 def test_stream_feature_view_serialization():
-
     entity = Entity(name="driver_entity", join_keys=["test_key"])
     stream_source = KafkaSource(
         name="kafka",
-        timestamp_field="",
+        timestamp_field="event_timestamp",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
@@ -115,7 +115,7 @@ def test_stream_feature_view_serialization():
         description="desc",
         aggregations=[
             Aggregation(
-                column="dummy_field", function="max", time_windows=[timedelta(days=1)]
+                column="dummy_field", function="max", time_window=timedelta(days=1),
             )
         ],
         timestamp_field="event_timestamp",

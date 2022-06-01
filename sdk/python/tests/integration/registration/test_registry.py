@@ -309,10 +309,11 @@ def test_apply_stream_feature_view_success(test_registry):
     # Create Feature Views
     def simple_udf(x: int):
         return x + 3
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
 
     stream_source = KafkaSource(
         name="kafka",
-        timestamp_field="",
+        timestamp_field="event_timestamp",
         bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
@@ -321,7 +322,7 @@ def test_apply_stream_feature_view_success(test_registry):
 
     sfv = StreamFeatureView(
         name="test kafka stream feature view",
-        entities=["driver"],
+        entities=[entity],
         ttl=timedelta(days=30),
         owner="test@example.com",
         online=True,
@@ -331,7 +332,12 @@ def test_apply_stream_feature_view_success(test_registry):
             Aggregation(
                 column="dummy_field",
                 function="max",
-                time_windows=[timedelta(days=1), timedelta(days=7)],
+                time_window=timedelta(days=1),
+            ),
+            Aggregation(
+                column="dummy_field2",
+                function="count",
+                time_window=timedelta(days=24),
             )
         ],
         timestamp_field="event_timestamp",

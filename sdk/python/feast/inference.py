@@ -20,7 +20,6 @@ def update_data_sources_with_inferred_event_timestamp_col(
     data_sources: List[DataSource], config: RepoConfig
 ) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
-
     for data_source in data_sources:
         if isinstance(data_source, RequestSource):
             continue
