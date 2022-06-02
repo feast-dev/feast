@@ -62,7 +62,7 @@ def get_app(
                     "name": "Project",
                     "description": "Test project",
                     "id": project_id,
-                    "registryPath": f"http://{host}:{port}/registry",
+                    "registryPath": "/registry",
                 }
             ]
         }
