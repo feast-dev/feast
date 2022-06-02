@@ -1242,6 +1242,7 @@ class Registry(BaseRegistry):
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
         """
+        # TODO(kevjumba) update this too
         self._prepare_registry_for_changes()
         assert self.cached_registry_proto
 

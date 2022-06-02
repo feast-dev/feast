@@ -138,7 +138,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     # Don't add if the push source's batch source is a duplicate of an existing batch source
                     if push_source_dep not in data_sources_set:
                         res.data_sources.append(push_source_dep)
-            elif isinstance(obj, StreamFeatureView):
+            elif isinstance(obj, StreamFeatureView) and not any(
+                (obj is sfv) for sfv in res.feature_views
+            ):
                 res.stream_feature_views.append(obj)
                 if (
                     isinstance(obj.stream_source, PushSource)

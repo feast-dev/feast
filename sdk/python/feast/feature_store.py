@@ -86,6 +86,7 @@ from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.stream_processor import ProcessorConfig, get_stream_processor_object
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -1369,6 +1370,55 @@ class FeatureStore:
             )
         provider = self._get_provider()
         provider.ingest_df(feature_view, entities, df)
+
+    def _write_stream_row(
+        self,
+        feature_view,
+        row: pd.DataFrame,
+        join_keys,
+        input_timestamp_field,
+        output_timestamp_column="",
+    ):
+        row = (
+            row.sort_values(by=join_keys + [input_timestamp_field], ascending=True)
+            .groupby(join_keys)
+            .nth(0)
+        )
+        if output_timestamp_column and output_timestamp_column != input_timestamp_field:
+            row = row.rename(columns={input_timestamp_field, output_timestamp_column})
+        row["created"] = pd.to_datetime("now", utc=True)
+        self.write_to_online_store(
+            feature_view, row,
+        )
+
+    def ingest_stream_feature_view(
+        self, sfv_name: str, processor_config: ProcessorConfig
+    ) -> bool:
+        stream_feature_view = self.get_stream_feature_view(
+            name=sfv_name, allow_registry_cache=False
+        )
+
+        join_keys = [
+            self.get_entity(entity, allow_registry_cache=True).join_key
+            for entity in stream_feature_view.entities
+        ]
+
+        processor = get_stream_processor_object(
+            config=processor_config,
+            sfv=stream_feature_view,
+            # TODO(kevjumba): figure out a better way to this yikes.
+            write_function=lambda row, input_timestamp, output_timestamp: self._write_stream_row(
+                feature_view=sfv_name,
+                row=row,
+                join_keys=join_keys,
+                input_timestamp_field=input_timestamp,
+                output_timestamp_column=output_timestamp,
+            ),
+        )
+
+        processor.ingest_stream_feature_view()
+        # Handle query(set up monitoring thread, etc)
+        return True
 
     @log_exceptions_and_usage
     def get_online_features(
