@@ -162,15 +162,7 @@ class SqlRegistry(Registry):
             raise EntityNotFoundException(name, project=project)
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
-        with self.engine.connect() as conn:
-            stmt = select(entities)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    Entity.from_proto(EntityProto.FromString(row["entity_proto"]))
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(entities, EntityProto, Entity, "entity_proto")
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
@@ -193,17 +185,9 @@ class SqlRegistry(Registry):
     def list_data_sources(
         self, project: str, allow_cache: bool = False
     ) -> List[DataSource]:
-        with self.engine.connect() as conn:
-            stmt = select(data_sources)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    DataSource.from_proto(
-                        DataSourceProto.FromString(row["data_source_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            data_sources, DataSourceProto, DataSource, "data_source_proto"
+        )
 
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
@@ -248,77 +232,46 @@ class SqlRegistry(Registry):
     def list_feature_services(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
-        with self.engine.connect() as conn:
-            stmt = select(feature_services)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    FeatureService.from_proto(
-                        FeatureServiceProto.FromString(row["feature_service_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            feature_services,
+            FeatureServiceProto,
+            FeatureService,
+            "feature_service_proto",
+        )
 
     def list_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
-        with self.engine.connect() as conn:
-            stmt = select(feature_views)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    FeatureView.from_proto(
-                        FeatureViewProto.FromString(row["feature_view_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            feature_views, FeatureViewProto, FeatureView, "feature_view_proto"
+        )
 
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
-        with self.engine.connect() as conn:
-            stmt = select(saved_datasets)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    SavedDataset.from_proto(
-                        SavedDatasetProto.FromString(row["saved_dataset_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            saved_datasets, SavedDatasetProto, SavedDataset, "saved_dataset_proto"
+        )
 
     def list_request_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
-        with self.engine.connect() as conn:
-            stmt = select(request_feature_views)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    RequestFeatureView.from_proto(
-                        RequestFeatureViewProto.FromString(row["feature_view_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            request_feature_views,
+            RequestFeatureViewProto,
+            RequestFeatureView,
+            "feature_view_proto",
+        )
 
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
-        with self.engine.connect() as conn:
-            stmt = select(on_demand_feature_views)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    OnDemandFeatureView.from_proto(
-                        OnDemandFeatureViewProto.FromString(row["feature_view_proto"])
-                    )
-                    for row in rows
-                ]
-        return []
+        return self._list_objects(
+            on_demand_feature_views,
+            OnDemandFeatureViewProto,
+            OnDemandFeatureView,
+            "feature_view_proto",
+        )
 
     def apply_saved_dataset(
         self, saved_dataset: SavedDataset, project: str, commit: bool = True,
@@ -372,3 +325,16 @@ class SqlRegistry(Registry):
                     },
                 )
                 conn.execute(insert_stmt)
+
+    def _list_objects(self, table, proto_class, python_class, proto_field_name):
+        with self.engine.connect() as conn:
+            stmt = select(table)
+            rows = conn.execute(stmt).all()
+            if rows:
+                return [
+                    python_class.from_proto(
+                        proto_class.FromString(row[proto_field_name])
+                    )
+                    for row in rows
+                ]
+        return []
