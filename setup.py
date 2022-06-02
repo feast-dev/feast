@@ -60,7 +60,7 @@ REQUIRED = [
     "numpy<1.22,<2",
     "pandas>=1,<2",
     "pandavro==1.5.*",
-    "protobuf>=3.10,<3.20",
+    "protobuf>=3.10,<3.25",
     "proto-plus==1.20.*",
     "pyarrow>=4,<7",
     "pydantic>=1,<2",
@@ -108,6 +108,10 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
+MYSQL_REQUIRED = [
+    "mysqlclient",
+]
+
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
 ]
@@ -132,7 +136,6 @@ CI_REQUIRED = (
         "moto",
         "mypy==0.931",
         "mypy-protobuf==3.1",
-        "mysqlclient",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
@@ -169,6 +172,7 @@ CI_REQUIRED = (
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
+    + MYSQL_REQUIRED
     + TRINO_REQUIRED
     + GE_REQUIRED
     + HBASE_REQUIRED
@@ -472,6 +476,7 @@ setup(
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
+        "mysql": MYSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "go": GO_REQUIRED,

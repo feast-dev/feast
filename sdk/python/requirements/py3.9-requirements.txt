@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.9-requirements.txt
 #
-absl-py==1.0.0
+absl-py==1.1.0
     # via tensorflow-metadata
 anyio==3.6.1
     # via
@@ -49,6 +49,8 @@ googleapis-common-protos==1.56.2
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
+greenlet==1.1.2
+    # via sqlalchemy
 grpcio==1.46.3
     # via
     #   feast (setup.py)
@@ -65,7 +67,7 @@ idna==3.3
     #   requests
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.5.1
+jsonschema==4.6.0
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -73,6 +75,10 @@ markupsafe==2.1.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
+mypy==0.960
+    # via sqlalchemy
+mypy-extensions==0.4.3
+    # via mypy
 numpy==1.21.6
     # via
     #   feast (setup.py)
@@ -91,7 +97,7 @@ partd==1.2.0
     # via dask
 proto-plus==1.20.5
     # via feast (setup.py)
-protobuf==3.19.4
+protobuf==3.20.1
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -134,13 +140,16 @@ rsa==4.8
     # via google-auth
 six==1.16.0
     # via
-    #   absl-py
     #   google-auth
     #   grpcio
     #   pandavro
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
+sqlalchemy[mypy]==1.4.37
+    # via feast (setup.py)
+sqlalchemy2-stubs==0.0.2a22
+    # via sqlalchemy
 starlette==0.19.1
     # via fastapi
 tabulate==0.8.9
@@ -151,6 +160,8 @@ tensorflow-metadata==1.8.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
+tomli==2.0.1
+    # via mypy
 toolz==0.11.2
     # via
     #   dask
@@ -159,7 +170,9 @@ tqdm==4.64.0
     # via feast (setup.py)
 typing-extensions==4.2.0
     # via
+    #   mypy
     #   pydantic
+    #   sqlalchemy2-stubs
     #   starlette
 urllib3==1.26.9
     # via requests
