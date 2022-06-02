@@ -21,7 +21,12 @@ from sqlalchemy.engine import Engine
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.errors import DataSourceObjectNotFoundException, EntityNotFoundException
+from feast.errors import (
+    DataSourceObjectNotFoundException,
+    EntityNotFoundException,
+    FeatureServiceNotFoundException,
+    FeatureViewNotFoundException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -161,6 +166,57 @@ class SqlRegistry(Registry):
                 return Entity.from_proto(entity_proto)
             raise EntityNotFoundException(name, project=project)
 
+    def get_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureView:
+        with self.engine.connect() as conn:
+            stmt = select(feature_views).where(
+                feature_views.c.feature_view_name == name
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                fv_proto = FeatureViewProto.FromString(row["feature_view_proto"])
+                return FeatureView.from_proto(fv_proto)
+            raise FeatureViewNotFoundException(name, project=project)
+
+    def get_on_demand_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> OnDemandFeatureView:
+        with self.engine.connect() as conn:
+            stmt = select(on_demand_feature_views).where(
+                on_demand_feature_views.c.feature_view_name == name
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                fv_proto = OnDemandFeatureViewProto.FromString(
+                    row["feature_view_proto"]
+                )
+                return OnDemandFeatureView.from_proto(fv_proto)
+            raise FeatureViewNotFoundException(name, project=project)
+
+    def get_feature_service(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureService:
+        with self.engine.connect() as conn:
+            stmt = select(feature_services).where(
+                feature_services.c.feature_service_name == name
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                fv_proto = FeatureServiceProto.FromString(row["feature_service_proto"])
+                return FeatureService.from_proto(fv_proto)
+            raise FeatureServiceNotFoundException(name, project=project)
+
+    def get_saved_dataset(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SavedDataset:
+        pass
+
+    def get_validation_reference(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ValidationReference:
+        pass
+
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         return self._list_objects(entities, EntityProto, Entity, "entity_proto")
 
@@ -170,6 +226,25 @@ class SqlRegistry(Registry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise EntityNotFoundException(name, project)
+
+    def delete_feature_view(self, name: str, project: str, commit: bool = True):
+        deleted_count = 0
+        for table in {feature_views, request_feature_views, on_demand_feature_views}:
+            with self.engine.connect() as conn:
+                stmt = delete(table).where(table.c.feature_view_name == name)
+                rows = conn.execute(stmt)
+                deleted_count += rows.rowcount
+        if deleted_count == 0:
+            raise FeatureViewNotFoundException(name, project)
+
+    def delete_feature_service(self, name: str, project: str, commit: bool = True):
+        with self.engine.connect() as conn:
+            stmt = delete(feature_services).where(
+                feature_services.c.feature_service_name == name
+            )
+            rows = conn.execute(stmt)
+            if rows.rowcount < 1:
+                raise FeatureServiceNotFoundException(name, project)
 
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
@@ -305,25 +380,23 @@ class SqlRegistry(Registry):
             if hasattr(obj, "last_updated_timestamp"):
                 obj.last_updated_timestamp = update_datetime
             if row:
+                values = {
+                    proto_field_name: obj.to_proto().SerializeToString(),
+                    "last_updated_timestamp": update_time,
+                }
                 update_stmt = (
                     update(table)
                     .where(getattr(table.c, id_field_name) == name)
-                    .values(
-                        **{
-                            proto_field_name: obj.to_proto().SerializeToString(),
-                            "last_updated_timestamp": update_time,
-                        },
-                    )
+                    .values(values,)
                 )
                 conn.execute(update_stmt)
             else:
-                insert_stmt = insert(feature_services).values(
-                    **{
-                        id_field_name: name,
-                        proto_field_name: obj.to_proto().SerializeToString(),
-                        "last_updated_timestamp": update_time,
-                    },
-                )
+                values = {
+                    id_field_name: name,
+                    proto_field_name: obj.to_proto().SerializeToString(),
+                    "last_updated_timestamp": update_time,
+                }
+                insert_stmt = insert(table).values(values,)
                 conn.execute(insert_stmt)
 
     def _list_objects(self, table, proto_class, python_class, proto_field_name):
