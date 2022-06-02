@@ -63,17 +63,10 @@ def test_apply_stream_feature_view(environment) -> None:
     assert entities[0] == entity
 
     features = fs.get_online_features(
-        features=[
-            "simple_sfv:dummy_field",
-        ],
-        entity_rows=[
-            {
-                "test_key": 1001
-            }
-        ],
+        features=["simple_sfv:dummy_field",], entity_rows=[{"test_key": 1001}],
     ).to_dict(include_event_timestamps=True)
 
-    assert 'test_key' in features
-    assert features['test_key'] == [1001]
-    assert 'dummy_field' in features
-    assert features['dummy_field'] == [None]
+    assert "test_key" in features
+    assert features["test_key"] == [1001]
+    assert "dummy_field" in features
+    assert features["dummy_field"] == [None]
