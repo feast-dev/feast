@@ -93,7 +93,6 @@ from feast.type_map import (
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
-
 warnings.simplefilter("once", DeprecationWarning)
 
 if TYPE_CHECKING:
@@ -371,6 +370,38 @@ class FeatureStore:
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
+
+    @log_exceptions_and_usage
+    def get_stream_feature_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> StreamFeatureView:
+        """
+        Retrieves a stream feature view.
+
+        Args:
+            name: Name of stream feature view.
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
+
+        Returns:
+            The specified stream feature view.
+
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
+        return self._get_stream_feature_view(name, allow_registry_cache=allow_registry_cache)
+
+    def _get_stream_feature_view(
+        self,
+        name: str,
+        hide_dummy_entity: bool = True,
+        allow_registry_cache: bool = False,
+    ) -> StreamFeatureView:
+        stream_feature_view = self._registry.get_stream_feature_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
+        if hide_dummy_entity and stream_feature_view.entities[0] == DUMMY_ENTITY_NAME:
+            stream_feature_view.entities = []
+        return stream_feature_view
 
     @log_exceptions_and_usage
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
@@ -1321,9 +1352,14 @@ class FeatureStore:
         ingests data directly into the Online store
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
-        feature_view = self.get_feature_view(
-            feature_view_name, allow_registry_cache=allow_registry_cache
-        )
+        try:
+            feature_view = self.get_stream_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+        except FeatureViewNotFoundException:
+            feature_view = self.get_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
         entities = []
         for entity_name in feature_view.entities:
             entities.append(
@@ -1456,7 +1492,6 @@ class FeatureStore:
             requested_feature_views,
             requested_request_feature_views,
             requested_on_demand_feature_views,
-            request_stream_feature_views,
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
@@ -1997,12 +2032,14 @@ class FeatureStore:
         List[FeatureView],
         List[RequestFeatureView],
         List[OnDemandFeatureView],
-        List[StreamFeatureView],
     ]:
 
         fvs = {
             fv.name: fv
-            for fv in self._list_feature_views(allow_cache, hide_dummy_entity)
+            for fv in [
+                *self._list_feature_views(allow_cache, hide_dummy_entity),
+                *self._registry.list_stream_feature_views(project=self.project, allow_cache=allow_cache
+            )]
         }
 
         request_fvs = {
@@ -2019,15 +2056,8 @@ class FeatureStore:
             )
         }
 
-        sfvs = {
-            fv.name: fv
-            for fv in self._registry.list_stream_feature_views(
-                project=self.project, allow_cache=allow_cache
-            )
-        }
-
         if isinstance(features, FeatureService):
-            fvs_to_use, request_fvs_to_use, od_fvs_to_use, sfvs_to_use = [], [], [], []
+            fvs_to_use, request_fvs_to_use, od_fvs_to_use = [], [], []
             for fv_name, projection in [
                 (projection.name, projection)
                 for projection in features.feature_view_projections
@@ -2048,23 +2078,18 @@ class FeatureStore:
                         fv = fvs[projection.name].with_projection(copy.copy(projection))
                         if fv not in fvs_to_use:
                             fvs_to_use.append(fv)
-                elif fv_name in sfvs:
-                    sfvs_to_use.append(
-                        sfvs[fv_name].with_projection(copy.copy(projection))
-                    )
                 else:
                     raise ValueError(
                         f"The provided feature service {features.name} contains a reference to a feature view"
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
-            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use, sfvs_to_use)
+            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use)
         else:
             views_to_use = (
                 [*fvs.values()],
                 [*request_fvs.values()],
                 [*od_fvs.values()],
-                [*sfvs.values()],
             )
 
         return views_to_use

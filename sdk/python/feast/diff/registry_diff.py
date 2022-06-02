@@ -20,6 +20,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto
+)
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
@@ -106,6 +109,7 @@ FeastObjectProto = TypeVar(
     FeatureServiceProto,
     OnDemandFeatureViewProto,
     RequestFeatureViewProto,
+    StreamFeatureViewProto,
     ValidationReferenceProto,
 )
 
@@ -292,6 +296,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
+                FeastObjectType.STREAM_FEATURE_VIEW,
             ]:
                 feature_view_obj = cast(
                     BaseFeatureView, feast_object_diff.current_feast_object
@@ -331,6 +336,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.REQUEST_FEATURE_VIEW,
+                FeastObjectType.STREAM_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),

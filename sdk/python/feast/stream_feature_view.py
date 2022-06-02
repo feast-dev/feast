@@ -7,12 +7,16 @@ from typing import Dict, List, Optional, Union
 import dill
 from google.protobuf.duration_pb2 import Duration
 
+from feast import utils
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource, KafkaSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.FeatureView_pb2 import (
+    MaterializationInterval as MaterializationIntervalProto,
+)
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
@@ -70,7 +74,7 @@ class StreamFeatureView(FeatureView):
                 f"Stream feature views need a stream source, expected one of {SUPPORTED_STREAM_SOURCES} "
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
-        self.aggregations = aggregations
+        self.aggregations = aggregations or []
         self.mode = mode
         self.timestamp_field = timestamp_field
         self.udf = udf
@@ -113,11 +117,17 @@ class StreamFeatureView(FeatureView):
         return super().__hash__()
 
     def to_proto(self):
-        meta = StreamFeatureViewMetaProto()
+        meta = StreamFeatureViewMetaProto(materialization_intervals=[])
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
         if self.last_updated_timestamp:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+
+        for interval in self.materialization_intervals:
+            interval_proto = MaterializationIntervalProto()
+            interval_proto.start_time.FromDatetime(interval[0])
+            interval_proto.end_time.FromDatetime(interval[1])
+            meta.materialization_intervals.append(interval_proto)
 
         ttl_duration = None
         if self.ttl is not None:
@@ -169,6 +179,11 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("stream_source")
             else None
         )
+        udf = (
+            dill.loads(sfv_proto.spec.user_defined_function.body)
+            if sfv_proto.spec.HasField("user_defined_function")
+            else None
+        )
         sfv_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -185,7 +200,7 @@ class StreamFeatureView(FeatureView):
             ),
             source=stream_source,
             mode=sfv_proto.spec.mode,
-            udf=dill.loads(sfv_proto.spec.user_defined_function.body),
+            udf=udf,
             aggregations=[
                 Aggregation.from_proto(agg_proto)
                 for agg_proto in sfv_proto.spec.aggregations
@@ -212,6 +227,14 @@ class StreamFeatureView(FeatureView):
         if sfv_proto.meta.HasField("last_updated_timestamp"):
             sfv_feature_view.last_updated_timestamp = (
                 sfv_proto.meta.last_updated_timestamp.ToDatetime()
+            )
+
+        for interval in sfv_proto.meta.materialization_intervals:
+            stream_feature_view.materialization_intervals.append(
+                (
+                    utils.make_tzaware(interval.start_time.ToDatetime()),
+                    utils.make_tzaware(interval.end_time.ToDatetime()),
+                )
             )
 
         return sfv_feature_view
