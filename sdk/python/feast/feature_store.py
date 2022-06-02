@@ -93,6 +93,7 @@ from feast.type_map import (
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
+
 warnings.simplefilter("once", DeprecationWarning)
 
 if TYPE_CHECKING:
@@ -388,7 +389,9 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._get_stream_feature_view(name, allow_registry_cache=allow_registry_cache)
+        return self._get_stream_feature_view(
+            name, allow_registry_cache=allow_registry_cache
+        )
 
     def _get_stream_feature_view(
         self,
@@ -966,7 +969,6 @@ class FeatureStore:
             all_feature_views,
             all_request_feature_views,
             all_on_demand_feature_views,
-            all_stream_feature_views,
         ) = self._get_feature_views_to_use(features)
 
         if all_request_feature_views:
@@ -2029,17 +2031,17 @@ class FeatureStore:
         allow_cache=False,
         hide_dummy_entity: bool = True,
     ) -> Tuple[
-        List[FeatureView],
-        List[RequestFeatureView],
-        List[OnDemandFeatureView],
+        List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView],
     ]:
 
         fvs = {
             fv.name: fv
             for fv in [
                 *self._list_feature_views(allow_cache, hide_dummy_entity),
-                *self._registry.list_stream_feature_views(project=self.project, allow_cache=allow_cache
-            )]
+                *self._registry.list_stream_feature_views(
+                    project=self.project, allow_cache=allow_cache
+                ),
+            ]
         }
 
         request_fvs = {
