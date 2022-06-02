@@ -211,7 +211,10 @@ class SqliteOnlineStore(OnlineStore):
                 path=self._get_db_path(config),
                 name=_table_id(project, FeatureView.from_proto(view)),
             )
-            for view in desired_registry_proto.feature_views
+            for view in [
+                *desired_registry_proto.feature_views,
+                *desired_registry_proto.stream_feature_views,
+            ]
         ]
         return infra_objects
 

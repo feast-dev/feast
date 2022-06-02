@@ -77,6 +77,7 @@ class FeastObjectType(Enum):
     FEATURE_VIEW = "feature view"
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
     REQUEST_FEATURE_VIEW = "request feature view"
+    STREAM_FEATURE_VIEW = "stream feature view"
     FEATURE_SERVICE = "feature service"
 
     @staticmethod
@@ -93,6 +94,9 @@ class FeastObjectType(Enum):
             FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
                 project=project
             ),
+            FeastObjectType.STREAM_FEATURE_VIEW: registry.list_stream_feature_views(
+                project=project,
+            ),
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
                 project=project
             ),
@@ -108,6 +112,7 @@ class FeastObjectType(Enum):
             FeastObjectType.FEATURE_VIEW: repo_contents.feature_views,
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
             FeastObjectType.REQUEST_FEATURE_VIEW: repo_contents.request_feature_views,
+            FeastObjectType.STREAM_FEATURE_VIEW: repo_contents.stream_feature_views,
             FeastObjectType.FEATURE_SERVICE: repo_contents.feature_services,
         }
 
@@ -715,6 +720,30 @@ class Registry:
                 and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
+        raise FeatureViewNotFoundException(name, project)
+
+    def get_stream_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> StreamFeatureView:
+        """
+        Retrieves a stream feature view.
+
+        Args:
+            name: Name of stream feature view
+            project: Feast project that this stream feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        for feature_view_proto in registry_proto.stream_feature_views:
+            if (
+                feature_view_proto.spec.name == name
+                and feature_view_proto.spec.project == project
+            ):
+                return StreamFeatureView.from_proto(feature_view_proto)
         raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):

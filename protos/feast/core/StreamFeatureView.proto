@@ -26,6 +26,7 @@ option java_package = "feast.proto.core";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/OnDemandFeatureView.proto";
+import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Aggregation.proto";
@@ -95,4 +96,7 @@ message StreamFeatureViewMeta {
 
     // Time where this Feature View is last updated
     google.protobuf.Timestamp last_updated_timestamp = 2;
+
+    // List of pairs (start_time, end_time) for which this feature view has been materialized.
+    repeated MaterializationInterval materialization_intervals = 3;
 }

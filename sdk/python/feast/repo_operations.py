@@ -13,7 +13,8 @@ import click
 from click.exceptions import BadParameter
 
 from feast import PushSource
-from feast.data_source import DataSource
+from feast.batch_feature_view import BatchFeatureView
+from feast.data_source import DataSource, KafkaSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -25,6 +26,7 @@ from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.usage import log_exceptions_and_usage
 
 
@@ -122,8 +124,11 @@ def parse_repo(repo_root: Path) -> RepoContents:
             ):
                 res.data_sources.append(obj)
                 data_sources_set.add(obj)
-            if isinstance(obj, FeatureView) and not any(
-                (obj is fv) for fv in res.feature_views
+            if (
+                isinstance(obj, FeatureView)
+                and not any((obj is fv) for fv in res.feature_views)
+                and not isinstance(obj, StreamFeatureView)
+                and not isinstance(obj, BatchFeatureView)
             ):
                 res.feature_views.append(obj)
                 if isinstance(obj.stream_source, PushSource) and not any(
@@ -133,6 +138,19 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     # Don't add if the push source's batch source is a duplicate of an existing batch source
                     if push_source_dep not in data_sources_set:
                         res.data_sources.append(push_source_dep)
+            elif isinstance(obj, StreamFeatureView) and not any(
+                (obj is sfv) for sfv in res.stream_feature_views
+            ):
+                res.stream_feature_views.append(obj)
+                if (
+                    isinstance(obj.stream_source, PushSource)
+                    or isinstance(obj.stream_source, KafkaSource)
+                    and not any((obj is ds) for ds in res.data_sources)
+                ):
+                    batch_source_dep = obj.stream_source.batch_source
+                    # Don't add if the push source's batch source is a duplicate of an existing batch source
+                    if batch_source_dep and batch_source_dep not in data_sources_set:
+                        res.data_sources.append(batch_source_dep)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -196,7 +214,12 @@ def extract_objects_for_apply_delete(project, registry, repo):
 
     all_to_apply: List[
         Union[
-            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
+            Entity,
+            FeatureView,
+            RequestFeatureView,
+            OnDemandFeatureView,
+            StreamFeatureView,
+            FeatureService,
         ]
     ] = []
     for object_type in FEAST_OBJECT_TYPES:
@@ -205,7 +228,12 @@ def extract_objects_for_apply_delete(project, registry, repo):
 
     all_to_delete: List[
         Union[
-            Entity, FeatureView, RequestFeatureView, OnDemandFeatureView, FeatureService
+            Entity,
+            FeatureView,
+            RequestFeatureView,
+            OnDemandFeatureView,
+            StreamFeatureView,
+            FeatureService,
         ]
     ] = []
     for object_type in FEAST_OBJECT_TYPES:

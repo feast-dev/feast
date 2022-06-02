@@ -11,7 +11,7 @@ from feast.types import Float32
 
 
 @pytest.mark.integration
-def test_read_pre_applied(environment) -> None:
+def test_apply_stream_feature_view(environment) -> None:
     """
     Test apply of StreamFeatureView.
     """
@@ -60,3 +60,12 @@ def test_read_pre_applied(environment) -> None:
     entities = fs.list_entities()
     assert len(entities) == 1
     assert entities[0] == entity
+
+    features = fs.get_online_features(
+        features=["simple_sfv:dummy_field"], entity_rows=[{"test_key": 1001}],
+    ).to_dict(include_event_timestamps=True)
+
+    assert "test_key" in features
+    assert features["test_key"] == [1001]
+    assert "dummy_field" in features
+    assert features["dummy_field"] == [None]
