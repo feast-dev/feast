@@ -21,7 +21,7 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
-    StreamFeatureView as StreamFeatureViewProto,
+    StreamFeatureView as StreamFeatureViewProto
 )
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
