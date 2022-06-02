@@ -60,7 +60,7 @@ REQUIRED = [
     "numpy<1.22,<2",
     "pandas>=1,<2",
     "pandavro==1.5.*",
-    "protobuf>=3.10,<3.25",
+    "protobuf>=3.10,<3.20",
     "proto-plus==1.20.*",
     "pyarrow>=4,<7",
     "pydantic>=1,<2",
