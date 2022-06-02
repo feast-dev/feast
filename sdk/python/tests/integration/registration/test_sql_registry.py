@@ -16,10 +16,11 @@ from datetime import timedelta
 
 import pandas as pd
 import pytest
+from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
-from feast import FileSource
+from feast import Feature, FileSource, RequestSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -27,7 +28,8 @@ from feast.field import Field
 from feast.infra.registry_stores.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RegistryConfig
-from feast.types import Array, Bytes, Float32, Int64, String
+from feast.types import Array, Bytes, Float32, Int32, Int64, String
+from feast.value_type import ValueType
 
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
@@ -38,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session")
-def sql_registry():
+def pg_registry():
     container = (
         DockerContainer("postgres:latest")
         .with_exposed_ports(5432)
@@ -66,6 +68,39 @@ def sql_registry():
     container.stop()
 
 
+@pytest.fixture(scope="session")
+def mysql_registry():
+    container = (
+        DockerContainer("mysql:latest")
+        .with_exposed_ports(3306)
+        .with_env("MYSQL_RANDOM_ROOT_PASSWORD", "true")
+        .with_env("MYSQL_USER", POSTGRES_USER)
+        .with_env("MYSQL_PASSWORD", POSTGRES_PASSWORD)
+        .with_env("MYSQL_DATABASE", POSTGRES_DB)
+    )
+
+    container.start()
+
+    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.29'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
+    waited = wait_for_logs(
+        container=container, predicate=log_string_to_wait_for, timeout=30, interval=10,
+    )
+    logger.info("Waited for %s seconds until mysql container was up", waited)
+    container_port = container.get_exposed_port(3306)
+
+    registry_config = RegistryConfig(
+        registry_type="sql",
+        path=f"mysql+mysqldb://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+    )
+
+    yield SqlRegistry(registry_config, None)
+
+    container.stop()
+
+
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
 def test_apply_entity_success(sql_registry):
     entity = Entity(
         name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
@@ -103,6 +138,9 @@ def test_apply_entity_success(sql_registry):
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
 def test_apply_entity_integration(sql_registry):
     entity = Entity(
         name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
@@ -135,6 +173,9 @@ def test_apply_entity_integration(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
 def test_apply_feature_view_success(sql_registry):
     # Create Feature Views
     batch_source = FileSource(
@@ -203,6 +244,9 @@ def test_apply_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
 def test_apply_on_demand_feature_view_success(sql_registry):
     # Create Feature Views
     driver_stats = FileSource(
@@ -266,5 +310,258 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     sql_registry.delete_feature_view("location_features_from_push", project)
     feature_views = sql_registry.list_on_demand_feature_views(project)
     assert len(feature_views) == 0
+
+    sql_registry.teardown()
+
+
+# TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
+@pytest.mark.parametrize(
+    "request_source_schema",
+    [[Field(name="my_input_1", dtype=Int32)], {"my_input_1": ValueType.INT32}],
+)
+def test_modify_feature_views_success(sql_registry, request_source_schema):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    request_source = RequestSource(name="request_source", schema=request_source_schema,)
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    @on_demand_feature_view(
+        features=[
+            Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
+            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        ],
+        sources=[request_source],
+    )
+    def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["odfv1_my_feature_1"] = feature_df["my_input_1"].astype("category")
+        data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
+        return data
+
+    project = "project"
+
+    # Register Feature Views
+    sql_registry.apply_feature_view(odfv1, project)
+    sql_registry.apply_feature_view(fv1, project)
+
+    # Modify odfv by changing a single feature dtype
+    @on_demand_feature_view(
+        features=[
+            Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
+            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        ],
+        sources=[request_source],
+    )
+    def odfv1(feature_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["odfv1_my_feature_1"] = feature_df["my_input_1"].astype("float")
+        data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
+        return data
+
+    # Apply the modified odfv
+    sql_registry.apply_feature_view(odfv1, project)
+
+    # Check odfv
+    on_demand_feature_views = sql_registry.list_on_demand_feature_views(project)
+
+    assert (
+        len(on_demand_feature_views) == 1
+        and on_demand_feature_views[0].name == "odfv1"
+        and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
+        and on_demand_feature_views[0].features[0].dtype == Float32
+        and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
+        and on_demand_feature_views[0].features[1].dtype == Int32
+    )
+    request_schema = on_demand_feature_views[0].get_request_data_schema()
+    assert (
+        list(request_schema.keys())[0] == "my_input_1"
+        and list(request_schema.values())[0] == ValueType.INT32
+    )
+
+    feature_view = sql_registry.get_on_demand_feature_view("odfv1", project)
+    assert (
+        feature_view.name == "odfv1"
+        and feature_view.features[0].name == "odfv1_my_feature_1"
+        and feature_view.features[0].dtype == Float32
+        and feature_view.features[1].name == "odfv1_my_feature_2"
+        and feature_view.features[1].dtype == Int32
+    )
+    request_schema = feature_view.get_request_data_schema()
+    assert (
+        list(request_schema.keys())[0] == "my_input_1"
+        and list(request_schema.values())[0] == ValueType.INT32
+    )
+
+    # Make sure fv1 is untouched
+    feature_views = sql_registry.list_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == Int64
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    assert (
+        feature_view.name == "my_feature_view_1"
+        and feature_view.features[0].name == "fs1_my_feature_1"
+        and feature_view.features[0].dtype == Int64
+        and feature_view.entities[0] == "fs1_my_entity_1"
+    )
+
+    sql_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
+def test_apply_feature_view_integration(sql_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register Feature View
+    sql_registry.apply_feature_view(fv1, project)
+
+    feature_views = sql_registry.list_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == Int64
+        and feature_views[0].features[1].name == "fs1_my_feature_2"
+        and feature_views[0].features[1].dtype == String
+        and feature_views[0].features[2].name == "fs1_my_feature_3"
+        and feature_views[0].features[2].dtype == Array(String)
+        and feature_views[0].features[3].name == "fs1_my_feature_4"
+        and feature_views[0].features[3].dtype == Array(Bytes)
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    assert (
+        feature_view.name == "my_feature_view_1"
+        and feature_view.features[0].name == "fs1_my_feature_1"
+        and feature_view.features[0].dtype == Int64
+        and feature_view.features[1].name == "fs1_my_feature_2"
+        and feature_view.features[1].dtype == String
+        and feature_view.features[2].name == "fs1_my_feature_3"
+        and feature_view.features[2].dtype == Array(String)
+        and feature_view.features[3].name == "fs1_my_feature_4"
+        and feature_view.features[3].dtype == Array(Bytes)
+        and feature_view.entities[0] == "fs1_my_entity_1"
+    )
+
+    sql_registry.delete_feature_view("my_feature_view_1", project)
+    feature_views = sql_registry.list_feature_views(project)
+    assert len(feature_views) == 0
+
+    sql_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+)
+def test_apply_data_source(sql_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        batch_source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    sql_registry.apply_data_source(batch_source, project, commit=False)
+    sql_registry.apply_feature_view(fv1, project, commit=True)
+
+    registry_feature_views = sql_registry.list_feature_views(project)
+    registry_data_sources = sql_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources[0]
+    assert registry_data_source == batch_source
+
+    # Check that change to batch source propagates
+    batch_source.timestamp_field = "new_ts_col"
+    sql_registry.apply_data_source(batch_source, project, commit=False)
+    sql_registry.apply_feature_view(fv1, project, commit=True)
+    registry_feature_views = sql_registry.list_feature_views(project)
+    registry_data_sources = sql_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_batch_source = sql_registry.list_data_sources(project)[0]
+    assert registry_batch_source == batch_source
 
     sql_registry.teardown()

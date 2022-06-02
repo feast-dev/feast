@@ -132,6 +132,7 @@ CI_REQUIRED = (
         "moto",
         "mypy==0.931",
         "mypy-protobuf==3.1",
+        "mysqlclient",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",

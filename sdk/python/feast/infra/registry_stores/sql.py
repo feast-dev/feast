@@ -53,7 +53,7 @@ metadata = MetaData()
 entities = Table(
     "entities",
     metadata,
-    Column("entity_id", String, primary_key=True),
+    Column("entity_id", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("entity_proto", LargeBinary, nullable=False),
 )
@@ -61,7 +61,7 @@ entities = Table(
 data_sources = Table(
     "data_sources",
     metadata,
-    Column("data_source_name", String, primary_key=True),
+    Column("data_source_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("data_source_proto", LargeBinary, nullable=False),
 )
@@ -69,7 +69,7 @@ data_sources = Table(
 feature_views = Table(
     "feature_views",
     metadata,
-    Column("feature_view_name", String, primary_key=True),
+    Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("materialized_intervals", LargeBinary, nullable=True),
     Column("feature_view_proto", LargeBinary, nullable=False),
@@ -78,7 +78,7 @@ feature_views = Table(
 request_feature_views = Table(
     "request_feature_views",
     metadata,
-    Column("feature_view_name", String, primary_key=True),
+    Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
 )
@@ -86,7 +86,7 @@ request_feature_views = Table(
 on_demand_feature_views = Table(
     "on_demand_feature_views",
     metadata,
-    Column("feature_view_name", String, primary_key=True),
+    Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
 )
@@ -94,7 +94,7 @@ on_demand_feature_views = Table(
 feature_user_metadata = Table(
     "feature_metadata",
     metadata,
-    Column("feature_name", String, primary_key=True),
+    Column("feature_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_metadata_binary", LargeBinary, nullable=False),
 )
@@ -102,7 +102,7 @@ feature_user_metadata = Table(
 feature_services = Table(
     "feature_services",
     metadata,
-    Column("feature_service_name", String, primary_key=True),
+    Column("feature_service_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_service_proto", LargeBinary, nullable=False),
 )
@@ -110,7 +110,7 @@ feature_services = Table(
 saved_datasets = Table(
     "saved_datasets",
     metadata,
-    Column("saved_dataset_name", String, primary_key=True),
+    Column("saved_dataset_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("saved_dataset_proto", LargeBinary, nullable=False),
 )
@@ -118,7 +118,7 @@ saved_datasets = Table(
 validation_references = Table(
     "validation_references",
     metadata,
-    Column("validation_reference_name", String, primary_key=True),
+    Column("validation_reference_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("validation_reference_proto", LargeBinary, nullable=False),
 )
