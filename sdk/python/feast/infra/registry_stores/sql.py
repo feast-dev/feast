@@ -26,6 +26,8 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    SavedDatasetNotFound,
+    ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -43,6 +45,9 @@ from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.ValidationProfile_pb2 import (
+    ValidationReference as ValidationReferenceProto,
+)
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
@@ -53,7 +58,7 @@ metadata = MetaData()
 entities = Table(
     "entities",
     metadata,
-    Column("entity_id", String(50), primary_key=True),
+    Column("entity_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("entity_proto", LargeBinary, nullable=False),
 )
@@ -89,14 +94,6 @@ on_demand_feature_views = Table(
     Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
-)
-
-feature_user_metadata = Table(
-    "feature_metadata",
-    metadata,
-    Column("feature_name", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_metadata_binary", LargeBinary, nullable=False),
 )
 
 feature_services = Table(
@@ -139,9 +136,10 @@ class SqlRegistry(Registry):
 
     def teardown(self):
         for t in {
+            entities,
+            data_sources,
             feature_views,
             feature_services,
-            data_sources,
             on_demand_feature_views,
             request_feature_views,
             saved_datasets,
@@ -155,74 +153,96 @@ class SqlRegistry(Registry):
         pass
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
-        return self._apply_object(entities, "entity_id", entity, "entity_proto")
+        return self._apply_object(entities, "entity_name", entity, "entity_proto")
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
-        with self.engine.connect() as conn:
-            stmt = select(entities).where(entities.c.entity_id == name)
-            row = conn.execute(stmt).first()
-            if row:
-                entity_proto = EntityProto.FromString(row["entity_proto"])
-                return Entity.from_proto(entity_proto)
-            raise EntityNotFoundException(name, project=project)
+        return self._get_object(
+            entities,
+            name,
+            project,
+            EntityProto,
+            Entity,
+            "entity_name",
+            "entity_proto",
+            EntityNotFoundException,
+        )
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
-        with self.engine.connect() as conn:
-            stmt = select(feature_views).where(
-                feature_views.c.feature_view_name == name
-            )
-            row = conn.execute(stmt).first()
-            if row:
-                fv_proto = FeatureViewProto.FromString(row["feature_view_proto"])
-                return FeatureView.from_proto(fv_proto)
-            raise FeatureViewNotFoundException(name, project=project)
+        return self._get_object(
+            feature_views,
+            name,
+            project,
+            FeatureViewProto,
+            FeatureView,
+            "feature_view_name",
+            "feature_view_proto",
+            FeatureViewNotFoundException,
+        )
 
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
-        with self.engine.connect() as conn:
-            stmt = select(on_demand_feature_views).where(
-                on_demand_feature_views.c.feature_view_name == name
-            )
-            row = conn.execute(stmt).first()
-            if row:
-                fv_proto = OnDemandFeatureViewProto.FromString(
-                    row["feature_view_proto"]
-                )
-                return OnDemandFeatureView.from_proto(fv_proto)
-            raise FeatureViewNotFoundException(name, project=project)
+        return self._get_object(
+            on_demand_feature_views,
+            name,
+            project,
+            OnDemandFeatureViewProto,
+            OnDemandFeatureView,
+            "feature_view_name",
+            "feature_view_proto",
+            FeatureViewNotFoundException,
+        )
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
-        with self.engine.connect() as conn:
-            stmt = select(feature_services).where(
-                feature_services.c.feature_service_name == name
-            )
-            row = conn.execute(stmt).first()
-            if row:
-                fv_proto = FeatureServiceProto.FromString(row["feature_service_proto"])
-                return FeatureService.from_proto(fv_proto)
-            raise FeatureServiceNotFoundException(name, project=project)
+        return self._get_object(
+            feature_services,
+            name,
+            project,
+            FeatureServiceProto,
+            FeatureService,
+            "feature_service_name",
+            "feature_service_proto",
+            FeatureServiceNotFoundException,
+        )
 
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
-        pass
+        return self._get_object(
+            saved_datasets,
+            name,
+            project,
+            SavedDatasetProto,
+            SavedDataset,
+            "saved_dataset_name",
+            "saved_dataset_proto",
+            SavedDatasetNotFound,
+        )
 
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
-        pass
+        return self._get_object(
+            validation_references,
+            name,
+            project,
+            ValidationReferenceProto,
+            ValidationReference,
+            "validation_reference_name",
+            "validation_reference_proto",
+            ValidationReferenceNotFound,
+        )
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         return self._list_objects(entities, EntityProto, Entity, "entity_proto")
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
-            stmt = delete(entities).where(entities.c.entity_id == name)
+            stmt = delete(entities).where(entities.c.entity_name == name)
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise EntityNotFoundException(name, project)
@@ -250,7 +270,7 @@ class SqlRegistry(Registry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
         with self.engine.connect() as conn:
-            stmt = select(data_sources).where(data_sources.c.entity_id == name)
+            stmt = select(data_sources).where(data_sources.c.entity_name == name)
             row = conn.execute(stmt).first()
             if row:
                 ds_proto = DataSourceProto.FromString(row["data_source_proto"])
@@ -299,7 +319,7 @@ class SqlRegistry(Registry):
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
-            stmt = delete(data_sources).where(data_sources.c.entity_id == name)
+            stmt = delete(data_sources).where(data_sources.c.data_source_name == name)
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise DataSourceObjectNotFoundException(name, project)
@@ -411,3 +431,22 @@ class SqlRegistry(Registry):
                     for row in rows
                 ]
         return []
+
+    def _get_object(
+        self,
+        table,
+        name,
+        project,
+        proto_class,
+        python_class,
+        id_field_name,
+        proto_field_name,
+        not_found_exception,
+    ):
+        with self.engine.connect() as conn:
+            stmt = select(table).where(getattr(table.c, id_field_name) == name)
+            row = conn.execute(stmt).first()
+            if row:
+                _proto = proto_class.FromString(row[proto_field_name])
+                return python_class.from_proto(_proto)
+        raise not_found_exception(name, project)

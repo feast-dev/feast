@@ -144,45 +144,6 @@ def test_apply_entity_success(sql_registry):
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="does not run on mac github actions"
 )
-@pytest.mark.integration
-@pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
-)
-def test_apply_entity_integration(sql_registry):
-    entity = Entity(
-        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
-    )
-
-    project = "project"
-
-    # Register Entity
-    sql_registry.apply_entity(entity, project)
-
-    entities = sql_registry.list_entities(project)
-
-    entity = entities[0]
-    assert (
-        len(entities) == 1
-        and entity.name == "driver_car_id"
-        and entity.description == "Car driver id"
-        and "team" in entity.tags
-        and entity.tags["team"] == "matchmaking"
-    )
-
-    entity = sql_registry.get_entity("driver_car_id", project)
-    assert (
-        entity.name == "driver_car_id"
-        and entity.description == "Car driver id"
-        and "team" in entity.tags
-        and entity.tags["team"] == "matchmaking"
-    )
-
-    sql_registry.teardown()
-
-
-@pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
-)
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
@@ -445,81 +406,6 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
         and feature_view.features[0].dtype == Int64
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
-
-    sql_registry.teardown()
-
-
-@pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
-)
-@pytest.mark.integration
-@pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
-)
-def test_apply_feature_view_integration(sql_registry):
-    # Create Feature Views
-    batch_source = FileSource(
-        file_format=ParquetFormat(),
-        path="file://feast/*",
-        timestamp_field="ts_col",
-        created_timestamp_column="timestamp",
-    )
-
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
-
-    fv1 = FeatureView(
-        name="my_feature_view_1",
-        schema=[
-            Field(name="fs1_my_feature_1", dtype=Int64),
-            Field(name="fs1_my_feature_2", dtype=String),
-            Field(name="fs1_my_feature_3", dtype=Array(String)),
-            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-        ],
-        entities=[entity],
-        tags={"team": "matchmaking"},
-        batch_source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
-    project = "project"
-
-    # Register Feature View
-    sql_registry.apply_feature_view(fv1, project)
-
-    feature_views = sql_registry.list_feature_views(project)
-
-    # List Feature Views
-    assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "my_feature_view_1"
-        and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == Int64
-        and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == String
-        and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == Array(String)
-        and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == Array(Bytes)
-        and feature_views[0].entities[0] == "fs1_my_entity_1"
-    )
-
-    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
-    assert (
-        feature_view.name == "my_feature_view_1"
-        and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == Int64
-        and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == String
-        and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == Array(String)
-        and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == Array(Bytes)
-        and feature_view.entities[0] == "fs1_my_entity_1"
-    )
-
-    sql_registry.delete_feature_view("my_feature_view_1", project)
-    feature_views = sql_registry.list_feature_views(project)
-    assert len(feature_views) == 0
 
     sql_registry.teardown()
 
