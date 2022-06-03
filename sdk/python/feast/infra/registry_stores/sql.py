@@ -155,7 +155,7 @@ class SqlRegistry(BaseRegistry):
 
     def list_stream_feature_views(
         self, project: str, allow_cache: bool = False
-    ):
+    ) -> List[StreamFeatureView]:
         return []
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -394,11 +394,6 @@ class SqlRegistry(BaseRegistry):
             validation_reference,
             "validation_reference_proto",
         )
-
-    def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[StreamFeatureView]:
-        return []
 
     def apply_materialization(
         self,
