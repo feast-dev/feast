@@ -153,6 +153,11 @@ class SqlRegistry(BaseRegistry):
     def refresh(self):
         pass
 
+    def list_stream_feature_views(
+        self, project: str, allow_cache: bool = False
+    ):
+        return []
+
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         return self._apply_object(entities, "entity_name", entity, "entity_proto")
 
