@@ -32,11 +32,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.17.7
-      - name: Install mysql on macOS
-        if:  startsWith(matrix.os, 'macOS')
-        run: |
-          brew install mysql
-          PATH=$PATH:/usr/local/mysql/bin
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=22.1,<23"

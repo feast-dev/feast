@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import sys
 from datetime import timedelta
 
 import pandas as pd
@@ -98,6 +99,9 @@ def mysql_registry():
     container.stop()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
@@ -137,6 +141,9 @@ def test_apply_entity_success(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -173,6 +180,9 @@ def test_apply_entity_integration(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
@@ -244,6 +254,9 @@ def test_apply_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
@@ -314,7 +327,9 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
-# TODO(kevjumba): remove this in feast 0.23 when deprecating
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
@@ -434,6 +449,9 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -506,6 +524,9 @@ def test_apply_feature_view_integration(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="does not run on mac github actions"
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
