@@ -294,6 +294,7 @@ class SqlRegistry(Registry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
+        # TODO(achals): Stream feature views need to be supported.
         if isinstance(feature_view, FeatureView):
             fv_table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
