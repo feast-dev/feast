@@ -82,6 +82,10 @@ class FeastConfigBaseModel(BaseModel):
 class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
+    registry_type: StrictStr = "file"
+    """ str: Provider name or a class name that implements RegistryStore.
+        If specified, registry_store_type should be redundant."""
+
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
 

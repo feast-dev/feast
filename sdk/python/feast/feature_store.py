@@ -71,6 +71,7 @@ from feast.inference import (
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
+from feast.infra.registry_stores.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
@@ -138,8 +139,11 @@ class FeatureStore:
             raise ValueError("Please specify one of repo_path or config.")
 
         registry_config = self.config.get_registry_config()
-        self._registry = Registry(registry_config, repo_path=self.repo_path)
-        self._registry._initialize_registry()
+        if registry_config.registry_type == "sql":
+            self._registry = SqlRegistry(registry_config, None)
+        else:
+            self._registry = Registry(registry_config, repo_path=self.repo_path)
+            self._registry._initialize_registry()
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
 

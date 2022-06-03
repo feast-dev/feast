@@ -4,7 +4,7 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.8-ci-requirements.txt
 #
-absl-py==1.0.0
+absl-py==1.1.0
     # via tensorflow-metadata
 adal==1.2.7
     # via
@@ -58,7 +58,7 @@ attrs==21.4.0
     #   pytest
 avro==1.10.0
     # via feast (setup.py)
-azure-core==1.24.0
+azure-core==1.24.1
     # via
     #   adlfs
     #   azure-identity
@@ -126,7 +126,7 @@ colorama==0.4.4
     # via
     #   feast (setup.py)
     #   great-expectations
-coverage[toml]==6.4
+coverage[toml]==6.4.1
     # via pytest-cov
 cryptography==35.0.0
     # via
@@ -233,7 +233,7 @@ google-cloud-core==1.7.2
     #   google-cloud-storage
 google-cloud-datastore==2.6.1
     # via feast (setup.py)
-google-cloud-firestore==2.5.1
+google-cloud-firestore==2.5.2
     # via firebase-admin
 google-cloud-storage==1.40.0
     # via
@@ -253,6 +253,8 @@ googleapis-common-protos==1.56.2
     #   tensorflow-metadata
 great-expectations==0.14.13
     # via feast (setup.py)
+greenlet==1.1.2
+    # via sqlalchemy
 grpcio==1.46.3
     # via
     #   feast (setup.py)
@@ -318,7 +320,7 @@ jsonpatch==1.32
     # via great-expectations
 jsonpointer==2.3
     # via jsonpatch
-jsonschema==4.5.1
+jsonschema==4.6.0
     # via
     #   altair
     #   feast (setup.py)
@@ -365,10 +367,14 @@ multidict==6.0.2
     #   aiohttp
     #   yarl
 mypy==0.931
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
 mypy-protobuf==3.1
+    # via feast (setup.py)
+mysqlclient==2.1.0
     # via feast (setup.py)
 nbformat==5.4.0
     # via great-expectations
@@ -449,6 +455,7 @@ protobuf==3.19.4
     #   feast (setup.py)
     #   google-api-core
     #   google-cloud-bigquery
+    #   google-cloud-firestore
     #   googleapis-common-protos
     #   grpcio-reflection
     #   grpcio-testing
@@ -616,7 +623,6 @@ scipy==1.8.1
     # via great-expectations
 six==1.16.0
     # via
-    #   absl-py
     #   azure-core
     #   azure-identity
     #   google-api-core
@@ -655,6 +661,10 @@ sphinxcontrib-qthelp==1.0.3
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.5
     # via sphinx
+sqlalchemy[mypy]==1.4.37
+    # via feast (setup.py)
+sqlalchemy2-stubs==0.0.2a22
+    # via sqlalchemy
 stack-data==0.2.0
     # via ipython
 starlette==0.19.1
@@ -710,11 +720,11 @@ types-python-dateutil==2.8.17
     # via feast (setup.py)
 types-pytz==2021.3.8
     # via feast (setup.py)
-types-pyyaml==6.0.7
+types-pyyaml==6.0.8
     # via feast (setup.py)
 types-redis==4.2.6
     # via feast (setup.py)
-types-requests==2.27.29
+types-requests==2.27.30
     # via feast (setup.py)
 types-setuptools==57.4.17
     # via feast (setup.py)
@@ -729,6 +739,7 @@ typing-extensions==4.2.0
     #   great-expectations
     #   mypy
     #   pydantic
+    #   sqlalchemy2-stubs
     #   starlette
 tzdata==2022.1
     # via pytz-deprecation-shim

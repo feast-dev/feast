@@ -66,6 +66,7 @@ REQUIRED = [
     "pydantic>=1,<2",
     "pygments==2.12.0",
     "PyYAML>=5.4.*,<7",
+    "SQLAlchemy[mypy]>1,<2",
     "tabulate==0.8.*",
     "tenacity>=7,<9",
     "toml==0.10.*",
@@ -105,6 +106,10 @@ TRINO_REQUIRED = [
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
+]
+
+MYSQL_REQUIRED = [
+    "mysqlclient",
 ]
 
 HBASE_REQUIRED = [
@@ -167,6 +172,7 @@ CI_REQUIRED = (
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
+    + MYSQL_REQUIRED
     + TRINO_REQUIRED
     + GE_REQUIRED
     + HBASE_REQUIRED
@@ -470,6 +476,7 @@ setup(
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
+        "mysql": MYSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "go": GO_REQUIRED,
