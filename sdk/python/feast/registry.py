@@ -14,6 +14,7 @@
 import abc
 import json
 import logging
+from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
@@ -148,6 +149,7 @@ def get_registry_store_class_from_scheme(registry_path: str):
 
 class BaseRegistry(abc.ABC):
     # Entity operations
+    @abstractmethod
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         """
         Registers a single entity with Feast
@@ -158,6 +160,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def delete_entity(self, name: str, project: str, commit: bool = True):
         """
         Deletes an entity or raises an exception if not found.
@@ -168,6 +171,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         """
         Retrieves an entity.
@@ -182,6 +186,7 @@ class BaseRegistry(abc.ABC):
             none is found
         """
 
+    @abstractmethod
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
@@ -195,6 +200,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # Data source operations
+    @abstractmethod
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
@@ -207,6 +213,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether to immediately commit to the registry
         """
 
+    @abstractmethod
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         """
         Deletes a data source or raises an exception if not found.
@@ -217,6 +224,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
@@ -232,6 +240,7 @@ class BaseRegistry(abc.ABC):
             Returns either the specified data source, or raises an exception if none is found
         """
 
+    @abstractmethod
     def list_data_sources(
         self, project: str, allow_cache: bool = False
     ) -> List[DataSource]:
@@ -247,6 +256,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # Feature service operations
+    @abstractmethod
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
@@ -258,6 +268,7 @@ class BaseRegistry(abc.ABC):
             project: Feast project that this entity belongs to
         """
 
+    @abstractmethod
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature service or raises an exception if not found.
@@ -268,6 +279,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
@@ -284,6 +296,7 @@ class BaseRegistry(abc.ABC):
             none is found
         """
 
+    @abstractmethod
     def list_feature_services(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
@@ -299,6 +312,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # Feature view operations
+    @abstractmethod
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
@@ -311,6 +325,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         """
         Deletes a feature view or raises an exception if not found.
@@ -326,6 +341,7 @@ class BaseRegistry(abc.ABC):
     # def get_stream_feature_view(self):
     #     ...
 
+    @abstractmethod
     def list_stream_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
@@ -341,6 +357,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # on demand feature view operations
+    @abstractmethod
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
@@ -357,6 +374,7 @@ class BaseRegistry(abc.ABC):
             none is found
         """
 
+    @abstractmethod
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
@@ -372,6 +390,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # regular feature view operations
+    @abstractmethod
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
@@ -388,6 +407,7 @@ class BaseRegistry(abc.ABC):
             none is found
         """
 
+    @abstractmethod
     def list_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
@@ -403,9 +423,12 @@ class BaseRegistry(abc.ABC):
         """
 
     # request feature view operations
-    def get_request_feature_view(self, name: str, project: str):
-        ...
+    # TODO: Needs to be implemented.
+    # @abstractmethod
+    # def get_request_feature_view(self, name: str, project: str):
+    #     ...
 
+    @abstractmethod
     def list_request_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
@@ -417,9 +440,10 @@ class BaseRegistry(abc.ABC):
             project: Filter feature views based on project name
 
         Returns:
-            List of feature views
+            List of request feature views
         """
 
+    @abstractmethod
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -440,6 +464,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # Saved dataset operations
+    @abstractmethod
     def apply_saved_dataset(
         self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
@@ -452,6 +477,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
@@ -485,6 +511,7 @@ class BaseRegistry(abc.ABC):
     #         none is found
     #     """
 
+    @abstractmethod
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
@@ -500,6 +527,7 @@ class BaseRegistry(abc.ABC):
         """
 
     # Validation reference operations
+    @abstractmethod
     def apply_validation_reference(
         self,
         validation_reference: ValidationReference,
@@ -515,6 +543,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         """
         Deletes a validation reference or raises an exception if not found.
@@ -525,6 +554,7 @@ class BaseRegistry(abc.ABC):
             commit: Whether the change should be persisted immediately
         """
 
+    @abstractmethod
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
@@ -545,9 +575,11 @@ class BaseRegistry(abc.ABC):
     # def list_validation_references(self):
     #     ...
 
+    @abstractmethod
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
 
+    @abstractmethod
     def refresh(self):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
