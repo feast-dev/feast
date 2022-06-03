@@ -52,6 +52,7 @@ from feast.registry import BaseRegistry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 
 metadata = MetaData()
 
@@ -388,6 +389,27 @@ class SqlRegistry(BaseRegistry):
             validation_reference,
             "validation_reference_proto",
         )
+
+    def list_stream_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[StreamFeatureView]:
+        return []
+
+    def apply_materialization(
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+        commit: bool = True,
+    ):
+        pass
+
+    def delete_validation_reference(self, name: str, project: str, commit: bool = True):
+        pass
+
+    def commit(self):
+        pass
 
     def _apply_object(
         self, table, id_field_name, obj, proto_field_name,
