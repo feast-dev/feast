@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
 import json
 import logging
 from collections import defaultdict
@@ -145,7 +146,413 @@ def get_registry_store_class_from_scheme(registry_path: str):
         return get_registry_store_class_from_type(registry_store_type)
 
 
-class Registry:
+class BaseRegistry(abc.ABC):
+    # Entity operations
+    def apply_entity(self, entity: Entity, project: str, commit: bool = True):
+        """
+        Registers a single entity with Feast
+
+        Args:
+            entity: Entity that will be registered
+            project: Feast project that this entity belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def delete_entity(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes an entity or raises an exception if not found.
+
+        Args:
+            name: Name of entity
+            project: Feast project that this entity belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
+        """
+        Retrieves an entity.
+
+        Args:
+            name: Name of entity
+            project: Feast project that this entity belongs to
+            allow_cache: Whether to allow returning this entity from a cached registry
+
+        Returns:
+            Returns either the specified entity, or raises an exception if
+            none is found
+        """
+
+    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+        """
+        Retrieve a list of entities from the registry
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry
+            project: Filter entities based on project name
+
+        Returns:
+            List of entities
+        """
+
+    # Data source operations
+    def apply_data_source(
+        self, data_source: DataSource, project: str, commit: bool = True
+    ):
+        """
+        Registers a single data source with Feast
+
+        Args:
+            data_source: A data source that will be registered
+            project: Feast project that this data source belongs to
+            commit: Whether to immediately commit to the registry
+        """
+
+    def delete_data_source(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a data source or raises an exception if not found.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this data source belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def get_data_source(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> DataSource:
+        """
+        Retrieves a data source.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this data source belongs to
+            allow_cache: Whether to allow returning this data source from a cached registry
+
+        Returns:
+            Returns either the specified data source, or raises an exception if none is found
+        """
+
+    def list_data_sources(
+        self, project: str, allow_cache: bool = False
+    ) -> List[DataSource]:
+        """
+        Retrieve a list of data sources from the registry
+
+        Args:
+            project: Filter data source based on project name
+            allow_cache: Whether to allow returning data sources from a cached registry
+
+        Returns:
+            List of data sources
+        """
+
+    # Feature service operations
+    def apply_feature_service(
+        self, feature_service: FeatureService, project: str, commit: bool = True
+    ):
+        """
+        Registers a single feature service with Feast
+
+        Args:
+            feature_service: A feature service that will be registered
+            project: Feast project that this entity belongs to
+        """
+
+    def delete_feature_service(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a feature service or raises an exception if not found.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this feature service belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def get_feature_service(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureService:
+        """
+        Retrieves a feature service.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this feature service belongs to
+            allow_cache: Whether to allow returning this feature service from a cached registry
+
+        Returns:
+            Returns either the specified feature service, or raises an exception if
+            none is found
+        """
+
+    def list_feature_services(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureService]:
+        """
+        Retrieve a list of feature services from the registry
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry
+            project: Filter entities based on project name
+
+        Returns:
+            List of feature services
+        """
+
+    # Feature view operations
+    def apply_feature_view(
+        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+    ):
+        """
+        Registers a single feature view with Feast
+
+        Args:
+            feature_view: Feature view that will be registered
+            project: Feast project that this feature view belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def delete_feature_view(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a feature view or raises an exception if not found.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    # stream feature view operations
+    # TODO: Needs to be implemented.
+    # def get_stream_feature_view(self):
+    #     ...
+
+    def list_stream_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[StreamFeatureView]:
+        """
+        Retrieve a list of stream feature views from the registry
+
+        Args:
+            project: Filter stream feature views based on project name
+            allow_cache: Whether to allow returning stream feature views from a cached registry
+
+        Returns:
+            List of stream feature views
+        """
+
+    # on demand feature view operations
+    def get_on_demand_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> OnDemandFeatureView:
+        """
+        Retrieves an on demand feature view.
+
+        Args:
+            name: Name of on demand feature view
+            project: Feast project that this on demand feature view belongs to
+            allow_cache: Whether to allow returning this on demand feature view from a cached registry
+
+        Returns:
+            Returns either the specified on demand feature view, or raises an exception if
+            none is found
+        """
+
+    def list_on_demand_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[OnDemandFeatureView]:
+        """
+        Retrieve a list of on demand feature views from the registry
+
+        Args:
+            project: Filter on demand feature views based on project name
+            allow_cache: Whether to allow returning on demand feature views from a cached registry
+
+        Returns:
+            List of on demand feature views
+        """
+
+    # regular feature view operations
+    def get_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> FeatureView:
+        """
+        Retrieves a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+
+    def list_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureView]:
+        """
+        Retrieve a list of feature views from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+
+        Returns:
+            List of feature views
+        """
+
+    # request feature view operations
+    def get_request_feature_view(self, name: str, project: str):
+        ...
+
+    def list_request_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[RequestFeatureView]:
+        """
+        Retrieve a list of request feature views from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+
+        Returns:
+            List of feature views
+        """
+
+    def apply_materialization(
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+        commit: bool = True,
+    ):
+        """
+        Updates materialization intervals tracked for a single feature view in Feast
+
+        Args:
+            feature_view: Feature view that will be updated with an additional materialization interval tracked
+            project: Feast project that this feature view belongs to
+            start_date (datetime): Start date of the materialization interval to track
+            end_date (datetime): End date of the materialization interval to track
+            commit: Whether the change should be persisted immediately
+        """
+
+    # Saved dataset operations
+    def apply_saved_dataset(
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+    ):
+        """
+        Stores a saved dataset metadata with Feast
+
+        Args:
+            saved_dataset: SavedDataset that will be added / updated to registry
+            project: Feast project that this dataset belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def get_saved_dataset(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SavedDataset:
+        """
+        Retrieves a saved dataset.
+
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
+
+        Returns:
+            Returns either the specified SavedDataset, or raises an exception if
+            none is found
+        """
+
+    # TODO: Needs to be implemented.
+    # def delete_saved_dataset(
+    #         self, name: str, project: str, allow_cache: bool = False
+    # ):
+    #     """
+    #     Retrieves a saved dataset.
+    #
+    #     Args:
+    #         name: Name of dataset
+    #         project: Feast project that this dataset belongs to
+    #         allow_cache: Whether to allow returning this dataset from a cached registry
+    #
+    #     Returns:
+    #         Returns either the specified SavedDataset, or raises an exception if
+    #         none is found
+    #     """
+
+    def list_saved_datasets(
+        self, project: str, allow_cache: bool = False
+    ) -> List[SavedDataset]:
+        """
+        Retrieves a list of all saved datasets in specified project
+
+        Args:
+            project: Feast project
+            allow_cache: Whether to allow returning this dataset from a cached registry
+
+        Returns:
+            Returns the list of SavedDatasets
+        """
+
+    # Validation reference operations
+    def apply_validation_reference(
+        self,
+        validation_reference: ValidationReference,
+        project: str,
+        commit: bool = True,
+    ):
+        """
+        Persist a validation reference
+
+        Args:
+            validation_reference: ValidationReference that will be added / updated to registry
+            project: Feast project that this dataset belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def delete_validation_reference(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a validation reference or raises an exception if not found.
+
+        Args:
+            name: Name of validation reference
+            project: Feast project that this object belongs to
+            commit: Whether the change should be persisted immediately
+        """
+
+    def get_validation_reference(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ValidationReference:
+        """
+            Retrieves a validation reference.
+
+            Args:
+                name: Name of dataset
+                project: Feast project that this dataset belongs to
+                allow_cache: Whether to allow returning this dataset from a cached registry
+
+            Returns:
+                Returns either the specified ValidationReference, or raises an exception if
+                none is found
+            """
+
+    # TODO: Needs to be implemented.
+    # def list_validation_references(self):
+    #     ...
+
+    def commit(self):
+        """Commits the state of the registry cache to the remote registry store."""
+
+    def refresh(self):
+        """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
+
+
+class Registry(BaseRegistry):
     """
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """

@@ -48,7 +48,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatase
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -121,7 +121,7 @@ validation_references = Table(
 )
 
 
-class SqlRegistry(Registry):
+class SqlRegistry(BaseRegistry):
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
