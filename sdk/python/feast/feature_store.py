@@ -646,7 +646,8 @@ class FeatureStore:
         self._registry.refresh()
         current_infra_proto = (
             self._registry.cached_registry_proto.infra.__deepcopy__()
-            if self._registry.cached_registry_proto
+            if hasattr(self._registry, "cached_registry_proto")
+            and self._registry.cached_registry_proto
             else InfraProto()
         )
         desired_registry_proto = desired_repo_contents.to_registry_proto()

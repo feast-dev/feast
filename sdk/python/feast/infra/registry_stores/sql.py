@@ -48,10 +48,11 @@ from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatase
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 
 metadata = MetaData()
 
@@ -121,7 +122,7 @@ validation_references = Table(
 )
 
 
-class SqlRegistry(Registry):
+class SqlRegistry(BaseRegistry):
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
@@ -151,6 +152,11 @@ class SqlRegistry(Registry):
 
     def refresh(self):
         pass
+
+    def list_stream_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[StreamFeatureView]:
+        return []
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         return self._apply_object(entities, "entity_name", entity, "entity_proto")
@@ -388,6 +394,22 @@ class SqlRegistry(Registry):
             validation_reference,
             "validation_reference_proto",
         )
+
+    def apply_materialization(
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+        commit: bool = True,
+    ):
+        pass
+
+    def delete_validation_reference(self, name: str, project: str, commit: bool = True):
+        pass
+
+    def commit(self):
+        pass
 
     def _apply_object(
         self, table, id_field_name, obj, proto_field_name,
