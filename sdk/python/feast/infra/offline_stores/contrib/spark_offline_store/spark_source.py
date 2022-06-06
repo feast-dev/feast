@@ -25,6 +25,8 @@ class SparkSourceFormat(Enum):
     csv = "csv"
     json = "json"
     parquet = "parquet"
+    delta = "delta"
+    avro = "avro"
 
 
 class SparkSource(DataSource):
