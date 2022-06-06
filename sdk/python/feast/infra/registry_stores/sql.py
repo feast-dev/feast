@@ -140,7 +140,6 @@ validation_references = Table(
 
 
 class SqlRegistry(BaseRegistry):
-
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
@@ -475,7 +474,12 @@ class SqlRegistry(BaseRegistry):
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         pass
 
-    def apply_user_metadata(self, project: str, feature_view: BaseFeatureView, metadata_bytes: Optional[bytes]):
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
         if isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -500,14 +504,16 @@ class SqlRegistry(BaseRegistry):
                 }
                 update_stmt = (
                     update(table)
-                        .where(getattr(table.c, "feature_view_name") == name)
-                        .values(values,)
+                    .where(getattr(table.c, "feature_view_name") == name)
+                    .values(values,)
                 )
                 conn.execute(update_stmt)
             else:
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def get_user_metadata(self, project: str, feature_view: BaseFeatureView) -> Optional[bytes]:
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
         if isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -582,7 +588,6 @@ class SqlRegistry(BaseRegistry):
                 }
                 insert_stmt = insert(table).values(values,)
                 conn.execute(insert_stmt)
-
 
     def _delete_object(self, table, name, project, id_field_name, not_found_exception):
         with self.engine.connect() as conn:

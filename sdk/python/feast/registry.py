@@ -632,11 +632,18 @@ class BaseRegistry(abc.ABC):
         """
 
     @abstractmethod
-    def apply_user_metadata(self, project: str, feature_view: BaseFeatureView, metadata_bytes: Optional[bytes]):
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
         ...
 
     @abstractmethod
-    def get_user_metadata(self, project: str, feature_view: BaseFeatureView) -> Optional[bytes]:
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
         ...
 
     @abstractmethod
@@ -662,10 +669,17 @@ class Registry(BaseRegistry):
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
 
-    def apply_user_metadata(self, project: str, feature_view: BaseFeatureView, metadata_bytes: Optional[bytes]):
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
         pass
 
-    def get_user_metadata(self, project: str, feature_view: BaseFeatureView) -> Optional[bytes]:
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
         pass
 
     # The cached_registry_proto object is used for both reads and writes. In particular,
