@@ -262,6 +262,12 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     # Register Feature View
     sql_registry.apply_feature_view(location_features_from_push, project)
 
+    assert not sql_registry.get_user_metadata(project, location_features_from_push)
+
+    b = "metadata".encode("utf-8")
+    sql_registry.apply_user_metadata(project, location_features_from_push, b)
+    assert sql_registry.get_user_metadata(project, location_features_from_push) == b
+
     feature_views = sql_registry.list_on_demand_feature_views(project)
 
     # List Feature Views
