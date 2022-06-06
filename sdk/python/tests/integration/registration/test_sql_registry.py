@@ -24,6 +24,7 @@ from testcontainers.core.waiting_utils import wait_for_logs
 from feast import Feature, FileSource, RequestSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
+from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.registry_stores.sql import SqlRegistry
@@ -258,6 +259,9 @@ def test_apply_on_demand_feature_view_success(sql_registry):
         return df
 
     project = "project"
+
+    with pytest.raises(FeatureViewNotFoundException):
+        sql_registry.get_user_metadata(project, location_features_from_push)
 
     # Register Feature View
     sql_registry.apply_feature_view(location_features_from_push, project)
