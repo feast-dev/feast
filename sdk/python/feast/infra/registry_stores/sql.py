@@ -96,8 +96,8 @@ request_feature_views = Table(
     Column("user_metadata", LargeBinary, nullable=True),
 )
 
-streaming_feature_views = Table(
-    "streaming_feature_views",
+stream_feature_views = Table(
+    "stream_feature_views",
     metadata,
     Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
@@ -174,7 +174,7 @@ class SqlRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ):
         return self._get_object(
-            streaming_feature_views,
+            stream_feature_views,
             name,
             project,
             StreamFeatureViewProto,
@@ -188,7 +188,7 @@ class SqlRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
         return self._list_objects(
-            streaming_feature_views,
+            stream_feature_views,
             StreamFeatureViewProto,
             StreamFeatureView,
             "feature_view_proto",
@@ -305,7 +305,7 @@ class SqlRegistry(BaseRegistry):
             feature_views,
             request_feature_views,
             on_demand_feature_views,
-            streaming_feature_views,
+            stream_feature_views,
         }:
             deleted_count += self._delete_object(
                 table, name, project, "feature_view_name", None
@@ -353,14 +353,14 @@ class SqlRegistry(BaseRegistry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
-        if isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, StreamFeatureView):
+            fv_table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
             fv_table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
             fv_table = on_demand_feature_views
         elif isinstance(feature_view, RequestFeatureView):
             fv_table = request_feature_views
-        elif isinstance(feature_view, StreamFeatureView):
-            fv_table = streaming_feature_views
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
@@ -480,14 +480,14 @@ class SqlRegistry(BaseRegistry):
         feature_view: BaseFeatureView,
         metadata_bytes: Optional[bytes],
     ):
-        if isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, StreamFeatureView):
+            table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
             table = on_demand_feature_views
         elif isinstance(feature_view, RequestFeatureView):
             table = request_feature_views
-        elif isinstance(feature_view, StreamFeatureView):
-            table = streaming_feature_views
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
@@ -514,14 +514,14 @@ class SqlRegistry(BaseRegistry):
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]:
-        if isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, StreamFeatureView):
+            table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
             table = on_demand_feature_views
         elif isinstance(feature_view, RequestFeatureView):
             table = request_feature_views
-        elif isinstance(feature_view, StreamFeatureView):
-            table = streaming_feature_views
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 

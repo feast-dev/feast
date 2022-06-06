@@ -345,7 +345,7 @@ class BaseRegistry(abc.ABC):
         Retrieves a stream feature view.
 
         Args:
-            name: Name of feature view
+            name: Name of stream feature view
             project: Feast project that this feature view belongs to
             allow_cache: Allow returning feature view from the cached registry
 
@@ -442,7 +442,7 @@ class BaseRegistry(abc.ABC):
         Retrieves a request feature view.
 
         Args:
-            name: Name of feature view
+            name: Name of request feature view
             project: Feast project that this feature view belongs to
             allow_cache: Allow returning feature view from the cached registry
 
