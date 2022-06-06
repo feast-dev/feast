@@ -35,7 +35,7 @@ class Aggregation:
         if not self.sliding_window:
             self.sliding_window = self.time_window
         else:
-            self.sliding_window = self.time_window
+            self.sliding_window = sliding_window
 
     def to_proto(self) -> AggregationProto:
         window_duration = None
