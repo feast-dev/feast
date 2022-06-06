@@ -84,7 +84,7 @@ class FeastObjectType(Enum):
 
     @staticmethod
     def get_objects_from_registry(
-        registry: "Registry", project: str
+        registry: "BaseRegistry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
             FeastObjectType.DATA_SOURCE: registry.list_data_sources(project=project),
@@ -629,6 +629,15 @@ class BaseRegistry(abc.ABC):
 
         Returns:
             The stored Infra object.
+        """
+
+    @abstractmethod
+    def proto(self) -> RegistryProto:
+        """
+        Retrieves a proto version of the registry.
+
+        Returns:
+            The registry proto object.
         """
 
     @abstractmethod
@@ -1546,6 +1555,9 @@ class Registry(BaseRegistry):
     def teardown(self):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
+
+    def proto(self) -> RegistryProto:
+        return self.cached_registry_proto or RegistryProto()
 
     def to_dict(self, project: str) -> Dict[str, List[Any]]:
         """Returns a dictionary representation of the registry contents for the specified project.

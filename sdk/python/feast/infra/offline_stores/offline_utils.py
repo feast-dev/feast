@@ -8,7 +8,6 @@ import pandas as pd
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 
-import feast
 from feast.errors import (
     EntityTimestampInferenceException,
     FeastEntityDFMissingColumnsError,
@@ -17,7 +16,7 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.utils import to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -55,8 +54,9 @@ def assert_expected_columns_in_entity_df(
         raise FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
 
 
+# TODO: Remove project and registry from the interface and call sites.
 def get_expected_join_keys(
-    project: str, feature_views: List["feast.FeatureView"], registry: Registry
+    project: str, feature_views: List[FeatureView], registry: BaseRegistry
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
@@ -95,7 +95,7 @@ class FeatureViewQueryContext:
 def get_feature_view_query_context(
     feature_refs: List[str],
     feature_views: List[FeatureView],
-    registry: Registry,
+    registry: BaseRegistry,
     project: str,
     entity_df_timestamp_range: Tuple[datetime, datetime],
 ) -> List[FeatureViewQueryContext]:

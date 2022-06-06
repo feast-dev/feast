@@ -25,7 +25,7 @@ from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -211,7 +211,7 @@ class OfflineStore(ABC):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -252,7 +252,7 @@ class OfflineStore(ABC):
         data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         """
         Write logged features to a specified destination (taken from logging_config) in the offline store.

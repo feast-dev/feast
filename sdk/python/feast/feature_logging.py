@@ -17,8 +17,8 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 )
 
 if TYPE_CHECKING:
-    from feast import FeatureService
-    from feast.registry import Registry
+    from feast.feature_service import FeatureService
+    from feast.registry import BaseRegistry
 
 
 REQUEST_ID_FIELD = "__request_id"
@@ -33,7 +33,7 @@ class LoggingSource:
     """
 
     @abc.abstractmethod
-    def get_schema(self, registry: "Registry") -> pa.Schema:
+    def get_schema(self, registry: "BaseRegistry") -> pa.Schema:
         """ Generate schema for logs destination. """
         raise NotImplementedError
 
@@ -48,7 +48,7 @@ class FeatureServiceLoggingSource(LoggingSource):
         self._feature_service = feature_service
         self._project = project
 
-    def get_schema(self, registry: "Registry") -> pa.Schema:
+    def get_schema(self, registry: "BaseRegistry") -> pa.Schema:
         fields: Dict[str, pa.DataType] = {}
 
         for projection in self._feature_service.feature_view_projections:

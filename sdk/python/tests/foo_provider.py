@@ -11,7 +11,7 @@ from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.saved_dataset import SavedDataset
 
 
@@ -52,7 +52,7 @@ class FooProvider(Provider):
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
@@ -64,7 +64,7 @@ class FooProvider(Provider):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -87,7 +87,7 @@ class FooProvider(Provider):
         feature_service: FeatureService,
         logs: Union[pyarrow.Table, Path],
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         pass
 
@@ -97,6 +97,6 @@ class FooProvider(Provider):
         start_date: datetime,
         end_date: datetime,
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ) -> RetrievalJob:
         pass

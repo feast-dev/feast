@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import (  # type: ignore
     BigInteger,
@@ -42,6 +42,7 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
@@ -139,12 +140,6 @@ validation_references = Table(
 
 
 class SqlRegistry(BaseRegistry):
-    def update_infra(self, infra: Infra, project: str, commit: bool = True):
-        pass
-
-    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        pass
-
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
@@ -472,6 +467,32 @@ class SqlRegistry(BaseRegistry):
             "validation_reference_name",
             ValidationReferenceNotFound,
         )
+
+    def update_infra(self, infra: Infra, project: str, commit: bool = True):
+        pass
+
+    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
+        pass
+
+    def proto(self) -> RegistryProto:
+        r = RegistryProto()
+        project = ""
+        # TODO(achal): Support Infra object, and last_updated_timestamp.
+        for lister, registry_proto_field in [
+            (self.list_entities, r.entities),
+            (self.list_feature_views, r.feature_views),
+            (self.list_data_sources, r.data_sources),
+            (self.list_on_demand_feature_views, r.on_demand_feature_views),
+            (self.list_request_feature_views, r.request_feature_views),
+            (self.list_stream_feature_views, r.stream_feature_views),
+            (self.list_feature_services, r.feature_services),
+            (self.list_saved_datasets, r.saved_datasets),
+            (self.list_validation_references, r.validation_references),
+        ]:
+            objs: List[Any] = lister(project)  # type: ignore
+            registry_proto_field.extend([obj.to_proto() for obj in objs])
+
+        return r
 
     def commit(self):
         pass
