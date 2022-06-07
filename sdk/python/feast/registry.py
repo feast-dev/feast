@@ -764,8 +764,9 @@ class Registry(BaseRegistry):
         if registry_config and registry_config.registry_type == "sql":
             from feast.infra.registry_stores.sql import SqlRegistry
 
-            # all big numbers should be ClassB objects:
             return SqlRegistry(registry_config, repo_path)
+        else:
+            return super(Registry, cls).__new__(cls)
 
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
