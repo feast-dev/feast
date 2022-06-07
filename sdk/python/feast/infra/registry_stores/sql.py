@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import (  # type: ignore
     BigInteger,
@@ -31,6 +31,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -41,10 +42,14 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
@@ -79,6 +84,7 @@ feature_views = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("materialized_intervals", LargeBinary, nullable=True),
     Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
 )
 
 request_feature_views = Table(
@@ -87,6 +93,16 @@ request_feature_views = Table(
     Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
+)
+
+stream_feature_views = Table(
+    "stream_feature_views",
+    metadata,
+    Column("feature_view_name", String(50), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
 )
 
 on_demand_feature_views = Table(
@@ -95,6 +111,7 @@ on_demand_feature_views = Table(
     Column("feature_view_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
 )
 
 feature_services = Table(
@@ -153,10 +170,29 @@ class SqlRegistry(BaseRegistry):
     def refresh(self):
         pass
 
+    def get_stream_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        return self._get_object(
+            stream_feature_views,
+            name,
+            project,
+            StreamFeatureViewProto,
+            StreamFeatureView,
+            "feature_view_name",
+            "feature_view_proto",
+            FeatureViewNotFoundException,
+        )
+
     def list_stream_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
-        return []
+        return self._list_objects(
+            stream_feature_views,
+            StreamFeatureViewProto,
+            StreamFeatureView,
+            "feature_view_proto",
+        )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         return self._apply_object(entities, "entity_name", entity, "entity_proto")
@@ -196,6 +232,18 @@ class SqlRegistry(BaseRegistry):
             project,
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
+            "feature_view_name",
+            "feature_view_proto",
+            FeatureViewNotFoundException,
+        )
+
+    def get_request_feature_view(self, name: str, project: str):
+        return self._get_object(
+            request_feature_views,
+            name,
+            project,
+            RequestFeatureViewProto,
+            RequestFeatureView,
             "feature_view_name",
             "feature_view_proto",
             FeatureViewNotFoundException,
@@ -247,41 +295,46 @@ class SqlRegistry(BaseRegistry):
         return self._list_objects(entities, EntityProto, Entity, "entity_proto")
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
-        with self.engine.connect() as conn:
-            stmt = delete(entities).where(entities.c.entity_name == name)
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise EntityNotFoundException(name, project)
+        return self._delete_object(
+            entities, name, project, "entity_name", EntityNotFoundException
+        )
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         deleted_count = 0
-        for table in {feature_views, request_feature_views, on_demand_feature_views}:
-            with self.engine.connect() as conn:
-                stmt = delete(table).where(table.c.feature_view_name == name)
-                rows = conn.execute(stmt)
-                deleted_count += rows.rowcount
+        for table in {
+            feature_views,
+            request_feature_views,
+            on_demand_feature_views,
+            stream_feature_views,
+        }:
+            deleted_count += self._delete_object(
+                table, name, project, "feature_view_name", None
+            )
         if deleted_count == 0:
             raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
-        with self.engine.connect() as conn:
-            stmt = delete(feature_services).where(
-                feature_services.c.feature_service_name == name
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise FeatureServiceNotFoundException(name, project)
+        return self._delete_object(
+            feature_services,
+            name,
+            project,
+            "feature_service_name",
+            FeatureServiceNotFoundException,
+        )
 
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
-        with self.engine.connect() as conn:
-            stmt = select(data_sources).where(data_sources.c.entity_name == name)
-            row = conn.execute(stmt).first()
-            if row:
-                ds_proto = DataSourceProto.FromString(row["data_source_proto"])
-                return DataSource.from_proto(ds_proto)
-            raise DataSourceObjectNotFoundException(name, project=project)
+        return self._get_object(
+            data_sources,
+            name,
+            project,
+            DataSourceProto,
+            DataSource,
+            "data_source_name",
+            "data_source_proto",
+            DataSourceObjectNotFoundException,
+        )
 
     def list_data_sources(
         self, project: str, allow_cache: bool = False
@@ -300,8 +353,9 @@ class SqlRegistry(BaseRegistry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
-        # TODO(achals): Stream feature views need to be supported.
-        if isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, StreamFeatureView):
+            fv_table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
             fv_table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
             fv_table = on_demand_feature_views
@@ -406,7 +460,99 @@ class SqlRegistry(BaseRegistry):
         pass
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
+        self._delete_object(
+            validation_references,
+            name,
+            project,
+            "validation_reference_name",
+            ValidationReferenceNotFound,
+        )
+
+    def update_infra(self, infra: Infra, project: str, commit: bool = True):
         pass
+
+    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
+        pass
+
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
+        if isinstance(feature_view, StreamFeatureView):
+            table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
+            table = feature_views
+        elif isinstance(feature_view, OnDemandFeatureView):
+            table = on_demand_feature_views
+        elif isinstance(feature_view, RequestFeatureView):
+            table = request_feature_views
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
+
+        name = feature_view.name
+        with self.engine.connect() as conn:
+            stmt = select(table).where(getattr(table.c, "feature_view_name") == name)
+            row = conn.execute(stmt).first()
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
+            if row:
+                values = {
+                    "user_metadata": metadata_bytes,
+                    "last_updated_timestamp": update_time,
+                }
+                update_stmt = (
+                    update(table)
+                    .where(getattr(table.c, "feature_view_name") == name)
+                    .values(values,)
+                )
+                conn.execute(update_stmt)
+            else:
+                raise FeatureViewNotFoundException(feature_view.name, project=project)
+
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
+        if isinstance(feature_view, StreamFeatureView):
+            table = stream_feature_views
+        elif isinstance(feature_view, FeatureView):
+            table = feature_views
+        elif isinstance(feature_view, OnDemandFeatureView):
+            table = on_demand_feature_views
+        elif isinstance(feature_view, RequestFeatureView):
+            table = request_feature_views
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
+
+        name = feature_view.name
+        with self.engine.connect() as conn:
+            stmt = select(table).where(getattr(table.c, "feature_view_name") == name)
+            row = conn.execute(stmt).first()
+            if row:
+                return row["user_metadata"]
+            else:
+                raise FeatureViewNotFoundException(feature_view.name, project=project)
+
+    def proto(self) -> RegistryProto:
+        r = RegistryProto()
+        project = ""
+        # TODO(achal): Support Infra object, and last_updated_timestamp.
+        for lister, registry_proto_field in [
+            (self.list_entities, r.entities),
+            (self.list_feature_views, r.feature_views),
+            (self.list_data_sources, r.data_sources),
+            (self.list_on_demand_feature_views, r.on_demand_feature_views),
+            (self.list_request_feature_views, r.request_feature_views),
+            (self.list_stream_feature_views, r.stream_feature_views),
+            (self.list_feature_services, r.feature_services),
+            (self.list_saved_datasets, r.saved_datasets),
+            (self.list_validation_references, r.validation_references),
+        ]:
+            objs: List[Any] = lister(project)  # type: ignore
+            registry_proto_field.extend([obj.to_proto() for obj in objs])
+
+        return r
 
     def commit(self):
         pass
@@ -422,6 +568,7 @@ class SqlRegistry(BaseRegistry):
             update_time = int(update_datetime.timestamp())
             if hasattr(obj, "last_updated_timestamp"):
                 obj.last_updated_timestamp = update_datetime
+
             if row:
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
@@ -442,18 +589,13 @@ class SqlRegistry(BaseRegistry):
                 insert_stmt = insert(table).values(values,)
                 conn.execute(insert_stmt)
 
-    def _list_objects(self, table, proto_class, python_class, proto_field_name):
+    def _delete_object(self, table, name, project, id_field_name, not_found_exception):
         with self.engine.connect() as conn:
-            stmt = select(table)
-            rows = conn.execute(stmt).all()
-            if rows:
-                return [
-                    python_class.from_proto(
-                        proto_class.FromString(row[proto_field_name])
-                    )
-                    for row in rows
-                ]
-        return []
+            stmt = delete(table).where(getattr(table.c, id_field_name) == name)
+            rows = conn.execute(stmt)
+            if rows.rowcount < 1 and not_found_exception:
+                raise not_found_exception(name, project)
+            return rows.rowcount
 
     def _get_object(
         self,
@@ -473,3 +615,16 @@ class SqlRegistry(BaseRegistry):
                 _proto = proto_class.FromString(row[proto_field_name])
                 return python_class.from_proto(_proto)
         raise not_found_exception(name, project)
+
+    def _list_objects(self, table, proto_class, python_class, proto_field_name):
+        with self.engine.connect() as conn:
+            stmt = select(table)
+            rows = conn.execute(stmt).all()
+            if rows:
+                return [
+                    python_class.from_proto(
+                        proto_class.FromString(row[proto_field_name])
+                    )
+                    for row in rows
+                ]
+        return []

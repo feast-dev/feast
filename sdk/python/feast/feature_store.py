@@ -74,14 +74,13 @@ from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry_stores.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import Registry
+from feast.registry import BaseRegistry, Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -113,7 +112,7 @@ class FeatureStore:
 
     config: RepoConfig
     repo_path: Path
-    _registry: Registry
+    _registry: BaseRegistry
     _provider: Provider
     _go_server: "EmbeddedOnlineFeatureServer"
 
@@ -142,8 +141,9 @@ class FeatureStore:
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, None)
         else:
-            self._registry = Registry(registry_config, repo_path=self.repo_path)
-            self._registry._initialize_registry()
+            r = Registry(registry_config, repo_path=self.repo_path)
+            r._initialize_registry()
+            self._registry = r
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
 
@@ -153,7 +153,7 @@ class FeatureStore:
         return get_version()
 
     @property
-    def registry(self) -> Registry:
+    def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
         return self._registry
 
@@ -644,12 +644,7 @@ class FeatureStore:
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh()
-        current_infra_proto = (
-            self._registry.cached_registry_proto.infra.__deepcopy__()
-            if hasattr(self._registry, "cached_registry_proto")
-            and self._registry.cached_registry_proto
-            else InfraProto()
-        )
+        current_infra_proto = self._registry.proto().infra.__deepcopy__()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()

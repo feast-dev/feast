@@ -26,7 +26,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
+from feast.registry import FEAST_OBJECT_TYPES, BaseRegistry, FeastObjectType
 from feast.repo_contents import RepoContents
 
 
@@ -161,7 +161,7 @@ def diff_registry_objects(
 
 
 def extract_objects_for_keep_delete_update_add(
-    registry: Registry, current_project: str, desired_repo_contents: RepoContents,
+    registry: BaseRegistry, current_project: str, desired_repo_contents: RepoContents,
 ) -> Tuple[
     Dict[FeastObjectType, Set[FeastObject]],
     Dict[FeastObjectType, Set[FeastObject]],
@@ -208,7 +208,7 @@ def extract_objects_for_keep_delete_update_add(
 
 
 def diff_between(
-    registry: Registry, current_project: str, desired_repo_contents: RepoContents,
+    registry: BaseRegistry, current_project: str, desired_repo_contents: RepoContents,
 ) -> RegistryDiff:
     """
     Returns the difference between the current and desired repo states.
@@ -267,7 +267,10 @@ def diff_between(
 
 
 def apply_diff_to_registry(
-    registry: Registry, registry_diff: RegistryDiff, project: str, commit: bool = True
+    registry: BaseRegistry,
+    registry_diff: RegistryDiff,
+    project: str,
+    commit: bool = True,
 ):
     """
     Applies the given diff to the given Feast project in the registry.

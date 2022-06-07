@@ -39,7 +39,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
@@ -169,7 +169,7 @@ class BigQueryOfflineStore(OfflineStore):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -262,7 +262,7 @@ class BigQueryOfflineStore(OfflineStore):
         data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         destination = logging_config.destination
         assert isinstance(destination, BigQueryLoggingDestination)

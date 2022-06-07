@@ -44,7 +44,7 @@ from feast.infra.utils.snowflake_utils import (
     write_pandas,
     write_parquet,
 )
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -206,7 +206,7 @@ class SnowflakeOfflineStore(OfflineStore):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -284,7 +284,7 @@ class SnowflakeOfflineStore(OfflineStore):
         data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         assert isinstance(logging_config.destination, SnowflakeLoggingDestination)
 

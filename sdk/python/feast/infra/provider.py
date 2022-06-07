@@ -19,7 +19,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.type_map import python_values_to_proto_values
@@ -133,7 +133,7 @@ class Provider(abc.ABC):
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
@@ -146,7 +146,7 @@ class Provider(abc.ABC):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
@@ -192,7 +192,7 @@ class Provider(abc.ABC):
         feature_service: FeatureService,
         logs: Union[pyarrow.Table, Path],
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         """
         Write features and entities logged by a feature server to an offline store.
@@ -211,7 +211,7 @@ class Provider(abc.ABC):
         start_date: datetime,
         end_date: datetime,
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ) -> RetrievalJob:
         """
         Read logged features from an offline store for a given time window [from, to).

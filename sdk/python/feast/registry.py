@@ -84,7 +84,7 @@ class FeastObjectType(Enum):
 
     @staticmethod
     def get_objects_from_registry(
-        registry: "Registry", project: str
+        registry: "BaseRegistry", project: str
     ) -> Dict["FeastObjectType", List[Any]]:
         return {
             FeastObjectType.DATA_SOURCE: registry.list_data_sources(project=project),
@@ -337,9 +337,22 @@ class BaseRegistry(abc.ABC):
         """
 
     # stream feature view operations
-    # TODO: Needs to be implemented.
-    # def get_stream_feature_view(self):
-    #     ...
+    @abstractmethod
+    def get_stream_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        """
+        Retrieves a stream feature view.
+
+        Args:
+            name: Name of stream feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
 
     @abstractmethod
     def list_stream_feature_views(
@@ -423,10 +436,20 @@ class BaseRegistry(abc.ABC):
         """
 
     # request feature view operations
-    # TODO: Needs to be implemented.
-    # @abstractmethod
-    # def get_request_feature_view(self, name: str, project: str):
-    #     ...
+    @abstractmethod
+    def get_request_feature_view(self, name: str, project: str) -> RequestFeatureView:
+        """
+        Retrieves a request feature view.
+
+        Args:
+            name: Name of request feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
 
     @abstractmethod
     def list_request_feature_views(
@@ -494,22 +517,19 @@ class BaseRegistry(abc.ABC):
             none is found
         """
 
-    # TODO: Needs to be implemented.
-    # def delete_saved_dataset(
-    #         self, name: str, project: str, allow_cache: bool = False
-    # ):
-    #     """
-    #     Retrieves a saved dataset.
-    #
-    #     Args:
-    #         name: Name of dataset
-    #         project: Feast project that this dataset belongs to
-    #         allow_cache: Whether to allow returning this dataset from a cached registry
-    #
-    #     Returns:
-    #         Returns either the specified SavedDataset, or raises an exception if
-    #         none is found
-    #     """
+    def delete_saved_dataset(self, name: str, project: str, allow_cache: bool = False):
+        """
+        Delete a saved dataset.
+
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
+
+        Returns:
+            Returns either the specified SavedDataset, or raises an exception if
+            none is found
+        """
 
     @abstractmethod
     def list_saved_datasets(
@@ -572,8 +592,68 @@ class BaseRegistry(abc.ABC):
             """
 
     # TODO: Needs to be implemented.
-    # def list_validation_references(self):
-    #     ...
+    def list_validation_references(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ValidationReference]:
+
+        """
+        Retrieve a list of validation references from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+
+        Returns:
+            List of request feature views
+        """
+
+    @abstractmethod
+    def update_infra(self, infra: Infra, project: str, commit: bool = True):
+        """
+        Updates the stored Infra object.
+
+        Args:
+            infra: The new Infra object to be stored.
+            project: Feast project that the Infra object refers to
+            commit: Whether the change should be persisted immediately
+        """
+
+    @abstractmethod
+    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
+        """
+        Retrieves the stored Infra object.
+
+        Args:
+            project: Feast project that the Infra object refers to
+            allow_cache: Whether to allow returning this entity from a cached registry
+
+        Returns:
+            The stored Infra object.
+        """
+
+    @abstractmethod
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
+        ...
+
+    @abstractmethod
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
+        ...
+
+    @abstractmethod
+    def proto(self) -> RegistryProto:
+        """
+        Retrieves a proto version of the registry.
+
+        Returns:
+            The registry proto object.
+        """
 
     @abstractmethod
     def commit(self):
@@ -588,6 +668,19 @@ class Registry(BaseRegistry):
     """
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
+
+    def apply_user_metadata(
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
+    ):
+        pass
+
+    def get_user_metadata(
+        self, project: str, feature_view: BaseFeatureView
+    ) -> Optional[bytes]:
+        pass
 
     # The cached_registry_proto object is used for both reads and writes. In particular,
     # all write operations refresh the cache and modify it in memory; the write must
@@ -1115,6 +1208,28 @@ class Registry(BaseRegistry):
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
 
+    def get_request_feature_view(self, name: str, project: str):
+        """
+        Retrieves a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        registry_proto = self._get_registry_proto(allow_cache=False)
+        for feature_view_proto in registry_proto.feature_views:
+            if (
+                feature_view_proto.spec.name == name
+                and feature_view_proto.spec.project == project
+            ):
+                return RequestFeatureView.from_proto(feature_view_proto)
+        raise FeatureViewNotFoundException(name, project)
+
     def list_request_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
@@ -1468,6 +1583,9 @@ class Registry(BaseRegistry):
     def teardown(self):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
+
+    def proto(self) -> RegistryProto:
+        return self.cached_registry_proto or RegistryProto()
 
     def to_dict(self, project: str) -> Dict[str, List[Any]]:
         """Returns a dictionary representation of the registry contents for the specified project.

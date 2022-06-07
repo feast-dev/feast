@@ -21,7 +21,7 @@ from feast.infra.provider import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
@@ -138,7 +138,7 @@ class PassthroughProvider(Provider):
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
@@ -194,7 +194,7 @@ class PassthroughProvider(Provider):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
@@ -240,7 +240,7 @@ class PassthroughProvider(Provider):
         feature_service: FeatureService,
         logs: Union[pyarrow.Table, str],
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         assert (
             feature_service.logging_config is not None
@@ -260,7 +260,7 @@ class PassthroughProvider(Provider):
         start_date: datetime,
         end_date: datetime,
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ) -> RetrievalJob:
         assert (
             feature_service.logging_config is not None

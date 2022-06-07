@@ -32,7 +32,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
     _run_dask_field_mapping,
 )
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -113,7 +113,7 @@ class FileOfflineStore(OfflineStore):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -380,7 +380,7 @@ class FileOfflineStore(OfflineStore):
         data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
