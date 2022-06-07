@@ -61,7 +61,8 @@ public class RegistryConfig extends AbstractModule {
       case "file":
         return new LocalRegistryFile(registryPath);
       default:
-        throw new RuntimeException("Registry storage %s is unsupported");
+        throw new RuntimeException(
+            String.format("Registry storage %s is unsupported", scheme.get()));
     }
   }
 
