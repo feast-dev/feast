@@ -14,6 +14,7 @@
 import time
 from datetime import timedelta
 from tempfile import mkstemp
+from isort import stream
 
 import pandas as pd
 import pytest
@@ -319,6 +320,7 @@ def test_apply_stream_feature_view_success(test_registry):
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
+        watermark=timedelta(days=1),
     )
 
     sfv = StreamFeatureView(
@@ -353,6 +355,7 @@ def test_apply_stream_feature_view_success(test_registry):
 
     # List Feature Views
     assert len(stream_feature_views) == 1
+    print(stream_feature_views[0])
     assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)

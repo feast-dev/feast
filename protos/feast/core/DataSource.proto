@@ -22,6 +22,7 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
+import "google/protobuf/duration.proto";
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
@@ -135,6 +136,7 @@ message DataSource {
     // Defines the stream data format encoding feature/entity data in Kafka messages.
     StreamFormat message_format = 3;
 
+    google.protobuf.Duration watermark = 4;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.

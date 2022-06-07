@@ -32,7 +32,7 @@ class Aggregation:
         self.column = column or ""
         self.function = function or ""
         self.time_window = time_window
-        if not self.sliding_window:
+        if not sliding_window:
             self.sliding_window = self.time_window
         else:
             self.sliding_window = sliding_window

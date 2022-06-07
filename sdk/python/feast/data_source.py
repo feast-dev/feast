@@ -16,8 +16,10 @@ import enum
 import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from datetime import timedelta
 
 from google.protobuf.json_format import MessageToJson
+from google.protobuf.duration_pb2 import Duration
 
 from feast import type_map
 from feast.data_format import StreamFormat
@@ -47,11 +49,12 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
+        self, bootstrap_servers: str, message_format: StreamFormat, topic: str, watermark: Optional[timedelta] = None
     ):
         self.bootstrap_servers = bootstrap_servers
         self.message_format = message_format
         self.topic = topic
+        self.watermark = watermark or None
 
     @classmethod
     def from_proto(cls, kafka_options_proto: DataSourceProto.KafkaOptions):
@@ -64,11 +67,18 @@ class KafkaOptions:
         Returns:
             Returns a BigQueryOptions object based on the kafka_options protobuf
         """
-
+        watermark = None
+        if kafka_options_proto.HasField("watermark"):
+            watermark=(
+                timedelta(days=0)
+                if kafka_options_proto.watermark.ToNanoseconds() == 0
+                else kafka_options_proto.watermark.ToTimedelta()
+            )
         kafka_options = cls(
             bootstrap_servers=kafka_options_proto.bootstrap_servers,
             message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
+            watermark=watermark,
         )
 
         return kafka_options
@@ -80,11 +90,18 @@ class KafkaOptions:
         Returns:
             KafkaOptionsProto protobuf
         """
+        watermark_duration = None
+        if self.watermark is not None:
+            watermark_duration = Duration()
+            print("ASdfasdf")
+            print(self.watermark)
+            watermark_duration.FromTimedelta(self.watermark)
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
             bootstrap_servers=self.bootstrap_servers,
             message_format=self.message_format.to_proto(),
             topic=self.topic,
+            watermark=watermark_duration,
         )
 
         return kafka_options_proto
@@ -369,7 +386,32 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
+        watermark: Optional[timedelta] = None,
     ):
+        """
+        Creates a KafkaSource stream source object.
+        Args:
+            name: str. Name of data source, which should be unique within a project
+            event_timestamp_column (optional): str. (Deprecated) Event timestamp column used for point in time
+                joins of feature values.
+            bootstrap_servers: str. The servers of the kafka broker in the form "localhost:9092".
+            message_format: StreamFormat. StreamFormat of serialized messages.
+            topic: str. The name of the topic to read from in the kafka source.
+            created_timestamp_column (optional): str. Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping (optional): dict(str, str). A dictionary mapping of column names in this data
+                source to feature names in a feature table or view. Only used for feature
+                columns, not entity or timestamp columns.
+            date_partition_column (optional): str. Timestamp column used for partitioning.
+            description (optional): str. A human-readable description.
+            tags (optional): dict(str, str). A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): str. The owner of the data source, typically the email of the primary
+                maintainer.
+            timestamp_field (optional): str. Event timestamp field used for point
+                in time joins of feature values.
+            batch_source: DataSource. The datasource that acts as a batch source.
+            watermark: timedelta. The watermark for stream data. Specifically how late stream data can arrive without being discarded.
+        """
         positional_attributes = [
             "name",
             "event_timestamp_column",
@@ -425,10 +467,12 @@ class KafkaSource(DataSource):
             timestamp_field=timestamp_field,
         )
         self.batch_source = batch_source
+
         self.kafka_options = KafkaOptions(
             bootstrap_servers=_bootstrap_servers,
             message_format=_message_format,
             topic=_topic,
+            watermark=watermark,
         )
 
     def __eq__(self, other):
@@ -445,6 +489,7 @@ class KafkaSource(DataSource):
             != other.kafka_options.bootstrap_servers
             or self.kafka_options.message_format != other.kafka_options.message_format
             or self.kafka_options.topic != other.kafka_options.topic
+            or self.kafka_options.watermark != other.kafka_options.watermark
         ):
             return False
 
@@ -455,6 +500,13 @@ class KafkaSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+        watermark = None
+        if data_source.kafka_options.HasField("watermark"):
+            watermark=(
+                timedelta(days=0)
+                if data_source.kafka_options.watermark.ToNanoseconds() == 0
+                else data_source.kafka_options.watermark.ToTimedelta()
+            )
         return KafkaSource(
             name=data_source.name,
             event_timestamp_column=data_source.timestamp_field,
@@ -463,6 +515,7 @@ class KafkaSource(DataSource):
             message_format=StreamFormat.from_proto(
                 data_source.kafka_options.message_format
             ),
+            watermark=watermark,
             topic=data_source.kafka_options.topic,
             created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,
