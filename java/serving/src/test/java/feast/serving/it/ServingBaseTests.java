@@ -28,11 +28,9 @@ import feast.proto.core.RegistryProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.types.ValueProto;
+import feast.serving.registry.LocalRegistryFile;
 import feast.serving.util.DataGenerator;
 import io.grpc.StatusRuntimeException;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -62,14 +60,8 @@ abstract class ServingBaseTests extends ServingEnvironment {
   static RegistryProto.Registry registryProto = readLocalRegistry();
 
   private static RegistryProto.Registry readLocalRegistry() {
-    try {
-      return RegistryProto.Registry.parseFrom(
-          Files.readAllBytes(Paths.get("src/test/resources/docker-compose/feast10/registry.db")));
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-    return null;
+    return new LocalRegistryFile("src/test/resources/docker-compose/feast10/registry.db")
+        .getContent();
   }
 
   @Test
