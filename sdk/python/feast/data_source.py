@@ -15,11 +15,11 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 from datetime import timedelta
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-from google.protobuf.json_format import MessageToJson
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import MessageToJson
 
 from feast import type_map
 from feast.data_format import StreamFormat
@@ -49,7 +49,11 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, message_format: StreamFormat, topic: str, watermark: Optional[timedelta] = None
+        self,
+        bootstrap_servers: str,
+        message_format: StreamFormat,
+        topic: str,
+        watermark: Optional[timedelta] = None,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.message_format = message_format
@@ -69,7 +73,7 @@ class KafkaOptions:
         """
         watermark = None
         if kafka_options_proto.HasField("watermark"):
-            watermark=(
+            watermark = (
                 timedelta(days=0)
                 if kafka_options_proto.watermark.ToNanoseconds() == 0
                 else kafka_options_proto.watermark.ToTimedelta()
@@ -502,7 +506,7 @@ class KafkaSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         watermark = None
         if data_source.kafka_options.HasField("watermark"):
-            watermark=(
+            watermark = (
                 timedelta(days=0)
                 if data_source.kafka_options.watermark.ToNanoseconds() == 0
                 else data_source.kafka_options.watermark.ToTimedelta()

@@ -49,7 +49,10 @@ class Aggregation:
             sliding_window_duration.FromTimedelta(self.sliding_window)
 
         return AggregationProto(
-            column=self.column, function=self.function, time_window=window_duration, sliding_window=sliding_window_duration,
+            column=self.column,
+            function=self.function,
+            time_window=window_duration,
+            sliding_window=sliding_window_duration,
         )
 
     @classmethod
@@ -70,7 +73,6 @@ class Aggregation:
             function=agg_proto.function,
             time_window=time_window,
             sliding_window=sliding_window,
-
         )
         return aggregation
 

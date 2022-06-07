@@ -14,10 +14,10 @@
 import time
 from datetime import timedelta
 from tempfile import mkstemp
-from isort import stream
 
 import pandas as pd
 import pytest
+from isort import stream
 from pytest_lazyfixture import lazy_fixture
 
 from feast import FileSource
