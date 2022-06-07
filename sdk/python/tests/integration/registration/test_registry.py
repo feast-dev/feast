@@ -17,7 +17,6 @@ from tempfile import mkstemp
 
 import pandas as pd
 import pytest
-from isort import stream
 from pytest_lazyfixture import lazy_fixture
 
 from feast import FileSource
@@ -355,7 +354,6 @@ def test_apply_stream_feature_view_success(test_registry):
 
     # List Feature Views
     assert len(stream_feature_views) == 1
-    print(stream_feature_views[0])
     assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)
