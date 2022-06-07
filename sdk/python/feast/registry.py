@@ -663,6 +663,75 @@ class BaseRegistry(abc.ABC):
     def refresh(self):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
+    @staticmethod
+    def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
+        return json.loads(MessageToJson(message, sort_keys=True))
+
+    def to_dict(self, project: str) -> Dict[str, List[Any]]:
+        """Returns a dictionary representation of the registry contents for the specified project.
+
+        For each list in the dictionary, the elements are sorted by name, so this
+        method can be used to compare two registries.
+
+        Args:
+            project: Feast project to convert to a dict
+        """
+        registry_dict: Dict[str, Any] = defaultdict(list)
+        registry_dict["project"] = project
+        for data_source in sorted(
+            self.list_data_sources(project=project), key=lambda ds: ds.name
+        ):
+            registry_dict["dataSources"].append(
+                self._message_to_sorted_dict(data_source.to_proto())
+            )
+        for entity in sorted(
+            self.list_entities(project=project), key=lambda entity: entity.name
+        ):
+            registry_dict["entities"].append(
+                self._message_to_sorted_dict(entity.to_proto())
+            )
+        for feature_view in sorted(
+            self.list_feature_views(project=project),
+            key=lambda feature_view: feature_view.name,
+        ):
+            registry_dict["featureViews"].append(
+                self._message_to_sorted_dict(feature_view.to_proto())
+            )
+        for feature_service in sorted(
+            self.list_feature_services(project=project),
+            key=lambda feature_service: feature_service.name,
+        ):
+            registry_dict["featureServices"].append(
+                self._message_to_sorted_dict(feature_service.to_proto())
+            )
+        for on_demand_feature_view in sorted(
+            self.list_on_demand_feature_views(project=project),
+            key=lambda on_demand_feature_view: on_demand_feature_view.name,
+        ):
+            odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
+            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(
+                on_demand_feature_view.udf
+            )
+            registry_dict["onDemandFeatureViews"].append(odfv_dict)
+        for request_feature_view in sorted(
+            self.list_request_feature_views(project=project),
+            key=lambda request_feature_view: request_feature_view.name,
+        ):
+            registry_dict["requestFeatureViews"].append(
+                self._message_to_sorted_dict(request_feature_view.to_proto())
+            )
+        for saved_dataset in sorted(
+            self.list_saved_datasets(project=project), key=lambda item: item.name
+        ):
+            registry_dict["savedDatasets"].append(
+                self._message_to_sorted_dict(saved_dataset.to_proto())
+            )
+        for infra_object in sorted(self.get_infra(project=project).infra_objects):
+            registry_dict["infra"].append(
+                self._message_to_sorted_dict(infra_object.to_proto())
+            )
+        return registry_dict
+
 
 class Registry(BaseRegistry):
     """
@@ -1586,75 +1655,6 @@ class Registry(BaseRegistry):
 
     def proto(self) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
-
-    def to_dict(self, project: str) -> Dict[str, List[Any]]:
-        """Returns a dictionary representation of the registry contents for the specified project.
-
-        For each list in the dictionary, the elements are sorted by name, so this
-        method can be used to compare two registries.
-
-        Args:
-            project: Feast project to convert to a dict
-        """
-        registry_dict: Dict[str, Any] = defaultdict(list)
-        registry_dict["project"] = project
-        for data_source in sorted(
-            self.list_data_sources(project=project), key=lambda ds: ds.name
-        ):
-            registry_dict["dataSources"].append(
-                self._message_to_sorted_dict(data_source.to_proto())
-            )
-        for entity in sorted(
-            self.list_entities(project=project), key=lambda entity: entity.name
-        ):
-            registry_dict["entities"].append(
-                self._message_to_sorted_dict(entity.to_proto())
-            )
-        for feature_view in sorted(
-            self.list_feature_views(project=project),
-            key=lambda feature_view: feature_view.name,
-        ):
-            registry_dict["featureViews"].append(
-                self._message_to_sorted_dict(feature_view.to_proto())
-            )
-        for feature_service in sorted(
-            self.list_feature_services(project=project),
-            key=lambda feature_service: feature_service.name,
-        ):
-            registry_dict["featureServices"].append(
-                self._message_to_sorted_dict(feature_service.to_proto())
-            )
-        for on_demand_feature_view in sorted(
-            self.list_on_demand_feature_views(project=project),
-            key=lambda on_demand_feature_view: on_demand_feature_view.name,
-        ):
-            odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(
-                on_demand_feature_view.udf
-            )
-            registry_dict["onDemandFeatureViews"].append(odfv_dict)
-        for request_feature_view in sorted(
-            self.list_request_feature_views(project=project),
-            key=lambda request_feature_view: request_feature_view.name,
-        ):
-            registry_dict["requestFeatureViews"].append(
-                self._message_to_sorted_dict(request_feature_view.to_proto())
-            )
-        for saved_dataset in sorted(
-            self.list_saved_datasets(project=project), key=lambda item: item.name
-        ):
-            registry_dict["savedDatasets"].append(
-                self._message_to_sorted_dict(saved_dataset.to_proto())
-            )
-        for infra_object in sorted(self.get_infra(project=project).infra_objects):
-            registry_dict["infra"].append(
-                self._message_to_sorted_dict(infra_object.to_proto())
-            )
-        return registry_dict
-
-    @staticmethod
-    def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
-        return json.loads(MessageToJson(message, sort_keys=True))
 
     def _prepare_registry_for_changes(self):
         """Prepares the Registry for changes by refreshing the cache if necessary."""

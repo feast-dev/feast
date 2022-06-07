@@ -472,7 +472,7 @@ class SqlRegistry(BaseRegistry):
         pass
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        pass
+        return Infra()
 
     def apply_user_metadata(
         self,
@@ -550,7 +550,8 @@ class SqlRegistry(BaseRegistry):
             (self.list_validation_references, r.validation_references),
         ]:
             objs: List[Any] = lister(project)  # type: ignore
-            registry_proto_field.extend([obj.to_proto() for obj in objs])
+            if objs:
+                registry_proto_field.extend([obj.to_proto() for obj in objs])
 
         return r
 

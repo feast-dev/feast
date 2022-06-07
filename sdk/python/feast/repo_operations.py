@@ -20,6 +20,7 @@ from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
+from feast.infra.registry_stores.sql import SqlRegistry
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
@@ -319,7 +320,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
-    registry = Registry(registry_config=registry_config, repo_path=repo_path)
+    registry = SqlRegistry(registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
