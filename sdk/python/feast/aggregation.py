@@ -20,7 +20,7 @@ class Aggregation:
     column: str
     function: str
     time_window: Optional[timedelta]
-    sliding_window: timedelta
+    sliding_window: Optional[timedelta]
 
     def __init__(
         self,
