@@ -758,6 +758,15 @@ class Registry(BaseRegistry):
     cached_registry_proto_created: Optional[datetime] = None
     cached_registry_proto_ttl: timedelta
 
+    def __new__(
+        cls, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+    ):
+        if registry_config and registry_config.registry_type == "sql":
+            from feast.infra.registry_stores.sql import SqlRegistry
+
+            # all big numbers should be ClassB objects:
+            return SqlRegistry(registry_config, repo_path)
+
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
     ):
