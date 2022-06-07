@@ -10,7 +10,7 @@ from feast.data_format import AvroFormat, JsonFormat
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_stats_batch_source = FileSource(
-    path="/Users/kevinzhang/tecton-ai/offline_store/feature_repo/data/driver_stats.parquet",
+    path="data/driver_stats.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
