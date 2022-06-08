@@ -415,8 +415,10 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
             name="fs_1", features=[feature_view_1[["string_col"]], feature_view_2]
         )
         assert len(feature_service.feature_view_projections) == 2
-        assert len(feature_service.feature_view_projections[0].features) == 1
+        assert len(feature_service.feature_view_projections[0].features) == 0
+        assert len(feature_service.feature_view_projections[0].desired_features) == 1
         assert len(feature_service.feature_view_projections[1].features) == 0
+        assert len(feature_service.feature_view_projections[1].desired_features) == 0
 
         update_feature_views_with_inferred_features_and_entities(
             [feature_view_1, feature_view_2],

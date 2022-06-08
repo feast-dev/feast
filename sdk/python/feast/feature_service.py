@@ -111,10 +111,23 @@ class FeatureService:
             if isinstance(feature_grouping, BaseFeatureView):
                 # For feature services that depend on an unspecified feature view, apply inferred schema
                 if fvs_to_update and feature_grouping.name in fvs_to_update:
-                    if feature_grouping.projection.features:
-                        assert set(feature_grouping.projection.features).issubset(
-                            fvs_to_update[feature_grouping.name].features
+                    if feature_grouping.projection.desired_features:
+                        desired_features = set(
+                            feature_grouping.projection.desired_features
                         )
+                        actual_features = set(
+                            [
+                                f.name
+                                for f in fvs_to_update[feature_grouping.name].features
+                            ]
+                        )
+                        assert desired_features.issubset(actual_features)
+                        # We need to set the features for the projection at this point so we ensure we're starting with
+                        # an empty list.
+                        feature_grouping.projection.features = []
+                        for f in fvs_to_update[feature_grouping.name].features:
+                            if f.name in desired_features:
+                                feature_grouping.projection.features.append(f)
                     else:
                         feature_grouping.projection.features = fvs_to_update[
                             feature_grouping.name

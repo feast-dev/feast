@@ -50,6 +50,9 @@ class Field:
         self.tags = tags or {}
 
     def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+
         if (
             self.name != other.name
             or self.dtype != other.dtype

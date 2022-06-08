@@ -116,7 +116,14 @@ class BaseFeatureView(ABC):
         assert isinstance(item, list)
 
         cp = self.__copy__()
-        cp.projection.features = item
+        if self.features:
+            referenced_features = []
+            for feature in self.features:
+                if feature.name in item:
+                    referenced_features.append(feature)
+            cp.projection.features = referenced_features
+        else:
+            cp.projection.desired_features = item
 
         return cp
 
