@@ -97,8 +97,6 @@ class KafkaOptions:
         watermark_duration = None
         if self.watermark is not None:
             watermark_duration = Duration()
-            print("ASdfasdf")
-            print(self.watermark)
             watermark_duration.FromTimedelta(self.watermark)
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
