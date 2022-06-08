@@ -102,22 +102,23 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
         self.logging_config = logging_config
-        self.infer_features()
+        for feature_grouping in self._features:
+            if isinstance(feature_grouping, BaseFeatureView):
+                self.feature_view_projections.append(feature_grouping.projection)
 
     def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
-        self.feature_view_projections = []
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
                 # For feature services that depend on an unspecified feature view, apply inferred schema
-                if (
-                    fvs_to_update is not None
-                    and len(feature_grouping.projection.features) == 0
-                    and feature_grouping.name in fvs_to_update
-                ):
-                    feature_grouping.projection.features = fvs_to_update[
-                        feature_grouping.name
-                    ].features
-                self.feature_view_projections.append(feature_grouping.projection)
+                if fvs_to_update and feature_grouping.name in fvs_to_update:
+                    if feature_grouping.projection.features:
+                        assert set(feature_grouping.projection.features).issubset(
+                            fvs_to_update[feature_grouping.name].features
+                        )
+                    else:
+                        feature_grouping.projection.features = fvs_to_update[
+                            feature_grouping.name
+                        ].features
             else:
                 raise ValueError(
                     f"The feature service {self.name} has been provided with an invalid type "

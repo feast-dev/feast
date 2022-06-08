@@ -27,7 +27,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
             data_source = data_source.batch_source
         if data_source.timestamp_field is None or data_source.timestamp_field == "":
             # prepare right match pattern for data source
-            ts_column_type_regex_pattern = ""
+            ts_column_type_regex_pattern: str
             # TODO(adchia): Move Spark source inference out of this logic
             if (
                 isinstance(data_source, FileSource)
