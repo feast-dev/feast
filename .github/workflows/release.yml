@@ -57,7 +57,7 @@ jobs:
       - name: Publish Python Package
         run: |
           make install-python-ci-dependencies && package-protos && make compile-protos-python
-          cd python/
+          cd sdk/python/
           python3 -m pip install --user --upgrade setuptools wheel
           python3 setup.py sdist bdist_wheel
 #          python3 -m twine upload --verbose dist/*
