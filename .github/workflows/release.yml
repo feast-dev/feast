@@ -56,7 +56,7 @@ jobs:
           architecture: 'x64'
       - name: Publish Python Package
         run: |
-          make package-protos && make compile-protos-python
+          make install-python-ci-dependencies && package-protos && make compile-protos-python
           cd python/
           python3 -m pip install --user --upgrade setuptools wheel
           python3 setup.py sdist bdist_wheel
