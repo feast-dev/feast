@@ -39,7 +39,7 @@ const FeastFeatureViewSchema = z.object({
     features: z.array(FeastFeatureColumnSchema),
     ttl: z.string().transform((val) => parseInt(val)),
     batchSource: FeastBatchSourceSchema,
-    online: z.boolean(),
+    online: z.boolean().optional(),
     owner: z.string().optional(),
     tags: z.record(z.string()).optional(),
   }),
