@@ -110,18 +110,20 @@ class BaseFeatureView(ABC):
         return str(MessageToJson(self.to_proto()))
 
     def __hash__(self):
-        return hash((self.name))
+        return hash(self.name)
 
     def __getitem__(self, item):
         assert isinstance(item, list)
 
-        referenced_features = []
-        for feature in self.features:
-            if feature.name in item:
-                referenced_features.append(feature)
-
         cp = self.__copy__()
-        cp.projection.features = referenced_features
+        if self.features:
+            referenced_features = []
+            for feature in self.features:
+                if feature.name in item:
+                    referenced_features.append(feature)
+            cp.projection.features = referenced_features
+        else:
+            cp.projection.desired_features = item
 
         return cp
 

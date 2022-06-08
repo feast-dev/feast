@@ -27,6 +27,7 @@ class FeatureViewProjection:
 
     name: str
     name_alias: Optional[str]
+    desired_features: List[str]
     features: List[Field]
     join_key_map: Dict[str, str] = {}
 
@@ -51,6 +52,7 @@ class FeatureViewProjection:
             name_alias=proto.feature_view_name_alias,
             features=[],
             join_key_map=dict(proto.join_key_map),
+            desired_features=[],
         )
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
@@ -63,6 +65,7 @@ class FeatureViewProjection:
             name=base_feature_view.name,
             name_alias=None,
             features=base_feature_view.features,
+            desired_features=[],
         )
 
     def get_feature(self, feature_name: str) -> Field:

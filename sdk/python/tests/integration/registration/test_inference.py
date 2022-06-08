@@ -407,20 +407,37 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         feature_view_1 = FeatureView(
             name="test1", entities=[entity1], source=file_source,
         )
-        feature_service = FeatureService(name="fs_1", features=[feature_view_1])
-        assert len(feature_service.feature_view_projections) == 1
+        feature_view_2 = FeatureView(
+            name="test2", entities=[entity1], source=file_source,
+        )
+
+        feature_service = FeatureService(
+            name="fs_1", features=[feature_view_1[["string_col"]], feature_view_2]
+        )
+        assert len(feature_service.feature_view_projections) == 2
         assert len(feature_service.feature_view_projections[0].features) == 0
+        assert len(feature_service.feature_view_projections[0].desired_features) == 1
+        assert len(feature_service.feature_view_projections[1].features) == 0
+        assert len(feature_service.feature_view_projections[1].desired_features) == 0
 
         update_feature_views_with_inferred_features_and_entities(
-            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+            [feature_view_1, feature_view_2],
+            [entity1],
+            RepoConfig(provider="local", project="test"),
         )
         feature_service.infer_features(
-            fvs_to_update={feature_view_1.name: feature_view_1}
+            fvs_to_update={
+                feature_view_1.name: feature_view_1,
+                feature_view_2.name: feature_view_2,
+            }
         )
 
         assert len(feature_view_1.schema) == 0
         assert len(feature_view_1.features) == 3
-        assert len(feature_service.feature_view_projections[0].features) == 3
+        assert len(feature_view_2.schema) == 0
+        assert len(feature_view_2.features) == 3
+        assert len(feature_service.feature_view_projections[0].features) == 1
+        assert len(feature_service.feature_view_projections[1].features) == 3
 
 
 # TODO(felixwang9817): Add tests that interact with field mapping.
