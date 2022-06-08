@@ -27,6 +27,7 @@ def test_apply_stream_feature_view(environment) -> None:
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="test_path", timestamp_field="event_timestamp"),
+        watermark=timedelta(days=1),
     )
 
     @stream_feature_view(
