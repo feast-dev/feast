@@ -85,7 +85,7 @@ def mysql_registry():
 
     log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.29'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
     waited = wait_for_logs(
-        container=container, predicate=log_string_to_wait_for, timeout=30, interval=10,
+        container=container, predicate=log_string_to_wait_for, timeout=60, interval=10,
     )
     logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
