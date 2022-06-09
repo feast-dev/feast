@@ -106,7 +106,7 @@ class StreamFeatureView(FeatureView):
         if (
             self.mode != other.mode
             or self.timestamp_field != other.timestamp_field
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
+            or (self.udf and self.udf.__code__.co_code != other.udf.__code__.co_code)
             or self.aggregations != other.aggregations
         ):
             return False

@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from feast import Entity, FeatureService, StreamFeatureView, Field, FileSource, KafkaSource, PushSource, FeatureView
+from feast.aggregation import Aggregation
 from feast.types import Float32, Int64, Float64, UnixTimestamp
 from feast.data_format import AvroFormat, JsonFormat
 
@@ -48,7 +49,8 @@ driver_stats_stream_source = KafkaSource(
     batch_source=driver_stats_batch_source,
     message_format=JsonFormat(
         schema_json="driver_id integer, miles_driven double, event_timestamp timestamp, conv_rate double, acc_rate double"
-    )
+    ),
+    watermark=timedelta(minutes=5),
 )
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
@@ -62,8 +64,14 @@ driver_hourly_stats_view = StreamFeatureView(
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
-        Field(name="miles_driven", dtype=Float32)
+        Field(name="miles_driven", dtype=Float32),
     ],
+    aggregations=[
+        Aggregation(column="miles_driven", function="sum", time_window=timedelta(hours=24), slide_interval=timedelta(hours=1)),
+        Aggregation(column="miles_driven", function="count", time_window=timedelta(hours=24), slide_interval=timedelta(hours=1)),
+        Aggregation(column="miles_driven", function="max", time_window=timedelta(hours=24), slide_interval=timedelta(hours=1)),
+    ],
+    timestamp_field="event_timestamp",
     online=True,
     source=driver_stats_stream_source,
     tags={},

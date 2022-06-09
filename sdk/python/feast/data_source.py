@@ -503,7 +503,8 @@ class KafkaSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         watermark = None
-        if data_source.kafka_options.HasField("watermark"):
+        # if data_source.kafka_options.HasField("watermark"):
+        if data_source.kafka_options.watermark:
             watermark = (
                 timedelta(days=0)
                 if data_source.kafka_options.watermark.ToNanoseconds() == 0

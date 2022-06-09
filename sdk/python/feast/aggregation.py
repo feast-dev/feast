@@ -124,7 +124,7 @@ AGGREGATION_PLANS = {
 def construct_aggregation_plan_df(
     df,
     join_keys: List[str],
-    timestamp_field,
+    timestamp_field: str,
     aggregation_functions: List[Aggregation],
     sliding_interval: timedelta,
     time_window: timedelta,
@@ -147,7 +147,7 @@ def construct_aggregation_plan_df(
     aggregations = []
     for aggregation_function in aggregation_functions:
         transform = get_aggregation_transform(aggregation_function.function)
-        alias_col = f"{aggregation_function.column}_{aggregation_function.function}_{aggregation_function.time_window.seconds}s"
+        alias_col = f"{aggregation_function.column}_{aggregation_function.function}_{time_window.total_seconds()}s"
         aggregations.append(
             _simple_full_aggregation_transform(
                 transform, aggregation_function.column, alias_col=alias_col
