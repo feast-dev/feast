@@ -1391,6 +1391,31 @@ class FeatureStore:
             feature_view, row,
         )
 
+    def transform_stream_data(self, sfv_name: str, processor_config: ProcessorConfig):
+        stream_feature_view = self.get_stream_feature_view(
+            name=sfv_name, allow_registry_cache=False
+        )
+
+        join_keys = [
+            self.get_entity(entity, allow_registry_cache=True).join_key
+            for entity in stream_feature_view.entities
+        ]
+
+        processor = get_stream_processor_object(
+            config=processor_config,
+            sfv=stream_feature_view,
+            # TODO(kevjumba): figure out a better way to this yikes.
+            write_function=lambda row, input_timestamp, output_timestamp: self._write_stream_row(
+                feature_view=sfv_name,
+                row=row,
+                join_keys=join_keys,
+                input_timestamp_field=input_timestamp,
+                output_timestamp_column=output_timestamp,
+            ),
+        )
+
+        return processor.transform_stream_data()
+
     def ingest_stream_feature_view(
         self, sfv_name: str, processor_config: ProcessorConfig
     ) -> bool:

@@ -1,7 +1,7 @@
 import abc
 from types import MethodType
 from typing import List
-
+from datetime import timedelta
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
@@ -10,6 +10,7 @@ from feast.data_format import AvroFormat, JsonFormat
 from feast.data_source import DataSource, KafkaSource
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
+from feast.aggregation import Aggregation, construct_aggregation_plan_df
 
 StreamTable = DataFrame  # Can add more to this later(change to union).
 
@@ -162,10 +163,28 @@ class SparkStreamKafkaProcessor(StreamProcessor):
         evaluation, the StreamTable will not be materialized until it is actually evaluated.
         For example: df.collect() in spark or tbl.execute() in Flink.
         """
-        if not self.sfv.udf:
-            return df
-        else:
-            return self.sfv.udf(df)
+        if self.sfv.udf:
+            df = self.sfv.udf(df)
+
+        # TODO(kevjumba) fix
+
+        if self.sfv.aggregations and len(self.sfv.aggregations) > 0:
+            time_window = self.sfv.aggregations[0].time_window
+            sliding_interval = self.sfv.aggregations[0]
+            aggregation_df = construct_aggregation_plan_df(
+                df,
+                join_keys=["driver_id"],
+                timestamp_field=self.sfv.timestamp_field,
+                aggregation_functions=self.sfv.aggregations,
+                sliding_interval=time_window,
+                time_window=time_window,
+                watermark=timedelta(seconds=300))
+
+        return aggregation_df
+        # for each aggregation apply on the dataframe
+        # find most recent data point for each aggregation data frame
+        # join all of these together
+        # return that dataframe
 
     def _write_to_online_store(self, df: StreamTable):
         """
@@ -185,7 +204,8 @@ class SparkStreamKafkaProcessor(StreamProcessor):
             .foreachBatch(batch_write)
             .start()
         )
-        query.awaitTermination(timeout=30)
+        # Temporary
+        query.awaitTermination(timeout=15)
         return query
 
     def transform_stream_data(self) -> StreamTable:
@@ -198,8 +218,14 @@ class SparkStreamKafkaProcessor(StreamProcessor):
         online_store_query = self._write_to_online_store(transformed_df)
         return online_store_query
 
-    def transform_and_write(self, table: StreamTable):
+    def transform_and_write(self, streaming_df: StreamTable):
         pass
+
+    def only_write(self, streaming_df: StreamTable):
+        # parse and find their most recent timestamp and then write that
+        pass
+
+
 
 
 def get_stream_processor_object(
