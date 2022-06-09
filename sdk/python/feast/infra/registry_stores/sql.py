@@ -32,7 +32,6 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
-from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -146,6 +145,15 @@ managed_infra = Table(
     Column("infra_name", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("infra_proto", LargeBinary, nullable=False),
+)
+
+
+feast_metadata = Table(
+    "feast_metadata",
+    metadata,
+    Column("metadata_key", String(50), primary_key=True),
+    Column("metadata_value", String(50), nullable=False),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
 )
 
 
@@ -466,11 +474,16 @@ class SqlRegistry(BaseRegistry):
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
-        fv: Union[FeatureView, StreamFeatureView] = self._get_object(table, feature_view.name, project, proto_class,
-                              python_class,
-                              "feature_view_name",
-                              "feature_view_proto",
-                              FeatureViewNotFoundException)
+        fv: Union[FeatureView, StreamFeatureView] = self._get_object(
+            table,
+            feature_view.name,
+            project,
+            proto_class,
+            python_class,
+            "feature_view_name",
+            "feature_view_proto",
+            FeatureViewNotFoundException,
+        )
         fv.materialization_intervals.append((start_date, end_date))
         self._apply_object(table, "feature_view_name", fv, "feature_view_proto")
 
@@ -571,7 +584,7 @@ class SqlRegistry(BaseRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         project = ""
-        # TODO(achal): Support Infra object, and last_updated_timestamp.
+        # TODO(achal): Support last_updated_timestamp.
         for lister, registry_proto_field in [
             (self.list_entities, r.entities),
             (self.list_feature_views, r.feature_views),
@@ -587,16 +600,18 @@ class SqlRegistry(BaseRegistry):
             if objs:
                 registry_proto_field.extend([obj.to_proto() for obj in objs])
 
+        r.infra.CopyFrom(self.get_infra(project).to_proto())
+        last_update_timestamp = self._get_last_updated_metadata()
+        if last_update_timestamp:
+            r.last_updated.FromDatetime(last_update_timestamp)
+
         return r
 
     def commit(self):
         # This method is a no-op since we're always writing values eagerly to the db.
         pass
 
-    def _apply_object(
-        self, table, id_field_name, obj, proto_field_name,
-        name=None
-    ):
+    def _apply_object(self, table, id_field_name, obj, proto_field_name, name=None):
         name = name or obj.name
         with self.engine.connect() as conn:
             stmt = select(table).where(getattr(table.c, id_field_name) == name)
@@ -625,6 +640,7 @@ class SqlRegistry(BaseRegistry):
                 }
                 insert_stmt = insert(table).values(values,)
                 conn.execute(insert_stmt)
+            self._set_last_updated_metadata(update_datetime)
 
     def _delete_object(self, table, name, project, id_field_name, not_found_exception):
         with self.engine.connect() as conn:
@@ -632,6 +648,7 @@ class SqlRegistry(BaseRegistry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
+            self._set_last_updated_metadata(datetime.utcnow())
             return rows.rowcount
 
     def _get_object(
@@ -665,3 +682,40 @@ class SqlRegistry(BaseRegistry):
                     for row in rows
                 ]
         return []
+
+    def _set_last_updated_metadata(self, last_updated: datetime):
+        with self.engine.connect() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key == "last_updated_timestamp"
+            )
+            row = conn.execute(stmt).first()
+
+            update_time = int(last_updated.timestamp())
+
+            values = {
+                "metadata_key": "last_updated_timestamp",
+                "metadata_value": f"{update_time}",
+                "last_updated_timestamp": update_time,
+            }
+            if row:
+                update_stmt = (
+                    update(feast_metadata)
+                    .where(feast_metadata.c.metadata_key == "last_updated_timestamp")
+                    .values(values)
+                )
+                conn.execute(update_stmt)
+            else:
+                insert_stmt = insert(feast_metadata).values(values,)
+                conn.execute(insert_stmt)
+
+    def _get_last_updated_metadata(self):
+        with self.engine.connect() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key == "last_updated_timestamp"
+            )
+            row = conn.execute(stmt).first()
+            if not row:
+                return None
+            update_time = int(row["last_updated_timestamp"])
+
+            return datetime.utcfromtimestamp(update_time)
