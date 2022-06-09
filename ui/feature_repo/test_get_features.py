@@ -1,11 +1,10 @@
 import pandas as pd
-from feast import FeatureStore
-from feast.infra.offline_stores.file import SavedDatasetFileStorage
-
-from feast.dqm.profilers.ge_profiler import ge_profiler
-
 from great_expectations.core.expectation_suite import ExpectationSuite
 from great_expectations.dataset import PandasDataset
+
+from feast import FeatureStore
+from feast.dqm.profilers.ge_profiler import ge_profiler
+from feast.infra.offline_stores.file import SavedDatasetFileStorage
 
 DELTA = 0.1  # controlling allowed window in fraction of the value on scale [0, 1]
 # Note: the GE integration allows asserting differences between datasets. The "ds" below is the reference dataset to check and this generates the expectation suite which can be used against future datasets.
