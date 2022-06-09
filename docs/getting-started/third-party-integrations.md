@@ -46,8 +46,8 @@ Don't see your offline store or online store of choice here? Check out our guide
 * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
 * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
 * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
+* [x] [Cassandra / AstraDB](https://github.com/datastaxdevs/feast-cassandra-online-store)
 * [ ] Bigtable (in progress)
-* [ ] Cassandra
 
 ### **Deployments**
 
