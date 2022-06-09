@@ -32,6 +32,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -465,16 +466,11 @@ class SqlRegistry(BaseRegistry):
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
-        fv: Union[FeatureView, StreamFeatureView] = self._get_object(
-            table,
-            feature_view.name,
-            project,
-            proto_class,
-            python_class,
-            "feature_view_name",
-            "feature_view_proto",
-            FeatureViewNotFoundException,
-        )
+        fv: Union[FeatureView, StreamFeatureView] = self._get_object(table, feature_view.name, project, proto_class,
+                              python_class,
+                              "feature_view_name",
+                              "feature_view_proto",
+                              FeatureViewNotFoundException)
         fv.materialization_intervals.append((start_date, end_date))
         self._apply_object(table, "feature_view_name", fv, "feature_view_proto")
 
@@ -597,7 +593,10 @@ class SqlRegistry(BaseRegistry):
         # This method is a no-op since we're always writing values eagerly to the db.
         pass
 
-    def _apply_object(self, table, id_field_name, obj, proto_field_name, name=None):
+    def _apply_object(
+        self, table, id_field_name, obj, proto_field_name,
+        name=None
+    ):
         name = name or obj.name
         with self.engine.connect() as conn:
             stmt = select(table).where(getattr(table.c, id_field_name) == name)
