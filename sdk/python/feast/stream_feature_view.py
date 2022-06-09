@@ -1,8 +1,9 @@
+import copy
 import functools
 import warnings
 from datetime import timedelta
 from types import MethodType
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Type, Union
 
 import dill
 from google.protobuf.duration_pb2 import Duration
@@ -59,7 +60,6 @@ class StreamFeatureView(FeatureView):
         mode(optional): str. The mode of execution.
         timestamp_field (optional): Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
         udf (optional): MethodType The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
-
     """
 
     def __init__(
@@ -269,6 +269,29 @@ class StreamFeatureView(FeatureView):
             )
 
         return sfv_feature_view
+
+    @property
+    def proto_class(self) -> Type[StreamFeatureViewProto]:
+        return StreamFeatureViewProto
+
+    def __copy__(self):
+        fv = StreamFeatureView(
+            name=self.name,
+            schema=self.schema,
+            entities=self.entities,
+            ttl=self.ttl,
+            tags=self.tags,
+            online=self.online,
+            description=self.description,
+            owner=self.owner,
+            aggregations=self.aggregations,
+            mode=self.mode,
+            timestamp_field=self.timestamp_field,
+            sources=self.sources,
+            udf=self.udf,
+        )
+        fv.projection = copy.copy(self.projection)
+        return fv
 
 
 def stream_feature_view(
