@@ -1,11 +1,13 @@
 from datetime import timedelta
-from typing import Optional, List
+from typing import List, Optional
 
 from google.protobuf.duration_pb2 import Duration
 from pyspark.sql import functions
+
 from feast.protos.feast.core.Aggregation_pb2 import Aggregation as AggregationProto
 
-SUPPORTED_AGGREGATIONS = {'count', 'sum', 'min', 'max', 'mean'}
+SUPPORTED_AGGREGATIONS = {"count", "sum", "min", "max", "mean"}
+
 
 class Aggregation:
     """
@@ -100,6 +102,7 @@ def _simple_full_aggregation_transform(spark_transform, col, alias_col=None):
     else:
         return spark_transform(col)
 
+
 def get_aggregation_transform(aggregation_function):
     plan = AGGREGATION_PLANS.get(aggregation_function, None)
 
@@ -117,36 +120,44 @@ AGGREGATION_PLANS = {
     "sum": functions.sum,
 }
 
+
 def construct_aggregation_plan_df(
-   df,
-   join_keys: List[str],
-   timestamp_field,
-   aggregation_functions: List[Aggregation],
-   sliding_interval: timedelta,
-   time_window: timedelta,
-   watermark: timedelta,
+    df,
+    join_keys: List[str],
+    timestamp_field,
+    aggregation_functions: List[Aggregation],
+    sliding_interval: timedelta,
+    time_window: timedelta,
+    watermark: timedelta,
 ):
-   """
+    """
    Assumes that time window configuration(sliding_interval, time_window, watermark) is the same for all aggregation functions that
    are passed in.
    """
-   group_by_cols = [functions.col(join_key) for join_key in join_keys]
-   sliding_interval = f"{sliding_interval.total_seconds()} seconds"
-   watermark_interval = f"{watermark.total_seconds()} seconds"
-   time_interval = f"{time_window.total_seconds()} seconds"
-   window_spec = functions.window(timestamp_field, time_interval,  sliding_interval)
-   group_by_cols = [window_spec] + group_by_cols
+    group_by_cols = [functions.col(join_key) for join_key in join_keys]
+    sliding_interval = f"{sliding_interval.total_seconds()} seconds"
+    watermark_interval = f"{watermark.total_seconds()} seconds"
+    time_interval = f"{time_window.total_seconds()} seconds"
+    window_spec = functions.window(timestamp_field, time_interval, sliding_interval)
+    group_by_cols = [window_spec] + group_by_cols
 
-   # Based on aggregation functions construct partial aggregations on certain columns.
-   # TODO: Fill this logic out => based on how I design aggregation functions
-   # fill in aggregations using aggregation functions
-   aggregations = []
-   for aggregation_function in aggregation_functions:
-       transform = get_aggregation_transform(aggregation_function.function)
-       alias_col = f"{aggregation_function.column}_{aggregation_function.function}_{aggregation_function.time_window.seconds}s"
-       aggregations.append(_simple_full_aggregation_transform(transform, aggregation_function.column, alias_col=alias_col))
-   output_df = df.withWatermark(timestamp_field, watermark_interval).groupBy(*group_by_cols).agg(*aggregations)
+    # Based on aggregation functions construct partial aggregations on certain columns.
+    # TODO: Fill this logic out => based on how I design aggregation functions
+    # fill in aggregations using aggregation functions
+    aggregations = []
+    for aggregation_function in aggregation_functions:
+        transform = get_aggregation_transform(aggregation_function.function)
+        alias_col = f"{aggregation_function.column}_{aggregation_function.function}_{aggregation_function.time_window.seconds}s"
+        aggregations.append(
+            _simple_full_aggregation_transform(
+                transform, aggregation_function.column, alias_col=alias_col
+            )
+        )
+    output_df = (
+        df.withWatermark(timestamp_field, watermark_interval)
+        .groupBy(*group_by_cols)
+        .agg(*aggregations)
+    )
 
-   # transform input aggregation columns into output columns in output_df
-   return output_df
-
+    # transform input aggregation columns into output columns in output_df
+    return output_df

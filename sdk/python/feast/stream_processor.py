@@ -1,16 +1,17 @@
 import abc
+from datetime import timedelta
 from types import MethodType
 from typing import List
-from datetime import timedelta
+
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
 
+from feast.aggregation import Aggregation, construct_aggregation_plan_df
 from feast.data_format import AvroFormat, JsonFormat
 from feast.data_source import DataSource, KafkaSource
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
-from feast.aggregation import Aggregation, construct_aggregation_plan_df
 
 StreamTable = DataFrame  # Can add more to this later(change to union).
 
@@ -178,7 +179,8 @@ class SparkStreamKafkaProcessor(StreamProcessor):
                 aggregation_functions=self.sfv.aggregations,
                 sliding_interval=time_window,
                 time_window=time_window,
-                watermark=timedelta(seconds=300))
+                watermark=timedelta(seconds=300),
+            )
 
         return aggregation_df
         # for each aggregation apply on the dataframe
@@ -224,8 +226,6 @@ class SparkStreamKafkaProcessor(StreamProcessor):
     def only_write(self, streaming_df: StreamTable):
         # parse and find their most recent timestamp and then write that
         pass
-
-
 
 
 def get_stream_processor_object(
