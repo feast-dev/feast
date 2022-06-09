@@ -4,7 +4,6 @@ The list below contains the functionality that contributors are planning to deve
 
 * Items below that are in development (or planned for development) will be indicated in parentheses.
 * We welcome contribution to all items in the roadmap!
-* Want to influence our roadmap and prioritization? Submit your feedback to [this form](https://docs.google.com/forms/d/e/1FAIpQLSfa1nRQ0sKz-JEFnMMCi4Jseag\_yDssO\_3nV9qMfxfrkil-wA/viewform).
 * Want to speak to a Feast contributor? We are more than happy to jump on a call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
 
 * **Data Sources**
@@ -37,17 +36,16 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
+  * [x] [Cassandra / AstraDB](https://github.com/datastaxdevs/feast-cassandra-online-store)
   * [ ] Bigtable (in progress)
-  * [ ] Cassandra
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [x] [Push based streaming data ingestion](https://docs.feast.dev/reference/data-sources/push)
-  * [ ] Streaming ingestion on AWS
-  * [ ] Streaming ingestion on GCP
+  * [x] [Push based streaming data ingestion to online store](https://docs.feast.dev/reference/data-sources/push)
+  * [ ] Push based streaming data ingestion to offline store
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
   * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
-  * [ ] Streaming transformation
+  * [ ] Streaming transformation (In progress)
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
   * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
@@ -61,7 +59,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Java Client
   * [ ] Go Client
   * [ ] Delete API
-  * [ ] Feature Logging (for training)
+  * [] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
   * [ ] Training-serving skew detection (in progress)
@@ -74,4 +72,3 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
   * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui))
   * [ ] REST API for browsing feature registry
-  * [ ] Feature versioning

@@ -17,6 +17,14 @@ Subpackages
 Submodules
 ----------
 
+feast.aggregation module
+------------------------
+
+.. automodule:: feast.aggregation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.base\_feature\_view module
 --------------------------------
 
