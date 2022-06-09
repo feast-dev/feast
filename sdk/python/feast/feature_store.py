@@ -182,13 +182,10 @@ class FeatureStore:
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
         registry_config = self.config.get_registry_config()
-        if registry_config.registry_type == "sql":
-            self._registry = SqlRegistry(registry_config, None)
-        else:
-            r = Registry(registry_config, repo_path=self.repo_path)
-            r._initialize_registry()
-            self._registry = r
-        self._registry.refresh()
+        registry = Registry(registry_config, repo_path=self.repo_path)
+        registry.refresh()
+
+        self._registry = registry
 
     @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
