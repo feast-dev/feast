@@ -4,7 +4,7 @@ import { FEAST_FEATURE_VALUE_TYPES } from "./types";
 const FeastEntitySchema = z.object({
   spec: z.object({
     name: z.string(),
-    valueType: z.nativeEnum(FEAST_FEATURE_VALUE_TYPES),
+    valueType: z.nativeEnum(FEAST_FEATURE_VALUE_TYPES).optional(),
     joinKey: z.string(),
     description: z.string().optional(),
     labels: z.record(z.string()).optional(),
