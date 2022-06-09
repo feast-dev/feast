@@ -100,9 +100,15 @@ Feature View
     :members:
 
 On Demand Feature View
-======================
+----------------------
 
 .. automodule:: feast.on_demand_feature_view
+    :members:
+
+Stream Feature View
+----------------------
+
+.. automodule:: feast.stream_feature_view
     :members:
 
 Feature
@@ -133,6 +139,13 @@ Registry Store
     :inherited-members:
     :members:
     :exclude-members: NoopRegistryStore
+
+SQL Registry Store
+-----------------------
+
+.. automodule:: feast.infra.registry_stores.sql
+    :members:
+    :noindex:
 
 PostgreSQL Registry Store
 -----------------------

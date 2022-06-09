@@ -4,6 +4,22 @@ feast.protos.feast.core package
 Submodules
 ----------
 
+feast.protos.feast.core.Aggregation\_pb2 module
+-----------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Aggregation_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Aggregation\_pb2\_grpc module
+-----------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Aggregation_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.protos.feast.core.DataFormat\_pb2 module
 ----------------------------------------------
 
@@ -272,6 +288,22 @@ feast.protos.feast.core.Store\_pb2\_grpc module
 -----------------------------------------------
 
 .. automodule:: feast.protos.feast.core.Store_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.StreamFeatureView\_pb2 module
+-----------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.StreamFeatureView_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.StreamFeatureView\_pb2\_grpc module
+-----------------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.StreamFeatureView_pb2_grpc
    :members:
    :undoc-members:
    :show-inheritance:
