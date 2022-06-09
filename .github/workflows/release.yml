@@ -56,7 +56,7 @@ jobs:
           architecture: 'x64'
       - name: Publish Python Package
         run: |
-          python3 -m pip install --user --upgrade setuptools wheel mypy-protobuf==1.24 grpcio-tools==1.31.0
+          python3 -m pip install --user --upgrade setuptools wheel mypy-protobuf==1.24 grpcio-tools==1.31.0 twine
           make package-protos && make compile-protos-python
           cd sdk/python/
           python3 setup.py sdist bdist_wheel
