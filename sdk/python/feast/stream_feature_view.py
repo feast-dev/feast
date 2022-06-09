@@ -3,14 +3,14 @@ import functools
 import warnings
 from datetime import timedelta
 from types import MethodType
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Union
 
 import dill
 from google.protobuf.duration_pb2 import Duration
 
 from feast import utils
 from feast.aggregation import Aggregation
-from feast.data_source import DataSource, KafkaSource
+from feast.data_source import DataSource, KafkaSource, PushSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -106,7 +106,9 @@ class StreamFeatureView(FeatureView):
         self.mode = mode or ""
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
-        _batch_source = source.batch_source if source.batch_source else None
+        _batch_source = None
+        if isinstance(source, KafkaSource) or isinstance(source, PushSource):
+            _batch_source = source.batch_source if source.batch_source else None
         _ttl = ttl
         if not _ttl:
             _ttl = timedelta(days=0)
@@ -124,17 +126,20 @@ class StreamFeatureView(FeatureView):
             source=source,
         )
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
             raise TypeError("Comparisons should only involve StreamFeatureViews")
 
         if not super().__eq__(other):
             return False
-
+        if not self.udf:
+            return not other.udf
+        if not other.udf:
+            return False
         if (
             self.mode != other.mode
             or self.timestamp_field != other.timestamp_field
-            or (self.udf and self.udf.__code__.co_code != other.udf.__code__.co_code)
+            or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.aggregations != other.aggregations
         ):
             return False
@@ -144,7 +149,7 @@ class StreamFeatureView(FeatureView):
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def to_proto(self) -> StreamFeatureViewProto:
+    def to_proto(self):
         meta = StreamFeatureViewMetaProto(materialization_intervals=[])
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
@@ -269,10 +274,6 @@ class StreamFeatureView(FeatureView):
             )
 
         return sfv_feature_view
-
-    @property
-    def proto_class(self) -> Type[StreamFeatureViewProto]:
-        return StreamFeatureViewProto
 
     def __copy__(self):
         fv = StreamFeatureView(
