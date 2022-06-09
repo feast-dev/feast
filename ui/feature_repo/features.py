@@ -1,18 +1,11 @@
 from datetime import timedelta
 
-from feast import (
-    Entity,
-    FeatureService,
-    FeatureView,
-    Field,
-    FileSource,
-    ValueType,
-)
+import pandas as pd
+
+from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
 from feast.data_source import RequestSource
-from feast.request_feature_view import RequestFeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Bool, Int64, String
-import pandas as pd
 
 zipcode = Entity(
     name="zipcode",
@@ -128,19 +121,14 @@ credit_history = FeatureView(
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
-    name="transaction",
-    schema=[
-        Field(name="transaction_amt", dtype=Int64),
-    ],
+    name="transaction", schema=[Field(name="transaction_amt", dtype=Int64),],
 )
 
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
 @on_demand_feature_view(
     sources=[credit_history, input_request],
-    schema=[
-        Field(name="transaction_gt_last_credit_card_due", dtype=Bool),
-    ],
+    schema=[Field(name="transaction_gt_last_credit_card_due", dtype=Bool),],
 )
 def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -148,6 +136,7 @@ def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
         inputs["transaction_amt"] > inputs["credit_card_due"]
     )
     return df
+
 
 model_v1 = FeatureService(
     name="credit_score_v1",
