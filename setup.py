@@ -179,6 +179,8 @@ CI_REQUIRED = (
 )
 
 
+# rtd builds fail because of mysql not being installed in their environment.
+# We can add mysql there, but it's not strictly needed. This will be faster for builds.
 DOCS_REQUIRED = CI_REQUIRED
 for _r in MYSQL_REQUIRED:
     DOCS_REQUIRED.remove(_r)
