@@ -132,10 +132,12 @@ class StreamFeatureView(FeatureView):
 
         if not super().__eq__(other):
             return False
+
         if not self.udf:
             return not other.udf
         if not other.udf:
             return False
+
         if (
             self.mode != other.mode
             or self.timestamp_field != other.timestamp_field
