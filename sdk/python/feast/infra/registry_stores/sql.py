@@ -584,7 +584,6 @@ class SqlRegistry(BaseRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         project = ""
-        # TODO(achal): Support last_updated_timestamp.
         for lister, registry_proto_field in [
             (self.list_entities, r.entities),
             (self.list_feature_views, r.feature_views),
@@ -601,9 +600,9 @@ class SqlRegistry(BaseRegistry):
                 registry_proto_field.extend([obj.to_proto() for obj in objs])
 
         r.infra.CopyFrom(self.get_infra(project).to_proto())
-        last_update_timestamp = self._get_last_updated_metadata()
-        if last_update_timestamp:
-            r.last_updated.FromDatetime(last_update_timestamp)
+        last_updated_timestamp = self._get_last_updated_metadata()
+        if last_updated_timestamp:
+            r.last_updated.FromDatetime(last_updated_timestamp)
 
         return r
 
