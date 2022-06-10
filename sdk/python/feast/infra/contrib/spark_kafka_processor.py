@@ -20,8 +20,6 @@ class SparkProcessorConfig(ProcessorConfig):
 
 
 class SparkKafkaProcessor(StreamProcessor):
-    # TODO: wrap spark data in some kind of config
-    # includes session, format, checkpoint location etc.
     spark: SparkSession
     format: str
     write_function: MethodType
