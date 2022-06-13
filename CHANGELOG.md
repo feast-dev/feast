@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.3](https://github.com/feast-dev/feast/compare/v0.21.2...v0.21.3) (2022-06-13)
+
+
+### Bug Fixes
+
+* Change online UI schema field to be optional ([#2766](https://github.com/feast-dev/feast/issues/2766)) ([e6edb58](https://github.com/feast-dev/feast/commit/e6edb5840354ea2a5233144a171344b3430b34c1)), closes [#2719](https://github.com/feast-dev/feast/issues/2719)
+* Made URL to registry relative, fixes [#2731](https://github.com/feast-dev/feast/issues/2731) ([#2753](https://github.com/feast-dev/feast/issues/2753)) ([a66aea8](https://github.com/feast-dev/feast/commit/a66aea86cac5a8157134c389947b24d70765adb5))
+
 ## [0.21.2](https://github.com/feast-dev/feast/compare/v0.21.1...v0.21.2) (2022-05-17)
 
 
