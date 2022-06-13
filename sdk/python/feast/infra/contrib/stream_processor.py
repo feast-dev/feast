@@ -81,7 +81,7 @@ def get_stream_processor_object(
     if config.mode == "spark" and config.source == "kafka":
         stream_processor = STREAM_PROCESSOR_CLASS_FOR_TYPE[("spark", "kafka")]
         module_name, class_name = stream_processor.rsplit(".", 1)
-        cls = import_class(module_name, class_name, "Processor")
+        cls = import_class(module_name, class_name, "StreamProcessor")
         return cls(sfv=sfv, config=config, write_function=write_function,)
     else:
         raise ValueError("other processors besides spark-kafka not supported")

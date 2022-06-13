@@ -17,6 +17,8 @@ from feast.stream_feature_view import StreamFeatureView
 
 class SparkProcessorConfig(ProcessorConfig):
     spark_session: SparkSession
+    processing_time: str
+    query_timeout: int
 
 
 class SparkKafkaProcessor(StreamProcessor):
@@ -31,7 +33,7 @@ class SparkKafkaProcessor(StreamProcessor):
         config: ProcessorConfig,
         write_function: MethodType,
         processing_time: str = "30 seconds",
-        query_timeout: str = "15 seconds",
+        query_timeout: int = 15,
     ):
         if not isinstance(sfv.stream_source, KafkaSource):
             raise ValueError("data source is not kafka source")
