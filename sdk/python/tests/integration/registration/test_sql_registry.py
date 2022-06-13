@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import os
 import sys
 from datetime import timedelta
 
@@ -101,7 +102,8 @@ def mysql_registry():
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -143,7 +145,8 @@ def test_apply_entity_success(sql_registry):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -217,7 +220,8 @@ def test_apply_feature_view_success(sql_registry):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -299,7 +303,8 @@ def test_apply_on_demand_feature_view_success(sql_registry):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
     "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
@@ -421,7 +426,8 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", reason="does not run on mac github actions"
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
 )
 @pytest.mark.integration
 @pytest.mark.parametrize(
