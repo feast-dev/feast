@@ -167,15 +167,6 @@ feast_metadata = Table(
 )
 
 
-feast_metadata = Table(
-    "feast_metadata",
-    metadata,
-    Column("metadata_key", String(50), primary_key=True),
-    Column("metadata_value", String(50), nullable=False),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-)
-
-
 class SqlRegistry(BaseRegistry):
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
