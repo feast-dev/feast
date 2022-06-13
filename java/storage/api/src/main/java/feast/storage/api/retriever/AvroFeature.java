@@ -149,7 +149,8 @@ public class AvroFeature implements Feature {
                   .build();
           break;
         default:
-          throw new RuntimeException("FeatureType is not supported");
+          throw new RuntimeException(
+              String.format("FeatureType %s is not supported", valueType.name()));
       }
     } catch (ClassCastException e) {
       // Feature type has changed

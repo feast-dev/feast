@@ -19,16 +19,13 @@ package feast.common.logging.entry;
 import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Status.Code;
-import java.lang.reflect.Type;
 import java.util.UUID;
 
 /** MessageAuditLogEntry records the handling of a Protobuf message by a service call. */
@@ -103,20 +100,17 @@ public abstract class MessageAuditLogEntry extends AuditLogEntry {
         new GsonBuilder()
             .registerTypeAdapter(
                 Message.class,
-                new JsonSerializer<Message>() {
-                  @Override
-                  public JsonElement serialize(
-                      Message message, Type type, JsonSerializationContext context) {
-                    try {
-                      String messageJSON = JsonFormat.printer().print(message);
-                      return new JsonParser().parse(messageJSON);
-                    } catch (InvalidProtocolBufferException e) {
+                (JsonSerializer<Message>)
+                    (message, type, context) -> {
+                      try {
+                        String messageJSON = JsonFormat.printer().print(message);
+                        return new JsonParser().parse(messageJSON);
+                      } catch (InvalidProtocolBufferException e) {
 
-                      throw new RuntimeException(
-                          "Unexpected exception converting Protobuf to JSON", e);
-                    }
-                  }
-                })
+                        throw new RuntimeException(
+                            "Unexpected exception converting Protobuf to JSON", e);
+                      }
+                    })
             .create();
     return gson.toJson(this);
   }

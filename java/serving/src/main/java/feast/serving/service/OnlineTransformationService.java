@@ -239,8 +239,7 @@ public class OnlineTransformationService implements TransformationService {
     } catch (IOException e) {
       log.info(e.toString());
       throw Status.INTERNAL
-          .withDescription(
-              "Unable to correctly process transform features response: " + e.toString())
+          .withDescription("Unable to correctly process transform features response: " + e)
           .asRuntimeException();
     }
   }
@@ -249,11 +248,10 @@ public class OnlineTransformationService implements TransformationService {
   public ValueType serializeValuesIntoArrowIPC(List<Pair<String, List<ValueProto.Value>>> values) {
     // In order to be serialized correctly, the data must be packaged in a VectorSchemaRoot.
     // We first construct all the columns.
-    Map<String, FieldVector> columnNameToColumn = new HashMap<String, FieldVector>();
     BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
 
-    List<Field> columnFields = new ArrayList<Field>();
-    List<FieldVector> columns = new ArrayList<FieldVector>();
+    List<Field> columnFields = new ArrayList<>();
+    List<FieldVector> columns = new ArrayList<>();
 
     for (Pair<String, List<ValueProto.Value>> columnEntry : values) {
       // The Python FTS does not expect full feature names, so we extract the feature name.
@@ -316,8 +314,7 @@ public class OnlineTransformationService implements TransformationService {
     } catch (IOException e) {
       log.info(e.toString());
       throw Status.INTERNAL
-          .withDescription(
-              "ArrowFileWriter could not write properly; failed with error: " + e.toString())
+          .withDescription("ArrowFileWriter could not write properly; failed with error: " + e)
           .asRuntimeException();
     }
     byte[] byteData = out.toByteArray();
