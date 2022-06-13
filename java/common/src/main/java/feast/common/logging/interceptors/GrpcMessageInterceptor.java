@@ -38,7 +38,7 @@ import org.slf4j.event.Level;
  * GrpcMessageInterceptor assumes that all service calls are unary (ie single request/response).
  */
 public class GrpcMessageInterceptor implements ServerInterceptor {
-  private LoggingProperties loggingProperties;
+  private final LoggingProperties loggingProperties;
 
   /**
    * Construct GrpcMessageIntercetor.
@@ -78,7 +78,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
 
     // Register forwarding call to intercept outgoing response and log to audit log
     call =
-        new SimpleForwardingServerCall<ReqT, RespT>(call) {
+        new SimpleForwardingServerCall<>(call) {
           @Override
           public void sendMessage(RespT message) {
             // 2. Track the response & Log entry to audit logger
@@ -97,7 +97,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         };
 
     ServerCall.Listener<ReqT> listener = next.startCall(call, headers);
-    return new SimpleForwardingServerCallListener<ReqT>(listener) {
+    return new SimpleForwardingServerCallListener<>(listener) {
       @Override
       // Register listener to intercept incoming request messages and log to audit log
       public void onMessage(ReqT message) {

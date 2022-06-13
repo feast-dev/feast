@@ -35,9 +35,7 @@ public class RequestUtil {
     }
 
     List<FeatureReferenceV2> featureRefs =
-        featureRefStrings.stream()
-            .map(refStr -> parseFeatureRef(refStr))
-            .collect(Collectors.toList());
+        featureRefStrings.stream().map(RequestUtil::parseFeatureRef).collect(Collectors.toList());
 
     return featureRefs;
   }

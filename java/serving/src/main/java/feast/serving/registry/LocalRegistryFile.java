@@ -24,7 +24,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 
 public class LocalRegistryFile implements RegistryFile {
-  private RegistryProto.Registry cachedRegistry;
+  private final RegistryProto.Registry cachedRegistry;
 
   public LocalRegistryFile(String path) {
     try {
