@@ -178,6 +178,13 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
 )
 
+
+# rtd builds fail because of mysql not being installed in their environment.
+# We can add mysql there, but it's not strictly needed. This will be faster for builds.
+DOCS_REQUIRED = CI_REQUIRED
+for _r in MYSQL_REQUIRED:
+    DOCS_REQUIRED.remove(_r)
+
 DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
 
 # Get git repo root directory
@@ -480,6 +487,7 @@ setup(
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "go": GO_REQUIRED,
+        "docs": DOCS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

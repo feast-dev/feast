@@ -167,6 +167,15 @@ feast_metadata = Table(
 )
 
 
+feast_metadata = Table(
+    "feast_metadata",
+    metadata,
+    Column("metadata_key", String(50), primary_key=True),
+    Column("metadata_value", String(50), nullable=False),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+)
+
+
 class SqlRegistry(BaseRegistry):
     def __init__(
         self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
@@ -688,6 +697,7 @@ class SqlRegistry(BaseRegistry):
                 }
                 insert_stmt = insert(table).values(values,)
                 conn.execute(insert_stmt)
+
             self._set_last_updated_metadata(update_datetime, project)
 
     def _delete_object(self, table, name, project, id_field_name, not_found_exception):
@@ -699,6 +709,7 @@ class SqlRegistry(BaseRegistry):
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(datetime.utcnow(), project)
+
             return rows.rowcount
 
     def _get_object(
