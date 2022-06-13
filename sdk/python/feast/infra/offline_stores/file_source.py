@@ -179,9 +179,15 @@ class FileSource(DataSource):
         filesystem, path = FileSource.create_filesystem_and_path(
             self.path, self.file_options.s3_endpoint_override
         )
-        schema = ParquetDataset(
-            path if filesystem is None else filesystem.open_input_file(path)
-        ).schema.to_arrow_schema()
+        # Adding support for different file format path
+        # based on S3 filesystem
+        if filesystem is None:
+            schema = ParquetDataset(path).schema.to_arrow_schema()
+        else:
+            schema = ParquetDataset(
+                filesystem.open_input_file(path), filesystem=filesystem
+            ).schema
+
         return zip(schema.names, map(str, schema.types))
 
     @staticmethod
