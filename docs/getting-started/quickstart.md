@@ -377,6 +377,14 @@ pprint(feature_vector)
 
 You can also use feature services to manage multiple features, and decouple feature view definitions and the features needed by end applications. The feature store can also be used to fetch either online or historical features using the same api below. More information can be found [here](https://docs.feast.dev/getting-started/concepts/feature-retrieval).
 
+The `driver_activity` feature service pulls all features from the `driver_hourly_stats` feature view:
+
+```python
+driver_stats_fs = FeatureService(
+    name="driver_activity", features=[driver_hourly_stats_view]
+)
+```
+
 {% tabs %}
 {% tab title="Python" %}
 ```python
@@ -384,7 +392,7 @@ from feast import FeatureStore
 feature_store = FeatureStore('.')  # Initialize the feature store
 
 feature_service = feature_store.get_feature_service("driver_activity")
-features = feature_store.get_online_features(
+feature_vector = feature_store.get_online_features(
     features=feature_service,
     entity_rows=[
         # {join_key: entity_value}
@@ -392,6 +400,7 @@ features = feature_store.get_online_features(
         {"driver_id": 1005},
     ],
 ).to_dict()
+pprint(feature_vector)
 ```
 
 {% tabs %}
