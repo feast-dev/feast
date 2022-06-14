@@ -126,6 +126,14 @@ class Provider(abc.ABC):
         """
         pass
 
+    def ingest_df_to_offline_store(
+        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+    ):
+        """
+        Ingests a DataFrame directly into the offline store
+        """
+        pass
+
     @abc.abstractmethod
     def materialize_single_feature_view(
         self,

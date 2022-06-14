@@ -100,6 +100,20 @@ class PassthroughProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
+    def offline_write_batch(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
+        if self.offline_store:
+            self.offline_store.offline_write_batch(config, table, data, progress)
+
+
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,

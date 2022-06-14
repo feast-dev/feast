@@ -15,7 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union, Callable, Any, Dict, Tuple
 
 import pandas as pd
 import pyarrow
@@ -28,6 +28,8 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
@@ -268,5 +270,31 @@ class OfflineStore(ABC):
             registry: Feast registry
 
         This is an optional method that could be supported only be some stores.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ):
+        """
+        Write logged features to a specified destination in the offline store.
+        Data can be appended to an existing table (destination) or a new one will be created automatically
+         (if it doesn't exist).
+        Hence, this function can be called repeatedly with the same destination to write features.
+
+        Args:
+            config: Repo configuration object
+            table: FeatureView to write the data to.
+            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
+            a dict containing feature values, an event timestamp for the row, and
+            the created timestamp for the row if it exists.
+            progress: Optional function to be called once every mini-batch of rows is written to
+            the online store. Can be used to display progress.
         """
         raise NotImplementedError()
