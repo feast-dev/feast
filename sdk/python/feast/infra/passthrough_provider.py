@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas
+import pandas as pd
 import pyarrow
 import pyarrow as pa
 from tqdm import tqdm
@@ -104,9 +104,7 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
+        data: pd.DataFrame,
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)

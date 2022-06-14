@@ -277,16 +277,14 @@ class OfflineStore(ABC):
     def offline_write_batch(
         config: RepoConfig,
         table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
+        data: pd.DataFrame,
         progress: Optional[Callable[[int], Any]],
     ):
         """
-        Write logged features to a specified destination in the offline store.
+        Write features to a specified destination in the offline store.
         Data can be appended to an existing table (destination) or a new one will be created automatically
          (if it doesn't exist).
-        Hence, this function can be called repeatedly with the same destination to write features.
+        Hence, this function can be called repeatedly with the same destination config to write features.
 
         Args:
             config: Repo configuration object
