@@ -113,7 +113,6 @@ class PassthroughProvider(Provider):
         if self.offline_store:
             self.offline_store.offline_write_batch(config, table, data, progress)
 
-
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,
