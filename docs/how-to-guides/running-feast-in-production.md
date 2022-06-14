@@ -310,6 +310,19 @@ We use an [InfluxDB-style extension](https://github.com/prometheus/statsd_export
 We chose StatsD since it's a de-facto standard with various implementations (eg, [1](https://github.com/prometheus/statsd_exporter), [2](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/statsd/README.md))
 and metrics can be easily exported to Prometheus, InfluxDB, AWS CloudWatch, etc.
 
+## 7. Using environment variables in your yaml configuration
+
+You might want to dynamically set parts of your configuration from your environment. For instance to deploy Feast to production and development with the same configuration, but a different server. Or to inject secrets without exposing them in your git repo. To do this, it is possible to use the `${ENV_VAR}` syntax in your `feature_store.yaml` file. For instance:
+
+```yaml
+project: my_project
+registry: data/registry.db
+provider: local
+online_store:
+    type: redis
+    connection_string: ${REDIS_CONNECTION_STRING}
+```
+
 ---
 ## Summary
 
