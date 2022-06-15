@@ -1,9 +1,9 @@
 import copy
 import functools
 import warnings
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import MethodType
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import dill
 from google.protobuf.duration_pb2 import Duration
@@ -42,25 +42,41 @@ class StreamFeatureView(FeatureView):
     schemas with Feast.
 
     Attributes:
-        name: str. The unique name of the stream feature view.
-        entities: Union[List[Entity], List[str]]. List of entities or entity join keys.
-        ttl: timedelta. The amount of time this group of features lives. A ttl of 0 indicates that
+        name: The unique name of the stream feature view.
+        entities: List of entities or entity join keys.
+        ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        tags: Dict[str, str]. A dictionary of key-value pairs to store arbitrary metadata.
-        online: bool. Defines whether this stream feature view is used in online feature retrieval.
-        description: str. A human-readable description.
+        schema: The schema of the feature view, including feature, timestamp, and entity
+            columns. If not specified, can be inferred from the underlying data source.
+        source: DataSource. The stream source of data where this group of features is stored.
+        aggregations: List of aggregations registered with the stream feature view.
+        mode: The mode of execution.
+        timestamp_field: Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
+        online: Defines whether this stream feature view is used in online feature retrieval.
+        description: A human-readable description.
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the on demand feature view, typically the email of the primary
             maintainer.
-        schema: List[Field] The schema of the feature view, including feature, timestamp, and entity
-            columns. If not specified, can be inferred from the underlying data source.
-        source: DataSource. The stream source of data where this group of features
-            is stored.
-        aggregations (optional): List[Aggregation]. List of aggregations registered with the stream feature view.
-        mode(optional): str. The mode of execution.
-        timestamp_field (optional): Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
-        udf (optional): MethodType The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
+        udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
     """
+
+    name: str
+    entities: List[str]
+    ttl: Optional[timedelta]
+    source: DataSource
+    schema: List[Field]
+    entity_columns: List[Field]
+    features: List[Field]
+    online: bool
+    description: str
+    tags: Dict[str, str]
+    owner: str
+    aggregations: List[Aggregation]
+    mode: str
+    timestamp_field: str
+    materialization_intervals: List[Tuple[datetime, datetime]]
+    udf: Optional[MethodType]
 
     def __init__(
         self,
@@ -222,7 +238,7 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
-        sfv_feature_view = cls(
+        stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
             tags=dict(sfv_proto.spec.tags),
@@ -247,23 +263,27 @@ class StreamFeatureView(FeatureView):
         )
 
         if batch_source:
-            sfv_feature_view.batch_source = batch_source
+            stream_feature_view.batch_source = batch_source
 
         if stream_source:
-            sfv_feature_view.stream_source = stream_source
+            stream_feature_view.stream_source = stream_source
 
-        sfv_feature_view.entities = list(sfv_proto.spec.entities)
+        stream_feature_view.entities = list(sfv_proto.spec.entities)
 
-        sfv_feature_view.features = [
+        stream_feature_view.features = [
             Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
+        ]
+        stream_feature_view.entity_columns = [
+            Field.from_proto(field_proto)
+            for field_proto in sfv_proto.spec.entity_columns
         ]
 
         if sfv_proto.meta.HasField("created_timestamp"):
-            sfv_feature_view.created_timestamp = (
+            stream_feature_view.created_timestamp = (
                 sfv_proto.meta.created_timestamp.ToDatetime()
             )
         if sfv_proto.meta.HasField("last_updated_timestamp"):
-            sfv_feature_view.last_updated_timestamp = (
+            stream_feature_view.last_updated_timestamp = (
                 sfv_proto.meta.last_updated_timestamp.ToDatetime()
             )
 
@@ -275,7 +295,7 @@ class StreamFeatureView(FeatureView):
                 )
             )
 
-        return sfv_feature_view
+        return stream_feature_view
 
     def __copy__(self):
         fv = StreamFeatureView(
