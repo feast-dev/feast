@@ -569,6 +569,9 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
+        update_feature_views_with_inferred_features_and_entities(
+            sfvs_to_update, entities + entities_to_update, self.config
+        )
         # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
             if not sfv.schema:
@@ -931,8 +934,8 @@ class FeatureStore:
 
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=views_to_delete if not partial else [],
-            tables_to_keep=views_to_update,
+            tables_to_delete=views_to_delete + sfvs_to_delete if not partial else [],
+            tables_to_keep=views_to_update + sfvs_to_update,
             entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
             partial=partial,
@@ -1357,6 +1360,7 @@ class FeatureStore:
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
+        all_fvs += self.list_stream_feature_views(allow_cache=allow_registry_cache)
 
         fvs_with_push_sources = {
             fv
