@@ -525,7 +525,6 @@ def test_online_retrieval(
     global_df = datasets.global_df
     location_df = datasets.location_df
 
-    # Rename origin -> location for the purposes of selecting
     entity_rows = [
         {"driver_id": d, "customer_id": c, "location_id": o, "val_to_add": 50}
         for (d, c, o) in zip(sample_drivers, sample_customers, sample_origins)
