@@ -287,9 +287,7 @@ class OfflineStore(ABC):
         Args:
             config: Repo configuration object
             table: FeatureView to write the data to.
-            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
-            a dict containing feature values, an event timestamp for the row, and
-            the created timestamp for the row if it exists.
+            data: dataframe containing feature data and timestamp column for historical feature retrieval
             progress: Optional function to be called once every mini-batch of rows is written to
             the online store. Can be used to display progress.
         """
