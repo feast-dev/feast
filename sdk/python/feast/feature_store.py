@@ -265,6 +265,19 @@ class FeatureStore:
             feature_views.append(fv)
         return feature_views
 
+    def _list_stream_feature_views(
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
+    ) -> List[StreamFeatureView]:
+        stream_feature_views = []
+        for sfv in self._registry.list_stream_feature_views(
+            self.project, allow_cache=allow_cache
+        ):
+            if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
+                sfv.entities = []
+                sfv.entity_columns = []
+            stream_feature_views.append(sfv)
+        return stream_feature_views
+
     @log_exceptions_and_usage
     def list_on_demand_feature_views(
         self, allow_cache: bool = False
@@ -289,9 +302,7 @@ class FeatureStore:
         Returns:
             A list of stream feature views.
         """
-        return self._registry.list_stream_feature_views(
-            self.project, allow_cache=allow_cache
-        )
+        return self._list_stream_feature_views(allow_cache)
 
     @log_exceptions_and_usage
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
@@ -573,6 +584,53 @@ class FeatureStore:
         }
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
+
+    def _get_feature_views_to_materialize(
+        self, feature_views: Optional[List[str]],
+    ) -> List[FeatureView]:
+        """
+        Returns the list of feature views that should be materialized.
+
+        If no feature views are specified, all feature views will be returned.
+
+        Args:
+            feature_views: List of names of feature views to materialize.
+
+        Raises:
+            FeatureViewNotFoundException: One of the specified feature views could not be found.
+            ValueError: One of the specified feature views is not configured for materialization.
+        """
+        feature_views_to_materialize: List[FeatureView] = []
+
+        if feature_views is None:
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
+            )
+            feature_views_to_materialize = [
+                fv for fv in feature_views_to_materialize if fv.online
+            ]
+            stream_feature_views_to_materialize = self._list_stream_feature_views(
+                hide_dummy_entity=False
+            )
+            feature_views_to_materialize += [
+                sfv for sfv in stream_feature_views_to_materialize if sfv.online
+            ]
+        else:
+            for name in feature_views:
+                try:
+                    feature_view = self._get_feature_view(name, hide_dummy_entity=False)
+                except FeatureViewNotFoundException:
+                    feature_view = self._get_stream_feature_view(
+                        name, hide_dummy_entity=False
+                    )
+
+                if not feature_view.online:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
+                feature_views_to_materialize.append(feature_view)
+
+        return feature_views_to_materialize
 
     @log_exceptions_and_usage
     def _plan(
@@ -1151,23 +1209,9 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
-        feature_views_to_materialize: List[FeatureView] = []
-        if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
-            )
-            feature_views_to_materialize = [
-                fv for fv in feature_views_to_materialize if fv.online
-            ]
-        else:
-            for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                if not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
-                feature_views_to_materialize.append(feature_view)
-
+        feature_views_to_materialize = self._get_feature_views_to_materialize(
+            feature_views
+        )
         _print_materialization_log(
             None,
             end_date,
@@ -1258,23 +1302,9 @@ class FeatureStore:
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
             )
 
-        feature_views_to_materialize: List[FeatureView] = []
-        if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
-            )
-            feature_views_to_materialize = [
-                fv for fv in feature_views_to_materialize if fv.online
-            ]
-        else:
-            for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                if not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
-                feature_views_to_materialize.append(feature_view)
-
+        feature_views_to_materialize = self._get_feature_views_to_materialize(
+            feature_views
+        )
         _print_materialization_log(
             start_date,
             end_date,
