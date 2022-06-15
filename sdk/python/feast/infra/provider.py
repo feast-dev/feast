@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import dask.dataframe as dd
-import pandas
+import pandas as pd
 import pyarrow
 from tqdm import tqdm
 
@@ -119,10 +119,18 @@ class Provider(abc.ABC):
         ...
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+        self, feature_view: FeatureView, entities: List[Entity], df: pd.DataFrame,
     ):
         """
         Ingests a DataFrame directly into the online store
+        """
+        pass
+
+    def ingest_df_to_offline_store(
+        self, feature_view: FeatureView, df: pd.DataFrame,
+    ):
+        """
+        Ingests a DataFrame directly into the offline store
         """
         pass
 
@@ -145,7 +153,7 @@ class Provider(abc.ABC):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
+        entity_df: Union[pd.DataFrame, str],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
@@ -367,14 +375,14 @@ def _run_dask_field_mapping(
 
 def _coerce_datetime(ts):
     """
-    Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
+    Depending on underlying time resolution, arrow to_pydict() sometimes returns pd
     timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
     (for microsecond resolution).
-    While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
+    While pd timestamp class is a subclass of python datetime, it doesn't always behave the
     same way. We convert it to normal datetime so that consumers downstream don't have to deal
     with these quirks.
     """
-    if isinstance(ts, pandas.Timestamp):
+    if isinstance(ts, pd.Timestamp):
         return ts.to_pydatetime()
     else:
         return ts
@@ -418,7 +426,7 @@ def _convert_arrow_to_proto(
     # Convert event_timestamps
     event_timestamps = [
         _coerce_datetime(val)
-        for val in pandas.to_datetime(
+        for val in pd.to_datetime(
             table.column(feature_view.batch_source.timestamp_field).to_numpy(
                 zero_copy_only=False
             )
@@ -429,7 +437,7 @@ def _convert_arrow_to_proto(
     if feature_view.batch_source.created_timestamp_column:
         created_timestamps = [
             _coerce_datetime(val)
-            for val in pandas.to_datetime(
+            for val in pd.to_datetime(
                 table.column(
                     feature_view.batch_source.created_timestamp_column
                 ).to_numpy(zero_copy_only=False)

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas
+import pandas as pd
 import pyarrow
 import pyarrow as pa
 from tqdm import tqdm
@@ -100,6 +100,17 @@ class PassthroughProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
+    def offline_write_batch(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: pd.DataFrame,
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
+        if self.offline_store:
+            self.offline_store.offline_write_batch(config, table, data, progress)
+
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,
@@ -117,7 +128,7 @@ class PassthroughProvider(Provider):
         return result
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+        self, feature_view: FeatureView, entities: List[Entity], df: pd.DataFrame,
     ):
         set_usage_attribute("provider", self.__class__.__name__)
         table = pa.Table.from_pandas(df)
@@ -193,7 +204,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
+        entity_df: Union[pd.DataFrame, str],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,

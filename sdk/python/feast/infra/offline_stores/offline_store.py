@@ -15,7 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 import pandas as pd
 import pyarrow
@@ -268,5 +268,27 @@ class OfflineStore(ABC):
             registry: Feast registry
 
         This is an optional method that could be supported only be some stores.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        table: FeatureView,
+        data: pd.DataFrame,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        """
+        Write features to a specified destination in the offline store.
+        Data can be appended to an existing table (destination) or a new one will be created automatically
+         (if it doesn't exist).
+        Hence, this function can be called repeatedly with the same destination config to write features.
+
+        Args:
+            config: Repo configuration object
+            table: FeatureView to write the data to.
+            data: dataframe containing feature data and timestamp column for historical feature retrieval
+            progress: Optional function to be called once every mini-batch of rows is written to
+            the online store. Can be used to display progress.
         """
         raise NotImplementedError()
