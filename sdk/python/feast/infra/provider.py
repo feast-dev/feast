@@ -127,7 +127,7 @@ class Provider(abc.ABC):
         pass
 
     def ingest_df_to_offline_store(
-        self, feature_view: FeatureView, df: pd.DataFrame,
+        self, feature_view: FeatureView, df: pyarrow.Table,
     ):
         """
         Ingests a DataFrame directly into the offline store
