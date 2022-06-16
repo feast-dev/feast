@@ -7,9 +7,9 @@ import dask.dataframe as dd
 import pandas as pd
 import pyarrow
 import pyarrow.dataset
-from pyarrow import csv
 import pyarrow.parquet
 import pytz
+from pyarrow import csv
 from pydantic.typing import Literal
 
 from feast import FileSource, OnDemandFeatureView
@@ -419,17 +419,17 @@ class FileOfflineStore(OfflineStore):
         )
 
         prev_table = pyarrow.parquet.read_table(path, memory_map=True)
-        if(prev_table.column_names != data.column_names):
-            raise ValueError(f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}")
-        if(data.schema != prev_table.schema):
+        if prev_table.column_names != data.column_names:
+            raise ValueError(
+                f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}"
+            )
+        if data.schema != prev_table.schema:
             data = data.cast(prev_table.schema)
         new_table = pyarrow.concat_tables([data, prev_table])
-        writer = pyarrow.parquet.ParquetWriter(
-            path,
-            data.schema,
-            filesystem=filesystem)
+        writer = pyarrow.parquet.ParquetWriter(path, data.schema, filesystem=filesystem)
         writer.write_table(new_table)
         writer.close()
+
 
 def _get_entity_df_event_timestamp_range(
     entity_df: Union[pd.DataFrame, str], entity_df_event_timestamp_col: str,
