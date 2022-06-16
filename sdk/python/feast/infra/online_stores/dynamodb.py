@@ -221,6 +221,9 @@ class DynamoDBOnlineStore(OnlineStore):
         entity_ids_iter = iter(entity_ids)
         while True:
             batch = list(itertools.islice(entity_ids_iter, batch_size))
+            batch_result: List[
+                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+            ] = []
             # No more items to insert
             if len(batch) == 0:
                 break
@@ -243,20 +246,23 @@ class DynamoDBOnlineStore(OnlineStore):
                 for tbl_res in table_responses:
                     entity_id = tbl_res["entity_id"]
                     while entity_id != batch[entity_idx]:
-                        result.append((None, None))
+                        batch_result.append((None, None))
                         entity_idx += 1
                     res = {}
                     for feature_name, value_bin in tbl_res["values"].items():
                         val = ValueProto()
                         val.ParseFromString(value_bin.value)
                         res[feature_name] = val
-                    result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
+                    batch_result.append(
+                        (datetime.fromisoformat(tbl_res["event_ts"]), res)
+                    )
                     entity_idx += 1
 
             # Not all entities in a batch may have responses
             # Pad with remaining values in batch that were not found
-            batch_size_nones = ((None, None),) * (len(batch) - len(result))
-            result.extend(batch_size_nones)
+            batch_size_nones = ((None, None),) * (len(batch) - len(batch_result))
+            batch_result.extend(batch_size_nones)
+            result.extend(batch_result)
         return result
 
     def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
