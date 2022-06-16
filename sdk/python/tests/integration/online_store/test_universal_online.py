@@ -458,7 +458,6 @@ def test_online_retrieval(
             feature_views.driver[["conv_rate"]],
             feature_views.driver_odfv,
             feature_views.customer[["current_balance"]],
-            feature_views.pushed_locations,
         ],
     )
     feature_service_entity_mapping = FeatureService(
@@ -491,7 +490,7 @@ def test_online_retrieval(
     )
 
     entity_sample = datasets.orders_df.sample(10)[
-        ["customer_id", "driver_id", "order_id", "origin_id", "event_timestamp"]
+        ["customer_id", "driver_id", "order_id", "event_timestamp"]
     ]
     orders_df = datasets.orders_df[
         (
@@ -510,8 +509,6 @@ def test_online_retrieval(
         datasets.customer_df["customer_id"].isin(sample_customers)
     ]
 
-    sample_origins = entity_sample["origin_id"]
-
     location_pairs = np.array(list(itertools.permutations(entities.location_vals, 2)))
     sample_location_pairs = location_pairs[
         np.random.choice(len(location_pairs), 10)
@@ -524,11 +521,10 @@ def test_online_retrieval(
     ]
 
     global_df = datasets.global_df
-    location_df = datasets.location_df
 
     entity_rows = [
-        {"driver_id": d, "customer_id": c, "location_id": o, "val_to_add": 50}
-        for (d, c, o) in zip(sample_drivers, sample_customers, sample_origins)
+        {"driver_id": d, "customer_id": c, "val_to_add": 50}
+        for (d, c) in zip(sample_drivers, sample_customers)
     ]
 
     feature_refs = [
@@ -542,7 +538,6 @@ def test_online_retrieval(
         "order:order_is_success",
         "global_stats:num_rides",
         "global_stats:avg_ride_length",
-        "pushable_location_stats:temperature",
     ]
     unprefixed_feature_refs = [f.rsplit(":", 1)[-1] for f in feature_refs if ":" in f]
     # Remove the on demand feature view output features, since they're not present in the source dataframe
@@ -573,7 +568,7 @@ def test_online_retrieval(
     expected_keys = set(
         f.replace(":", "__") if full_feature_names else f.split(":")[-1]
         for f in feature_refs
-    ) | {"customer_id", "driver_id", "location_id"}
+    ) | {"customer_id", "driver_id"}
     assert (
         keys == expected_keys
     ), f"Response keys are different from expected: {keys - expected_keys} (extra) and {expected_keys - keys} (missing)"
@@ -586,7 +581,6 @@ def test_online_retrieval(
             orders_df=orders_df,
             global_df=global_df,
             entity_row=entity_row,
-            location_df=location_df,
         )
 
         assert df_features["customer_id"] == online_features_dict["customer_id"][i]
@@ -625,9 +619,7 @@ def test_online_retrieval(
         environment=environment,
         endpoint=feature_server_endpoint,
         features=feature_refs,
-        entity_rows=[
-            {"driver_id": 0, "customer_id": 0, "location_id": 0, "val_to_add": 100}
-        ],
+        entity_rows=[{"driver_id": 0, "customer_id": 0, "val_to_add": 100}],
         full_feature_names=full_feature_names,
     )
     assert missing_responses_dict is not None
@@ -647,7 +639,7 @@ def test_online_retrieval(
             environment=environment,
             endpoint=feature_server_endpoint,
             features=feature_refs,
-            entity_rows=[{"driver_id": 0, "customer_id": 0, "location_id": 0}],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
             full_feature_names=full_feature_names,
         )
 
@@ -661,7 +653,6 @@ def test_online_retrieval(
         customers_df,
         orders_df,
         global_df,
-        location_df,
     )
 
     entity_rows = [
@@ -789,18 +780,13 @@ def get_latest_feature_values_from_dataframes(
     customer_df,
     orders_df,
     entity_row,
-    location_df,
     global_df=None,
     origin_df=None,
     destination_df=None,
 ):
-    # TODO: retrieve temperature feature
     latest_driver_row = get_latest_row(entity_row, driver_df, "driver_id", "driver_id")
     latest_customer_row = get_latest_row(
         entity_row, customer_df, "customer_id", "customer_id"
-    )
-    latest_location_row = get_latest_row(
-        entity_row, location_df, "location_id", "location_id"
     )
 
     # Since the event timestamp columns may contain timestamps of different timezones,
@@ -821,7 +807,7 @@ def get_latest_feature_values_from_dataframes(
             global_df["event_timestamp"].idxmax()
         ].to_dict()
     if origin_df is not None:
-        latest_location_aliased_row = get_latest_feature_values_for_location_df(
+        latest_location_row = get_latest_feature_values_for_location_df(
             entity_row, origin_df, destination_df
         )
 
@@ -834,7 +820,6 @@ def get_latest_feature_values_from_dataframes(
             **latest_driver_row,
             **latest_orders_row,
             **latest_global_row,
-            **latest_location_row,
             **request_data_features,
         }
     if origin_df is not None:
@@ -845,14 +830,12 @@ def get_latest_feature_values_from_dataframes(
             **latest_driver_row,
             **latest_orders_row,
             **latest_location_row,
-            **latest_location_aliased_row,
             **request_data_features,
         }
     return {
         **latest_customer_row,
         **latest_driver_row,
         **latest_orders_row,
-        **latest_location_row,
         **request_data_features,
     }
 
@@ -886,7 +869,6 @@ def assert_feature_service_correctness(
     customers_df,
     orders_df,
     global_df,
-    location_df,
 ):
     feature_service_online_features_dict = get_online_features_dict(
         environment=environment,
@@ -906,7 +888,6 @@ def assert_feature_service_correctness(
     assert set(feature_service_keys) == set(expected_feature_refs) | {
         "customer_id",
         "driver_id",
-        "location_id",
     }
 
     tc = unittest.TestCase()
@@ -917,7 +898,6 @@ def assert_feature_service_correctness(
             orders_df=orders_df,
             global_df=global_df,
             entity_row=entity_row,
-            location_df=location_df,
         )
         tc.assertAlmostEqual(
             feature_service_online_features_dict[
