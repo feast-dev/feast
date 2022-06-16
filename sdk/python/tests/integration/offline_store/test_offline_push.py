@@ -1,4 +1,3 @@
-
 import random
 from datetime import datetime, timedelta
 
@@ -8,9 +7,7 @@ import pytest
 
 from feast import FeatureView, Field
 from feast.types import Float32, Int32
-from tests.integration.feature_repos.universal.entities import (
-    driver,
-)
+from tests.integration.feature_repos.universal.entities import driver
 
 
 @pytest.mark.integration
@@ -33,7 +30,7 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
     ts = pd.Timestamp(now).round("ms")
 
     entity_df = pd.DataFrame.from_dict(
-        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts,],}
+        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts]}
     )
 
     store.apply([driver(), driver_stats])
@@ -49,7 +46,7 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
     expected_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1002],
-            "event_timestamp": [ts - timedelta(hours=3), ts,],
+            "event_timestamp": [ts - timedelta(hours=3), ts],
             "conv_rate": [random.random(), random.random()],
             "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
             "created": [ts, ts],
@@ -81,7 +78,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     ts = pd.Timestamp(now).round("ms")
 
     entity_df = pd.DataFrame.from_dict(
-        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts,],}
+        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts]}
     )
 
     store.apply([driver(), driver_stats])
@@ -96,7 +93,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
 
     expected_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=3), ts,],
+            "event_timestamp": [ts - timedelta(hours=3), ts],
             "driver_id": [1001, 1002],
             "conv_rate": [random.random(), random.random()],
             "incorrect_schema": [random.randint(0, 10), random.randint(0, 10)],
@@ -132,7 +129,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     entity_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1001],
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3),],
+            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
         }
     )
 
@@ -148,7 +145,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3),],
+            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -178,7 +175,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     second_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=1), ts,],
+            "event_timestamp": [ts - timedelta(hours=1), ts],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
