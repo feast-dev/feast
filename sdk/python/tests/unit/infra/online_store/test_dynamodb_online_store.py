@@ -318,3 +318,42 @@ def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     returned_items = response.get("Items", None)
     assert returned_items is not None
     assert len(returned_items) == len(data)
+
+
+@mock_dynamodb2
+def test_dynamodb_online_store_online_read_unknown_entity_end_of_batch(
+    repo_config, dynamodb_online_store
+):
+    """
+    Test DynamoDBOnlineStore online_read method with unknown entities at
+    the end of the batch.
+    """
+    batch_size = repo_config.online_store.batch_size
+    n_samples = batch_size
+    _create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
+    data = _create_n_customer_test_samples(n=n_samples)
+    _insert_data_test_table(
+        data, PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION
+    )
+
+    entity_keys, features, *rest = zip(*data)
+    entity_keys = list(entity_keys)
+    features = list(features)
+
+    # Append a nonsensical entity to search for as the only item in the 2nd batch
+    entity_keys.append(
+        EntityKeyProto(
+            join_keys=["customer"], entity_values=[ValueProto(string_val="12359")]
+        )
+    )
+    features.append(None)
+
+    returned_items = dynamodb_online_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=f"{TABLE_NAME}_unknown_entity_{n_samples}"),
+        entity_keys=entity_keys,
+    )
+
+    # ensure the entity is not dropped
+    assert len(returned_items) == len(entity_keys)
+    assert returned_items[-1] == (None, None)
