@@ -420,7 +420,7 @@ class FileOfflineStore(OfflineStore):
 
         prev_table = pyarrow.parquet.read_table(path, memory_map=True)
         if(prev_table.column_names != data.column_names):
-            raise ValueError(f"Input dataframe have columns in wrong order, columns should be in the order: {prev_table.column_names}")
+            raise ValueError(f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}")
         if(data.schema != prev_table.schema):
             data = data.cast(prev_table.schema)
         new_table = pyarrow.concat_tables([data, prev_table])
