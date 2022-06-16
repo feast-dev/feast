@@ -1,15 +1,15 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union, Any
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow
 import pyarrow.dataset
-from pyarrow import csv
 import pyarrow.parquet
 import pytz
+from pyarrow import csv
 from pydantic.typing import Literal
 
 from feast import FileSource, OnDemandFeatureView
@@ -406,30 +406,41 @@ class FileOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    def offline_write_batch(config: RepoConfig, table: FeatureView, data: pyarrow.Table, progress: Optional[Callable[[int], Any]]):
+    def offline_write_batch(
+        config: RepoConfig,
+        table: FeatureView,
+        data: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
         if not table.batch_source:
-            raise ValueError("feature view does not have a batch source to persist offline data")
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
         if not isinstance(config.offline_store, FileOfflineStoreConfig):
-            raise ValueError(f"offline store config is of type {type(config.offline_store)} when file type required")
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when file type required"
+            )
         if not isinstance(table.batch_source, FileSource):
-            raise ValueError(f"feature view batch source is {type(table.batch_source)} not file source")
+            raise ValueError(
+                f"feature view batch source is {type(table.batch_source)} not file source"
+            )
         file_options = table.batch_source.file_options
         filesystem, path = FileSource.create_filesystem_and_path(
             file_options.uri, file_options.s3_endpoint_override
         )
 
         prev_table = pyarrow.parquet.read_table(path, memory_map=True)
-        if(prev_table.column_names != data.column_names):
-            raise ValueError(f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}")
-        if(data.schema != prev_table.schema):
+        if prev_table.column_names != data.column_names:
+            raise ValueError(
+                f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}"
+            )
+        if data.schema != prev_table.schema:
             data = data.cast(prev_table.schema)
         new_table = pyarrow.concat_tables([data, prev_table])
-        writer = pyarrow.parquet.ParquetWriter(
-            path,
-            data.schema,
-            filesystem=filesystem)
+        writer = pyarrow.parquet.ParquetWriter(path, data.schema, filesystem=filesystem)
         writer.write_table(new_table)
         writer.close()
+
 
 def _get_entity_df_event_timestamp_range(
     entity_df: Union[pd.DataFrame, str], entity_df_event_timestamp_col: str,

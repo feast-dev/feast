@@ -1,28 +1,17 @@
 
-import datetime
+import random
 from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
 import pytest
-import random
 
-from feast.data_format import ParquetFormat
-
-from feast import FeatureView, Field, FileSource
-from feast.types import Int32, Float32
-from feast.wait import wait_retry_backoff
-from tests.integration.feature_repos.repo_configuration import (
-    construct_universal_feature_views,
-)
-from tests.integration.feature_repos.universal.data_sources.file import FileDataSourceCreator
+from feast import FeatureView, Field
+from feast.types import Float32, Int32
 from tests.integration.feature_repos.universal.entities import (
-    customer,
     driver,
-    location,
 )
-from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
-from tests.utils.logged_features import prepare_logs, to_logs_dataset
+
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
@@ -44,22 +33,13 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
     ts = pd.Timestamp(now).round("ms")
 
     entity_df = pd.DataFrame.from_dict(
-        {
-            "driver_id": [1001, 1002],
-            "event_timestamp": [
-                ts-timedelta(hours=3),
-                ts,
-            ],
-        }
+        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts,],}
     )
 
     store.apply([driver(), driver_stats])
     df = store.get_historical_features(
         entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips"
-        ],
+        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
         full_feature_names=False,
     ).to_df()
 
@@ -69,17 +49,16 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
     expected_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1002],
-            "event_timestamp": [
-                ts-timedelta(hours=3),
-                ts,
-            ],
+            "event_timestamp": [ts - timedelta(hours=3), ts,],
             "conv_rate": [random.random(), random.random()],
             "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
-            "created": [ts, ts]
+            "created": [ts, ts],
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(driver_stats.name, expected_df, allow_registry_cache=False)
+        store.write_to_offline_store(
+            driver_stats.name, expected_df, allow_registry_cache=False
+        )
 
 
 @pytest.mark.integration
@@ -102,22 +81,13 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     ts = pd.Timestamp(now).round("ms")
 
     entity_df = pd.DataFrame.from_dict(
-        {
-            "driver_id": [1001, 1002],
-            "event_timestamp": [
-                ts-timedelta(hours=3),
-                ts,
-            ],
-        }
+        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts,],}
     )
 
     store.apply([driver(), driver_stats])
     df = store.get_historical_features(
         entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips"
-        ],
+        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
         full_feature_names=False,
     ).to_df()
 
@@ -126,18 +96,18 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
 
     expected_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [
-                ts-timedelta(hours=3),
-                ts,
-            ],
+            "event_timestamp": [ts - timedelta(hours=3), ts,],
             "driver_id": [1001, 1002],
             "conv_rate": [random.random(), random.random()],
             "incorrect_schema": [random.randint(0, 10), random.randint(0, 10)],
-            "created": [ts, ts]
+            "created": [ts, ts],
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(driver_stats.name, expected_df, allow_registry_cache=False)
+        store.write_to_offline_store(
+            driver_stats.name, expected_df, allow_registry_cache=False
+        )
+
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
@@ -157,26 +127,19 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     )
 
     now = datetime.utcnow()
-    ts = pd.Timestamp(now, unit='ns')
+    ts = pd.Timestamp(now, unit="ns")
 
     entity_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1001],
-            "event_timestamp": [
-                ts-timedelta(hours=4),
-                ts-timedelta(hours=3),
-            ],
+            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3),],
         }
     )
 
     store.apply([driver(), driver_stats])
     df = store.get_historical_features(
         entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-
-            "driver_stats:avg_daily_trips"
-        ],
+        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
         full_feature_names=False,
     ).to_df()
 
@@ -185,55 +148,56 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [
-                ts-timedelta(hours=4),
-                ts-timedelta(hours=3),
-            ],
+            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3),],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
             "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
-            "created": [ts, ts]
+            "created": [ts, ts],
         },
     )
-    store.write_to_offline_store(driver_stats.name, first_df, allow_registry_cache=False)
+    store.write_to_offline_store(
+        driver_stats.name, first_df, allow_registry_cache=False
+    )
 
     after_write_df = store.get_historical_features(
         entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips"
-        ],
+        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
         full_feature_names=False,
     ).to_df()
 
     assert len(after_write_df) == len(first_df)
-    assert np.where(after_write_df["conv_rate"].reset_index(drop=True) == first_df["conv_rate"].reset_index(drop=True))
-    assert np.where(after_write_df["avg_daily_trips"].reset_index(drop=True) == first_df["avg_daily_trips"].reset_index(drop=True))
+    assert np.where(
+        after_write_df["conv_rate"].reset_index(drop=True)
+        == first_df["conv_rate"].reset_index(drop=True)
+    )
+    assert np.where(
+        after_write_df["avg_daily_trips"].reset_index(drop=True)
+        == first_df["avg_daily_trips"].reset_index(drop=True)
+    )
 
     second_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [
-                ts-timedelta(hours=1),
-                ts,
-            ],
+            "event_timestamp": [ts - timedelta(hours=1), ts,],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
             "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
-            "created": [ts, ts]
+            "created": [ts, ts],
         },
     )
 
-    store.write_to_offline_store(driver_stats.name, second_df, allow_registry_cache=False)
+    store.write_to_offline_store(
+        driver_stats.name, second_df, allow_registry_cache=False
+    )
 
     entity_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1001, 1001, 1001],
             "event_timestamp": [
-                ts-timedelta(hours=4),
-                ts-timedelta(hours=3),
-                ts-timedelta(hours=1),
+                ts - timedelta(hours=4),
+                ts - timedelta(hours=3),
+                ts - timedelta(hours=1),
                 ts,
             ],
         }
@@ -244,13 +208,22 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         features=[
             "driver_stats:conv_rate",
             "driver_stats:acc_rate",
-            "driver_stats:avg_daily_trips"
+            "driver_stats:avg_daily_trips",
         ],
         full_feature_names=False,
     ).to_df()
 
     expected_df = pd.concat([first_df, second_df])
     assert len(after_write_df) == len(expected_df)
-    assert np.where(after_write_df["conv_rate"].reset_index(drop=True) == expected_df["conv_rate"].reset_index(drop=True))
-    assert np.where(after_write_df["acc_rate"].reset_index(drop=True) == expected_df["acc_rate"].reset_index(drop=True))
-    assert np.where(after_write_df["avg_daily_trips"].reset_index(drop=True) == expected_df["avg_daily_trips"].reset_index(drop=True))
+    assert np.where(
+        after_write_df["conv_rate"].reset_index(drop=True)
+        == expected_df["conv_rate"].reset_index(drop=True)
+    )
+    assert np.where(
+        after_write_df["acc_rate"].reset_index(drop=True)
+        == expected_df["acc_rate"].reset_index(drop=True)
+    )
+    assert np.where(
+        after_write_df["avg_daily_trips"].reset_index(drop=True)
+        == expected_df["avg_daily_trips"].reset_index(drop=True)
+    )
