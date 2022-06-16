@@ -11,11 +11,12 @@
 * [Concepts](getting-started/concepts/README.md)
   * [Overview](getting-started/concepts/overview.md)
   * [Data source](getting-started/concepts/data-source.md)
+  * [Dataset](getting-started/concepts/dataset.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
-  * [Dataset](getting-started/concepts/dataset.md)
+  * [Registry](getting-started/concepts/registry.md)
 * [Architecture](getting-started/architecture-and-components/README.md)
   * [Overview](getting-started/architecture-and-components/overview.md)
   * [Feature repository](getting-started/architecture-and-components/feature-repository.md)
@@ -35,6 +36,7 @@
 * [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
 * [Driver stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
+* [Using Scalable Registry](tutorials/using-scalable-registry.md)
 
 ## How-to Guides
 
