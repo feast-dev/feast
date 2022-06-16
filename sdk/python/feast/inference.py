@@ -99,9 +99,9 @@ def update_feature_views_with_inferred_features_and_entities(
     other columns except designated timestamp columns are considered to be feature columns. If
     the feature view already has features, feature inference is skipped.
 
-    Note that this inference logic currently does not take transformations into account. For
-    example, even if a stream feature view has a transformation, this method assumes that the
-    batch source contains transformed data with the correct final schema.
+    Note that this inference logic currently does not take any transformations (either a UDF or
+    aggregations) into account. For example, even if a stream feature view has a transformation,
+    this method assumes that the batch source contains transformed data with the correct final schema.
 
     Args:
         fvs: The feature views to be updated.
