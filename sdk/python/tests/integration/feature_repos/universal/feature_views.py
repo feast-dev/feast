@@ -11,7 +11,6 @@ from feast import (
     Field,
     OnDemandFeatureView,
     PushSource,
-    StreamFeatureView,
     ValueType,
 )
 from feast.data_source import DataSource, RequestSource
@@ -298,7 +297,7 @@ def create_pushable_feature_view(batch_source: DataSource):
     push_source = PushSource(
         name="location_stats_push_source", batch_source=batch_source,
     )
-    return StreamFeatureView(
+    return FeatureView(
         name="pushable_location_stats",
         entities=[location()],
         schema=[

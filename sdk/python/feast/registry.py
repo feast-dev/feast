@@ -1267,30 +1267,6 @@ class Registry(BaseRegistry):
                     self.commit()
                 return
 
-        for idx, existing_stream_feature_view_proto in enumerate(
-            self.cached_registry_proto.stream_feature_views
-        ):
-            if (
-                existing_stream_feature_view_proto.spec.name == feature_view.name
-                and existing_stream_feature_view_proto.spec.project == project
-            ):
-                existing_stream_feature_view = StreamFeatureView.from_proto(
-                    existing_stream_feature_view_proto
-                )
-                existing_stream_feature_view.materialization_intervals.append(
-                    (start_date, end_date)
-                )
-                existing_stream_feature_view.last_updated_timestamp = datetime.utcnow()
-                stream_feature_view_proto = existing_stream_feature_view.to_proto()
-                stream_feature_view_proto.spec.project = project
-                del self.cached_registry_proto.stream_feature_views[idx]
-                self.cached_registry_proto.stream_feature_views.append(
-                    stream_feature_view_proto
-                )
-                if commit:
-                    self.commit()
-                return
-
         raise FeatureViewNotFoundException(feature_view.name, project)
 
     def list_feature_views(
