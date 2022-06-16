@@ -136,7 +136,8 @@ message DataSource {
     // Defines the stream data format encoding feature/entity data in Kafka messages.
     StreamFormat message_format = 3;
 
-    google.protobuf.Duration watermark = 4;
+    // Watermark delay threshold for stream data
+    google.protobuf.Duration watermark_delay_threshold = 4;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.

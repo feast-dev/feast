@@ -53,12 +53,12 @@ class KafkaOptions:
         kafka_bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
-        watermark: Optional[timedelta] = None,
+        watermark_delay_threshold: Optional[timedelta] = None,
     ):
         self.kafka_bootstrap_servers = kafka_bootstrap_servers
         self.message_format = message_format
         self.topic = topic
-        self.watermark = watermark or None
+        self.watermark_delay_threshold = watermark_delay_threshold or None
 
     @classmethod
     def from_proto(cls, kafka_options_proto: DataSourceProto.KafkaOptions):
@@ -71,18 +71,18 @@ class KafkaOptions:
         Returns:
             Returns a BigQueryOptions object based on the kafka_options protobuf
         """
-        watermark = None
-        if kafka_options_proto.HasField("watermark"):
-            watermark = (
+        watermark_delay_threshold = None
+        if kafka_options_proto.HasField("watermark_delay_threshold"):
+            watermark_delay_threshold = (
                 timedelta(days=0)
-                if kafka_options_proto.watermark.ToNanoseconds() == 0
-                else kafka_options_proto.watermark.ToTimedelta()
+                if kafka_options_proto.watermark_delay_threshold.ToNanoseconds() == 0
+                else kafka_options_proto.watermark_delay_threshold.ToTimedelta()
             )
         kafka_options = cls(
             kafka_bootstrap_servers=kafka_options_proto.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
         return kafka_options
@@ -94,16 +94,16 @@ class KafkaOptions:
         Returns:
             KafkaOptionsProto protobuf
         """
-        watermark_duration = None
-        if self.watermark is not None:
-            watermark_duration = Duration()
-            watermark_duration.FromTimedelta(self.watermark)
+        watermark_delay_threshold = None
+        if self.watermark_delay_threshold is not None:
+            watermark_delay_threshold = Duration()
+            watermark_delay_threshold.FromTimedelta(self.watermark_delay_threshold)
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
             kafka_bootstrap_servers=self.kafka_bootstrap_servers,
             message_format=self.message_format.to_proto(),
             topic=self.topic,
-            watermark=watermark_duration,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
         return kafka_options_proto
@@ -381,7 +381,7 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
-        watermark: Optional[timedelta] = None,
+        watermark_delay_threshold: Optional[timedelta] = None,
     ):
         """
         Creates a KafkaSource object.
@@ -407,7 +407,8 @@ class KafkaSource(DataSource):
             timestamp_field (optional): Event timestamp field used for point
                 in time joins of feature values.
             batch_source: The datasource that acts as a batch source.
-            watermark: The watermark for stream data. Specifically how late stream data can arrive without being discarded.
+            watermark_delay_threshold: The watermark delay threshold for stream data. Specifically how
+                late stream data can arrive without being discarded.
         """
         positional_attributes = [
             "name",
@@ -478,7 +479,7 @@ class KafkaSource(DataSource):
             kafka_bootstrap_servers=_kafka_bootstrap_servers,
             message_format=_message_format,
             topic=_topic,
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
     def __eq__(self, other):
@@ -495,7 +496,8 @@ class KafkaSource(DataSource):
             != other.kafka_options.kafka_bootstrap_servers
             or self.kafka_options.message_format != other.kafka_options.message_format
             or self.kafka_options.topic != other.kafka_options.topic
-            or self.kafka_options.watermark != other.kafka_options.watermark
+            or self.kafka_options.watermark_delay_threshold
+            != other.kafka_options.watermark_delay_threshold
         ):
             return False
 
@@ -506,12 +508,13 @@ class KafkaSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        watermark = None
-        if data_source.kafka_options.watermark:
-            watermark = (
+        watermark_delay_threshold = None
+        if data_source.kafka_options.watermark_delay_threshold:
+            watermark_delay_threshold = (
                 timedelta(days=0)
-                if data_source.kafka_options.watermark.ToNanoseconds() == 0
-                else data_source.kafka_options.watermark.ToTimedelta()
+                if data_source.kafka_options.watermark_delay_threshold.ToNanoseconds()
+                == 0
+                else data_source.kafka_options.watermark_delay_threshold.ToTimedelta()
             )
         return KafkaSource(
             name=data_source.name,
@@ -521,7 +524,7 @@ class KafkaSource(DataSource):
             message_format=StreamFormat.from_proto(
                 data_source.kafka_options.message_format
             ),
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
             topic=data_source.kafka_options.topic,
             created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,

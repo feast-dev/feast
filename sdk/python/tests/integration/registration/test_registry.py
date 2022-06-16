@@ -319,7 +319,7 @@ def test_apply_stream_feature_view_success(test_registry):
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
-        watermark=timedelta(days=1),
+        watermark_delay_threshold=timedelta(days=1),
     )
 
     sfv = StreamFeatureView(

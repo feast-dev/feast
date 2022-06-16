@@ -33,7 +33,7 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
             message_format=AvroFormat(""),
             topic="topic",
             batch_source=file_source,
-            watermark=timedelta(days=1),
+            watermark_delay_threshold=timedelta(days=1),
         )
 
         @stream_feature_view(
@@ -97,7 +97,7 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
             message_format=AvroFormat(""),
             topic="topic",
             batch_source=file_source,
-            watermark=timedelta(days=1),
+            watermark_delay_threshold=timedelta(days=1),
         )
 
         @stream_feature_view(
