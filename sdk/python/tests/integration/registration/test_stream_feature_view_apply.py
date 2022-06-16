@@ -29,7 +29,7 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
         stream_source = KafkaSource(
             name="kafka",
             timestamp_field="event_timestamp",
-            bootstrap_servers="",
+            kafka_bootstrap_servers="",
             message_format=AvroFormat(""),
             topic="topic",
             batch_source=file_source,
@@ -93,7 +93,7 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
         stream_source = KafkaSource(
             name="kafka",
             timestamp_field="event_timestamp",
-            bootstrap_servers="",
+            kafka_bootstrap_servers="",
             message_format=AvroFormat(""),
             topic="topic",
             batch_source=file_source,

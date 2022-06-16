@@ -128,7 +128,7 @@ message DataSource {
   // Java Protobuf class at the given class path
   message KafkaOptions {
     // Comma separated list of Kafka bootstrap servers. Used for feature tables without a defined source host[:port]]
-    string bootstrap_servers = 1;
+    string kafka_bootstrap_servers = 1;
 
     // Kafka topic to collect feature data from.
     string topic = 2;

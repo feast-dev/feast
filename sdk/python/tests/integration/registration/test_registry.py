@@ -315,7 +315,7 @@ def test_apply_stream_feature_view_success(test_registry):
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),

@@ -31,7 +31,7 @@ def test_create_batch_feature_view():
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
@@ -49,7 +49,7 @@ def test_create_stream_feature_view():
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
@@ -100,7 +100,7 @@ def test_stream_feature_view_serialization():
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
@@ -137,7 +137,7 @@ def test_stream_feature_view_udfs():
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),
@@ -183,7 +183,7 @@ def test_stream_feature_view_initialization_with_optional_fields_omitted():
     stream_source = KafkaSource(
         name="kafka",
         timestamp_field="event_timestamp",
-        bootstrap_servers="",
+        kafka_bootstrap_servers="",
         message_format=AvroFormat(""),
         topic="topic",
         batch_source=FileSource(path="some path"),

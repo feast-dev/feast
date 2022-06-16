@@ -50,12 +50,12 @@ class KafkaOptions:
 
     def __init__(
         self,
-        bootstrap_servers: str,
+        kafka_bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
         watermark: Optional[timedelta] = None,
     ):
-        self.bootstrap_servers = bootstrap_servers
+        self.kafka_bootstrap_servers = kafka_bootstrap_servers
         self.message_format = message_format
         self.topic = topic
         self.watermark = watermark or None
@@ -79,7 +79,7 @@ class KafkaOptions:
                 else kafka_options_proto.watermark.ToTimedelta()
             )
         kafka_options = cls(
-            bootstrap_servers=kafka_options_proto.bootstrap_servers,
+            kafka_bootstrap_servers=kafka_options_proto.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
             watermark=watermark,
@@ -100,7 +100,7 @@ class KafkaOptions:
             watermark_duration.FromTimedelta(self.watermark)
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
-            bootstrap_servers=self.bootstrap_servers,
+            kafka_bootstrap_servers=self.kafka_bootstrap_servers,
             message_format=self.message_format.to_proto(),
             topic=self.topic,
             watermark=watermark_duration,
@@ -364,20 +364,13 @@ class DataSource(ABC):
 
 
 class KafkaSource(DataSource):
-    def validate(self, config: RepoConfig):
-        pass
-
-    def get_table_column_names_and_types(
-        self, config: RepoConfig
-    ) -> Iterable[Tuple[str, str]]:
-        pass
-
     def __init__(
         self,
         *args,
         name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         bootstrap_servers: Optional[str] = None,
+        kafka_bootstrap_servers: Optional[str] = None,
         message_format: Optional[StreamFormat] = None,
         topic: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
@@ -391,28 +384,30 @@ class KafkaSource(DataSource):
         watermark: Optional[timedelta] = None,
     ):
         """
-        Creates a KafkaSource stream source object.
+        Creates a KafkaSource object.
+
         Args:
-            name: str. Name of data source, which should be unique within a project
-            event_timestamp_column (optional): str. (Deprecated) Event timestamp column used for point in time
+            name: Name of data source, which should be unique within a project
+            event_timestamp_column: (Deprecated) Event timestamp column used for point in time
                 joins of feature values.
-            bootstrap_servers: str. The servers of the kafka broker in the form "localhost:9092".
-            message_format: StreamFormat. StreamFormat of serialized messages.
-            topic: str. The name of the topic to read from in the kafka source.
-            created_timestamp_column (optional): str. Timestamp column indicating when the row
+            bootstrap_servers: (Deprecated) The servers of the kafka broker in the form "localhost:9092".
+            kafka_bootstrap_servers: The servers of the kafka broker in the form "localhost:9092".
+            message_format: StreamFormat of serialized messages.
+            topic: The name of the topic to read from in the kafka source.
+            created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
-            field_mapping (optional): dict(str, str). A dictionary mapping of column names in this data
+            field_mapping (optional): A dictionary mapping of column names in this data
                 source to feature names in a feature table or view. Only used for feature
                 columns, not entity or timestamp columns.
-            date_partition_column (optional): str. Timestamp column used for partitioning.
-            description (optional): str. A human-readable description.
-            tags (optional): dict(str, str). A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional): str. The owner of the data source, typically the email of the primary
+            date_partition_column (optional): Timestamp column used for partitioning.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): str. Event timestamp field used for point
+            timestamp_field (optional): Event timestamp field used for point
                 in time joins of feature values.
-            batch_source: DataSource. The datasource that acts as a batch source.
-            watermark: timedelta. The watermark for stream data. Specifically how late stream data can arrive without being discarded.
+            batch_source: The datasource that acts as a batch source.
+            watermark: The watermark for stream data. Specifically how late stream data can arrive without being discarded.
         """
         positional_attributes = [
             "name",
@@ -423,9 +418,18 @@ class KafkaSource(DataSource):
         ]
         _name = name
         _event_timestamp_column = event_timestamp_column
-        _bootstrap_servers = bootstrap_servers or ""
+        _kafka_bootstrap_servers = kafka_bootstrap_servers or bootstrap_servers or ""
         _message_format = message_format
         _topic = topic or ""
+
+        if bootstrap_servers:
+            warnings.warn(
+                (
+                    "The 'bootstrap_servers' parameter has been deprecated in favor of 'kafka_bootstrap_servers'. "
+                    "Feast 0.25 and onwards will not support the 'bootstrap_servers' parameter."
+                ),
+                DeprecationWarning,
+            )
 
         if args:
             warnings.warn(
@@ -445,7 +449,7 @@ class KafkaSource(DataSource):
             if len(args) >= 2:
                 _event_timestamp_column = args[1]
             if len(args) >= 3:
-                _bootstrap_servers = args[2]
+                _kafka_bootstrap_servers = args[2]
             if len(args) >= 4:
                 _message_format = args[3]
             if len(args) >= 5:
@@ -471,7 +475,7 @@ class KafkaSource(DataSource):
         self.batch_source = batch_source
 
         self.kafka_options = KafkaOptions(
-            bootstrap_servers=_bootstrap_servers,
+            kafka_bootstrap_servers=_kafka_bootstrap_servers,
             message_format=_message_format,
             topic=_topic,
             watermark=watermark,
@@ -487,8 +491,8 @@ class KafkaSource(DataSource):
             return False
 
         if (
-            self.kafka_options.bootstrap_servers
-            != other.kafka_options.bootstrap_servers
+            self.kafka_options.kafka_bootstrap_servers
+            != other.kafka_options.kafka_bootstrap_servers
             or self.kafka_options.message_format != other.kafka_options.message_format
             or self.kafka_options.topic != other.kafka_options.topic
             or self.kafka_options.watermark != other.kafka_options.watermark
@@ -513,7 +517,7 @@ class KafkaSource(DataSource):
             name=data_source.name,
             event_timestamp_column=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
-            bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+            kafka_bootstrap_servers=data_source.kafka_options.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(
                 data_source.kafka_options.message_format
             ),
@@ -547,6 +551,14 @@ class KafkaSource(DataSource):
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
         return data_source_proto
+
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
