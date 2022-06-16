@@ -9,7 +9,6 @@ import pyarrow
 import pyarrow.dataset
 import pyarrow.parquet
 import pytz
-from pyarrow import csv
 from pydantic.typing import Literal
 
 from feast import FileSource, OnDemandFeatureView
