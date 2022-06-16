@@ -447,7 +447,7 @@ def _field_mapping(
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
     full_feature_names: bool,
-) -> dd.DataFrame:
+) -> Tuple[dd.DataFrame, str]:
     # Rename columns by the field mapping dictionary if it exists
     if feature_view.batch_source.field_mapping:
         df_to_join = _run_dask_field_mapping(
