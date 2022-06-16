@@ -28,7 +28,7 @@ registry:
 Specifically, the registry_type needs to be set to sql in the registry config block. On doing so, the path should refer to the [Database URL](https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls) for the database to be used, as expected by SQLAlchemy. No other additional commands are currently needed to configure this registry.
 
 There are some things to note about how the SQL registry works:
-- Once instantiated, the Registry ensures the tables needed to store data exist, and creates them if they do now.
+- Once instantiated, the Registry ensures the tables needed to store data exist, and creates them if they do not.
 - Upon tearing down the feast project, the registry ensures that the tables are dropped from the database.
 - The schema for how data is laid out in tables can be found . It is intentionally simple, storing the serialized protobuf versions of each Feast object keyed by its name.
 
