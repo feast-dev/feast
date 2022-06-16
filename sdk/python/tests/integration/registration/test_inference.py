@@ -183,7 +183,7 @@ def test_on_demand_features_type_inference():
         test_view_with_missing_feature.infer_features()
 
 
-# TODO(kevjumba): remove this in feast 0.23 when deprecating
+# TODO(kevjumba): remove this in feast 0.24 when deprecating
 @pytest.mark.parametrize(
     "request_source_schema",
     [

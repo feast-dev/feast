@@ -370,7 +370,7 @@ def test_apply_stream_feature_view_success(test_registry):
 @pytest.mark.parametrize(
     "test_registry", [lazy_fixture("local_registry")],
 )
-# TODO(kevjumba): remove this in feast 0.23 when deprecating
+# TODO(kevjumba): remove this in feast 0.24 when deprecating
 @pytest.mark.parametrize(
     "request_source_schema",
     [[Field(name="my_input_1", dtype=Int32)], {"my_input_1": ValueType.INT32}],

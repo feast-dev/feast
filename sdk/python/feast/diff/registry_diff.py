@@ -67,7 +67,7 @@ class RegistryDiff:
             if feast_object_diff.transition_type == TransitionType.UNCHANGED:
                 continue
             if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
-                # TODO(adchia): Print statements out starting in Feast 0.23
+                # TODO(adchia): Print statements out starting in Feast 0.24
                 continue
             action, color = message_action_map[feast_object_diff.transition_type]
             log_string += f"{action} {feast_object_diff.feast_object_type.value} {Style.BRIGHT + color}{feast_object_diff.name}{Style.RESET_ALL}\n"

@@ -72,7 +72,7 @@ class FeatureService:
             warnings.warn(
                 (
                     "Feature service parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct feature service"
+                    "Feast 0.24+ will not support positional arguments to construct feature service"
                 ),
                 DeprecationWarning,
             )
