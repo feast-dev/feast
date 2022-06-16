@@ -260,6 +260,14 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is being deprecated. "
+                    "Feast 0.25 and onwards will not support 'date_timestamp_column' for data sources."
+                ),
+                DeprecationWarning,
+            )
         self.description = description or ""
         self.tags = tags or {}
         self.owner = owner or ""
