@@ -25,7 +25,7 @@ from tests.integration.feature_repos.universal.feature_views import conv_rate_pl
 from tests.utils.logged_features import prepare_logs, to_logs_dataset
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["sqlite"])
+@pytest.mark.universal_online_stores
 def test_writing_incorrect_order_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
@@ -83,7 +83,7 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["sqlite"])
+@pytest.mark.universal_online_stores
 def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
@@ -140,7 +140,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
         store.write_to_offline_store(driver_stats.name, expected_df, allow_registry_cache=False)
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["sqlite"])
+@pytest.mark.universal_online_stores
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
@@ -150,6 +150,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         schema=[
             Field(name="avg_daily_trips", dtype=Int32),
             Field(name="conv_rate", dtype=Float32),
+            Field(name="acc_rate", dtype=Float32),
         ],
         source=data_sources.driver,
         ttl=timedelta(minutes=10),
@@ -173,6 +174,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         entity_df=entity_df,
         features=[
             "driver_stats:conv_rate",
+
             "driver_stats:avg_daily_trips"
         ],
         full_feature_names=False,
@@ -241,6 +243,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         entity_df=entity_df,
         features=[
             "driver_stats:conv_rate",
+            "driver_stats:acc_rate",
             "driver_stats:avg_daily_trips"
         ],
         full_feature_names=False,
@@ -249,5 +252,5 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     expected_df = pd.concat([first_df, second_df])
     assert len(after_write_df) == len(expected_df)
     assert np.where(after_write_df["conv_rate"].reset_index(drop=True) == expected_df["conv_rate"].reset_index(drop=True))
+    assert np.where(after_write_df["acc_rate"].reset_index(drop=True) == expected_df["acc_rate"].reset_index(drop=True))
     assert np.where(after_write_df["avg_daily_trips"].reset_index(drop=True) == expected_df["avg_daily_trips"].reset_index(drop=True))
-
