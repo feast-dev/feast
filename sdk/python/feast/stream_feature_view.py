@@ -310,7 +310,7 @@ class StreamFeatureView(FeatureView):
             aggregations=self.aggregations,
             mode=self.mode,
             timestamp_field=self.timestamp_field,
-            sources=self.sources,
+            source=self.source,
             udf=self.udf,
         )
         fv.projection = copy.copy(self.projection)

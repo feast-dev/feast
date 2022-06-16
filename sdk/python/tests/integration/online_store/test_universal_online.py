@@ -458,6 +458,7 @@ def test_online_retrieval(
             feature_views.driver[["conv_rate"]],
             feature_views.driver_odfv,
             feature_views.customer[["current_balance"]],
+            feature_views.pushed_locations,
         ],
     )
     feature_service_entity_mapping = FeatureService(
