@@ -1,31 +1,28 @@
 import {
   EuiFlexGroup,
   EuiHorizontalRule,
+  EuiLink,
   EuiLoadingSpinner,
   EuiTitle,
 } from "@elastic/eui";
 import {
   EuiPanel,
-  EuiText,
   EuiFlexItem,
-  EuiSpacer,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
 } from "@elastic/eui";
 import React from "react";
 import { useParams } from "react-router-dom";
-import TagsDisplay from "../../components/TagsDisplay";
 import useLoadFeature from "./useLoadFeature";
 
 const FeatureOverviewTab = () => {
-  let { FeatureViewName, FeatureName } = useParams();
+  let { projectName, FeatureViewName, FeatureName } = useParams();
 
   const eName = FeatureViewName === undefined ? "" : FeatureViewName;
   const fName = FeatureName === undefined ? "" : FeatureName;
   const { isLoading, isSuccess, isError, data, featureData } = useLoadFeature(eName, fName);
   const isEmpty = data === undefined || featureData === undefined;
-  // const isEmpty = featureData === undefined;
 
   return (
     <React.Fragment>
@@ -58,7 +55,9 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                  {FeatureViewName} 
+                    <EuiLink href={`/p/${projectName}/feature-view/${FeatureViewName}`}>
+                      {FeatureViewName} 
+                    </EuiLink>
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>

@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { EuiBasicTable, EuiLoadingSpinner, EuiBadge } from "@elastic/eui";
+import { EuiBasicTable, EuiLoadingSpinner, EuiBadge, EuiLink } from "@elastic/eui";
 import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";
@@ -16,7 +16,15 @@ const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
     useLoadFeatureViewSummaryStatistics(featureViewName);
 
   let columns: { name: string; render?: any; field: any }[] = [
-    { name: "Name", field: "name" },
+    { 
+      name: "Name",
+      field: "name",
+      render: (item: string) => ( 
+        <EuiLink href={`${featureViewName}/feature/${item}/`}>
+          {item}
+        </EuiLink>
+      ) 
+    },
     {
       name: "Value Type",
       field: "valueType",
