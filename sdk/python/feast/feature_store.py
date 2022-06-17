@@ -1371,7 +1371,7 @@ class FeatureStore:
         provider.ingest_df(feature_view, entities, df)
 
     @log_exceptions_and_usage
-    def write_to_offline_store(
+    def _write_to_offline_store(
         self,
         feature_view_name: str,
         df: pd.DataFrame,

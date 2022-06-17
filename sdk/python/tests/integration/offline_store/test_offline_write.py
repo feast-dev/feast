@@ -53,7 +53,7 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(
+        store._write_to_offline_store(
             driver_stats.name, expected_df, allow_registry_cache=False
         )
 
@@ -101,7 +101,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(
+        store._write_to_offline_store(
             driver_stats.name, expected_df, allow_registry_cache=False
         )
 
@@ -153,7 +153,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
-    store.write_to_offline_store(
+    store._write_to_offline_store(
         driver_stats.name, first_df, allow_registry_cache=False
     )
 
@@ -184,7 +184,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         },
     )
 
-    store.write_to_offline_store(
+    store._write_to_offline_store(
         driver_stats.name, second_df, allow_registry_cache=False
     )
 

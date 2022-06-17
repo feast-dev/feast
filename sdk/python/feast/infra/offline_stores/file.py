@@ -407,11 +407,11 @@ class FileOfflineStore(OfflineStore):
     @staticmethod
     def offline_write_batch(
         config: RepoConfig,
-        table: FeatureView,
+        feature_view: FeatureView,
         data: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not table.batch_source:
+        if not feature_view.batch_source:
             raise ValueError(
                 "feature view does not have a batch source to persist offline data"
             )
@@ -419,11 +419,11 @@ class FileOfflineStore(OfflineStore):
             raise ValueError(
                 f"offline store config is of type {type(config.offline_store)} when file type required"
             )
-        if not isinstance(table.batch_source, FileSource):
+        if not isinstance(feature_view.batch_source, FileSource):
             raise ValueError(
-                f"feature view batch source is {type(table.batch_source)} not file source"
+                f"feature view batch source is {type(feature_view.batch_source)} not file source"
             )
-        file_options = table.batch_source.file_options
+        file_options = feature_view.batch_source.file_options
         filesystem, path = FileSource.create_filesystem_and_path(
             file_options.uri, file_options.s3_endpoint_override
         )

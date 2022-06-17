@@ -274,7 +274,7 @@ class OfflineStore(ABC):
     @staticmethod
     def offline_write_batch(
         config: RepoConfig,
-        table: FeatureView,
+        feature_view: FeatureView,
         data: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):

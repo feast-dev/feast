@@ -109,9 +109,6 @@ class PassthroughProvider(Provider):
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
 
-        if "created" not in data.column_names:
-            raise ValueError("input dataframe must have a created timestamp column")
-
         if self.offline_store:
             self.offline_store.offline_write_batch(config, table, data, progress)
 
