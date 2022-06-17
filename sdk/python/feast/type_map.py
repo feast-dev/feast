@@ -46,6 +46,9 @@ from feast.protos.feast.types.Value_pb2 import (
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
 
+# null timestamps get converted to -9223372036854775808
+NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
+
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     """
@@ -69,9 +72,18 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
 
     # Convert UNIX_TIMESTAMP values to `datetime`
     if val_attr == "unix_timestamp_list_val":
-        val = [datetime.fromtimestamp(v, tz=timezone.utc) for v in val]
+        val = [
+            datetime.fromtimestamp(v, tz=timezone.utc)
+            if v != NULL_TIMESTAMP_INT_VALUE
+            else None
+            for v in val
+        ]
     elif val_attr == "unix_timestamp_val":
-        val = datetime.fromtimestamp(val, tz=timezone.utc)
+        val = (
+            datetime.fromtimestamp(val, tz=timezone.utc)
+            if val != NULL_TIMESTAMP_INT_VALUE
+            else None
+        )
 
     return val
 
