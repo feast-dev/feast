@@ -369,6 +369,8 @@ mypy-extensions==0.4.3
     # via mypy
 mypy-protobuf==3.1
     # via feast (setup.py)
+mysqlclient==2.1.0
+    # via feast (setup.py)
 nbformat==5.4.0
     # via great-expectations
 nodeenv==1.6.0
