@@ -90,7 +90,7 @@ class Entity:
             warnings.warn(
                 (
                     "Entity name should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct Entities"
+                    "Feast 0.24+ will not support positional arguments to construct Entities"
                 ),
                 DeprecationWarning,
             )
@@ -108,7 +108,7 @@ class Entity:
             warnings.warn(
                 (
                     "The `value_type` parameter is being deprecated. Instead, the type of an entity "
-                    "should be specified as a Field in the schema of a feature view. Feast 0.23 and "
+                    "should be specified as a Field in the schema of a feature view. Feast 0.24 and "
                     "onwards will not support the `value_type` parameter. The `entities` parameter of "
                     "feature views should also be changed to a List[Entity] instead of a List[str]; if "
                     "this is not done, entity columns will be mistakenly interpreted as feature columns."
@@ -125,7 +125,7 @@ class Entity:
             warnings.warn(
                 (
                     "The `join_key` parameter is being deprecated in favor of the `join_keys` parameter. "
-                    "Please switch from using `join_key` to `join_keys`. Feast 0.23 and onwards will not "
+                    "Please switch from using `join_key` to `join_keys`. Feast 0.24 and onwards will not "
                     "support the `join_key` parameter."
                 ),
                 DeprecationWarning,

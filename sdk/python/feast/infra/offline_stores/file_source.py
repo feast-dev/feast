@@ -71,7 +71,7 @@ class FileSource(DataSource):
                 warnings.warn(
                     (
                         "File Source parameters should be specified as a keyword argument instead of a positional arg."
-                        "Feast 0.23+ will not support positional arguments to construct File sources"
+                        "Feast 0.24+ will not support positional arguments to construct File sources"
                     ),
                     DeprecationWarning,
                 )
@@ -96,7 +96,7 @@ class FileSource(DataSource):
             warnings.warn(
                 (
                     "The argument 'date_partition_column' is not supported for File sources."
-                    "It will be removed in Feast 0.23+"
+                    "It will be removed in Feast 0.24+"
                 ),
                 DeprecationWarning,
             )

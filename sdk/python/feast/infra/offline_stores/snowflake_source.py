@@ -79,7 +79,7 @@ class SnowflakeSource(DataSource):
             else:
                 warnings.warn(
                     (
-                        f"Starting in Feast 0.23, Feast will require either a name for a data source (if using query) "
+                        f"Starting in Feast 0.24, Feast will require either a name for a data source (if using query) "
                         f"or `table`: {self.query}"
                     ),
                     DeprecationWarning,
@@ -89,7 +89,7 @@ class SnowflakeSource(DataSource):
             warnings.warn(
                 (
                     "The argument 'date_partition_column' is not supported for Snowflake sources."
-                    "It will be removed in Feast 0.23+"
+                    "It will be removed in Feast 0.24+"
                 ),
                 DeprecationWarning,
             )

@@ -128,7 +128,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 (
                     "The `features` parameter is being deprecated in favor of the `schema` parameter. "
                     "Please switch from using `features` to `schema`. This will also requiring switching "
-                    "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
+                    "feature definitions from using `Feature` to `Field`. Feast 0.24 and onwards will not "
                     "support the `features` parameter."
                 ),
                 DeprecationWarning,
@@ -140,7 +140,7 @@ class OnDemandFeatureView(BaseFeatureView):
             warnings.warn(
                 (
                     "The `inputs` parameter is being deprecated. Please use `sources` instead. "
-                    "Feast 0.23 and onwards will not support the `inputs` parameter."
+                    "Feast 0.24 and onwards will not support the `inputs` parameter."
                 ),
                 DeprecationWarning,
             )
@@ -161,7 +161,7 @@ class OnDemandFeatureView(BaseFeatureView):
             warnings.warn(
                 (
                     "On demand feature view parameters should be specified as keyword arguments "
-                    "instead of positional arguments. Feast 0.23 and onwards will not support "
+                    "instead of positional arguments. Feast 0.24 and onwards will not support "
                     "positional arguments in on demand feature view definitions."
                 ),
                 DeprecationWarning,
@@ -182,7 +182,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     (
                         "The `features` parameter is being deprecated in favor of the `schema` parameter. "
                         "Please switch from using `features` to `schema`. This will also requiring switching "
-                        "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
+                        "feature definitions from using `Feature` to `Field`. Feast 0.24 and onwards will not "
                         "support the `features` parameter."
                     ),
                     DeprecationWarning,
@@ -203,7 +203,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 warnings.warn(
                     (
                         "The `inputs` parameter is being deprecated. Please use `sources` instead. "
-                        "Feast 0.23 and onwards will not support the `inputs` parameter."
+                        "Feast 0.24 and onwards will not support the `inputs` parameter."
                     ),
                     DeprecationWarning,
                 )
@@ -560,7 +560,7 @@ def on_demand_feature_view(
             (
                 "The `features` parameter is being deprecated in favor of the `schema` parameter. "
                 "Please switch from using `features` to `schema`. This will also requiring switching "
-                "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
+                "feature definitions from using `Feature` to `Field`. Feast 0.24 and onwards will not "
                 "support the `features` parameter."
             ),
             DeprecationWarning,
@@ -572,7 +572,7 @@ def on_demand_feature_view(
         warnings.warn(
             (
                 "The `inputs` parameter is being deprecated. Please use `sources` instead. "
-                "Feast 0.23 and onwards will not support the `inputs` parameter."
+                "Feast 0.24 and onwards will not support the `inputs` parameter."
             ),
             DeprecationWarning,
         )
@@ -592,7 +592,7 @@ def on_demand_feature_view(
         warnings.warn(
             (
                 "On demand feature view parameters should be specified as keyword arguments "
-                "instead of positional arguments. Feast 0.23 and onwards will not support "
+                "instead of positional arguments. Feast 0.24 and onwards will not support "
                 "positional arguments in on demand feature view definitions."
             ),
             DeprecationWarning,
@@ -611,7 +611,7 @@ def on_demand_feature_view(
                 (
                     "The `features` parameter is being deprecated in favor of the `schema` parameter. "
                     "Please switch from using `features` to `schema`. This will also requiring switching "
-                    "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
+                    "feature definitions from using `Feature` to `Field`. Feast 0.24 and onwards will not "
                     "support the `features` parameter."
                 ),
                 DeprecationWarning,
@@ -632,7 +632,7 @@ def on_demand_feature_view(
                 warnings.warn(
                     (
                         "The `inputs` parameter is being deprecated. Please use `sources` instead. "
-                        "Feast 0.23 and onwards will not support the `inputs` parameter."
+                        "Feast 0.24 and onwards will not support the `inputs` parameter."
                     ),
                     DeprecationWarning,
                 )

@@ -84,7 +84,7 @@ def test_hash():
     assert len(s4) == 3
 
 
-# TODO(kevjumba): Remove this test in feast 0.23 when positional arguments are removed.
+# TODO(kevjumba): Remove this test in feast 0.24 when positional arguments are removed.
 def test_default_data_source_kw_arg_warning():
     # source_class = request.param
     with pytest.warns(DeprecationWarning):

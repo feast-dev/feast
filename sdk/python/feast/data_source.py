@@ -239,7 +239,7 @@ class DataSource(ABC):
             warnings.warn(
                 (
                     "Names for data sources need to be supplied. "
-                    "Data sources without names will not be supported after Feast 0.23."
+                    "Data sources without names will not be supported after Feast 0.24."
                 ),
                 UserWarning,
             )
@@ -248,7 +248,7 @@ class DataSource(ABC):
             warnings.warn(
                 (
                     "The argument 'event_timestamp_column' is being deprecated. Please use 'timestamp_field' instead. "
-                    "instead. Feast 0.23 and onwards will not support the argument 'event_timestamp_column' for datasources."
+                    "instead. Feast 0.24 and onwards will not support the argument 'event_timestamp_column' for datasources."
                 ),
                 DeprecationWarning,
             )
@@ -444,7 +444,7 @@ class KafkaSource(DataSource):
             warnings.warn(
                 (
                     "Kafka parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct Kafka sources"
+                    "Feast 0.24+ will not support positional arguments to construct Kafka sources"
                 ),
                 DeprecationWarning,
             )
@@ -615,7 +615,7 @@ class RequestSource(DataSource):
             warnings.warn(
                 (
                     "Request source parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct request sources"
+                    "Feast 0.24+ will not support positional arguments to construct request sources"
                 ),
                 DeprecationWarning,
             )
@@ -634,7 +634,7 @@ class RequestSource(DataSource):
             raise ValueError("Schema needs to be provided for Request Source")
         if isinstance(_schema, Dict):
             warnings.warn(
-                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
+                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.24. "
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
@@ -686,7 +686,7 @@ class RequestSource(DataSource):
 
         if deprecated_schema and not schema_pb:
             warnings.warn(
-                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.23. "
+                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.24. "
                 "Please use List[Field] instead for the schema",
                 DeprecationWarning,
             )
@@ -747,7 +747,7 @@ class RequestSource(DataSource):
 class RequestDataSource(RequestSource):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.23.",
+            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.24.",
             DeprecationWarning,
         )
         super().__init__(*args, **kwargs)
@@ -826,7 +826,7 @@ class KinesisSource(DataSource):
             warnings.warn(
                 (
                     "Kinesis parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct kinesis sources"
+                    "Feast 0.24+ will not support positional arguments to construct kinesis sources"
                 ),
                 DeprecationWarning,
             )
@@ -945,7 +945,7 @@ class PushSource(DataSource):
             warnings.warn(
                 (
                     "Push source parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct push sources"
+                    "Feast 0.24+ will not support positional arguments to construct push sources"
                 ),
                 DeprecationWarning,
             )
