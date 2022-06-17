@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
+from typeguard import typechecked
 
 from feast import type_map
 from feast.data_format import StreamFormat
@@ -172,6 +173,7 @@ _DATA_SOURCE_OPTIONS = {
 }
 
 
+@typechecked
 class DataSource(ABC):
     """
     DataSource that can be used to source features.
@@ -363,6 +365,7 @@ class DataSource(ABC):
         raise NotImplementedError
 
 
+@typechecked
 class KafkaSource(DataSource):
     def validate(self, config: RepoConfig):
         pass
@@ -556,6 +559,7 @@ class KafkaSource(DataSource):
         raise NotImplementedError
 
 
+@typechecked
 class RequestSource(DataSource):
     """
     RequestSource that can be used to provide input features for on demand transforms
@@ -730,6 +734,7 @@ class RequestDataSource(RequestSource):
         super().__init__(*args, **kwargs)
 
 
+@typechecked
 class KinesisSource(DataSource):
     def validate(self, config: RepoConfig):
         pass
@@ -885,6 +890,7 @@ class KinesisSource(DataSource):
         return data_source_proto
 
 
+@typechecked
 class PushSource(DataSource):
     """
     A source that can be used to ingest features on request
