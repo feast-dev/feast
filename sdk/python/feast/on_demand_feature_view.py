@@ -2,11 +2,12 @@ import copy
 import functools
 import warnings
 from datetime import datetime
-from types import MethodType
+from types import FunctionType
 from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
+from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
@@ -38,6 +39,7 @@ from feast.value_type import ValueType
 warnings.simplefilter("once", DeprecationWarning)
 
 
+@typechecked
 class OnDemandFeatureView(BaseFeatureView):
     """
     [Experimental] An OnDemandFeatureView defines a logical group of features that are
@@ -64,7 +66,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    udf: MethodType
+    udf: FunctionType
     description: str
     tags: Dict[str, str]
     owner: str
@@ -76,16 +78,9 @@ class OnDemandFeatureView(BaseFeatureView):
         name: Optional[str] = None,
         features: Optional[List[Feature]] = None,
         sources: Optional[
-            List[
-                Union[
-                    BatchFeatureView,
-                    StreamFeatureView,
-                    RequestSource,
-                    FeatureViewProjection,
-                ]
-            ]
-        ] = None,
-        udf: Optional[MethodType] = None,
+            List[Any]
+        ] = None,  # Typed as Any because @typechecked can't deal with the List[Union]
+        udf: Optional[FunctionType] = None,
         inputs: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,
@@ -155,7 +150,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     raise ValueError(
                         "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
                     )
-        _udf = udf
+        _udf: Optional[FunctionType] = udf
 
         if args:
             warnings.warn(
@@ -240,8 +235,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if _udf is None:
             raise ValueError("The `udf` parameter must be specified.")
-        assert _udf
-        self.udf = _udf
+        self.udf = _udf  # type: ignore
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:

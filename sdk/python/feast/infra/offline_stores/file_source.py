@@ -4,6 +4,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
 from pyarrow.parquet import ParquetDataset
+from typeguard import typechecked
 
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
@@ -21,6 +22,7 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
 
 
+@typechecked
 class FileSource(DataSource):
     def __init__(
         self,

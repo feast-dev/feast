@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
+from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
@@ -46,6 +47,7 @@ DUMMY_ENTITY_VAL = ""
 DUMMY_ENTITY = Entity(name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID],)
 
 
+@typechecked
 class FeatureView(BaseFeatureView):
     """
     A FeatureView defines a logical group of features.

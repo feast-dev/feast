@@ -16,7 +16,7 @@ attrs==21.4.0
     # via jsonschema
 cachetools==5.2.0
     # via google-auth
-certifi==2022.5.18.1
+certifi==2022.6.15
     # via requests
 charset-normalizer==2.0.12
     # via requests
@@ -26,7 +26,7 @@ click==8.0.1
     #   uvicorn
 cloudpickle==2.1.0
     # via dask
-colorama==0.4.4
+colorama==0.4.5
     # via feast (setup.py)
 dask==2022.1.1
     # via feast (setup.py)
@@ -34,15 +34,15 @@ dill==0.3.5.1
     # via feast (setup.py)
 fastapi==0.78.0
     # via feast (setup.py)
-fastavro==1.4.12
+fastavro==1.5.1
     # via
     #   feast (setup.py)
     #   pandavro
 fsspec==2022.5.0
     # via dask
-google-api-core==2.8.1
+google-api-core==2.8.2
     # via feast (setup.py)
-google-auth==2.6.6
+google-auth==2.8.0
     # via google-api-core
 googleapis-common-protos==1.56.2
     # via
@@ -75,7 +75,7 @@ markupsafe==2.1.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
-mypy==0.960
+mypy==0.961
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
@@ -95,7 +95,7 @@ pandavro==1.5.2
     # via feast (setup.py)
 partd==1.2.0
     # via dask
-proto-plus==1.20.5
+proto-plus==1.20.6
     # via feast (setup.py)
 protobuf==3.19.4
     # via
@@ -134,7 +134,7 @@ pyyaml==6.0
     #   dask
     #   feast (setup.py)
     #   uvicorn
-requests==2.27.1
+requests==2.28.0
     # via google-api-core
 rsa==4.8
     # via google-auth
@@ -148,7 +148,7 @@ sniffio==1.2.0
     # via anyio
 sqlalchemy[mypy]==1.4.37
     # via feast (setup.py)
-sqlalchemy2-stubs==0.0.2a22
+sqlalchemy2-stubs==0.0.2a24
     # via sqlalchemy
 starlette==0.19.1
     # via fastapi
@@ -167,6 +167,8 @@ toolz==0.11.2
     #   dask
     #   partd
 tqdm==4.64.0
+    # via feast (setup.py)
+typeguard==2.13.3
     # via feast (setup.py)
 typing-extensions==4.2.0
     # via
