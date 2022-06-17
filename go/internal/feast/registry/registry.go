@@ -30,6 +30,7 @@ type Registry struct {
 	cachedFeatureServices          map[string]map[string]*core.FeatureService
 	cachedEntities                 map[string]map[string]*core.Entity
 	cachedFeatureViews             map[string]map[string]*core.FeatureView
+	cachedStreamFeatureViews       map[string]map[string]*core.StreamFeatureView
 	cachedOnDemandFeatureViews     map[string]map[string]*core.OnDemandFeatureView
 	cachedRegistry                 *core.Registry
 	cachedRegistryProtoLastUpdated time.Time
@@ -106,10 +107,12 @@ func (r *Registry) load(registry *core.Registry) {
 	r.cachedFeatureServices = make(map[string]map[string]*core.FeatureService)
 	r.cachedEntities = make(map[string]map[string]*core.Entity)
 	r.cachedFeatureViews = make(map[string]map[string]*core.FeatureView)
+	r.cachedStreamFeatureViews = make(map[string]map[string]*core.StreamFeatureView)
 	r.cachedOnDemandFeatureViews = make(map[string]map[string]*core.OnDemandFeatureView)
 	r.loadEntities(registry)
 	r.loadFeatureServices(registry)
 	r.loadFeatureViews(registry)
+	r.loadStreamFeatureViews(registry)
 	r.loadOnDemandFeatureViews(registry)
 	r.cachedRegistryProtoLastUpdated = time.Now()
 }
@@ -141,6 +144,16 @@ func (r *Registry) loadFeatureViews(registry *core.Registry) {
 			r.cachedFeatureViews[featureView.Spec.Project] = make(map[string]*core.FeatureView)
 		}
 		r.cachedFeatureViews[featureView.Spec.Project][featureView.Spec.Name] = featureView
+	}
+}
+
+func (r *Registry) loadStreamFeatureViews(registry *core.Registry) {
+	streamFeatureViews := registry.StreamFeatureViews
+	for _, streamFeatureView := range streamFeatureViews {
+		if _, ok := r.cachedStreamFeatureViews[streamFeatureView.Spec.Project]; !ok {
+			r.cachedStreamFeatureViews[streamFeatureView.Spec.Project] = make(map[string]*core.StreamFeatureView)
+		}
+		r.cachedStreamFeatureViews[streamFeatureView.Spec.Project][streamFeatureView.Spec.Name] = streamFeatureView
 	}
 }
 
@@ -193,7 +206,26 @@ func (r *Registry) ListFeatureViews(project string) ([]*model.FeatureView, error
 }
 
 /*
-	Look up Feature Views inside project
+	Look up Stream Feature Views inside project
+	Returns empty list if project not found
+*/
+
+func (r *Registry) ListStreamFeatureViews(project string) ([]*model.FeatureView, error) {
+	if cachedStreamFeatureViews, ok := r.cachedStreamFeatureViews[project]; !ok {
+		return []*model.FeatureView{}, nil
+	} else {
+		streamFeatureViews := make([]*model.FeatureView, len(cachedStreamFeatureViews))
+		index := 0
+		for _, streamFeatureViewProto := range cachedStreamFeatureViews {
+			streamFeatureViews[index] = model.NewFeatureViewFromStreamFeatureViewProto(streamFeatureViewProto)
+			index += 1
+		}
+		return streamFeatureViews, nil
+	}
+}
+
+/*
+	Look up Feature Services inside project
 	Returns empty list if project not found
 */
 
@@ -250,6 +282,18 @@ func (r *Registry) GetFeatureView(project, featureViewName string) (*model.Featu
 			return nil, fmt.Errorf("no cached feature view %s found for project %s", featureViewName, project)
 		} else {
 			return model.NewFeatureViewFromProto(featureViewProto), nil
+		}
+	}
+}
+
+func (r *Registry) GetStreamFeatureView(project, streamFeatureViewName string) (*model.FeatureView, error) {
+	if cachedStreamFeatureViews, ok := r.cachedStreamFeatureViews[project]; !ok {
+		return nil, fmt.Errorf("no cached stream feature views found for project %s", project)
+	} else {
+		if streamFeatureViewProto, ok := cachedStreamFeatureViews[streamFeatureViewName]; !ok {
+			return nil, fmt.Errorf("no cached stream feature view %s found for project %s", streamFeatureViewName, project)
+		} else {
+			return model.NewFeatureViewFromStreamFeatureViewProto(streamFeatureViewProto), nil
 		}
 	}
 }
