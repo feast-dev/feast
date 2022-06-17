@@ -52,12 +52,12 @@ def create_stream(topic_name, servers):
         pass
 
     print("Reading parquet")
-    df = pd.read_parquet("driver_stats.parquet").sort_values(by="event_timestamp")
+    df = pd.read_parquet("driver_stats_stream.parquet").sort_values(by="event_timestamp")
     print("Emitting events")
     iteration = 1
     while True:
         for row in df[
-            ["driver_id", "event_timestamp", "created", "miles_driven",]
+            ["driver_id", "event_timestamp", "created", "conv_rate", "acc_rate"]
         ].to_dict("records"):
             # Make event one more year recent to simulate fresher data
             row["event_timestamp"] = (

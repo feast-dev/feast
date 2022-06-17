@@ -2,7 +2,7 @@ FROM python:3.8-slim
 
 # Copy app handler code
 COPY kafka_demo/kafka_demo.py kafka_demo.py
-COPY feature_repo/data/driver_stats.parquet .
+COPY feature_repo/data/driver_stats_stream.parquet .
 
 # Install dependencies
 RUN pip3 install kafka-python==2.0.2
