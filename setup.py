@@ -71,6 +71,7 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml==0.10.*",
     "tqdm==4.*",
+    "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
     "tensorflow-metadata>=1.0.0,<2.0.0",
