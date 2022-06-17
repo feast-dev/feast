@@ -274,8 +274,8 @@ class OfflineStore(ABC):
     @staticmethod
     def offline_write_batch(
         config: RepoConfig,
-        table: FeatureView,
-        data: pd.DataFrame,
+        feature_view: FeatureView,
+        data: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
         """
@@ -287,7 +287,7 @@ class OfflineStore(ABC):
         Args:
             config: Repo configuration object
             table: FeatureView to write the data to.
-            data: dataframe containing feature data and timestamp column for historical feature retrieval
+            data: pyarrow table containing feature data and timestamp column for historical feature retrieval
             progress: Optional function to be called once every mini-batch of rows is written to
             the online store. Can be used to display progress.
         """

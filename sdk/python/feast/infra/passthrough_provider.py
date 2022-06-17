@@ -104,10 +104,11 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: pd.DataFrame,
+        data: pa.Table,
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
+
         if self.offline_store:
             self.offline_store.offline_write_batch(config, table, data, progress)
 
@@ -142,6 +143,14 @@ class PassthroughProvider(Provider):
         self.online_write_batch(
             self.repo_config, feature_view, rows_to_write, progress=None
         )
+
+    def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
+        set_usage_attribute("provider", self.__class__.__name__)
+
+        if feature_view.batch_source.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+
+        self.offline_write_batch(self.repo_config, feature_view, table, None)
 
     def materialize_single_feature_view(
         self,

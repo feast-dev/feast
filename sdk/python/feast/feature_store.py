@@ -1405,7 +1405,7 @@ class FeatureStore:
         provider.ingest_df(feature_view, entities, df)
 
     @log_exceptions_and_usage
-    def write_to_offline_store(
+    def _write_to_offline_store(
         self,
         feature_view_name: str,
         df: pd.DataFrame,
@@ -1423,8 +1423,9 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        table = pa.Table.from_pandas(df)
         provider = self._get_provider()
-        provider.ingest_df_to_offline_store(feature_view, df)
+        provider.ingest_df_to_offline_store(feature_view, table)
 
     @log_exceptions_and_usage
     def get_online_features(
