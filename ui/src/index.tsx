@@ -21,6 +21,7 @@ import FSDemoCustomTab from "./custom-tabs/feature-service-demo-tab/DemoCustomTa
 import DSDemoCustomTab from "./custom-tabs/data-source-demo-tab/DemoCustomTab";
 import EntDemoCustomTab from "./custom-tabs/entity-demo-tab/DemoCustomTab";
 import DatasetDemoCustomTab from "./custom-tabs/dataset-demo-tab/DemoCustomTab";
+import FDemoCustomTab from "./custom-tabs/feature-demo-tab/DemoCustomTab";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,13 @@ const tabsRegistry = {
       label: "Custom Tab Demo",
       path: "demo-tab",
       Component: DatasetDemoCustomTab,
+    },
+  ],
+  FeatureCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "demo-tab",
+      Component: FDemoCustomTab,
     },
   ],
 };
