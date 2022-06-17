@@ -235,7 +235,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if _udf is None:
             raise ValueError("The `udf` parameter must be specified.")
-        self.udf = _udf
+        self.udf = _udf  # type: ignore
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
