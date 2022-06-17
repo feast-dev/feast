@@ -7,11 +7,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        python-version: [ "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         exclude:
-          - os: macOS-latest
-            python-version: "3.8"
           - os: macOS-latest
             python-version: "3.9"
           - os: macOS-latest
@@ -85,7 +83,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.7"
+          python-version: "3.8"
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=22.1,<23"
