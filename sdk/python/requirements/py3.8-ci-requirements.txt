@@ -367,7 +367,7 @@ multidict==6.0.2
     # via
     #   aiohttp
     #   yarl
-mypy==0.931
+mypy==0.961
     # via
     #   feast (setup.py)
     #   sqlalchemy

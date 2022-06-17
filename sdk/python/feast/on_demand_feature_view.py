@@ -2,7 +2,7 @@ import copy
 import functools
 import warnings
 from datetime import datetime
-from types import MethodType, FunctionType
+from types import FunctionType
 from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
@@ -77,7 +77,9 @@ class OnDemandFeatureView(BaseFeatureView):
         *args,
         name: Optional[str] = None,
         features: Optional[List[Feature]] = None,
-        sources: Optional[List[Any]] = None,  # Typed as Any because @typechecked can't deal with the List[Union]
+        sources: Optional[
+            List[Any]
+        ] = None,  # Typed as Any because @typechecked can't deal with the List[Union]
         udf: Optional[FunctionType] = None,
         inputs: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
@@ -148,7 +150,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     raise ValueError(
                         "input can only accept FeatureView, FeatureViewProjection, or RequestSource"
                     )
-        _udf = udf
+        _udf: Optional[FunctionType] = udf
 
         if args:
             warnings.warn(
@@ -233,7 +235,6 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if _udf is None:
             raise ValueError("The `udf` parameter must be specified.")
-        assert _udf
         self.udf = _udf
 
     @property
