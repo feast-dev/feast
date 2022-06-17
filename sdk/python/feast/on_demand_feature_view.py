@@ -2,7 +2,7 @@ import copy
 import functools
 import warnings
 from datetime import datetime
-from types import MethodType
+from types import MethodType, FunctionType
 from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
@@ -66,7 +66,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    udf: MethodType
+    udf: FunctionType
     description: str
     tags: Dict[str, str]
     owner: str
@@ -77,17 +77,8 @@ class OnDemandFeatureView(BaseFeatureView):
         *args,
         name: Optional[str] = None,
         features: Optional[List[Feature]] = None,
-        sources: Optional[
-            List[
-                Union[
-                    BatchFeatureView,
-                    StreamFeatureView,
-                    RequestSource,
-                    FeatureViewProjection,
-                ]
-            ]
-        ] = None,
-        udf: Optional[MethodType] = None,
+        sources: Optional[List[Any]] = None,  # Typed as Any because @typechecked can't deal with the List[Union]
+        udf: Optional[FunctionType] = None,
         inputs: Optional[
             Dict[str, Union[FeatureView, FeatureViewProjection, RequestSource]]
         ] = None,

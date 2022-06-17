@@ -2,7 +2,7 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
-from types import MethodType
+from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
@@ -78,7 +78,7 @@ class StreamFeatureView(FeatureView):
     mode: str
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
-    udf: Optional[MethodType]
+    udf: Optional[FunctionType]
 
     def __init__(
         self,
@@ -95,7 +95,7 @@ class StreamFeatureView(FeatureView):
         aggregations: Optional[List[Aggregation]] = None,
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
-        udf: Optional[MethodType] = None,
+        udf: Optional[FunctionType] = None,
     ):
         warnings.warn(
             "Stream Feature Views are experimental features in alpha development. "
