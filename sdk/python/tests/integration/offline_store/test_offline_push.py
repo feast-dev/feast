@@ -56,9 +56,7 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(
-            driver_stats.name, df, allow_registry_cache=False
-        )
+        store.write_to_offline_store(driver_stats.name, df, allow_registry_cache=False)
 
 
 @pytest.mark.integration
@@ -107,9 +105,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
         },
     )
     with pytest.raises(ValueError):
-        store.write_to_offline_store(
-            driver_stats.name, df, allow_registry_cache=False
-        )
+        store.write_to_offline_store(driver_stats.name, df, allow_registry_cache=False)
 
 
 @pytest.mark.integration
