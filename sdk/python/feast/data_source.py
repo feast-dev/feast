@@ -50,15 +50,15 @@ class KafkaOptions:
 
     def __init__(
         self,
-        bootstrap_servers: str,
+        kafka_bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
-        watermark: Optional[timedelta] = None,
+        watermark_delay_threshold: Optional[timedelta] = None,
     ):
-        self.bootstrap_servers = bootstrap_servers
+        self.kafka_bootstrap_servers = kafka_bootstrap_servers
         self.message_format = message_format
         self.topic = topic
-        self.watermark = watermark or None
+        self.watermark_delay_threshold = watermark_delay_threshold or None
 
     @classmethod
     def from_proto(cls, kafka_options_proto: DataSourceProto.KafkaOptions):
@@ -71,18 +71,18 @@ class KafkaOptions:
         Returns:
             Returns a BigQueryOptions object based on the kafka_options protobuf
         """
-        watermark = None
-        if kafka_options_proto.HasField("watermark"):
-            watermark = (
+        watermark_delay_threshold = None
+        if kafka_options_proto.HasField("watermark_delay_threshold"):
+            watermark_delay_threshold = (
                 timedelta(days=0)
-                if kafka_options_proto.watermark.ToNanoseconds() == 0
-                else kafka_options_proto.watermark.ToTimedelta()
+                if kafka_options_proto.watermark_delay_threshold.ToNanoseconds() == 0
+                else kafka_options_proto.watermark_delay_threshold.ToTimedelta()
             )
         kafka_options = cls(
-            bootstrap_servers=kafka_options_proto.bootstrap_servers,
+            kafka_bootstrap_servers=kafka_options_proto.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
         return kafka_options
@@ -94,16 +94,16 @@ class KafkaOptions:
         Returns:
             KafkaOptionsProto protobuf
         """
-        watermark_duration = None
-        if self.watermark is not None:
-            watermark_duration = Duration()
-            watermark_duration.FromTimedelta(self.watermark)
+        watermark_delay_threshold = None
+        if self.watermark_delay_threshold is not None:
+            watermark_delay_threshold = Duration()
+            watermark_delay_threshold.FromTimedelta(self.watermark_delay_threshold)
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
-            bootstrap_servers=self.bootstrap_servers,
+            kafka_bootstrap_servers=self.kafka_bootstrap_servers,
             message_format=self.message_format.to_proto(),
             topic=self.topic,
-            watermark=watermark_duration,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
         return kafka_options_proto
@@ -178,8 +178,8 @@ class DataSource(ABC):
 
     Args:
         name: Name of data source, which should be unique within a project
-        event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
-            joins of feature values.
+        event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+            timestamp column used for point in time joins of feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
             was created, used for deduplicating rows.
         field_mapping (optional): A dictionary mapping of column names in this data
@@ -220,8 +220,8 @@ class DataSource(ABC):
         Creates a DataSource object.
         Args:
             name: Name of data source, which should be unique within a project
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
-                joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -260,6 +260,14 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        if date_partition_column:
+            warnings.warn(
+                (
+                    "The argument 'date_partition_column' is being deprecated. "
+                    "Feast 0.25 and onwards will not support 'date_timestamp_column' for data sources."
+                ),
+                DeprecationWarning,
+            )
         self.description = description or ""
         self.tags = tags or {}
         self.owner = owner or ""
@@ -364,20 +372,13 @@ class DataSource(ABC):
 
 
 class KafkaSource(DataSource):
-    def validate(self, config: RepoConfig):
-        pass
-
-    def get_table_column_names_and_types(
-        self, config: RepoConfig
-    ) -> Iterable[Tuple[str, str]]:
-        pass
-
     def __init__(
         self,
         *args,
         name: Optional[str] = None,
         event_timestamp_column: Optional[str] = "",
         bootstrap_servers: Optional[str] = None,
+        kafka_bootstrap_servers: Optional[str] = None,
         message_format: Optional[StreamFormat] = None,
         topic: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
@@ -388,31 +389,34 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
-        watermark: Optional[timedelta] = None,
+        watermark_delay_threshold: Optional[timedelta] = None,
     ):
         """
-        Creates a KafkaSource stream source object.
+        Creates a KafkaSource object.
+
         Args:
-            name: str. Name of data source, which should be unique within a project
-            event_timestamp_column (optional): str. (Deprecated) Event timestamp column used for point in time
-                joins of feature values.
-            bootstrap_servers: str. The servers of the kafka broker in the form "localhost:9092".
-            message_format: StreamFormat. StreamFormat of serialized messages.
-            topic: str. The name of the topic to read from in the kafka source.
-            created_timestamp_column (optional): str. Timestamp column indicating when the row
+            name: Name of data source, which should be unique within a project
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
+            bootstrap_servers: (Deprecated) The servers of the kafka broker in the form "localhost:9092".
+            kafka_bootstrap_servers: The servers of the kafka broker in the form "localhost:9092".
+            message_format: StreamFormat of serialized messages.
+            topic: The name of the topic to read from in the kafka source.
+            created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
-            field_mapping (optional): dict(str, str). A dictionary mapping of column names in this data
+            field_mapping (optional): A dictionary mapping of column names in this data
                 source to feature names in a feature table or view. Only used for feature
                 columns, not entity or timestamp columns.
-            date_partition_column (optional): str. Timestamp column used for partitioning.
-            description (optional): str. A human-readable description.
-            tags (optional): dict(str, str). A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional): str. The owner of the data source, typically the email of the primary
+            date_partition_column (optional): Timestamp column used for partitioning.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): str. Event timestamp field used for point
+            timestamp_field (optional): Event timestamp field used for point
                 in time joins of feature values.
-            batch_source: DataSource. The datasource that acts as a batch source.
-            watermark: timedelta. The watermark for stream data. Specifically how late stream data can arrive without being discarded.
+            batch_source: The datasource that acts as a batch source.
+            watermark_delay_threshold: The watermark delay threshold for stream data. Specifically how
+                late stream data can arrive without being discarded.
         """
         positional_attributes = [
             "name",
@@ -423,9 +427,18 @@ class KafkaSource(DataSource):
         ]
         _name = name
         _event_timestamp_column = event_timestamp_column
-        _bootstrap_servers = bootstrap_servers or ""
+        _kafka_bootstrap_servers = kafka_bootstrap_servers or bootstrap_servers or ""
         _message_format = message_format
         _topic = topic or ""
+
+        if bootstrap_servers:
+            warnings.warn(
+                (
+                    "The 'bootstrap_servers' parameter has been deprecated in favor of 'kafka_bootstrap_servers'. "
+                    "Feast 0.25 and onwards will not support the 'bootstrap_servers' parameter."
+                ),
+                DeprecationWarning,
+            )
 
         if args:
             warnings.warn(
@@ -445,7 +458,7 @@ class KafkaSource(DataSource):
             if len(args) >= 2:
                 _event_timestamp_column = args[1]
             if len(args) >= 3:
-                _bootstrap_servers = args[2]
+                _kafka_bootstrap_servers = args[2]
             if len(args) >= 4:
                 _message_format = args[3]
             if len(args) >= 5:
@@ -471,10 +484,10 @@ class KafkaSource(DataSource):
         self.batch_source = batch_source
 
         self.kafka_options = KafkaOptions(
-            bootstrap_servers=_bootstrap_servers,
+            kafka_bootstrap_servers=_kafka_bootstrap_servers,
             message_format=_message_format,
             topic=_topic,
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
         )
 
     def __eq__(self, other):
@@ -487,11 +500,12 @@ class KafkaSource(DataSource):
             return False
 
         if (
-            self.kafka_options.bootstrap_servers
-            != other.kafka_options.bootstrap_servers
+            self.kafka_options.kafka_bootstrap_servers
+            != other.kafka_options.kafka_bootstrap_servers
             or self.kafka_options.message_format != other.kafka_options.message_format
             or self.kafka_options.topic != other.kafka_options.topic
-            or self.kafka_options.watermark != other.kafka_options.watermark
+            or self.kafka_options.watermark_delay_threshold
+            != other.kafka_options.watermark_delay_threshold
         ):
             return False
 
@@ -502,22 +516,23 @@ class KafkaSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        watermark = None
-        if data_source.kafka_options.watermark:
-            watermark = (
+        watermark_delay_threshold = None
+        if data_source.kafka_options.watermark_delay_threshold:
+            watermark_delay_threshold = (
                 timedelta(days=0)
-                if data_source.kafka_options.watermark.ToNanoseconds() == 0
-                else data_source.kafka_options.watermark.ToTimedelta()
+                if data_source.kafka_options.watermark_delay_threshold.ToNanoseconds()
+                == 0
+                else data_source.kafka_options.watermark_delay_threshold.ToTimedelta()
             )
         return KafkaSource(
             name=data_source.name,
             event_timestamp_column=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
-            bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+            kafka_bootstrap_servers=data_source.kafka_options.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(
                 data_source.kafka_options.message_format
             ),
-            watermark=watermark,
+            watermark_delay_threshold=watermark_delay_threshold,
             topic=data_source.kafka_options.topic,
             created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,
@@ -547,6 +562,14 @@ class KafkaSource(DataSource):
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
         return data_source_proto
+
+    def validate(self, config: RepoConfig):
+        pass
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        pass
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:

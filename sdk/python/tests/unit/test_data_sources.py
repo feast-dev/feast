@@ -93,7 +93,7 @@ def test_default_data_source_kw_arg_warning():
         )
         assert source.name == "name"
         assert source.timestamp_field == "column"
-        assert source.kafka_options.bootstrap_servers == "bootstrap_servers"
+        assert source.kafka_options.kafka_bootstrap_servers == "bootstrap_servers"
         assert source.kafka_options.topic == "topic"
     with pytest.raises(ValueError):
         KafkaSource("name", "column", "bootstrap_servers", topic="topic")
@@ -145,7 +145,7 @@ def test_default_data_source_kw_arg_warning():
     with pytest.warns(UserWarning):
         source = KafkaSource(
             timestamp_field="column",
-            bootstrap_servers="bootstrap_servers",
+            kafka_bootstrap_servers="bootstrap_servers",
             message_format=ProtoFormat("class_path"),
             topic="topic",
         )
@@ -203,7 +203,7 @@ def test_proto_conversion():
 
     kafka_source = KafkaSource(
         name="test_source",
-        bootstrap_servers="test_servers",
+        kafka_bootstrap_servers="test_servers",
         message_format=ProtoFormat("class_path"),
         topic="test_topic",
         timestamp_field="event_timestamp",

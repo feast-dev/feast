@@ -37,7 +37,8 @@ class BigQuerySource(DataSource):
 
         Args:
             table (optional): The BigQuery table where features can be found.
-            event_timestamp_column: (Deprecated) Event timestamp column used for point in time joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.

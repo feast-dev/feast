@@ -226,7 +226,7 @@ public class DataGenerator {
         .setKafkaOptions(
             KafkaOptions.newBuilder()
                 .setTopic(topic)
-                .setBootstrapServers(servers)
+                .setKafkaBootstrapServers(servers)
                 .setMessageFormat(createProtoFormat("class.path"))
                 .build())
         .setTimestampField(timestampColumn)

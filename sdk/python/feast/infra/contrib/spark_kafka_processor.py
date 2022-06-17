@@ -77,7 +77,7 @@ class SparkKafkaProcessor(StreamProcessor):
                 self.spark.readStream.format("kafka")
                 .option(
                     "kafka.bootstrap.servers",
-                    self.data_source.kafka_options.bootstrap_servers,
+                    self.data_source.kafka_options.kafka_bootstrap_servers,
                 )
                 .option("subscribe", self.data_source.kafka_options.topic)
                 .option("startingOffsets", "latest")  # Query start
@@ -100,7 +100,7 @@ class SparkKafkaProcessor(StreamProcessor):
                 self.spark.readStream.format("kafka")
                 .option(
                     "kafka.bootstrap.servers",
-                    self.data_source.kafka_options.bootstrap_servers,
+                    self.data_source.kafka_options.kafka_bootstrap_servers,
                 )
                 .option("subscribe", self.data_source.kafka_options.topic)
                 .option("startingOffsets", "latest")  # Query start
