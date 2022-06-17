@@ -1,3 +1,4 @@
+import faulthandler
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -51,6 +52,7 @@ class EmbeddedOnlineFeatureServer:
             ),
             self._transformation_callback,
         )
+        faulthandler.enable()
 
     def get_online_features(
         self,
