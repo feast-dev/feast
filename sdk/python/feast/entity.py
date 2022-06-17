@@ -203,7 +203,7 @@ class Entity:
             name=entity_proto.spec.name,
             join_keys=[entity_proto.spec.join_key],
             description=entity_proto.spec.description,
-            tags=entity_proto.spec.tags,
+            tags=dict(entity_proto.spec.tags),
             owner=entity_proto.spec.owner,
         )
 
