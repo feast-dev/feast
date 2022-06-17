@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import dill
 from google.protobuf.duration_pb2 import Duration
+from typeguard import typechecked
 
 from feast import utils
 from feast.aggregation import Aggregation
@@ -36,6 +37,7 @@ warnings.simplefilter("once", RuntimeWarning)
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 
 
+@typechecked
 class StreamFeatureView(FeatureView):
     """
     NOTE: Stream Feature Views are not yet fully implemented and exist to allow users to register their stream sources and

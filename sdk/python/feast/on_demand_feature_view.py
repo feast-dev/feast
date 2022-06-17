@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
+from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
@@ -38,6 +39,7 @@ from feast.value_type import ValueType
 warnings.simplefilter("once", DeprecationWarning)
 
 
+@typechecked
 class OnDemandFeatureView(BaseFeatureView):
     """
     [Experimental] An OnDemandFeatureView defines a logical group of features that are

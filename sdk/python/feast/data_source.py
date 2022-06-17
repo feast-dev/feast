@@ -725,6 +725,7 @@ class RequestSource(DataSource):
         raise NotImplementedError
 
 
+@typechecked
 class RequestDataSource(RequestSource):
     def __init__(self, *args, **kwargs):
         warnings.warn(
