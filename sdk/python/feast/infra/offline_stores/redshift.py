@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    Any,
 )
 
 import numpy as np
@@ -297,6 +298,34 @@ class RedshiftOfflineStore(OfflineStore):
             fail_if_exists=False,
         )
 
+    @staticmethod
+    def offline_write_batch(config: RepoConfig, feature_view: FeatureView, table: pyarrow.Table, progress: Optional[Callable[[int], Any]]):
+        if not feature_view.batch_source:
+            raise ValueError("feature view does not have a batch source to persist offline data")
+        if not isinstance(config.offline_store, RedshiftOfflineStoreConfig):
+            raise ValueError(f"offline store config is of type {type(config.offline_store)} when file type required")
+        if not isinstance(feature_view.batch_source, RedshiftSource):
+            raise ValueError(f"feature view batch source is {type(feature_view.batch_source)} not file source")
+        redshift_options = feature_view.batch_source.redshift_options
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+
+        table.reset_index(drop=True, inplace=True)
+
+        aws_utils.upload_arrow_table_to_redshift(
+            table=table,
+            redshift_data_client=redshift_client,
+            cluster_id=config.offline_store.cluster_id,
+            database=redshift_options.database,
+            user=config.offline_store.user,
+            s3_resource=s3_resource,
+            s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
+            iam_role=config.offline_store.iam_role,
+            table_name=redshift_options.table,
+            fail_if_exists=False,
+        )
 
 class RedshiftRetrievalJob(RetrievalJob):
     def __init__(
