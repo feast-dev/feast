@@ -14,6 +14,7 @@
   * [Dataset](getting-started/concepts/dataset.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
+  * [Stream feature view](getting-started/concepts/stream-feature-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [Registry](getting-started/concepts/registry.md)
@@ -37,6 +38,7 @@
 * [Driver stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Using Scalable Registry](tutorials/using-scalable-registry.md)
+* [Building streaming features](tutorials/building-streaming-features.md)
 
 ## How-to Guides
 
@@ -63,6 +65,8 @@
   * [BigQuery](reference/data-sources/bigquery.md)
   * [Redshift](reference/data-sources/redshift.md)
   * [Push](reference/data-sources/push.md)
+  * [Kafka](reference/data-sources/kafka.md)
+  * [Kinesis](reference/data-sources/kinesis.md)
   * [Spark (contrib)](reference/data-sources/spark.md)
   * [PostgreSQL (contrib)](reference/data-sources/postgres.md)
 * [Offline stores](reference/offline-stores/README.md)
