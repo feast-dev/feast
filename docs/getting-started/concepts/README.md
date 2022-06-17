@@ -10,6 +10,10 @@
 
 {% page-ref page="feature-view.md" %}
 
+{% page-ref page="feature-view.md" %}
+
+{% page-ref page="stream-feature-view.md" %}
+
 {% page-ref page="feature-retrieval.md" %}
 
 {% page-ref page="point-in-time-joins.md" %}
