@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
+from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
 from feast.feature_logging import LoggingConfig
@@ -21,6 +22,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 from feast.usage import log_exceptions
 
 
+@typechecked
 class FeatureService:
     """
     A feature service defines a logical group of features from one or more feature views.
