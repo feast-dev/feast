@@ -220,8 +220,8 @@ class DataSource(ABC):
         Creates a DataSource object.
         Args:
             name: Name of data source, which should be unique within a project
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in time
-                joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -396,8 +396,8 @@ class KafkaSource(DataSource):
 
         Args:
             name: Name of data source, which should be unique within a project
-            event_timestamp_column: (Deprecated) Event timestamp column used for point in time
-                joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             bootstrap_servers: (Deprecated) The servers of the kafka broker in the form "localhost:9092".
             kafka_bootstrap_servers: The servers of the kafka broker in the form "localhost:9092".
             message_format: StreamFormat of serialized messages.

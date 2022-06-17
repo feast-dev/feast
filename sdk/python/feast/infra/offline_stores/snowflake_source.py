@@ -43,8 +43,8 @@ class SnowflakeSource(DataSource):
             warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored.
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in
-                time joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             query (optional): The query to be executed to obtain the features.
             created_timestamp_column (optional): Timestamp column indicating when the
                 row was created, used for deduplicating rows.

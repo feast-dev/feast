@@ -44,7 +44,8 @@ class FileSource(DataSource):
 
             path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
                 feature columns.
-            event_timestamp_column(optional): (Deprecated) Event timestamp column used for point in time joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             file_format (optional): Explicitly set the file format. Allows Feast to bypass inferring the file format.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table

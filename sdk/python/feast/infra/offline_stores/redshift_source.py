@@ -39,8 +39,8 @@ class RedshiftSource(DataSource):
         Creates a RedshiftSource object.
 
         Args:
-            event_timestamp_column (optional): (Deprecated) Event timestamp column used for point in
-                time joins of feature values.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             table (optional): Redshift table where the features are stored.
             schema (optional): Redshift schema in which the table is located.
             created_timestamp_column (optional): Timestamp column indicating when the
