@@ -4,20 +4,18 @@
 
 ## Description
 
-Kinesis sources allow users to register Kinesis streams as a data source. Feast currently does not manage the ingestion of data from Kinesis streams; users must manage the ingestion themselves and write feature values to the online store through [FeatureStore.write_to_online_store](https://rtd.feast.dev/en/latest/index.html#feast.feature_store.FeatureStore.write_to_online_store).
+Kinesis sources allow users to register Kinesis streams as data sources. Feast currently does not launch or monitor jobs to ingest data from Kinesis. Users are responsible for launching and monitoring their own ingestion jobs, which should write feature values to the online store through [FeatureStore.write_to_online_store](https://rtd.feast.dev/en/latest/index.html#feast.feature_store.FeatureStore.write_to_online_store). An example of how to launch such a job with Spark to ingest from Kafka can be found [here](https://github.com/feast-dev/feast/tree/master/sdk/python/feast/infra/contrib); by using a different plugin, the example can be adapted to Kinesis.
 
-Kinesis sources must have a batch source specified, since that's the source used when retrieving historical features. When using a Kinesis source as a stream source in the definition of a feature view, a batch source doesn't need to be specified in the definition explicitly.
+Kinesis sources must have a batch source specified. The batch source will be used for retrieving historical features. Thus users are also responsible for writing data from their Kinesis streams to a batch data source such as a data warehouse table. Feast plans on shipping `FeatureStore.write_to_offline_store` functionality soon, so users will be able to write data to the offline store just as easily as to the online store. When using a Kinesis source as a stream source in the definition of a feature view, a batch source doesn't need to be specified in the feature view definition explicitly.
 
 ## Stream sources
 Streaming data sources are important sources of feature values. A typical setup with streaming data looks like:
 
 1. Raw events come in (stream 1)
 2. Streaming transformations applied (e.g. generating features like `last_N_purchased_categories`) (stream 2)
-3. Write stream 2 values to an offline store as a historical log for training
+3. Write stream 2 values to an offline store as a historical log for training (optional)
 4. Write stream 2 values to an online store for low latency feature serving
-5. Periodically materialize feature values from the offline store into the online store for improved correctness
-
-Feast now allows users to push features previously registered in a feature view to the online store for fresher features.
+5. Periodically materialize feature values from the offline store into the online store for decreased training-serving skew and improved model performance
 
 ## Example
 ### Defining a Kinesis source
@@ -45,7 +43,11 @@ driver_stats_stream_source = KinesisSource(
     ),
     watermark_delay_threshold=timedelta(minutes=5),
 )
+```
 
+### Using the Kinesis source in a stream feature view
+The Kinesis source can be used in a stream feature view.
+```python
 @stream_feature_view(
     entities=[driver],
     ttl=timedelta(seconds=8640000000),
@@ -68,5 +70,5 @@ def driver_hourly_stats_stream(df: DataFrame):
     )
 ```
 
-### Pushing data
+### Ingesting data
 See [here](https://github.com/feast-dev/streaming-tutorial) for a example of how to ingest data from a Kafka source into Feast. The approach used in the tutorial can be easily adapted to work for Kinesis as well.
