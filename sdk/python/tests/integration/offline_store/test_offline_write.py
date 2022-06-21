@@ -125,7 +125,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     )
 
     now = datetime.utcnow()
-    ts = pd.Timestamp(now, unit="ms", tz="UTC").round("ms")
+    ts = pd.Timestamp(now, unit="ns")
 
     entity_df = pd.DataFrame.from_dict(
         {
@@ -146,7 +146,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [now-timedelta(hours=4), now - timedelta(hours=3)],
+            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -154,18 +154,13 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
-
     store._write_to_offline_store(
         driver_stats.name, first_df, allow_registry_cache=False
     )
 
     after_write_df = store.get_historical_features(
         entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:acc_rate",
-            "driver_stats:avg_daily_trips",
-        ],
+        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
         full_feature_names=False,
     ).to_df()
 
