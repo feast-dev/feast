@@ -479,7 +479,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     missing_features.append(specified_features)
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
-                    [f.name for f in missing_features], self.name
+                    missing_features, inferred_features, self.name
                 )
         else:
             self.features = inferred_features

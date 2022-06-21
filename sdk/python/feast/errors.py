@@ -2,6 +2,8 @@ from typing import Any, List, Set
 
 from colorama import Fore, Style
 
+from feast.field import Field
+
 
 class DataSourceNotFoundException(Exception):
     def __init__(self, path):
@@ -183,10 +185,15 @@ class FeatureNameCollisionError(Exception):
 
 
 class SpecifiedFeaturesNotPresentError(Exception):
-    def __init__(self, specified_features: List[str], feature_view_name: str):
-        features = ", ".join(specified_features)
+    def __init__(
+        self,
+        specified_features: List[Field],
+        inferred_features: List[Field],
+        feature_view_name: str,
+    ):
         super().__init__(
-            f"Explicitly specified features {features} not found in inferred list of features for '{feature_view_name}'"
+            f"Explicitly specified features {specified_features} not found in inferred list of features "
+            f"{inferred_features} for '{feature_view_name}'"
         )
 
 
