@@ -37,7 +37,7 @@ class Trino:
         catalog: Optional[str] = None,
         auth: Optional[Any] = None,
         http_scheme: Optional[str] = None,
-        conn: Optional[Connection] = None
+        conn: Optional[Connection] = None,
     ):
         """Initialize a authorized Trino client.
 
