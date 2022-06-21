@@ -22,6 +22,14 @@ Please see [Data Source](../../getting-started/concepts/feature-view.md#data-sou
 [push.md](push.md)
 {% endcontent-ref %}
 
+{% content-ref url="kafka.md" %}
+[kafka.md](kafka.md)
+{% endcontent-ref %}
+
+{% content-ref url="kinesis.md" %}
+[kinesis.md](kinesis.md)
+{% endcontent-ref %}
+
 {% content-ref url="spark.md" %}
 [spark.md](spark.md)
 {% endcontent-ref %}
