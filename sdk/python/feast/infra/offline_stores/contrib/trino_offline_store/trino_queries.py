@@ -5,13 +5,14 @@ import os
 import signal
 from dataclasses import dataclass
 from enum import Enum
+from optparse import Option
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import trino
-from trino.dbapi import Cursor
+from trino.dbapi import Cursor, Connection
 from trino.exceptions import TrinoQueryError
 
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_type_map import (
@@ -36,48 +37,54 @@ class Trino:
         catalog: Optional[str] = None,
         auth: Optional[Any] = None,
         http_scheme: Optional[str] = None,
+        conn: Optional[Connection] = None
     ):
-        self.host = host or os.getenv("TRINO_HOST")
-        self.port = port or os.getenv("TRINO_PORT")
-        self.user = user or os.getenv("TRINO_USER")
-        self.catalog = catalog or os.getenv("TRINO_CATALOG")
-        self.auth = auth or os.getenv("TRINO_AUTH")
-        self.http_scheme = http_scheme or os.getenv("TRINO_HTTP_SCHEME")
-        self._cursor: Optional[Cursor] = None
+        """Initialize a authorized Trino client.
 
-        if self.host is None:
-            raise ValueError("TRINO_HOST must be set if not passed in")
-        if self.port is None:
-            raise ValueError("TRINO_PORT must be set if not passed in")
-        if self.user is None:
-            raise ValueError("TRINO_USER must be set if not passed in")
-        if self.catalog is None:
-            raise ValueError("TRINO_CATALOG must be set if not passed in")
+        If a Connection object is provided, it will be used directly.
+        Otherwise, a new Connection object will be created based on available
+        parameters.
 
-    def _get_cursor(self) -> Cursor:
-        if self._cursor is None:
-            self._cursor = trino.dbapi.connect(
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                catalog=self.catalog,
-                auth=self.auth,
-                http_scheme=self.http_scheme,
-            ).cursor()
+        """
+        if conn is None:
+            host = host or os.getenv("TRINO_HOST")
+            port = port or os.getenv("TRINO_PORT")
+            user = user or os.getenv("TRINO_USER")
+            catalog = catalog or os.getenv("TRINO_CATALOG")
+            auth = auth or os.getenv("TRINO_AUTH")
+            http_scheme = http_scheme or os.getenv("TRINO_HTTP_SCHEME")
 
-        return self._cursor
+            if host is None:
+                raise ValueError("TRINO_HOST must be set if not passed in")
+            if port is None:
+                raise ValueError("TRINO_PORT must be set if not passed in")
+            if user is None:
+                raise ValueError("TRINO_USER must be set if not passed in")
+            if catalog is None:
+                raise ValueError("TRINO_CATALOG must be set if not passed in")
+
+            conn = trino.dbapi.connect(
+                host=host,
+                port=port,
+                user=user,
+                catalog=catalog,
+                auth=auth,
+                http_scheme=http_scheme,
+            )
+
+        self._cursor = conn.cursor()
 
     def create_query(self, query_text: str) -> Query:
         """
         Create a Query object without executing it.
         """
-        return Query(query_text=query_text, cursor=self._get_cursor())
+        return Query(query_text=query_text, cursor=self._cursor)
 
     def execute_query(self, query_text: str) -> Results:
         """
         Create a Query object and execute it.
         """
-        query = Query(query_text=query_text, cursor=self._get_cursor())
+        query = Query(query_text=query_text, cursor=self._cursor)
         return query.execute()
 
 
