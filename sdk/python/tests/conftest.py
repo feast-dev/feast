@@ -284,12 +284,9 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             _config_cache[c] = c
 
                         configs.append(_config_cache[c])
-<<<<<<< HEAD
         else:
             # No offline stores requested -> setting the default or first available
             offline_stores = [("local", FileDataSourceCreator)]
-=======
->>>>>>> fec6cc0b (Lint)
 
         metafunc.parametrize(
             "environment", configs, indirect=True, ids=[str(c) for c in configs]
