@@ -1423,6 +1423,8 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        df.reset_index(drop=True)
+
         table = pa.Table.from_pandas(df)
         provider = self._get_provider()
         provider.ingest_df_to_offline_store(feature_view, table)

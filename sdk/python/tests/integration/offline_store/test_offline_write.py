@@ -9,10 +9,10 @@ from feast import FeatureView, Field
 from feast.types import Float32, Int32
 from tests.integration.feature_repos.universal.entities import driver
 
-
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
-def test_writing_incorrect_order_fails(environment, universal_data_sources):
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
+def test_writing_columns_in_incorrect_order_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
@@ -59,7 +59,8 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
@@ -105,9 +106,9 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
             driver_stats.name, expected_df, allow_registry_cache=False
         )
 
-
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
@@ -124,7 +125,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     )
 
     now = datetime.utcnow()
-    ts = pd.Timestamp(now, unit="ns")
+    ts = pd.Timestamp(now, unit="ms", tz="UTC").round("ms")
 
     entity_df = pd.DataFrame.from_dict(
         {
@@ -145,7 +146,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
+            "event_timestamp": [now-timedelta(hours=4), now - timedelta(hours=3)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -153,13 +154,18 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
+
     store._write_to_offline_store(
         driver_stats.name, first_df, allow_registry_cache=False
     )
 
     after_write_df = store.get_historical_features(
         entity_df=entity_df,
-        features=["driver_stats:conv_rate", "driver_stats:avg_daily_trips"],
+        features=[
+            "driver_stats:conv_rate",
+            "driver_stats:acc_rate",
+            "driver_stats:avg_daily_trips",
+        ],
         full_feature_names=False,
     ).to_df()
 

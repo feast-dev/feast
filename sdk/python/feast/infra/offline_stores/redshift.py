@@ -13,6 +13,7 @@ from typing import (
     Union,
     Any,
 )
+from feast.type_map import redshift_to_feast_value_type, feast_value_type_to_pa
 
 import numpy as np
 import pandas as pd
@@ -310,9 +311,23 @@ class RedshiftOfflineStore(OfflineStore):
         redshift_client = aws_utils.get_redshift_data_client(
             config.offline_store.region
         )
-        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        table.reset_index(drop=True, inplace=True)
+        column_name_to_type = feature_view.batch_source.get_table_column_names_and_types(config)
+        pa_schema_list = []
+        column_names = []
+        for column_name, redshift_type in column_name_to_type:
+            pa_schema_list.append((column_name, feast_value_type_to_pa(redshift_to_feast_value_type(redshift_type))))
+            column_names.append(column_name)
+        pa_schema = pa.schema(pa_schema_list)
+        if column_names != table.column_names:
+            raise ValueError(
+                f"Input dataframe has incorrect schema or wrong order, expected columns are: {column_names}"
+            )
+
+        if table.schema != pa_schema:
+            table = table.cast(pa_schema)
+
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         aws_utils.upload_arrow_table_to_redshift(
             table=table,
@@ -324,6 +339,7 @@ class RedshiftOfflineStore(OfflineStore):
             s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
             iam_role=config.offline_store.iam_role,
             table_name=redshift_options.table,
+            schema=pa_schema,
             fail_if_exists=False,
         )
 

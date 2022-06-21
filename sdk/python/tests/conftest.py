@@ -31,6 +31,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
 from tests.integration.feature_repos.repo_configuration import (
+    OFFLINE_STORE_TO_PROVIDER_CONFIG,
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
     Environment,
@@ -196,16 +197,24 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     """
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
-
+        offline_stores = None
         if "universal_offline_stores" in markers:
-            offline_stores = AVAILABLE_OFFLINE_STORES
+            # Offline stores can be explicitly requested
+            if "only" in markers["universal_offline_stores"].kwargs:
+                offline_stores = [
+                    OFFLINE_STORE_TO_PROVIDER_CONFIG.get(store_name)
+                    for store_name in markers["universal_offline_stores"].kwargs["only"]
+                    if store_name in OFFLINE_STORE_TO_PROVIDER_CONFIG
+                ]
+            else:
+                offline_stores = AVAILABLE_OFFLINE_STORES
         else:
             # default offline store for testing online store dimension
             offline_stores = [("local", FileDataSourceCreator)]
 
         online_stores = None
         if "universal_online_stores" in markers:
-            # Online stores are explicitly requested
+            # Online stores can be explicitly requested
             if "only" in markers["universal_online_stores"].kwargs:
                 online_stores = [
                     AVAILABLE_ONLINE_STORES.get(store_name)
