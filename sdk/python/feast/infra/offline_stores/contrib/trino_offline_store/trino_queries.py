@@ -5,7 +5,6 @@ import os
 import signal
 from dataclasses import dataclass
 from enum import Enum
-from optparse import Option
 from typing import Any, Dict, List, Optional
 
 import numpy as np
