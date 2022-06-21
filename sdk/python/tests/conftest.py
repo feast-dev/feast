@@ -31,6 +31,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
 from tests.integration.feature_repos.repo_configuration import (
+    OFFLINE_STORE_TO_PROVIDER_CONFIG,
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
     OFFLINE_STORE_TO_PROVIDER_CONFIG,
