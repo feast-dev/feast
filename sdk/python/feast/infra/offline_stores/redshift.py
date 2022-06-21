@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     ContextManager,
     Dict,
@@ -11,9 +12,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
-    Any,
 )
-from feast.type_map import redshift_to_feast_value_type, feast_value_type_to_pa
 
 import numpy as np
 import pandas as pd
@@ -43,6 +42,7 @@ from feast.infra.utils import aws_utils
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import feast_value_type_to_pa, redshift_to_feast_value_type
 from feast.usage import log_exceptions_and_usage
 
 
@@ -300,23 +300,41 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    def offline_write_batch(config: RepoConfig, feature_view: FeatureView, table: pyarrow.Table, progress: Optional[Callable[[int], Any]]):
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
         if not feature_view.batch_source:
-            raise ValueError("feature view does not have a batch source to persist offline data")
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
         if not isinstance(config.offline_store, RedshiftOfflineStoreConfig):
-            raise ValueError(f"offline store config is of type {type(config.offline_store)} when file type required")
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when file type required"
+            )
         if not isinstance(feature_view.batch_source, RedshiftSource):
-            raise ValueError(f"feature view batch source is {type(feature_view.batch_source)} not file source")
+            raise ValueError(
+                f"feature view batch source is {type(feature_view.batch_source)} not file source"
+            )
         redshift_options = feature_view.batch_source.redshift_options
         redshift_client = aws_utils.get_redshift_data_client(
             config.offline_store.region
         )
 
-        column_name_to_type = feature_view.batch_source.get_table_column_names_and_types(config)
+        column_name_to_type = feature_view.batch_source.get_table_column_names_and_types(
+            config
+        )
         pa_schema_list = []
         column_names = []
         for column_name, redshift_type in column_name_to_type:
-            pa_schema_list.append((column_name, feast_value_type_to_pa(redshift_to_feast_value_type(redshift_type))))
+            pa_schema_list.append(
+                (
+                    column_name,
+                    feast_value_type_to_pa(redshift_to_feast_value_type(redshift_type)),
+                )
+            )
             column_names.append(column_name)
         pa_schema = pa.schema(pa_schema_list)
         if column_names != table.column_names:
@@ -342,6 +360,7 @@ class RedshiftOfflineStore(OfflineStore):
             schema=pa_schema,
             fail_if_exists=False,
         )
+
 
 class RedshiftRetrievalJob(RetrievalJob):
     def __init__(
