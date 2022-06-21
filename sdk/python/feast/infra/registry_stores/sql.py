@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-from threading import Lock
 from typing import Any, List, Optional, Set, Union
 
 from sqlalchemy import (  # type: ignore
@@ -174,11 +173,6 @@ class SqlRegistry(BaseRegistry):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
         metadata.create_all(self.engine)
-
-        # _refresh_lock is not used by the SqlRegistry, but is present to conform to the
-        # Registry class.
-        # TODO: remove external references to _refresh_lock and remove field.
-        self._refresh_lock = Lock()
 
     def teardown(self):
         for t in {
