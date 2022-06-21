@@ -234,23 +234,6 @@ def upload_df_to_redshift(
         table_name=table_name,
     )
 
-def delete_redshift_table(
-    redshift_data_client,
-    cluster_id: str,
-    database: str,
-    user: str,
-    table_name: str,
-):
-    drop_query = (
-        f"DROP {table_name} IF EXISTS"
-    )
-    execute_redshift_statement(
-            redshift_data_client,
-            cluster_id,
-            database,
-            user,
-            drop_query,
-    )
 
 def delete_redshift_table(
     redshift_data_client, cluster_id: str, database: str, user: str, table_name: str,
@@ -260,6 +243,17 @@ def delete_redshift_table(
         redshift_data_client, cluster_id, database, user, drop_query,
     )
 
+<<<<<<< HEAD
+def delete_redshift_table(
+    redshift_data_client, cluster_id: str, database: str, user: str, table_name: str,
+):
+    drop_query = f"DROP {table_name} IF EXISTS"
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, database, user, drop_query,
+    )
+
+=======
+>>>>>>> fec6cc0b (Lint)
 
 def upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
@@ -395,6 +389,7 @@ def temporarily_upload_df_to_redshift(
     execute_redshift_statement(
         redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
     )
+
 
 @contextlib.contextmanager
 def temporarily_upload_arrow_table_to_redshift(

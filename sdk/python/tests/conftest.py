@@ -31,7 +31,6 @@ from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
 from tests.integration.feature_repos.repo_configuration import (
-    OFFLINE_STORE_TO_PROVIDER_CONFIG,
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
     OFFLINE_STORE_TO_PROVIDER_CONFIG,
@@ -285,9 +284,12 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             _config_cache[c] = c
 
                         configs.append(_config_cache[c])
+<<<<<<< HEAD
         else:
             # No offline stores requested -> setting the default or first available
             offline_stores = [("local", FileDataSourceCreator)]
+=======
+>>>>>>> fec6cc0b (Lint)
 
         metafunc.parametrize(
             "environment", configs, indirect=True, ids=[str(c) for c in configs]

@@ -9,6 +9,7 @@ from feast import FeatureView, Field
 from feast.types import Float32, Int32
 from tests.integration.feature_repos.universal.entities import driver
 
+
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores(only=["file", "redshift"])
 @pytest.mark.universal_online_stores(only=["sqlite"])
@@ -105,6 +106,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
         store._write_to_offline_store(
             driver_stats.name, expected_df, allow_registry_cache=False
         )
+
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores(only=["file", "redshift"])

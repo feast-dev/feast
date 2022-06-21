@@ -12,9 +12,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
-    Any,
 )
-from feast.type_map import redshift_to_feast_value_type, feast_value_type_to_pa
 
 import numpy as np
 import pandas as pd
