@@ -312,11 +312,11 @@ class RedshiftOfflineStore(OfflineStore):
             )
         if not isinstance(config.offline_store, RedshiftOfflineStoreConfig):
             raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when file type required"
+                f"offline store config is of type {type(config.offline_store)} when redshift type required"
             )
         if not isinstance(feature_view.batch_source, RedshiftSource):
             raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not file source"
+                f"feature view batch source is {type(feature_view.batch_source)} not redshift source"
             )
         redshift_options = feature_view.batch_source.redshift_options
         redshift_client = aws_utils.get_redshift_data_client(
