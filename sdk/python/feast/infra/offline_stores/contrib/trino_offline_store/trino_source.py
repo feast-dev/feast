@@ -1,5 +1,7 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
+from trino.dbapi import Connection
+
 from feast import ValueType
 from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import Trino
@@ -94,6 +96,7 @@ class TrinoSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
+        conn: Optional[Connection] = None,
     ):
         super().__init__(
             name=name if name else "",
@@ -107,6 +110,7 @@ class TrinoSource(DataSource):
         )
 
         self._trino_options = TrinoOptions(table=table, query=query)
+        self._conn = conn
 
     def __hash__(self):
         return super().__hash__()
@@ -196,15 +200,22 @@ class TrinoSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return trino_to_feast_value_type
 
-    def get_table_column_names_and_types(
-        self, config: RepoConfig
-    ) -> Iterable[Tuple[str, str]]:
-        client = Trino(
+    def _get_trino_client(self, config: RepoConfig) -> Trino:
+        if self._conn is not None:
+            return Trino(conn=self._conn)
+
+        return Trino(
             user="user",
             catalog=config.offline_store.catalog,
             host=config.offline_store.host,
             port=config.offline_store.port,
         )
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
+        client = self._get_trino_client(config)
+
         if self.table:
             table_schema = client.execute_query(
                 f"SELECT * FROM {self.table} LIMIT 1"
