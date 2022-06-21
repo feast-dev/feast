@@ -351,12 +351,13 @@ class RedshiftOfflineStore(OfflineStore):
             table=table,
             redshift_data_client=redshift_client,
             cluster_id=config.offline_store.cluster_id,
-            database=redshift_options.database or config.offline_store.database, # Users can define database in the source if needed but it's not required.
+            database=redshift_options.database
+            or config.offline_store.database,  # Users can define database in the source if needed but it's not required.
             user=config.offline_store.user,
             s3_resource=s3_resource,
             s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
             iam_role=config.offline_store.iam_role,
-            table_name=redshift_options.table ,
+            table_name=redshift_options.table,
             schema=pa_schema,
             fail_if_exists=False,
         )
