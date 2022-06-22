@@ -33,6 +33,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.repo_configuration import (
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
+    OFFLINE_STORE_TO_PROVIDER_CONFIG,
     Environment,
     TestData,
     construct_test_environment,
@@ -196,16 +197,24 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     """
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
-
+        offline_stores = None
         if "universal_offline_stores" in markers:
-            offline_stores = AVAILABLE_OFFLINE_STORES
+            # Offline stores can be explicitly requested
+            if "only" in markers["universal_offline_stores"].kwargs:
+                offline_stores = [
+                    OFFLINE_STORE_TO_PROVIDER_CONFIG.get(store_name)
+                    for store_name in markers["universal_offline_stores"].kwargs["only"]
+                    if store_name in OFFLINE_STORE_TO_PROVIDER_CONFIG
+                ]
+            else:
+                offline_stores = AVAILABLE_OFFLINE_STORES
         else:
             # default offline store for testing online store dimension
             offline_stores = [("local", FileDataSourceCreator)]
 
         online_stores = None
         if "universal_online_stores" in markers:
-            # Online stores are explicitly requested
+            # Online stores can be explicitly requested
             if "only" in markers["universal_online_stores"].kwargs:
                 online_stores = [
                     AVAILABLE_ONLINE_STORES.get(store_name)
@@ -240,40 +249,44 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
             extra_dimensions.append({"go_feature_retrieval": True})
 
         configs = []
-        for provider, offline_store_creator in offline_stores:
-            for online_store, online_store_creator in online_stores:
-                for dim in extra_dimensions:
-                    config = {
-                        "provider": provider,
-                        "offline_store_creator": offline_store_creator,
-                        "online_store": online_store,
-                        "online_store_creator": online_store_creator,
-                        **dim,
-                    }
-                    # temporary Go works only with redis
-                    if config.get("go_feature_retrieval") and (
-                        not isinstance(online_store, dict)
-                        or online_store["type"] != "redis"
-                    ):
-                        continue
-
-                    # aws lambda works only with dynamo
-                    if (
-                        config.get("python_feature_server")
-                        and config.get("provider") == "aws"
-                        and (
+        if offline_stores:
+            for provider, offline_store_creator in offline_stores:
+                for online_store, online_store_creator in online_stores:
+                    for dim in extra_dimensions:
+                        config = {
+                            "provider": provider,
+                            "offline_store_creator": offline_store_creator,
+                            "online_store": online_store,
+                            "online_store_creator": online_store_creator,
+                            **dim,
+                        }
+                        # temporary Go works only with redis
+                        if config.get("go_feature_retrieval") and (
                             not isinstance(online_store, dict)
-                            or online_store["type"] != "dynamodb"
-                        )
-                    ):
-                        continue
+                            or online_store["type"] != "redis"
+                        ):
+                            continue
 
-                    c = IntegrationTestRepoConfig(**config)
+                        # aws lambda works only with dynamo
+                        if (
+                            config.get("python_feature_server")
+                            and config.get("provider") == "aws"
+                            and (
+                                not isinstance(online_store, dict)
+                                or online_store["type"] != "dynamodb"
+                            )
+                        ):
+                            continue
 
-                    if c not in _config_cache:
-                        _config_cache[c] = c
+                        c = IntegrationTestRepoConfig(**config)
 
-                    configs.append(_config_cache[c])
+                        if c not in _config_cache:
+                            _config_cache[c] = c
+
+                        configs.append(_config_cache[c])
+        else:
+            # No offline stores requested -> setting the default or first available
+            offline_stores = [("local", FileDataSourceCreator)]
 
         metafunc.parametrize(
             "environment", configs, indirect=True, ids=[str(c) for c in configs]

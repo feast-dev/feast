@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     ContextManager,
     Dict,
@@ -41,6 +42,7 @@ from feast.infra.utils import aws_utils
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import feast_value_type_to_pa, redshift_to_feast_value_type
 from feast.usage import log_exceptions_and_usage
 
 
@@ -294,6 +296,69 @@ class RedshiftOfflineStore(OfflineStore):
             iam_role=config.offline_store.iam_role,
             table_name=destination.table_name,
             schema=source.get_schema(registry),
+            fail_if_exists=False,
+        )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        if not feature_view.batch_source:
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
+        if not isinstance(config.offline_store, RedshiftOfflineStoreConfig):
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when redshift type required"
+            )
+        if not isinstance(feature_view.batch_source, RedshiftSource):
+            raise ValueError(
+                f"feature view batch source is {type(feature_view.batch_source)} not redshift source"
+            )
+        redshift_options = feature_view.batch_source.redshift_options
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
+
+        column_name_to_type = feature_view.batch_source.get_table_column_names_and_types(
+            config
+        )
+        pa_schema_list = []
+        column_names = []
+        for column_name, redshift_type in column_name_to_type:
+            pa_schema_list.append(
+                (
+                    column_name,
+                    feast_value_type_to_pa(redshift_to_feast_value_type(redshift_type)),
+                )
+            )
+            column_names.append(column_name)
+        pa_schema = pa.schema(pa_schema_list)
+        if column_names != table.column_names:
+            raise ValueError(
+                f"Input dataframe has incorrect schema or wrong order, expected columns are: {column_names}"
+            )
+
+        if table.schema != pa_schema:
+            table = table.cast(pa_schema)
+
+        s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
+
+        aws_utils.upload_arrow_table_to_redshift(
+            table=table,
+            redshift_data_client=redshift_client,
+            cluster_id=config.offline_store.cluster_id,
+            database=redshift_options.database
+            or config.offline_store.database,  # Users can define database in the source if needed but it's not required.
+            user=config.offline_store.user,
+            s3_resource=s3_resource,
+            s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
+            iam_role=config.offline_store.iam_role,
+            table_name=redshift_options.table,
+            schema=pa_schema,
             fail_if_exists=False,
         )
 

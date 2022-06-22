@@ -235,6 +235,15 @@ def upload_df_to_redshift(
     )
 
 
+def delete_redshift_table(
+    redshift_data_client, cluster_id: str, database: str, user: str, table_name: str,
+):
+    drop_query = f"DROP {table_name} IF EXISTS"
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, database, user, drop_query,
+    )
+
+
 def upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
     redshift_data_client,
@@ -320,7 +329,7 @@ def upload_arrow_table_to_redshift(
             cluster_id,
             database,
             user,
-            f"{create_query}; {copy_query}",
+            f"{create_query}; {copy_query};",
         )
     finally:
         # Clean up S3 temporary data
@@ -361,6 +370,53 @@ def temporarily_upload_df_to_redshift(
         iam_role,
         table_name,
         df,
+    )
+
+    yield
+
+    # Clean up the uploaded Redshift table
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
+    )
+
+
+@contextlib.contextmanager
+def temporarily_upload_arrow_table_to_redshift(
+    table: Union[pyarrow.Table, Path],
+    redshift_data_client,
+    cluster_id: str,
+    database: str,
+    user: str,
+    s3_resource,
+    iam_role: str,
+    s3_path: str,
+    table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
+    fail_if_exists: bool = True,
+) -> Iterator[None]:
+    """Uploads a Arrow Table to Redshift as a new table with cleanup logic.
+
+    This is essentially the same as upload_arrow_table_to_redshift (check out its docstring for full details),
+    but unlike it this method is a generator and should be used with `with` block. For example:
+
+    >>> with temporarily_upload_arrow_table_to_redshift(...): # doctest: +SKIP
+    >>>     # Use `table_name` table in Redshift here
+    >>> # `table_name` will not exist at this point, since it's cleaned up by the `with` block
+
+    """
+    # Upload the dataframe to Redshift
+    upload_arrow_table_to_redshift(
+        table,
+        redshift_data_client,
+        cluster_id,
+        database,
+        user,
+        s3_resource,
+        s3_path,
+        iam_role,
+        table_name,
+        schema,
+        fail_if_exists,
     )
 
     yield

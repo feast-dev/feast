@@ -11,8 +11,9 @@ from tests.integration.feature_repos.universal.entities import driver
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
-def test_writing_incorrect_order_fails(environment, universal_data_sources):
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
+def test_writing_columns_in_incorrect_order_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
@@ -59,7 +60,8 @@ def test_writing_incorrect_order_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     # TODO(kevjumba) handle incorrect order later, for now schema must be in the order that the filesource is in
     store = environment.feature_store
@@ -107,7 +109,8 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores
+@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
