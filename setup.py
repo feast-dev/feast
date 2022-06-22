@@ -425,7 +425,6 @@ class build_ext(_build_ext):
 
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
         subprocess.check_call(["go", "mod", "tidy"], env={"PATH": bin_path, **go_env})
-        # subprocess.check_call(["go", "install", "github.com/go-python/gopy@v0.4.0"])
         subprocess.check_call(
             [
                 "gopy",

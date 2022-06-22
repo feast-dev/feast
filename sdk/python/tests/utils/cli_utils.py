@@ -76,9 +76,6 @@ class CliRunner:
                 path: {data_path / "online_store.db"}
             offline_store:
                 type: {offline_store}
-            flags:
-              alpha_features: true
-              on_demand_transforms: true
             """
                 )
             )
