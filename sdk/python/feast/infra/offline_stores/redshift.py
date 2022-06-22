@@ -318,7 +318,9 @@ class RedshiftOfflineStore(OfflineStore):
                 f"feature view batch source is {type(feature_view.batch_source)} not redshift source"
             )
 
-        pa_schema, column_names = offline_utils.get_pyarrow_schema(config, feature_view)
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
         if column_names != table.column_names:
             raise ValueError(
                 f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "

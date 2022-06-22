@@ -27,7 +27,7 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
-    get_pyarrow_schema,
+    get_pyarrow_schema_from_batch_source,
 )
 from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
@@ -425,7 +425,9 @@ class FileOfflineStore(OfflineStore):
                 f"feature view batch source is {type(feature_view.batch_source)} not file source"
             )
 
-        pa_schema, column_names = get_pyarrow_schema(config, feature_view)
+        pa_schema, column_names = get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
         if column_names != table.column_names:
             raise ValueError(
                 f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "

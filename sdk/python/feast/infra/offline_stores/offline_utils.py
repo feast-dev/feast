@@ -9,6 +9,7 @@ import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 
+from feast.data_source import DataSource
 from feast.errors import (
     EntityTimestampInferenceException,
     FeastEntityDFMissingColumnsError,
@@ -222,13 +223,11 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     return offline_store_class()
 
 
-def get_pyarrow_schema(
-    config: RepoConfig, feature_view: FeatureView
+def get_pyarrow_schema_from_batch_source(
+    config: RepoConfig, batch_source: DataSource
 ) -> Tuple[pa.Schema, List[str]]:
-    """Returns the pyarrow schema and column names for the specified feature view's batch source."""
-    column_names_and_types = feature_view.batch_source.get_table_column_names_and_types(
-        config
-    )
+    """Returns the pyarrow schema and column names for the given batch source."""
+    column_names_and_types = batch_source.get_table_column_names_and_types(config)
 
     pa_schema = []
     column_names = []
@@ -237,9 +236,7 @@ def get_pyarrow_schema(
             (
                 column_name,
                 feast_value_type_to_pa(
-                    feature_view.batch_source.source_datatype_to_feast_value_type()(
-                        column_type
-                    )
+                    batch_source.source_datatype_to_feast_value_type()(column_type)
                 ),
             )
         )
