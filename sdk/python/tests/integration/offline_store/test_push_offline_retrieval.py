@@ -14,6 +14,7 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 
+
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores(only=["file", "redshift"])
 @pytest.mark.universal_online_stores(only=["sqlite"])
