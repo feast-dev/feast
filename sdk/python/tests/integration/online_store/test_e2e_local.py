@@ -130,7 +130,7 @@ def _test_materialize_and_online_retrieval(
         cwd=Path(store.repo_path),
     )
 
-    assert r.returncode == 0
+    assert r.returncode == 0, f"stdout: {r.stdout}\n stderr: {r.stderr}"
     _assert_online_features(store, driver_df, end_date - timedelta(days=7))
 
     # Test `feast materialize-incremental` and online retrieval.
@@ -138,7 +138,7 @@ def _test_materialize_and_online_retrieval(
         ["materialize-incremental", end_date.isoformat()], cwd=Path(store.repo_path),
     )
 
-    assert r.returncode == 0
+    assert r.returncode == 0, f"stdout: {r.stdout}\n stderr: {r.stderr}"
     _assert_online_features(store, driver_df, end_date)
 
 
