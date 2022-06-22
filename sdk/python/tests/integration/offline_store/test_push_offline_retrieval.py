@@ -16,7 +16,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_offline_stores
 @pytest.mark.universal_online_stores(only=["sqlite"])
 def test_push_features_and_read_from_offline_store(environment, universal_data_sources):
     store = environment.feature_store
