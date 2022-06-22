@@ -42,7 +42,6 @@ from feast.infra.utils import aws_utils
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.type_map import feast_value_type_to_pa, redshift_to_feast_value_type
 from feast.usage import log_exceptions_and_usage
 
 
@@ -318,33 +317,21 @@ class RedshiftOfflineStore(OfflineStore):
             raise ValueError(
                 f"feature view batch source is {type(feature_view.batch_source)} not redshift source"
             )
-        redshift_options = feature_view.batch_source.redshift_options
-        redshift_client = aws_utils.get_redshift_data_client(
-            config.offline_store.region
-        )
 
-        column_name_to_type = feature_view.batch_source.get_table_column_names_and_types(
-            config
-        )
-        pa_schema_list = []
-        column_names = []
-        for column_name, redshift_type in column_name_to_type:
-            pa_schema_list.append(
-                (
-                    column_name,
-                    feast_value_type_to_pa(redshift_to_feast_value_type(redshift_type)),
-                )
-            )
-            column_names.append(column_name)
-        pa_schema = pa.schema(pa_schema_list)
+        pa_schema, column_names = offline_utils.get_pyarrow_schema(config, feature_view)
         if column_names != table.column_names:
             raise ValueError(
-                f"Input dataframe has incorrect schema or wrong order, expected columns are: {column_names}"
+                f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "
+                f"The columns are expected to be (in this order): {column_names}."
             )
 
         if table.schema != pa_schema:
             table = table.cast(pa_schema)
 
+        redshift_options = feature_view.batch_source.redshift_options
+        redshift_client = aws_utils.get_redshift_data_client(
+            config.offline_store.region
+        )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         aws_utils.upload_arrow_table_to_redshift(

@@ -5,6 +5,7 @@ from typing import Any, Dict, KeysView, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 
@@ -17,6 +18,8 @@ from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import _get_requested_feature_views_to_features_dict
 from feast.registry import BaseRegistry
+from feast.repo_config import RepoConfig
+from feast.type_map import feast_value_type_to_pa
 from feast.utils import to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -217,3 +220,29 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     class_name = qualified_name.replace("Config", "")
     offline_store_class = import_class(module_name, class_name, "OfflineStore")
     return offline_store_class()
+
+
+def get_pyarrow_schema(
+    config: RepoConfig, feature_view: FeatureView
+) -> Tuple[pa.Schema, List[str]]:
+    """Returns the pyarrow schema and column names for the specified feature view's batch source."""
+    column_names_and_types = feature_view.batch_source.get_table_column_names_and_types(
+        config
+    )
+
+    pa_schema = []
+    column_names = []
+    for column_name, column_type in column_names_and_types:
+        pa_schema.append(
+            (
+                column_name,
+                feast_value_type_to_pa(
+                    feature_view.batch_source.source_datatype_to_feast_value_type()(
+                        column_type
+                    )
+                ),
+            )
+        )
+        column_names.append(column_name)
+
+    return pa.schema(pa_schema), column_names
