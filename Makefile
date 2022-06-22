@@ -174,7 +174,7 @@ install-go-ci-dependencies:
 	# ToDo: there should be a better way to install gopy
 	go get github.com/go-python/gopy@v0.4.0
 	go install golang.org/x/tools/cmd/goimports
-	go install github.com/go-python/gopy@v0.4.0
+	#go install github.com/go-python/gopy@v0.4.0
 	python -m pip install pybindgen==0.22.0
 
 install-protoc-dependencies:
