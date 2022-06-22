@@ -102,4 +102,8 @@ public class RegistryRepository {
   public List<String> getEntitiesList(ServingAPIProto.FeatureReferenceV2 featureReference) {
     return getFeatureViewSpec(featureReference).getEntitiesList();
   }
+
+  public String getEntityJoinKey(String name) {
+    return this.registry.getEntityJoinKey(name);
+  }
 }

@@ -33,6 +33,7 @@ public class Registry {
   private Map<String, OnDemandFeatureViewProto.OnDemandFeatureViewSpec>
       onDemandFeatureViewNameToSpec;
   private final Map<String, FeatureServiceProto.FeatureServiceSpec> featureServiceNameToSpec;
+  private final Map<String, String> entityNameToJoinKey;
 
   Registry(RegistryProto.Registry registry) {
     this.registry = registry;
@@ -60,6 +61,12 @@ public class Registry {
             .collect(
                 Collectors.toMap(
                     FeatureServiceProto.FeatureServiceSpec::getName, Function.identity()));
+    this.entityNameToJoinKey =
+        registry.getEntitiesList().stream()
+            .map(EntityProto.Entity::getSpec)
+            .collect(
+                Collectors.toMap(
+                    EntityProto.EntitySpecV2::getName, EntityProto.EntitySpecV2::getJoinKey));
   }
 
   public RegistryProto.Registry getRegistry() {
@@ -114,5 +121,13 @@ public class Registry {
           String.format("Unable to find feature service with name: %s", name));
     }
     return spec;
+  }
+
+  public String getEntityJoinKey(String name) {
+    String joinKey = entityNameToJoinKey.get(name);
+    if (joinKey == null) {
+      throw new SpecRetrievalException(String.format("Unable to find entity with name: %s", name));
+    }
+    return joinKey;
   }
 }
