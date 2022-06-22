@@ -278,20 +278,25 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       features.add(featuresPerEntity);
     }
 
-    // Group feature references by feature view.
-    Map<String, List<FeatureReferenceV2>> featureViewNameToFeatureReferencesMap =
+    // Group feature references by join keys.
+    Map<String, List<FeatureReferenceV2>> groupNameToFeatureReferencesMap =
         featureReferences.stream()
-            .collect(Collectors.groupingBy(FeatureReferenceV2::getFeatureViewName));
+            .collect(
+                Collectors.groupingBy(
+                    featureReference ->
+                        this.registryRepository.getEntitiesList(featureReference).stream()
+                            .map(this.registryRepository::getEntityJoinKey)
+                            .sorted()
+                            .collect(Collectors.joining(","))));
 
-    // Retrieve features one feature view at a time.
-    for (List<FeatureReferenceV2> featureReferencesPerFeatureView :
-        featureViewNameToFeatureReferencesMap.values()) {
+    // Retrieve features one group at a time.
+    for (List<FeatureReferenceV2> featureReferencesPerGroup :
+        groupNameToFeatureReferencesMap.values()) {
       List<String> entityNames =
-          this.registryRepository.getEntitiesList(featureReferencesPerFeatureView.get(0));
-      List<Map<String, ValueProto.Value>> entityRowsPerFeatureView =
-          new ArrayList<>(entityRows.size());
+          this.registryRepository.getEntitiesList(featureReferencesPerGroup.get(0));
+      List<Map<String, ValueProto.Value>> entityRowsPerGroup = new ArrayList<>(entityRows.size());
       for (Map<String, ValueProto.Value> entityRow : entityRows) {
-        Map<String, ValueProto.Value> entityRowPerFeatureView =
+        Map<String, ValueProto.Value> entityRowPerGroup =
             entityNames.stream()
                 .map(this.registryRepository::getEntityJoinKey)
                 .collect(
@@ -303,15 +308,14 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                           }
                           return entityRow.get(joinKey);
                         }));
-        entityRowsPerFeatureView.add(entityRowPerFeatureView);
+        entityRowsPerGroup.add(entityRowPerGroup);
       }
-      List<List<feast.storage.api.retriever.Feature>> featuresPerFeatureView =
-          retriever.getOnlineFeatures(
-              entityRowsPerFeatureView, featureReferencesPerFeatureView, entityNames);
-      for (int i = 0; i < featuresPerFeatureView.size(); i++) {
-        for (int j = 0; j < featureReferencesPerFeatureView.size(); j++) {
-          int k = featureReferenceToIndexMap.get(featureReferencesPerFeatureView.get(j));
-          features.get(i).set(k, featuresPerFeatureView.get(i).get(j));
+      List<List<feast.storage.api.retriever.Feature>> featuresPerGroup =
+          retriever.getOnlineFeatures(entityRowsPerGroup, featureReferencesPerGroup, entityNames);
+      for (int i = 0; i < featuresPerGroup.size(); i++) {
+        for (int j = 0; j < featureReferencesPerGroup.size(); j++) {
+          int k = featureReferenceToIndexMap.get(featureReferencesPerGroup.get(j));
+          features.get(i).set(k, featuresPerGroup.get(i).get(j));
         }
       }
     }
