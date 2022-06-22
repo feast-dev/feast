@@ -43,7 +43,7 @@ from tqdm import tqdm
 from feast import feature_server, flags, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushMode
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
@@ -1341,15 +1341,20 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(
-        self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True
+        self,
+        push_source_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = True,
+        to: PushMode = PushMode.ONLINE,
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
 
         Args:
             push_source_name: The name of the push source we want to push data to.
-            df: the data being pushed.
-            allow_registry_cache: whether to allow cached versions of the registry.
+            df: The data being pushed.
+            allow_registry_cache: Whether to allow cached versions of the registry.
+            to: Whether to push to online or offline store. Defaults to online store only.
         """
         warnings.warn(
             "Push source is an experimental feature. "
@@ -1373,9 +1378,14 @@ class FeatureStore:
         }
 
         for fv in fvs_with_push_sources:
-            self.write_to_online_store(
-                fv.name, df, allow_registry_cache=allow_registry_cache
-            )
+            if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                self.write_to_online_store(
+                    fv.name, df, allow_registry_cache=allow_registry_cache
+                )
+            if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                self._write_to_offline_store(
+                    fv.name, df, allow_registry_cache=allow_registry_cache
+                )
 
     @log_exceptions_and_usage
     def write_to_online_store(

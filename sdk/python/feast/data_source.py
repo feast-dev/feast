@@ -914,6 +914,12 @@ class KinesisSource(DataSource):
         return data_source_proto
 
 
+class PushMode(enum.Enum):
+    ONLINE = 1
+    OFFLINE = 2
+    ONLINE_AND_OFFLINE = 3
+
+
 @typechecked
 class PushSource(DataSource):
     """
