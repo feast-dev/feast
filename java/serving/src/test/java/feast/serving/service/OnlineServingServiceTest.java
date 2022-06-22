@@ -170,6 +170,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(3).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -237,6 +239,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -314,6 +318,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(1));
     when(registry.getFeatureSpec(mockedFeatureRows.get(5).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
