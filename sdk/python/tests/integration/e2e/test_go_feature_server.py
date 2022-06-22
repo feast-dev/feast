@@ -122,7 +122,7 @@ def grpc_client(grpc_server_port):
 
 
 @pytest.mark.integration
-@pytest.mark.goserver
+# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
 def test_go_grpc_server(grpc_client):
     resp: GetOnlineFeaturesResponse = grpc_client.GetOnlineFeatures(
         GetOnlineFeaturesRequest(
