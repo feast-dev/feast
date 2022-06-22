@@ -27,6 +27,7 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+    get_pyarrow_schema,
 )
 from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
@@ -408,7 +409,7 @@ class FileOfflineStore(OfflineStore):
     def offline_write_batch(
         config: RepoConfig,
         feature_view: FeatureView,
-        data: pyarrow.Table,
+        table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
         if not feature_view.batch_source:
@@ -423,20 +424,25 @@ class FileOfflineStore(OfflineStore):
             raise ValueError(
                 f"feature view batch source is {type(feature_view.batch_source)} not file source"
             )
+
+        pa_schema, column_names = get_pyarrow_schema(config, feature_view)
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "
+                f"The columns are expected to be (in this order): {column_names}."
+            )
+
         file_options = feature_view.batch_source.file_options
         filesystem, path = FileSource.create_filesystem_and_path(
             file_options.uri, file_options.s3_endpoint_override
         )
-
         prev_table = pyarrow.parquet.read_table(path, memory_map=True)
-        if prev_table.column_names != data.column_names:
-            raise ValueError(
-                f"Input dataframe has incorrect schema or wrong order, expected columns are: {prev_table.column_names}"
-            )
-        if data.schema != prev_table.schema:
-            data = data.cast(prev_table.schema)
-        new_table = pyarrow.concat_tables([data, prev_table])
-        writer = pyarrow.parquet.ParquetWriter(path, data.schema, filesystem=filesystem)
+        if table.schema != prev_table.schema:
+            table = table.cast(prev_table.schema)
+        new_table = pyarrow.concat_tables([table, prev_table])
+        writer = pyarrow.parquet.ParquetWriter(
+            path, table.schema, filesystem=filesystem
+        )
         writer.write_table(new_table)
         writer.close()
 
