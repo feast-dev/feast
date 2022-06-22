@@ -123,7 +123,9 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             Field(name="acc_rate", dtype=Float32),
         ],
         source=data_sources.driver,
-        ttl=timedelta(minutes=10),
+        ttl=timedelta(
+            minutes=10
+        ),  # This is to make sure all offline store data is out of date since get_historical_features() only searches backwards for a ttl window.
     )
 
     now = datetime.utcnow()

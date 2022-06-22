@@ -12,8 +12,9 @@ from pydantic import BaseModel
 
 import feast
 from feast import proto_json
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
 from feast.data_source import PushMode
+from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+
 
 # TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):

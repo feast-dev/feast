@@ -1341,7 +1341,11 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def push(
-        self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True, to: PushMode = PushMode.ONLINE
+        self,
+        push_source_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = True,
+        to: PushMode = PushMode.ONLINE,
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
