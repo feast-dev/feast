@@ -110,7 +110,7 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
 
         if self.offline_store:
-            self.offline_store.offline_write_batch(config, feature_view, data, progress)
+            self.offline_store.__class__.offline_write_batch(config, feature_view, data, progress)
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
