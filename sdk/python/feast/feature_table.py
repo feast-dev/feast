@@ -16,9 +16,8 @@ from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
 from google.protobuf import json_format
-from google.protobuf.duration_pb2 import Duration
+from google.protobuf.internal.well_known_types import Timestamp, Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto

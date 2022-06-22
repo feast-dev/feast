@@ -116,11 +116,11 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             "client_secret": config.get(opt.OAUTH_CLIENT_SECRET),
             "audience": config.get(opt.OAUTH_AUDIENCE),
         }
-        data_token = json.dumps(data_token)
+        data_token_json_string = json.dumps(data_token)
         response_token = requests.post(
             config.get(opt.OAUTH_TOKEN_REQUEST_URL),
             headers=headers_token,
-            data=data_token,
+            data=data_token_json_string,
         )
         if response_token.status_code == HTTPStatus.OK:
             self._token = response_token.json().get("access_token")
