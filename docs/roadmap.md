@@ -41,7 +41,7 @@ The list below contains the functionality that contributors are planning to deve
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
   * [x] [Push based streaming data ingestion to online store](https://docs.feast.dev/reference/data-sources/push)
-  * [x] [Streaming RFC](https://docs.google.com/document/d/1UzEyETHUaGpn0ap4G82DHluiCj7zEbrQLkJJkKSv4e8/edit)
+  * [x] [Streaming FCOs and Streaming Data Pipeline Tutorial](https://docs.google.com/document/d/1UzEyETHUaGpn0ap4G82DHluiCj7zEbrQLkJJkKSv4e8/edit)
   * [ ] Push based streaming data ingestion to offline store
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
