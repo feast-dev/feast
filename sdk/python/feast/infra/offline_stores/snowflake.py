@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     ContextManager,
     Dict,
@@ -305,6 +306,47 @@ class SnowflakeOfflineStore(OfflineStore):
                 table_name=logging_config.destination.table_name,
                 auto_create_table=True,
             )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        if not feature_view.batch_source:
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
+        if not isinstance(config.offline_store, SnowflakeOfflineStoreConfig):
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when snowflake type required"
+            )
+        if not isinstance(feature_view.batch_source, SnowflakeSource):
+            raise ValueError(
+                f"feature view batch source is {type(feature_view.batch_source)} not snowflake source"
+            )
+
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "
+                f"The columns are expected to be (in this order): {column_names}."
+            )
+
+        if table.schema != pa_schema:
+            table = table.cast(pa_schema)
+
+        snowflake_conn = get_snowflake_conn(config.offline_store)
+
+        write_pandas(
+            snowflake_conn,
+            table.to_pandas(),
+            table_name=feature_view.batch_source.table,
+            auto_create_table=True,
+        )
 
 
 class SnowflakeRetrievalJob(RetrievalJob):

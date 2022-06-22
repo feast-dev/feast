@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     ContextManager,
     Dict,
@@ -300,6 +301,60 @@ class BigQueryOfflineStore(OfflineStore):
             client.load_table_from_file(
                 file_obj=parquet_temp_file,
                 destination=destination.table,
+                job_config=job_config,
+            )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        if not feature_view.batch_source:
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
+        if not isinstance(config.offline_store, BigQueryOfflineStoreConfig):
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when bigquery type required"
+            )
+        if not isinstance(feature_view.batch_source, BigQuerySource):
+            raise ValueError(
+                f"feature view batch source is {type(feature_view.batch_source)} not bigquery source"
+            )
+
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "
+                f"The columns are expected to be (in this order): {column_names}."
+            )
+
+        if table.schema != pa_schema:
+            table = table.cast(pa_schema)
+
+        client = _get_bigquery_client(
+            project=config.offline_store.project_id,
+            location=config.offline_store.location,
+        )
+
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.PARQUET,
+            schema=arrow_schema_to_bq_schema(pa_schema),
+            write_disposition="WRITE_APPEND",  # Default but included for clarity
+        )
+
+        with tempfile.TemporaryFile() as parquet_temp_file:
+            pyarrow.parquet.write_table(table=table, where=parquet_temp_file)
+
+            parquet_temp_file.seek(0)
+
+            client.load_table_from_file(
+                file_obj=parquet_temp_file,
+                destination=feature_view.batch_source.table,
                 job_config=job_config,
             )
 

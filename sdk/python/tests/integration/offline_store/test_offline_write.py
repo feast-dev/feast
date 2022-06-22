@@ -109,7 +109,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores(only=["file", "redshift"])
+@pytest.mark.universal_offline_stores
 @pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
