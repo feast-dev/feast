@@ -37,7 +37,6 @@ import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -296,18 +295,20 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           this.registryRepository.getEntitiesList(featureReferencesPerGroup.get(0));
       List<Map<String, ValueProto.Value>> entityRowsPerGroup = new ArrayList<>(entityRows.size());
       for (Map<String, ValueProto.Value> entityRow : entityRows) {
-        Map<String, ValueProto.Value> entityRowPerGroup =
-            entityNames.stream()
-                .map(this.registryRepository::getEntityJoinKey)
-                .collect(
-                    Collectors.toMap(
-                        Function.identity(),
-                        joinKey -> {
-                          if (joinKey.equals(DUMMY_ENTITY_ID)) {
-                            return DUMMY_ENTITY_VALUE;
-                          }
-                          return entityRow.get(joinKey);
-                        }));
+        Map<String, ValueProto.Value> entityRowPerGroup = new HashMap<>();
+        entityNames.stream()
+            .map(this.registryRepository::getEntityJoinKey)
+            .forEach(
+                joinKey -> {
+                  if (joinKey.equals(DUMMY_ENTITY_ID)) {
+                    entityRowPerGroup.put(joinKey, DUMMY_ENTITY_VALUE);
+                  } else {
+                    ValueProto.Value value = entityRow.get(joinKey);
+                    if (value != null) {
+                      entityRowPerGroup.put(joinKey, value);
+                    }
+                  }
+                });
         entityRowsPerGroup.add(entityRowPerGroup);
       }
       List<List<feast.storage.api.retriever.Feature>> featuresPerGroup =
