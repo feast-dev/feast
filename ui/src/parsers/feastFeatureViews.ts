@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { FEAST_FEATURE_VALUE_TYPES } from "./types";
-import { jsonSchema } from "./jsonType"
-
 
 const FeastFeatureColumnSchema = z.object({
   name: z.string(),
@@ -56,7 +54,6 @@ const FeastFeatureViewSchema = z.object({
         })
       )
       .optional(),
-    metadata: jsonSchema.optional(),
   }),
 });
 

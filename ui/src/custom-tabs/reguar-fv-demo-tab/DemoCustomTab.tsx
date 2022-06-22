@@ -1,108 +1,83 @@
 import React from "react";
-import { z } from "zod";
+
 import {
-  EuiCode,
+  // Feature View Custom Tabs will get these props
+  RegularFeatureViewCustomTabProps,
+} from "../types";
+
+import {
+  EuiLoadingContent,
+  EuiEmptyPrompt,
   EuiFlexGroup,
-  EuiHorizontalRule,
-  EuiLoadingSpinner,
-  EuiTable,
-  EuiTitle,
-  EuiTableHeader,
-  EuiTableHeaderCell,
-  EuiPanel,
   EuiFlexItem,
-  EuiTableRow,
-  EuiTableRowCell,
+  EuiCode,
+  EuiSpacer,
 } from "@elastic/eui";
-import useLoadRegularFeatureView from "../../pages/feature-views/useLoadFeatureView";
 
-const FeatureViewMetadataRow = z.object({
-  name: z.string(),
-  value: z.string(),
-});
+// Separating out the query is not required,
+// but encouraged for code readability
+import useDemoQuery from "./useDemoQuery";
 
-type FeatureViewMetadataRowType = z.infer<typeof FeatureViewMetadataRow>;
+const DemoCustomTab = ({
+  id,
+  feastObjectQuery,
+}: RegularFeatureViewCustomTabProps) => {
+  // Use React Query to fetch data
+  // that is custom to this tab.
+  // See: https://react-query.tanstack.com/guides/queries
+  const { isLoading, isError, isSuccess, data } = useDemoQuery({
+    featureView: id,
+  });
 
-const LineHeightProp: React.CSSProperties = {
-  lineHeight: 1,
-}
-
-const EuiFeatureViewMetadataRow = ({name, value}: FeatureViewMetadataRowType) => {
-  return (
-    <EuiTableRow>
-      <EuiTableRowCell>
-        {name}
-      </EuiTableRowCell>
-      <EuiTableRowCell textOnly={false}>
-        <EuiCode data-code-language="text">
-          <pre style={LineHeightProp}>
-            {value}
-          </pre>
-        </EuiCode>
-      </EuiTableRowCell>
-    </EuiTableRow>
-  );
-}
-
-const FeatureViewMetadataTable = (data: any) => {
-  var items: FeatureViewMetadataRowType[] = [];
-
-  for (let element in data.data){
-    const row: FeatureViewMetadataRowType = {
-      name: element,
-      value: JSON.stringify(data.data[element], null, 2),
-    };
-    items.push(row);
-    console.log(row);
+  if (isLoading) {
+    // Handle Loading State
+    // https://elastic.github.io/eui/#/display/loading
+    return <EuiLoadingContent lines={3} />;
   }
 
-  return (
-    <EuiTable>
-      <EuiTableHeader>
-        <EuiTableHeaderCell>
-          Metadata Feature Name
-        </EuiTableHeaderCell>
-        <EuiTableHeaderCell>
-          Metadata Feature Value
-        </EuiTableHeaderCell>
-      </EuiTableHeader>
-      {items.map((item) => {
-        return <EuiFeatureViewMetadataRow name={item.name} value={item.value} />
-      })}
-    </EuiTable>
-  )
-}
+  if (isError) {
+    // Handle Data Fetching Error
+    // https://elastic.github.io/eui/#/display/empty-prompt
+    return (
+      <EuiEmptyPrompt
+        iconType="alert"
+        color="danger"
+        title={<h2>Unable to load your demo page</h2>}
+        body={
+          <p>
+            There was an error loading the Dashboard application. Contact your
+            administrator for help.
+          </p>
+        }
+      />
+    );
+  }
 
-// TODO: change this part to load from a custom source, like the demos?
-const DemoCustomTab = () => {
-  const fName = "credit_history"
-  const { isLoading, isError, isSuccess, data } = useLoadRegularFeatureView(fName);
-  const isEmpty = data === undefined;
-
+  // Feast UI uses the Elastic UI component system.
+  // <EuiFlexGroup> and <EuiFlexItem> are particularly
+  // useful for layouts.
   return (
     <React.Fragment>
-    {isLoading && (
-      <React.Fragment>
-        <EuiLoadingSpinner size="m" /> Loading
-      </React.Fragment>
-    )}
-    {isEmpty && <p>No feature view with name: {fName}</p>}
-    {isError && <p>Error loading feature view: {fName}</p>}
-    {isSuccess && data && (
-      <React.Fragment>
       <EuiFlexGroup>
-        <EuiFlexItem>
-          <EuiPanel hasBorder={true}>
-            <EuiTitle size="xs">
-              <h3>Properties</h3>
-            </EuiTitle>
-            <EuiHorizontalRule margin="xs" />
-            <FeatureViewMetadataTable data={data.object.spec} />
-          </EuiPanel>
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </React.Fragment>
-      )}
+        <EuiFlexItem grow={1}>
+          <p>Hello World. The following is fetched data.</p>
+          <EuiSpacer />
+          {isSuccess && data && (
+            <EuiCode>
+              <pre>{JSON.stringify(data, null, 2)}</pre>
+            </EuiCode>
+          )}
+        </EuiFlexItem>
+        <EuiFlexItem grow={2}>
+          <p>... and this is data from Feast UI&rsquo;s own query.</p>
+          <EuiSpacer />
+          {feastObjectQuery.isSuccess && feastObjectQuery.data && (
+            <EuiCode>
+              <pre>{JSON.stringify(feastObjectQuery.data, null, 2)}</pre>
+            </EuiCode>
+          )}
+        </EuiFlexItem>
+      </EuiFlexGroup>
     </React.Fragment>
   );
 };
