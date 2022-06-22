@@ -15,6 +15,7 @@ import {
   EuiTableRowCell,
 } from "@elastic/eui";
 import useLoadRegularFeatureView from "../../pages/feature-views/useLoadFeatureView";
+import MetadataQuery from "./MetadataQuery";
 
 const FeatureViewMetadataRow = z.object({
   name: z.string(),
@@ -60,10 +61,10 @@ const FeatureViewMetadataTable = (data: any) => {
     <EuiTable>
       <EuiTableHeader>
         <EuiTableHeaderCell>
-          Metadata Feature Name
+          Metadata Item Name
         </EuiTableHeaderCell>
         <EuiTableHeaderCell>
-          Metadata Feature Value
+          Metadata Item Value
         </EuiTableHeaderCell>
       </EuiTableHeader>
       {items.map((item) => {
@@ -73,10 +74,9 @@ const FeatureViewMetadataTable = (data: any) => {
   )
 }
 
-// TODO: change this part to load from a custom source, like the demos?
-const DemoCustomTab = () => {
+const MetadataTab = () => {
   const fName = "credit_history"
-  const { isLoading, isError, isSuccess, data } = useLoadRegularFeatureView(fName);
+  const { isLoading, isError, isSuccess, data } = MetadataQuery(fName);
   const isEmpty = data === undefined;
 
   return (
@@ -97,7 +97,7 @@ const DemoCustomTab = () => {
               <h3>Properties</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            <FeatureViewMetadataTable data={data.object.spec} />
+            <FeatureViewMetadataTable data={data} />
           </EuiPanel>
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -107,4 +107,4 @@ const DemoCustomTab = () => {
   );
 };
 
-export default DemoCustomTab;
+export default MetadataTab;
