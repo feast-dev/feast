@@ -1,8 +1,6 @@
 import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-from typeguard import typechecked
-
 from feast import type_map
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException
@@ -19,7 +17,6 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
 
 
-@typechecked
 class BigQuerySource(DataSource):
     def __init__(
         self,

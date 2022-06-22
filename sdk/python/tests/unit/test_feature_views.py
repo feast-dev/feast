@@ -10,7 +10,6 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
 
@@ -254,8 +253,3 @@ def test_hash():
 
 # TODO(felixwang9817): Add tests for proto conversion.
 # TODO(felixwang9817): Add tests for field mapping logic.
-
-
-def test_field_types():
-    with pytest.raises(TypeError):
-        Field(name="name", dtype=ValueType.INT32)

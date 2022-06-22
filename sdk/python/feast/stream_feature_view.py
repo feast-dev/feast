@@ -2,12 +2,11 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
-from types import FunctionType
+from types import MethodType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
 from google.protobuf.duration_pb2 import Duration
-from typeguard import typechecked
 
 from feast import utils
 from feast.aggregation import Aggregation
@@ -37,7 +36,6 @@ warnings.simplefilter("once", RuntimeWarning)
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 
 
-@typechecked
 class StreamFeatureView(FeatureView):
     """
     NOTE: Stream Feature Views are not yet fully implemented and exist to allow users to register their stream sources and
@@ -78,7 +76,7 @@ class StreamFeatureView(FeatureView):
     mode: str
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
-    udf: Optional[FunctionType]
+    udf: Optional[MethodType]
 
     def __init__(
         self,
@@ -95,7 +93,7 @@ class StreamFeatureView(FeatureView):
         aggregations: Optional[List[Aggregation]] = None,
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
-        udf: Optional[FunctionType] = None,
+        udf: Optional[MethodType] = None,
     ):
         warnings.warn(
             "Stream Feature Views are experimental features in alpha development. "

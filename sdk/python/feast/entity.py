@@ -16,7 +16,6 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from typeguard import typechecked
 
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
@@ -25,7 +24,6 @@ from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
-@typechecked
 class Entity:
     """
     An entity defines a collection of entities for which features can be defined. An
@@ -203,7 +201,7 @@ class Entity:
             name=entity_proto.spec.name,
             join_keys=[entity_proto.spec.join_key],
             description=entity_proto.spec.description,
-            tags=dict(entity_proto.spec.tags),
+            tags=entity_proto.spec.tags,
             owner=entity_proto.spec.owner,
         )
 

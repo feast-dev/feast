@@ -71,7 +71,6 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml==0.10.*",
     "tqdm==4.*",
-    "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
     "tensorflow-metadata>=1.0.0,<2.0.0",
@@ -135,7 +134,7 @@ CI_REQUIRED = (
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
-        "mypy>=0.931",
+        "mypy==0.931",
         "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
@@ -182,7 +181,7 @@ CI_REQUIRED = (
 
 # rtd builds fail because of mysql not being installed in their environment.
 # We can add mysql there, but it's not strictly needed. This will be faster for builds.
-DOCS_REQUIRED = CI_REQUIRED.copy()
+DOCS_REQUIRED = CI_REQUIRED
 for _r in MYSQL_REQUIRED:
     DOCS_REQUIRED.remove(_r)
 
