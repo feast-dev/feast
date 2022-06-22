@@ -76,7 +76,7 @@ REDIS_CLUSTER_CONFIG = {
 
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
-    "gcp": ("gcp", BigQueryDataSourceCreator),
+    "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
     "snowflake": ("aws", RedshiftDataSourceCreator),
 }
