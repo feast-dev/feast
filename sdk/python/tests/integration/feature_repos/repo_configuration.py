@@ -74,26 +74,11 @@ REDIS_CLUSTER_CONFIG = {
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> fec6cc0b (Lint)
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "gcp": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
     "snowflake": ("aws", RedshiftDataSourceCreator),
-<<<<<<< HEAD
-=======
-OFFLINE_STORE_TO_PROVIDER_CONFIG : Dict[
-    str, DataSourceCreator] = {
-        "file": ("local", FileDataSourceCreator),
-        "gcp": ("gcp", BigQueryDataSourceCreator),
-        "redshift": ("aws", RedshiftDataSourceCreator),
-        "snowflake": ("aws", RedshiftDataSourceCreator),
->>>>>>> a1b0c4a6 (Add redshift)
-=======
->>>>>>> fec6cc0b (Lint)
 }
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
