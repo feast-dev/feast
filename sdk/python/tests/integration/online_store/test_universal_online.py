@@ -524,6 +524,7 @@ def test_stream_feature_view_online_retrieval(
 def test_online_retrieval(
     environment, universal_data_sources, feature_server_endpoint, full_feature_names
 ):
+    print("test")
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
