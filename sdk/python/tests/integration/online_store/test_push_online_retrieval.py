@@ -1,10 +1,8 @@
 import datetime
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from feast.data_source import PushMode
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
