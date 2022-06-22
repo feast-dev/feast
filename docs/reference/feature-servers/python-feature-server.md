@@ -2,7 +2,7 @@
 
 ## Overview
 
-The feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write + read features from Feast online stores using any programming language that can make HTTP requests. 
+The feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write + read features from Feast online stores using any programming language that can make HTTP requests.
 
 ## CLI
 
@@ -155,6 +155,10 @@ curl -X POST \
 ### Pushing features to the online store
 You can push data corresponding to a push source to the online store (note that timestamps need to be strings):
 
+You can also define a pushmode to push offline data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline
+store doesn't support the push api functionality.
+
+The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "both"].
 ```text
 curl -X POST "http://localhost:6566/push" -d '{
     "push_source_name": "driver_hourly_stats_push_source",
@@ -187,9 +191,10 @@ event_dict = {
 }
 push_data = {
     "push_source_name":"driver_stats_push_source",
-    "df":event_dict
+    "df":event_dict,
+    "to":"online",
 }
 requests.post(
-    "http://localhost:6566/push", 
+    "http://localhost:6566/push",
     data=json.dumps(push_data))
 ```

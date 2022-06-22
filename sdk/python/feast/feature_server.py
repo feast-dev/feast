@@ -13,7 +13,7 @@ from pydantic import BaseModel
 import feast
 from feast import proto_json
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
-
+from feast.data_source import PushMode
 
 # TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):
@@ -26,6 +26,7 @@ class PushFeaturesRequest(BaseModel):
     push_source_name: str
     df: dict
     allow_registry_cache: bool = True
+    to: str = "online"
 
 
 def get_app(store: "feast.FeatureStore"):
@@ -80,10 +81,17 @@ def get_app(store: "feast.FeatureStore"):
         try:
             request = PushFeaturesRequest(**json.loads(body))
             df = pd.DataFrame(request.df)
+            if request.to == "offline":
+                to = PushMode.OFFLINE
+            elif request.to == "online":
+                to = PushMode.ONLINE
+            else:
+                to = PushMode.ONLINE_AND_OFFLINE
             store.push(
                 push_source_name=request.push_source_name,
                 df=df,
                 allow_registry_cache=request.allow_registry_cache,
+                to=to,
             )
         except Exception as e:
             # Print the original exception on the server side
