@@ -10,6 +10,10 @@ from feast.core.Feature_pb2 import (
     FeatureSpecV2 as feast___core___Feature_pb2___FeatureSpecV2,
 )
 
+from feast.core.OnlineStore_pb2 import (
+    OnlineStore as feast___core___OnlineStore_pb2___OnlineStore,
+)
+
 from google.protobuf.descriptor import (
     Descriptor as google___protobuf___descriptor___Descriptor,
     FileDescriptor as google___protobuf___descriptor___FileDescriptor,
@@ -104,6 +108,12 @@ class FeatureTableSpec(google___protobuf___message___Message):
     @property
     def stream_source(self) -> feast___core___DataSource_pb2___DataSource: ...
 
+    @property
+    def staleness_threshold(self) -> google___protobuf___duration_pb2___Duration: ...
+
+    @property
+    def online_store(self) -> feast___core___OnlineStore_pb2___OnlineStore: ...
+
     def __init__(self,
         *,
         name : typing___Optional[typing___Text] = None,
@@ -113,9 +123,11 @@ class FeatureTableSpec(google___protobuf___message___Message):
         max_age : typing___Optional[google___protobuf___duration_pb2___Duration] = None,
         batch_source : typing___Optional[feast___core___DataSource_pb2___DataSource] = None,
         stream_source : typing___Optional[feast___core___DataSource_pb2___DataSource] = None,
+        staleness_threshold : typing___Optional[google___protobuf___duration_pb2___Duration] = None,
+        online_store : typing___Optional[feast___core___OnlineStore_pb2___OnlineStore] = None,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions___Literal[u"batch_source",b"batch_source",u"max_age",b"max_age",u"stream_source",b"stream_source"]) -> builtin___bool: ...
-    def ClearField(self, field_name: typing_extensions___Literal[u"batch_source",b"batch_source",u"entities",b"entities",u"features",b"features",u"labels",b"labels",u"max_age",b"max_age",u"name",b"name",u"stream_source",b"stream_source"]) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"batch_source",b"batch_source",u"max_age",b"max_age",u"online_store",b"online_store",u"staleness_threshold",b"staleness_threshold",u"stream_source",b"stream_source"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"batch_source",b"batch_source",u"entities",b"entities",u"features",b"features",u"labels",b"labels",u"max_age",b"max_age",u"name",b"name",u"online_store",b"online_store",u"staleness_threshold",b"staleness_threshold",u"stream_source",b"stream_source"]) -> None: ...
 type___FeatureTableSpec = FeatureTableSpec
 
 class FeatureTableMeta(google___protobuf___message___Message):
