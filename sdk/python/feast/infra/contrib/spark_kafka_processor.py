@@ -1,6 +1,7 @@
 from types import MethodType
-from typing import List
+from typing import TYPE_CHECKING, List, Optional
 
+import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
@@ -14,26 +15,29 @@ from feast.infra.contrib.stream_processor import (
 )
 from feast.stream_feature_view import StreamFeatureView
 
+if TYPE_CHECKING:
+    from feast.feature_store import FeatureStore
+
 
 class SparkProcessorConfig(ProcessorConfig):
     spark_session: SparkSession
-    processing_time: str
-    query_timeout: int
+    processing_time: str = "30 seconds"
+    query_timeout: int = 15
 
 
 class SparkKafkaProcessor(StreamProcessor):
     spark: SparkSession
     format: str
-    write_function: MethodType
+    preprocess_fn: Optional[MethodType]
     join_keys: List[str]
 
     def __init__(
         self,
+        *,
+        fs: "FeatureStore",
         sfv: StreamFeatureView,
         config: ProcessorConfig,
-        write_function: MethodType,
-        processing_time: str = "30 seconds",
-        query_timeout: int = 15,
+        preprocess_fn: Optional[MethodType] = None,
     ):
         if not isinstance(sfv.stream_source, KafkaSource):
             raise ValueError("data source is not kafka source")
@@ -55,10 +59,11 @@ class SparkKafkaProcessor(StreamProcessor):
         if not isinstance(config, SparkProcessorConfig):
             raise ValueError("config is not spark processor config")
         self.spark = config.spark_session
-        self.write_function = write_function
-        self.processing_time = processing_time
-        self.query_timeout = query_timeout
-        super().__init__(sfv=sfv, data_source=sfv.stream_source)
+        self.preprocess_fn = preprocess_fn
+        self.processing_time = config.processing_time
+        self.query_timeout = config.query_timeout
+        self.join_keys = [fs.get_entity(entity).join_key for entity in sfv.entities]
+        super().__init__(fs=fs, sfv=sfv, data_source=sfv.stream_source)
 
     def ingest_stream_feature_view(self) -> None:
         ingested_stream_df = self._ingest_stream_data()
@@ -122,10 +127,26 @@ class SparkKafkaProcessor(StreamProcessor):
     def _write_to_online_store(self, df: StreamTable):
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
         def batch_write(row: DataFrame, batch_id: int):
-            pd_row = row.toPandas()
-            self.write_function(
-                pd_row, input_timestamp="event_timestamp", output_timestamp=""
+            rows = row.toPandas()
+
+            # Extract the latest feature values for each unique entity row (i.e. the join keys).
+            # Also add a 'created' column.
+            rows = (
+                rows.sort_values(
+                    by=self.join_keys + [self.sfv.timestamp_field], ascending=True
+                )
+                .groupby(self.join_keys)
+                .nth(0)
             )
+            rows["created"] = pd.to_datetime("now", utc=True)
+
+            # Optionally execute preprocessor before writing to the online store.
+            if self.preprocess_fn:
+                rows = self.preprocess_fn(rows)
+
+            # Finally persist the data to the online store.
+            if rows.size > 0:
+                self.fs.write_to_online_store(self.sfv.name, rows)
 
         query = (
             df.writeStream.outputMode("update")
