@@ -90,7 +90,7 @@ def get_app(store: "feast.FeatureStore"):
                 to = PushMode.ONLINE_AND_OFFLINE
             else:
                 raise ValueError(
-                    f"{request.to} is not a supported push format. Please specify one of these ['online', 'offline', 'both']."
+                    f"{request.to} is not a supported push format. Please specify one of these ['online', 'offline', 'online_and_offline']."
                 )
             store.push(
                 push_source_name=request.push_source_name,
