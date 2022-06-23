@@ -122,7 +122,7 @@ def grpc_client(grpc_server_port):
 
 
 @pytest.mark.integration
-# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
+@pytest.mark.goserver
 def test_go_grpc_server(grpc_client):
     resp: GetOnlineFeaturesResponse = grpc_client.GetOnlineFeatures(
         GetOnlineFeaturesRequest(
@@ -148,7 +148,7 @@ def test_go_grpc_server(grpc_client):
 
 
 @pytest.mark.integration
-# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
+@pytest.mark.goserver
 def test_go_http_server(http_server_port):
     response = requests.post(
         f"http://localhost:{http_server_port}/get-online-features",
@@ -186,7 +186,7 @@ def test_go_http_server(http_server_port):
 
 
 @pytest.mark.integration
-# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
+@pytest.mark.goserver
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_feature_logging(
