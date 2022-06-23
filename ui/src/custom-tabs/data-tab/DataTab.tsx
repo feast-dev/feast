@@ -15,20 +15,20 @@ import {
   EuiTableRowCell,
 } from "@elastic/eui";
 import useLoadRegularFeatureView from "../../pages/feature-views/useLoadFeatureView";
-import MetadataQuery from "./MetadataQuery";
+import DataQuery from "./DataQuery";
 
-const FeatureViewMetadataRow = z.object({
+const FeatureViewDataRow = z.object({
   name: z.string(),
   value: z.string(),
 });
 
-type FeatureViewMetadataRowType = z.infer<typeof FeatureViewMetadataRow>;
+type FeatureViewDataRowType = z.infer<typeof FeatureViewDataRow>;
 
 const LineHeightProp: React.CSSProperties = {
   lineHeight: 1,
 }
 
-const EuiFeatureViewMetadataRow = ({name, value}: FeatureViewMetadataRowType) => {
+const EuiFeatureViewDataRow = ({name, value}: FeatureViewDataRowType) => {
   return (
     <EuiTableRow>
       <EuiTableRowCell>
@@ -45,11 +45,11 @@ const EuiFeatureViewMetadataRow = ({name, value}: FeatureViewMetadataRowType) =>
   );
 }
 
-const FeatureViewMetadataTable = (data: any) => {
-  var items: FeatureViewMetadataRowType[] = [];
+const FeatureViewDataTable = (data: any) => {
+  var items: FeatureViewDataRowType[] = [];
 
   for (let element in data.data){
-    const row: FeatureViewMetadataRowType = {
+    const row: FeatureViewDataRowType = {
       name: element,
       value: JSON.stringify(data.data[element], null, 2),
     };
@@ -61,22 +61,22 @@ const FeatureViewMetadataTable = (data: any) => {
     <EuiTable>
       <EuiTableHeader>
         <EuiTableHeaderCell>
-          Metadata Item Name
+          Data Item Name
         </EuiTableHeaderCell>
         <EuiTableHeaderCell>
-          Metadata Item Value
+          Data Item Value
         </EuiTableHeaderCell>
       </EuiTableHeader>
       {items.map((item) => {
-        return <EuiFeatureViewMetadataRow name={item.name} value={item.value} />
+        return <EuiFeatureViewDataRow name={item.name} value={item.value} />
       })}
     </EuiTable>
   )
 }
 
-const MetadataTab = () => {
+const DataTab = () => {
   const fName = "credit_history"
-  const { isLoading, isError, isSuccess, data } = MetadataQuery(fName);
+  const { isLoading, isError, isSuccess, data } = DataQuery(fName);
   const isEmpty = data === undefined;
 
   return (
@@ -97,7 +97,7 @@ const MetadataTab = () => {
               <h3>Properties</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            <FeatureViewMetadataTable data={data} />
+            <FeatureViewDataTable data={data} />
           </EuiPanel>
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -107,4 +107,4 @@ const MetadataTab = () => {
   );
 };
 
-export default MetadataTab;
+export default DataTab;

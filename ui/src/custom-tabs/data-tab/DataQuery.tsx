@@ -1,11 +1,11 @@
 import { useQuery } from "react-query";
 
-interface MetadataQueryInterface {
+interface DataQueryInterface {
   featureView: string | undefined;
 }
 
-const MetadataQuery = (featureView: string) => {
-  const queryKey = `metadata-tab-namespace:${featureView}`;
+const DataQuery = (featureView: string) => {
+  const queryKey = `data-tab-namespace:${featureView}`;
 
   return useQuery<any>(
     queryKey,
@@ -22,4 +22,4 @@ const MetadataQuery = (featureView: string) => {
   );
 };
 
-export default MetadataQuery;
+export default DataQuery;
