@@ -155,8 +155,7 @@ curl -X POST \
 ### Pushing features to the online and offline stores
 You can push data corresponding to a push source to the online and offline stores (note that timestamps need to be strings):
 
-You can also define a pushmode to push offline data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline
-store doesn't support the push api functionality.
+You can also define a pushmode to push stream or batch data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline store doesn't support the push api functionality.
 
 The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "online_and_offline"].
 ```text
