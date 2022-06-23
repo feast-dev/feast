@@ -179,8 +179,8 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
-  * [x] [Push based streaming data ingestion to online store](https://docs.feast.dev/reference/data-sources/push)
-  * [ ] Push based streaming data ingestion to offline store (In Progress)
+  * [x] [Push based streaming data ingestion to online store (Alpha)](https://docs.feast.dev/reference/data-sources/push)
+  * [x] [Push based streaming data ingestion to offline store (Alpha)](https://docs.feast.dev/reference/data-sources/push)
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
   * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
