@@ -152,7 +152,7 @@ curl -X POST \
   }' | jq
 ```
 
-### Pushing features to the online and offline stores.
+### Pushing features to the online and offline stores
 You can push data corresponding to a push source to the online store and offline stores (note that timestamps need to be strings):
 
 You can also define a pushmode to push offline data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline
@@ -169,7 +169,8 @@ curl -X POST "http://localhost:6566/push" -d '{
             "conv_rate": [1.0],
             "acc_rate": [1.0],
             "avg_daily_trips": [1000]
-    }
+    },
+    "to": "both",
   }' | jq
 ```
 
