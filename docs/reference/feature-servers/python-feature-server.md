@@ -152,8 +152,8 @@ curl -X POST \
   }' | jq
 ```
 
-### Pushing features to the online store
-You can push data corresponding to a push source to the online store (note that timestamps need to be strings):
+### Pushing features to the online and offline stores.
+You can push data corresponding to a push source to the online store and offline stores (note that timestamps need to be strings):
 
 You can also define a pushmode to push offline data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline
 store doesn't support the push api functionality.

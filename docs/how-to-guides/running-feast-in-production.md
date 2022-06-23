@@ -3,15 +3,15 @@
 ## Overview
 
 After learning about Feast concepts and playing with Feast locally, you're now ready to use Feast in production.
-This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise. 
+This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise.
 
 Overview of typical production configuration is given below:
 
 ![Overview](production-simple.png)
 
 {% hint style="success" %}
-**Important note:** We're trying to keep Feast modular. With the exception of the core, most of the Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration. 
-For example, you might not have a stream source and, thus, no need to write features in real-time to an online store. 
+**Important note:** We're trying to keep Feast modular. With the exception of the core, most of the Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration.
+For example, you might not have a stream source and, thus, no need to write features in real-time to an online store.
 Or you might not need to retrieve online features.
 
 Furthermore, there's no single "true" approach. As you will see in this guide, Feast usually provides several options for each problem.
@@ -95,7 +95,7 @@ In summary, once you have set up a Git based repository with CI that runs `feast
 
 To keep your online store up to date, you need to run a job that loads feature data from your feature view sources into your online store. In Feast, this loading operation is called materialization.
 
-### 2.1. Manual materializations 
+### 2.1. Manual materializations
 The simplest way to schedule materialization is to run an **incremental** materialization using the Feast CLI:
 
 ```text
@@ -116,7 +116,7 @@ In the above example we are materializing the source data from the `driver_hourl
 
 The timestamps above should match the interval of data that has been computed by the data transformation system.
 
-### 2.2. Automate periodic materializations 
+### 2.2. Automate periodic materializations
 
 It is up to you which orchestration/scheduler to use to periodically run `$ feast materialize`.
 Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron).
@@ -160,7 +160,7 @@ feature_refs = [
 ]
 
 training_df = fs.get_historical_features(
-    entity_df=entity_df, 
+    entity_df=entity_df,
     features=feature_refs,
 ).to_df()
 
@@ -214,7 +214,7 @@ There are three approaches for that purpose sorted from the most simple one (in 
 
 This approach is the most convenient to keep your infrastructure as minimalistic as possible and avoid deploying extra services.
 The Feast Python SDK will connect directly to the online store (Redis, Datastore, etc), pull the feature data, and run transformations locally (if required).
-The obvious drawback is that your service must be written in Python to use the Feast Python SDK. 
+The obvious drawback is that your service must be written in Python to use the Feast Python SDK.
 A benefit of using a Python stack is that you can enjoy production-grade services with integrations with many existing data science tools.
 
 To integrate online retrieval into your service use the following code:
@@ -245,9 +245,9 @@ This service will provide an HTTP API with JSON I/O, which can be easily used wi
 ### 4.3. Java based Feature Server deployed on Kubernetes
 
 For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance Java feature server.
-Besides the benefits of running on JVM, this implementation also provides a gRPC API, which guarantees good connection utilization and 
-small request / response body size (compared to JSON). 
-You will need the Feast Java SDK to retrieve features from this service. This SDK wraps all the gRPC logic for you and provides more convenient APIs. 
+Besides the benefits of running on JVM, this implementation also provides a gRPC API, which guarantees good connection utilization and
+small request / response body size (compared to JSON).
+You will need the Feast Java SDK to retrieve features from this service. This SDK wraps all the gRPC logic for you and provides more convenient APIs.
 
 The Java based feature server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
 
@@ -292,9 +292,9 @@ def feast_writer(spark_df):
 streamingDF.writeStream.foreachBatch(feast_writer).start()
 ```
 
-### 5.2. Push service *(still under development)*
+### 5.2. Push Service (Alpha)
 
-Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis), you can use the "push service", which will write to an online store.
+Alternatively, if you want to ingest features directly from a broker (eg, Kafka or Kinesis), you can use the "push service", which will write to an online store and/or offline store.
 This service will expose an HTTP API or when deployed on Serverless platforms like AWS Lambda or Google Cloud Run,
 this service can be directly connected to Kinesis or PubSub.
 
