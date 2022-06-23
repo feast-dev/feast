@@ -443,7 +443,7 @@ def test_online_retrieval_with_event_timestamps(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
+@pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_stream_feature_view_online_retrieval(
     environment, universal_data_sources, feature_server_endpoint, full_feature_names
@@ -519,7 +519,7 @@ def test_stream_feature_view_online_retrieval(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-# @pytest.mark.goserver Disabling because the go fs tests are flaking in CI. TODO(achals): uncomment after fixed.
+@pytest.mark.goserver
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_online_retrieval(
     environment, universal_data_sources, feature_server_endpoint, full_feature_names
