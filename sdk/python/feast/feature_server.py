@@ -86,7 +86,7 @@ def get_app(store: "feast.FeatureStore"):
                 to = PushMode.OFFLINE
             elif request.to == "online":
                 to = PushMode.ONLINE
-            elif request.to == "both":
+            elif request.to == "online_and_offline":
                 to = PushMode.ONLINE_AND_OFFLINE
             else:
                 raise ValueError(

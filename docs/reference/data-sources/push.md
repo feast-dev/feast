@@ -44,7 +44,7 @@ fv = FeatureView(
 ```
 
 ### Pushing data
-Note that the `to` parameter is optional and defaults to online but we can specify these options: PushMode.ONLINE, PushMode.OFFLINE, or PushMode.ONLINE_AND_OFFLINE.
+Note that the `to` parameter is optional and defaults to online but we can specify these options: `PushMode.ONLINE`, `PushMode.OFFLINE`, or `PushMode.ONLINE_AND_OFFLINE`.
 ```python
 from feast import FeatureStore
 import pandas as pd

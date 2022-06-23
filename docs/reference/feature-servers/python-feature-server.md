@@ -153,12 +153,12 @@ curl -X POST \
 ```
 
 ### Pushing features to the online and offline stores
-You can push data corresponding to a push source to the online store and offline stores (note that timestamps need to be strings):
+You can push data corresponding to a push source to the online and offline stores (note that timestamps need to be strings):
 
 You can also define a pushmode to push offline data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline
 store doesn't support the push api functionality.
 
-The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "both"].
+The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "online_and_offline"].
 ```text
 curl -X POST "http://localhost:6566/push" -d '{
     "push_source_name": "driver_hourly_stats_push_source",
@@ -170,7 +170,7 @@ curl -X POST "http://localhost:6566/push" -d '{
             "acc_rate": [1.0],
             "avg_daily_trips": [1000]
     },
-    "to": "both",
+    "to": "online_and_offline",
   }' | jq
 ```
 

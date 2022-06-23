@@ -13,5 +13,5 @@ It is not possible to query all data sources from all offline stores, and only a
 
 Please see the [Offline Stores](../../reference/offline-stores/) reference for more details on configuring offline stores.
 
-Please see the [Push Documentation](reference/data-sources/push.md) for reference on how to push features directly to the offline store in your feature store.
+Please see the [Push Source](reference/data-sources/push.md) for reference on how to push features directly to the offline store in your feature store.
 
