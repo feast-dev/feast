@@ -31,13 +31,13 @@ altair==4.2.0
 anyio==3.6.1
     # via
     #   starlette
-    #   watchgod
+    #   watchfiles
 appdirs==1.4.4
-    # via black
+    # via
+    #   black
+    #   fissix
 appnope==0.1.3
     # via ipython
-asgiref==3.5.2
-    # via uvicorn
 asn1crypto==1.5.1
     # via
     #   oscrypto
@@ -54,6 +54,7 @@ attrs==21.4.0
     # via
     #   aiohttp
     #   black
+    #   bowler
     #   jsonschema
     #   pytest
 avro==1.10.0
@@ -90,6 +91,8 @@ botocore==1.23.24
     #   boto3
     #   moto
     #   s3transfer
+bowler==0.9.0
+    # via feast (setup.py)
 build==0.8.0
     # via feast (setup.py)
 cachecontrol==0.12.11
@@ -117,8 +120,10 @@ charset-normalizer==2.0.12
 click==8.0.1
     # via
     #   black
+    #   bowler
     #   feast (setup.py)
     #   great-expectations
+    #   moreorless
     #   pip-tools
     #   uvicorn
 cloudpickle==2.1.0
@@ -182,6 +187,8 @@ filelock==3.7.1
     # via virtualenv
 firebase-admin==4.5.2
     # via feast (setup.py)
+fissix==21.11.13
+    # via bowler
 flake8==4.0.1
     # via feast (setup.py)
 frozenlist==1.3.0
@@ -247,7 +254,7 @@ google-resumable-media==1.3.3
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
-googleapis-common-protos==1.56.2
+googleapis-common-protos==1.56.3
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -256,7 +263,7 @@ great-expectations==0.14.13
     # via feast (setup.py)
 greenlet==1.1.2
     # via sqlalchemy
-grpcio==1.46.3
+grpcio==1.47.0
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -264,7 +271,7 @@ grpcio==1.46.3
     #   grpcio-reflection
     #   grpcio-testing
     #   grpcio-tools
-grpcio-reflection==1.46.3
+grpcio-reflection==1.47.0
     # via feast (setup.py)
 grpcio-testing==1.44.0
     # via feast (setup.py)
@@ -347,7 +354,9 @@ mmh3==3.0.0
     # via feast (setup.py)
 mock==2.0.0
     # via feast (setup.py)
-moto==3.1.13
+moreorless==0.4.0
+    # via bowler
+moto==3.1.14
     # via feast (setup.py)
 msal==1.18.0
     # via
@@ -375,7 +384,7 @@ mypy-extensions==0.4.3
     # via mypy
 mypy-protobuf==3.1
     # via feast (setup.py)
-mysqlclient==2.1.0
+mysqlclient==2.1.1
     # via feast (setup.py)
 nbformat==5.4.0
     # via great-expectations
@@ -405,7 +414,7 @@ packaging==21.3
     #   pytest
     #   redis
     #   sphinx
-pandas==1.4.2
+pandas==1.4.3
     # via
     #   altair
     #   feast (setup.py)
@@ -498,7 +507,7 @@ pycodestyle==2.8.0
     # via flake8
 pycparser==2.21
     # via cffi
-pycryptodomex==3.14.1
+pycryptodomex==3.15.0
     # via snowflake-connector-python
 pydantic==1.9.1
     # via
@@ -664,7 +673,7 @@ sphinxcontrib-qthelp==1.0.3
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.5
     # via sphinx
-sqlalchemy[mypy]==1.4.37
+sqlalchemy[mypy]==1.4.38
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a24
     # via sqlalchemy
@@ -672,11 +681,11 @@ stack-data==0.3.0
     # via ipython
 starlette==0.19.1
     # via fastapi
-tabulate==0.8.9
+tabulate==0.8.10
     # via feast (setup.py)
 tenacity==8.0.1
     # via feast (setup.py)
-tensorflow-metadata==1.8.0
+tensorflow-metadata==1.9.0
     # via feast (setup.py)
 termcolor==1.1.0
     # via great-expectations
@@ -721,19 +730,19 @@ types-protobuf==3.19.22
     # via
     #   feast (setup.py)
     #   mypy-protobuf
-types-python-dateutil==2.8.17
+types-python-dateutil==2.8.18
     # via feast (setup.py)
-types-pytz==2021.3.8
+types-pytz==2022.1.0
     # via feast (setup.py)
 types-pyyaml==6.0.8
     # via feast (setup.py)
-types-redis==4.2.7
+types-redis==4.3.2
     # via feast (setup.py)
-types-requests==2.27.30
+types-requests==2.27.31
     # via feast (setup.py)
 types-setuptools==57.4.17
     # via feast (setup.py)
-types-tabulate==0.8.9
+types-tabulate==0.8.10
     # via feast (setup.py)
 types-urllib3==1.26.15
     # via types-requests
@@ -760,17 +769,19 @@ urllib3==1.26.9
     #   minio
     #   requests
     #   responses
-uvicorn[standard]==0.17.6
+uvicorn[standard]==0.18.1
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn
 virtualenv==20.14.1
     # via pre-commit
-watchgod==0.8.2
+volatile==2.1.0
+    # via bowler
+watchfiles==0.15.0
     # via uvicorn
 wcwidth==0.2.5
     # via prompt-toolkit
-websocket-client==1.3.2
+websocket-client==1.3.3
     # via docker
 websockets==10.3
     # via uvicorn
