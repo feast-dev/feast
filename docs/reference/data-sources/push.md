@@ -20,7 +20,7 @@ Streaming data sources are important sources of feature values. A typical setup 
 4. Write stream 2 values to an online store for low latency feature serving
 5. Periodically materialize feature values from the offline store into the online store for decreased training-serving skew and improved model performance
 
-Feast now allows users to push features previously registered in a feature view to the online store for fresher features. It also allows users to push batches of stream data to the offline store by specifying that the push be directed to the offline store. This will push the data to the offline store declared in the repository configuration used to initialize the feature store.
+Feast allows users to push features previously registered in a feature view to the online store for fresher features. It also allows users to push batches of stream data to the offline store by specifying that the push be directed to the offline store. This will push the data to the offline store declared in the repository configuration used to initialize the feature store.
 
 ## Example
 ### Defining a push source
