@@ -32,6 +32,8 @@ type OnlineFeatureService struct {
 	fs         *feast.FeatureStore
 	grpcStopCh chan os.Signal
 	httpStopCh chan os.Signal
+
+	err error
 }
 
 type OnlineFeatureServiceConfig struct {
@@ -56,12 +58,16 @@ type LoggingOptions struct {
 func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
 	repoConfig, err := registry.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
 	if err != nil {
-		log.Fatalln(err)
+		return &OnlineFeatureService{
+			err: err,
+		}
 	}
 
 	fs, err := feast.NewFeatureStore(repoConfig, transformationCallback)
 	if err != nil {
-		log.Fatalln(err)
+		return &OnlineFeatureService{
+			err: err,
+		}
 	}
 
 	// Notify these channels when receiving interrupt or termination signals from OS
@@ -119,6 +125,10 @@ func (s *OnlineFeatureService) GetEntityTypesMapByFeatureService(featureServiceN
 	}
 
 	return joinKeyTypes, nil
+}
+
+func (s *OnlineFeatureService) CheckForInstantiationError() error {
+	return s.err
 }
 
 func (s *OnlineFeatureService) GetOnlineFeatures(

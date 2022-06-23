@@ -1,4 +1,3 @@
-import faulthandler
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -46,13 +45,16 @@ class EmbeddedOnlineFeatureServer:
         self._transformation_callback = partial(transformation_callback, feature_store)
         self._logging_callback = partial(logging_callback, feature_store)
 
-        self._service = NewOnlineFeatureService(
-            OnlineFeatureServiceConfig(
-                RepoPath=repo_path, RepoConfig=repo_config.json()
-            ),
-            self._transformation_callback,
+        self._config = OnlineFeatureServiceConfig(
+            RepoPath=repo_path, RepoConfig=repo_config.json()
         )
-        faulthandler.enable()
+
+        self._service = NewOnlineFeatureService(
+            self._config, self._transformation_callback,
+        )
+
+        # This should raise an exception if there were any errors in NewOnlineFeatureService.
+        self._service.CheckForInstantiationError()
 
     def get_online_features(
         self,
@@ -243,6 +245,10 @@ def transformation_callback(
     odfv = fs.get_on_demand_feature_view(on_demand_feature_view_name)
 
     input_record = pa.RecordBatch._import_from_c(input_arr_ptr, input_schema_ptr)
+
+    # For some reason, the callback is called with `full_feature_names` as a 1 if True or 0 if false. This handles
+    # the typeguard requirement.
+    full_feature_names = bool(full_feature_names)
 
     output = odfv.get_transformed_features_df(
         input_record.to_pandas(), full_feature_names=full_feature_names
