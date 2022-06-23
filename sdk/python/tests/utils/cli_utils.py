@@ -84,9 +84,13 @@ class CliRunner:
             repo_example.write_text(example_repo_py)
 
             result = self.run(["apply"], cwd=repo_path)
-            assert result.returncode == 0
+            assert (
+                result.returncode == 0
+            ), f"stdout: {result.stdout}\n stderr: {result.stderr}"
 
             yield FeatureStore(repo_path=str(repo_path), config=None)
 
             result = self.run(["teardown"], cwd=repo_path)
-            assert result.returncode == 0
+            assert (
+                result.returncode == 0
+            ), f"stdout: {result.stdout}\n stderr: {result.stderr}"

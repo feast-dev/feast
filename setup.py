@@ -408,6 +408,7 @@ class build_ext(_build_ext):
         )
 
     def build_extension(self, ext: Extension):
+        print(f"Building extension {ext}")
         if not self._is_go_ext(ext):
             # the base class may mutate `self.compiler`
             compiler = copy.deepcopy(self.compiler)
@@ -423,8 +424,7 @@ class build_ext(_build_ext):
         )
 
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"])
-        subprocess.check_call(["go", "install", "github.com/go-python/gopy"])
+        subprocess.check_call(["go", "mod", "tidy"], env={"PATH": bin_path, **go_env})
         subprocess.check_call(
             [
                 "gopy",
@@ -456,6 +456,7 @@ class build_ext(_build_ext):
             src_dir = os.path.join(self.build_lib, src_dir)
 
             # copy whole directory
+            print(f"Copying from {src_dir} to {dest_dir}")
             copy_tree(src_dir, dest_dir)
 
 
