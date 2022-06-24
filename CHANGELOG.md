@@ -1,5 +1,58 @@
 # Changelog
 
+# [0.22.0](https://github.com/feast-dev/feast/compare/v0.21.0...v0.22.0) (2022-06-24)
+
+
+### Bug Fixes
+
+* Add columns for user metadata in the tables ([#2760](https://github.com/feast-dev/feast/issues/2760)) ([269055e](https://github.com/feast-dev/feast/commit/269055e25178956715c163547c9f0a33a5892a75))
+* Add project columns in the SQL Registry ([#2784](https://github.com/feast-dev/feast/issues/2784)) ([336fdd1](https://github.com/feast-dev/feast/commit/336fdd104d2669d19ca56b0d17eadb78fc95a3cd))
+* Add S3FS dependency (which Dask depends on for S3 files) ([#2701](https://github.com/feast-dev/feast/issues/2701)) ([5d6fa94](https://github.com/feast-dev/feast/commit/5d6fa9408052695dfce179ea619d8362898d6329))
+* Bugfixes for how registry is loaded ([#2768](https://github.com/feast-dev/feast/issues/2768)) ([ecb8b2a](https://github.com/feast-dev/feast/commit/ecb8b2af4ba0f9d52be8ac560ac2a9da0f46f38e))
+* Conversion of null timestamp from proto to python ([#2814](https://github.com/feast-dev/feast/issues/2814)) ([cb23648](https://github.com/feast-dev/feast/commit/cb23648da71cbf63e382ec75a8afe7228ff8cbc2))
+* Correct feature statuses during feature logging test ([#2709](https://github.com/feast-dev/feast/issues/2709)) ([cebf609](https://github.com/feast-dev/feast/commit/cebf609309f81a0f4ccded3448cefac5923be525))
+* Dynamodb drops missing entities when batching ([#2802](https://github.com/feast-dev/feast/issues/2802)) ([a2e9209](https://github.com/feast-dev/feast/commit/a2e9209f7a7283925b56b5877e8fdc2e2d863798))
+* Enable faulthandler and disable flaky tests ([#2815](https://github.com/feast-dev/feast/issues/2815)) ([4934d84](https://github.com/feast-dev/feast/commit/4934d843fc65dd62ba1c1302243c1b2c151c78d2))
+* Explicitly translate errors when instantiating the go fs  ([#2842](https://github.com/feast-dev/feast/issues/2842)) ([7a2c4cd](https://github.com/feast-dev/feast/commit/7a2c4cd8bf9b16331fad1d2e7d0ea3f85589f96b))
+* Fix broken roadmap links ([#2690](https://github.com/feast-dev/feast/issues/2690)) ([b3ba8aa](https://github.com/feast-dev/feast/commit/b3ba8aaf3a87343d756a2996376865096d543515))
+* Fix bugs in applying stream feature view and retrieving online features  ([#2754](https://github.com/feast-dev/feast/issues/2754)) ([d024e5e](https://github.com/feast-dev/feast/commit/d024e5efac085ec12a17005389229bfd93cf466e))
+* Fix Feast UI failure with new way of specifying entities ([#2773](https://github.com/feast-dev/feast/issues/2773)) ([0d1ac01](https://github.com/feast-dev/feast/commit/0d1ac01ef45a1ee78799c7c5ebf30b2476bfc30e))
+* Fix feature view __getitem__ for feature services ([#2769](https://github.com/feast-dev/feast/issues/2769)) ([88cc47d](https://github.com/feast-dev/feast/commit/88cc47dea936f34c0798b6c6c31fda0d1b3ecbd7))
+* Fix issue when user specifies a port for feast ui  ([#2692](https://github.com/feast-dev/feast/issues/2692)) ([1c621fe](https://github.com/feast-dev/feast/commit/1c621fe3649900a59e85fe9c4f3840dd09bc88d0))
+* Fix on demand feature view crash from inference when it uses df.apply ([#2713](https://github.com/feast-dev/feast/issues/2713)) ([c5539fd](https://github.com/feast-dev/feast/commit/c5539fd9874fed3f69b0aaebc4d1d32e624bd041))
+* Fix SparkKafkaProcessor `query_timeout` parameter ([#2789](https://github.com/feast-dev/feast/issues/2789)) ([a8d282d](https://github.com/feast-dev/feast/commit/a8d282d3e4f041824ef7479f22c306dbfb8ad569))
+* Fixed custom S3 endpoint read fail ([#2786](https://github.com/feast-dev/feast/issues/2786)) ([6fec431](https://github.com/feast-dev/feast/commit/6fec431dd5c9d53a678f58c9b87e2b1cdb02b238))
+* Hydrate infra object in the sql registry proto() method  ([#2782](https://github.com/feast-dev/feast/issues/2782)) ([452dcd3](https://github.com/feast-dev/feast/commit/452dcd31da195273ef80ee39db5a7893b7d48cc2))
+* Implement apply_materialization and infra methods in sql registry ([#2775](https://github.com/feast-dev/feast/issues/2775)) ([4ed107c](https://github.com/feast-dev/feast/commit/4ed107cdf6476faf20a4e09716ade87cb99f1d14))
+* Minor refactor to format exception message ([#2764](https://github.com/feast-dev/feast/issues/2764)) ([da763c6](https://github.com/feast-dev/feast/commit/da763c6766cd7bec801312849e884b9dc8f8fb51))
+* Prefer installing gopy from feast's fork as opposed to upstream ([#2839](https://github.com/feast-dev/feast/issues/2839)) ([34c997d](https://github.com/feast-dev/feast/commit/34c997d81b0084d81fb6fb21d5d4374fc7760695))
+* Python server is not correctly starting in integration tests ([#2706](https://github.com/feast-dev/feast/issues/2706)) ([7583a0b](https://github.com/feast-dev/feast/commit/7583a0b1840c663af50bf4382c3ff2368593bb9c))
+* Random port allocation for python server in tests ([#2710](https://github.com/feast-dev/feast/issues/2710)) ([dee8090](https://github.com/feast-dev/feast/commit/dee80908ffb247367526561de3ad4841516a3196))
+* Refactor test to reuse LocalRegistryFile ([#2763](https://github.com/feast-dev/feast/issues/2763)) ([4339c0a](https://github.com/feast-dev/feast/commit/4339c0acc990de2b00db90221f41ac0d33e68544))
+* Revert "chore(release): release 0.22.0" ([#2852](https://github.com/feast-dev/feast/issues/2852)) ([e6a4636](https://github.com/feast-dev/feast/commit/e6a463666e53b87c9d41334f6151df5e2c09c805))
+* Support push sources in stream feature views ([#2704](https://github.com/feast-dev/feast/issues/2704)) ([0d60eaa](https://github.com/feast-dev/feast/commit/0d60eaa0b7f32c84eb015c814a3c879e7d4f50fd))
+* Update roadmap with stream feature view rfc ([#2824](https://github.com/feast-dev/feast/issues/2824)) ([fc8f890](https://github.com/feast-dev/feast/commit/fc8f89059d1095e81e265f342ccaa26ff7f444f9))
+* Update udf tests and add base functions to streaming fcos and fix some nonetype errors ([#2776](https://github.com/feast-dev/feast/issues/2776)) ([331a214](https://github.com/feast-dev/feast/commit/331a214b04dc8b3f9347e79819130fa7bdf9e4c3))
+
+
+### Features
+
+* Add file write_to_offline_store functionality ([#2808](https://github.com/feast-dev/feast/issues/2808)) ([c0e2ad7](https://github.com/feast-dev/feast/commit/c0e2ad7bf7310289ec6a7a6bd8cd2f766786b0cd))
+* Add http endpoint to the Go feature server ([#2658](https://github.com/feast-dev/feast/issues/2658)) ([3347a57](https://github.com/feast-dev/feast/commit/3347a57240cd485b7572777d7b977869140ccb20))
+* Add StreamProcessor and SparkKafkaProcessor as contrib ([#2777](https://github.com/feast-dev/feast/issues/2777)) ([83ab682](https://github.com/feast-dev/feast/commit/83ab682c14a11a92121866409bddc787021d52e5))
+* Added Spark support for Delta and Avro ([#2757](https://github.com/feast-dev/feast/issues/2757)) ([7d16516](https://github.com/feast-dev/feast/commit/7d1651687a474850ebb16d4c9c0ff4a3daa6d486))
+* CLI interface for validation of logged features ([#2718](https://github.com/feast-dev/feast/issues/2718)) ([c8b11b3](https://github.com/feast-dev/feast/commit/c8b11b3b790b60e916d3257a036b9cb6430f4685))
+* Enable stream feature view materialization ([#2798](https://github.com/feast-dev/feast/issues/2798)) ([a06700d](https://github.com/feast-dev/feast/commit/a06700dd81c9893e98f6709b82a6faa32be49915))
+* Enable stream feature view materialization ([#2807](https://github.com/feast-dev/feast/issues/2807)) ([7d57724](https://github.com/feast-dev/feast/commit/7d57724dd4ff7d5ca4549bac8c72dbd71c57fce7))
+* Implement `offline_write_batch` for BigQuery and Snowflake ([#2840](https://github.com/feast-dev/feast/issues/2840)) ([97444e4](https://github.com/feast-dev/feast/commit/97444e439d0dc7a66b7121161c6f6560ae53d307))
+* Offline push endpoint for pushing to offline stores ([#2837](https://github.com/feast-dev/feast/issues/2837)) ([a88cd30](https://github.com/feast-dev/feast/commit/a88cd30f7925005db6f7c400b391d5e73d1b00f6))
+* Push to Redshift batch source offline store directly ([#2819](https://github.com/feast-dev/feast/issues/2819)) ([5748a8b](https://github.com/feast-dev/feast/commit/5748a8bbe338dfcb3fbbdc59fb1f57a99e1ea5eb))
+* Scaffold for unified push api ([#2796](https://github.com/feast-dev/feast/issues/2796)) ([1bd0930](https://github.com/feast-dev/feast/commit/1bd093028785ac9349be56c9ea98a3bd94c47fbe))
+* SQLAlchemy Registry Support ([#2734](https://github.com/feast-dev/feast/issues/2734)) ([b3fe39c](https://github.com/feast-dev/feast/commit/b3fe39c1600fa370f28c7b01e2b3f7da716449c1))
+* Stream Feature View FCOS ([#2750](https://github.com/feast-dev/feast/issues/2750)) ([0cf3c92](https://github.com/feast-dev/feast/commit/0cf3c923717f561d5656c57eb0b61fcd569917bd))
+* Update stream fcos to have watermark and sliding interval ([#2765](https://github.com/feast-dev/feast/issues/2765)) ([3256952](https://github.com/feast-dev/feast/commit/325695275da610cecf2b9e820fd71f7f04179ccf))
+* Validating logged features via Python SDK ([#2640](https://github.com/feast-dev/feast/issues/2640)) ([2874fc5](https://github.com/feast-dev/feast/commit/2874fc5c85810a65f750377d34418c71e747110e))
+
 # [0.21.0](https://github.com/feast-dev/feast/compare/v0.20.0...v0.21.0) (2022-05-13)
 
 
