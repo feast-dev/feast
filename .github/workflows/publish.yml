@@ -272,8 +272,14 @@ jobs:
           make install-go-ci-dependencies
           make build-ui
       - name: Build
+        # Note that the --plat-name macosx-10.15-x86_64 option is necessary to prevent the
+        # binary being built with platform name macosx-10.15-universal2. That issue was
+        # recently introduced due to the setup-python action having an unpinned dependency
+        # on the python-versions action. Specifically, this commit
+        # https://github.com/actions/python-versions/commit/3c5fa6de18d6ab5cde271cccdb9d168471afa6b8
+        # switched builds to use platform macosx-10.15-universal2 for recent Python versions.
         run: |
-          python3 setup.py sdist bdist_wheel
+          python3 setup.py sdist bdist_wheel --plat-name macosx-10.15-x86_64
 
       - uses: actions/upload-artifact@v2
         with:
