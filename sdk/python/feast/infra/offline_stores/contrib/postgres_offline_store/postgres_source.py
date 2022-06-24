@@ -32,7 +32,7 @@ class PostgreSQLSource(DataSource):
             date_partition_column=date_partition_column,
             description=description,
             tags=tags,
-            owner=owner
+            owner=owner,
         )
 
     def __hash__(self):
