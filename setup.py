@@ -76,6 +76,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "tensorflow-metadata>=1.0.0,<2.0.0",
     "dask>=2021.*,<2022.02.0",
+    "bowler",  # Needed for automatic repo upgrades
 ]
 
 GCP_REQUIRED = [

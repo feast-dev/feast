@@ -9,11 +9,15 @@ absl-py==1.1.0
 anyio==3.6.1
     # via
     #   starlette
-    #   watchgod
-asgiref==3.5.2
-    # via uvicorn
+    #   watchfiles
+appdirs==1.4.4
+    # via fissix
 attrs==21.4.0
-    # via jsonschema
+    # via
+    #   bowler
+    #   jsonschema
+bowler==0.9.0
+    # via feast (setup.py)
 cachetools==5.2.0
     # via google-auth
 certifi==2022.6.15
@@ -22,7 +26,9 @@ charset-normalizer==2.0.12
     # via requests
 click==8.0.1
     # via
+    #   bowler
     #   feast (setup.py)
+    #   moreorless
     #   uvicorn
 cloudpickle==2.1.0
     # via dask
@@ -38,24 +44,26 @@ fastavro==1.5.1
     # via
     #   feast (setup.py)
     #   pandavro
+fissix==21.11.13
+    # via bowler
 fsspec==2022.5.0
     # via dask
 google-api-core==2.8.2
     # via feast (setup.py)
 google-auth==2.8.0
     # via google-api-core
-googleapis-common-protos==1.56.2
+googleapis-common-protos==1.56.3
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
 greenlet==1.1.2
     # via sqlalchemy
-grpcio==1.46.3
+grpcio==1.47.0
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.46.3
+grpcio-reflection==1.47.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
@@ -75,6 +83,8 @@ markupsafe==2.1.1
     # via jinja2
 mmh3==3.0.0
     # via feast (setup.py)
+moreorless==0.4.0
+    # via bowler
 mypy==0.961
     # via sqlalchemy
 mypy-extensions==0.4.3
@@ -87,7 +97,7 @@ numpy==1.21.6
     #   pyarrow
 packaging==21.3
     # via dask
-pandas==1.4.2
+pandas==1.4.3
     # via
     #   feast (setup.py)
     #   pandavro
@@ -146,17 +156,17 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
-sqlalchemy[mypy]==1.4.37
+sqlalchemy[mypy]==1.4.38
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a24
     # via sqlalchemy
 starlette==0.19.1
     # via fastapi
-tabulate==0.8.9
+tabulate==0.8.10
     # via feast (setup.py)
 tenacity==8.0.1
     # via feast (setup.py)
-tensorflow-metadata==1.8.0
+tensorflow-metadata==1.9.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
@@ -178,11 +188,13 @@ typing-extensions==4.2.0
     #   starlette
 urllib3==1.26.9
     # via requests
-uvicorn[standard]==0.17.6
+uvicorn[standard]==0.18.1
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn
-watchgod==0.8.2
+volatile==2.1.0
+    # via bowler
+watchfiles==0.15.0
     # via uvicorn
 websockets==10.3
     # via uvicorn
