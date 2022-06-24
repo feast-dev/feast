@@ -42,7 +42,7 @@ func AugmentResponseWithOnDemandTransforms(
 	var err error
 
 	for _, odfv := range onDemandFeatureViews {
-		requestContextArrow := make(map[string]array.Interface)
+		requestContextArrow := make(map[string]arrow.Array)
 		for name, values := range requestData {
 			requestContextArrow[name], err = types.ProtoValuesToArrowArray(values.Val, arrowMemory, numRows)
 			if err != nil {
@@ -57,7 +57,7 @@ func AugmentResponseWithOnDemandTransforms(
 			}
 		}
 
-		retrievedFeatures := make(map[string]array.Interface)
+		retrievedFeatures := make(map[string]arrow.Array)
 		for _, vector := range features {
 			retrievedFeatures[vector.Name] = vector.Values
 		}
@@ -81,8 +81,8 @@ func AugmentResponseWithOnDemandTransforms(
 
 func CallTransformations(
 	featureView *model.OnDemandFeatureView,
-	retrievedFeatures map[string]array.Interface,
-	requestContext map[string]array.Interface,
+	retrievedFeatures map[string]arrow.Array,
+	requestContext map[string]arrow.Array,
 	callback TransformationCallback,
 	numRows int,
 	fullFeatureNames bool,
@@ -106,7 +106,7 @@ func CallTransformations(
 	outSchemaPtr := uintptr(unsafe.Pointer(&outSchema))
 
 	inputFields := make([]arrow.Field, 0)
-	inputColumns := make([]array.Interface, 0)
+	inputColumns := make([]arrow.Array, 0)
 	for name, arr := range retrievedFeatures {
 		inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
 		inputColumns = append(inputColumns, arr)
