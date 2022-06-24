@@ -354,13 +354,13 @@ func (s *OnlineFeatureService) StopGrpcServer() {
 	into Go Arrow Interface (array.Record).
 	See export code here https://github.com/feast-dev/feast/blob/master/sdk/python/feast/embedded_go/online_features_service.py
 */
-func readArrowRecord(data DataTable) (array.Record, error) {
+func readArrowRecord(data DataTable) (arrow.Record, error) {
 	return cdata.ImportCRecordBatch(
 		cdata.ArrayFromPtr(data.DataPtr),
 		cdata.SchemaFromPtr(data.SchemaPtr))
 }
 
-func recordToProto(rec array.Record) (map[string]*prototypes.RepeatedValue, error) {
+func recordToProto(rec arrow.Record) (map[string]*prototypes.RepeatedValue, error) {
 	r := make(map[string]*prototypes.RepeatedValue)
 	schema := rec.Schema()
 	for idx, column := range rec.Columns() {

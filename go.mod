@@ -5,7 +5,7 @@ go 1.17
 replace github.com/go-python/gopy v0.4.0 => github.com/feast-dev/gopy v0.4.1-0.20220429180328-4257ac71a4d0
 
 require (
-	github.com/apache/arrow/go/v8 v8.0.0-20220408212425-58fe60f59289
+	github.com/apache/arrow/go/v8 v8.0.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-python/gopy v0.4.0
 	github.com/go-redis/redis/v8 v8.11.4
@@ -40,10 +40,10 @@ require (
 	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220407224826-aac1ed45d8e3 // indirect
-	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.11-0.20220413170336-afc6aad76eb1 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	google.golang.org/genproto v0.0.0-20220407144326-9054f6ed7bac // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
