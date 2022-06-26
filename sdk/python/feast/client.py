@@ -458,7 +458,7 @@ class Client:
             CreateProjectRequest(name=project),
             timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             metadata=self._get_grpc_metadata(),
-        )  # type: CreateProjectResponse
+        )
 
     def archive_project(self, project):
         """
@@ -475,7 +475,7 @@ class Client:
                 ArchiveProjectRequest(name=project),
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
-            )  # type: ArchiveProjectResponse
+            )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
