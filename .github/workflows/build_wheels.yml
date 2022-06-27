@@ -94,7 +94,7 @@ jobs:
 
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-sdk]
+    needs: [build-python-wheel]
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-10.15 ]
