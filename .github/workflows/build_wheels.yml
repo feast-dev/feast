@@ -45,7 +45,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+        os: [ ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -117,7 +117,7 @@ jobs:
     needs: [build-python-sdk, build-python-sdk-macos-py310]
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+        os: [ ubuntu-latest ]
         python-version: [ "3.7", "3.8", "3.9", "3.10"]
         from-source: [ True, False ]
     env:
@@ -178,7 +178,6 @@ jobs:
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
         run: |
-          feast init test_repo
           cd test_repo/
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
