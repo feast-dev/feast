@@ -7,7 +7,7 @@ from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
 
 from feast.data_format import AvroFormat, JsonFormat
-from feast.data_source import KafkaSource
+from feast.data_source import KafkaSource, PushMode
 from feast.infra.contrib.stream_processor import (
     ProcessorConfig,
     StreamProcessor,
@@ -65,10 +65,10 @@ class SparkKafkaProcessor(StreamProcessor):
         self.join_keys = [fs.get_entity(entity).join_key for entity in sfv.entities]
         super().__init__(fs=fs, sfv=sfv, data_source=sfv.stream_source)
 
-    def ingest_stream_feature_view(self) -> None:
+    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
         ingested_stream_df = self._ingest_stream_data()
         transformed_df = self._construct_transformation_plan(ingested_stream_df)
-        online_store_query = self._write_to_online_store(transformed_df)
+        online_store_query = self._write_stream_data(transformed_df, to)
         return online_store_query
 
     def _ingest_stream_data(self) -> StreamTable:
@@ -124,10 +124,10 @@ class SparkKafkaProcessor(StreamProcessor):
     def _construct_transformation_plan(self, df: StreamTable) -> StreamTable:
         return self.sfv.udf.__call__(df) if self.sfv.udf else df
 
-    def _write_to_online_store(self, df: StreamTable):
+    def _write_stream_data(self, df: StreamTable, to: PushMode):
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
         def batch_write(row: DataFrame, batch_id: int):
-            rows = row.toPandas()
+            rows: pd.DataFrame = row.toPandas()
 
             # Extract the latest feature values for each unique entity row (i.e. the join keys).
             # Also add a 'created' column.
@@ -146,7 +146,10 @@ class SparkKafkaProcessor(StreamProcessor):
 
             # Finally persist the data to the online store.
             if rows.size > 0:
-                self.fs.write_to_online_store(self.sfv.name, rows)
+                if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                    self.fs.write_to_online_store(self.sfv.name, rows)
+                if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                    self.fs._write_to_offline_store(self.sfv.name, rows)
 
         query = (
             df.writeStream.outputMode("update")

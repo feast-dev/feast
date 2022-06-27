@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pyspark.sql import DataFrame
 
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushMode
 from feast.importer import import_class
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
@@ -49,10 +49,10 @@ class StreamProcessor(ABC):
         self.sfv = sfv
         self.data_source = data_source
 
-    def ingest_stream_feature_view(self) -> None:
+    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
         """
         Ingests data from the stream source attached to the stream feature view; transforms the data
-        and then persists it to the online store.
+        and then persists it to the online store and/or offline store, depending on the 'to' parameter.
         """
         pass
 
@@ -70,9 +70,10 @@ class StreamProcessor(ABC):
         """
         pass
 
-    def _write_to_online_store(self, table: StreamTable) -> None:
+    def _write_stream_data(self, table: StreamTable, to: PushMode) -> None:
         """
-        Returns query for persisting data to the online store.
+        Launches a job to persist stream data to the online store and/or offline store, depending
+        on the 'to' parameter, and returns a handle for the job.
         """
         pass
 
