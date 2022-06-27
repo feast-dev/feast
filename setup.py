@@ -213,6 +213,7 @@ PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
+
 class BuildPythonProtosCommand(Command):
     description = "Builds the proto files into Python files."
     user_options = [
@@ -424,8 +425,13 @@ class build_ext(_build_ext):
         )
 
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(["go", "mod", "tidy"], env={"PATH": bin_path, **go_env})
-        subprocess.check_call(
+        subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"],
+                              env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "install", "github.com/go-python/gopy@v0.4.0"],
+                              env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "mod", "tidy"],
+                              env={"PATH": bin_path, **go_env})
+        r = subprocess.check_call(
             [
                 "gopy",
                 "build",
