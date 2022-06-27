@@ -51,8 +51,8 @@ class IntegrationTestRepoConfig:
                 f"{self.provider.upper()}",
                 f"{self.offline_store_creator.__name__.split('.')[-1].replace('DataSourceCreator', '')}",
                 online_store_type,
-                f"python_fs={self.python_feature_server}",
-                f"go_fs={self.go_feature_retrieval}",
+                f"python_fs:{self.python_feature_server}",
+                f"go_fs:{self.go_feature_retrieval}",
             ]
         )
 

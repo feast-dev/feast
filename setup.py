@@ -424,8 +424,18 @@ class build_ext(_build_ext):
             subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
         )
 
+        print(f"Go env: {go_env}")
+        print(f"CWD: {os.getcwd()}")
+
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(["go", "mod", "tidy"], env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"],
+                              env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "get", "github.com/go-python/gopy@v0.4.0"],
+                              env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "install", "github.com/go-python/gopy"],
+                              env={"PATH": bin_path, **go_env})
+        subprocess.check_call(["go", "mod", "tidy"],
+                              env={"PATH": bin_path, **go_env})
         subprocess.check_call(
             [
                 "gopy",
