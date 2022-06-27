@@ -40,45 +40,45 @@ jobs:
           echo $VERSION_WITHOUT_PREFIX
           echo $HIGHEST_SEMVER_TAG
 
-  # build-python-sdk:
-  #   name: Build wheels on ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: [ ubuntu-latest, macos-10.15 ]
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Setup Node
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: '17.x'
-  #         registry-url: 'https://registry.npmjs.org'
-  #     - name: Build UI
-  #       run: make build-ui
-  #     - name: Build wheels
-  #       uses: pypa/cibuildwheel@v2.4.0
-  #       env:
-  #         CIBW_BUILD: "cp3*_x86_64"
-  #         CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
-  #         CIBW_ARCHS: "native"
-  #         CIBW_ENVIRONMENT: >
-  #           COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-  #         CIBW_BEFORE_ALL_LINUX: |
-  #           curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-  #           tar -C /usr/local -xzf go.tar.gz
-  #           go version
-  #         CIBW_BEFORE_ALL_MACOS: |
-  #           curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-  #           sudo installer -pkg python.pkg -target /
-  #         CIBW_BEFORE_BUILD: |
-  #           make install-protoc-dependencies
-  #           make install-go-proto-dependencies
-  #           make install-go-ci-dependencies
+  build-python-sdk:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-10.15 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Build UI
+        run: make build-ui
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.4.0
+        env:
+          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
+          CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
+          CIBW_BEFORE_ALL_LINUX: |
+            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go version
+          CIBW_BEFORE_ALL_MACOS: |
+            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
+            sudo installer -pkg python.pkg -target /
+          CIBW_BEFORE_BUILD: |
+            make install-protoc-dependencies
+            make install-go-proto-dependencies
+            make install-go-ci-dependencies
 
-  #     - uses: actions/upload-artifact@v2
-  #       with:
-  #         name: wheels
-  #         path: ./wheelhouse/*.whl
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: ./wheelhouse/*.whl
 
 
   build-python-sdk-macos-py310:
@@ -114,7 +114,7 @@ jobs:
 
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-sdk-macos-py310]
+    needs: [build-python-sdk, build-python-sdk-macos-py310]
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-10.15 ]
