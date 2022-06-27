@@ -213,7 +213,6 @@ PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
-
 class BuildPythonProtosCommand(Command):
     description = "Builds the proto files into Python files."
     user_options = [
