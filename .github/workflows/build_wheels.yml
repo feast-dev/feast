@@ -40,13 +40,12 @@ jobs:
           echo $VERSION_WITHOUT_PREFIX
           echo $HIGHEST_SEMVER_TAG
 
-  build-python-sdk:
+  build-python-wheel:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest]
-        python-version: ["3.8"]
+        os: [ ubuntu-latest, macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -56,6 +55,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
+      - name: Build and install dependencies go dependencies for py310
+        if: ${{ matrix.os == "macos-10.15"}}
+        run: |
+          pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
+          make install-go-proto-dependencies
+          make install-go-ci-dependencies
+          make build-ui
+      - name: Build py310 wheel
+        run: |
+          python3 setup.py sdist bdist_wheel
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
         env:
@@ -81,45 +91,13 @@ jobs:
           name: wheels
           path: ./wheelhouse/*.whl
 
-
-  build-python-sdk-macos-py310:
-    runs-on: macos-10.15
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-          architecture: x64
-      - name: Setup Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Build and install dependencies
-        run: |
-          pip install -U pip setuptools wheel twine
-          make install-protoc-dependencies
-          make install-go-proto-dependencies
-          make install-go-ci-dependencies
-          make build-ui
-      - name: Build
-        run: |
-          python3 setup.py sdist bdist_wheel
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: dist/*
-
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-sdk, build-python-sdk-macos-py310]
+    needs: [build-python-sdk]
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-10.15]
-        python-version: ["3.10"]
+        os: [ ubuntu-latest, macos-10.15 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -179,6 +157,7 @@ jobs:
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
         run: |
+          feast init test_repo
           cd test_repo/
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
