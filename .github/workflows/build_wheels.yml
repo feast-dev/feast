@@ -180,4 +180,5 @@ jobs:
         run: |
           pip install cffi
           printf "\ngo_feature_retrieval: True" >> feature_store.yaml
+          echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
