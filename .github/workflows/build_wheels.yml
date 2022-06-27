@@ -55,23 +55,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
-      - name: Build and install dependencies go dependencies for py310
-        if: matrix.os == 'macos-10.15'
-        run: |
-          pip install -U pip setuptools wheel twine
-          make install-protoc-dependencies
-          make install-go-proto-dependencies
-          make install-go-ci-dependencies
-          make build-ui
-      - name: Build py310 wheel
-        if: matrix.os == 'macos-10.15'
-        run: |
-          python3 setup.py sdist bdist_wheel
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
         env:
           CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
+          CIBW_SKIP: "cp36-* *-musllinux_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
@@ -86,7 +74,6 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
