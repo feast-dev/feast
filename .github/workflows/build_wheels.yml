@@ -128,13 +128,15 @@ jobs:
           pip install wheel
           for f in *.whl; do pip install $f || true; done
       - name: Install go from sdist
-        if: ${{ !matrix.from-source }}
+        if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
         env:
           COMPILE_GO: "True"
         run: |
           pip install 'grpcio-tools==1.44.0' 'pybindgen==0.22.0'
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+      - name: Install dist
+        if: ${{ matrix.from-source}}
           pip install dist/*tar.gz
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
