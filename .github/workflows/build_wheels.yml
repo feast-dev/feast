@@ -46,7 +46,6 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-10.15 ]
-        # os: [ macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -75,7 +74,7 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-      - name: Build wheels
+      - name: Build py310 specific wheels for macos
         if: matrix.os == 'macos-10.15'
         uses: pypa/cibuildwheel@v2.7.0
         env:
@@ -87,6 +86,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build-source_distribution:
+    name: Build source distribution
     runs-on: macos-10.15
     steps:
       - uses: actions/checkout@v2
@@ -123,8 +123,6 @@ jobs:
       matrix:
         os: [ubuntu-latest,  macos-10.15 ]
         python-version: [ "3.7", "3.8", "3.9", "3.10"]
-        # os: [ macos-10.15 ]
-        # python-version: [ "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -175,7 +173,6 @@ jobs:
         if: matrix.os == 'macos-10.15'
         run: brew install coreutils
       - name: Smoke test
-        # if: ${{ matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest' }}
         run: |
           feast init test_repo
           cd test_repo/
