@@ -140,11 +140,14 @@ class SparkKafkaProcessor(StreamProcessor):
             )
             rows["created"] = pd.to_datetime("now", utc=True)
 
+            # Reset indices to ensure the dataframe has all the required columns.
+            rows = rows.reset_index()
+
             # Optionally execute preprocessor before writing to the online store.
             if self.preprocess_fn:
                 rows = self.preprocess_fn(rows)
 
-            # Finally persist the data to the online store.
+            # Finally persist the data to the online store and/or offline store.
             if rows.size > 0:
                 if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
                     self.fs.write_to_online_store(self.sfv.name, rows)
