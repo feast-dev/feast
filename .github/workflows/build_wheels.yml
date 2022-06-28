@@ -2,7 +2,6 @@ name: build_wheels
 
 on: [workflow_dispatch, workflow_call]
 
-
 jobs:
   get-version:
     runs-on:  ubuntu-latest
