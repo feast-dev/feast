@@ -47,6 +47,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
     "postgres": "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
+    "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {

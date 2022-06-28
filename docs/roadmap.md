@@ -35,7 +35,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [x] [Cassandra / AstraDB](https://github.com/datastaxdevs/feast-cassandra-online-store)
+  * [x] [Cassandra / AstraDB](https://docs.feast.dev/reference/online-stores/cassandra)
   * [ ] Bigtable (in progress)
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))

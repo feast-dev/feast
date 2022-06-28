@@ -156,6 +156,35 @@ test-python-universal-postgres:
 				not test_universal_types" \
 			sdk/python/tests
 
+test-python-universal-cassandra:
+	PYTHONPATH='.' \
+	  FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
+	  FEAST_USAGE=False \
+	  IS_TEST=True \
+	  python -m pytest -x --integration \
+	    sdk/python/tests
+
+test-python-universal-cassandra-no-cloud-providers:
+	PYTHONPATH='.' \
+  FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
+  FEAST_USAGE=False \
+  IS_TEST=True \
+  python -m pytest -x --integration \
+    -k "not test_lambda_materialization_consistency   and \
+      not test_apply_entity_integration               and \
+      not test_apply_feature_view_integration         and \
+      not test_apply_entity_integration               and \
+      not test_apply_feature_view_integration         and \
+      not test_apply_data_source_integration          and \
+      not test_nullable_online_store " \
+    sdk/python/tests
+
+test-python-universal-cassandra-minimal:
+	FEAST_USAGE=False \
+	IS_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	python -m pytest -n0 --integration -k cassandra sdk/python/tests
+
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 

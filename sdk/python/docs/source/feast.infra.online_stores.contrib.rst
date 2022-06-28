@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.infra.online_stores.contrib.cassandra_online_store
    feast.infra.online_stores.contrib.hbase_online_store
 
 Submodules
