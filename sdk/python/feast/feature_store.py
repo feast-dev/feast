@@ -1384,7 +1384,7 @@ class FeatureStore:
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
-                self._write_to_offline_store(
+                self.write_to_offline_store(
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
 
@@ -1416,7 +1416,7 @@ class FeatureStore:
         provider.ingest_df(feature_view, entities, df)
 
     @log_exceptions_and_usage
-    def _write_to_offline_store(
+    def write_to_offline_store(
         self,
         feature_view_name: str,
         df: pd.DataFrame,

@@ -152,7 +152,7 @@ class SparkKafkaProcessor(StreamProcessor):
                 if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
                     self.fs.write_to_online_store(self.sfv.name, rows)
                 if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
-                    self.fs._write_to_offline_store(self.sfv.name, rows)
+                    self.fs.write_to_offline_store(self.sfv.name, rows)
 
         query = (
             df.writeStream.outputMode("update")
