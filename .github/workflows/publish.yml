@@ -172,6 +172,8 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
+            git status
+          CIBW_BEFORE_TEST: "cd {project} && git status"
       - name: Build py310 specific wheels for macos
         if: matrix.os == 'macos-10.15'
         uses: pypa/cibuildwheel@v2.7.0
