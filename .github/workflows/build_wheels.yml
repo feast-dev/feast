@@ -115,7 +115,7 @@ build-source_distribution:
 
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-wheel]
+    needs: [build-python-wheel, build-source_distribution]
     strategy:
       matrix:
         # os: [ubuntu-latest,  macos-10.15 ]
