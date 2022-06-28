@@ -214,7 +214,7 @@ jobs:
           name: wheels
           path: dist/*
 
-  verify-python-wheel:
+  verify-python-wheels:
     runs-on: ${{ matrix.os }}
     needs: [build-python-wheel, build-source-distribution]
     strategy:
