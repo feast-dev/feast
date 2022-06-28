@@ -434,8 +434,6 @@ class build_ext(_build_ext):
                               env={"PATH": bin_path, **go_env})
         subprocess.check_call(["go", "install", "github.com/go-python/gopy"],
                               env={"PATH": bin_path, **go_env})
-        subprocess.check_call(["go", "mod", "tidy"],
-                              env={"PATH": bin_path, **go_env})
         subprocess.check_call(
             [
                 "gopy",
