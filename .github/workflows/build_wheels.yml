@@ -56,7 +56,7 @@ jobs:
       - name: Build UI
         run: make build-ui
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2..0
+        uses: pypa/cibuildwheel@v2.7.0
         env:
           CIBW_BUILD: "cp3*_x86_64"
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
