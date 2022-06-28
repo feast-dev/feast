@@ -45,7 +45,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+        # os: [ ubuntu-latest, macos-10.15 ]
+        os: [ macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -55,25 +56,25 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.7.0
-        env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go version
-          CIBW_BEFORE_ALL_MACOS: |
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            make install-go-proto-dependencies
-            make install-go-ci-dependencies
+      # - name: Build wheels
+      #   uses: pypa/cibuildwheel@v2.7.0
+      #   env:
+      #     CIBW_BUILD: "cp3*_x86_64"
+      #     CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
+      #     CIBW_ARCHS: "native"
+      #     CIBW_ENVIRONMENT: >
+      #       COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
+      #     CIBW_BEFORE_ALL_LINUX: |
+      #       curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+      #       tar -C /usr/local -xzf go.tar.gz
+      #       go version
+      #     CIBW_BEFORE_ALL_MACOS: |
+      #       curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
+      #       sudo installer -pkg python.pkg -target /
+      #     CIBW_BEFORE_BUILD: |
+      #       make install-protoc-dependencies
+      #       make install-go-proto-dependencies
+      #       make install-go-ci-dependencies
       - name: Build wheels
         if: matrix.os == 'macos-10.15'
         uses: pypa/cibuildwheel@v2.7.0
@@ -84,15 +85,20 @@ jobs:
         with:
           name: wheels
           path: ./wheelhouse/*.whl
-
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist/*
 
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
     needs: [build-python-wheel]
     strategy:
       matrix:
-        os: [ubuntu-latest,  macos-10.15 ]
-        python-version: [ "3.7", "3.8", "3.9", "3.10"]
+        # os: [ubuntu-latest,  macos-10.15 ]
+        # python-version: [ "3.7", "3.8", "3.9", "3.10"]
+        os: macos-10.15 ]
+        python-version: ["3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -129,7 +135,7 @@ jobs:
           pip install wheel
           for f in *.whl; do pip install $f || true; done
       - name: Install go from sdist
-        if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
+        if: ${{ matrix.from-source }}
         env:
           COMPILE_GO: "True"
         run: |
@@ -137,13 +143,13 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
       - name: Install dist
-        if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
+        if: ${{ matrix.from-source }}
         run: pip install dist/*tar.gz
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
         run: brew install coreutils
       - name: Smoke test
-        if: ${{ matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest' }}
+        # if: ${{ matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest' }}
         run: |
           feast init test_repo
           cd test_repo/
