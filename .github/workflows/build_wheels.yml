@@ -136,7 +136,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
       - name: Install dist
-        if: ${{ matrix.from-source}}
+        if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
         run: pip install dist/*tar.gz
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
