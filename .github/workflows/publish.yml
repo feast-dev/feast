@@ -1,11 +1,9 @@
 name: publish
 
-# on:
-#   push:
-#     tags:
-#       - 'v*.*.*'
-
-on: workflow_dispatch
+on:
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   get-version:
