@@ -140,7 +140,7 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
 
-  build-python-wheels:
+  build-python-wheel:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -218,7 +218,7 @@ jobs:
 
   verify-python-wheel:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-wheels, build-source-distribution]
+    needs: [build-python-wheel, build-source-distribution]
     strategy:
       matrix:
         os: [ubuntu-latest,  macos-10.15 ]
