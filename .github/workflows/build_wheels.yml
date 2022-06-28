@@ -80,11 +80,6 @@ jobs:
         env:
           CIBW_BUILD: "cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_MACOS: |
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
