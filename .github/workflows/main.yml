@@ -45,7 +45,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+        os: [ macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
