@@ -85,7 +85,7 @@ jobs:
           name: wheels
           path: ./wheelhouse/*.whl
 
-  build-source_distribution:
+  build-source-distribution:
     name: Build source distribution
     runs-on: macos-10.15
     steps:
