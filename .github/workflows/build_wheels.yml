@@ -74,24 +74,18 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-      - name: Build wheels
+      - name: Build wheels for mac310
+        if: matrix.os == "macos-10.15"
         uses: pypa/cibuildwheel@v2.7.0
         env:
           CIBW_BUILD: "cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             COMPILE_GO=False PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
             go version
           CIBW_BEFORE_ALL_MACOS: |
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            make install-go-proto-dependencies
-            make install-go-ci-dependencies
+            sudo installer -pkg python.pkg -target
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
