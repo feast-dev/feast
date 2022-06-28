@@ -128,7 +128,7 @@ jobs:
           pip install wheel
           for f in *.whl; do pip install $f || true; done
       - name: Install go from sdist
-        if: ${{ matrix.from-source }}
+        if: ${{ !matrix.from-source }}
         env:
           COMPILE_GO: "True"
         run: |
