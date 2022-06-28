@@ -1,7 +1,7 @@
 name: build_wheels
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
   workflow_call:
 
 
