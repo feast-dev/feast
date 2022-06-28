@@ -104,6 +104,9 @@ jobs:
       - name: Build and install dependencies
         run: |
           pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
+          make install-go-proto-dependencies
+          make install-go-ci-dependencies
           make build-ui
       - name: Build
         run: |
