@@ -88,5 +88,8 @@ message StreamFeatureViewSpec {
 
     // Timestamp field for aggregation
     string timestamp_field = 16;
+
+    // Needed for backwards compatible behaviour when fixing
+    int32 entity_key_serialization_version = 17;
 }
 

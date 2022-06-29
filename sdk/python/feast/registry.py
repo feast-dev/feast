@@ -1162,6 +1162,7 @@ class Registry(BaseRegistry):
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
+        saved_entity_key_serialization_version: Optional[int] = None
         for idx, existing_feature_view_proto in enumerate(
             existing_feature_views_of_same_type
         ):
@@ -1175,8 +1176,22 @@ class Registry(BaseRegistry):
                 ):
                     return
                 else:
+                    saved_entity_key_serialization_version = existing_feature_views_of_same_type[
+                        idx
+                    ].spec.entity_key_serialization_version
                     del existing_feature_views_of_same_type[idx]
                     break
+
+        if (
+            not saved_entity_key_serialization_version
+            or saved_entity_key_serialization_version <= 1
+        ):
+            feature_view_proto.spec.entity_key_serialization_version = 1
+            feature_view.set_entity_key_serialization_version(1)
+        else:
+            feature_view_proto.spec.entity_key_serialization_version = 2
+            feature_view.set_entity_key_serialization_version(2)
+
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
             self.commit()

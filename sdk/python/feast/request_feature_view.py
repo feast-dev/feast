@@ -44,6 +44,7 @@ class RequestFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        entity_key_serialization_version=1,
     ):
         """
         Creates a RequestFeatureView object.
@@ -77,6 +78,7 @@ class RequestFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            entity_key_serialization_version=entity_key_serialization_version,
         )
         self.request_source = request_data_source
 
@@ -97,6 +99,7 @@ class RequestFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
         return RequestFeatureViewProto(spec=spec)
@@ -122,6 +125,11 @@ class RequestFeatureView(BaseFeatureView):
             tags=dict(request_feature_view_proto.spec.tags),
             owner=request_feature_view_proto.spec.owner,
         )
+
+        if request_feature_view_proto.spec.entity_key_serialization_version <= 1:
+            request_feature_view_obj.set_entity_key_serialization_version(1)
+        else:
+            request_feature_view_obj.set_entity_key_serialization_version(2)
 
         # FeatureViewProjections are not saved in the RequestFeatureView proto.
         # Create the default projection.

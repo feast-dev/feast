@@ -135,6 +135,8 @@ class StreamFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
+            # Since stream feature views are so new, lets make sure they always use the latest serialization version.
+            entity_key_serialization_version=2,
         )
 
     def __eq__(self, other):
@@ -197,6 +199,7 @@ class StreamFeatureView(FeatureView):
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
             mode=self.mode,
+            entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -274,6 +277,11 @@ class StreamFeatureView(FeatureView):
                     utils.make_tzaware(interval.end_time.ToDatetime()),
                 )
             )
+
+        if sfv_proto.spec.entity_key_serialization_version <= 1:
+            stream_feature_view.set_entity_key_serialization_version(1)
+        else:
+            stream_feature_view.set_entity_key_serialization_version(2)
 
         return stream_feature_view
 

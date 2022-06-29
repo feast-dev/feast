@@ -75,6 +75,9 @@ message FeatureViewSpec {
 
     // Whether these features should be served online or not
     bool online = 8;
+
+    // Needed for backwards compatible behaviour when fixing
+    int32 entity_key_serialization_version = 13;
 }
 
 message FeatureViewMeta {

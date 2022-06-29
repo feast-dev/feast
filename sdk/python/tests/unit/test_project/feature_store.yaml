@@ -1,0 +1,8 @@
+project: prompt_dory
+provider: local
+online_store: redis
+offline_store: {}
+registry: registry.db
+flags:
+  alpha_features: true
+  on_demand_transforms: true
