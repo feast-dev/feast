@@ -1,7 +1,11 @@
 name: build_wheels
 
 # Call this workflow from other workflows in the repository by specifying "uses: ./.github/workflows/build_wheels.yml"
-on: [workflow_dispatch, workflow_call]
+on:
+  workflow_dispatch:
+      tags:
+        - 'v*.*.*'
+  workflow_call:
 
 jobs:
   get-version:
@@ -76,10 +80,10 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-            git status
-            git restore go.mod go.sum
+          # git status
+          # git restore go.mod go.sum
           CIBW_BEFORE_TEST: "cd {project} && git status"
-      # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
+      # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast/dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
         if: matrix.os == 'macos-10.15'
         uses: pypa/cibuildwheel@v2.7.0
@@ -134,7 +138,7 @@ jobs:
 
   verify-python-wheels:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-wheel, build-source-distribution]
+    needs: [build-python-wheel, build-source-distribution, get-version]
     strategy:
       matrix:
         os: [ubuntu-latest,  macos-10.15 ]
@@ -153,6 +157,7 @@ jobs:
         else
            echo "Succeeded!"
         fi
+      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
       - name: Setup Python
         id: setup-python
@@ -190,7 +195,25 @@ jobs:
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
         run: brew install coreutils
+
+      # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
+      - name: Validate Feast Version
+        run: |
+          VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
+          OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
+          VERSION_OUTPUT=$(feast version)
+          VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
+          OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+          if [ "VERSION_WITHOUT_PREFIX" = "erification_workflow"]; then
+            echo "You are running the build_wheels workflow incorrectly. Please run on tagged workflow."
+          if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
+            echo "Correct Feast Version Installed"
+          else
+            echo "$VERSION_OUTPUT is not in the correct format"
+          fi
       - name: Smoke test
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
         run: |
           feast init test_repo
           cd test_repo/
@@ -198,6 +221,7 @@ jobs:
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
           bash run-and-wait.sh feast ui
+
       # We disable this test for the Python 3.10 binary since it does not include Go.
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
