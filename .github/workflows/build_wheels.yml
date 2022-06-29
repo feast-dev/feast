@@ -202,7 +202,7 @@ jobs:
 
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
-      run: |
+        run: |
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
           OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
           VERSION_OUTPUT=$(feast version)
