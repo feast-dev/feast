@@ -199,6 +199,8 @@ jobs:
         run: brew install coreutils
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
         run: |
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
           OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
@@ -209,6 +211,7 @@ jobs:
             echo "Correct Feast Version Installed"
           else
             echo "$VERSION_OUTPUT from installed wheel is not in the correct format or doesn't have the right version $VERSION."
+            exit 1
           fi
       - name: Smoke test
         env:
