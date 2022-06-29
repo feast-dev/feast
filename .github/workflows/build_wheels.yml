@@ -1,6 +1,8 @@
 name: build_wheels
 
 # Call this workflow from other workflows in the repository by specifying "uses: ./.github/workflows/build_wheels.yml"
+# Developers who are starting a new release should use this workflow to ensure wheels will be built correctly.
+# Devs should check out their fork, add a tag to the last master commit on their fork, and run the release off of their fork on the added tag to ensure wheels will be built correctly.
 on:
   workflow_dispatch:
       tags:
@@ -80,8 +82,8 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-          # git status
-          # git restore go.mod go.sum
+            git status
+            git restore go.mod go.sum
           CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast/dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
@@ -195,7 +197,6 @@ jobs:
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
         run: brew install coreutils
-
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
         run: |
@@ -210,11 +211,9 @@ jobs:
           if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
             echo "Correct Feast Version Installed"
           else
-            echo "$VERSION_OUTPUT is not in the correct format"
+            echo "$VERSION_OUTPUT from installed wheel is not in the correct format or doesn't have the right version $VERSION."
           fi
       - name: Smoke test
-        env:
-          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
         run: |
           feast init test_repo
           cd test_repo/
