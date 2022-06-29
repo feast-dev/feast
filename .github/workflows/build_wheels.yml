@@ -9,7 +9,6 @@ on:
         - 'v*.*.*'
   workflow_call:
 
-
 jobs:
   get-version:
     runs-on:  ubuntu-latest
@@ -83,8 +82,8 @@ jobs:
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
-            git status
-            git restore go.mod go.sum
+          # git status
+          # git restore go.mod go.sum
           CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast/dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
@@ -146,8 +145,6 @@ jobs:
       matrix:
         os: [ubuntu-latest,  macos-10.15 ]
         python-version: [ "3.7", "3.8", "3.9", "3.10"]
-        # os: [macos-10.15 ]
-        # python-version: [ "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
