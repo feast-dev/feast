@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
       tags:
         - 'v*.*.*'
+  workflow_call:
 
 
 jobs:
