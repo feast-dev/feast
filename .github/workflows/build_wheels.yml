@@ -1,10 +1,11 @@
 name: build_wheels
 
 # Call this workflow from other workflows in the repository by specifying "uses: ./.github/workflows/build_wheels.yml"
-on: [workflow_dispatch, workflow_call]
+on:
   workflow_dispatch:
       tags:
         - 'v*.*.*'
+  workflow_call:
 
 
 jobs:
