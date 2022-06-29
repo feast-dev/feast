@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
       tags:
         - 'v*.*.*'
+  workflow_call:
 
 jobs:
   get-version:
@@ -206,10 +207,13 @@ jobs:
           VERSION_OUTPUT=$(feast version)
           VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
           OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
-          if  [ -n "$OUTPUT" ] &&[ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
+          if [ "VERSION_WITHOUT_PREFIX" = "erification_workflow"]; then
+            echo "You are running the build_wheels workflow incorrectly. Please run on tagged workflow."
+          if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
             echo "Correct Feast Version Installed"
           else
             echo "$VERSION_OUTPUT is not in the correct format"
+            exit 1
           fi
       - name: Smoke test
         env:
