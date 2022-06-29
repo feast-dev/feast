@@ -2,6 +2,7 @@ package onlinestore
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -43,6 +44,7 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 
 	var address []string
 	var password string
+	var tlsConfig *tls.Config
 	var db int // Default to 0
 
 	// Parse redis_type and write it into conf.t
@@ -69,8 +71,12 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 				if kv[0] == "password" {
 					password = kv[1]
 				} else if kv[0] == "ssl" {
-					// TODO (woop): Add support for TLS/SSL
-					// ssl = kv[1] == "true"
+					result, err := strconv.ParseBool(kv[1])
+					if err != nil {
+						return nil, err
+					} else if result {
+						tlsConfig = &tls.Config{}
+					}
 				} else if kv[0] == "db" {
 					db, err = strconv.Atoi(kv[1])
 					if err != nil {
@@ -87,9 +93,10 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 
 	if t == redisNode {
 		store.client = redis.NewClient(&redis.Options{
-			Addr:     address[0],
-			Password: password, // No password set
-			DB:       db,
+			Addr:      address[0],
+			Password:  password, // No password set
+			DB:        db,
+			TLSConfig: tlsConfig,
 		})
 	} else {
 		return nil, errors.New("only single node Redis is supported at this time")
