@@ -56,29 +56,29 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
-      # - name: Build wheels
-      #   uses: pypa/cibuildwheel@v2.7.0
-      #   env:
-      #     CIBW_BUILD: "cp3*_x86_64"
-      #     CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
-      #     CIBW_ARCHS: "native"
-      #     CIBW_ENVIRONMENT: >
-      #       COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-      #     CIBW_BEFORE_ALL_LINUX: |
-      #       curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-      #       tar -C /usr/local -xzf go.tar.gz
-      #       go version
-      #     CIBW_BEFORE_ALL_MACOS: |
-      #       curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-      #       sudo installer -pkg python.pkg -target /
-      #     # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
-      #     CIBW_BEFORE_BUILD: |
-      #       make install-protoc-dependencies
-      #       make install-go-proto-dependencies
-      #       make install-go-ci-dependencies
-      #       git status
-      #       git restore go.mod go.sum
-      #     CIBW_BEFORE_TEST: "cd {project} && git status"
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.7.0
+        env:
+          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
+          CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
+          CIBW_BEFORE_ALL_LINUX: |
+            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go version
+          CIBW_BEFORE_ALL_MACOS: |
+            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
+            sudo installer -pkg python.pkg -target /
+          # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
+          CIBW_BEFORE_BUILD: |
+            make install-protoc-dependencies
+            make install-go-proto-dependencies
+            make install-go-ci-dependencies
+            git status
+            git restore go.mod go.sum
+          CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
         if: matrix.os == 'macos-10.15'
