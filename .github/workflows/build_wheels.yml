@@ -86,6 +86,8 @@ jobs:
         env:
           CIBW_BUILD: "cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
