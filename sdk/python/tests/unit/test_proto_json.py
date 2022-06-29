@@ -81,7 +81,7 @@ def test_feast_repeated_value(proto_json_patch):
     # additional structure (e.g. [1,2,3] instead of {"val": [1,2,3]})
     repeated_value_str = "[1,2,3]"
     repeated_value_proto = RepeatedValue()
-    Parse(repeated_value_str, repeated_value_proto)
+    Parse(repeated_value_str, repeated_value_proto, "")
     assertpy.assert_that(len(repeated_value_proto.val)).is_equal_to(3)
     assertpy.assert_that(repeated_value_proto.val[0].int64_val).is_equal_to(1)
     assertpy.assert_that(repeated_value_proto.val[1].int64_val).is_equal_to(2)
