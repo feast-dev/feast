@@ -160,8 +160,7 @@ jobs:
         else
            echo "Succeeded!"
         fi
-      env:
-        VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
       - name: Setup Python
         id: setup-python
