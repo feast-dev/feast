@@ -19,8 +19,8 @@ from feast.stream_feature_view import StreamFeatureView
 
 class SparkProcessorConfig(ProcessorConfig):
     spark_session: SparkSession
-    processing_time: str = "30 seconds"
-    query_timeout: int = 15
+    processing_time: str
+    query_timeout: int
 
 
 class SparkKafkaProcessor(StreamProcessor):
