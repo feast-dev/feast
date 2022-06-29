@@ -273,9 +273,9 @@ grpcio==1.47.0
     #   grpcio-tools
 grpcio-reflection==1.47.0
     # via feast (setup.py)
-grpcio-testing==1.44.0
+grpcio-testing==1.47.0
     # via feast (setup.py)
-grpcio-tools==1.44.0
+grpcio-tools==1.47.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
