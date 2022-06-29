@@ -69,6 +69,7 @@ test("routes are reachable", async () => {
   const mainRoutesNames = [
     "Data Sources",
     "Entities",
+    "Features",
     "Feature Views",
     "Feature Services",
     "Datasets",
