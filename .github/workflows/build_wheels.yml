@@ -142,8 +142,6 @@ jobs:
   verify-python-wheels:
     runs-on: ${{ matrix.os }}
     needs: [build-python-wheel, build-source-distribution, get-version]
-    env:
-      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     strategy:
       matrix:
         # os: [ubuntu-latest,  macos-10.15 ]
@@ -204,7 +202,7 @@ jobs:
         run: brew install coreutils
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
-        run: |
+      run: |
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
           OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
           VERSION_OUTPUT=$(feast version)
