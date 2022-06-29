@@ -71,11 +71,13 @@ jobs:
           CIBW_BEFORE_ALL_MACOS: |
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
             sudo installer -pkg python.pkg -target /
+          # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
           CIBW_BEFORE_BUILD: |
             make install-protoc-dependencies
             make install-go-proto-dependencies
             make install-go-ci-dependencies
             git status
+            git restore go.*
           CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
