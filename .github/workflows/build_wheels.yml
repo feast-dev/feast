@@ -194,7 +194,26 @@ jobs:
       - name: Install OS X dependencies
         if: matrix.os == 'macos-10.15'
         run: brew install coreutils
+
+      # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
+      - name: Validate Feast Version
+      env:
+        VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+      run: |
+        VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
+        OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
+        VERSION_OUTPUT=$(feast version)
+        VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
+        OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+        if  [ -n "$OUTPUT" ] &&[ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
+          echo "Correct Feast Version Installed"
+        else
+          echo "$VERSION_OUTPUT is not in the correct format"
+          exit 1
+        fi
       - name: Smoke test
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
         run: |
           feast init test_repo
           cd test_repo/
@@ -202,14 +221,7 @@ jobs:
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
           bash run-and-wait.sh feast ui
-          REGEX='^Feast SDK Version: "feast [0-9]+\.[0-9]+\.[0-9]"$'
-          version=$(feast version)
-          if echo $version | grep -E "$REGEX" &>/dev/null ; then
-            echo "Correct Feast Version Installed"
-          else
-            echo "$version is not in the correct format"
-            exit 1
-          fi
+
       # We disable this test for the Python 3.10 binary since it does not include Go.
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
