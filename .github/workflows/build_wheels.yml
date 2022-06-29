@@ -50,8 +50,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # os: [ ubuntu-latest, macos-10.15 ]
-        os: [ macos-10.15 ]
+        os: [ ubuntu-latest, macos-10.15 ]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node
@@ -142,10 +141,10 @@ jobs:
     needs: [build-python-wheel, build-source-distribution, get-version]
     strategy:
       matrix:
-        # os: [ubuntu-latest,  macos-10.15 ]
-        # python-version: [ "3.7", "3.8", "3.9", "3.10"]
-        os: [macos-10.15 ]
-        python-version: [ "3.10"]
+        os: [ubuntu-latest,  macos-10.15 ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10"]
+        # os: [macos-10.15 ]
+        # python-version: [ "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -211,7 +210,6 @@ jobs:
             echo "Correct Feast Version Installed"
           else
             echo "$VERSION_OUTPUT is not in the correct format"
-            exit 1
           fi
       - name: Smoke test
         env:
