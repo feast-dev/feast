@@ -204,7 +204,7 @@ jobs:
           VERSION_OUTPUT=$(feast version)
           VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
           OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
-          if [ "VERSION_WITHOUT_PREFIX" = "erification_workflow"]; then
+          if [ "VERSION_WITHOUT_PREFIX" = "erification_workflow" ]; then
             echo "You are running the build_wheels workflow incorrectly. Please run on tagged workflow."
           fi
           if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
