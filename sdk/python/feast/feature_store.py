@@ -1439,19 +1439,12 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
 
-        # Get columns of the batch source and the input dataframe. Ignore columns with double
-        # underscores, which often signal an internal-use column.
+        # Get columns of the batch source and the input dataframe.
         column_names_and_types = feature_view.batch_source.get_table_column_names_and_types(
             self.config
         )
         source_columns = [column for column, _ in column_names_and_types]
-        source_columns = [
-            column for column in source_columns if not re.match("__|__$", column)
-        ]
         input_columns = df.columns.values.tolist()
-        input_columns = [
-            column for column in input_columns if not re.match("__|__$", column)
-        ]
 
         if set(input_columns) != set(source_columns):
             raise ValueError(
