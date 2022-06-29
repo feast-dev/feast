@@ -69,7 +69,7 @@ jobs:
           CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
-            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
+            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
           CIBW_BEFORE_ALL_LINUX: |
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
@@ -218,7 +218,6 @@ jobs:
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
           bash run-and-wait.sh feast ui
-
       # We disable this test for the Python 3.10 binary since it does not include Go.
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
