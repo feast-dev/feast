@@ -68,6 +68,9 @@ jobs:
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go version
+          CIBW_BEFORE_ALL_MACOS: |
+            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
+            sudo installer -pkg python.pkg -target /
           CIBW_BEFORE_BUILD: |
             make install-protoc-dependencies
             make install-go-proto-dependencies
