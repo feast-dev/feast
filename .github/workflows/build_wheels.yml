@@ -88,6 +88,9 @@ jobs:
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
+          CIBW_BEFORE_BUILD: |
+            git status
+            git restore go.mod go.sum
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
