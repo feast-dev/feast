@@ -86,6 +86,13 @@ jobs:
         env:
           CIBW_BUILD: "cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
+          # Need this environment variable because of this issue: https://github.com/pypa/cibuildwheel/issues/952.
+          CIBW_ENVIRONMENT: >
+            _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
+          # There's a `git restore` in here because remnant go.mod, go.sum changes from the build mess up the wheel naming.
+          CIBW_BEFORE_BUILD: |
+            git status
+            git restore go.mod go.sum
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
