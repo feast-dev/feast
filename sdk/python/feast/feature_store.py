@@ -14,7 +14,6 @@
 import copy
 import itertools
 import os
-import re
 import warnings
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
