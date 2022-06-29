@@ -1,5 +1,5 @@
 from types import MethodType
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
@@ -8,15 +8,13 @@ from pyspark.sql.functions import col, from_json
 
 from feast.data_format import AvroFormat, JsonFormat
 from feast.data_source import KafkaSource, PushMode
+from feast.feature_store import FeatureStore
 from feast.infra.contrib.stream_processor import (
     ProcessorConfig,
     StreamProcessor,
     StreamTable,
 )
 from feast.stream_feature_view import StreamFeatureView
-
-if TYPE_CHECKING:
-    from feast.feature_store import FeatureStore
 
 
 class SparkProcessorConfig(ProcessorConfig):
@@ -34,7 +32,7 @@ class SparkKafkaProcessor(StreamProcessor):
     def __init__(
         self,
         *,
-        fs: "FeatureStore",
+        fs: FeatureStore,
         sfv: StreamFeatureView,
         config: ProcessorConfig,
         preprocess_fn: Optional[MethodType] = None,
