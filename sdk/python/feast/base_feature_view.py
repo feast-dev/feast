@@ -49,6 +49,8 @@ class BaseFeatureView(ABC):
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
+    entity_key_serialization_version: int
+
     @abstractmethod
     def __init__(
         self,
@@ -58,6 +60,7 @@ class BaseFeatureView(ABC):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        entity_key_serialization_version: int = 1,
     ):
         """
         Creates a BaseFeatureView object.
@@ -82,6 +85,7 @@ class BaseFeatureView(ABC):
         self.projection = FeatureViewProjection.from_definition(self)
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        self.entity_key_serialization_version = entity_key_serialization_version
 
     @property
     @abstractmethod

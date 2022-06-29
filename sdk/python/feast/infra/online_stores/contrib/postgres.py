@@ -49,7 +49,10 @@ class PostgreSQLOnlineStore(OnlineStore):
         with self._get_conn(config) as conn, conn.cursor() as cur:
             insert_values = []
             for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(entity_key)
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=table.entity_key_serialization_version,
+                )
                 timestamp = _to_naive_utc(timestamp)
                 if created_ts is not None:
                     created_ts = _to_naive_utc(created_ts)
@@ -104,7 +107,12 @@ class PostgreSQLOnlineStore(OnlineStore):
             # to PostgreSQL
             keys = []
             for entity_key in entity_keys:
-                keys.append(serialize_entity_key(entity_key))
+                keys.append(
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=table.entity_key_serialization_version,
+                    )
+                )
 
             cur.execute(
                 sql.SQL(

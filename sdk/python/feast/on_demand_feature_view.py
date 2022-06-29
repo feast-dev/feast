@@ -88,6 +88,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        entity_key_serialization_version=1,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -219,6 +220,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            entity_key_serialization_version=entity_key_serialization_version,
         )
         assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
@@ -310,6 +312,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -357,6 +360,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
+            entity_key_serialization_version=on_demand_feature_view_proto.spec.entity_key_serialization_version,
         )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
@@ -524,6 +528,7 @@ def on_demand_feature_view(
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",
+    entity_key_serialization_version=1,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -650,6 +655,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            entity_key_serialization_version=entity_key_serialization_version,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function
