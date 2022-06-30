@@ -15,6 +15,7 @@ import {
   RequestDataSourceType,
   FeatureViewProjectionType,
 } from "../../parsers/feastODFVS";
+import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
@@ -39,6 +40,7 @@ const OnDemandFeatureViewOverviewTab = ({
   data,
 }: OnDemandFeatureViewOverviewTabProps) => {
   const inputs = Object.entries(data.spec.sources);
+  const { projectName } = useParams();
 
   const relationshipQuery = useLoadRelationshipData();
   const fsNames = relationshipQuery.data
@@ -71,10 +73,12 @@ const OnDemandFeatureViewOverviewTab = ({
               <h3>Features ({data.spec.features.length})</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {data.spec.features ? (
+            {projectName && data.spec.features ? (
               <FeaturesListDisplay
+                projectName={projectName}
                 featureViewName={data.spec.name}
                 features={data.spec.features}
+                link={false}
               />
             ) : (
               <EuiText>No Tags sepcified on this feature view.</EuiText>

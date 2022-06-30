@@ -163,7 +163,7 @@ const TagSearch = ({
       // HTMLInputElement is hooked into useInputHack
       inputNode.current = node;
     },
-    onfocus: () => {
+    onFocus: () => {
       setHasFocus(true);
     },
     fullWidth: true,

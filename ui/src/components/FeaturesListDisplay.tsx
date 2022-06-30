@@ -6,11 +6,13 @@ import SparklineHistogram from "./SparklineHistogram";
 import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
 
 interface FeaturesListProps {
+  projectName: string;
   featureViewName: string;
   features: FeastFeatureColumnType[];
+  link: boolean;
 }
 
-const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
+const FeaturesList = ({ projectName, featureViewName, features, link }: FeaturesListProps) => {
   const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const { isLoading, isError, isSuccess, data } =
     useLoadFeatureViewSummaryStatistics(featureViewName);
@@ -20,7 +22,7 @@ const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
       name: "Name",
       field: "name",
       render: (item: string) => ( 
-        <EuiLink href={`${featureViewName}/feature/${item}/`}>
+        <EuiLink href={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}>
           {item}
         </EuiLink>
       ) 
@@ -30,6 +32,12 @@ const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
       field: "valueType",
     },
   ];
+
+  if (!link) {
+    columns[0].render = undefined;
+  }
+  
+  console.log(columns);
 
   if (enabledFeatureStatistics) {
     columns.push(

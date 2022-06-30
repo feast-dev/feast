@@ -115,28 +115,26 @@ test("features are reachable", async () => {
     name: "Feature Views",
   });
 
-  // await screen.findByText(/Feature Views/i);
+  await screen.findAllByText(/Feature Views/i);
   const fvRegExp = new RegExp(featureViewName, "i");
 
   userEvent.click(
-    screen.getByRole("link", { name: "credit_history" }),
+    screen.getByRole("link", { name: fvRegExp }),
     leftClick
   )
 
-  // await screen.findByText("Features");
+  await screen.findByText(featureName);
   const fRegExp = new RegExp(featureName, "i");
+  console.debug(featureName)
 
   userEvent.click(
-    screen.getByRole("link", { name: fRegExp }),
+    screen.getByRole("link", { name: featureName }),
     leftClick
   )
-
   // Should land on a page with the heading
+  // await screen.findByText("Feature: " + featureName);
   screen.getByRole("heading", {
-    name: "Features",
+    name: "Feature: " + featureName,
     level: 1,
   });
-
-
-  expect(window.location.href).toContain("feature-view")
 });
