@@ -27,6 +27,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
+import "feast/core/OnlineStore.proto";
 
 message FeatureTable {
     // User-specified specifications of this feature table.
@@ -65,6 +66,14 @@ message FeatureTableSpec {
     // Only stream DataSource can be specified 
     // (ie source type should start with 'STREAM_')
     DataSource stream_source = 8;
+
+
+    // Used by Feast Serving to indicate that feature is stale.
+    // Must be less than max_age, since after max_age feature most probably will be garbage collected
+    google.protobuf.Duration staleness_threshold = 9;
+
+    // Database where features are stored for online serving
+    OnlineStore online_store = 10;
 }
 
 message FeatureTableMeta {
