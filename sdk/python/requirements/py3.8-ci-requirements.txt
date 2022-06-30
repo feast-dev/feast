@@ -390,7 +390,7 @@ nbformat==5.4.0
     # via great-expectations
 nodeenv==1.7.0
     # via pre-commit
-numpy==1.22.0
+numpy==1.23.0
     # via
     #   altair
     #   feast (setup.py)
