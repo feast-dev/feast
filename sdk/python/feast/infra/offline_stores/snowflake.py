@@ -332,8 +332,8 @@ class SnowflakeOfflineStore(OfflineStore):
         )
         if column_names != table.column_names:
             raise ValueError(
-                f"The input pyarrow table has schema {pa_schema} with the incorrect columns {column_names}. "
-                f"The columns are expected to be (in this order): {column_names}."
+                f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
             )
 
         if table.schema != pa_schema:

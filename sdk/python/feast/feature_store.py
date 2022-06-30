@@ -1383,7 +1383,7 @@ class FeatureStore:
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
-                self._write_to_offline_store(
+                self.write_to_offline_store(
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
 
@@ -1415,14 +1415,18 @@ class FeatureStore:
         provider.ingest_df(feature_view, entities, df)
 
     @log_exceptions_and_usage
-    def _write_to_offline_store(
+    def write_to_offline_store(
         self,
         feature_view_name: str,
         df: pd.DataFrame,
         allow_registry_cache: bool = True,
+        reorder_columns: bool = True,
     ):
         """
-        ingests data directly into the Online store
+        Persists the dataframe directly into the batch data source for the given feature view.
+
+        Fails if the dataframe columns do not match the columns of the batch data source. Optionally
+        reorders the columns of the dataframe to match.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
@@ -1433,7 +1437,21 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
-        df.reset_index(drop=True)
+
+        # Get columns of the batch source and the input dataframe.
+        column_names_and_types = feature_view.batch_source.get_table_column_names_and_types(
+            self.config
+        )
+        source_columns = [column for column, _ in column_names_and_types]
+        input_columns = df.columns.values.tolist()
+
+        if set(input_columns) != set(source_columns):
+            raise ValueError(
+                f"The input dataframe has columns {set(input_columns)} but the batch source has columns {set(source_columns)}."
+            )
+
+        if reorder_columns:
+            df = df.reindex(columns=source_columns)
 
         table = pa.Table.from_pandas(df)
         provider = self._get_provider()

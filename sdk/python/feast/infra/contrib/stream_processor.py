@@ -1,13 +1,16 @@
 from abc import ABC
-from typing import Callable
+from types import MethodType
+from typing import TYPE_CHECKING, Optional
 
-import pandas as pd
 from pyspark.sql import DataFrame
 
-from feast.data_source import DataSource
+from feast.data_source import DataSource, PushMode
 from feast.importer import import_class
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
+
+if TYPE_CHECKING:
+    from feast.feature_store import FeatureStore
 
 STREAM_PROCESSOR_CLASS_FOR_TYPE = {
     ("spark", "kafka"): "feast.infra.contrib.spark_kafka_processor.SparkKafkaProcessor",
@@ -30,21 +33,26 @@ class StreamProcessor(ABC):
     and persist that data to the online store.
 
     Attributes:
+        fs: The feature store where data should be persisted.
         sfv: The stream feature view on which the stream processor operates.
         data_source: The stream data source from which data will be ingested.
     """
 
+    fs: "FeatureStore"
     sfv: StreamFeatureView
     data_source: DataSource
 
-    def __init__(self, sfv: StreamFeatureView, data_source: DataSource):
+    def __init__(
+        self, fs: "FeatureStore", sfv: StreamFeatureView, data_source: DataSource
+    ):
+        self.fs = fs
         self.sfv = sfv
         self.data_source = data_source
 
-    def ingest_stream_feature_view(self) -> None:
+    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
         """
         Ingests data from the stream source attached to the stream feature view; transforms the data
-        and then persists it to the online store.
+        and then persists it to the online store and/or offline store, depending on the 'to' parameter.
         """
         pass
 
@@ -62,26 +70,32 @@ class StreamProcessor(ABC):
         """
         pass
 
-    def _write_to_online_store(self, table: StreamTable) -> None:
+    def _write_stream_data(self, table: StreamTable, to: PushMode) -> None:
         """
-        Returns query for persisting data to the online store.
+        Launches a job to persist stream data to the online store and/or offline store, depending
+        on the 'to' parameter, and returns a handle for the job.
         """
         pass
 
 
 def get_stream_processor_object(
     config: ProcessorConfig,
+    fs: "FeatureStore",
     sfv: StreamFeatureView,
-    write_function: Callable[[pd.DataFrame, str, str], None],
+    preprocess_fn: Optional[MethodType] = None,
 ):
     """
-    Returns a stream processor object based on the config mode and stream source type. The write function is a
-    function that wraps the feature store "write_to_online_store" capability.
+    Returns a stream processor object based on the config.
+
+    The returned object will be capable of launching an ingestion job that reads data from the
+    given stream feature view's stream source, transforms it if the stream feature view has a
+    transformation, and then writes it to the online store. It will also preprocess the data
+    if a preprocessor method is defined.
     """
     if config.mode == "spark" and config.source == "kafka":
         stream_processor = STREAM_PROCESSOR_CLASS_FOR_TYPE[("spark", "kafka")]
         module_name, class_name = stream_processor.rsplit(".", 1)
         cls = import_class(module_name, class_name, "StreamProcessor")
-        return cls(sfv=sfv, config=config, write_function=write_function,)
+        return cls(fs=fs, sfv=sfv, config=config, preprocess_fn=preprocess_fn)
     else:
         raise ValueError("other processors besides spark-kafka not supported")
