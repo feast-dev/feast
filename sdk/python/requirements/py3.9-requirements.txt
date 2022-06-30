@@ -22,7 +22,7 @@ cachetools==5.2.0
     # via google-auth
 certifi==2022.6.15
     # via requests
-charset-normalizer==2.0.12
+charset-normalizer==2.1.0
     # via requests
 click==8.0.1
     # via
@@ -40,7 +40,7 @@ dill==0.3.5.1
     # via feast (setup.py)
 fastapi==0.78.0
     # via feast (setup.py)
-fastavro==1.5.1
+fastavro==1.5.2
     # via
     #   feast (setup.py)
     #   pandavro
@@ -50,15 +50,13 @@ fsspec==2022.5.0
     # via dask
 google-api-core==2.8.2
     # via feast (setup.py)
-google-auth==2.8.0
+google-auth==2.9.0
     # via google-api-core
 googleapis-common-protos==1.56.3
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-greenlet==1.1.2
-    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
@@ -75,7 +73,7 @@ idna==3.3
     #   requests
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.6.0
+jsonschema==4.6.1
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -107,7 +105,7 @@ partd==1.2.0
     # via dask
 proto-plus==1.20.6
     # via feast (setup.py)
-protobuf==3.19.4
+protobuf==3.20.1
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -144,7 +142,7 @@ pyyaml==6.0
     #   dask
     #   feast (setup.py)
     #   uvicorn
-requests==2.28.0
+requests==2.28.1
     # via google-api-core
 rsa==4.8
     # via google-auth
@@ -156,7 +154,7 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
-sqlalchemy[mypy]==1.4.38
+sqlalchemy[mypy]==1.4.39
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a24
     # via sqlalchemy
@@ -188,7 +186,7 @@ typing-extensions==4.2.0
     #   starlette
 urllib3==1.26.9
     # via requests
-uvicorn[standard]==0.18.1
+uvicorn[standard]==0.18.2
     # via feast (setup.py)
 uvloop==0.16.0
     # via uvicorn

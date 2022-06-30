@@ -186,7 +186,7 @@ jobs:
         env:
           COMPILE_GO: "True"
         run: |
-          pip install 'grpcio-tools==1.44.0' 'pybindgen==0.22.0'
+          pip install 'grpcio-tools==1.47.0' 'pybindgen==0.22.0'
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
           pip install dist/*tar.gz
@@ -209,6 +209,7 @@ jobs:
             echo "Correct Feast Version Installed"
           else
             echo "$VERSION_OUTPUT from installed wheel is not in the correct format or doesn't have the right version $VERSION."
+            exit 1
           fi
       - name: Smoke test
         run: |
@@ -218,7 +219,6 @@ jobs:
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
           bash run-and-wait.sh feast ui
-
       # We disable this test for the Python 3.10 binary since it does not include Go.
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
