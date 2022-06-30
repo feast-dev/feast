@@ -146,7 +146,7 @@ def _patch_feast_repeated_value_json_encoding():
     ) -> None:
         array = value if isinstance(value, list) else value["val"]
         for item in array:
-            parser.ConvertMessage(item, message.val.add())
+            parser.ConvertMessage(item, message.val.add(), path)
 
     _patch_proto_json_encoding(RepeatedValue, to_json_object, from_json_object)
 
