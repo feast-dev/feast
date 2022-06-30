@@ -57,7 +57,7 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy<1.22,<2",
+    "numpy>=1.22,<2",
     "pandas>=1,<2",
     "pandavro==1.5.*",
     "protobuf>=3.10,<3.20",
