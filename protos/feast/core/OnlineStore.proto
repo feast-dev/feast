@@ -1,0 +1,53 @@
+//
+// * Copyright 2022 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
+
+syntax = "proto3";
+package feast.core;
+
+option java_package = "feast.proto.core";
+option java_outer_classname = "OnlineStoreProto";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+
+import "google/protobuf/duration.proto";
+
+// OnlineStore provides a location where Feast reads and writes feature values.
+// Feature values will be written to the Store in the form of FeatureRow elements.
+// The way FeatureRow is encoded and decoded when it is written to and read from
+// the Store depends on the type of the Store.
+//
+message OnlineStore {
+
+  // Name of the store.
+  string name = 1;
+
+  // Type of store.
+  StoreType type = 2;
+
+  // Description.
+  string description = 3;
+
+}
+
+enum StoreType {
+  // Unset
+  UNSET = 0;
+
+  // google cloud NOSQL database service
+  BIGTABLE = 1;
+
+  // redis in-memory database
+  REDIS = 2;
+}

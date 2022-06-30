@@ -16,13 +16,13 @@ from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
 from google.protobuf import json_format
-from google.protobuf.duration_pb2 import Duration
+from google.protobuf.internal.well_known_types import Timestamp, Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
+from feast.core.OnlineStore_pb2 import OnlineStore
 from feast.data_source import (
     BigQuerySource,
     DataSource,
@@ -49,6 +49,7 @@ class FeatureTable:
         stream_source: Optional[Union[KafkaSource, KinesisSource]] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
+        online_store: Optional[OnlineStore] = None,
     ):
         self._name = name
         self._entities = entities
@@ -63,6 +64,7 @@ class FeatureTable:
         self._max_age = max_age
         self._created_timestamp: Optional[Timestamp] = None
         self._last_updated_timestamp: Optional[Timestamp] = None
+        self._online_store = online_store
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
@@ -87,6 +89,8 @@ class FeatureTable:
         if self.batch_source != other.batch_source:
             return False
         if self.stream_source != other.stream_source:
+            return False
+        if self._online_store != other._online_store:
             return False
 
         return True
@@ -206,6 +210,20 @@ class FeatureTable:
         """
         return self._last_updated_timestamp
 
+    @property
+    def online_store(self):
+        """
+        Returns the online store of this feature table
+        """
+        return self._online_store
+
+    @online_store.setter
+    def online_store(self, online_store: OnlineStore):
+        """
+        Sets the stream source of this feature table
+        """
+        self._online_store = online_store
+
     def add_feature(self, feature: Feature):
         """
         Adds a new feature to the feature table.
@@ -292,6 +310,7 @@ class FeatureTable:
                 if not feature_table_proto.spec.stream_source.ByteSize()
                 else DataSource.from_proto(feature_table_proto.spec.stream_source)
             ),
+            online_store=feature_table_proto.spec.online_store
         )
 
         feature_table._created_timestamp = feature_table_proto.meta.created_timestamp
@@ -330,6 +349,7 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
+            online_store=self.online_store
         )
 
         return FeatureTableProto(spec=spec, meta=meta)

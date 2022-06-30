@@ -32,6 +32,9 @@ service ServingService {
 
     // Get online features (v2) synchronously.
     rpc GetOnlineFeaturesV2 (GetOnlineFeaturesRequestV2) returns (GetOnlineFeaturesResponse);
+
+    // Get online features using optimized response message.
+    rpc GetOnlineFeatures (GetOnlineFeaturesRequestV2) returns (GetOnlineFeaturesResponseV2);
 }
 
 message GetFeastServingInfoRequest {}
@@ -92,30 +95,51 @@ message GetOnlineFeaturesResponse {
         // Map of feature or entity name to feature/entity statuses/metadata.
         map<string, FieldStatus> statuses = 2;
     }
-   
-    enum FieldStatus {
-        // Status is unset for this field.
-        INVALID = 0;
+}
 
-        // Field value is present for this field and age is within max age.
-        PRESENT = 1;
+message GetOnlineFeaturesResponseV2 {
+    GetOnlineFeaturesResponseMetadata metadata = 1;
 
-        // Values could be found for entity key and age is within max age, but
-        // this field value is assigned a value on ingestion into feast.
-        NULL_VALUE = 2;
+    // Length of "results" array should match length of requested features and entities.
+    // We also preserve the same order of features here as in metadata.field_names
+    repeated FieldVector results = 2;
 
-        // Entity key did not return any values as they do not exist in Feast.
-        // This could suggest that the feature values have not yet been ingested
-        // into feast or the ingestion failed.
-        NOT_FOUND = 3;
-
-        // Values could be found for entity key, but field values are outside the maximum 
-        // allowable range.
-        OUTSIDE_MAX_AGE = 4;
-
-        // Values could be found for entity key, but are null and is due to ingestion failures
-        INGESTION_FAILURE = 5;
+    message FieldVector {
+        repeated feast.types.Value values = 1;
+        repeated FieldStatus statuses = 2;
     }
+}
+
+message GetOnlineFeaturesResponseMetadata {
+    FieldList field_names = 1;
+}
+
+message FieldList {
+    repeated string val = 1;
+}
+
+enum FieldStatus {
+    // Status is unset for this field.
+    INVALID = 0;
+
+    // Field value is present for this field and age is within max age.
+    PRESENT = 1;
+
+    // Values could be found for entity key and age is within max age, but
+    // this field value is assigned a value on ingestion into feast.
+    NULL_VALUE = 2;
+
+    // Entity key did not return any values as they do not exist in Feast.
+    // This could suggest that the feature values have not yet been ingested
+    // into feast or the ingestion failed.
+    NOT_FOUND = 3;
+
+    // Values could be found for entity key, but field values are outside the maximum
+    // allowable range.
+    OUTSIDE_MAX_AGE = 4;
+
+    // Values could be found for entity key, but are null and is due to ingestion failures
+    INGESTION_FAILURE = 5;
 }
 
 enum FeastServingType {
