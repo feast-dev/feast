@@ -63,13 +63,16 @@ def test_get_online_features(python_fs_client):
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push(python_fs_client):
-    initial_temp = get_temperatures(python_fs_client, location_ids=[1])[0]
+    # TODO(felixwang9817): Note that we choose an entity value of 102 here since it is not included
+    # in the existing range of entity values (1-49). This allows us to push data for this test
+    # without affecting other tests. This decision is tech debt, and should be resolved by finding a
+    # better way to isolate data sources across tests.
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
             "df": {
-                "location_id": [1],
-                "temperature": [initial_temp * 100],
+                "location_id": [102],
+                "temperature": [4],
                 "event_timestamp": [str(datetime.utcnow())],
                 "created": [str(datetime.utcnow())],
             },
@@ -79,7 +82,7 @@ def test_push(python_fs_client):
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    assert get_temperatures(python_fs_client, location_ids=[1]) == [initial_temp * 100]
+    assert get_temperatures(python_fs_client, location_ids=[102]) == [4]
 
 
 def get_temperatures(client, location_ids: List[int]):

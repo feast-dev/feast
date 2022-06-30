@@ -26,7 +26,7 @@ def test_push_features_and_read_from_offline_store(environment, universal_data_s
     now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
-    entity_df = pd.DataFrame.from_dict({"location_id": [1], "event_timestamp": [now]})
+    entity_df = pd.DataFrame.from_dict({"location_id": [100], "event_timestamp": [now]})
 
     before_df = store.get_historical_features(
         entity_df=entity_df,
@@ -34,9 +34,13 @@ def test_push_features_and_read_from_offline_store(environment, universal_data_s
         full_feature_names=False,
     ).to_df()
 
+    # TODO(felixwang9817): Note that we choose an entity value of 100 here since it is not included
+    # in the existing range of entity values (1-49). This allows us to push data for this test
+    # without affecting other tests. This decision is tech debt, and should be resolved by finding a
+    # better way to isolate data sources across tests.
     data = {
         "event_timestamp": [now],
-        "location_id": [1],
+        "location_id": [100],
         "temperature": [4],
         "created": [now],
     }
