@@ -69,7 +69,6 @@ test("routes are reachable", async () => {
   const mainRoutesNames = [
     "Data Sources",
     "Entities",
-    "Features",
     "Feature Views",
     "Feature Services",
     "Datasets",
@@ -94,4 +93,50 @@ test("routes are reachable", async () => {
       level: 1,
     });
   }
+});
+
+
+const featureViewName = registry.featureViews[0].spec.name;
+const featureName = registry.featureViews[0].spec.features[0].name;
+
+test("features are reachable", async () => {
+  render(<FeastUISansProviders />);
+
+  // Wait for content to load
+  await screen.findByText(/Explore this Project/i);
+  const routeRegExp = new RegExp("Feature Views", "i");
+
+  userEvent.click(
+    screen.getByRole("button", { name: routeRegExp }),
+    leftClick
+  );
+
+  screen.getByRole("heading", {
+    name: "Feature Views",
+  });
+
+  // await screen.findByText(/Feature Views/i);
+  const fvRegExp = new RegExp(featureViewName, "i");
+
+  userEvent.click(
+    screen.getByRole("link", { name: "credit_history" }),
+    leftClick
+  )
+
+  // await screen.findByText("Features");
+  const fRegExp = new RegExp(featureName, "i");
+
+  userEvent.click(
+    screen.getByRole("link", { name: fRegExp }),
+    leftClick
+  )
+
+  // Should land on a page with the heading
+  screen.getByRole("heading", {
+    name: "Features",
+    level: 1,
+  });
+
+
+  expect(window.location.href).toContain("feature-view")
 });
