@@ -13,8 +13,8 @@ The process of ingesting data into the online store (Redis) is decoupled from th
 
 ### Contributing
 Guides on Contributing:
-- [Contribution Process for Feast](https://docs.feast.dev/v/master/contributing/contributing)
-- [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
+- [Contribution Process for Feast](https://docs.feast.dev/v/master/project/contributing)
+- [Development Guide for Feast](https://docs.feast.dev/v/master/project/development-guide)
 - [Development Guide for feast-java (this repository)](CONTRIBUTING.md)
 
 ### Installing using Helm
