@@ -1,5 +1,5 @@
 # Development Guide: feast-java
-> The higher level [Development Guide](https://docs.feast.dev/contributing/development-guide)
+> The higher level [Development Guide](https://docs.feast.dev/v/master/project/development-guide)
 > gives contributing to Feast codebase as a whole.
 
 ### Overview
@@ -9,7 +9,7 @@ the feast-java Repository:
 - [Feast Java Client](#feast-java-client)
 
 > Don't see the Feast component that you want to contribute to here?  
-> Check out the [Development Guide](https://docs.feast.dev/contributing/development-guide)
+> Check out the [Development Guide](https://docs.feast.dev/v/master/project/development-guide)
 > to learn how Feast components are distributed over multiple repositories.
 
 #### Common Setup
