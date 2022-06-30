@@ -34,7 +34,6 @@ import feast.proto.types.ValueProto;
 import feast.serving.registry.RegistryRepository;
 import feast.serving.util.Metrics;
 import feast.storage.api.retriever.OnlineRetrieverV2;
-import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
@@ -50,6 +49,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private final RegistryRepository registryRepository;
   private final OnlineTransformationService onlineTransformationService;
   private final String project;
+
+  public static final String DUMMY_ENTITY_ID = "__dummy_id";
+  public static final String DUMMY_ENTITY_VAL = "";
+  public static final ValueProto.Value DUMMY_ENTITY_VALUE =
+      ValueProto.Value.newBuilder().setStringVal(DUMMY_ENTITY_VAL).build();
 
   public OnlineServingServiceV2(
       OnlineRetrieverV2 retriever,
@@ -103,30 +107,17 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     List<Map<String, ValueProto.Value>> entityRows = getEntityRows(request);
 
-    List<String> entityNames;
-    if (retrievedFeatureReferences.size() > 0) {
-      entityNames = this.registryRepository.getEntitiesList(retrievedFeatureReferences.get(0));
-    } else {
-      throw new RuntimeException("Requested features list must not be empty");
-    }
-
     Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
+
     List<List<feast.storage.api.retriever.Feature>> features =
-        retriever.getOnlineFeatures(entityRows, retrievedFeatureReferences, entityNames);
+        retrieveFeatures(retrievedFeatureReferences, entityRows);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
-    }
-    if (features.size() != entityRows.size()) {
-      throw Status.INTERNAL
-          .withDescription(
-              "The no. of FeatureRow obtained from OnlineRetriever"
-                  + "does not match no. of entityRow passed.")
-          .asRuntimeException();
     }
 
     Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
@@ -253,6 +244,84 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     return entityRows;
+  }
+
+  private List<List<feast.storage.api.retriever.Feature>> retrieveFeatures(
+      List<FeatureReferenceV2> featureReferences, List<Map<String, ValueProto.Value>> entityRows) {
+    // Prepare feature reference to index mapping. This mapping will be used to arrange the
+    // retrieved features to the same order as in the input.
+    if (featureReferences.isEmpty()) {
+      throw new RuntimeException("Requested features list must not be empty.");
+    }
+    Map<FeatureReferenceV2, Integer> featureReferenceToIndexMap =
+        new HashMap<>(featureReferences.size());
+    for (int i = 0; i < featureReferences.size(); i++) {
+      FeatureReferenceV2 featureReference = featureReferences.get(i);
+      if (featureReferenceToIndexMap.containsKey(featureReference)) {
+        throw new RuntimeException(
+            String.format(
+                "Found duplicate features %s:%s.",
+                featureReference.getFeatureViewName(), featureReference.getFeatureName()));
+      }
+      featureReferenceToIndexMap.put(featureReference, i);
+    }
+
+    // Create placeholders for retrieved features.
+    List<List<feast.storage.api.retriever.Feature>> features = new ArrayList<>(entityRows.size());
+    for (int i = 0; i < entityRows.size(); i++) {
+      List<feast.storage.api.retriever.Feature> featuresPerEntity =
+          new ArrayList<>(featureReferences.size());
+      for (int j = 0; j < featureReferences.size(); j++) {
+        featuresPerEntity.add(null);
+      }
+      features.add(featuresPerEntity);
+    }
+
+    // Group feature references by join keys.
+    Map<String, List<FeatureReferenceV2>> groupNameToFeatureReferencesMap =
+        featureReferences.stream()
+            .collect(
+                Collectors.groupingBy(
+                    featureReference ->
+                        this.registryRepository.getEntitiesList(featureReference).stream()
+                            .map(this.registryRepository::getEntityJoinKey)
+                            .sorted()
+                            .collect(Collectors.joining(","))));
+
+    // Retrieve features one group at a time.
+    for (List<FeatureReferenceV2> featureReferencesPerGroup :
+        groupNameToFeatureReferencesMap.values()) {
+      List<String> entityNames =
+          this.registryRepository.getEntitiesList(featureReferencesPerGroup.get(0));
+      List<Map<String, ValueProto.Value>> entityRowsPerGroup = new ArrayList<>(entityRows.size());
+      for (Map<String, ValueProto.Value> entityRow : entityRows) {
+        Map<String, ValueProto.Value> entityRowPerGroup = new HashMap<>();
+        entityNames.stream()
+            .map(this.registryRepository::getEntityJoinKey)
+            .forEach(
+                joinKey -> {
+                  if (joinKey.equals(DUMMY_ENTITY_ID)) {
+                    entityRowPerGroup.put(joinKey, DUMMY_ENTITY_VALUE);
+                  } else {
+                    ValueProto.Value value = entityRow.get(joinKey);
+                    if (value != null) {
+                      entityRowPerGroup.put(joinKey, value);
+                    }
+                  }
+                });
+        entityRowsPerGroup.add(entityRowPerGroup);
+      }
+      List<List<feast.storage.api.retriever.Feature>> featuresPerGroup =
+          retriever.getOnlineFeatures(entityRowsPerGroup, featureReferencesPerGroup, entityNames);
+      for (int i = 0; i < featuresPerGroup.size(); i++) {
+        for (int j = 0; j < featureReferencesPerGroup.size(); j++) {
+          int k = featureReferenceToIndexMap.get(featureReferencesPerGroup.get(j));
+          features.get(i).set(k, featuresPerGroup.get(i).get(j));
+        }
+      }
+    }
+
+    return features;
   }
 
   private void populateOnDemandFeatures(
