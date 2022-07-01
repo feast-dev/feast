@@ -22,9 +22,3 @@ For Feast maintainers, these are the concrete steps for making a new release.
 4. Try the dry run first with your personal access token. If this succeeds, uncheck `Dry Run` and run the release workflow.
 5. All of the jobs should succeed besides the UI job which needs to be released separately. Ping a maintainer on Slack to run the UI release manually.
 6. Try to install the feast release in your local environment and test out the `feast init` -> `feast apply` workflow to verify as a sanity check that the release worked correctly.
-
-### Flag Breaking Changes & Deprecations
-
-It's important to flag breaking changes and deprecation to the API for each release so that we can maintain API compatibility.
-
-Developers should have flagged PRs with breaking changes with the `compat/breaking` label. However, it's important to double check each PR's release notes and contents for changes that will break API compatibility and manually label `compat/breaking` to PRs with undeclared breaking changes.
