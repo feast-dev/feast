@@ -4,7 +4,7 @@
 
 For Feast maintainers, these are the concrete steps for making a new release.
 
-### Pre-release Verification
+### Pre-release Verification (Verification that wheels are built correctly)
 
 1. Merge upstream master changes into your fork.
 2. Create a tag manually for the release on your fork. For example, if your release is on version 0.22.0, create a tag by doing the following.
