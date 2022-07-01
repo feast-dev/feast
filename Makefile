@@ -172,7 +172,7 @@ install-go-proto-dependencies:
 install-go-ci-dependencies:
 	# TODO: currently gopy installation doesn't work w/o explicit go get in the next line
 	# TODO: there should be a better way to install gopy
-	go get github.com/go-python/gopy@v0.4.0
+	go get github.com/go-python/gopy@v0.4.4
 	go install golang.org/x/tools/cmd/goimports
 	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
 	# but the following command is needed to install it for some reason.
