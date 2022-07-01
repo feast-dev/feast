@@ -35,7 +35,7 @@ from tests.integration.feature_repos.universal.entities import (
 )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def initialized_registry(environment, universal_data_sources):
     fs = environment.feature_store
 

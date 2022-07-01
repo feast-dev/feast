@@ -161,7 +161,7 @@ def start_test_local_server(repo_path: str, port: int):
     fs.serve("localhost", port, no_access_log=True)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def environment(request, worker_id):
     e = construct_test_environment(
         request.param, worker_id=worker_id, fixture_request=request
@@ -293,7 +293,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
         )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def feature_server_endpoint(environment):
     if (
         not environment.python_feature_server
@@ -344,12 +344,12 @@ def _free_port():
     return sock.getsockname()[1]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def universal_data_sources(environment) -> TestData:
     return construct_universal_test_data(environment)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def e2e_data_sources(environment: Environment):
     df = create_dataset()
     data_source = environment.data_source_creator.create_data_source(
