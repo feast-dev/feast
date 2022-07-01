@@ -4,6 +4,7 @@ import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";
 import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
+import EuiCustomLink from "./EuiCustomLink";
 
 interface FeaturesListProps {
   projectName: string;
@@ -22,9 +23,11 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
       name: "Name",
       field: "name",
       render: (item: string) => ( 
-        <EuiLink href={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}>
+        <EuiCustomLink 
+          href={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
+          to={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}>
           {item}
-        </EuiLink>
+        </EuiCustomLink>
       ) 
     },
     {
@@ -36,8 +39,6 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
   if (!link) {
     columns[0].render = undefined;
   }
-  
-  console.log(columns);
 
   if (enabledFeatureStatistics) {
     columns.push(

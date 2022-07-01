@@ -125,10 +125,9 @@ test("features are reachable", async () => {
 
   await screen.findByText(featureName);
   const fRegExp = new RegExp(featureName, "i");
-  console.debug(featureName)
 
   userEvent.click(
-    screen.getByRole("link", { name: featureName }),
+    screen.getByRole("link", { name: fRegExp }),
     leftClick
   )
   // Should land on a page with the heading
