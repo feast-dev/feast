@@ -4,24 +4,41 @@ import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";
 import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
+import EuiCustomLink from "./EuiCustomLink";
 
 interface FeaturesListProps {
+  projectName: string;
   featureViewName: string;
   features: FeastFeatureColumnType[];
+  link: boolean;
 }
 
-const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
+const FeaturesList = ({ projectName, featureViewName, features, link }: FeaturesListProps) => {
   const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const { isLoading, isError, isSuccess, data } =
     useLoadFeatureViewSummaryStatistics(featureViewName);
 
   let columns: { name: string; render?: any; field: any }[] = [
-    { name: "Name", field: "name" },
+    { 
+      name: "Name",
+      field: "name",
+      render: (item: string) => ( 
+        <EuiCustomLink 
+          href={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
+          to={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}>
+          {item}
+        </EuiCustomLink>
+      ) 
+    },
     {
       name: "Value Type",
       field: "valueType",
     },
   ];
+
+  if (!link) {
+    columns[0].render = undefined;
+  }
 
   if (enabledFeatureStatistics) {
     columns.push(

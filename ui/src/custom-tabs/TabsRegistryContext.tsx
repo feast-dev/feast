@@ -11,6 +11,7 @@ import {
 import RegularFeatureViewCustomTabLoadingWrapper from "../utils/custom-tabs/RegularFeatureViewCustomTabLoadingWrapper";
 import OnDemandFeatureViewCustomTabLoadingWrapper from "../utils/custom-tabs/OnDemandFeatureViewCustomTabLoadingWrapper";
 import FeatureServiceCustomTabLoadingWrapper from "../utils/custom-tabs/FeatureServiceCustomTabLoadingWrapper";
+import FeatureCustomTabLoadingWrapper from "../utils/custom-tabs/FeatureCustomTabLoadingWrapper";
 import DataSourceCustomTabLoadingWrapper from "../utils/custom-tabs/DataSourceCustomTabLoadingWrapper";
 import EntityCustomTabLoadingWrapper from "../utils/custom-tabs/EntityCustomTabLoadingWrapper";
 import DatasetCustomTabLoadingWrapper from "../utils/custom-tabs/DatasetCustomTabLoadingWrapper";
@@ -19,6 +20,7 @@ import {
   RegularFeatureViewCustomTabRegistrationInterface,
   OnDemandFeatureViewCustomTabRegistrationInterface,
   FeatureServiceCustomTabRegistrationInterface,
+  FeatureCustomTabRegistrationInterface,
   DataSourceCustomTabRegistrationInterface,
   EntityCustomTabRegistrationInterface,
   DatasetCustomTabRegistrationInterface,
@@ -29,6 +31,7 @@ interface FeastTabsRegistryInterface {
   RegularFeatureViewCustomTabs?: RegularFeatureViewCustomTabRegistrationInterface[];
   OnDemandFeatureViewCustomTabs?: OnDemandFeatureViewCustomTabRegistrationInterface[];
   FeatureServiceCustomTabs?: FeatureServiceCustomTabRegistrationInterface[];
+  FeatureCustomTabs?: FeatureCustomTabRegistrationInterface[];
   DataSourceCustomTabs?: DataSourceCustomTabRegistrationInterface[];
   EntityCustomTabs?: EntityCustomTabRegistrationInterface[];
   DatasetCustomTabs?: DatasetCustomTabRegistrationInterface[];
@@ -154,6 +157,15 @@ const useFeatureServiceCustomTabs = (navigate: NavigateFunction) => {
   );
 };
 
+const useFeatureCustomTabs = (navigate: NavigateFunction) => {
+  const { FeatureCustomTabs } = React.useContext(TabsRegistryContext);
+
+  return useGenericCustomTabsNavigation<FeatureCustomTabRegistrationInterface>(
+    FeatureCustomTabs || [],
+    navigate
+  );
+};
+
 const useDataSourceCustomTabs = (navigate: NavigateFunction) => {
   const { DataSourceCustomTabs } = React.useContext(TabsRegistryContext);
 
@@ -211,6 +223,15 @@ const useFeatureServiceCustomTabRoutes = () => {
   );
 };
 
+const useEntityCustomTabRoutes = () => {
+  const { EntityCustomTabs } = React.useContext(TabsRegistryContext);
+
+  return genericCustomTabRoutes(
+    EntityCustomTabs || [],
+    EntityCustomTabLoadingWrapper
+  );
+};
+
 const useDataSourceCustomTabRoutes = () => {
   const { DataSourceCustomTabs } = React.useContext(TabsRegistryContext);
 
@@ -220,12 +241,12 @@ const useDataSourceCustomTabRoutes = () => {
   );
 };
 
-const useEntityCustomTabRoutes = () => {
-  const { EntityCustomTabs } = React.useContext(TabsRegistryContext);
+const useFeatureCustomTabRoutes = () => {
+  const { FeatureCustomTabs } = React.useContext(TabsRegistryContext);
 
   return genericCustomTabRoutes(
-    EntityCustomTabs || [],
-    EntityCustomTabLoadingWrapper
+    FeatureCustomTabs || [],
+    FeatureCustomTabLoadingWrapper
   );
 };
 
@@ -244,6 +265,7 @@ export {
   useRegularFeatureViewCustomTabs,
   useOnDemandFeatureViewCustomTabs,
   useFeatureServiceCustomTabs,
+  useFeatureCustomTabs,
   useDataSourceCustomTabs,
   useEntityCustomTabs,
   useDatasetCustomTabs,
@@ -251,6 +273,7 @@ export {
   useRegularFeatureViewCustomTabRoutes,
   useOnDemandFeatureViewCustomTabRoutes,
   useFeatureServiceCustomTabRoutes,
+  useFeatureCustomTabRoutes,
   useDataSourceCustomTabRoutes,
   useEntityCustomTabRoutes,
   useDatasetCustomTabRoutes,

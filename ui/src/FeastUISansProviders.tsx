@@ -13,6 +13,7 @@ import DatasourceIndex from "./pages/data-sources/Index";
 import DatasetIndex from "./pages/saved-data-sets/Index";
 import EntityIndex from "./pages/entities/Index";
 import EntityInstance from "./pages/entities/EntityInstance";
+import FeatureInstance from "./pages/features/FeatureInstance";
 import FeatureServiceIndex from "./pages/feature-services/Index";
 import FeatureViewIndex from "./pages/feature-views/Index";
 import FeatureViewInstance from "./pages/feature-views/FeatureViewInstance";
@@ -86,10 +87,12 @@ const FeastUISansProviders = ({
                       path="feature-view/"
                       element={<FeatureViewIndex />}
                     />
+                    <Route path="feature-view/:featureViewName/*" element={<FeatureViewInstance />}>
+                    </Route>
                     <Route
-                      path="feature-view/:featureViewName/*"
-                      element={<FeatureViewInstance />}
-                    />
+                        path="feature-view/:FeatureViewName/feature/:FeatureName/*"
+                        element={<FeatureInstance />}
+                      />
                     <Route
                       path="feature-service/"
                       element={<FeatureServiceIndex />}

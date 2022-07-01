@@ -94,3 +94,46 @@ test("routes are reachable", async () => {
     });
   }
 });
+
+
+const featureViewName = registry.featureViews[0].spec.name;
+const featureName = registry.featureViews[0].spec.features[0].name;
+
+test("features are reachable", async () => {
+  render(<FeastUISansProviders />);
+
+  // Wait for content to load
+  await screen.findByText(/Explore this Project/i);
+  const routeRegExp = new RegExp("Feature Views", "i");
+
+  userEvent.click(
+    screen.getByRole("button", { name: routeRegExp }),
+    leftClick
+  );
+
+  screen.getByRole("heading", {
+    name: "Feature Views",
+  });
+
+  await screen.findAllByText(/Feature Views/i);
+  const fvRegExp = new RegExp(featureViewName, "i");
+
+  userEvent.click(
+    screen.getByRole("link", { name: fvRegExp }),
+    leftClick
+  )
+
+  await screen.findByText(featureName);
+  const fRegExp = new RegExp(featureName, "i");
+
+  userEvent.click(
+    screen.getByRole("link", { name: fRegExp }),
+    leftClick
+  )
+  // Should land on a page with the heading
+  // await screen.findByText("Feature: " + featureName);
+  screen.getByRole("heading", {
+    name: "Feature: " + featureName,
+    level: 1,
+  });
+});

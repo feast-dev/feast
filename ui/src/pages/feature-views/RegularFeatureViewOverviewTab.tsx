@@ -69,10 +69,12 @@ const RegularFeatureViewOverviewTab = ({
               <h3>Features ({data.spec.features.length})</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {data.spec.features ? (
+            {projectName && data.spec.features ? (
               <FeaturesListDisplay
+                projectName={projectName}
                 featureViewName={data.spec.name}
                 features={data.spec.features}
+                link={true}
               />
             ) : (
               <EuiText>No features specified on this feature view.</EuiText>
