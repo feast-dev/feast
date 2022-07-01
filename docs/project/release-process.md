@@ -14,11 +14,11 @@ For Feast maintainers, these are the concrete steps for making a new release.
 5. Run the workflow off of the tag you just created(`v0.22.0` in this case) and verify that the workflow worked.
 
 ### Pre-release Verification (Verification that wheels are built correctly) for patch release.
-1. Check out the branch of your release (e.g `v0.22-branch` on your local fork) and push this to your fork.
+1. Check out the branch of your release (e.g `v0.22-branch` on your local **fork**) and push this to your fork (`git push -u origin <branch>`).
 2. Cherry pick commits that are relevant to the patch release onto your forked branch.
-3. Add a patch release tag (e.g `v0.22.1`) by running `git tag <tag>`.
-4. Push tags to origin branch with `git push origin <tag>`.
-5. Kick off `build_wheels` workflow in the same way as is detailed in the last section off of the patch release tag.
+3. Checkout the release branch and add a patch release tag (e.g `v0.22.1`) by running `git tag <tag>`.
+4. Push tags to your origin branch with `git push origin <tag>`.
+5. Kick off `build_wheels` workflow in the same way as is detailed in the last section on of the patch release tag.
 
 ### Release
 1. Generate a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or retrieve your saved personal access token.
