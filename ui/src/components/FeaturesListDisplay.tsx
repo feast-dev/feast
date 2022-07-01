@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { EuiBasicTable, EuiLoadingSpinner, EuiBadge, EuiLink } from "@elastic/eui";
+import { EuiBasicTable, EuiLoadingSpinner, EuiBadge } from "@elastic/eui";
 import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";

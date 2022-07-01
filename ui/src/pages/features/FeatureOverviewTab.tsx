@@ -1,17 +1,15 @@
 import {
   EuiFlexGroup,
   EuiHorizontalRule,
-  EuiLink,
   EuiLoadingSpinner,
   EuiTitle,
-} from "@elastic/eui";
-import {
   EuiPanel,
   EuiFlexItem,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
 } from "@elastic/eui";
+import EuiCustomLink from "../../components/EuiCustomLink";
 import React from "react";
 import { useParams } from "react-router-dom";
 import useLoadFeature from "./useLoadFeature";
@@ -55,9 +53,11 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    <EuiLink href={`/p/${projectName}/feature-view/${FeatureViewName}`}>
+                    <EuiCustomLink 
+                      href={`/p/${projectName}/feature-view/${FeatureViewName}`}
+                      to={`/p/${projectName}/feature-view/${FeatureViewName}`}>
                       {FeatureViewName} 
-                    </EuiLink>
+                    </EuiCustomLink>
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>
