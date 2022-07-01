@@ -2,6 +2,7 @@ import pytest
 
 from feast.entity import Entity
 
+
 @pytest.mark.integration
 def test_apply_first_entity(environment):
     entity = Entity(name="first")
