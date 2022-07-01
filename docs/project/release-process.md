@@ -12,7 +12,7 @@ For Feast maintainers, these are the concrete steps for making a new release.
    - Run `git push --tags` to push the tag to remote.
 3. Access the `Actions` tab on your github UI on your fork and click the `build_wheels` action.
 4. Look for the header `This workflow has a workflow_dispatch event trigger` and click `Run Workflow` on the right.
-5. Run the branch off of the tag you just created(`v0.22.0` in this case) and verify that the workflow worked.
+5. Run the workflow off of the tag you just created(`v0.22.0` in this case) and verify that the workflow worked.
 
 ### Release
 1. Generate a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or retrieve your saved personal access token.
