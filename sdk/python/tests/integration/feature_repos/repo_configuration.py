@@ -113,7 +113,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
-    AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
+    #AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
