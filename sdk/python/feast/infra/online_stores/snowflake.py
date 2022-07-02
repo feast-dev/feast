@@ -138,7 +138,7 @@ class SnowflakeOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+        requested_features: List[str],
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
