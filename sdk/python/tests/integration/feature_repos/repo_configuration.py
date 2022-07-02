@@ -85,7 +85,6 @@ SNOWFLAKE_CONFIG = {
     "schema": "ONLINE",
 }
 
-
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
