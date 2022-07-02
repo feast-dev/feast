@@ -73,6 +73,18 @@ REDIS_CLUSTER_CONFIG = {
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
 }
 
+SNOWFLAKE_CONFIG = {
+    "type": "snowflake.online",
+    "account": os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
+    "user": os.environ["SNOWFLAKE_CI_USER"],
+    "password": os.environ["SNOWFLAKE_CI_PASSWORD"],
+    "role": os.environ["SNOWFLAKE_CI_ROLE"],
+    "warehouse": os.environ["SNOWFLAKE_CI_WAREHOUSE"],
+    "database":os.environ["SNOWFLAKE_CI_DATABASE"],
+    "schema": os.environ["SNOWFLAKE_CI_SCHEMA"],
+}
+
+
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -103,6 +115,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
+    AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
