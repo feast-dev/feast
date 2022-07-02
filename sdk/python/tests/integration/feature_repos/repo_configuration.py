@@ -80,7 +80,7 @@ SNOWFLAKE_CONFIG = {
     "password": os.environ["SNOWFLAKE_CI_PASSWORD"],
     "role": os.environ["SNOWFLAKE_CI_ROLE"],
     "warehouse": os.environ["SNOWFLAKE_CI_WAREHOUSE"],
-    "database":os.environ["SNOWFLAKE_CI_DATABASE"],
+    "database": os.environ["SNOWFLAKE_CI_DATABASE"],
     "schema": os.environ["SNOWFLAKE_CI_SCHEMA"],
 }
 
