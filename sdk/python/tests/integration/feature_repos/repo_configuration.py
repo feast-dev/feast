@@ -89,7 +89,7 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
-    "snowflake": ("aws", RedshiftDataSourceCreator),
+    "snowflake": ("aws", SnowflakeDataSourceCreator),
 }
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
