@@ -64,9 +64,7 @@ ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=F
 
 
 @pytest.fixture(
-    params=OFFLINE_TYPE_TEST_CONFIGS,
-    scope="session",
-    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
+    params=OFFLINE_TYPE_TEST_CONFIGS, ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
 )
 def offline_types_test_fixtures(request, environment):
     config: TypeTestConfig = request.param
@@ -80,9 +78,7 @@ def offline_types_test_fixtures(request, environment):
 
 
 @pytest.fixture(
-    params=ONLINE_TYPE_TEST_CONFIGS,
-    scope="session",
-    ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
+    params=ONLINE_TYPE_TEST_CONFIGS, ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
 )
 def online_types_test_fixtures(request, environment):
     return get_fixtures(request, environment)
