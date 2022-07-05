@@ -1,26 +1,22 @@
 from datetime import datetime
-from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import (
-    BatchFeatureView,
-    Entity,
-    FeatureView,
-    RepoConfig,
-    StreamFeatureView,
-    ValueType,
-)
-from feast.feature_view import DUMMY_ENTITY_ID
+from feast.batch_feature_view import BatchFeatureView
+from feast.entity import Entity
+from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import FeastConfigBaseModel
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
+from feast.value_type import ValueType
 
 from .batch_materialization_engine import (
     BatchMaterializationEngine,
@@ -57,6 +53,30 @@ class LocalMaterializationJob(MaterializationJob):
 
 
 class LocalMaterializationEngine(BatchMaterializationEngine):
+    def update(
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
+        # Nothing to set up.
+        pass
+
+    def teardown_infra(
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
+    ):
+        # Nothing to tear down.
+        pass
+
     def __init__(
         self,
         *,
@@ -90,7 +110,7 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
     def materialize_one(
         self,
         registry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
         start_date: datetime,
         end_date: datetime,
         project: str,

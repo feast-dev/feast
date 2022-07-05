@@ -182,9 +182,11 @@ class PassthroughProvider(Provider):
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-        assert isinstance(feature_view, BatchFeatureView) or isinstance(
-            feature_view, StreamFeatureView
-        )
+        assert (
+            isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, StreamFeatureView)
+            or isinstance(feature_view, FeatureView)
+        ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
         task = MaterializationTask(
             project=project,
             feature_view=feature_view,
