@@ -9,7 +9,7 @@ const useLoadFeatureViewSummaryStatistics = (featureViewName: string) => {
   const { projectName } = useParams();
 
   const queryKey = `featureViewSummaryStatistics:${featureViewName}`;
-  const url = `/metadata/${projectName}/featureView/${featureViewName}.json`;
+  const url = `/data/${projectName}/featureView/${featureViewName}.json`;
 
   return useQuery(
     queryKey,
