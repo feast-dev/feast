@@ -17,11 +17,10 @@ from feast.errors import (
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
-from feast.infra.provider import _get_requested_feature_views_to_features_dict
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
-from feast.utils import to_naive_utc
+from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 

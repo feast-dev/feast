@@ -1,5 +1,5 @@
-import dataclasses
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Optional, Sequence, Union
 
@@ -10,12 +10,18 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 
 
-@dataclasses.dataclass
+@dataclass
 class MaterializationTask:
+    """
+    A MaterializationTask represents a unit of data that needs to be materialized from an
+    offline store to an online store.
+    """
+
     project: str
     feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
     start_time: datetime
@@ -24,6 +30,11 @@ class MaterializationTask:
 
 
 class MaterializationJob(ABC):
+    """
+    MaterializationJob represents an ongoing or executed process that's materialization data as per the
+    definition of a materialization task.
+    """
+
     task: MaterializationTask
 
     @abstractmethod
@@ -69,12 +80,21 @@ class BatchMaterializationEngine(ABC):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        ...
+        """This method ensures that any necessary infrastructure or resources needed by the
+         engine are set up ahead of materialization."""
 
     @abstractmethod
     def materialize(
-        self, registry, tasks: List[MaterializationTask]
+        self, registry: BaseRegistry, tasks: List[MaterializationTask]
     ) -> List[MaterializationJob]:
+        """
+        Materialize data from the offline store to the online store for this feature repo.
+        Args:
+            registry: The feast registry containing the applied feature views.
+            tasks: A list of individual materialization tasks.
+        Returns:
+            A list of materialization jobs representing each task.
+        """
         ...
 
     @abstractmethod
@@ -84,4 +104,4 @@ class BatchMaterializationEngine(ABC):
         fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         entities: Sequence[Entity],
     ):
-        ...
+        """This method ensures that any infrastructure or resources set up by ``update()``are torn down."""

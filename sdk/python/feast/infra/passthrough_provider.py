@@ -14,7 +14,7 @@ from feast.infra.materialization import BatchMaterializationEngine, Materializat
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
-from feast.infra.provider import Provider, _convert_arrow_to_proto, _run_field_mapping
+from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
@@ -22,7 +22,11 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import StreamFeatureView
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
-from feast.utils import make_tzaware
+from feast.utils import (
+    _convert_arrow_to_proto,
+    _run_pyarrow_field_mapping,
+    make_tzaware,
+)
 
 DEFAULT_BATCH_SIZE = 10_000
 
@@ -154,7 +158,9 @@ class PassthroughProvider(Provider):
         table = pa.Table.from_pandas(df)
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         join_keys = {entity.join_key: entity.value_type for entity in entities}
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
@@ -167,7 +173,9 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         self.offline_write_batch(self.repo_config, feature_view, table, None)
 

@@ -63,11 +63,6 @@ FEATURE_SERVER_TYPE_FOR_PROVIDER = {
 }
 
 
-BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.LocalMaterializationEngine",
-}
-
-
 class FeastBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
 
