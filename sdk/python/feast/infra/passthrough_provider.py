@@ -24,6 +24,10 @@ from feast.utils import make_tzaware
 
 DEFAULT_BATCH_SIZE = 10_000
 
+BATCH_ENGINE_CLASS_FOR_TYPE = {
+    "local": "feast.infra.materialization.LocalMaterializationEngine",
+}
+
 
 class PassthroughProvider(Provider):
     """
@@ -36,7 +40,7 @@ class PassthroughProvider(Provider):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
-        self._batch_engine = None
+        self._batch_engine: Optional[BatchMaterializationEngine] = None
 
     @property
     def online_store(self):
@@ -56,9 +60,18 @@ class PassthroughProvider(Provider):
 
     @property
     def batch_engine(self) -> BatchMaterializationEngine:
-        if not self._batch_engine and self.repo_config.batch_engine:
-            self._batch_engine = self.repo_config.batch_engine
-        return self._batch_engine
+        if self._batch_engine:
+            return self._batch_engine
+        else:
+            from feast.infra.materialization import LocalMaterializationEngine
+
+            _batch_engine = LocalMaterializationEngine(
+                repo_config=self.repo_config,
+                offline_store=self.offline_store,
+                online_store=self.online_store,
+            )
+            self._batch_engine = _batch_engine
+            return _batch_engine
 
     def update_infra(
         self,
@@ -174,7 +187,7 @@ class PassthroughProvider(Provider):
             end_time=end_date,
             tqdm_builder=tqdm_builder,
         )
-        self.batch_engine.materialize([task])
+        self.batch_engine.materialize(registry, [task])
 
     def get_historical_features(
         self,

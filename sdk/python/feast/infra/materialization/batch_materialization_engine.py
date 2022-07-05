@@ -9,7 +9,6 @@ from feast import RepoConfig
 from feast.base_feature_view import BaseFeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.registry import BaseRegistry
 
 
 @dataclasses.dataclass
@@ -29,7 +28,7 @@ class MaterializationJob(ABC):
         ...
 
     @abstractmethod
-    def should_be_retried(self) -> str:
+    def should_be_retried(self) -> bool:
         ...
 
     @abstractmethod
@@ -55,5 +54,7 @@ class BatchMaterializationEngine(ABC):
         self.online_store = online_store
 
     @abstractmethod
-    def materialize(self, tasks: List[MaterializationTask]) -> List[MaterializationJob]:
+    def materialize(
+        self, registry, tasks: List[MaterializationTask]
+    ) -> List[MaterializationJob]:
         ...

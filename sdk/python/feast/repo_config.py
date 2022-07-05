@@ -125,7 +125,7 @@ class RepoConfig(FeastBaseModel):
     _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
-    _batch_engine_config: Any = Field(alias="batch_engine")
+    batch_engine_config: Any = Field(alias="batch_engine")
     """ BatchMaterializationEngine: Batch materialization configuration (optional depending on provider)"""
 
     feature_server: Optional[Any]
@@ -165,10 +165,10 @@ class RepoConfig(FeastBaseModel):
 
         self._batch_engine = None
         if "batch_engine" in data:
-            self._batch_engine_config = data["batch_engine"]
+            self.batch_engine_config = data["batch_engine"]
         else:
             # Defaults to using local in-process materialization engine.
-            self._batch_engine_config = "local"
+            self.batch_engine_config = "local"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
@@ -209,20 +209,6 @@ class RepoConfig(FeastBaseModel):
                 self._online_store = self._online_config
 
         return self._online_store
-
-    @property
-    def batch_engine(self):
-        assert self._batch_engine_config == "local"
-        if not self._batch_engine:
-            from feast.infra.materialization import LocalMaterializationEngine
-
-            self._batch_engine = LocalMaterializationEngine(
-                repo_config=self,
-                offline_store=self.offline_store,
-                online_store=self.online_store,
-            )
-
-        return self._batch_engine
 
     @root_validator(pre=True)
     @log_exceptions

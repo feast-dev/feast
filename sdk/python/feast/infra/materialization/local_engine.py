@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
@@ -8,36 +8,18 @@ from tqdm import tqdm
 
 from feast import Entity, FeatureView, RepoConfig, ValueType
 from feast.feature_view import DUMMY_ENTITY_ID
-from .batch_materialization_engine import (
-    BatchMaterializationEngine,
-    MaterializationJob,
-    MaterializationTask,
-)
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.type_map import python_values_to_proto_values
-from ...registry import BaseRegistry
 
-
-class LocalMaterializationJob(MaterializationJob):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def status(self) -> str:
-        pass
-
-    def should_be_retried(self) -> str:
-        pass
-
-    def job_id(self) -> str:
-        pass
-
-    def url(self) -> Optional[str]:
-        pass
-
+from .batch_materialization_engine import (
+    BatchMaterializationEngine,
+    MaterializationJob,
+    MaterializationTask,
+)
 
 DEFAULT_BATCH_SIZE = 10_000
 
@@ -47,6 +29,20 @@ class LocalMaterializationEngineConfig(FeastConfigBaseModel):
 
     type: Literal["local"] = "local"
     """ Type selector"""
+
+
+class LocalMaterializationJob(MaterializationJob):
+    def status(self) -> str:
+        return "success"
+
+    def should_be_retried(self) -> bool:
+        return False
+
+    def job_id(self) -> str:
+        return ""
+
+    def url(self) -> Optional[str]:
+        return None
 
 
 class LocalMaterializationEngine(BatchMaterializationEngine):
@@ -65,12 +61,25 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
             **kwargs,
         )
 
-    def materialize(self, tasks: List[MaterializationTask]) -> List[MaterializationJob]:
-        return []
+    def materialize(
+        self, registry, tasks: List[MaterializationTask]
+    ) -> List[MaterializationJob]:
+        return [
+            self.materialize_one(
+                registry,
+                task.feature_view,
+                task.start_time,
+                task.end_time,
+                task.project,
+                task.tqdm_builder,
+            )
+            for task in tasks
+        ]
 
     def materialize_one(
         self,
-        feature_view: FeatureView,
+        registry,
+        feature_view: Any,  # TODO (achals): This should be typed more narrowly
         start_date: datetime,
         end_date: datetime,
         project: str,
@@ -78,7 +87,7 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
     ):
         entities = []
         for entity_name in feature_view.entities:
-            entities.append(self.registry.get_entity(entity_name, project))
+            entities.append(registry.get_entity(entity_name, project))
 
         (
             join_key_columns,
@@ -119,6 +128,7 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
                     rows_to_write,
                     lambda x: pbar.update(x),
                 )
+        return LocalMaterializationJob()
 
 
 def _get_column_names(
