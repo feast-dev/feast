@@ -511,8 +511,8 @@ class FeatureStore:
         return _feature_refs
 
     def _should_use_plan(self):
-        """Returns True if _plan and _apply_diffs should be used, False otherwise."""
-        # Currently only the local provider with sqlite online store supports _plan and _apply_diffs.
+        """Returns True if plan and _apply_diffs should be used, False otherwise."""
+        # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
         return self.config.provider == "local" and (
             self.config.online_store and self.config.online_store.type == "sqlite"
         )
@@ -636,7 +636,7 @@ class FeatureStore:
         return feature_views_to_materialize
 
     @log_exceptions_and_usage
-    def _plan(
+    def plan(
         self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
@@ -670,7 +670,7 @@ class FeatureStore:
             ...     ttl=timedelta(seconds=86400 * 1),
             ...     batch_source=driver_hourly_stats,
             ... )
-            >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
+            >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
             ...     data_sources=[driver_hourly_stats],
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
