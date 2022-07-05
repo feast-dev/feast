@@ -183,7 +183,7 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, infra_diff, _ = store._plan(repo)
+    registry_diff, infra_diff, _ = store.plan(repo)
     click.echo(registry_diff.to_string())
     click.echo(infra_diff.to_string())
 
@@ -262,7 +262,7 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, infra_diff, new_infra = store._plan(repo)
+    registry_diff, infra_diff, new_infra = store.plan(repo)
 
     # For each object in the registry, determine whether it should be kept or deleted.
     (
