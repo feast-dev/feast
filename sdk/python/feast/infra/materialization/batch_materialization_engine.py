@@ -1,20 +1,21 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 from tqdm import tqdm
 
-from feast import RepoConfig
-from feast.base_feature_view import BaseFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.repo_config import RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 
 
 @dataclasses.dataclass
 class MaterializationTask:
     project: str
-    feature_view: BaseFeatureView
+    feature_view: Union[BatchFeatureView, StreamFeatureView]
     start_time: datetime
     end_time: datetime
     tqdm_builder: Callable[[int], tqdm]

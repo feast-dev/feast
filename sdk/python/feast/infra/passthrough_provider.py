@@ -5,9 +5,10 @@ import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import FeatureService
+from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.materialization import BatchMaterializationEngine, MaterializationTask
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -19,6 +20,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
+from feast.stream_feature_view import StreamFeatureView
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 from feast.utils import make_tzaware
 
@@ -180,6 +182,9 @@ class PassthroughProvider(Provider):
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
+        assert isinstance(feature_view, BatchFeatureView) or isinstance(
+            feature_view, StreamFeatureView
+        )
         task = MaterializationTask(
             project=project,
             feature_view=feature_view,

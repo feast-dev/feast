@@ -1,12 +1,19 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import Entity, FeatureView, RepoConfig, ValueType
+from feast import (
+    BatchFeatureView,
+    Entity,
+    FeatureView,
+    RepoConfig,
+    StreamFeatureView,
+    ValueType,
+)
 from feast.feature_view import DUMMY_ENTITY_ID
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
@@ -32,6 +39,10 @@ class LocalMaterializationEngineConfig(FeastConfigBaseModel):
 
 
 class LocalMaterializationJob(MaterializationJob):
+    def __init__(self, job_id: str) -> None:
+        super().__init__()
+        self._job_id: str = job_id
+
     def status(self) -> str:
         return "success"
 
@@ -39,7 +50,7 @@ class LocalMaterializationJob(MaterializationJob):
         return False
 
     def job_id(self) -> str:
-        return ""
+        return self.job_id()
 
     def url(self) -> Optional[str]:
         return None
@@ -79,7 +90,7 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
     def materialize_one(
         self,
         registry,
-        feature_view: Any,  # TODO (achals): This should be typed more narrowly
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
         start_date: datetime,
         end_date: datetime,
         project: str,
@@ -128,7 +139,8 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
                     rows_to_write,
                     lambda x: pbar.update(x),
                 )
-        return LocalMaterializationJob()
+        job_id = f"{feature_view.name}-{start_date}-{end_date}"
+        return LocalMaterializationJob(job_id=job_id)
 
 
 def _get_column_names(
