@@ -1,9 +1,9 @@
-from batch_materialization_engine import (
+from .batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
     MaterializationTask,
 )
-from local_engine import LocalMaterializationEngine
+from .local_engine import LocalMaterializationEngine
 
 __all__ = [
     "MaterializationJob",

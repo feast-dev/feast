@@ -1,14 +1,14 @@
 from datetime import datetime
 from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
 
-import dask as dd
+import dask.dataframe as dd
 import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
 from feast import Entity, FeatureView, RepoConfig, ValueType
 from feast.feature_view import DUMMY_ENTITY_ID
-from feast.infra.materialization import (
+from .batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
     MaterializationTask,
@@ -19,6 +19,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.type_map import python_values_to_proto_values
+from ...registry import BaseRegistry
 
 
 class LocalMaterializationJob(MaterializationJob):

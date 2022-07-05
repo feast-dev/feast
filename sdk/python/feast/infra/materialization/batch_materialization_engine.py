@@ -46,13 +46,11 @@ class BatchMaterializationEngine(ABC):
         self,
         *,
         repo_config: RepoConfig,
-        registry: BaseRegistry,
         offline_store: OfflineStore,
         online_store: OnlineStore,
         **kwargs,
     ):
         self.repo_config = repo_config
-        self.registry = registry
         self.offline_store = offline_store
         self.online_store = online_store
 
