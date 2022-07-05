@@ -1,3 +1,4 @@
+import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -29,6 +30,16 @@ class MaterializationTask:
     tqdm_builder: Callable[[int], tqdm]
 
 
+class MaterializationJobStatus(enum.Enum):
+    WAITING = 1
+    RUNNING = 2
+    AVAILABLE = 3
+    ERROR = 4
+    CANCELLING = 5
+    CANCELLED = 6
+    SUCCEEDED = 7
+
+
 class MaterializationJob(ABC):
     """
     MaterializationJob represents an ongoing or executed process that's materialization data as per the
@@ -38,7 +49,11 @@ class MaterializationJob(ABC):
     task: MaterializationTask
 
     @abstractmethod
-    def status(self) -> str:
+    def status(self) -> MaterializationJobStatus:
+        ...
+
+    @abstractmethod
+    def error(self) -> Optional[BaseException]:
         ...
 
     @abstractmethod

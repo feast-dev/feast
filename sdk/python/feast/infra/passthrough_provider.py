@@ -11,6 +11,9 @@ from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.materialization import BatchMaterializationEngine, MaterializationTask
+from feast.infra.materialization.batch_materialization_engine import (
+    MaterializationJobStatus,
+)
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -202,7 +205,12 @@ class PassthroughProvider(Provider):
             end_time=end_date,
             tqdm_builder=tqdm_builder,
         )
-        self.batch_engine.materialize(registry, [task])
+        jobs = self.batch_engine.materialize(registry, [task])
+        assert len(jobs) == 1
+        if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
+            e = jobs[0].error()
+            assert e
+            raise e
 
     def get_historical_features(
         self,
