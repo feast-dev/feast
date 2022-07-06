@@ -5,6 +5,7 @@ import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
+from feast import importer
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
@@ -72,13 +73,36 @@ class PassthroughProvider(Provider):
         if self._batch_engine:
             return self._batch_engine
         else:
-            from feast.infra.materialization import LocalMaterializationEngine
+            engine_config = self.repo_config.batch_engine_config
+            config_is_dict = False
+            if isinstance(engine_config, str):
+                engine_config_type = engine_config
+            elif isinstance(engine_config, Dict):
+                if "type" not in engine_config:
+                    raise ValueError("engine_config needs to have a `type` specified.")
+                engine_config_type = engine_config["type"]
+                config_is_dict = True
+            else:
+                raise RuntimeError(f"Invalid config type specified for batch_engine: {type(engine_config)}")
 
-            _batch_engine = LocalMaterializationEngine(
-                repo_config=self.repo_config,
-                offline_store=self.offline_store,
-                online_store=self.online_store,
-            )
+            if engine_config_type in BATCH_ENGINE_CLASS_FOR_TYPE:
+                engine_config_type = BATCH_ENGINE_CLASS_FOR_TYPE[engine_config_type]
+            engine_module, engine_class = engine_config_type.rsplit('.', 1)
+            engine_class = importer.import_class(engine_module, engine_class)
+
+            if config_is_dict:
+                _batch_engine = engine_class(
+                    repo_config=self.repo_config,
+                    offline_store=self.offline_store,
+                    online_store=self.online_store,
+                    **engine_config
+                )
+            else:
+                _batch_engine = engine_class(
+                    repo_config=self.repo_config,
+                    offline_store=self.offline_store,
+                    online_store=self.online_store,
+                )
             self._batch_engine = _batch_engine
             return _batch_engine
 
