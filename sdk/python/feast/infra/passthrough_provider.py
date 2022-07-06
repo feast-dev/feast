@@ -89,8 +89,8 @@ class PassthroughProvider(Provider):
 
             if engine_config_type in BATCH_ENGINE_CLASS_FOR_TYPE:
                 engine_config_type = BATCH_ENGINE_CLASS_FOR_TYPE[engine_config_type]
-            engine_module, engine_class = engine_config_type.rsplit(".", 1)
-            engine_class = importer.import_class(engine_module, engine_class)
+            engine_module, engine_class_name = engine_config_type.rsplit(".", 1)
+            engine_class = importer.import_class(engine_module, engine_class_name)
 
             if config_is_dict:
                 _batch_engine = engine_class(
