@@ -6,7 +6,6 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-from google.protobuf.duration_pb2 import Duration
 from typeguard import typechecked
 
 from feast import utils
@@ -165,11 +164,7 @@ class StreamFeatureView(FeatureView):
 
     def to_proto(self):
         meta = self.to_proto_meta()
-
-        ttl_duration = None
-        if self.ttl is not None:
-            ttl_duration = Duration()
-            ttl_duration.FromTimedelta(self.ttl)
+        ttl_duration = self.ttl_duration()
 
         batch_source_proto = None
         if self.batch_source:

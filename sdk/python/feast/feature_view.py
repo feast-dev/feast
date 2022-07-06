@@ -408,11 +408,7 @@ class FeatureView(BaseFeatureView):
             A FeatureViewProto protobuf.
         """
         meta = self.to_proto_meta()
-
-        ttl_duration = None
-        if self.ttl is not None:
-            ttl_duration = Duration()
-            ttl_duration.FromTimedelta(self.ttl)
+        ttl_duration = self.ttl_duration()
 
         batch_source_proto = self.batch_source.to_proto()
         batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
@@ -450,6 +446,13 @@ class FeatureView(BaseFeatureView):
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
         return meta
+
+    def ttl_duration(self):
+        ttl_duration = None
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
+        return ttl_duration
 
     @classmethod
     def from_proto(cls, feature_view_proto: FeatureViewProto):
