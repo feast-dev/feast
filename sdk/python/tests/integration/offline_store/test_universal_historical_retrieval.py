@@ -280,7 +280,7 @@ def get_expected_training_df(
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
@@ -410,7 +410,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 
 @pytest.mark.integration
-@pytest.mark.universal
+@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_with_shared_batch_source(
     environment, universal_data_sources, full_feature_names
