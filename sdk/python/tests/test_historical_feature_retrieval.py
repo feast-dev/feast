@@ -374,10 +374,7 @@ def test_historical_feature_retrieval_from_local_spark_session(
 
 
 def test_historical_feature_retrieval_with_field_mappings_from_local_spark_session(
-    spark,
-    client,
-    driver_entity,
-    bookings_feature_table_with_mapping,
+    spark, client, driver_entity, bookings_feature_table_with_mapping,
 ):
     schema = StructType(
         [
@@ -397,8 +394,7 @@ def test_historical_feature_retrieval_with_field_mappings_from_local_spark_sessi
         file_url=file_uri,
     )
     joined_df = client.get_historical_features_df(
-        ["bookings:total_completed_bookings"],
-        entity_source,
+        ["bookings:total_completed_bookings"], entity_source,
     )
     expected_joined_df_schema = StructType(
         [

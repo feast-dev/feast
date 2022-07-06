@@ -349,7 +349,9 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
-            online_store=self.online_store.to_proto(),
+            online_store=self.online_store.to_proto()
+            if self.online_store is not None
+            else None,
         )
 
         return FeatureTableProto(spec=spec, meta=meta)
@@ -382,7 +384,9 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
-            online_store=self.online_store.to_proto(),
+            online_store=self.online_store.to_proto()
+            if self.online_store is not None
+            else None,
         )
 
         return spec

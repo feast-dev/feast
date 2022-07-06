@@ -95,9 +95,7 @@ def _upload_jar(jar_s3_prefix: str, jar_path: str) -> str:
 
 
 def _sync_offline_to_online_step(
-    jar_path: str,
-    feature_table_name: str,
-    args: List[str],
+    jar_path: str, feature_table_name: str, args: List[str],
 ) -> Dict[str, Any]:
 
     return {
@@ -213,9 +211,7 @@ def _list_jobs(
 
 
 def _get_first_step_id(emr_client, cluster_id: str) -> str:
-    response = emr_client.list_steps(
-        ClusterId=cluster_id,
-    )
+    response = emr_client.list_steps(ClusterId=cluster_id,)
     assert len(response["Steps"]) == 1
     return response["Steps"][0]["Id"]
 

@@ -229,10 +229,7 @@ def test_join_without_max_age(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -244,26 +241,10 @@ def test_join_without_max_age(
     )
     expected_joined_data = [
         (1001, datetime(year=2020, month=8, day=31), None),
-        (
-            1001,
-            datetime(year=2020, month=9, day=1),
-            100.0,
-        ),
-        (
-            1001,
-            datetime(year=2020, month=9, day=2),
-            200.0,
-        ),
-        (
-            1001,
-            datetime(year=2020, month=9, day=3),
-            200.0,
-        ),
-        (
-            2001,
-            datetime(year=2020, month=9, day=2),
-            400.0,
-        ),
+        (1001, datetime(year=2020, month=9, day=1), 100.0,),
+        (1001, datetime(year=2020, month=9, day=2), 200.0,),
+        (1001, datetime(year=2020, month=9, day=3), 200.0,),
+        (2001, datetime(year=2020, month=9, day=2), 400.0,),
         (3001, datetime(year=2020, month=9, day=1), None),
     ]
     expected_joined_df = spark.createDataFrame(
@@ -312,10 +293,7 @@ def test_join_with_max_age(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -326,17 +304,9 @@ def test_join_with_max_age(
         ]
     )
     expected_joined_data = [
-        (
-            1001,
-            datetime(year=2020, month=9, day=1),
-            100.0,
-        ),
+        (1001, datetime(year=2020, month=9, day=1), 100.0,),
         (1001, datetime(year=2020, month=9, day=3), None),
-        (
-            2001,
-            datetime(year=2020, month=9, day=2),
-            200.0,
-        ),
+        (2001, datetime(year=2020, month=9, day=2), 200.0,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -387,8 +357,7 @@ def test_join_with_composite_entity(
         ),
     ]
     feature_table_df = spark.createDataFrame(
-        spark.sparkContext.parallelize(feature_table_data),
-        rating_feature_schema,
+        spark.sparkContext.parallelize(feature_table_data), rating_feature_schema,
     )
     feature_table = FeatureTable(
         name="ratings",
@@ -398,10 +367,7 @@ def test_join_with_composite_entity(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -414,22 +380,10 @@ def test_join_with_composite_entity(
         ]
     )
     expected_joined_data = [
-        (
-            1001,
-            8001,
-            datetime(year=2020, month=9, day=1),
-            3.0,
-            5.0,
-        ),
+        (1001, 8001, datetime(year=2020, month=9, day=1), 3.0, 5.0,),
         (1001, 8002, datetime(year=2020, month=9, day=3), None, None),
         (1001, 8003, datetime(year=2020, month=9, day=1), None, None),
-        (
-            2001,
-            8001,
-            datetime(year=2020, month=9, day=2),
-            4.0,
-            4.5,
-        ),
+        (2001, 8001, datetime(year=2020, month=9, day=2), 4.0, 4.5,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -475,10 +429,7 @@ def test_select_subset_of_columns_as_entity_primary_keys(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -490,18 +441,8 @@ def test_select_subset_of_columns_as_entity_primary_keys(
         ]
     )
     expected_joined_data = [
-        (
-            1001,
-            8001,
-            datetime(year=2020, month=9, day=2),
-            100.0,
-        ),
-        (
-            2001,
-            8002,
-            datetime(year=2020, month=9, day=2),
-            400.0,
-        ),
+        (1001, 8001, datetime(year=2020, month=9, day=2), 100.0,),
+        (2001, 8002, datetime(year=2020, month=9, day=2), 400.0,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -604,27 +545,9 @@ def test_multiple_join(
     )
 
     expected_joined_data = [
-        (
-            1001,
-            8001,
-            datetime(year=2020, month=9, day=2),
-            100.0,
-            300,
-        ),
-        (
-            1001,
-            8002,
-            datetime(year=2020, month=9, day=2),
-            100.0,
-            500,
-        ),
-        (
-            2001,
-            8002,
-            datetime(year=2020, month=9, day=3),
-            None,
-            500,
-        ),
+        (1001, 8001, datetime(year=2020, month=9, day=2), 100.0, 300,),
+        (1001, 8002, datetime(year=2020, month=9, day=2), 100.0, 500,),
+        (2001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -691,41 +614,11 @@ def test_historical_feature_retrieval(spark: SparkSession):
     )
 
     expected_joined_data = [
-        (
-            1001,
-            8001,
-            datetime(year=2020, month=9, day=2),
-            100.0,
-            300,
-        ),
-        (
-            1001,
-            8002,
-            datetime(year=2020, month=9, day=2),
-            100.0,
-            500,
-        ),
-        (
-            1001,
-            8002,
-            datetime(year=2020, month=9, day=3),
-            None,
-            500,
-        ),
-        (
-            2001,
-            8002,
-            datetime(year=2020, month=9, day=3),
-            None,
-            500,
-        ),
-        (
-            2001,
-            8002,
-            datetime(year=2020, month=9, day=4),
-            None,
-            500,
-        ),
+        (1001, 8001, datetime(year=2020, month=9, day=2), 100.0, 300,),
+        (1001, 8002, datetime(year=2020, month=9, day=2), 100.0, 500,),
+        (1001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
+        (2001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
+        (2001, 8002, datetime(year=2020, month=9, day=4), None, 500,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -761,10 +654,7 @@ def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     }
 
     joined_df = retrieve_historical_features(
-        spark,
-        entity_source,
-        [booking_source],
-        [booking_table],
+        spark, entity_source, [booking_source], [booking_table],
     )
 
     expected_joined_schema = StructType(
@@ -902,40 +792,25 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
 
     with pytest.raises(SchemaError):
         retrieve_historical_features(
-            spark,
-            entity_source_missing_timestamp,
-            [booking_source],
-            [booking_table],
+            spark, entity_source_missing_timestamp, [booking_source], [booking_table],
         )
 
     with pytest.raises(SchemaError):
         retrieve_historical_features(
-            spark,
-            entity_source,
-            [booking_source_missing_timestamp],
-            [booking_table],
+            spark, entity_source, [booking_source_missing_timestamp], [booking_table],
         )
 
     with pytest.raises(SchemaError):
         retrieve_historical_features(
-            spark,
-            entity_source,
-            [booking_source],
-            [booking_table_missing_features],
+            spark, entity_source, [booking_source], [booking_table_missing_features],
         )
 
     with pytest.raises(SchemaError):
         retrieve_historical_features(
-            spark,
-            entity_source,
-            [booking_source],
-            [booking_table_wrong_column_type],
+            spark, entity_source, [booking_source], [booking_table_wrong_column_type],
         )
 
     with pytest.raises(SchemaError):
         retrieve_historical_features(
-            spark,
-            entity_source_missing_entity,
-            [booking_source],
-            [booking_table],
+            spark, entity_source_missing_entity, [booking_source], [booking_table],
         )

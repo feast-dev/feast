@@ -280,9 +280,7 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api,
-            resource=resource,
-            namespace=self._namespace,
+            api=self._api, resource=resource, namespace=self._namespace,
         )
 
         return cast(RetrievalJob, self._job_from_job_info(job_info))
@@ -349,9 +347,7 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api,
-            resource=resource,
-            namespace=self._namespace,
+            api=self._api, resource=resource, namespace=self._namespace,
         )
 
         return cast(BatchIngestionJob, self._job_from_job_info(job_info))
@@ -402,9 +398,7 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api,
-            resource=resource,
-            namespace=self._namespace,
+            api=self._api, resource=resource, namespace=self._namespace,
         )
 
         return cast(StreamIngestionJob, self._job_from_job_info(job_info))

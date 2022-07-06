@@ -62,9 +62,7 @@ def prepare_expectations(suite: ExpectationSuite, feature_table: "FeatureTable")
 
 
 def create_validation_udf(
-    name: str,
-    expectations: ExpectationSuite,
-    feature_table: "FeatureTable",
+    name: str, expectations: ExpectationSuite, feature_table: "FeatureTable",
 ) -> ValidationUDF:
     """
     Wraps your expectations into Spark UDF.

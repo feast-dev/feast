@@ -79,8 +79,7 @@ def ingest_and_retrieve(
 
     def get_online_features():
         features = feast_client.get_online_features(
-            feature_names,
-            entity_rows=entity_rows,
+            feature_names, entity_rows=entity_rows,
         ).to_dict()
         out_df = pd.DataFrame.from_dict(features)
         return out_df, out_df[feature_names].count().min() >= expected_ingested_count

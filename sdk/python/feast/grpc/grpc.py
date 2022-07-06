@@ -29,10 +29,7 @@ def create_grpc_channel(
     if enable_ssl or url.endswith(":443"):
         # User has provided a public key certificate
         if ssl_server_cert_path:
-            with open(
-                ssl_server_cert_path,
-                "rb",
-            ) as f:
+            with open(ssl_server_cert_path, "rb",) as f:
                 credentials = grpc.ssl_channel_credentials(f.read())
         # Guess the certificate location
         else:
@@ -42,8 +39,7 @@ def create_grpc_channel(
         # requests
         if enable_auth:
             credentials = grpc.composite_channel_credentials(
-                credentials,
-                grpc.metadata_call_credentials(auth_metadata_plugin),
+                credentials, grpc.metadata_call_credentials(auth_metadata_plugin),
             )
         channel = grpc.secure_channel(url, credentials=credentials)
     else:

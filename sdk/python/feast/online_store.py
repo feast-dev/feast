@@ -23,10 +23,7 @@ class OnlineStore:
     """
 
     def __init__(
-        self,
-        name: str,
-        store_type: str,
-        description: str,
+        self, name: str, store_type: str, description: str,
     ):
         self._name = name
         self._description = description
@@ -109,9 +106,7 @@ class OnlineStore:
             OnlineStoreProto protobuf
         """
         online_store_proto = OnlineStoreProto(
-            name=self.name,
-            type=self.store_type,
-            description=self.description,
+            name=self.name, type=self.store_type, description=self.description,
         )
         return online_store_proto
 

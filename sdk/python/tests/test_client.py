@@ -364,8 +364,7 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client",
-        [lazy_fixture("client"), lazy_fixture("secure_client")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
     )
     def test_apply_entity_success(self, test_client):
 
@@ -393,8 +392,7 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client",
-        [lazy_fixture("client"), lazy_fixture("secure_client")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
     )
     def test_apply_feature_table_success(self, test_client):
 
@@ -490,8 +488,7 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "mocked_client",
-        [lazy_fixture("mock_client")],
+        "mocked_client", [lazy_fixture("mock_client")],
     )
     def test_ingest_dataframe_partition(
         self, mocked_client, mocker, partitioned_df, tmp_path
@@ -525,8 +522,7 @@ class TestClient:
         assert_frame_equal(partitioned_df, pq_df)
 
     @pytest.mark.parametrize(
-        "mocked_client",
-        [lazy_fixture("mock_client")],
+        "mocked_client", [lazy_fixture("mock_client")],
     )
     def test_ingest_dataframe_no_partition(
         self, mocked_client, mocker, non_partitioned_df, tmp_path
@@ -562,8 +558,7 @@ class TestClient:
         assert_frame_equal(non_partitioned_df, pq_df)
 
     @pytest.mark.parametrize(
-        "mocked_client",
-        [lazy_fixture("mock_client")],
+        "mocked_client", [lazy_fixture("mock_client")],
     )
     def test_ingest_csv(self, mocked_client, mocker, tmp_path):
         """
@@ -812,8 +807,7 @@ class TestClient:
         self, _mocked_obj, secure_serving_server
     ):
         client = Client(
-            core_url="localhost:443",
-            serving_url=f"localhost:{secure_serving_server}",
+            core_url="localhost:443", serving_url=f"localhost:{secure_serving_server}",
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
@@ -856,8 +850,7 @@ def _ingest_test_getfeaturetable_mocked_resp(
                 max_age=Duration(seconds=3600),
                 features=[
                     FeatureSpecProto(
-                        name="dev_feature_float",
-                        value_type=ValueProto.ValueType.FLOAT,
+                        name="dev_feature_float", value_type=ValueProto.ValueType.FLOAT,
                     ),
                     FeatureSpecProto(
                         name="dev_feature_string",

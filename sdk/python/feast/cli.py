@@ -509,10 +509,7 @@ def get_historical_features(
 
     uploaded_df = client.stage_dataframe(entity_df, "event_timestamp")
 
-    job = client.get_historical_features(
-        features.split(","),
-        uploaded_df,
-    )
+    job = client.get_historical_features(features.split(","), uploaded_df,)
     print(job.get_output_file_uri())
 
 

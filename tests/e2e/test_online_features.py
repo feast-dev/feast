@@ -41,11 +41,7 @@ def generate_data():
 def test_offline_ingestion(
     feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
 ):
-    entity = Entity(
-        name="s2id",
-        description="S2id",
-        value_type=ValueType.INT64,
-    )
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
         name="drivers",
@@ -103,11 +99,7 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
 def test_streaming_ingestion(
     feast_client: Client, local_staging_path: str, kafka_server, pytestconfig
 ):
-    entity = Entity(
-        name="s2id",
-        description="S2id",
-        value_type=ValueType.INT64,
-    )
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
@@ -202,11 +194,7 @@ def ingest_and_verify(
 def test_list_jobs_long_table_name(
     feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
 ):
-    entity = Entity(
-        name="s2id",
-        description="S2id",
-        value_type=ValueType.INT64,
-    )
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
         name="just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",

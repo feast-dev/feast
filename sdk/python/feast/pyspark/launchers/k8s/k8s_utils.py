@@ -219,8 +219,7 @@ def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
 def _submit_job(api: CustomObjectsApi, resource, namespace: str) -> JobInfo:
     # create the resource
     response = api.create_namespaced_custom_object(
-        **_crd_args(namespace),
-        body=resource,
+        **_crd_args(namespace), body=resource,
     )
     return _resource_to_job_info(response)
 
@@ -240,8 +239,7 @@ def _list_jobs(
     else:
         # Retrieval jobs
         response = api.list_namespaced_custom_object(
-            **_crd_args(namespace),
-            label_selector=LABEL_JOBID,
+            **_crd_args(namespace), label_selector=LABEL_JOBID,
         )
 
     for item in response["items"]:
@@ -268,8 +266,7 @@ def _get_job_by_id(
 def _cancel_job_by_id(api: CustomObjectsApi, namespace: str, job_id: str):
     try:
         api.delete_namespaced_custom_object(
-            **_crd_args(namespace),
-            name=_job_id_to_resource_name(job_id),
+            **_crd_args(namespace), name=_job_id_to_resource_name(job_id),
         )
     except client.ApiException as e:
         if e.status == 404:

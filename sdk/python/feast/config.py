@@ -86,9 +86,7 @@ class Config:
     """
 
     def __init__(
-        self,
-        options: Optional[Dict[str, str]] = None,
-        path: Optional[str] = None,
+        self, options: Optional[Dict[str, str]] = None, path: Optional[str] = None,
     ):
         """
         Configuration options are returned as follows (higher replaces lower)
@@ -104,10 +102,7 @@ class Config:
         if not path:
             path = join(
                 expanduser("~"),
-                os.environ.get(
-                    FEAST_CONFIG_FILE_ENV,
-                    CONFIG_FILE_DEFAULT_DIRECTORY,
-                ),
+                os.environ.get(FEAST_CONFIG_FILE_ENV, CONFIG_FILE_DEFAULT_DIRECTORY,),
                 CONFIG_FILE_NAME,
             )
 

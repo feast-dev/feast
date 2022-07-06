@@ -602,8 +602,7 @@ class Client:
 
         # Get latest entities from Feast Core
         entity_protos = self._core_service.ListEntities(
-            ListEntitiesRequest(filter=filter),
-            metadata=self._get_grpc_metadata(),
+            ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListEntitiesResponse
 
         # Extract entities and return
@@ -720,8 +719,7 @@ class Client:
 
         # Get latest feature tables from Feast Core
         feature_table_protos = self._core_service.ListFeatureTables(
-            ListFeatureTablesRequest(filter=filter),
-            metadata=self._get_grpc_metadata(),
+            ListFeatureTablesRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureTablesResponse
 
         # Extract feature tables and return
@@ -817,8 +815,7 @@ class Client:
         )
 
         feature_protos = self._core_service.ListFeatures(
-            ListFeaturesRequest(filter=filter),
-            metadata=self._get_grpc_metadata(),
+            ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeaturesResponse
 
         # Extract features and return
@@ -935,10 +932,7 @@ class Client:
             )
         else:
             dir_path, dest_path = _write_non_partitioned_table_from_source(
-                column_names,
-                pyarrow_table,
-                chunk_size,
-                max_workers,
+                column_names, pyarrow_table, chunk_size, max_workers,
             )
 
         try:
@@ -1156,9 +1150,7 @@ class Client:
             )
 
     def get_historical_features_df(
-        self,
-        feature_refs: List[str],
-        entity_source: Union[FileSource, BigQuerySource],
+        self, feature_refs: List[str], entity_source: Union[FileSource, BigQuerySource],
     ):
         """
         Launch a historical feature retrieval job.
@@ -1218,10 +1210,7 @@ class Client:
         return feature_tables
 
     def start_offline_to_online_ingestion(
-        self,
-        feature_table: FeatureTable,
-        start: datetime,
-        end: datetime,
+        self, feature_table: FeatureTable, start: datetime, end: datetime,
     ) -> SparkJob:
         """
 
@@ -1242,8 +1231,7 @@ class Client:
             )
         else:
             request = StartOfflineToOnlineIngestionJobRequest(
-                project=self.project,
-                table_name=feature_table.name,
+                project=self.project, table_name=feature_table.name,
             )
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
@@ -1272,8 +1260,7 @@ class Client:
             )
         else:
             request = StartStreamToOnlineIngestionJobRequest(
-                project=self.project,
-                table_name=feature_table.name,
+                project=self.project, table_name=feature_table.name,
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
@@ -1313,9 +1300,7 @@ class Client:
             )
 
     def stage_dataframe(
-        self,
-        df: pd.DataFrame,
-        event_timestamp_column: str,
+        self, df: pd.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
         return stage_dataframe(df, event_timestamp_column, self._config)
 

@@ -38,7 +38,7 @@ def _hash_fileobj(fileobj: IO[bytes]) -> str:
     """Compute sha256 hash of a file. File pointer will be reset to 0 on return."""
     fileobj.seek(0)
     h = hashlib.sha256()
-    for block in iter(lambda: fileobj.read(2**20), b""):
+    for block in iter(lambda: fileobj.read(2 ** 20), b""):
         h.update(block)
     fileobj.seek(0)
     return h.hexdigest()
@@ -308,10 +308,7 @@ class S3Client(AbstractStagingClient):
                 raise
 
             self.s3_client.upload_fileobj(
-                fileobj,
-                bucket,
-                key,
-                ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
             )
             return remote_uri
 
