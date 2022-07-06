@@ -83,11 +83,13 @@ class PassthroughProvider(Provider):
                 engine_config_type = engine_config["type"]
                 config_is_dict = True
             else:
-                raise RuntimeError(f"Invalid config type specified for batch_engine: {type(engine_config)}")
+                raise RuntimeError(
+                    f"Invalid config type specified for batch_engine: {type(engine_config)}"
+                )
 
             if engine_config_type in BATCH_ENGINE_CLASS_FOR_TYPE:
                 engine_config_type = BATCH_ENGINE_CLASS_FOR_TYPE[engine_config_type]
-            engine_module, engine_class = engine_config_type.rsplit('.', 1)
+            engine_module, engine_class = engine_config_type.rsplit(".", 1)
             engine_class = importer.import_class(engine_module, engine_class)
 
             if config_is_dict:
@@ -95,7 +97,7 @@ class PassthroughProvider(Provider):
                     repo_config=self.repo_config,
                     offline_store=self.offline_store,
                     online_store=self.online_store,
-                    **engine_config
+                    **engine_config,
                 )
             else:
                 _batch_engine = engine_class(

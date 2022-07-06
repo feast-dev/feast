@@ -42,7 +42,7 @@ class MaterializationJobStatus(enum.Enum):
 
 class MaterializationJob(ABC):
     """
-    MaterializationJob represents an ongoing or executed process that's materialization data as per the
+    MaterializationJob represents an ongoing or executed process that materializes data as per the
     definition of a materialization task.
     """
 
