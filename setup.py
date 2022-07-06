@@ -444,7 +444,7 @@ class build_ext(_build_ext):
                 sys.executable,
                 "--build-tags",
                 'cgo ccalloc',
-                # "-no-make",
+                "-no-make",
                 *ext.sources,
             ],
             env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **go_env,},
