@@ -6,7 +6,6 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-from google.protobuf.duration_pb2 import Duration
 from typeguard import typechecked
 
 from feast import utils
@@ -16,17 +15,11 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.FeatureView_pb2 import (
-    MaterializationInterval as MaterializationIntervalProto,
-)
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
-)
-from feast.protos.feast.core.StreamFeatureView_pb2 import (
-    StreamFeatureViewMeta as StreamFeatureViewMetaProto,
 )
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureViewSpec as StreamFeatureViewSpecProto,
@@ -170,23 +163,8 @@ class StreamFeatureView(FeatureView):
         return super().__hash__()
 
     def to_proto(self):
-        meta = StreamFeatureViewMetaProto(materialization_intervals=[])
-        if self.created_timestamp:
-            meta.created_timestamp.FromDatetime(self.created_timestamp)
-
-        if self.last_updated_timestamp:
-            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
-
-        for interval in self.materialization_intervals:
-            interval_proto = MaterializationIntervalProto()
-            interval_proto.start_time.FromDatetime(interval[0])
-            interval_proto.end_time.FromDatetime(interval[1])
-            meta.materialization_intervals.append(interval_proto)
-
-        ttl_duration = None
-        if self.ttl is not None:
-            ttl_duration = Duration()
-            ttl_duration.FromTimedelta(self.ttl)
+        meta = self.to_proto_meta()
+        ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
         if self.batch_source:

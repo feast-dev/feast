@@ -407,21 +407,8 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto protobuf.
         """
-        meta = FeatureViewMetaProto(materialization_intervals=[])
-        if self.created_timestamp:
-            meta.created_timestamp.FromDatetime(self.created_timestamp)
-        if self.last_updated_timestamp:
-            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
-        for interval in self.materialization_intervals:
-            interval_proto = MaterializationIntervalProto()
-            interval_proto.start_time.FromDatetime(interval[0])
-            interval_proto.end_time.FromDatetime(interval[1])
-            meta.materialization_intervals.append(interval_proto)
-
-        ttl_duration = None
-        if self.ttl is not None:
-            ttl_duration = Duration()
-            ttl_duration.FromTimedelta(self.ttl)
+        meta = self.to_proto_meta()
+        ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = self.batch_source.to_proto()
         batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
@@ -446,6 +433,26 @@ class FeatureView(BaseFeatureView):
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
+
+    def to_proto_meta(self):
+        meta = FeatureViewMetaProto(materialization_intervals=[])
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        for interval in self.materialization_intervals:
+            interval_proto = MaterializationIntervalProto()
+            interval_proto.start_time.FromDatetime(interval[0])
+            interval_proto.end_time.FromDatetime(interval[1])
+            meta.materialization_intervals.append(interval_proto)
+        return meta
+
+    def get_ttl_duration(self):
+        ttl_duration = None
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
+        return ttl_duration
 
     @classmethod
     def from_proto(cls, feature_view_proto: FeatureViewProto):
