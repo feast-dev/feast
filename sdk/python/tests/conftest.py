@@ -26,7 +26,7 @@ from _pytest.nodes import Item
 
 from feast import FeatureStore
 from feast.wait import wait_retry_backoff
-from tests.data.data_creator import create_dataset
+from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -351,7 +351,7 @@ def universal_data_sources(environment) -> TestData:
 
 @pytest.fixture
 def e2e_data_sources(environment: Environment):
-    df = create_dataset()
+    df = create_basic_driver_dataset()
     data_source = environment.data_source_creator.create_data_source(
         df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )

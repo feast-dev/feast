@@ -8,25 +8,20 @@ from feast.data_source import PushMode
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import (
-    customer,
-    driver,
-    location,
-)
+from tests.integration.feature_repos.universal.entities import location
 
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.universal_online_stores(only=["sqlite"])
-def test_push_features_and_read_from_offline_store(environment, universal_data_sources):
+def test_push_features_and_read(environment, universal_data_sources):
     store = environment.feature_store
-
-    (_, _, data_sources) = universal_data_sources
+    _, _, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
-    now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
+    location_fv = feature_views.pushed_locations
+    store.apply([location(), location_fv])
 
-    store.apply([driver(), customer(), location(), *feature_views.values()])
-    entity_df = pd.DataFrame.from_dict({"location_id": [100], "event_timestamp": [now]})
+    now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
+    entity_df = pd.DataFrame.from_dict({"location_id": [1], "event_timestamp": [now]})
 
     before_df = store.get_historical_features(
         entity_df=entity_df,
@@ -34,13 +29,9 @@ def test_push_features_and_read_from_offline_store(environment, universal_data_s
         full_feature_names=False,
     ).to_df()
 
-    # TODO(felixwang9817): Note that we choose an entity value of 100 here since it is not included
-    # in the existing range of entity values (1-49). This allows us to push data for this test
-    # without affecting other tests. This decision is tech debt, and should be resolved by finding a
-    # better way to isolate data sources across tests.
     data = {
         "event_timestamp": [now],
-        "location_id": [100],
+        "location_id": [1],
         "temperature": [4],
         "created": [now],
     }

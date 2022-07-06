@@ -7,7 +7,7 @@ from pytz import timezone, utc
 from feast.types import FeastType, Float32, Int32, Int64, String
 
 
-def create_dataset(
+def create_basic_driver_dataset(
     entity_type: FeastType = Int32,
     feature_dtype: str = None,
     feature_is_list: bool = False,

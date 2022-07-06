@@ -19,7 +19,7 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
-from tests.data.data_creator import create_dataset
+from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 
@@ -91,7 +91,7 @@ def get_fixtures(request, environment):
         ".", ""
     ).lower()
     config = request.param
-    df = create_dataset(
+    df = create_basic_driver_dataset(
         Int64, config.feature_dtype, config.feature_is_list, config.has_empty_list,
     )
     data_source = environment.data_source_creator.create_data_source(
@@ -115,7 +115,7 @@ def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    df = create_dataset(entity_type, feature_dtype="int32",)
+    df = create_basic_driver_dataset(entity_type, feature_dtype="int32",)
     data_source = environment.data_source_creator.create_data_source(
         df,
         destination_name=f"entity_type_{entity_type.name.lower()}",

@@ -7,52 +7,54 @@ import pytest
 
 from feast import FeatureView, Field
 from feast.types import Float32, Int32
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
+)
 from tests.integration.feature_repos.universal.entities import driver
-
-# TODO(felixwang9817): Add a unit test that checks that write_to_offline_store can reorder columns.
-# This should only happen after https://github.com/feast-dev/feast/issues/2797 is fixed.
 
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.universal_online_stores(only=["sqlite"])
-def test_writing_incorrect_schema_fails(environment, universal_data_sources):
-    """Tests that writing a dataframe with an incorrect schema fails."""
+def test_reorder_columns(environment, universal_data_sources):
+    """Tests that a dataframe with columns in the wrong order is reordered."""
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
-    driver_entity = driver()
-    driver_stats = FeatureView(
-        name="driver_stats",
-        entities=[driver_entity],
-        schema=[
-            Field(name="avg_daily_trips", dtype=Int32),
-            Field(name="conv_rate", dtype=Float32),
-            Field(name="acc_rate", dtype=Float32),
-        ],
-        source=data_sources.driver,
-    )
+    feature_views = construct_universal_feature_views(data_sources)
+    driver_fv = feature_views.driver
+    store.apply([driver(), driver_fv])
 
     now = datetime.utcnow()
     ts = pd.Timestamp(now).round("ms")
 
-    entity_df = pd.DataFrame.from_dict(
-        {"driver_id": [1001, 1002], "event_timestamp": [ts - timedelta(hours=3), ts]}
+    # This dataframe has columns in the wrong order.
+    df_to_write = pd.DataFrame.from_dict(
+        {
+            "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
+            "created": [ts, ts],
+            "conv_rate": [random.random(), random.random()],
+            "event_timestamp": [ts, ts],
+            "acc_rate": [random.random(), random.random()],
+            "driver_id": [1001, 1001],
+        },
     )
 
-    store.apply([driver_entity, driver_stats])
-    df = store.get_historical_features(
-        entity_df=entity_df,
-        features=[
-            "driver_stats:conv_rate",
-            "driver_stats:acc_rate",
-            "driver_stats:avg_daily_trips",
-        ],
-        full_feature_names=False,
-    ).to_df()
+    store.write_to_offline_store(
+        driver_fv.name, df_to_write, allow_registry_cache=False
+    )
 
-    assert df["conv_rate"].isnull().all()
-    assert df["acc_rate"].isnull().all()
-    assert df["avg_daily_trips"].isnull().all()
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+def test_writing_incorrect_schema_fails(environment, universal_data_sources):
+    """Tests that writing a dataframe with an incorrect schema fails."""
+    store = environment.feature_store
+    _, _, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+    driver_fv = feature_views.driver
+    store.apply([driver(), driver_fv])
+
+    now = datetime.utcnow()
+    ts = pd.Timestamp(now).round("ms")
 
     expected_df = pd.DataFrame.from_dict(
         {
@@ -65,13 +67,12 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     )
     with pytest.raises(ValueError):
         store.write_to_offline_store(
-            driver_stats.name, expected_df, allow_registry_cache=False
+            driver_fv.name, expected_df, allow_registry_cache=False
         )
 
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.universal_online_stores(only=["sqlite"])
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
@@ -96,7 +97,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     entity_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1001],
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
+            "event_timestamp": [ts + timedelta(hours=3), ts + timedelta(hours=4)],
         }
     )
 
@@ -117,7 +118,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
+            "event_timestamp": [ts + timedelta(hours=3), ts + timedelta(hours=4)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -155,7 +156,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     second_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=1), ts],
+            "event_timestamp": [ts + timedelta(hours=5), ts + timedelta(hours=6)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -172,10 +173,10 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         {
             "driver_id": [1001, 1001, 1001, 1001],
             "event_timestamp": [
-                ts - timedelta(hours=4),
-                ts - timedelta(hours=3),
-                ts - timedelta(hours=1),
-                ts,
+                ts + timedelta(hours=3),
+                ts + timedelta(hours=4),
+                ts + timedelta(hours=5),
+                ts + timedelta(hours=6),
             ],
         }
     )
