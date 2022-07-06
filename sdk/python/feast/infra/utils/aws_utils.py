@@ -3,7 +3,7 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Tuple, Union, List
 
 import pandas as pd
 import pyarrow
@@ -433,7 +433,7 @@ def download_s3_directory(s3_resource, bucket: str, key: str, local_dir: str):
     if key != "" and not key.endswith("/"):
         key = key + "/"
     for obj in bucket_obj.objects.filter(Prefix=key):
-        local_file_path = local_dir + "/" + obj.key[len(key) :]
+        local_file_path = local_dir + "/" + obj.key[len(key):]
         local_file_dir = os.path.dirname(local_file_path)
         os.makedirs(local_file_dir, exist_ok=True)
         bucket_obj.download_file(obj.key, local_file_path)
@@ -473,7 +473,7 @@ def execute_redshift_query_and_unload_to_s3(
     # Run the query, unload the results to S3
     unique_table_name = "_" + str(uuid.uuid4()).replace("-", "")
     query = f"CREATE TEMPORARY TABLE {unique_table_name} AS ({query});\n"
-    query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' PARQUET"
+    query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
     execute_redshift_statement(redshift_data_client, cluster_id, database, user, query)
 
 
@@ -632,3 +632,16 @@ def delete_api_gateway(api_gateway_client, api_gateway_id: str) -> Dict:
 def get_account_id() -> str:
     """Get AWS Account ID"""
     return boto3.client("sts").get_caller_identity().get("Account")
+
+
+def list_s3_files(aws_region: str, path: str) -> List[str]:
+    s3 = boto3.client("s3", config=Config(region_name=aws_region))
+    if path.startswith("s3://"):
+        path = path[len("s3://"):]
+    bucket, prefix = path.split("/", 1)
+    objects = s3.list_objects_v2(
+        Bucket=bucket,
+        Prefix=prefix)
+    contents = objects["Contents"]
+    files = [f"s3://{bucket}/{content['Key']}" for content in contents]
+    return files

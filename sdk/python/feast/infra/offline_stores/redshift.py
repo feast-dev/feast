@@ -490,6 +490,13 @@ class RedshiftRetrievalJob(RetrievalJob):
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
+    def supports_remote_storage_export(self) -> bool:
+        return True
+
+    def to_remote_storage(self) -> List[str]:
+        path = self.to_s3()
+        return aws_utils.list_s3_files(self._config.offline_store.region, path)
+
 
 def _upload_entity_df(
     entity_df: Union[pd.DataFrame, str],
