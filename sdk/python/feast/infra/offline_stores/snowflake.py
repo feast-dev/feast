@@ -1,5 +1,6 @@
 import contextlib
 import os
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -89,6 +90,10 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     schema_: Optional[str] = Field(None, alias="schema")
     """ Snowflake schema name """
+
+    storage_integration_name: Optional[str] = None
+
+    blob_export_location: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True
@@ -452,6 +457,33 @@ class SnowflakeRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
+
+    def supports_remote_storage_export(self) -> bool:
+        return True
+
+    def to_remote_storage(self) -> List[str]:
+        if not self.config.offline_store.s3_staging_location:
+            raise ValueError(
+                "to_remote_storage() requires `s3_staging_location` to be specified in config"
+            )
+        if not self.config.offline_store.storage_integration_name:
+            raise ValueError(
+                "to_remote_storage() requires `storage_integration_name` to be specified in config"
+            )
+
+        table = f"temporary_{uuid.uuid4()}"
+        self.to_snowflake(table)
+
+        copy_into_query = (
+            f'COPY INTO "{self.config.offline_store.s3_staging_location}/{table}" from {table}\n'
+            f"  storage_integration = {self.config.offline_store.storage_integration_name}\n"
+            f"  file_format = (TYPE = PARQUET)"
+            f"  DETAILED_OUTPUT = TRUE;\n"
+        )
+
+        execute_snowflake_statement(self.snowflake_conn, copy_into_query)
+        # TODO(achal) what next here??
+        return []
 
 
 def _get_entity_schema(
