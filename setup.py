@@ -430,7 +430,7 @@ class build_ext(_build_ext):
         destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
         subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"],
                               env={"PATH": bin_path, **go_env})
-        subprocess.check_call(["go", "get", "github.com/go-python/gopy@v0.4.0"],
+        subprocess.check_call(["go", "get", "github.com/go-python/gopy@v0.4.4"],
                               env={"PATH": bin_path, **go_env})
         subprocess.check_call(["go", "install", "github.com/go-python/gopy"],
                               env={"PATH": bin_path, **go_env})
@@ -442,7 +442,9 @@ class build_ext(_build_ext):
                 destination,
                 "-vm",
                 sys.executable,
-                "-no-make",
+                "--build-tags",
+                'cgo ccalloc',
+                # "-no-make",
                 *ext.sources,
             ],
             env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **go_env,},
