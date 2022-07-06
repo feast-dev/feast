@@ -349,7 +349,7 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
-            online_store=self.online_store,
+            online_store=self.online_store.to_proto(),
         )
 
         return FeatureTableProto(spec=spec, meta=meta)
