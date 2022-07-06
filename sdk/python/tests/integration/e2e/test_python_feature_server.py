@@ -7,13 +7,8 @@ from fastapi.testclient import TestClient
 
 from feast.feast_object import FeastObject
 from feast.feature_server import get_app
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
-)
 from tests.integration.feature_repos.repo_configuration import (
-    construct_test_environment,
     construct_universal_feature_views,
-    construct_universal_test_data,
 )
 from tests.integration.feature_repos.universal.entities import (
     customer,
@@ -63,16 +58,13 @@ def test_get_online_features(python_fs_client):
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push(python_fs_client):
-    # TODO(felixwang9817): Note that we choose an entity value of 102 here since it is not included
-    # in the existing range of entity values (1-49). This allows us to push data for this test
-    # without affecting other tests. This decision is tech debt, and should be resolved by finding a
-    # better way to isolate data sources across tests.
+    initial_temp = get_temperatures(python_fs_client, location_ids=[1])[0]
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
             "df": {
-                "location_id": [102],
-                "temperature": [4],
+                "location_id": [1],
+                "temperature": [initial_temp * 100],
                 "event_timestamp": [str(datetime.utcnow())],
                 "created": [str(datetime.utcnow())],
             },
@@ -82,7 +74,7 @@ def test_push(python_fs_client):
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    assert get_temperatures(python_fs_client, location_ids=[102]) == [4]
+    assert get_temperatures(python_fs_client, location_ids=[1]) == [initial_temp * 100]
 
 
 def get_temperatures(client, location_ids: List[int]):
@@ -102,20 +94,14 @@ def get_temperatures(client, location_ids: List[int]):
 
 
 @pytest.fixture
-def python_fs_client(request):
-    config = IntegrationTestRepoConfig()
-    environment = construct_test_environment(config, fixture_request=request)
+def python_fs_client(environment, universal_data_sources, request):
     fs = environment.feature_store
-    try:
-        entities, datasets, data_sources = construct_universal_test_data(environment)
-        feature_views = construct_universal_feature_views(data_sources)
-        feast_objects: List[FeastObject] = []
-        feast_objects.extend(feature_views.values())
-        feast_objects.extend([driver(), customer(), location()])
-        fs.apply(feast_objects)
-        fs.materialize(environment.start_date, environment.end_date)
-        client = TestClient(get_app(fs))
-        yield client
-    finally:
-        fs.teardown()
-        environment.data_source_creator.teardown()
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+    feast_objects: List[FeastObject] = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer(), location()])
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
+    client = TestClient(get_app(fs))
+    yield client
