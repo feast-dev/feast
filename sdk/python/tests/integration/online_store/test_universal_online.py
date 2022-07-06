@@ -448,8 +448,6 @@ def test_online_retrieval_with_event_timestamps(
 def test_online_retrieval(
     environment, universal_data_sources, feature_server_endpoint, full_feature_names
 ):
-    import faulthandler; faulthandler.enable()
-
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -551,24 +549,13 @@ def test_online_retrieval(
     unprefixed_feature_refs.remove("conv_rate_plus_100")
     unprefixed_feature_refs.remove("conv_rate_plus_val_to_add")
 
-    # online_features_dict = get_online_features_dict(
-    #     environment=environment,
-    #     endpoint=feature_server_endpoint,
-    #     features=feature_refs,
-    #     entity_rows=entity_rows,
-    #     full_feature_names=full_feature_names,
-    # )
-    import psutil
-
-    for i in range(1000):
-        print(psutil.virtual_memory())
-        online_features_dict = get_online_features_dict(
-            environment=environment,
-            endpoint=feature_server_endpoint,
-            features=feature_refs,
-            entity_rows=entity_rows,
-            full_feature_names=full_feature_names,
-        )
+    online_features_dict = get_online_features_dict(
+        environment=environment,
+        endpoint=feature_server_endpoint,
+        features=feature_refs,
+        entity_rows=entity_rows,
+        full_feature_names=full_feature_names,
+    )
 
     # Test that the on demand feature views compute properly even if the dependent conv_rate
     # feature isn't requested.
