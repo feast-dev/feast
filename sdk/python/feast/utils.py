@@ -184,7 +184,7 @@ def _convert_arrow_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarentees `zero_copy_only` availiable.
+    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
