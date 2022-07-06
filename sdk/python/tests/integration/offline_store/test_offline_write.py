@@ -12,8 +12,35 @@ from tests.integration.feature_repos.repo_configuration import (
 )
 from tests.integration.feature_repos.universal.entities import driver
 
-# TODO(felixwang9817): Add a unit test that checks that write_to_offline_store can reorder columns.
-# This should only happen after https://github.com/feast-dev/feast/issues/2797 is fixed.
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+def test_reorder_columns(environment, universal_data_sources):
+    """Tests that a dataframe with columns in the wrong order is reordered."""
+    store = environment.feature_store
+    _, _, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+    driver_fv = feature_views.driver
+    store.apply([driver(), driver_fv])
+
+    now = datetime.utcnow()
+    ts = pd.Timestamp(now).round("ms")
+
+    # This dataframe has columns in the wrong order.
+    df_to_write = pd.DataFrame.from_dict(
+        {
+            "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
+            "created": [ts, ts],
+            "conv_rate": [random.random(), random.random()],
+            "event_timestamp": [ts, ts],
+            "acc_rate": [random.random(), random.random()],
+            "driver_id": [1001, 1001],
+        },
+    )
+
+    store.write_to_offline_store(
+        driver_fv.name, df_to_write, allow_registry_cache=False
+    )
 
 
 @pytest.mark.integration
@@ -70,7 +97,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     entity_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001, 1001],
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
+            "event_timestamp": [ts + timedelta(hours=3), ts + timedelta(hours=4)],
         }
     )
 
@@ -91,7 +118,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     first_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=4), ts - timedelta(hours=3)],
+            "event_timestamp": [ts + timedelta(hours=3), ts + timedelta(hours=4)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -129,7 +156,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
 
     second_df = pd.DataFrame.from_dict(
         {
-            "event_timestamp": [ts - timedelta(hours=1), ts],
+            "event_timestamp": [ts + timedelta(hours=5), ts + timedelta(hours=6)],
             "driver_id": [1001, 1001],
             "conv_rate": [random.random(), random.random()],
             "acc_rate": [random.random(), random.random()],
@@ -146,10 +173,10 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         {
             "driver_id": [1001, 1001, 1001, 1001],
             "event_timestamp": [
-                ts - timedelta(hours=4),
-                ts - timedelta(hours=3),
-                ts - timedelta(hours=1),
-                ts,
+                ts + timedelta(hours=3),
+                ts + timedelta(hours=4),
+                ts + timedelta(hours=5),
+                ts + timedelta(hours=6),
             ],
         }
     )
