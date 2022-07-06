@@ -444,6 +444,7 @@ class build_ext(_build_ext):
                 sys.executable,
                 "--build-tags",
                 'cgo ccalloc',
+                "--dynamic-link=True",
                 "-no-make",
                 *ext.sources,
             ],
