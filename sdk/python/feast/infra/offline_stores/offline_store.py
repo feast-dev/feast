@@ -163,6 +163,23 @@ class RetrievalJob(ABC):
         """
         pass
 
+    def supports_remote_storage_export(self) -> bool:
+        """
+        This method should return True if the RetrievalJob supports `to_remote_storage()`.
+        """
+        return False
+
+    def to_remote_storage(self) -> List[str]:
+        """
+        This method should export the result of this RetrievalJob to
+        remote storage (such as S3, GCS, HDFS, etc).
+        Implementations of this method should export the results as
+        multiple parquet files, each file sized appropriately
+        depending on how much data is being returned by the retrieval
+        job.
+        """
+        raise NotImplementedError()
+
 
 class OfflineStore(ABC):
     """
