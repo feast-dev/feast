@@ -40,7 +40,7 @@ METADATA_KEYS = set((METADATA_JOBHASH, METADATA_OUTPUT_URI))
 
 
 def _append_items(resource: Dict[str, Any], path: Tuple[str, ...], items: List[Any]):
-    """ A helper function to manipulate k8s resource configs. It updates an array in resource
+    """A helper function to manipulate k8s resource configs. It updates an array in resource
         definition given a jsonpath-like path. Will not update resource if items is empty.
         Note that it updates resource dict in-place.
 
@@ -72,7 +72,7 @@ def _append_items(resource: Dict[str, Any], path: Tuple[str, ...], items: List[A
 
 
 def _add_keys(resource: Dict[str, Any], path: Tuple[str, ...], items: Dict[str, Any]):
-    """ A helper function to manipulate k8s resource configs. It will update a dict in resource
+    """A helper function to manipulate k8s resource configs. It will update a dict in resource
         definition given a path (think jsonpath). Will ignore items set to None. Will not update
         resource if all items are None. Note that it updates resource dict in-place.
 
@@ -120,7 +120,7 @@ def _prepare_job_resource(
     namespace: str,
     extra_labels: Dict[str, str] = None,
 ) -> Dict[str, Any]:
-    """ Prepare SparkApplication custom resource configs """
+    """Prepare SparkApplication custom resource configs"""
     job = deepcopy(job_template)
 
     labels = {LABEL_JOBID: job_id, LABEL_JOBTYPE: job_type}
@@ -219,7 +219,8 @@ def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
 def _submit_job(api: CustomObjectsApi, resource, namespace: str) -> JobInfo:
     # create the resource
     response = api.create_namespaced_custom_object(
-        **_crd_args(namespace), body=resource,
+        **_crd_args(namespace),
+        body=resource,
     )
     return _resource_to_job_info(response)
 
@@ -239,7 +240,8 @@ def _list_jobs(
     else:
         # Retrieval jobs
         response = api.list_namespaced_custom_object(
-            **_crd_args(namespace), label_selector=LABEL_JOBID,
+            **_crd_args(namespace),
+            label_selector=LABEL_JOBID,
         )
 
     for item in response["items"]:
@@ -266,7 +268,8 @@ def _get_job_by_id(
 def _cancel_job_by_id(api: CustomObjectsApi, namespace: str, job_id: str):
     try:
         api.delete_namespaced_custom_object(
-            **_crd_args(namespace), name=_job_id_to_resource_name(job_id),
+            **_crd_args(namespace),
+            name=_job_id_to_resource_name(job_id),
         )
     except client.ApiException as e:
         if e.status == 404:

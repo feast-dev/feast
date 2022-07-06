@@ -32,24 +32,28 @@ from feast.core.CoreService_pb2 import (
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
     ApplyFeatureTableResponse,
+    ArchiveOnlineStoreRequest,
+    ArchiveOnlineStoreResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     DeleteFeatureTableRequest,
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureTableRequest,
     GetFeatureTableResponse,
+    GetOnlineStoreRequest,
     ListEntitiesRequest,
     ListEntitiesResponse,
     ListFeaturesRequest,
     ListFeaturesResponse,
     ListFeatureTablesRequest,
     ListFeatureTablesResponse,
+    ListOnlineStoresRequest,
     ListProjectsRequest,
     ListProjectsResponse,
+    RegisterOnlineStoreRequest,
+    RegisterOnlineStoreResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2 import (
@@ -76,6 +80,7 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.online_store import OnlineStore
 from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
     get_job_by_id,
@@ -597,7 +602,8 @@ class Client:
 
         # Get latest entities from Feast Core
         entity_protos = self._core_service.ListEntities(
-            ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+            ListEntitiesRequest(filter=filter),
+            metadata=self._get_grpc_metadata(),
         )  # type: ListEntitiesResponse
 
         # Extract entities and return
@@ -714,7 +720,8 @@ class Client:
 
         # Get latest feature tables from Feast Core
         feature_table_protos = self._core_service.ListFeatureTables(
-            ListFeatureTablesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+            ListFeatureTablesRequest(filter=filter),
+            metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureTablesResponse
 
         # Extract feature tables and return
@@ -810,7 +817,8 @@ class Client:
         )
 
         feature_protos = self._core_service.ListFeatures(
-            ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+            ListFeaturesRequest(filter=filter),
+            metadata=self._get_grpc_metadata(),
         )  # type: ListFeaturesResponse
 
         # Extract features and return
@@ -927,7 +935,10 @@ class Client:
             )
         else:
             dir_path, dest_path = _write_non_partitioned_table_from_source(
-                column_names, pyarrow_table, chunk_size, max_workers,
+                column_names,
+                pyarrow_table,
+                chunk_size,
+                max_workers,
             )
 
         try:
@@ -1145,7 +1156,9 @@ class Client:
             )
 
     def get_historical_features_df(
-        self, feature_refs: List[str], entity_source: Union[FileSource, BigQuerySource],
+        self,
+        feature_refs: List[str],
+        entity_source: Union[FileSource, BigQuerySource],
     ):
         """
         Launch a historical feature retrieval job.
@@ -1205,7 +1218,10 @@ class Client:
         return feature_tables
 
     def start_offline_to_online_ingestion(
-        self, feature_table: FeatureTable, start: datetime, end: datetime,
+        self,
+        feature_table: FeatureTable,
+        start: datetime,
+        end: datetime,
     ) -> SparkJob:
         """
 
@@ -1226,7 +1242,8 @@ class Client:
             )
         else:
             request = StartOfflineToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
+                project=self.project,
+                table_name=feature_table.name,
             )
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
@@ -1255,7 +1272,8 @@ class Client:
             )
         else:
             request = StartStreamToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
+                project=self.project,
+                table_name=feature_table.name,
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
@@ -1295,6 +1313,46 @@ class Client:
             )
 
     def stage_dataframe(
-        self, df: pd.DataFrame, event_timestamp_column: str,
+        self,
+        df: pd.DataFrame,
+        event_timestamp_column: str,
     ) -> FileSource:
         return stage_dataframe(df, event_timestamp_column, self._config)
+
+    def register_online_store(
+        self, online_store: OnlineStore
+    ) -> RegisterOnlineStoreResponse:
+        try:
+            response = self._core_service.RegisterOnlineStore(
+                RegisterOnlineStoreRequest(online_store=online_store.to_proto())
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return response
+
+    def list_online_stores(self) -> List[OnlineStore]:
+        try:
+            response = self._core_service.ListOnlineStores(ListOnlineStoresRequest())
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return [OnlineStore.from_proto(proto) for proto in response.online_store]
+
+    def get_online_store(self, name: str) -> OnlineStore:
+        try:
+            response = self._core_service.GetOnlineStore(
+                GetOnlineStoreRequest(name=name)
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return OnlineStore.from_proto(response.online_store)
+
+    def archive_online_store(self, name: str) -> ArchiveOnlineStoreResponse:
+        try:
+            response = self._core_service.ArchiveOnlineStore(
+                ArchiveOnlineStoreRequest(name=name)
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return response

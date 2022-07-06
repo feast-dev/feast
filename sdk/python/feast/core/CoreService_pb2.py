@@ -17,6 +17,7 @@ from feast.core import Entity_pb2 as feast_dot_core_dot_Entity__pb2
 from feast.core import Feature_pb2 as feast_dot_core_dot_Feature__pb2
 from feast.core import FeatureTable_pb2 as feast_dot_core_dot_FeatureTable__pb2
 from feast.core import Store_pb2 as feast_dot_core_dot_Store__pb2
+from feast.core import OnlineStore_pb2 as feast_dot_core_dot_OnlineStore__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -25,9 +26,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'\n\020feast.proto.coreB\020CoreServiceProtoZ3github.com/feast-dev/feast/sdk/go/protos/feast/core',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a-tensorflow_metadata/proto/v0/statistics.proto\x1a\x17\x66\x65\x61st/core/Entity.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\x1a\x1d\x66\x65\x61st/core/FeatureTable.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"1\n\x10GetEntityRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"7\n\x11GetEntityResponse\x12\"\n\x06\x65ntity\x18\x01 \x01(\x0b\x32\x12.feast.core.Entity\"\xdc\x01\n\x13ListEntitiesRequest\x12\x36\n\x06\x66ilter\x18\x01 \x01(\x0b\x32&.feast.core.ListEntitiesRequest.Filter\x1a\x8c\x01\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x42\n\x06labels\x18\x04 \x03(\x0b\x32\x32.feast.core.ListEntitiesRequest.Filter.LabelsEntry\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"<\n\x14ListEntitiesResponse\x12$\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\x12.feast.core.Entity\"\xee\x01\n\x13ListFeaturesRequest\x12\x36\n\x06\x66ilter\x18\x01 \x01(\x0b\x32&.feast.core.ListFeaturesRequest.Filter\x1a\x9e\x01\n\x06\x46ilter\x12\x42\n\x06labels\x18\x01 \x03(\x0b\x32\x32.feast.core.ListFeaturesRequest.Filter.LabelsEntry\x12\x10\n\x08\x65ntities\x18\x02 \x03(\t\x12\x0f\n\x07project\x18\x03 \x01(\t\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xaa\x01\n\x14ListFeaturesResponse\x12@\n\x08\x66\x65\x61tures\x18\x02 \x03(\x0b\x32..feast.core.ListFeaturesResponse.FeaturesEntry\x1aJ\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.feast.core.FeatureSpecV2:\x02\x38\x01J\x04\x08\x01\x10\x02\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"M\n\x12\x41pplyEntityRequest\x12&\n\x04spec\x18\x01 \x01(\x0b\x32\x18.feast.core.EntitySpecV2\x12\x0f\n\x07project\x18\x02 \x01(\t\"9\n\x13\x41pplyEntityResponse\x12\"\n\x06\x65ntity\x18\x01 \x01(\x0b\x32\x12.feast.core.Entity\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t\" \n\x1eUpdateFeatureSetStatusResponse\"]\n\x18\x41pplyFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x30\n\ntable_spec\x18\x02 \x01(\x0b\x32\x1c.feast.core.FeatureTableSpec\"D\n\x19\x41pplyFeatureTableResponse\x12\'\n\x05table\x18\x01 \x01(\x0b\x32\x18.feast.core.FeatureTable\"7\n\x16GetFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\"B\n\x17GetFeatureTableResponse\x12\'\n\x05table\x18\x01 \x01(\x0b\x32\x18.feast.core.FeatureTable\"\xeb\x01\n\x18ListFeatureTablesRequest\x12;\n\x06\x66ilter\x18\x01 \x01(\x0b\x32+.feast.core.ListFeatureTablesRequest.Filter\x1a\x91\x01\n\x06\x46ilter\x12\x0f\n\x07project\x18\x01 \x01(\t\x12G\n\x06labels\x18\x03 \x03(\x0b\x32\x37.feast.core.ListFeatureTablesRequest.Filter.LabelsEntry\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"E\n\x19ListFeatureTablesResponse\x12(\n\x06tables\x18\x01 \x03(\x0b\x32\x18.feast.core.FeatureTable\":\n\x19\x44\x65leteFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x1c\n\x1a\x44\x65leteFeatureTableResponse2\xd9\t\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12H\n\tGetEntity\x12\x1c.feast.core.GetEntityRequest\x1a\x1d.feast.core.GetEntityResponse\x12Q\n\x0cListFeatures\x12\x1f.feast.core.ListFeaturesRequest\x1a .feast.core.ListFeaturesResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12N\n\x0b\x41pplyEntity\x12\x1e.feast.core.ApplyEntityRequest\x1a\x1f.feast.core.ApplyEntityResponse\x12Q\n\x0cListEntities\x12\x1f.feast.core.ListEntitiesRequest\x1a .feast.core.ListEntitiesResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponse\x12`\n\x11\x41pplyFeatureTable\x12$.feast.core.ApplyFeatureTableRequest\x1a%.feast.core.ApplyFeatureTableResponse\x12`\n\x11ListFeatureTables\x12$.feast.core.ListFeatureTablesRequest\x1a%.feast.core.ListFeatureTablesResponse\x12Z\n\x0fGetFeatureTable\x12\".feast.core.GetFeatureTableRequest\x1a#.feast.core.GetFeatureTableResponse\x12\x63\n\x12\x44\x65leteFeatureTable\x12%.feast.core.DeleteFeatureTableRequest\x1a&.feast.core.DeleteFeatureTableResponseBY\n\x10\x66\x65\x61st.proto.coreB\x10\x43oreServiceProtoZ3github.com/feast-dev/feast/sdk/go/protos/feast/coreb\x06proto3'
+  serialized_pb=b'\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a-tensorflow_metadata/proto/v0/statistics.proto\x1a\x17\x66\x65\x61st/core/Entity.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\x1a\x1d\x66\x65\x61st/core/FeatureTable.proto\x1a\x16\x66\x65\x61st/core/Store.proto\x1a\x1c\x66\x65\x61st/core/OnlineStore.proto\"1\n\x10GetEntityRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"7\n\x11GetEntityResponse\x12\"\n\x06\x65ntity\x18\x01 \x01(\x0b\x32\x12.feast.core.Entity\"\xdc\x01\n\x13ListEntitiesRequest\x12\x36\n\x06\x66ilter\x18\x01 \x01(\x0b\x32&.feast.core.ListEntitiesRequest.Filter\x1a\x8c\x01\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x42\n\x06labels\x18\x04 \x03(\x0b\x32\x32.feast.core.ListEntitiesRequest.Filter.LabelsEntry\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"<\n\x14ListEntitiesResponse\x12$\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\x12.feast.core.Entity\"\xee\x01\n\x13ListFeaturesRequest\x12\x36\n\x06\x66ilter\x18\x01 \x01(\x0b\x32&.feast.core.ListFeaturesRequest.Filter\x1a\x9e\x01\n\x06\x46ilter\x12\x42\n\x06labels\x18\x01 \x03(\x0b\x32\x32.feast.core.ListFeaturesRequest.Filter.LabelsEntry\x12\x10\n\x08\x65ntities\x18\x02 \x03(\t\x12\x0f\n\x07project\x18\x03 \x01(\t\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xaa\x01\n\x14ListFeaturesResponse\x12@\n\x08\x66\x65\x61tures\x18\x02 \x03(\x0b\x32..feast.core.ListFeaturesResponse.FeaturesEntry\x1aJ\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.feast.core.FeatureSpecV2:\x02\x38\x01J\x04\x08\x01\x10\x02\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"M\n\x12\x41pplyEntityRequest\x12&\n\x04spec\x18\x01 \x01(\x0b\x32\x18.feast.core.EntitySpecV2\x12\x0f\n\x07project\x18\x02 \x01(\t\"9\n\x13\x41pplyEntityResponse\x12\"\n\x06\x65ntity\x18\x01 \x01(\x0b\x32\x12.feast.core.Entity\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t\" \n\x1eUpdateFeatureSetStatusResponse\"]\n\x18\x41pplyFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x30\n\ntable_spec\x18\x02 \x01(\x0b\x32\x1c.feast.core.FeatureTableSpec\"D\n\x19\x41pplyFeatureTableResponse\x12\'\n\x05table\x18\x01 \x01(\x0b\x32\x18.feast.core.FeatureTable\"7\n\x16GetFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\"B\n\x17GetFeatureTableResponse\x12\'\n\x05table\x18\x01 \x01(\x0b\x32\x18.feast.core.FeatureTable\"\xeb\x01\n\x18ListFeatureTablesRequest\x12;\n\x06\x66ilter\x18\x01 \x01(\x0b\x32+.feast.core.ListFeatureTablesRequest.Filter\x1a\x91\x01\n\x06\x46ilter\x12\x0f\n\x07project\x18\x01 \x01(\t\x12G\n\x06labels\x18\x03 \x03(\x0b\x32\x37.feast.core.ListFeatureTablesRequest.Filter.LabelsEntry\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"E\n\x19ListFeatureTablesResponse\x12(\n\x06tables\x18\x01 \x03(\x0b\x32\x18.feast.core.FeatureTable\":\n\x19\x44\x65leteFeatureTableRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x1c\n\x1a\x44\x65leteFeatureTableResponse\"\x19\n\x17ListOnlineStoresRequest\"I\n\x18ListOnlineStoresResponse\x12-\n\x0conline_store\x18\x01 \x03(\x0b\x32\x17.feast.core.OnlineStore\"%\n\x15GetOnlineStoreRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\xa6\x01\n\x16GetOnlineStoreResponse\x12-\n\x0conline_store\x18\x01 \x01(\x0b\x32\x17.feast.core.OnlineStore\x12\x39\n\x06status\x18\x02 \x01(\x0e\x32).feast.core.GetOnlineStoreResponse.Status\"\"\n\x06Status\x12\n\n\x06\x41\x43TIVE\x10\x00\x12\x0c\n\x08\x41RCHIVED\x10\x01\"K\n\x1aRegisterOnlineStoreRequest\x12-\n\x0conline_store\x18\x01 \x01(\x0b\x32\x17.feast.core.OnlineStore\"\xc2\x01\n\x1bRegisterOnlineStoreResponse\x12-\n\x0conline_store\x18\x01 \x01(\x0b\x32\x17.feast.core.OnlineStore\x12>\n\x06status\x18\x02 \x01(\x0e\x32..feast.core.RegisterOnlineStoreResponse.Status\"4\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0e\n\nREGISTERED\x10\x01\x12\x0b\n\x07UPDATED\x10\x02\")\n\x19\x41rchiveOnlineStoreRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1c\n\x1a\x41rchiveOnlineStoreResponse2\xde\x0c\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12H\n\tGetEntity\x12\x1c.feast.core.GetEntityRequest\x1a\x1d.feast.core.GetEntityResponse\x12Q\n\x0cListFeatures\x12\x1f.feast.core.ListFeaturesRequest\x1a .feast.core.ListFeaturesResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12N\n\x0b\x41pplyEntity\x12\x1e.feast.core.ApplyEntityRequest\x1a\x1f.feast.core.ApplyEntityResponse\x12Q\n\x0cListEntities\x12\x1f.feast.core.ListEntitiesRequest\x1a .feast.core.ListEntitiesResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponse\x12`\n\x11\x41pplyFeatureTable\x12$.feast.core.ApplyFeatureTableRequest\x1a%.feast.core.ApplyFeatureTableResponse\x12`\n\x11ListFeatureTables\x12$.feast.core.ListFeatureTablesRequest\x1a%.feast.core.ListFeatureTablesResponse\x12Z\n\x0fGetFeatureTable\x12\".feast.core.GetFeatureTableRequest\x1a#.feast.core.GetFeatureTableResponse\x12\x63\n\x12\x44\x65leteFeatureTable\x12%.feast.core.DeleteFeatureTableRequest\x1a&.feast.core.DeleteFeatureTableResponse\x12]\n\x10ListOnlineStores\x12#.feast.core.ListOnlineStoresRequest\x1a$.feast.core.ListOnlineStoresResponse\x12W\n\x0eGetOnlineStore\x12!.feast.core.GetOnlineStoreRequest\x1a\".feast.core.GetOnlineStoreResponse\x12\x66\n\x13RegisterOnlineStore\x12&.feast.core.RegisterOnlineStoreRequest\x1a\'.feast.core.RegisterOnlineStoreResponse\x12\x63\n\x12\x41rchiveOnlineStore\x12%.feast.core.ArchiveOnlineStoreRequest\x1a&.feast.core.ArchiveOnlineStoreResponseBY\n\x10\x66\x65\x61st.proto.coreB\x10\x43oreServiceProtoZ3github.com/feast-dev/feast/sdk/go/protos/feast/coreb\x06proto3'
   ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,tensorflow__metadata_dot_proto_dot_v0_dot_statistics__pb2.DESCRIPTOR,feast_dot_core_dot_Entity__pb2.DESCRIPTOR,feast_dot_core_dot_Feature__pb2.DESCRIPTOR,feast_dot_core_dot_FeatureTable__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,tensorflow__metadata_dot_proto_dot_v0_dot_statistics__pb2.DESCRIPTOR,feast_dot_core_dot_Entity__pb2.DESCRIPTOR,feast_dot_core_dot_Feature__pb2.DESCRIPTOR,feast_dot_core_dot_FeatureTable__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,feast_dot_core_dot_OnlineStore__pb2.DESCRIPTOR,])
 
 
 
@@ -51,10 +52,65 @@ _UPDATESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1578,
-  serialized_end=1614,
+  serialized_start=1608,
+  serialized_end=1644,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATESTORERESPONSE_STATUS)
+
+_GETONLINESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
+  name='Status',
+  full_name='feast.core.GetOnlineStoreResponse.Status',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='ACTIVE', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='ARCHIVED', index=1, number=1,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=2836,
+  serialized_end=2870,
+)
+_sym_db.RegisterEnumDescriptor(_GETONLINESTORERESPONSE_STATUS)
+
+_REGISTERONLINESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
+  name='Status',
+  full_name='feast.core.RegisterOnlineStoreResponse.Status',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='NO_CHANGE', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='REGISTERED', index=1, number=1,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='UPDATED', index=2, number=2,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=3092,
+  serialized_end=3144,
+)
+_sym_db.RegisterEnumDescriptor(_REGISTERONLINESTORERESPONSE_STATUS)
 
 
 _GETENTITYREQUEST = _descriptor.Descriptor(
@@ -91,8 +147,8 @@ _GETENTITYREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=230,
-  serialized_end=279,
+  serialized_start=260,
+  serialized_end=309,
 )
 
 
@@ -123,8 +179,8 @@ _GETENTITYRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=281,
-  serialized_end=336,
+  serialized_start=311,
+  serialized_end=366,
 )
 
 
@@ -162,8 +218,8 @@ _LISTENTITIESREQUEST_FILTER_LABELSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=514,
-  serialized_end=559,
+  serialized_start=544,
+  serialized_end=589,
 )
 
 _LISTENTITIESREQUEST_FILTER = _descriptor.Descriptor(
@@ -200,8 +256,8 @@ _LISTENTITIESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=419,
-  serialized_end=559,
+  serialized_start=449,
+  serialized_end=589,
 )
 
 _LISTENTITIESREQUEST = _descriptor.Descriptor(
@@ -231,8 +287,8 @@ _LISTENTITIESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=339,
-  serialized_end=559,
+  serialized_start=369,
+  serialized_end=589,
 )
 
 
@@ -263,8 +319,8 @@ _LISTENTITIESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=561,
-  serialized_end=621,
+  serialized_start=591,
+  serialized_end=651,
 )
 
 
@@ -302,8 +358,8 @@ _LISTFEATURESREQUEST_FILTER_LABELSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=514,
-  serialized_end=559,
+  serialized_start=544,
+  serialized_end=589,
 )
 
 _LISTFEATURESREQUEST_FILTER = _descriptor.Descriptor(
@@ -347,8 +403,8 @@ _LISTFEATURESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=704,
-  serialized_end=862,
+  serialized_start=734,
+  serialized_end=892,
 )
 
 _LISTFEATURESREQUEST = _descriptor.Descriptor(
@@ -378,8 +434,8 @@ _LISTFEATURESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=624,
-  serialized_end=862,
+  serialized_start=654,
+  serialized_end=892,
 )
 
 
@@ -417,8 +473,8 @@ _LISTFEATURESRESPONSE_FEATURESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=955,
-  serialized_end=1029,
+  serialized_start=985,
+  serialized_end=1059,
 )
 
 _LISTFEATURESRESPONSE = _descriptor.Descriptor(
@@ -448,8 +504,8 @@ _LISTFEATURESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=865,
-  serialized_end=1035,
+  serialized_start=895,
+  serialized_end=1065,
 )
 
 
@@ -480,8 +536,8 @@ _LISTSTORESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1112,
-  serialized_end=1134,
+  serialized_start=1142,
+  serialized_end=1164,
 )
 
 _LISTSTORESREQUEST = _descriptor.Descriptor(
@@ -511,8 +567,8 @@ _LISTSTORESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1037,
-  serialized_end=1134,
+  serialized_start=1067,
+  serialized_end=1164,
 )
 
 
@@ -543,8 +599,8 @@ _LISTSTORESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1136,
-  serialized_end=1190,
+  serialized_start=1166,
+  serialized_end=1220,
 )
 
 
@@ -582,8 +638,8 @@ _APPLYENTITYREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1192,
-  serialized_end=1269,
+  serialized_start=1222,
+  serialized_end=1299,
 )
 
 
@@ -614,8 +670,8 @@ _APPLYENTITYRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1271,
-  serialized_end=1328,
+  serialized_start=1301,
+  serialized_end=1358,
 )
 
 
@@ -639,8 +695,8 @@ _GETFEASTCOREVERSIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1330,
-  serialized_end=1358,
+  serialized_start=1360,
+  serialized_end=1388,
 )
 
 
@@ -671,8 +727,8 @@ _GETFEASTCOREVERSIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1360,
-  serialized_end=1406,
+  serialized_start=1390,
+  serialized_end=1436,
 )
 
 
@@ -703,8 +759,8 @@ _UPDATESTOREREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1408,
-  serialized_end=1462,
+  serialized_start=1438,
+  serialized_end=1492,
 )
 
 
@@ -743,8 +799,8 @@ _UPDATESTORERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1465,
-  serialized_end=1614,
+  serialized_start=1495,
+  serialized_end=1644,
 )
 
 
@@ -775,8 +831,8 @@ _CREATEPROJECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1616,
-  serialized_end=1652,
+  serialized_start=1646,
+  serialized_end=1682,
 )
 
 
@@ -800,8 +856,8 @@ _CREATEPROJECTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1654,
-  serialized_end=1677,
+  serialized_start=1684,
+  serialized_end=1707,
 )
 
 
@@ -832,8 +888,8 @@ _ARCHIVEPROJECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1679,
-  serialized_end=1716,
+  serialized_start=1709,
+  serialized_end=1746,
 )
 
 
@@ -857,8 +913,8 @@ _ARCHIVEPROJECTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1718,
-  serialized_end=1742,
+  serialized_start=1748,
+  serialized_end=1772,
 )
 
 
@@ -882,8 +938,8 @@ _LISTPROJECTSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1744,
-  serialized_end=1765,
+  serialized_start=1774,
+  serialized_end=1795,
 )
 
 
@@ -914,8 +970,8 @@ _LISTPROJECTSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1767,
-  serialized_end=1807,
+  serialized_start=1797,
+  serialized_end=1837,
 )
 
 
@@ -939,8 +995,8 @@ _UPDATEFEATURESETSTATUSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1809,
-  serialized_end=1841,
+  serialized_start=1839,
+  serialized_end=1871,
 )
 
 
@@ -978,8 +1034,8 @@ _APPLYFEATURETABLEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1843,
-  serialized_end=1936,
+  serialized_start=1873,
+  serialized_end=1966,
 )
 
 
@@ -1010,8 +1066,8 @@ _APPLYFEATURETABLERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1938,
-  serialized_end=2006,
+  serialized_start=1968,
+  serialized_end=2036,
 )
 
 
@@ -1049,8 +1105,8 @@ _GETFEATURETABLEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2008,
-  serialized_end=2063,
+  serialized_start=2038,
+  serialized_end=2093,
 )
 
 
@@ -1081,8 +1137,8 @@ _GETFEATURETABLERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2065,
-  serialized_end=2131,
+  serialized_start=2095,
+  serialized_end=2161,
 )
 
 
@@ -1120,8 +1176,8 @@ _LISTFEATURETABLESREQUEST_FILTER_LABELSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=514,
-  serialized_end=559,
+  serialized_start=544,
+  serialized_end=589,
 )
 
 _LISTFEATURETABLESREQUEST_FILTER = _descriptor.Descriptor(
@@ -1158,8 +1214,8 @@ _LISTFEATURETABLESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2224,
-  serialized_end=2369,
+  serialized_start=2254,
+  serialized_end=2399,
 )
 
 _LISTFEATURETABLESREQUEST = _descriptor.Descriptor(
@@ -1189,8 +1245,8 @@ _LISTFEATURETABLESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2134,
-  serialized_end=2369,
+  serialized_start=2164,
+  serialized_end=2399,
 )
 
 
@@ -1221,8 +1277,8 @@ _LISTFEATURETABLESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2371,
-  serialized_end=2440,
+  serialized_start=2401,
+  serialized_end=2470,
 )
 
 
@@ -1260,8 +1316,8 @@ _DELETEFEATURETABLEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2442,
-  serialized_end=2500,
+  serialized_start=2472,
+  serialized_end=2530,
 )
 
 
@@ -1285,8 +1341,266 @@ _DELETEFEATURETABLERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2502,
-  serialized_end=2530,
+  serialized_start=2532,
+  serialized_end=2560,
+)
+
+
+_LISTONLINESTORESREQUEST = _descriptor.Descriptor(
+  name='ListOnlineStoresRequest',
+  full_name='feast.core.ListOnlineStoresRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2562,
+  serialized_end=2587,
+)
+
+
+_LISTONLINESTORESRESPONSE = _descriptor.Descriptor(
+  name='ListOnlineStoresResponse',
+  full_name='feast.core.ListOnlineStoresResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='online_store', full_name='feast.core.ListOnlineStoresResponse.online_store', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2589,
+  serialized_end=2662,
+)
+
+
+_GETONLINESTOREREQUEST = _descriptor.Descriptor(
+  name='GetOnlineStoreRequest',
+  full_name='feast.core.GetOnlineStoreRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.GetOnlineStoreRequest.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2664,
+  serialized_end=2701,
+)
+
+
+_GETONLINESTORERESPONSE = _descriptor.Descriptor(
+  name='GetOnlineStoreResponse',
+  full_name='feast.core.GetOnlineStoreResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='online_store', full_name='feast.core.GetOnlineStoreResponse.online_store', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='feast.core.GetOnlineStoreResponse.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _GETONLINESTORERESPONSE_STATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2704,
+  serialized_end=2870,
+)
+
+
+_REGISTERONLINESTOREREQUEST = _descriptor.Descriptor(
+  name='RegisterOnlineStoreRequest',
+  full_name='feast.core.RegisterOnlineStoreRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='online_store', full_name='feast.core.RegisterOnlineStoreRequest.online_store', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2872,
+  serialized_end=2947,
+)
+
+
+_REGISTERONLINESTORERESPONSE = _descriptor.Descriptor(
+  name='RegisterOnlineStoreResponse',
+  full_name='feast.core.RegisterOnlineStoreResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='online_store', full_name='feast.core.RegisterOnlineStoreResponse.online_store', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='feast.core.RegisterOnlineStoreResponse.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _REGISTERONLINESTORERESPONSE_STATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2950,
+  serialized_end=3144,
+)
+
+
+_ARCHIVEONLINESTOREREQUEST = _descriptor.Descriptor(
+  name='ArchiveOnlineStoreRequest',
+  full_name='feast.core.ArchiveOnlineStoreRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.ArchiveOnlineStoreRequest.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3146,
+  serialized_end=3187,
+)
+
+
+_ARCHIVEONLINESTORERESPONSE = _descriptor.Descriptor(
+  name='ArchiveOnlineStoreResponse',
+  full_name='feast.core.ArchiveOnlineStoreResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3189,
+  serialized_end=3217,
 )
 
 _GETENTITYRESPONSE.fields_by_name['entity'].message_type = feast_dot_core_dot_Entity__pb2._ENTITY
@@ -1319,6 +1633,14 @@ _LISTFEATURETABLESREQUEST_FILTER.fields_by_name['labels'].message_type = _LISTFE
 _LISTFEATURETABLESREQUEST_FILTER.containing_type = _LISTFEATURETABLESREQUEST
 _LISTFEATURETABLESREQUEST.fields_by_name['filter'].message_type = _LISTFEATURETABLESREQUEST_FILTER
 _LISTFEATURETABLESRESPONSE.fields_by_name['tables'].message_type = feast_dot_core_dot_FeatureTable__pb2._FEATURETABLE
+_LISTONLINESTORESRESPONSE.fields_by_name['online_store'].message_type = feast_dot_core_dot_OnlineStore__pb2._ONLINESTORE
+_GETONLINESTORERESPONSE.fields_by_name['online_store'].message_type = feast_dot_core_dot_OnlineStore__pb2._ONLINESTORE
+_GETONLINESTORERESPONSE.fields_by_name['status'].enum_type = _GETONLINESTORERESPONSE_STATUS
+_GETONLINESTORERESPONSE_STATUS.containing_type = _GETONLINESTORERESPONSE
+_REGISTERONLINESTOREREQUEST.fields_by_name['online_store'].message_type = feast_dot_core_dot_OnlineStore__pb2._ONLINESTORE
+_REGISTERONLINESTORERESPONSE.fields_by_name['online_store'].message_type = feast_dot_core_dot_OnlineStore__pb2._ONLINESTORE
+_REGISTERONLINESTORERESPONSE.fields_by_name['status'].enum_type = _REGISTERONLINESTORERESPONSE_STATUS
+_REGISTERONLINESTORERESPONSE_STATUS.containing_type = _REGISTERONLINESTORERESPONSE
 DESCRIPTOR.message_types_by_name['GetEntityRequest'] = _GETENTITYREQUEST
 DESCRIPTOR.message_types_by_name['GetEntityResponse'] = _GETENTITYRESPONSE
 DESCRIPTOR.message_types_by_name['ListEntitiesRequest'] = _LISTENTITIESREQUEST
@@ -1348,6 +1670,14 @@ DESCRIPTOR.message_types_by_name['ListFeatureTablesRequest'] = _LISTFEATURETABLE
 DESCRIPTOR.message_types_by_name['ListFeatureTablesResponse'] = _LISTFEATURETABLESRESPONSE
 DESCRIPTOR.message_types_by_name['DeleteFeatureTableRequest'] = _DELETEFEATURETABLEREQUEST
 DESCRIPTOR.message_types_by_name['DeleteFeatureTableResponse'] = _DELETEFEATURETABLERESPONSE
+DESCRIPTOR.message_types_by_name['ListOnlineStoresRequest'] = _LISTONLINESTORESREQUEST
+DESCRIPTOR.message_types_by_name['ListOnlineStoresResponse'] = _LISTONLINESTORESRESPONSE
+DESCRIPTOR.message_types_by_name['GetOnlineStoreRequest'] = _GETONLINESTOREREQUEST
+DESCRIPTOR.message_types_by_name['GetOnlineStoreResponse'] = _GETONLINESTORERESPONSE
+DESCRIPTOR.message_types_by_name['RegisterOnlineStoreRequest'] = _REGISTERONLINESTOREREQUEST
+DESCRIPTOR.message_types_by_name['RegisterOnlineStoreResponse'] = _REGISTERONLINESTORERESPONSE
+DESCRIPTOR.message_types_by_name['ArchiveOnlineStoreRequest'] = _ARCHIVEONLINESTOREREQUEST
+DESCRIPTOR.message_types_by_name['ArchiveOnlineStoreResponse'] = _ARCHIVEONLINESTORERESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 GetEntityRequest = _reflection.GeneratedProtocolMessageType('GetEntityRequest', (_message.Message,), {
@@ -1617,6 +1947,62 @@ DeleteFeatureTableResponse = _reflection.GeneratedProtocolMessageType('DeleteFea
   })
 _sym_db.RegisterMessage(DeleteFeatureTableResponse)
 
+ListOnlineStoresRequest = _reflection.GeneratedProtocolMessageType('ListOnlineStoresRequest', (_message.Message,), {
+  'DESCRIPTOR' : _LISTONLINESTORESREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ListOnlineStoresRequest)
+  })
+_sym_db.RegisterMessage(ListOnlineStoresRequest)
+
+ListOnlineStoresResponse = _reflection.GeneratedProtocolMessageType('ListOnlineStoresResponse', (_message.Message,), {
+  'DESCRIPTOR' : _LISTONLINESTORESRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ListOnlineStoresResponse)
+  })
+_sym_db.RegisterMessage(ListOnlineStoresResponse)
+
+GetOnlineStoreRequest = _reflection.GeneratedProtocolMessageType('GetOnlineStoreRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETONLINESTOREREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetOnlineStoreRequest)
+  })
+_sym_db.RegisterMessage(GetOnlineStoreRequest)
+
+GetOnlineStoreResponse = _reflection.GeneratedProtocolMessageType('GetOnlineStoreResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETONLINESTORERESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetOnlineStoreResponse)
+  })
+_sym_db.RegisterMessage(GetOnlineStoreResponse)
+
+RegisterOnlineStoreRequest = _reflection.GeneratedProtocolMessageType('RegisterOnlineStoreRequest', (_message.Message,), {
+  'DESCRIPTOR' : _REGISTERONLINESTOREREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.RegisterOnlineStoreRequest)
+  })
+_sym_db.RegisterMessage(RegisterOnlineStoreRequest)
+
+RegisterOnlineStoreResponse = _reflection.GeneratedProtocolMessageType('RegisterOnlineStoreResponse', (_message.Message,), {
+  'DESCRIPTOR' : _REGISTERONLINESTORERESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.RegisterOnlineStoreResponse)
+  })
+_sym_db.RegisterMessage(RegisterOnlineStoreResponse)
+
+ArchiveOnlineStoreRequest = _reflection.GeneratedProtocolMessageType('ArchiveOnlineStoreRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ARCHIVEONLINESTOREREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ArchiveOnlineStoreRequest)
+  })
+_sym_db.RegisterMessage(ArchiveOnlineStoreRequest)
+
+ArchiveOnlineStoreResponse = _reflection.GeneratedProtocolMessageType('ArchiveOnlineStoreResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ARCHIVEONLINESTORERESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ArchiveOnlineStoreResponse)
+  })
+_sym_db.RegisterMessage(ArchiveOnlineStoreResponse)
+
 
 DESCRIPTOR._options = None
 _LISTENTITIESREQUEST_FILTER_LABELSENTRY._options = None
@@ -1631,8 +2017,8 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=2533,
-  serialized_end=3774,
+  serialized_start=3220,
+  serialized_end=4850,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFeastCoreVersion',
@@ -1771,6 +2157,46 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_DELETEFEATURETABLEREQUEST,
     output_type=_DELETEFEATURETABLERESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='ListOnlineStores',
+    full_name='feast.core.CoreService.ListOnlineStores',
+    index=14,
+    containing_service=None,
+    input_type=_LISTONLINESTORESREQUEST,
+    output_type=_LISTONLINESTORESRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='GetOnlineStore',
+    full_name='feast.core.CoreService.GetOnlineStore',
+    index=15,
+    containing_service=None,
+    input_type=_GETONLINESTOREREQUEST,
+    output_type=_GETONLINESTORERESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='RegisterOnlineStore',
+    full_name='feast.core.CoreService.RegisterOnlineStore',
+    index=16,
+    containing_service=None,
+    input_type=_REGISTERONLINESTOREREQUEST,
+    output_type=_REGISTERONLINESTORERESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='ArchiveOnlineStore',
+    full_name='feast.core.CoreService.ArchiveOnlineStore',
+    index=17,
+    containing_service=None,
+    input_type=_ARCHIVEONLINESTOREREQUEST,
+    output_type=_ARCHIVEONLINESTORERESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),

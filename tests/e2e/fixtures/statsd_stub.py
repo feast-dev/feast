@@ -31,7 +31,7 @@ class PrometheusStatsDServer(StatsDServer):
 
     @property
     def metrics(self):
-        """ Parse Prometheus response into metrics dict """
+        """Parse Prometheus response into metrics dict"""
 
         data = requests.get(
             f"http://{self.prometheus_host}:{self.prometheus_port}/metrics"

@@ -76,7 +76,9 @@ class Feature:
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
-            name=self.name, value_type=value_type, labels=self.labels,
+            name=self.name,
+            value_type=value_type,
+            labels=self.labels,
         )
 
     @classmethod
@@ -99,7 +101,7 @@ class Feature:
 
 
 class FeatureRef:
-    """ Feature Reference represents a reference to a specific feature. """
+    """Feature Reference represents a reference to a specific feature."""
 
     def __init__(self, name: str, feature_table: str = None):
         self.proto = FeatureRefProto(name=name, feature_table=feature_table)

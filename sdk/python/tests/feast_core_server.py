@@ -91,7 +91,9 @@ class CoreServicer(Core.CoreServiceServicer):
     def ApplyFeatureTable(self, request: ApplyFeatureTableRequest, context):
         feature_table_spec = request.table_spec
 
-        feature_table_meta = FeatureTableMeta(created_timestamp=Timestamp(seconds=10),)
+        feature_table_meta = FeatureTableMeta(
+            created_timestamp=Timestamp(seconds=10),
+        )
         applied_feature_table = FeatureTableProto(
             spec=feature_table_spec, meta=feature_table_meta
         )
@@ -107,7 +109,9 @@ class CoreServicer(Core.CoreServiceServicer):
             + " features"
         )
 
-        return ApplyFeatureTableResponse(table=applied_feature_table,)
+        return ApplyFeatureTableResponse(
+            table=applied_feature_table,
+        )
 
     def DeleteFeatureTable(self, request: DeleteFeatureTableRequest, context):
         del self._feature_tables[request.name]
@@ -133,7 +137,9 @@ class CoreServicer(Core.CoreServiceServicer):
     def ApplyEntity(self, request: ApplyEntityRequest, context):
         entity_spec = request.spec
 
-        entity_meta = EntityMeta(created_timestamp=Timestamp(seconds=10),)
+        entity_meta = EntityMeta(
+            created_timestamp=Timestamp(seconds=10),
+        )
         applied_entity = EntityProto(spec=entity_spec, meta=entity_meta)
         self._entities[entity_spec.name] = applied_entity
 
@@ -145,7 +151,9 @@ class CoreServicer(Core.CoreServiceServicer):
             + " value"
         )
 
-        return ApplyEntityResponse(entity=applied_entity,)
+        return ApplyEntityResponse(
+            entity=applied_entity,
+        )
 
 
 def serve():

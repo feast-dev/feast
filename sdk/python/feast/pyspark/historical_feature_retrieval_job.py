@@ -497,9 +497,15 @@ def join_entity_to_feature_tables(
     """
     joined_df = entity_df
 
-    for (feature_table_df, feature_table,) in zip(feature_table_dfs, feature_tables):
+    for (
+        feature_table_df,
+        feature_table,
+    ) in zip(feature_table_dfs, feature_tables):
         joined_df = as_of_join(
-            joined_df, entity_event_timestamp_column, feature_table_df, feature_table,
+            joined_df,
+            entity_event_timestamp_column,
+            feature_table_df,
+            feature_table,
         )
     return joined_df
 
@@ -561,7 +567,9 @@ def _read_and_verify_entity_df_from_source(
 
 
 def _read_and_verify_feature_table_df_from_source(
-    spark: SparkSession, feature_table: FeatureTable, source: Source,
+    spark: SparkSession,
+    feature_table: FeatureTable,
+    source: Source,
 ) -> DataFrame:
     source_df = (
         spark.read.format(source.spark_format)
@@ -683,7 +691,11 @@ def retrieve_historical_features(
     entity_df = _read_and_verify_entity_df_from_source(spark, entity_source)
 
     feature_table_dfs = [
-        _read_and_verify_feature_table_df_from_source(spark, feature_table, source,)
+        _read_and_verify_feature_table_df_from_source(
+            spark,
+            feature_table,
+            source,
+        )
         for feature_table, source in zip(feature_tables, feature_tables_sources)
     ]
 

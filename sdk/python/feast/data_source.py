@@ -38,7 +38,9 @@ class FileOptions:
     """
 
     def __init__(
-        self, file_format: FileFormat, file_url: str,
+        self,
+        file_format: FileFormat,
+        file_url: str,
     ):
         self._file_format = file_format
         self._file_url = file_url
@@ -97,7 +99,8 @@ class FileOptions:
         """
 
         file_options_proto = DataSourceProto.FileOptions(
-            file_format=self.file_format.to_proto(), file_url=self.file_url,
+            file_format=self.file_format.to_proto(),
+            file_url=self.file_url,
         )
 
         return file_options_proto
@@ -109,7 +112,8 @@ class BigQueryOptions:
     """
 
     def __init__(
-        self, table_ref: str,
+        self,
+        table_ref: str,
     ):
         self._table_ref = table_ref
 
@@ -139,7 +143,9 @@ class BigQueryOptions:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
 
-        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref,)
+        bigquery_options = cls(
+            table_ref=bigquery_options_proto.table_ref,
+        )
 
         return bigquery_options
 
@@ -164,7 +170,10 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
+        self,
+        bootstrap_servers: str,
+        message_format: StreamFormat,
+        topic: str,
     ):
         self._bootstrap_servers = bootstrap_servers
         self._message_format = message_format
@@ -255,7 +264,10 @@ class KinesisOptions:
     """
 
     def __init__(
-        self, record_format: StreamFormat, region: str, stream_name: str,
+        self,
+        record_format: StreamFormat,
+        region: str,
+        stream_name: str,
     ):
         self._record_format = record_format
         self._region = region
@@ -566,7 +578,9 @@ class BigQuerySource(DataSource):
             field_mapping,
             date_partition_column,
         )
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
+        self._bigquery_options = BigQueryOptions(
+            table_ref=table_ref,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):

@@ -31,7 +31,8 @@ def _standalone_launcher(config: Config) -> JobLauncher:
     from feast.pyspark.launchers import standalone
 
     return standalone.StandaloneClusterLauncher(
-        config.get(opt.SPARK_STANDALONE_MASTER), config.get(opt.SPARK_HOME),
+        config.get(opt.SPARK_STANDALONE_MASTER),
+        config.get(opt.SPARK_HOME),
     )
 
 
@@ -222,7 +223,8 @@ def start_historical_feature_retrieval_job(
 
 
 def replace_bq_table_with_joined_view(
-    feature_table: FeatureTable, entity_source: Union[FileSource, BigQuerySource],
+    feature_table: FeatureTable,
+    entity_source: Union[FileSource, BigQuerySource],
 ) -> Union[FileSource, BigQuerySource]:
     """
     Applies optimization to historical retrieval. Instead of pulling all data from Batch Source,
@@ -246,7 +248,9 @@ def replace_bq_table_with_joined_view(
         return feature_table.batch_source
 
     return create_bq_view_of_joined_features_and_entities(
-        feature_table.batch_source, entity_source, feature_table.entities,
+        feature_table.batch_source,
+        entity_source,
+        feature_table.entities,
     )
 
 

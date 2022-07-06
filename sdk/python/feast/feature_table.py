@@ -16,13 +16,12 @@ from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
 from google.protobuf import json_format
-from google.protobuf.internal.well_known_types import Timestamp, Duration
+from google.protobuf.internal.well_known_types import Duration, Timestamp
 from google.protobuf.json_format import MessageToDict, MessageToJson
 
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
-from feast.core.OnlineStore_pb2 import OnlineStore
 from feast.data_source import (
     BigQuerySource,
     DataSource,
@@ -32,6 +31,7 @@ from feast.data_source import (
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
+from feast.online_store import OnlineStore
 from feast.value_type import ValueType
 
 
@@ -310,7 +310,7 @@ class FeatureTable:
                 if not feature_table_proto.spec.stream_source.ByteSize()
                 else DataSource.from_proto(feature_table_proto.spec.stream_source)
             ),
-            online_store=feature_table_proto.spec.online_store
+            online_store=OnlineStore.from_proto(feature_table_proto.spec.online_store),
         )
 
         feature_table._created_timestamp = feature_table_proto.meta.created_timestamp
@@ -319,7 +319,7 @@ class FeatureTable:
 
     def to_proto(self) -> FeatureTableProto:
         """
-        Converts an feature table object to its protobuf representation
+        Converts a feature table object to its protobuf representation
 
         Returns:
             FeatureTableProto protobuf
@@ -349,7 +349,7 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
-            online_store=self.online_store
+            online_store=self.online_store,
         )
 
         return FeatureTableProto(spec=spec, meta=meta)
@@ -382,6 +382,7 @@ class FeatureTable:
                 if issubclass(type(self.stream_source), DataSource)
                 else self.stream_source
             ),
+            online_store=self.online_store.to_proto(),
         )
 
         return spec
@@ -424,6 +425,7 @@ class FeatureTable:
         self.max_age = feature_table.max_age
         self.batch_source = feature_table.batch_source
         self.stream_source = feature_table.stream_source
+        self.online_store = feature_table.online_store
         self._created_timestamp = feature_table.created_timestamp
         self._last_updated_timestamp = feature_table.last_updated_timestamp
 

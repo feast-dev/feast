@@ -87,7 +87,7 @@ class KubernetesJobMixin:
         _cancel_job_by_id(self._api, self._namespace, self._job_id)
 
     def _wait_for_complete(self, timeout_seconds: Optional[float]) -> bool:
-        """ Returns true if the job completed successfully """
+        """Returns true if the job completed successfully"""
         start_time = time.time()
         while (timeout_seconds is None) or (time.time() - start_time < timeout_seconds):
             status = self.get_status()
@@ -280,7 +280,9 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api, resource=resource, namespace=self._namespace,
+            api=self._api,
+            resource=resource,
+            namespace=self._namespace,
         )
 
         return cast(RetrievalJob, self._job_from_job_info(job_info))
@@ -347,7 +349,9 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api, resource=resource, namespace=self._namespace,
+            api=self._api,
+            resource=resource,
+            namespace=self._namespace,
         )
 
         return cast(BatchIngestionJob, self._job_from_job_info(job_info))
@@ -398,7 +402,9 @@ class KubernetesJobLauncher(JobLauncher):
         )
 
         job_info = _submit_job(
-            api=self._api, resource=resource, namespace=self._namespace,
+            api=self._api,
+            resource=resource,
+            namespace=self._namespace,
         )
 
         return cast(StreamIngestionJob, self._job_from_job_info(job_info))

@@ -284,7 +284,9 @@ class DataprocClusterLauncher(JobLauncher):
 
         staging_client = get_staging_client("gs")
         blob_path = os.path.join(
-            self.remote_path, job_id, os.path.basename(file_path),
+            self.remote_path,
+            job_id,
+            os.path.basename(file_path),
         ).lstrip("/")
         blob_uri_str = f"gs://{self.staging_bucket}/{blob_path}"
         with open(file_path, "rb") as f:

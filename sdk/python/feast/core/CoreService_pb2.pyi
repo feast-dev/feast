@@ -16,6 +16,10 @@ from feast.core.Feature_pb2 import (
     FeatureSpecV2 as feast___core___Feature_pb2___FeatureSpecV2,
 )
 
+from feast.core.OnlineStore_pb2 import (
+    OnlineStore as feast___core___OnlineStore_pb2___OnlineStore,
+)
+
 from feast.core.Store_pb2 import (
     Store as feast___core___Store_pb2___Store,
 )
@@ -536,3 +540,120 @@ class DeleteFeatureTableResponse(google___protobuf___message___Message):
     def __init__(self,
         ) -> None: ...
 type___DeleteFeatureTableResponse = DeleteFeatureTableResponse
+
+class ListOnlineStoresRequest(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+
+    def __init__(self,
+        ) -> None: ...
+type___ListOnlineStoresRequest = ListOnlineStoresRequest
+
+class ListOnlineStoresResponse(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+
+    @property
+    def online_store(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[feast___core___OnlineStore_pb2___OnlineStore]: ...
+
+    def __init__(self,
+        *,
+        online_store : typing___Optional[typing___Iterable[feast___core___OnlineStore_pb2___OnlineStore]] = None,
+        ) -> None: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store"]) -> None: ...
+type___ListOnlineStoresResponse = ListOnlineStoresResponse
+
+class GetOnlineStoreRequest(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    name: typing___Text = ...
+
+    def __init__(self,
+        *,
+        name : typing___Optional[typing___Text] = None,
+        ) -> None: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name"]) -> None: ...
+type___GetOnlineStoreRequest = GetOnlineStoreRequest
+
+class GetOnlineStoreResponse(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    StatusValue = typing___NewType('StatusValue', builtin___int)
+    type___StatusValue = StatusValue
+    Status: _Status
+    class _Status(google___protobuf___internal___enum_type_wrapper____EnumTypeWrapper[GetOnlineStoreResponse.StatusValue]):
+        DESCRIPTOR: google___protobuf___descriptor___EnumDescriptor = ...
+        ACTIVE = typing___cast(GetOnlineStoreResponse.StatusValue, 0)
+        ARCHIVED = typing___cast(GetOnlineStoreResponse.StatusValue, 1)
+    ACTIVE = typing___cast(GetOnlineStoreResponse.StatusValue, 0)
+    ARCHIVED = typing___cast(GetOnlineStoreResponse.StatusValue, 1)
+
+    status: type___GetOnlineStoreResponse.StatusValue = ...
+
+    @property
+    def online_store(self) -> feast___core___OnlineStore_pb2___OnlineStore: ...
+
+    def __init__(self,
+        *,
+        online_store : typing___Optional[feast___core___OnlineStore_pb2___OnlineStore] = None,
+        status : typing___Optional[type___GetOnlineStoreResponse.StatusValue] = None,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store",u"status",b"status"]) -> None: ...
+type___GetOnlineStoreResponse = GetOnlineStoreResponse
+
+class RegisterOnlineStoreRequest(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+
+    @property
+    def online_store(self) -> feast___core___OnlineStore_pb2___OnlineStore: ...
+
+    def __init__(self,
+        *,
+        online_store : typing___Optional[feast___core___OnlineStore_pb2___OnlineStore] = None,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store"]) -> None: ...
+type___RegisterOnlineStoreRequest = RegisterOnlineStoreRequest
+
+class RegisterOnlineStoreResponse(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    StatusValue = typing___NewType('StatusValue', builtin___int)
+    type___StatusValue = StatusValue
+    Status: _Status
+    class _Status(google___protobuf___internal___enum_type_wrapper____EnumTypeWrapper[RegisterOnlineStoreResponse.StatusValue]):
+        DESCRIPTOR: google___protobuf___descriptor___EnumDescriptor = ...
+        NO_CHANGE = typing___cast(RegisterOnlineStoreResponse.StatusValue, 0)
+        REGISTERED = typing___cast(RegisterOnlineStoreResponse.StatusValue, 1)
+        UPDATED = typing___cast(RegisterOnlineStoreResponse.StatusValue, 2)
+    NO_CHANGE = typing___cast(RegisterOnlineStoreResponse.StatusValue, 0)
+    REGISTERED = typing___cast(RegisterOnlineStoreResponse.StatusValue, 1)
+    UPDATED = typing___cast(RegisterOnlineStoreResponse.StatusValue, 2)
+
+    status: type___RegisterOnlineStoreResponse.StatusValue = ...
+
+    @property
+    def online_store(self) -> feast___core___OnlineStore_pb2___OnlineStore: ...
+
+    def __init__(self,
+        *,
+        online_store : typing___Optional[feast___core___OnlineStore_pb2___OnlineStore] = None,
+        status : typing___Optional[type___RegisterOnlineStoreResponse.StatusValue] = None,
+        ) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"online_store",b"online_store",u"status",b"status"]) -> None: ...
+type___RegisterOnlineStoreResponse = RegisterOnlineStoreResponse
+
+class ArchiveOnlineStoreRequest(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    name: typing___Text = ...
+
+    def __init__(self,
+        *,
+        name : typing___Optional[typing___Text] = None,
+        ) -> None: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name"]) -> None: ...
+type___ArchiveOnlineStoreRequest = ArchiveOnlineStoreRequest
+
+class ArchiveOnlineStoreResponse(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+
+    def __init__(self,
+        ) -> None: ...
+type___ArchiveOnlineStoreResponse = ArchiveOnlineStoreResponse

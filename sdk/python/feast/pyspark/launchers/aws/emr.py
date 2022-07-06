@@ -206,7 +206,8 @@ class EmrClusterLauncher(JobLauncher):
         if self._existing_cluster_id:
             step["ActionOnFailure"] = "CONTINUE"
             step_ids = emr.add_job_flow_steps(
-                JobFlowId=self._existing_cluster_id, Steps=[step],
+                JobFlowId=self._existing_cluster_id,
+                Steps=[step],
             )
             return EmrJobRef(self._existing_cluster_id, step_ids["StepIds"][0])
         else:
@@ -250,7 +251,9 @@ class EmrClusterLauncher(JobLauncher):
         job_ref = self._submit_emr_job(step)
 
         return EmrRetrievalJob(
-            self._emr_client(), job_ref, job_params.get_destination_path(),
+            self._emr_client(),
+            job_ref,
+            job_params.get_destination_path(),
         )
 
     def offline_to_online_ingestion(

@@ -33,7 +33,7 @@ def mock_server(servicer):
 
 class TestRemoteJob:
     def test_remote_ingestion_job(self):
-        """ Test wating for the remote ingestion job to complete """
+        """Test wating for the remote ingestion job to complete"""
 
         class MockServicer(JobServiceServicer):
             """

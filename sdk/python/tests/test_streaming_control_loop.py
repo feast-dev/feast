@@ -101,7 +101,7 @@ class TestStreamingControlLoop:
         client.delete_feature_table(self.table_name)
 
     def test_streaming_job_control_loop(self) -> None:
-        """ Test streaming job control loop logic. """
+        """Test streaming job control loop logic."""
 
         reset_job_cache()
 
