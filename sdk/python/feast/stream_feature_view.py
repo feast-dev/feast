@@ -164,7 +164,7 @@ class StreamFeatureView(FeatureView):
 
     def to_proto(self):
         meta = self.to_proto_meta()
-        ttl_duration = self.ttl_duration()
+        ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
         if self.batch_source:
