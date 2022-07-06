@@ -177,6 +177,9 @@ class RetrievalJob(ABC):
         multiple parquet files, each file sized appropriately
         depending on how much data is being returned by the retrieval
         job.
+
+        Returns:
+            A list of parquet file paths in remote storage.
         """
         raise NotImplementedError()
 
