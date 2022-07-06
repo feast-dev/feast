@@ -224,7 +224,7 @@ To train a model, we need features and labels. Often, this label data is stored 
 
 The user can query that table of labels with timestamps and pass that into Feast as an _entity dataframe_ for training data generation. In many cases, Feast will also intelligently join relevant tables to create the relevant feature vectors.
 
-* Note that we include timestamps because want the features for the same driver at various timestamps to be used in a model.
+* Note that we include timestamps because we want the features for the same driver at various timestamps to be used in a model.
 
 {% tabs %}
 {% tab title="Python" %}
