@@ -180,8 +180,8 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 
 	outputFields := make([]arrow.Field, 0)
 	outputColumns := make([]arrow.Array, 0)
-	//pool := memory.NewCgoArrowAllocator()
-	pool := memory.NewGoAllocator()
+	pool := memory.NewCgoArrowAllocator()
+	// pool := memory.NewGoAllocator()
 	for _, featureVector := range resp {
 		outputFields = append(outputFields,
 			arrow.Field{
