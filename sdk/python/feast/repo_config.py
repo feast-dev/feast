@@ -120,6 +120,9 @@ class RepoConfig(FeastBaseModel):
     _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
+    batch_engine_config: Any = Field(alias="batch_engine")
+    """ BatchMaterializationEngine: Batch materialization configuration (optional depending on provider)"""
+
     feature_server: Optional[Any]
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
@@ -154,6 +157,13 @@ class RepoConfig(FeastBaseModel):
                 self._online_config = "datastore"
             elif data["provider"] == "aws":
                 self._online_config = "dynamodb"
+
+        self._batch_engine = None
+        if "batch_engine" in data:
+            self.batch_engine_config = data["batch_engine"]
+        else:
+            # Defaults to using local in-process materialization engine.
+            self.batch_engine_config = "local"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(

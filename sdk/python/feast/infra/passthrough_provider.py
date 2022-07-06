@@ -2,32 +2,41 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
-import pyarrow
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import FeatureService
+from feast import importer
+from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.infra.materialization import BatchMaterializationEngine, MaterializationTask
+from feast.infra.materialization.batch_materialization_engine import (
+    MaterializationJobStatus,
+)
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
-from feast.infra.provider import (
-    Provider,
-    _convert_arrow_to_proto,
-    _get_column_names,
-    _run_field_mapping,
-)
+from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
+from feast.stream_feature_view import StreamFeatureView
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
-from feast.utils import make_tzaware
+from feast.utils import (
+    _convert_arrow_to_proto,
+    _run_pyarrow_field_mapping,
+    make_tzaware,
+)
 
 DEFAULT_BATCH_SIZE = 10_000
+
+BATCH_ENGINE_CLASS_FOR_TYPE = {
+    "local": "feast.infra.materialization.LocalMaterializationEngine",
+}
 
 
 class PassthroughProvider(Provider):
@@ -41,6 +50,7 @@ class PassthroughProvider(Provider):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
+        self._batch_engine: Optional[BatchMaterializationEngine] = None
 
     @property
     def online_store(self):
@@ -57,6 +67,46 @@ class PassthroughProvider(Provider):
                 self.repo_config.offline_store
             )
         return self._offline_store
+
+    @property
+    def batch_engine(self) -> BatchMaterializationEngine:
+        if self._batch_engine:
+            return self._batch_engine
+        else:
+            engine_config = self.repo_config.batch_engine_config
+            config_is_dict = False
+            if isinstance(engine_config, str):
+                engine_config_type = engine_config
+            elif isinstance(engine_config, Dict):
+                if "type" not in engine_config:
+                    raise ValueError("engine_config needs to have a `type` specified.")
+                engine_config_type = engine_config["type"]
+                config_is_dict = True
+            else:
+                raise RuntimeError(
+                    f"Invalid config type specified for batch_engine: {type(engine_config)}"
+                )
+
+            if engine_config_type in BATCH_ENGINE_CLASS_FOR_TYPE:
+                engine_config_type = BATCH_ENGINE_CLASS_FOR_TYPE[engine_config_type]
+            engine_module, engine_class_name = engine_config_type.rsplit(".", 1)
+            engine_class = importer.import_class(engine_module, engine_class_name)
+
+            if config_is_dict:
+                _batch_engine = engine_class(
+                    repo_config=self.repo_config,
+                    offline_store=self.offline_store,
+                    online_store=self.online_store,
+                    **engine_config,
+                )
+            else:
+                _batch_engine = engine_class(
+                    repo_config=self.repo_config,
+                    offline_store=self.offline_store,
+                    online_store=self.online_store,
+                )
+            self._batch_engine = _batch_engine
+            return _batch_engine
 
     def update_infra(
         self,
@@ -137,7 +187,9 @@ class PassthroughProvider(Provider):
         table = pa.Table.from_pandas(df)
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         join_keys = {entity.join_key: entity.value_type for entity in entities}
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
@@ -150,7 +202,9 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         self.offline_write_batch(self.repo_config, feature_view, table, None)
 
@@ -165,50 +219,24 @@ class PassthroughProvider(Provider):
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
-
-        entities = []
-        for entity_name in feature_view.entities:
-            entities.append(registry.get_entity(entity_name, project))
-
-        (
-            join_key_columns,
-            feature_name_columns,
-            timestamp_field,
-            created_timestamp_column,
-        ) = _get_column_names(feature_view, entities)
-
-        offline_job = self.offline_store.pull_latest_from_table_or_query(
-            config=config,
-            data_source=feature_view.batch_source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            start_date=start_date,
-            end_date=end_date,
+        assert (
+            isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, StreamFeatureView)
+            or isinstance(feature_view, FeatureView)
+        ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
+        task = MaterializationTask(
+            project=project,
+            feature_view=feature_view,
+            start_time=start_date,
+            end_time=end_date,
+            tqdm_builder=tqdm_builder,
         )
-
-        table = offline_job.to_arrow()
-
-        if feature_view.batch_source.field_mapping is not None:
-            table = _run_field_mapping(table, feature_view.batch_source.field_mapping)
-
-        join_key_to_value_type = {
-            entity.name: entity.dtype.to_value_type()
-            for entity in feature_view.entity_columns
-        }
-
-        with tqdm_builder(table.num_rows) as pbar:
-            for batch in table.to_batches(DEFAULT_BATCH_SIZE):
-                rows_to_write = _convert_arrow_to_proto(
-                    batch, feature_view, join_key_to_value_type
-                )
-                self.online_write_batch(
-                    self.repo_config,
-                    feature_view,
-                    rows_to_write,
-                    lambda x: pbar.update(x),
-                )
+        jobs = self.batch_engine.materialize(registry, [task])
+        assert len(jobs) == 1
+        if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
+            e = jobs[0].error()
+            assert e
+            raise e
 
     def get_historical_features(
         self,
@@ -260,7 +288,7 @@ class PassthroughProvider(Provider):
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
-        logs: Union[pyarrow.Table, str],
+        logs: Union[pa.Table, str],
         config: RepoConfig,
         registry: BaseRegistry,
     ):

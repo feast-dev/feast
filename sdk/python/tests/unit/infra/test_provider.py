@@ -18,8 +18,8 @@ from feast import BigQuerySource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.infra.provider import _get_column_names
 from feast.types import String
+from feast.utils import _get_column_names
 
 
 def test_get_column_names_preserves_feature_ordering():
