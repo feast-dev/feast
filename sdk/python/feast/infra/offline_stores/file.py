@@ -105,6 +105,9 @@ class FileRetrievalJob(RetrievalJob):
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
+    def supports_remote_storage_export(self) -> bool:
+        return False
+
 
 class FileOfflineStore(OfflineStore):
     @staticmethod

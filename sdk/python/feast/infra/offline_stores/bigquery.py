@@ -57,6 +57,7 @@ try:
     from google.cloud import bigquery
     from google.cloud.bigquery import Client, SchemaField, Table
     from google.cloud.bigquery._pandas_helpers import ARROW_SCALAR_IDS_TO_BQ
+    from google.cloud.storage import Client as StorageClient
 
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -82,6 +83,9 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     If a location is not specified, the location defaults to the ``US`` multi-regional location.
     For more information on BigQuery data locations see: https://cloud.google.com/bigquery/docs/locations
     """
+
+    gcs_staging_location: Optional[str] = None
+    """ (optional) GCS location used for offloading BigQuery results as parquet files."""
 
 
 class BigQueryOfflineStore(OfflineStore):
@@ -386,6 +390,14 @@ class BigQueryRetrievalJob(RetrievalJob):
             on_demand_feature_views if on_demand_feature_views else []
         )
         self._metadata = metadata
+        if self.config.offline_store.gcs_staging_location:
+            self._gcs_path = (
+                self.config.offline_store.gcs_staging_location
+                + f"/{self.config.project}/export/"
+                + str(uuid.uuid4())
+            )
+        else:
+            self._gcs_path = None
 
     @property
     def full_feature_names(self) -> bool:
@@ -477,6 +489,43 @@ class BigQueryRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
+
+    def supports_remote_storage_export(self) -> bool:
+        return self._gcs_path is not None
+
+    def to_remote_storage(self) -> List[str]:
+        if not self._gcs_path:
+            raise ValueError(
+                "gcs_staging_location needs to be specified for the big query "
+                "offline store when executing `to_remote_storage()`"
+            )
+
+        table = self.to_bigquery()
+
+        job_config = bigquery.job.ExtractJobConfig()
+        job_config.destination_format = "PARQUET"
+
+        extract_job = self.client.extract_table(
+            table,
+            destination_uris=[f"{self._gcs_path}/*.parquet"],
+            location=self.config.offline_store.location,
+            job_config=job_config,
+        )
+        extract_job.result()
+
+        bucket: str
+        prefix: str
+        storage_client = StorageClient(project=self.client.project)
+        bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
+        prefix = prefix.rsplit("/", 1)[0]
+        if prefix.startswith("/"):
+            prefix = prefix[1:]
+
+        blobs = storage_client.list_blobs(bucket, prefix=prefix)
+        results = []
+        for b in blobs:
+            results.append(f"gs://{b.bucket.name}/{b.name}")
+        return results
 
 
 def block_until_done(
