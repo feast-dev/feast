@@ -58,8 +58,7 @@ __pycache__/
 *$py.class
 *.prof
 
-# C extensions
-*.so
+
 
 # Distribution / packaging
 .Python
