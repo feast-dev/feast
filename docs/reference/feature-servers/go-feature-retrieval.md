@@ -16,10 +16,19 @@ However, some additional dependencies are required for Go <-> Python interoperab
 ```
 pip install feast[go]
 ```
+You will also have to install the apache-arrow c++ libraries.
+For macos, run `brew install apache-arrow`.
+For linux users, you have to install `libarrow-dev`.
+```
+sudo apt update
+sudo apt install -y -V ca-certificates lsb-release wget
+wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+sudo apt update
+sudo apt install -y -V libarrow-dev # For C++
+```
 
-For developers, if you want to build from source, run `make compile-go-lib` to build and compile the go server. In order to build the go binaries, you will need to install the `apache-arrow` c libraries.
-For macs, run `brew install apache-arrow`.
-For linux users, run `sudo apt-get install apache-arrow`.
+For developers, if you want to build from source, run `make compile-go-lib` to build and compile the go server. In order to build the go binaries, you will need to install the `apache-arrow` c++ libraries.
 
 ## Usage
 
