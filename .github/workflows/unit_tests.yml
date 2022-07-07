@@ -105,7 +105,6 @@ jobs:
         with:
           go-version: 1.18.0
       - name: Install apache-arrow on ubuntu
-        if: matrix.os == 'ubuntu-latest'
         run: |
             sudo apt update
             sudo apt install -y -V ca-certificates lsb-release wget
