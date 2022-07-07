@@ -491,7 +491,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         return self._metadata
 
     def supports_remote_storage_export(self) -> bool:
-        return True
+        return self._gcs_path
 
     def to_remote_storage(self) -> List[str]:
         if not self._gcs_path:

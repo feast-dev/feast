@@ -92,8 +92,10 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     """ Snowflake schema name """
 
     storage_integration_name: Optional[str] = None
+    """ Storage integration name in snowflake """
 
     blob_export_location: Optional[str] = None
+    """ Location (in S3, Google storage or Azure storage) where data is offloaded """
 
     class Config:
         allow_population_by_field_name = True
