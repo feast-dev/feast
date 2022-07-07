@@ -153,6 +153,12 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install apache-arrow
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: brew install apache-arrow
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Setup Redis Cluster
