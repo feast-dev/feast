@@ -51,7 +51,9 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.dataset = None
 
     def create_offline_store_config(self):
-        return BigQueryOfflineStoreConfig()
+        return BigQueryOfflineStoreConfig(
+            location="US", gcs_staging_location="gs://feast-export/"
+        )
 
     def create_data_source(
         self,
