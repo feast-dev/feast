@@ -513,9 +513,13 @@ class BigQueryRetrievalJob(RetrievalJob):
         )
         extract_job.result()
 
-        storage_client = StorageClient(project=self.config.offline_store.project_id)
+        bucket: str
+        prefix: str
+        storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
         prefix = prefix.rsplit("/", 1)[0]
+        if prefix.startswith("/"):
+            prefix = prefix[1:]
 
         blobs = storage_client.list_blobs(bucket, prefix=prefix)
         results = []
