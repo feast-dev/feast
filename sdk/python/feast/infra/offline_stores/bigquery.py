@@ -494,7 +494,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         return True
 
     def to_remote_storage(self) -> List[str]:
-        if self.config.offline_store.gcs_staging_location or not self._gcs_path:
+        if not self._gcs_path:
             raise ValueError(
                 "gcs_staging_location needs to be specified for the big query "
                 "offline store when executing `to_remote_storage()`"
