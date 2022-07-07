@@ -17,7 +17,9 @@ However, some additional dependencies are required for Go <-> Python interoperab
 pip install feast[go]
 ```
 
-For developers, if you want to build from source, run `make compile-go-lib` to build and compile the go server.
+For developers, if you want to build from source, run `make compile-go-lib` to build and compile the go server. In order to build the go binaries, you will need to install the `apache-arrow` c libraries.
+For macs, run `brew install apache-arrow`.
+For linux users, run `sudo apt-get install apache-arrow`.
 
 ## Usage
 
@@ -63,7 +65,7 @@ feature_server:
     emit_timeout_micro_secs: 10000
     queue_capacity: 10000
 ```
-All these parameters are optional. 
+All these parameters are optional.
 
 ## Future/Current Work
 
