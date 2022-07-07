@@ -603,7 +603,7 @@ def _upload_entity_df(
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
 
     if isinstance(entity_df, str):
-        job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
+        job = client.query(f"CREATE TEMP TABLE {table_name} AS ({entity_df})")
 
     elif isinstance(entity_df, pd.DataFrame):
         # Drop the index so that we don't have unnecessary columns
