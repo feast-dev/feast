@@ -370,6 +370,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         full_feature_names=full_feature_names,
     )
 
+    if job_from_df.supports_remote_storage_export:
+        print(job_from_df.to_remote_storage())
+
     start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
 

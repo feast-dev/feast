@@ -383,6 +383,11 @@ class SnowflakeRetrievalJob(RetrievalJob):
             on_demand_feature_views if on_demand_feature_views else []
         )
         self._metadata = metadata
+        self.export_path: Optional[str]
+        if self.config.offline_store.blob_export_location:
+            self.export_path = f"{self.config.offline_store.blob_export_location}/{self.config.project}/{uuid.uuid4()}"
+        else:
+            self.export_path = None
 
     @property
     def full_feature_names(self) -> bool:
@@ -418,7 +423,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
                     pd.DataFrame(columns=[md.name for md in empty_result.description])
                 )
 
-    def to_snowflake(self, table_name: str) -> None:
+    def to_snowflake(self, table_name: str, temporary=False) -> None:
         """Save dataset as a new Snowflake table"""
         if self.on_demand_feature_views is not None:
             transformed_df = self.to_df()
@@ -430,7 +435,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
             return None
 
         with self._query_generator() as query:
-            query = f'CREATE TABLE IF NOT EXISTS "{table_name}" AS ({query});\n'
+            query = f'CREATE {"TEMPORARY" if temporary else ""} TABLE IF NOT EXISTS "{table_name}" AS ({query});\n'
 
             execute_snowflake_statement(self.snowflake_conn, query)
 
@@ -459,31 +464,39 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return self._metadata
 
     def supports_remote_storage_export(self) -> bool:
-        return True
+        return (
+            self.config.offline_store.storage_integration_name
+            and self.config.offline_store.blob_export_location
+        )
 
     def to_remote_storage(self) -> List[str]:
-        if not self.config.offline_store.s3_staging_location:
+        if not self.export_path:
             raise ValueError(
-                "to_remote_storage() requires `s3_staging_location` to be specified in config"
+                "to_remote_storage() requires `blob_export_location` to be specified in config"
             )
         if not self.config.offline_store.storage_integration_name:
             raise ValueError(
                 "to_remote_storage() requires `storage_integration_name` to be specified in config"
             )
 
-        table = f"temporary_{uuid.uuid4()}"
+        table = f"temporary_{uuid.uuid4().hex}"
         self.to_snowflake(table)
 
-        copy_into_query = (
-            f'COPY INTO "{self.config.offline_store.s3_staging_location}/{table}" from {table}\n'
-            f"  storage_integration = {self.config.offline_store.storage_integration_name}\n"
-            f"  file_format = (TYPE = PARQUET)"
-            f"  DETAILED_OUTPUT = TRUE;\n"
-        )
+        copy_into_query = f"""copy into '{self.config.offline_store.blob_export_location}/{table}' from "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
+          storage_integration = {self.config.offline_store.storage_integration_name}\n
+          file_format = (TYPE = PARQUET)\n
+          DETAILED_OUTPUT = TRUE\n
+          HEADER = TRUE;\n
+        """
 
-        execute_snowflake_statement(self.snowflake_conn, copy_into_query)
-        # TODO(achal) what next here??
-        return []
+        cursor = execute_snowflake_statement(self.snowflake_conn, copy_into_query)
+        all_rows = (
+            cursor.fetchall()
+        )  # This may be need pagination at some point in the future.
+        file_name_column_index = [
+            idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
+        ][0]
+        return [f"{self.export_path}/{row[file_name_column_index]}" for row in all_rows]
 
 
 def _get_entity_schema(
