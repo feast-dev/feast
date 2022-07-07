@@ -83,5 +83,6 @@ jobs:
         run:  |
           make install-go-proto-dependencies
           make install-go-ci-dependencies
+          make compile-go-lib
       - name: Lint go
         run: make lint-go
