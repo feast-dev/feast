@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"google.golang.org/protobuf/types/known/durationpb"
