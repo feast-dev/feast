@@ -177,10 +177,10 @@ install-go-ci-dependencies:
 	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
 	# but the following command is needed to install it for some reason.
 	go install github.com/go-python/gopy
-	python -m pip install pybindgen==0.22.0
+	python -m pip install pybindgen==0.22.0 protobuf==3.20.1
 
 install-protoc-dependencies:
-	pip install grpcio-tools==1.47.0 mypy-protobuf==3.1.0 protobuf==3.20.1
+	pip install grpcio-tools==1.47.0 mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
