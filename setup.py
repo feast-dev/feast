@@ -443,7 +443,7 @@ class build_ext(_build_ext):
                 "-vm",
                 sys.executable,
                 "--build-tags",
-                'cgo ccalloc',
+                'cgo,ccalloc',
                 "--dynamic-link=True",
                 "-no-make",
                 *ext.sources,
