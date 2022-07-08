@@ -4,7 +4,7 @@ RUN yum install -y git
 
 
 # Copy app handler code
-COPY sdk/python/feast/infra/feature_servers/aws_lambda/app.py ${LAMBDA_TASK_ROOT}
+COPY sdk/python/feast/infra/materialization/lambda/app.py ${LAMBDA_TASK_ROOT}
 
 # Copy necessary parts of the Feast codebase
 COPY sdk/python sdk/python

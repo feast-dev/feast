@@ -36,6 +36,7 @@ DEFAULT_BATCH_SIZE = 10_000
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.LocalMaterializationEngine",
+    "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
 }
 
 
