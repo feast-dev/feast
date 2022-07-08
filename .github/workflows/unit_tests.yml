@@ -113,7 +113,9 @@ jobs:
             sudo apt update
             sudo apt install -y -V libarrow-dev
       - name: Install dependencies
-        run: make compile-go-lib
+        run: |
+          make install-protoc-dependencies:
+          make compile-go-lib
       - name: Compile protos
         run: make compile-protos-go
       - name: Test
