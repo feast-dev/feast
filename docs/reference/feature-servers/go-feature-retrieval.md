@@ -16,7 +16,8 @@ However, some additional dependencies are required for Go <-> Python interoperab
 ```
 pip install feast[go]
 ```
-You will also have to install the apache-arrow c++ libraries.
+You will also have to install the apache-arrow c++ libraries, since we use the cgo memory allocator to prevent memory from being incorrectly garbage collected, detailed in these [docs](https://pkg.go.dev/github.com/apache/arrow/go/arrow@v0.0.0-20211112161151-bc219186db40/cdata#ExportArrowRecordBatch).
+
 For macos, run `brew install apache-arrow`.
 For linux users, you have to install `libarrow-dev`.
 ```
