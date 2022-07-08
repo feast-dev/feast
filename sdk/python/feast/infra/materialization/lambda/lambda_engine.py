@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union
 
 import boto3
+from pydantic import StrictStr
 from tqdm import tqdm
 
 from feast.batch_feature_view import BatchFeatureView
@@ -23,6 +24,7 @@ from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
+from feast.version import get_version
 
 DEFAULT_BATCH_SIZE = 10_000
 
@@ -32,6 +34,12 @@ class LambdaMaterializationEngineConfig(FeastConfigBaseModel):
 
     type: Literal["lambda"] = "lambda"
     """ Type selector"""
+
+    materialization_image: StrictStr
+    """ The URI of a container image in the Amazon ECR registry, which should be used for materialization. """
+
+    lambda_role: StrictStr
+    """ Role that should be used by the materialization lambda """
 
 
 @dataclass
@@ -59,9 +67,6 @@ class LambdaMaterializationJob(MaterializationJob):
 
 
 class LambdaMaterializationEngine(BatchMaterializationEngine):
-
-    LAMBDA_NAME = "feast-lambda-consumer"
-
     def update(
         self,
         project: str,
@@ -75,7 +80,18 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities_to_keep: Sequence[Entity],
     ):
         # This should be setting up the lambda function.
-        pass
+        self.lambda_client.create_function(
+            FunctionName=self.lambda_name,
+            PackageType="Image",
+            Role=self.repo_config.offline_store.lambda_role,
+            Code={"ImageUri": self.repo_config.offline_store.materialization_image},
+            Timeout=600,
+            Tags={
+                "feast-owned": "True",
+                "project": project,
+                "feast-sdk-version": get_version(),
+            },
+        )
 
     def teardown_infra(
         self,
@@ -84,7 +100,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
-        pass
+        self.lambda_client.delete_function(FunctionName=self.lambda_name)
 
     def __init__(
         self,
@@ -106,6 +122,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         self.feature_store_base64 = str(
             base64.b64encode(bytes(feature_store_path.read_text(), "UTF-8")), "UTF-8"
         )
+
+        self.lambda_name = f"feast-materialize-{self.repo_config.project}"
+        self.lambda_client = boto3.client("lambda")
 
     def materialize(
         self, registry, tasks: List[MaterializationTask]
@@ -165,9 +184,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 "path": path,
             }
             # Invoke a lambda to materialize this file.
-            lambda_client = boto3.client("lambda")
-            response = lambda_client.invoke(
-                FunctionName=self.LAMBDA_NAME,
+
+            response = self.lambda_client.invoke(
+                FunctionName=self.lambda_name,
                 InvocationType="Event",
                 Payload=json.dumps(payload),
             )
