@@ -133,17 +133,19 @@ make test-python
 
 ### Integration Tests
 There are two sets of tests you can run:
-1. Local integration tests (for faster development)
+1. Local integration tests (for faster development, tests file offline store & key online stores)
 2. Full integration tests (requires cloud environment setups)
 
 #### Local integration tests
-To get local integration tests running, you'll need to have Redis setup:
+For this approach of running tests, you'll need to have docker set up locally: [Get Docker](https://docs.docker.com/get-docker/)
 
-Redis
-1. Install Redis: [Quickstart](https://redis.io/topics/quickstart)
-2. Run `redis-server`
+It leverages a file based offline store to test against emulated versions of Datastore, DynamoDB, and Redis, using ephemeral containers. 
 
-Now run `make test-python-universal-local`
+These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
+
+```sh
+make test-python-integration-local
+```
 
 #### Full integration tests
 To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
@@ -166,7 +168,15 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 2. Modify `RedshiftDataSourceCreator` to use your credentials
 
 **Snowflake**
-- See https://signup.snowflake.com/
+1. See https://signup.snowflake.com/ to setup a trial. 
+2. Then to run successfully, you'll need some environment variables setup:
+```sh
+export SNOWFLAKE_CI_DEPLOYMENT='[snowflake_deployment]'                            
+export SNOWFLAKE_CI_USER='[your user]'
+export SNOWFLAKE_CI_PASSWORD='[your pw]'
+export SNOWFLAKE_CI_ROLE='SYSADMIN'
+export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
+```
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
