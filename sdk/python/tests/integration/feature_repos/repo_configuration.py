@@ -142,7 +142,7 @@ if full_repo_configs_module is not None:
         }
 
 
-# Replace online store contaniers
+# Replace online stores with emulated online stores if we're running local integration tests
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
     replacements: Dict[
         str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]

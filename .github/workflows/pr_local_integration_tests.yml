@@ -1,4 +1,5 @@
 name: pr-local-integration-tests
+# This runs local tests with containerized stubs of online stores. This is the main dev workflow
 
 on:
   pull_request_target:
@@ -13,7 +14,6 @@ jobs:
     if:
       (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))
-    needs: build-docker-image
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -60,7 +60,4 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
-        env:
-          FEAST_USAGE: "False"
-          IS_TEST: "True"
         run: make test-python-integration-local

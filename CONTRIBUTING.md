@@ -174,7 +174,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 export SNOWFLAKE_CI_DEPLOYMENT='[snowflake_deployment]'                            
 export SNOWFLAKE_CI_USER='[your user]'
 export SNOWFLAKE_CI_PASSWORD='[your pw]'
-export SNOWFLAKE_CI_ROLE='SYSADMIN'
+export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
 export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
 ```
 
