@@ -102,7 +102,6 @@ func SetupCleanFeatureRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(30)
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
 	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
