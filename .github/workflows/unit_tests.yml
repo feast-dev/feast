@@ -89,8 +89,6 @@ jobs:
 
   unit-test-go:
     runs-on: ubuntu-latest
-    env:
-      PYTHON: "3.8"
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -106,8 +104,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      - name: Install pip-tools
-        run: pip install pip-tools
       - name: Install apache-arrow on ubuntu
         run: |
             sudo apt update

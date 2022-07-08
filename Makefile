@@ -190,6 +190,7 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 
 # Needs feast package to setup the feature store
 test-go: compile-protos-go compile-go-lib
+    pip install -e ".[ci]" \
 	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
 
 format-go:
