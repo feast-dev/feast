@@ -185,7 +185,7 @@ install-protoc-dependencies:
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
 
-compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies install-
+compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
 
 install-local-feast:
