@@ -135,7 +135,10 @@ class PassthroughProvider(Provider):
             )
 
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ) -> None:
         set_usage_attribute("provider", self.__class__.__name__)
         if self.online_store:
@@ -187,7 +190,10 @@ class PassthroughProvider(Provider):
         return result
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pd.DataFrame,
+        self,
+        feature_view: FeatureView,
+        entities: List[Entity],
+        df: pd.DataFrame,
     ):
         set_usage_attribute("provider", self.__class__.__name__)
         table = pa.Table.from_pandas(df)

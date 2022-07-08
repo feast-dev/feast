@@ -9,7 +9,10 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-driver = Entity(name="driver_id", description="driver id",)
+driver = Entity(
+    name="driver_id",
+    description="driver id",
+)
 
 
 driver_hourly_stats_view = FeatureView(

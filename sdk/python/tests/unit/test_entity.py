@@ -27,7 +27,9 @@ def test_join_key_default():
 def test_entity_class_contains_tags():
     with pytest.deprecated_call():
         entity = Entity(
-            "my-entity", description="My entity", tags={"key1": "val1", "key2": "val2"},
+            "my-entity",
+            description="My entity",
+            tags={"key1": "val1", "key2": "val2"},
         )
     assert "key1" in entity.tags.keys() and entity.tags["key1"] == "val1"
     assert "key2" in entity.tags.keys() and entity.tags["key2"] == "val2"

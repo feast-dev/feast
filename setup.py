@@ -25,18 +25,18 @@ from distutils.dir_util import copy_tree
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from setuptools import find_packages, Extension
+from setuptools import Extension, find_packages
 
 try:
     from setuptools import setup
-    from setuptools.command.build_py import build_py
     from setuptools.command.build_ext import build_ext as _build_ext
+    from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
     from setuptools.command.install import install
 
 except ImportError:
-    from distutils.command.build_py import build_py
     from distutils.command.build_ext import build_ext as _build_ext
+    from distutils.command.build_py import build_py
     from distutils.core import setup
 
 NAME = "feast"
@@ -46,7 +46,7 @@ AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
-    "click>=7.0.0,<8.0.2",
+    "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill==0.3.*",
     "fastavro>=1.1.0,<2",
@@ -59,18 +59,18 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1,<2",
-    "pandavro==1.5.*",
+    "pandavro>=1.5.0,<2",
     "protobuf>3.20,<4",
-    "proto-plus==1.20.*",
-    "pyarrow>=4,<7",
+    "proto-plus>=1.20.0,<2",
+    "pyarrow>=4,<9",
     "pydantic>=1,<2",
-    "pygments==2.12.0",
+    "pygments>=2.12.0,<3",
     "PyYAML>=5.4.*,<7",
     "SQLAlchemy[mypy]>1,<2",
-    "tabulate==0.8.*",
+    "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
-    "toml==0.10.*",
-    "tqdm==4.*",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
@@ -126,9 +126,9 @@ GO_REQUIRED = [
 CI_REQUIRED = (
     [
         "build",
-        "cryptography==35.0",
+        "cryptography>=35.0,<36",
         "flake8",
-        "black==19.10b0",
+        "black>=22.6.0,<23",
         "isort>=5,<6",
         "grpcio-tools==1.47.0",
         "grpcio-testing==1.47.0",

@@ -491,7 +491,10 @@ class BaseRegistry(abc.ABC):
     # Saved dataset operations
     @abstractmethod
     def apply_saved_dataset(
-        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+        self,
+        saved_dataset: SavedDataset,
+        project: str,
+        commit: bool = True,
     ):
         """
         Stores a saved dataset metadata with Feast
@@ -581,17 +584,17 @@ class BaseRegistry(abc.ABC):
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Args:
-                name: Name of dataset
-                project: Feast project that this dataset belongs to
-                allow_cache: Whether to allow returning this dataset from a cached registry
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
 
-            Returns:
-                Returns either the specified ValidationReference, or raises an exception if
-                none is found
-            """
+        Returns:
+            Returns either the specified ValidationReference, or raises an exception if
+            none is found
+        """
 
     # TODO: Needs to be implemented.
     def list_validation_references(
@@ -1574,7 +1577,10 @@ class Registry(BaseRegistry):
         raise EntityNotFoundException(name, project)
 
     def apply_saved_dataset(
-        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+        self,
+        saved_dataset: SavedDataset,
+        project: str,
+        commit: bool = True,
     ):
         """
         Stores a saved dataset metadata with Feast
@@ -1692,20 +1698,18 @@ class Registry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Args:
-                name: Name of dataset
-                project: Feast project that this dataset belongs to
-                allow_cache: Whether to allow returning this dataset from a cached registry
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
 
-            Returns:
-                Returns either the specified ValidationReference, or raises an exception if
-                none is found
-            """
-        registry_proto = self._get_registry_proto(
-            project=project, allow_cache=allow_cache
-        )
+        Returns:
+            Returns either the specified ValidationReference, or raises an exception if
+            none is found
+        """
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for validation_reference in registry_proto.validation_references:
             if (
                 validation_reference.name == name

@@ -118,9 +118,13 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
         columns=["order_id", "origin_id", "destination_id"]
     )
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
     )
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
+    )
 
     # Save dataset using reference job and retrieve it
     store.create_saved_dataset(
@@ -149,7 +153,8 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     )
 
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
     )
 
     store.create_saved_dataset(
@@ -158,7 +163,10 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
+    )
 
     with pytest.raises(ValidationFailed) as exc_info:
         job.to_df(

@@ -96,7 +96,7 @@ class BatchMaterializationEngine(ABC):
         entities_to_keep: Sequence[Entity],
     ):
         """This method ensures that any necessary infrastructure or resources needed by the
-         engine are set up ahead of materialization."""
+        engine are set up ahead of materialization."""
 
     @abstractmethod
     def materialize(

@@ -107,7 +107,8 @@ def test_hash():
 
 def test_inputs_parameter_deprecation_in_odfv():
     date_request = RequestSource(
-        name="date_request", schema=[Field(name="some_date", dtype=UnixTimestamp)],
+        name="date_request",
+        schema=[Field(name="some_date", dtype=UnixTimestamp)],
     )
     with pytest.warns(DeprecationWarning):
 

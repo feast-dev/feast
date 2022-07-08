@@ -116,7 +116,10 @@ class KinesisOptions:
     """
 
     def __init__(
-        self, record_format: StreamFormat, region: str, stream_name: str,
+        self,
+        record_format: StreamFormat,
+        region: str,
+        stream_name: str,
     ):
         self.record_format = record_format
         self.region = region

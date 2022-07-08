@@ -799,7 +799,10 @@ def get_latest_feature_values_from_dataframes(
         entity_row, customer_df, "customer_id", "customer_id"
     )
     latest_location_row = get_latest_row(
-        entity_row, location_df, "location_id", "location_id",
+        entity_row,
+        location_df,
+        "location_id",
+        "location_id",
     )
 
     # Since the event timestamp columns may contain timestamps of different timezones,

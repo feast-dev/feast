@@ -56,7 +56,10 @@ def pg_registry():
 
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
-        container=container, predicate=log_string_to_wait_for, timeout=30, interval=10,
+        container=container,
+        predicate=log_string_to_wait_for,
+        timeout=30,
+        interval=10,
     )
     logger.info("Waited for %s seconds until postgres container was up", waited)
     container_port = container.get_exposed_port(5432)
@@ -86,7 +89,10 @@ def mysql_registry():
 
     log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.29'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
     waited = wait_for_logs(
-        container=container, predicate=log_string_to_wait_for, timeout=60, interval=10,
+        container=container,
+        predicate=log_string_to_wait_for,
+        timeout=60,
+        interval=10,
     )
     logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
@@ -106,11 +112,14 @@ def mysql_registry():
     reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    "sql_registry",
+    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
 def test_apply_entity_success(sql_registry):
     entity = Entity(
-        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -163,7 +172,8 @@ def assert_project_uuid(project, project_uuid, sql_registry):
     reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    "sql_registry",
+    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
 def test_apply_feature_view_success(sql_registry):
     # Create Feature Views
@@ -238,7 +248,8 @@ def test_apply_feature_view_success(sql_registry):
     reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    "sql_registry",
+    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
 def test_apply_on_demand_feature_view_success(sql_registry):
     # Create Feature Views
@@ -321,7 +332,8 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    "sql_registry",
+    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
 @pytest.mark.parametrize(
     "request_source_schema",
@@ -336,7 +348,10 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
         created_timestamp_column="timestamp",
     )
 
-    request_source = RequestSource(name="request_source", schema=request_source_schema,)
+    request_source = RequestSource(
+        name="request_source",
+        schema=request_source_schema,
+    )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
 
@@ -445,7 +460,8 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
 )
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "sql_registry", [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    "sql_registry",
+    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
 )
 def test_apply_data_source(sql_registry):
     # Create Feature Views

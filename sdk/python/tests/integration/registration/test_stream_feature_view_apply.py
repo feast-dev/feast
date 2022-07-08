@@ -45,7 +45,9 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
             description="desc",
             aggregations=[
                 Aggregation(
-                    column="dummy_field", function="max", time_window=timedelta(days=1),
+                    column="dummy_field",
+                    function="max",
+                    time_window=timedelta(days=1),
                 ),
                 Aggregation(
                     column="dummy_field2",
@@ -68,7 +70,8 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
         assert stream_feature_views[0] == simple_sfv
 
         features = fs.get_online_features(
-            features=["simple_sfv:dummy_field"], entity_rows=[{"test_key": 1001}],
+            features=["simple_sfv:dummy_field"],
+            entity_rows=[{"test_key": 1001}],
         ).to_dict(include_event_timestamps=True)
 
         assert "test_key" in features
@@ -109,7 +112,9 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
             description="desc",
             aggregations=[
                 Aggregation(
-                    column="dummy_field", function="max", time_window=timedelta(days=1),
+                    column="dummy_field",
+                    function="max",
+                    time_window=timedelta(days=1),
                 ),
                 Aggregation(
                     column="dummy_field2",

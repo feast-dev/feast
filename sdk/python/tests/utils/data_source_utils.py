@@ -16,7 +16,9 @@ def prep_file_source(df, timestamp_field=None) -> Iterator[FileSource]:
         f.close()
         df.to_parquet(f.name)
         file_source = FileSource(
-            file_format=ParquetFormat(), path=f.name, timestamp_field=timestamp_field,
+            file_format=ParquetFormat(),
+            path=f.name,
+            timestamp_field=timestamp_field,
         )
         yield file_source
 
@@ -38,7 +40,10 @@ def simple_bq_source_using_table_arg(df, timestamp_field=None) -> BigQuerySource
     job = client.load_table_from_dataframe(df, table)
     job.result()
 
-    return BigQuerySource(table=table, timestamp_field=timestamp_field,)
+    return BigQuerySource(
+        table=table,
+        timestamp_field=timestamp_field,
+    )
 
 
 def simple_bq_source_using_query_arg(df, timestamp_field=None) -> BigQuerySource:

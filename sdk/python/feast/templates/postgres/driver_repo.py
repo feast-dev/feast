@@ -6,7 +6,10 @@ from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source i
 )
 from feast.types import Float32, Int64
 
-driver = Entity(name="driver_id", join_keys=["driver_id"],)
+driver = Entity(
+    name="driver_id",
+    join_keys=["driver_id"],
+)
 
 
 driver_stats_source = PostgreSQLSource(

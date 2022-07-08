@@ -307,11 +307,12 @@ class UniversalFeatureViews:
 
 
 def construct_universal_feature_views(
-    data_sources: UniversalDataSources, with_odfv: bool = True,
+    data_sources: UniversalDataSources,
+    with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
-    driver_hourly_stats_base_feature_view = create_driver_hourly_stats_batch_feature_view(
-        data_sources.driver
+    driver_hourly_stats_base_feature_view = (
+        create_driver_hourly_stats_batch_feature_view(data_sources.driver)
     )
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
@@ -406,7 +407,8 @@ def construct_test_environment(
         )
     else:
         registry = RegistryConfig(
-            path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
+            path=str(Path(repo_dir_name) / "registry.db"),
+            cache_ttl_seconds=1,
         )
 
     config = RepoConfig(

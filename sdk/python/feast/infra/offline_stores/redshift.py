@@ -192,12 +192,15 @@ class RedshiftOfflineStore(OfflineStore):
             entity_df, redshift_client, config, s3_resource
         )
 
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, entity_df_event_timestamp_col, redshift_client, config,
+            entity_df,
+            entity_df_event_timestamp_col,
+            redshift_client,
+            config,
         )
 
         @contextlib.contextmanager

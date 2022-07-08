@@ -209,7 +209,10 @@ def get_expected_training_df(
                 (f"global_stats__{k}" if full_feature_names else k): global_record.get(
                     k, None
                 )
-                for k in ("num_rides", "avg_ride_length",)
+                for k in (
+                    "num_rides",
+                    "avg_ride_length",
+                )
             }
         )
 
@@ -882,5 +885,7 @@ def assert_frame_equal(expected_df, actual_df, keys):
     )
 
     pd_assert_frame_equal(
-        expected_df, actual_df, check_dtype=False,
+        expected_df,
+        actual_df,
+        check_dtype=False,
     )

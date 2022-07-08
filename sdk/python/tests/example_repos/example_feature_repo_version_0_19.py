@@ -57,7 +57,8 @@ global_stats_feature_view = FeatureView(
 
 
 request_source = RequestDataSource(
-    name="conv_rate_input", schema={"val_to_add": ValueType.INT64},
+    name="conv_rate_input",
+    schema={"val_to_add": ValueType.INT64},
 )
 
 

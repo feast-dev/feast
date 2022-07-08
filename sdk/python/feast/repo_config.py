@@ -272,7 +272,8 @@ class RepoConfig(FeastBaseModel):
             online_config_class(**values["online_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="online_store")], model=RepoConfig,
+                [ErrorWrapper(e, loc="online_store")],
+                model=RepoConfig,
             )
         return values
 
@@ -306,7 +307,8 @@ class RepoConfig(FeastBaseModel):
             offline_config_class(**values["offline_store"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="offline_store")], model=RepoConfig,
+                [ErrorWrapper(e, loc="offline_store")],
+                model=RepoConfig,
             )
 
         return values
@@ -340,7 +342,8 @@ class RepoConfig(FeastBaseModel):
             feature_server_config_class(**values["feature_server"])
         except ValidationError as e:
             raise ValidationError(
-                [ErrorWrapper(e, loc="feature_server")], model=RepoConfig,
+                [ErrorWrapper(e, loc="feature_server")],
+                model=RepoConfig,
             )
 
         return values
@@ -377,7 +380,12 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
+                yaml.safe_load(
+                    self.json(
+                        exclude={"repo_path"},
+                        exclude_unset=True,
+                    )
+                ),
                 f,
                 sort_keys=False,
             )

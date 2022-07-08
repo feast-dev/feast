@@ -151,7 +151,8 @@ def _get_column_names(
 
 
 def _run_pyarrow_field_mapping(
-    table: pyarrow.Table, field_mapping: Dict[str, str],
+    table: pyarrow.Table,
+    field_mapping: Dict[str, str],
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     cols = table.column_names
@@ -163,7 +164,8 @@ def _run_pyarrow_field_mapping(
 
 
 def _run_dask_field_mapping(
-    table: dd.DataFrame, field_mapping: Dict[str, str],
+    table: dd.DataFrame,
+    field_mapping: Dict[str, str],
 ):
     if field_mapping:
         # run field mapping in the forward direction

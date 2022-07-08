@@ -74,7 +74,10 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
         Tear down all cloud resources for a repo.
@@ -114,7 +117,10 @@ class Provider(abc.ABC):
         ...
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pd.DataFrame,
+        self,
+        feature_view: FeatureView,
+        entities: List[Entity],
+        df: pd.DataFrame,
     ):
         """
         Ingests a DataFrame directly into the online store
@@ -122,7 +128,9 @@ class Provider(abc.ABC):
         pass
 
     def ingest_df_to_offline_store(
-        self, feature_view: FeatureView, df: pyarrow.Table,
+        self,
+        feature_view: FeatureView,
+        df: pyarrow.Table,
     ):
         """
         Ingests a DataFrame directly into the offline store

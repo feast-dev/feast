@@ -24,7 +24,7 @@ certifi==2022.6.15
     # via requests
 charset-normalizer==2.1.0
     # via requests
-click==8.0.1
+click==8.1.3
     # via
     #   bowler
     #   feast (setup.py)
@@ -40,7 +40,7 @@ dill==0.3.5.1
     # via feast (setup.py)
 fastapi==0.79.0
     # via feast (setup.py)
-fastavro==1.5.2
+fastavro==1.5.1
     # via
     #   feast (setup.py)
     #   pandavro
@@ -57,6 +57,8 @@ googleapis-common-protos==1.56.4
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
+greenlet==1.1.2
+    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
@@ -95,11 +97,11 @@ numpy==1.23.1
     #   pyarrow
 packaging==21.3
     # via dask
-pandas==1.4.3
+pandas==1.2.5
     # via
     #   feast (setup.py)
     #   pandavro
-pandavro==1.5.2
+pandavro==1.7.0
     # via feast (setup.py)
 partd==1.2.0
     # via dask
@@ -113,7 +115,7 @@ protobuf==3.20.1
     #   grpcio-reflection
     #   proto-plus
     #   tensorflow-metadata
-pyarrow==6.0.1
+pyarrow==8.0.0
     # via feast (setup.py)
 pyasn1==0.4.8
     # via
@@ -150,7 +152,6 @@ six==1.16.0
     # via
     #   google-auth
     #   grpcio
-    #   pandavro
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
