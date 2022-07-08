@@ -114,6 +114,7 @@ jobs:
             sudo apt install -y -V libarrow-dev
       - name: Install dependencies
         run: |
+          make install-python-ci-dependencies
           make install-protoc-dependencies
           make compile-go-lib
       - name: Compile protos
