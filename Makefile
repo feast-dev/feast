@@ -172,12 +172,12 @@ install-go-proto-dependencies:
 install-go-ci-dependencies:
 	# TODO: currently gopy installation doesn't work w/o explicit go get in the next line
 	# TODO: there should be a better way to install gopy
-	go get github.com/go-python/gopy@v0.4.0
+	go get github.com/go-python/gopy@v0.4.4
 	go install golang.org/x/tools/cmd/goimports
 	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
 	# but the following command is needed to install it for some reason.
 	go install github.com/go-python/gopy
-	python -m pip install pybindgen==0.22.0
+	python -m pip install pybindgen==0.22.0 protobuf==3.20.1
 
 install-protoc-dependencies:
 	pip install grpcio-tools==1.47.0 mypy-protobuf==3.1.0
@@ -186,18 +186,21 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	COMPILE_GO=True python setup.py build_ext --inplace
+	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
+
+install-feast-ci-locally:
+	pip install -e ".[ci]"
 
 # Needs feast package to setup the feature store
-test-go: compile-protos-go
-	pip install -e ".[ci]"
-	go test ./...
+# CGO flag is due to this issue: https://github.com/golang/go/wiki/InvalidFlag
+test-go: compile-protos-go compile-go-lib install-feast-ci-locally
+	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
 
 format-go:
 	gofmt -s -w go/
 
-lint-go: compile-protos-go
-	go vet ./go/internal/feast ./go/embedded
+lint-go: compile-protos-go compile-go-lib
+	go vet -tags cgo,ccalloc ./go/internal/feast ./go/embedded
 
 # Docker
 
