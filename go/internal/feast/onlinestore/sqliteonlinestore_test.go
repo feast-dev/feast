@@ -37,9 +37,9 @@ func TestSqliteOnlineRead(t *testing.T) {
 	dir := t.TempDir()
 	feature_repo_path := filepath.Join(dir, "feature_repo")
 	test.SetupCleanFeatureRepo(dir)
-
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
+
 	store, err := NewSqliteOnlineStore("feature_repo", config, config.OnlineStore)
 	defer store.Destruct()
 	assert.Nil(t, err)
@@ -51,7 +51,7 @@ func TestSqliteOnlineRead(t *testing.T) {
 		JoinKeys:     []string{"driver_id"},
 		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}},
 	}
-entity_key3 := types.EntityKey{
+	entity_key3 := types.EntityKey{
 		JoinKeys:     []string{"driver_id"},
 		EntityValues: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1003}}},
 	}
