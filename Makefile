@@ -188,11 +188,11 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
 
-install-local-feast:
+install-feast-ci-locally:
 	pip install -e ".[ci]"
 
 # Needs feast package to setup the feature store
-test-go: compile-protos-go compile-go-lib install-local-feast
+test-go: compile-protos-go compile-go-lib install-feast-ci-locally
 	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
 
 format-go:
