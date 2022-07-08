@@ -121,7 +121,5 @@ jobs:
           make install-python-ci-dependencies
           make install-protoc-dependencies
           make compile-go-lib
-      - name: Compile protos
-        run: make compile-protos-go
       - name: Test
         run: make test-go
