@@ -189,14 +189,14 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
-test-go: compile-go-lib
+test-go: compile-protos-go compile-go-lib
 	go test -tags cgo,ccalloc ./...
 
 format-go:
 	gofmt -s -w go/
 
-lint-go: compile-protos-go
-	go vet ./go/internal/feast ./go/embedded
+lint-go: compile-protos-go compile-go-lib
+	go vet -tags cgo,ccalloc ./go/internal/feast ./go/embedded
 
 # Docker
 
