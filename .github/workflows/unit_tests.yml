@@ -90,7 +90,7 @@ jobs:
   unit-test-go:
     runs-on: ubuntu-latest
     env:
-      PYTHON: ${{ matrix.python-version }}
+      PYTHON: "3.8"
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
