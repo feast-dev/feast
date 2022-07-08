@@ -71,6 +71,7 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
+            sudo apt install -y -V libarrow-glib-dev # For GLib (C)
       - name: Install apache-arrow on macos
         if: matrix.os == 'macOS-latest'
         run: brew install apache-arrow
