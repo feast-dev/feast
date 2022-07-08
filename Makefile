@@ -189,8 +189,7 @@ compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	COMPILE_GO=True python setup.py build_ext --inplace
 
 # Needs feast package to setup the feature store
-test-go: compile-protos-go
-	pip install -e ".[ci]"
+test-go: install-python-ci-dependencies compile-go-lib
 	go test ./...
 
 format-go:

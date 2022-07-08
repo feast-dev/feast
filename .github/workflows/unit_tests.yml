@@ -116,10 +116,5 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
-      - name: Install dependencies
-        run: |
-          make install-python-ci-dependencies
-          make install-protoc-dependencies
-          make compile-go-lib
       - name: Test
         run: make test-go
