@@ -265,8 +265,6 @@ googleapis-common-protos==1.56.3
     #   tensorflow-metadata
 great-expectations==0.14.13
     # via feast (setup.py)
-greenlet==1.1.2
-    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
