@@ -71,7 +71,6 @@ class SnowflakeOnlineStore(OnlineStore):
 
         dfs = [None] * len(data)
         for i, (entity_key, values, timestamp, created_ts) in enumerate(data):
-
             df = pd.DataFrame(
                 columns=[
                     "entity_feature_key",
@@ -106,7 +105,6 @@ class SnowflakeOnlineStore(OnlineStore):
             agg_df = pd.concat(dfs)
 
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
-
                 write_pandas_binary(conn, agg_df, f"{config.project}_{table.name}")
 
                 query = f"""
