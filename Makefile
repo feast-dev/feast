@@ -68,8 +68,26 @@ test-python:
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
+test-python-integration-local:
+	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		FEAST_IS_LOCAL_TEST=True \
+		FEAST_LOCAL_ONLINE_CONTAINER=True \
+		python -m pytest -n 8 --integration \
+			-k "not test_apply_entity_integration and \
+				not test_apply_feature_view_integration and \
+				not test_apply_data_source_integration" \
+		sdk/python/tests \
+	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
+
 test-python-integration-container:
-	FEAST_USAGE=False IS_TEST=True FEAST_LOCAL_ONLINE_CONTAINER=True python -m pytest -n 8 --integration sdk/python/tests
+	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		FEAST_LOCAL_ONLINE_CONTAINER=True \
+		python -m pytest -n 8 --integration sdk/python/tests \
+	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
 test-python-universal-contrib:
 	PYTHONPATH='.' \
@@ -104,14 +122,11 @@ test-python-universal-postgres:
 				not test_universal_types" \
 			sdk/python/tests
 
-test-python-universal-local:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest -n 8 --integration sdk/python/tests
-
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-go-server: compile-go-lib
-	FEAST_USAGE=False IS_TEST=True FEAST_GO_FEATURE_RETRIEVAL=True pytest --integration --goserver sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True pytest --integration --goserver sdk/python/tests
 
 format-python:
 	# Sort
