@@ -62,18 +62,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
-      - name: Install apache-arrow on ubuntu
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V libarrow-dev
-      - name: Install apache-arrow on macos
-        if: matrix.os == 'macOS-latest'
-        run: brew install apache-arrow
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.7.0
         env:
@@ -86,7 +74,12 @@ jobs:
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go version
+            yum -y update &&
+            yum install -y epel-release || yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1).noarch.rpm &&
+            yum install -y https://apache.jfrog.io/artifactory/arrow/centos/$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1)/apache-arrow-release-latest.rpm &&
+            yum install -y --enablerepo=epel arrow-devel # For C++
           CIBW_BEFORE_ALL_MACOS: |
+            brew install apache-arrow
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
             sudo installer -pkg python.pkg -target /
           # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
@@ -111,6 +104,7 @@ jobs:
           CIBW_BEFORE_BUILD: |
             git status
             git restore go.mod go.sum
+            brew install apache-arrow
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
