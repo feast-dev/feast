@@ -25,12 +25,16 @@ jobs:
         run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
 
   integration-test-python:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' or 'lgtm' for security purposes.
     needs: [check_date]
-    runs-on: ${{ env.OS }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.8" ]
+        os: [ ubuntu-latest ]
     env:
-      OS: "ubuntu-latest"
-      PYTHON: "3.7"
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     services:
       redis:
         image: redis
@@ -41,7 +45,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    steps:
+     steps:
       - uses: actions/checkout@v2
         with:
           # pull_request_target runs the workflow in the context of the base repo
@@ -53,13 +57,13 @@ jobs:
         uses: actions/setup-python@v2
         id: setup-python
         with:
-          python-version: ${{ env.PYTHON }}
+          python-version: ${{ os.PYTHON }}
           architecture: x64
       - name: Setup Go
         id: setup-go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.7
+          go-version: 1.18.0
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -78,7 +82,7 @@ jobs:
         run: aws sts get-caller-identity
       - name: Upgrade pip version
         run: |
-          pip install --upgrade "pip>=21.3.1"
+          pip install --upgrade "pip>=21.3.1,<22.1"
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -95,6 +99,18 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V libarrow-dev
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: brew install apache-arrow
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Setup Redis Cluster
@@ -104,6 +120,7 @@ jobs:
       - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
           FEAST_USAGE: "False"
           IS_TEST: "True"
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
@@ -111,4 +128,13 @@ jobs:
           SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
           SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: pytest -n 8 --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration --durations=5
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: integrationtests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          verbose: true
