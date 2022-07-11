@@ -60,8 +60,8 @@ jobs:
         with:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'
-      - name: Build UI
-        run: make build-ui
+      # - name: Build UI
+      #   run: make build-ui
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.7.0
         env:
@@ -70,14 +70,14 @@ jobs:
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: >
+          CIBW_BEFORE_ALL_LINUX: |
+            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go version
             yum -y update &&
             yum install -y epel-release || yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1).noarch.rpm &&
             yum install -y https://apache.jfrog.io/artifactory/arrow/centos/$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1)/apache-arrow-release-latest.rpm &&
-            yum install -y --enablerepo=epel arrow-devel # For C++ &&
-            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz &&
-            tar -C /usr/local -xzf go.tar.gz &&
-            go version
+            yum install -y --enablerepo=epel arrow-devel # For C++
           CIBW_BEFORE_ALL_MACOS: |
             brew install apache-arrow
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
