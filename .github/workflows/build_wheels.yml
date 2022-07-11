@@ -72,10 +72,9 @@ jobs:
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
           CIBW_BEFORE_ALL_LINUX: >
             yum -y update &&
-            yum -y install ca-certificates redhat-lsb-core wget &&
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb &&
-            yum -y install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb &&
-            yum -y install libarrow-dev # For C++ &&
+            yum install -y epel-release || yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1).noarch.rpm &&
+            yum install -y https://apache.jfrog.io/artifactory/arrow/centos/$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1)/apache-arrow-release-latest.rpm &&
+            yum install -y --enablerepo=epel arrow-devel # For C++ &&
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz &&
             tar -C /usr/local -xzf go.tar.gz &&
             go version
