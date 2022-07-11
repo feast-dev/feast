@@ -194,7 +194,7 @@ class SnowflakeOnlineStore(OnlineStore):
             for table in tables_to_keep:
 
                 conn.cursor().execute(
-                    f"""CREATE TABLE IF NOT EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}" (
+                    f"""CREATE TRANSIENT TABLE IF NOT EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}" (
                         "entity_feature_key" BINARY,
                         "entity_key" BINARY,
                         "feature_name" VARCHAR,
