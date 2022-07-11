@@ -571,7 +571,18 @@ def test_apply_feature_view_integration(test_registry):
 @pytest.mark.parametrize(
     "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
+def test_apply_data_source_integration(test_registry: Registry):
+    run_test_data_source_apply(test_registry)
+
+
+@pytest.mark.parametrize(
+    "test_registry", [lazy_fixture("local_registry")],
+)
 def test_apply_data_source(test_registry: Registry):
+    run_test_data_source_apply(test_registry)
+
+
+def run_test_data_source_apply(test_registry: Registry):
     # Create Feature Views
     batch_source = FileSource(
         name="test_source",

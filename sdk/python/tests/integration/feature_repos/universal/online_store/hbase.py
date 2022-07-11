@@ -19,7 +19,7 @@ class HbaseOnlineStoreCreator(OnlineStoreCreator):
             "Initializing Hbase Local with the following configuration:"
         )
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=5
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         exposed_port = self.container.get_exposed_port("9090")
         return {"type": "hbase", "host": "127.0.0.1", "port": exposed_port}
