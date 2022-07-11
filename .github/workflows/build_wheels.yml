@@ -72,7 +72,7 @@ jobs:
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
           CIBW_BEFORE_ALL_LINUX: >
             yum -y update &&
-            yum -y install ca-certificates lsb-release wget &&
+            yum -y install ca-certificates redhat-lsb-core wget &&
             wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb &&
             yum -y install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb &&
             yum -y install libarrow-dev # For C++ &&
