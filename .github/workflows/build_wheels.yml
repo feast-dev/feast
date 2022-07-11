@@ -74,12 +74,12 @@ jobs:
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go version
-            apt-get update
-            apt-get install -y -V ca-certificates lsb-release wget
+            yum update
+            yum install -y -V ca-certificates lsb-release wget
             wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            apt-get install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            apt-get update
-            apt-get install -y -V libarrow-dev # For C++
+            yum install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            yum update
+            yum install -y -V libarrow-dev # For C++
           CIBW_BEFORE_ALL_MACOS: |
             brew install apache-arrow
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
