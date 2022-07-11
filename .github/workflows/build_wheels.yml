@@ -71,13 +71,12 @@ jobs:
           CIBW_ENVIRONMENT: >
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
           CIBW_BEFORE_ALL_LINUX: |
+            yum clean all
+            rpm --rebuilddb
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go version
-            yum clean all
-            rpm --rebuilddb
-            yum update
-            yum install -y ca-certificates lsb-release wget
+            yum update && yum install -y ca-certificates lsb-release wget
             wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             yum install -y ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             yum install -y libarrow-dev # For C++
