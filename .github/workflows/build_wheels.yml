@@ -60,8 +60,8 @@ jobs:
         with:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'
-      - name: Build UI
-        run: make build-ui
+      # - name: Build UI
+      #   run: make build-ui
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.7.0
         env:
@@ -74,12 +74,10 @@ jobs:
             curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go version
-            yum update
-            yum install -y -V ca-certificates lsb-release wget
+            yum install -y ca-certificates lsb-release wget
             wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            yum install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            yum update
-            yum install -y -V libarrow-dev # For C++
+            yum install -y ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            yum install -y libarrow-dev # For C++
           CIBW_BEFORE_ALL_MACOS: |
             brew install apache-arrow
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
