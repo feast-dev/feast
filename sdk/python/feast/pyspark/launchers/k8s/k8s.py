@@ -87,7 +87,7 @@ class KubernetesJobMixin:
         _cancel_job_by_id(self._api, self._namespace, self._job_id)
 
     def _wait_for_complete(self, timeout_seconds: Optional[float]) -> bool:
-        """ Returns true if the job completed successfully """
+        """Returns true if the job completed successfully"""
         start_time = time.time()
         while (timeout_seconds is None) or (time.time() - start_time < timeout_seconds):
             status = self.get_status()

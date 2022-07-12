@@ -27,6 +27,7 @@ import "feast/core/Entity.proto";
 import "feast/core/Feature.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
+import "feast/core/OnlineStore.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
@@ -106,6 +107,18 @@ service CoreService {
     // Delete a specific feature table
     rpc DeleteFeatureTable (DeleteFeatureTableRequest) returns (DeleteFeatureTableResponse);
 
+    // Lists all online stores
+    rpc ListOnlineStores (ListOnlineStoresRequest) returns (ListOnlineStoresResponse);
+
+    // Returns a specific online stores
+    rpc GetOnlineStore (GetOnlineStoreRequest) returns (GetOnlineStoreResponse);
+
+    // Registers new online store to feast core
+    // or updates properties for existing online store
+    rpc RegisterOnlineStore (RegisterOnlineStoreRequest) returns (RegisterOnlineStoreResponse);
+
+    // Archives an online store to mark it deprecated
+    rpc ArchiveOnlineStore (ArchiveOnlineStoreRequest) returns (ArchiveOnlineStoreResponse);
 }
 
 // Request for a single entity
@@ -152,7 +165,7 @@ message ListFeaturesRequest {
         // Only feature tables with these entities will be searched for features.
         repeated string entities = 2;
 
-        // Name of project that the feature tables belongs to. Filtering on projects is disabled. 
+        // Name of project that the feature tables belongs to. Filtering on projects is disabled.
         // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
         // If unspecified this field will default to the default project 'default'.
         string project = 3;
@@ -304,3 +317,56 @@ message DeleteFeatureTableRequest {
 }
 
 message DeleteFeatureTableResponse {}
+
+message ListOnlineStoresRequest {
+}
+
+message ListOnlineStoresResponse {
+    repeated feast.core.OnlineStore online_store = 1;
+}
+
+message GetOnlineStoreRequest {
+    string name = 1;
+}
+
+message GetOnlineStoreResponse {
+    enum Status {
+        // Requested online store is active
+        ACTIVE = 0;
+
+        // Requested online store is archived
+        ARCHIVED = 1;
+    }
+
+    feast.core.OnlineStore online_store = 1;
+    Status status = 2;
+}
+
+message RegisterOnlineStoreRequest {
+    feast.core.OnlineStore online_store = 1;
+}
+
+message RegisterOnlineStoreResponse {
+    enum Status {
+        // Existing store properties matching the given online store is identical to the given request
+        NO_CHANGE = 0;
+
+        // New online store created or existing properties updated.
+        REGISTERED = 1;
+
+        // Existing online store updated.
+        UPDATED = 2;
+    }
+    feast.core.OnlineStore online_store = 1;
+    Status status = 2;
+}
+
+// Request for the archival of an online store
+message ArchiveOnlineStoreRequest {
+    // Name of online store to be archived
+    string name = 1;
+}
+
+// Response for archival of an online store
+message ArchiveOnlineStoreResponse {
+}

@@ -99,7 +99,7 @@ class Feature:
 
 
 class FeatureRef:
-    """ Feature Reference represents a reference to a specific feature. """
+    """Feature Reference represents a reference to a specific feature."""
 
     def __init__(self, name: str, feature_table: str = None):
         self.proto = FeatureRefProto(name=name, feature_table=feature_table)

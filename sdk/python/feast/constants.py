@@ -72,7 +72,7 @@ MAX_WAIT_INTERVAL: str = "60"
 
 
 class ConfigOptions(metaclass=ConfigMeta):
-    """ Feast Configuration Options """
+    """Feast Configuration Options"""
 
     #: Feast project namespace to use
     PROJECT: str = "default"

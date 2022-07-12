@@ -35,7 +35,7 @@ LOCAL_FILE = "file"
 
 
 def _hash_fileobj(fileobj: IO[bytes]) -> str:
-    """ Compute sha256 hash of a file. File pointer will be reset to 0 on return. """
+    """Compute sha256 hash of a file. File pointer will be reset to 0 on return."""
     fileobj.seek(0)
     h = hashlib.sha256()
     for block in iter(lambda: fileobj.read(2 ** 20), b""):
@@ -212,7 +212,7 @@ class GCSClient(AbstractStagingClient):
 
 class S3Client(AbstractStagingClient):
     """
-       Implementation of AbstractStagingClient for Aws S3 storage
+    Implementation of AbstractStagingClient for Aws S3 storage
     """
 
     def __init__(self, endpoint_url: str = None, url_scheme="s3"):
@@ -315,7 +315,7 @@ class S3Client(AbstractStagingClient):
 
 class AzureBlobClient(AbstractStagingClient):
     """
-       Implementation of AbstractStagingClient for Azure Blob storage
+    Implementation of AbstractStagingClient for Azure Blob storage
     """
 
     def __init__(self, account_name: str, account_access_key: str):
@@ -403,8 +403,8 @@ class AzureBlobClient(AbstractStagingClient):
 
 class LocalFSClient(AbstractStagingClient):
     """
-       Implementation of AbstractStagingClient for local file
-       Note: The is used for E2E tests.
+    Implementation of AbstractStagingClient for local file
+    Note: The is used for E2E tests.
     """
 
     def __init__(self):

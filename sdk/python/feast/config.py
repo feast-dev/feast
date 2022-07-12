@@ -139,41 +139,41 @@ class Config:
 
     def getboolean(self, option, default=_UNSET):
         """
-         Returns a single configuration option as a boolean
+        Returns a single configuration option as a boolean
 
-         Args:
-             option: Name of the option
-             default: Default value to return if option is not found
+        Args:
+            option: Name of the option
+            default: Default value to return if option is not found
 
-         Returns: Boolean option value that is returned
+        Returns: Boolean option value that is returned
 
-         """
+        """
         return self._get(option, default, self._config.getboolean)
 
     def getint(self, option, default=_UNSET):
         """
-         Returns a single configuration option as an integer
+        Returns a single configuration option as an integer
 
-         Args:
-             option: Name of the option
-             default: Default value to return if option is not found
+        Args:
+            option: Name of the option
+            default: Default value to return if option is not found
 
-         Returns: Integer option value that is returned
+        Returns: Integer option value that is returned
 
-         """
+        """
         return self._get(option, default, self._config.getint)
 
     def getfloat(self, option, default=_UNSET):
         """
-         Returns a single configuration option as an integer
+        Returns a single configuration option as an integer
 
-         Args:
-             option: Name of the option
-             default: Default value to return if option is not found
+        Args:
+            option: Name of the option
+            default: Default value to return if option is not found
 
-         Returns: Float option value that is returned
+        Returns: Float option value that is returned
 
-         """
+        """
         return self._get(option, default, self._config.getfloat)
 
     def set(self, option, value):

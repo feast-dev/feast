@@ -32,24 +32,28 @@ from feast.core.CoreService_pb2 import (
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
     ApplyFeatureTableResponse,
+    ArchiveOnlineStoreRequest,
+    ArchiveOnlineStoreResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     DeleteFeatureTableRequest,
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureTableRequest,
     GetFeatureTableResponse,
+    GetOnlineStoreRequest,
     ListEntitiesRequest,
     ListEntitiesResponse,
     ListFeaturesRequest,
     ListFeaturesResponse,
     ListFeatureTablesRequest,
     ListFeatureTablesResponse,
+    ListOnlineStoresRequest,
     ListProjectsRequest,
     ListProjectsResponse,
+    RegisterOnlineStoreRequest,
+    RegisterOnlineStoreResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2 import (
@@ -76,6 +80,7 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.online_store import OnlineStore
 from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
     get_job_by_id,
@@ -1298,3 +1303,41 @@ class Client:
         self, df: pd.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
         return stage_dataframe(df, event_timestamp_column, self._config)
+
+    def register_online_store(
+        self, online_store: OnlineStore
+    ) -> RegisterOnlineStoreResponse:
+        try:
+            response = self._core_service.RegisterOnlineStore(
+                RegisterOnlineStoreRequest(online_store=online_store.to_proto())
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return response
+
+    def list_online_stores(self) -> List[OnlineStore]:
+        try:
+            response = self._core_service.ListOnlineStores(ListOnlineStoresRequest())
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return [OnlineStore.from_proto(proto) for proto in response.online_store]
+
+    def get_online_store(self, name: str) -> OnlineStore:
+        try:
+            response = self._core_service.GetOnlineStore(
+                GetOnlineStoreRequest(name=name)
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return OnlineStore.from_proto(response.online_store)
+
+    def archive_online_store(self, name: str) -> ArchiveOnlineStoreResponse:
+        try:
+            response = self._core_service.ArchiveOnlineStore(
+                ArchiveOnlineStoreRequest(name=name)
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return response

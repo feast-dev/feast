@@ -84,6 +84,26 @@ class CoreServiceStub(object):
                 request_serializer=feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableRequest.SerializeToString,
                 response_deserializer=feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableResponse.FromString,
                 )
+        self.ListOnlineStores = channel.unary_unary(
+                '/feast.core.CoreService/ListOnlineStores',
+                request_serializer=feast_dot_core_dot_CoreService__pb2.ListOnlineStoresRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_CoreService__pb2.ListOnlineStoresResponse.FromString,
+                )
+        self.GetOnlineStore = channel.unary_unary(
+                '/feast.core.CoreService/GetOnlineStore',
+                request_serializer=feast_dot_core_dot_CoreService__pb2.GetOnlineStoreRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_CoreService__pb2.GetOnlineStoreResponse.FromString,
+                )
+        self.RegisterOnlineStore = channel.unary_unary(
+                '/feast.core.CoreService/RegisterOnlineStore',
+                request_serializer=feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreResponse.FromString,
+                )
+        self.ArchiveOnlineStore = channel.unary_unary(
+                '/feast.core.CoreService/ArchiveOnlineStore',
+                request_serializer=feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreResponse.FromString,
+                )
 
 
 class CoreServiceServicer(object):
@@ -223,6 +243,35 @@ class CoreServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListOnlineStores(self, request, context):
+        """Lists all online stores
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetOnlineStore(self, request, context):
+        """Returns a specific online stores
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RegisterOnlineStore(self, request, context):
+        """Registers new online store to feast core
+        or updates properties for existing online store
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ArchiveOnlineStore(self, request, context):
+        """Archives an online store to mark it deprecated
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -295,6 +344,26 @@ def add_CoreServiceServicer_to_server(servicer, server):
                     servicer.DeleteFeatureTable,
                     request_deserializer=feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableRequest.FromString,
                     response_serializer=feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableResponse.SerializeToString,
+            ),
+            'ListOnlineStores': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListOnlineStores,
+                    request_deserializer=feast_dot_core_dot_CoreService__pb2.ListOnlineStoresRequest.FromString,
+                    response_serializer=feast_dot_core_dot_CoreService__pb2.ListOnlineStoresResponse.SerializeToString,
+            ),
+            'GetOnlineStore': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetOnlineStore,
+                    request_deserializer=feast_dot_core_dot_CoreService__pb2.GetOnlineStoreRequest.FromString,
+                    response_serializer=feast_dot_core_dot_CoreService__pb2.GetOnlineStoreResponse.SerializeToString,
+            ),
+            'RegisterOnlineStore': grpc.unary_unary_rpc_method_handler(
+                    servicer.RegisterOnlineStore,
+                    request_deserializer=feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreRequest.FromString,
+                    response_serializer=feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreResponse.SerializeToString,
+            ),
+            'ArchiveOnlineStore': grpc.unary_unary_rpc_method_handler(
+                    servicer.ArchiveOnlineStore,
+                    request_deserializer=feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreRequest.FromString,
+                    response_serializer=feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -541,5 +610,73 @@ class CoreService(object):
         return grpc.experimental.unary_unary(request, target, '/feast.core.CoreService/DeleteFeatureTable',
             feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableRequest.SerializeToString,
             feast_dot_core_dot_CoreService__pb2.DeleteFeatureTableResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListOnlineStores(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.core.CoreService/ListOnlineStores',
+            feast_dot_core_dot_CoreService__pb2.ListOnlineStoresRequest.SerializeToString,
+            feast_dot_core_dot_CoreService__pb2.ListOnlineStoresResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetOnlineStore(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.core.CoreService/GetOnlineStore',
+            feast_dot_core_dot_CoreService__pb2.GetOnlineStoreRequest.SerializeToString,
+            feast_dot_core_dot_CoreService__pb2.GetOnlineStoreResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RegisterOnlineStore(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.core.CoreService/RegisterOnlineStore',
+            feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreRequest.SerializeToString,
+            feast_dot_core_dot_CoreService__pb2.RegisterOnlineStoreResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ArchiveOnlineStore(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.core.CoreService/ArchiveOnlineStore',
+            feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreRequest.SerializeToString,
+            feast_dot_core_dot_CoreService__pb2.ArchiveOnlineStoreResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

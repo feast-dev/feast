@@ -126,8 +126,8 @@ def _sync_offline_to_online_step(
 
 
 class EmrJobRef(NamedTuple):
-    """ EMR job reference. step_id can be None when using on-demand clusters, in that case each
-    cluster has only one step """
+    """EMR job reference. step_id can be None when using on-demand clusters, in that case each
+    cluster has only one step"""
 
     cluster_id: str
     step_id: Optional[str]
