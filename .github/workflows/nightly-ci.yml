@@ -4,11 +4,6 @@ on:
   schedule:
     - cron: '00 08 * * *'  # early morning 08:00 AM UTC, which is 1 AM PST/4 AM EST.
 
-# concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
-#concurrency:
-#  group: pr-integration-tests-${{ github.event.pull_request.number }}
-#  cancel-in-progress: true
-
 jobs:
   check_date:
     runs-on: ubuntu-latest
