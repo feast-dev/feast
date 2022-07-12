@@ -110,7 +110,10 @@ def pytest_collection_modifyitems(config, items: List[Item]):
             items.append(t)
 
     goserver_tests = [t for t in items if "goserver" in t.keywords]
-    if should_run_goserver:
+    if not should_run_goserver:
+        for t in goserver_tests:
+            items.remove(t)
+    else:
         items.clear()
         for t in goserver_tests:
             items.append(t)
