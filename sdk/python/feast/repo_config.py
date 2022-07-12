@@ -30,6 +30,12 @@ _logger = logging.getLogger(__name__)
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
+BATCH_ENGINE_CLASS_FOR_TYPE = {
+    "local": "feast.infra.materialization.LocalMaterializationEngine",
+    "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
+}
+
+
 ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
@@ -120,7 +126,7 @@ class RepoConfig(FeastBaseModel):
     _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
-    batch_engine_config: Any = Field(alias="batch_engine")
+    _batch_engine_config: Any = Field(alias="batch_engine")
     """ BatchMaterializationEngine: Batch materialization configuration (optional depending on provider)"""
 
     feature_server: Optional[Any]
@@ -160,10 +166,12 @@ class RepoConfig(FeastBaseModel):
 
         self._batch_engine = None
         if "batch_engine" in data:
-            self.batch_engine_config = data["batch_engine"]
+            self._batch_engine_config = data["batch_engine"]
+        elif "batch_engine_config" in data:
+            self._batch_engine_config = data["batch_engine_config"]
         else:
             # Defaults to using local in-process materialization engine.
-            self.batch_engine_config = "local"
+            self._batch_engine_config = "local"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
@@ -204,6 +212,20 @@ class RepoConfig(FeastBaseModel):
                 self._online_store = self._online_config
 
         return self._online_store
+
+    @property
+    def batch_engine(self):
+        if not self._batch_engine:
+            if isinstance(self._batch_engine_config, Dict):
+                self._batch_engine = get_batch_engine_config_from_type(
+                    self._batch_engine_config["type"]
+                )(**self._batch_engine_config)
+            elif isinstance(self._online_config, str):
+                self._batch_engine = get_batch_engine_config_from_type(self._online_config)()
+            elif self._online_config:
+                self._batch_engine = self._batch_engine
+
+        return self._batch_engine
 
     @root_validator(pre=True)
     @log_exceptions
@@ -380,6 +402,17 @@ class FeastConfigError(Exception):
 def get_data_source_class_from_type(data_source_type: str):
     module_name, config_class_name = data_source_type.rsplit(".", 1)
     return import_class(module_name, config_class_name, "DataSource")
+
+
+def get_batch_engine_config_from_type(batch_engine_type: str):
+    if batch_engine_type in BATCH_ENGINE_CLASS_FOR_TYPE:
+        batch_engine_type = BATCH_ENGINE_CLASS_FOR_TYPE[batch_engine_type]
+    else:
+        assert batch_engine_type.endswith("Engine")
+    module_name, batch_engine_class_type = batch_engine_type.rsplit(".", 1)
+    config_class_name = f"{batch_engine_class_type}Config"
+
+    return import_class(module_name, config_class_name, config_class_name)
 
 
 def get_online_config_from_type(online_store_type: str):

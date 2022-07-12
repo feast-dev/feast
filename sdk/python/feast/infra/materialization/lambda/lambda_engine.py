@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union
@@ -27,6 +28,8 @@ from feast.utils import _get_column_names
 from feast.version import get_version
 
 DEFAULT_BATCH_SIZE = 10_000
+
+logger = logging.getLogger(__name__)
 
 
 class LambdaMaterializationEngineConfig(FeastConfigBaseModel):
@@ -67,6 +70,9 @@ class LambdaMaterializationJob(MaterializationJob):
 
 
 class LambdaMaterializationEngine(BatchMaterializationEngine):
+    """
+    WARNING: This engine should be considered "Alpha" functionality.
+    """
     def update(
         self,
         project: str,
@@ -80,11 +86,11 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities_to_keep: Sequence[Entity],
     ):
         # This should be setting up the lambda function.
-        self.lambda_client.create_function(
+        r = self.lambda_client.create_function(
             FunctionName=self.lambda_name,
             PackageType="Image",
-            Role=self.repo_config.offline_store.lambda_role,
-            Code={"ImageUri": self.repo_config.offline_store.materialization_image},
+            Role=self.repo_config.batch_engine.lambda_role,
+            Code={"ImageUri": self.repo_config.batch_engine.materialization_image},
             Timeout=600,
             Tags={
                 "feast-owned": "True",
@@ -92,6 +98,12 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 "feast-sdk-version": get_version(),
             },
         )
+        logger.info("Creating lambda function %s, %s", self.lambda_name, r)
+
+        logger.info("Waiting for function %s to be active", self.lambda_name)
+        waiter = self.lambda_client.get_waiter('function_active')
+        waiter.wait(FunctionName=self.lambda_name)
+
 
     def teardown_infra(
         self,
@@ -100,7 +112,8 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
-        self.lambda_client.delete_function(FunctionName=self.lambda_name)
+        r = self.lambda_client.delete_function(FunctionName=self.lambda_name)
+        logger.info("Tearing down lambda %s: %s", self.lambda_name, r)
 
     def __init__(
         self,
@@ -124,6 +137,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         )
 
         self.lambda_name = f"feast-materialize-{self.repo_config.project}"
+        # self.lambda_name = "feast-lambda-consumer"
         self.lambda_client = boto3.client("lambda")
 
     def materialize(
@@ -187,10 +201,11 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
 
             response = self.lambda_client.invoke(
                 FunctionName=self.lambda_name,
-                InvocationType="Event",
+                InvocationType="RequestResponse",
                 Payload=json.dumps(payload),
             )
-            print(response)
+            logger.info(f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}")
+            print(f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}")
 
         return LambdaMaterializationJob(
             job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
