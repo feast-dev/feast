@@ -207,8 +207,7 @@ class AwsProvider(PassthroughProvider):
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
-        if self.online_store:
-            self.online_store.teardown(self.repo_config, tables, entities)
+        super(AwsProvider, self).teardown_infra(project, tables, entities)
 
         if (
             self.repo_config.feature_server is not None
@@ -229,8 +228,6 @@ class AwsProvider(PassthroughProvider):
             if api is not None:
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
-        if self.batch_engine:
-            self.batch_engine.teardown_infra(project, tables, entities)
 
     @log_exceptions_and_usage(provider="AwsProvider")
     def get_feature_server_endpoint(self) -> Optional[str]:
