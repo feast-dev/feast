@@ -59,7 +59,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Java Client
   * [ ] Go Client
   * [ ] Delete API
-  * [] Feature Logging (for training)
+  * [ ] Feature Logging (for training)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
   * [ ] Training-serving skew detection (in progress)
