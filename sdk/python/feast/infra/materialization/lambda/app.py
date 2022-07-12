@@ -63,6 +63,8 @@ def handler(event, context):
             for entity in feature_view.entity_columns
         }
 
+        written_rows = 0
+
         for batch in table.to_batches(DEFAULT_BATCH_SIZE):
             rows_to_write = _convert_arrow_to_proto(
                 batch, feature_view, join_key_to_value_type
@@ -70,6 +72,8 @@ def handler(event, context):
             store._provider.online_write_batch(
                 store.config, feature_view, rows_to_write, lambda x: None,
             )
+            written_rows += len(rows_to_write)
+        return {"written_rows": written_rows}
     except Exception as e:
         print(f"Exception: {e}", flush=True)
         print("Traceback:", flush=True)

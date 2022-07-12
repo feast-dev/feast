@@ -229,6 +229,8 @@ class AwsProvider(PassthroughProvider):
             if api is not None:
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
+        if self.batch_engine:
+            self.batch_engine.teardown_infra(project, tables, entities)
 
     @log_exceptions_and_usage(provider="AwsProvider")
     def get_feature_server_endpoint(self) -> Optional[str]:

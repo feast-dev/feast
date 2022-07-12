@@ -140,6 +140,8 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
+        if self.batch_engine:
+            self.batch_engine.teardown_infra(project, tables, entities)
 
     def online_write_batch(
         self,

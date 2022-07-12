@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union
@@ -137,7 +138,6 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         )
 
         self.lambda_name = f"feast-materialize-{self.repo_config.project}"
-        # self.lambda_name = "feast-lambda-consumer"
         self.lambda_client = boto3.client("lambda")
 
     def materialize(
@@ -189,6 +189,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         )
 
         paths = offline_job.to_remote_storage()
+        max_workers = len(paths) if len(paths) <= 20 else 20
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        futures = []
 
         for path in paths:
             payload = {
@@ -199,18 +202,34 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
             }
             # Invoke a lambda to materialize this file.
 
-            response = self.lambda_client.invoke(
-                FunctionName=self.lambda_name,
-                InvocationType="RequestResponse",
-                Payload=json.dumps(payload),
-            )
-            logger.info(
-                f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}"
-            )
-            print(
-                f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}"
+            logger.info("Invoking materialization for %s", path)
+            futures.append(
+                executor.submit(
+                    self.lambda_client.invoke,
+                    FunctionName=self.lambda_name,
+                    InvocationType="RequestResponse",
+                    Payload=json.dumps(payload),
+                )
             )
 
+        done, not_done = wait(futures)
+        logger.info("Done: %s Not Done: %s", done, not_done)
+        for f in done:
+            response = f.result()
+            output = json.loads(response["Payload"].read())
+
+            logger.info(
+                f"Ingested task; request id {response['ResponseMetadata']['RequestId']}, "
+                f"rows written: {output['written_rows']}"
+            )
+
+        for f in not_done:
+            response = f.result()
+            logger.error(f"Ingestion failed: {response}")
+
         return LambdaMaterializationJob(
-            job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
+            job_id=job_id,
+            status=MaterializationJobStatus.SUCCEEDED
+            if not not_done
+            else MaterializationJobStatus.ERROR,
         )
