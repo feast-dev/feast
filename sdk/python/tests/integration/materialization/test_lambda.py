@@ -1,6 +1,5 @@
-import time
-
 import math
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -8,42 +7,34 @@ import pandas as pd
 import pytest
 from pytz import utc
 
-from feast import FeatureStore, FeatureView, Entity, ValueType, RedshiftSource, Feature
+from feast import Entity, Feature, FeatureStore, FeatureView, ValueType
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import IntegrationTestRepoConfig, RegistryLocation
-from tests.integration.feature_repos.repo_configuration import construct_test_environment
-from tests.integration.feature_repos.universal.data_sources.redshift import RedshiftDataSourceCreator
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,
+    RegistryLocation,
+)
+from tests.integration.feature_repos.repo_configuration import (
+    construct_test_environment,
+)
+from tests.integration.feature_repos.universal.data_sources.redshift import (
+    RedshiftDataSourceCreator,
+)
 
 
 @pytest.mark.integration
 def test_lambda_materialization():
     lambda_config = IntegrationTestRepoConfig(
         provider="aws",
-        online_store={
-            "type": "dynamodb",
-            "region": "us-west-2",
-        },
+        online_store={"type": "dynamodb", "region": "us-west-2"},
         offline_store_creator=RedshiftDataSourceCreator,
         batch_engine={
             "type": "lambda",
             "materialization_image": "402087665549.dkr.ecr.us-west-2.amazonaws.com/feast-lambda-consumer:v1",
-            "lambda_role": "arn:aws:iam::402087665549:role/lambda_execution_role"
+            "lambda_role": "arn:aws:iam::402087665549:role/lambda_execution_role",
         },
-        registry_location=RegistryLocation.S3
+        registry_location=RegistryLocation.S3,
     )
     lambda_environment = construct_test_environment(lambda_config, None)
-
-    # local_config = IntegrationTestRepoConfig(
-    #     online_store={
-    #         "type": "dynamodb",
-    #         "region": "us-west-2",
-    #     },
-    #     offline_store_creator=RedshiftDataSourceCreator,
-    #     batch_engine="local"
-    # )
-    # local_environment = construct_test_environment(local_config, None)
 
     df = create_basic_driver_dataset()
     ds = lambda_environment.data_source_creator.create_data_source(
@@ -51,19 +42,13 @@ def test_lambda_materialization():
     )
 
     fs = lambda_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_key="driver_id",
-        value_type=ValueType.INT64,
-    )
+    driver = Entity(name="driver_id", join_key="driver_id", value_type=ValueType.INT64,)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",
         entities=["driver_id"],
         ttl=timedelta(weeks=52),
-        features=[
-            Feature(name="value", dtype=ValueType.FLOAT),
-        ],
+        features=[Feature(name="value", dtype=ValueType.FLOAT)],
         batch_source=ds,
     )
 
@@ -85,13 +70,13 @@ def test_lambda_materialization():
 
 
 def check_offline_and_online_features(
-        fs: FeatureStore,
-        fv: FeatureView,
-        driver_id: int,
-        event_timestamp: datetime,
-        expected_value: Optional[float],
-        full_feature_names: bool,
-        check_offline_store: bool = True,
+    fs: FeatureStore,
+    fv: FeatureView,
+    driver_id: int,
+    event_timestamp: datetime,
+    expected_value: Optional[float],
+    full_feature_names: bool,
+    check_offline_store: bool = True,
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
@@ -105,7 +90,7 @@ def check_offline_and_online_features(
         if expected_value:
             assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
             assert (
-                    abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+                abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
             ), f"Response: {response_dict}, Expected: {expected_value}"
         else:
             assert response_dict[f"{fv.name}__value"][0] is None
@@ -113,7 +98,7 @@ def check_offline_and_online_features(
         if expected_value:
             assert response_dict["value"][0], f"Response: {response_dict}"
             assert (
-                    abs(response_dict["value"][0] - expected_value) < 1e-6
+                abs(response_dict["value"][0] - expected_value) < 1e-6
             ), f"Response: {response_dict}, Expected: {expected_value}"
         else:
             assert response_dict["value"][0] is None
@@ -131,11 +116,11 @@ def check_offline_and_online_features(
         if full_feature_names:
             if expected_value:
                 assert (
-                        abs(
-                            df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                            - expected_value
-                        )
-                        < 1e-6
+                    abs(
+                        df.to_dict(orient="list")[f"{fv.name}__value"][0]
+                        - expected_value
+                    )
+                    < 1e-6
                 )
             else:
                 assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
@@ -144,7 +129,7 @@ def check_offline_and_online_features(
         else:
             if expected_value:
                 assert (
-                        abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
+                    abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
                 )
             else:
                 assert not df.to_dict(orient="list")["value"] or math.isnan(
@@ -153,7 +138,7 @@ def check_offline_and_online_features(
 
 
 def run_offline_online_store_consistency_test(
-        fs: FeatureStore, fv: FeatureView, split_dt: datetime
+    fs: FeatureStore, fv: FeatureView, split_dt: datetime
 ) -> None:
     now = datetime.utcnow()
 

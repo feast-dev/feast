@@ -230,7 +230,7 @@ class DynamoDBOnlineStore(OnlineStore):
             batch_entity_ids = {
                 table_instance.name: {
                     "Keys": [{"entity_id": entity_id} for entity_id in batch],
-                    "ConsistentRead": True
+                    "ConsistentRead": True,
                 }
             }
             with tracing_span(name="remote_call"):

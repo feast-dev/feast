@@ -61,6 +61,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
         logger = logging.getLogger(logger_name)
         logger.setLevel(level)
 
+
 def pytest_configure(config):
     if platform in ["darwin", "windows"]:
         multiprocessing.set_start_method("spawn")

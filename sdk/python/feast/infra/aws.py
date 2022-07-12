@@ -107,7 +107,13 @@ class AwsProvider(PassthroughProvider):
             self._deploy_feature_server(project, image_uri)
 
         if self.batch_engine:
-            self.batch_engine.update(project, tables_to_delete, tables_to_keep, entities_to_delete, entities_to_keep)
+            self.batch_engine.update(
+                project,
+                tables_to_delete,
+                tables_to_keep,
+                entities_to_delete,
+                entities_to_keep,
+            )
 
     def _deploy_feature_server(self, project: str, image_uri: str):
         _logger.info("Deploying feature server...")

@@ -21,7 +21,8 @@ from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig, RegistryLocation,
+    IntegrationTestRepoConfig,
+    RegistryLocation,
 )
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -381,7 +382,7 @@ def construct_test_environment(
         online_creator = None
         online_store = test_repo_config.online_store
 
-    if (test_repo_config.python_feature_server and test_repo_config.provider == "aws"):
+    if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
         )
@@ -397,7 +398,9 @@ def construct_test_environment(
         )
 
     repo_dir_name = tempfile.mkdtemp()
-    if (test_repo_config.python_feature_server and test_repo_config.provider == "aws") or test_repo_config.registry_location == RegistryLocation.S3:
+    if (
+        test_repo_config.python_feature_server and test_repo_config.provider == "aws"
+    ) or test_repo_config.registry_location == RegistryLocation.S3:
         registry: Union[str, RegistryConfig] = (
             f"s3://feast-integration-tests/registries/{project}/registry.db"
         )

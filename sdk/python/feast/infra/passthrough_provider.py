@@ -22,7 +22,7 @@ from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
-from feast.repo_config import RepoConfig, BATCH_ENGINE_CLASS_FOR_TYPE
+from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import StreamFeatureView
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
@@ -126,7 +126,13 @@ class PassthroughProvider(Provider):
                 partial=partial,
             )
         if self.batch_engine:
-            self.batch_engine.update(project, tables_to_delete, tables_to_keep, entities_to_delete, entities_to_keep)
+            self.batch_engine.update(
+                project,
+                tables_to_delete,
+                tables_to_keep,
+                entities_to_delete,
+                entities_to_keep,
+            )
 
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],

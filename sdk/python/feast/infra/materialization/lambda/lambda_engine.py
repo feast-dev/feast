@@ -73,6 +73,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
     """
     WARNING: This engine should be considered "Alpha" functionality.
     """
+
     def update(
         self,
         project: str,
@@ -101,9 +102,8 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         logger.info("Creating lambda function %s, %s", self.lambda_name, r)
 
         logger.info("Waiting for function %s to be active", self.lambda_name)
-        waiter = self.lambda_client.get_waiter('function_active')
+        waiter = self.lambda_client.get_waiter("function_active")
         waiter.wait(FunctionName=self.lambda_name)
-
 
     def teardown_infra(
         self,
@@ -204,8 +204,12 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 InvocationType="RequestResponse",
                 Payload=json.dumps(payload),
             )
-            logger.info(f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}")
-            print(f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}")
+            logger.info(
+                f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}"
+            )
+            print(
+                f"Ingesting {path}; request id {response['ResponseMetadata']['RequestId']}"
+            )
 
         return LambdaMaterializationJob(
             job_id=job_id, status=MaterializationJobStatus.SUCCEEDED

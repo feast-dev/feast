@@ -221,7 +221,9 @@ class RepoConfig(FeastBaseModel):
                     self._batch_engine_config["type"]
                 )(**self._batch_engine_config)
             elif isinstance(self._online_config, str):
-                self._batch_engine = get_batch_engine_config_from_type(self._online_config)()
+                self._batch_engine = get_batch_engine_config_from_type(
+                    self._online_config
+                )()
             elif self._online_config:
                 self._batch_engine = self._batch_engine
 
