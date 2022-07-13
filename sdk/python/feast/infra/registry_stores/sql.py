@@ -474,27 +474,17 @@ class SqlRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.project_id == project,
-                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID,
-            )
+            stmt = select(feast_metadata).where(feast_metadata.c.project_id == project,)
             rows = conn.execute(stmt).all()
             if rows:
-                return [
-                    ProjectMetadata(
-                        project_name=project, project_uuid=row["metadata_value"]
-                    )
-                    for row in rows
-                ]
+                project_metadata = ProjectMetadata(project_name=project)
+                for row in rows:
+                    if row["metadata_key"] == FeastMetadataKeys.PROJECT_UUID:
+                        metadata.project_uuid = row["metadata_value"]
+                        break
+                    # TODO(adchia): Add other project metadata in a structured way
+                return [project_metadata]
         return []
-
-        return self._list_objects(
-            on_demand_feature_views,
-            project,
-            ProjectMetadataProto,
-            ProjectMetadata,
-            "feature_view_proto",
-        )
 
     def apply_saved_dataset(
         self, saved_dataset: SavedDataset, project: str, commit: bool = True,

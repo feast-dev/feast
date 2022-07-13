@@ -611,6 +611,20 @@ class BaseRegistry(abc.ABC):
             List of request feature views
         """
 
+    def list_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ProjectMetadata]:
+        """
+        Retrieves project metadata
+
+        Args:
+            project: Filter metadata based on project name
+            allow_cache: Allow returning feature views from the cached registry
+
+        Returns:
+            List of project metadata
+        """
+
     @abstractmethod
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         """
@@ -682,6 +696,10 @@ class BaseRegistry(abc.ABC):
         """
         registry_dict: Dict[str, Any] = defaultdict(list)
         registry_dict["project"] = project
+        for project_metadata in sorted(self.list_project_metadata(project=project)):
+            registry_dict["projectMetadata"].append(
+                self._message_to_sorted_dict(project_metadata.to_proto())
+            )
         for data_source in sorted(
             self.list_data_sources(project=project), key=lambda ds: ds.name
         ):
@@ -1722,6 +1740,18 @@ class Registry(BaseRegistry):
                     self.commit()
                 return
         raise ValidationReferenceNotFound(name, project=project)
+
+    def list_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ProjectMetadata]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return [
+            ProjectMetadata.from_proto(project_metadata)
+            for project_metadata in registry_proto.project_metadata
+            if project_metadata.project == project
+        ]
 
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
