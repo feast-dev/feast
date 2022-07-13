@@ -113,7 +113,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
-	arrowMemory := memory.NewGoAllocator()
+	arrowMemory := memory.NewCgoArrowAllocator()
 	featureViews := make([]*model.FeatureView, len(requestedFeatureViews))
 	index := 0
 	for _, featuresAndView := range requestedFeatureViews {
