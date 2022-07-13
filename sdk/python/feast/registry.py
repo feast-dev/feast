@@ -771,8 +771,8 @@ def _init_project_metadata(
 ):
     new_project_uuid = f"{uuid.uuid4()}"
     usage.set_current_project_uuid(new_project_uuid)
-    cached_registry_proto.project_metadata.extend(
-        ProjectMetadata(project=project, project_uuid=new_project_uuid).to_proto()
+    cached_registry_proto.project_metadata.append(
+        ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
     )
 
 
@@ -1815,11 +1815,11 @@ class Registry(BaseRegistry):
                     )
                 )
             )
-            project_metadata = _get_project_metadata(
+            old_project_metadata = _get_project_metadata(
                 cached_registry_proto=self.cached_registry_proto, project=project
             )
 
-            if allow_cache and not expired and not project_metadata:
+            if allow_cache and not expired and not old_project_metadata:
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
 
@@ -1827,6 +1827,9 @@ class Registry(BaseRegistry):
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
 
+            project_metadata = _get_project_metadata(
+                cached_registry_proto=self.cached_registry_proto, project=project
+            )
             if project_metadata:
                 usage.set_current_project_uuid(project_metadata.project_uuid)
             else:

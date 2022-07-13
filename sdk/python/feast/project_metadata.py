@@ -94,7 +94,7 @@ class ProjectMetadata:
             A ProjectMetadata object based on the protobuf.
         """
         entity = cls(
-            project_name=project_metadata_proto.project_name,
+            project_name=project_metadata_proto.project,
             project_uuid=project_metadata_proto.project_uuid,
         )
 
@@ -109,5 +109,5 @@ class ProjectMetadata:
         """
 
         return ProjectMetadataProto(
-            project_name=self.project_name, project_uuid=self.project_uuid
+            project=self.project_name, project_uuid=self.project_uuid
         )
