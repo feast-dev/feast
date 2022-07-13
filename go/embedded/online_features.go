@@ -241,14 +241,13 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		s.tsColumnBuildersToRelease = append(s.tsColumnBuildersToRelease, tsColumnBuilder)
 		s.arraysToRelease = append(s.arraysToRelease, statusColumn)
 		s.arraysToRelease = append(s.arraysToRelease, tsColumn)
+		s.arraysToRelease = append(s.arraysToRelease, featureVector.Values)
 	}
 
 	result := array.NewRecord(arrow.NewSchema(outputFields, nil), outputColumns, int64(numRows))
 	s.resultsToRelease = append(s.resultsToRelease, result)
 
-	cdata.ExportArrowRecordBatch(result,
-		cdata.ArrayFromPtr(output.DataPtr),
-		cdata.SchemaFromPtr(output.SchemaPtr))
+	cdata.ExportArrowRecordBatch(result, cdata.ArrayFromPtr(output.DataPtr), cdata.SchemaFromPtr(output.SchemaPtr))
 
 	return nil
 }
