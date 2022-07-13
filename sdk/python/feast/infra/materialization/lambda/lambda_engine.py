@@ -113,7 +113,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
-        logger.info("Tearing down lambda %s: %s", self.lambda_name)
+        logger.info("Tearing down lambda %s", self.lambda_name)
         r = self.lambda_client.delete_function(FunctionName=self.lambda_name)
         logger.info("Finished tearing down lambda %s: %s", self.lambda_name, r)
 
@@ -139,6 +139,8 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         )
 
         self.lambda_name = f"feast-materialize-{self.repo_config.project}"
+        if len(self.lambda_name) > 64:
+            self.lambda_name = self.lambda_name[:64]
         self.lambda_client = boto3.client("lambda")
 
     def materialize(
