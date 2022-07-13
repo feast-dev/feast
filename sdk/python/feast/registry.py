@@ -14,6 +14,7 @@
 import abc
 import json
 import logging
+import uuid
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -47,6 +48,7 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
@@ -829,7 +831,7 @@ class Registry(BaseRegistry):
             project: Feast project that the Infra object refers to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         self.cached_registry_proto.infra.CopyFrom(infra.to_proto())
@@ -868,7 +870,7 @@ class Registry(BaseRegistry):
 
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_entity_proto in enumerate(
@@ -934,7 +936,7 @@ class Registry(BaseRegistry):
             project: Feast project that this data source belongs to
             commit: Whether to immediately commit to the registry
         """
-        registry = self._prepare_registry_for_changes()
+        registry = self._prepare_registry_for_changes(project)
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
                 del registry.data_sources[idx]
@@ -959,7 +961,7 @@ class Registry(BaseRegistry):
             project: Feast project that this data source belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, data_source_proto in enumerate(
@@ -990,7 +992,7 @@ class Registry(BaseRegistry):
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
 
-        registry = self._prepare_registry_for_changes()
+        registry = self._prepare_registry_for_changes(project)
 
         for idx, existing_feature_service_proto in enumerate(registry.feature_services):
             if (
@@ -1090,7 +1092,7 @@ class Registry(BaseRegistry):
 
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         self._check_conflicting_feature_view_names(feature_view)
@@ -1242,7 +1244,7 @@ class Registry(BaseRegistry):
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_feature_view_proto in enumerate(
@@ -1414,7 +1416,7 @@ class Registry(BaseRegistry):
             project: Feast project that this feature service belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, feature_service_proto in enumerate(
@@ -1439,7 +1441,7 @@ class Registry(BaseRegistry):
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_feature_view_proto in enumerate(
@@ -1501,7 +1503,7 @@ class Registry(BaseRegistry):
             project: Feast project that this entity belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_entity_proto in enumerate(
@@ -1536,7 +1538,7 @@ class Registry(BaseRegistry):
 
         saved_dataset_proto = saved_dataset.to_proto()
         saved_dataset_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_saved_dataset_proto in enumerate(
@@ -1614,7 +1616,7 @@ class Registry(BaseRegistry):
         validation_reference_proto = validation_reference.to_proto()
         validation_reference_proto.project = project
 
-        registry_proto = self._prepare_registry_for_changes()
+        registry_proto = self._prepare_registry_for_changes(project)
         for idx, existing_validation_reference in enumerate(
             registry_proto.validation_references
         ):
@@ -1662,7 +1664,7 @@ class Registry(BaseRegistry):
             project: Feast project that this object belongs to
             commit: Whether the change should be persisted immediately
         """
-        registry_proto = self._prepare_registry_for_changes()
+        registry_proto = self._prepare_registry_for_changes(project)
         for idx, existing_validation_reference in enumerate(
             registry_proto.validation_references
         ):
@@ -1692,15 +1694,37 @@ class Registry(BaseRegistry):
     def proto(self) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
 
-    def _prepare_registry_for_changes(self):
+    def _project_metadata_available(
+        self, cached_registry_proto: Optional[RegistryProto], project: str
+    ) -> bool:
+        if not cached_registry_proto:
+            return False
+        for pm in cached_registry_proto.project_metadata:
+            if pm.project == project:
+                return True
+        return False
+
+    def _prepare_registry_for_changes(self, project: str):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
         try:
             self._get_registry_proto(allow_cache=True)
+            if self._project_metadata_available(self.cached_registry_proto, project):
+                # Project metadata not initialized yet. Try pulling without cache
+                self._get_registry_proto(allow_cache=False)
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
+
+        # Initialize project metadata if needed
+        assert self.cached_registry_proto
+        if not self._project_metadata_available(self.cached_registry_proto, project):
+            self.cached_registry_proto.project_metadata.extend(
+                ProjectMetadata(
+                    project=project, project_uuid=f"{uuid.uuid4()}"
+                ).to_proto()
+            )
         return self.cached_registry_proto
 
     def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
