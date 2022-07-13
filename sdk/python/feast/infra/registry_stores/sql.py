@@ -1,9 +1,8 @@
+import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, List, Optional, Set, Union
-import uuid
-from feast.project_metadata import ProjectMetadata
 
 from sqlalchemy import (  # type: ignore
     BigInteger,
@@ -35,6 +34,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -45,8 +45,8 @@ from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
