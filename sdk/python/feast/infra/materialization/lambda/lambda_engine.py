@@ -113,8 +113,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
+        logger.info("Tearing down lambda %s: %s", self.lambda_name)
         r = self.lambda_client.delete_function(FunctionName=self.lambda_name)
-        logger.info("Tearing down lambda %s: %s", self.lambda_name, r)
+        logger.info("Finished tearing down lambda %s: %s", self.lambda_name, r)
 
     def __init__(
         self,

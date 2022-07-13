@@ -46,6 +46,7 @@ def handler(event, context):
         print(f"Inferred Bucket: `{bucket}` Key: `{key}`", flush=True)
 
         if view_type == "batch":
+            # TODO: This probably needs to be become `store.get_batch_feature_view` at some point.
             feature_view = store.get_feature_view(view_name)
         else:
             feature_view = store.get_stream_feature_view(view_name)
