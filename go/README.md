@@ -40,7 +40,7 @@ batch._export_to_c(req_data_ptr_array)
 ```
 
 Under the hood, `allocate_schema_and_array` allocates a pointer (`struct ArrowSchema*` and `struct ArrowArray*`) in native memory (i.e. the C layer) using cffi.
-Next, the RecordBatch us exporting to this pointer using [`_export_to_c`](https://github.com/apache/arrow/blob/master/python/pyarrow/table.pxi#L2509), which uses [`ExportRecordBatch`](https://arrow.apache.org/docs/cpp/api/c_abi.html#_CPPv417ExportRecordBatchRK11RecordBatchP10ArrowArrayP11ArrowSchema) under the hood.
+Next, the RecordBatch exports to this pointer using [`_export_to_c`](https://github.com/apache/arrow/blob/master/python/pyarrow/table.pxi#L2509), which uses [`ExportRecordBatch`](https://arrow.apache.org/docs/cpp/api/c_abi.html#_CPPv417ExportRecordBatchRK11RecordBatchP10ArrowArrayP11ArrowSchema) under the hood.
 
 As per the documentation for ExportRecordBatch:
 > Status ExportRecordBatch(const RecordBatch &batch, struct ArrowArray *out, struct ArrowSchema *out_schema = NULLPTR)
@@ -48,22 +48,22 @@ As per the documentation for ExportRecordBatch:
 > 
 > The record batch is exported as if it were a struct array. The resulting ArrowArray struct keeps the record batch data and buffers alive until its release callback is called by the consumer.
 
-This is why `GetOnlineFeatures()` in `online_features.go` calls `record.Release()` the following:
+This is why `GetOnlineFeatures()` in `online_features.go` calls `record.Release()` as below:
 ```
-resp, err := s.fs.GetOnlineFeatures(
-    context.Background(),
-    featureRefs,
-    featureService,
-    entitiesProto,
-    requestDataProto,
-    fullFeatureNames)
-
-entitiesRecord.Release()
-requestDataRecords.Release()
-
+entitiesRecord, err := readArrowRecord(entities)
+if err != nil {
+    return err
+}
+defer entitiesRecord.Release()
+...
+requestDataRecords, err := readArrowRecord(requestData)
+if err != nil {
+    return err
+}
+defer requestDataRecords.Release()
 ```
 
-Additionally, we need to pass in a pair of pointers into which are set in `GetOnlineFeatures()` so that the resultant feature values can be passed back to Python (via the C layer) using zero-copy semantics.
+Additionally, we need to pass in a pair of pointers to `GetOnlineFeatures()` that are populated by the Go layer, and the resultant feature values can be passed back to Python (via the C layer) using zero-copy semantics.
 That happens in a snipper like this:
 ```
 (

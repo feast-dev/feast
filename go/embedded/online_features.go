@@ -143,6 +143,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if err != nil {
 		return err
 	}
+	defer entitiesRecord.Release()
 
 	numRows := entitiesRecord.Column(0).Len()
 
@@ -155,6 +156,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if err != nil {
 		return err
 	}
+	defer requestDataRecords.Release()
 
 	requestDataProto, err := recordToProto(requestDataRecords)
 	if err != nil {
@@ -173,9 +175,6 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		entitiesProto,
 		requestDataProto,
 		fullFeatureNames)
-
-	entitiesRecord.Release()
-	requestDataRecords.Release()
 
 	if err != nil {
 		return err
