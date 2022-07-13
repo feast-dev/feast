@@ -174,6 +174,9 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		requestDataProto,
 		fullFeatureNames)
 
+	entitiesRecord.Release()
+	requestDataRecords.Release()
+
 	if err != nil {
 		return err
 	}
