@@ -57,5 +57,5 @@ message Registry {
 
 message ProjectMetadata {
     string project = 1;
-    int64 project_uuid = 2; 
+    string project_uuid = 2;
 }

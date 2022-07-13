@@ -19,6 +19,7 @@ from sqlalchemy import (  # type: ignore
 )
 from sqlalchemy.engine import Engine
 
+from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -199,7 +200,7 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self):
+    def refresh(self, project: str):
         # This method is a no-op since we're always reading the latest values from the db.
         pass
 
@@ -688,28 +689,12 @@ class SqlRegistry(BaseRegistry):
     def _apply_object(
         self, table, project: str, id_field_name, obj, proto_field_name, name=None
     ):
-        update_datetime = datetime.utcnow()
-        update_time = int(update_datetime.timestamp())
-
-        # Initialize project metadata if needed
-        with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID,
-                feast_metadata.c.project_id == project,
-            )
-            row = conn.execute(stmt).first()
-            if not row:
-                values = {
-                    "metadata_key": FeastMetadataKeys.PROJECT_UUID,
-                    "metadata_value": f"{uuid.uuid4()}",
-                    "last_updated_timestamp": update_time,
-                    "project_id": project,
-                }
-                insert_stmt = insert(feast_metadata).values(values)
-                conn.execute(insert_stmt)
+        self._maybe_init_project_metadata(project)
 
         name = name or obj.name
         with self.engine.connect() as conn:
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
@@ -740,6 +725,30 @@ class SqlRegistry(BaseRegistry):
 
             self._set_last_updated_metadata(update_datetime, project)
 
+    def _maybe_init_project_metadata(self, project):
+        # Initialize project metadata if needed
+        with self.engine.connect() as conn:
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID,
+                feast_metadata.c.project_id == project,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                usage.set_current_project_uuid(row["metadata_value"])
+            else:
+                new_project_uuid = f"{uuid.uuid4()}"
+                values = {
+                    "metadata_key": FeastMetadataKeys.PROJECT_UUID,
+                    "metadata_value": new_project_uuid,
+                    "last_updated_timestamp": update_time,
+                    "project_id": project,
+                }
+                insert_stmt = insert(feast_metadata).values(values)
+                conn.execute(insert_stmt)
+                usage.set_current_project_uuid(new_project_uuid)
+
     def _delete_object(self, table, name, project, id_field_name, not_found_exception):
         with self.engine.connect() as conn:
             stmt = delete(table).where(
@@ -763,6 +772,8 @@ class SqlRegistry(BaseRegistry):
         proto_field_name,
         not_found_exception,
     ):
+        self._maybe_init_project_metadata(project)
+
         with self.engine.connect() as conn:
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
