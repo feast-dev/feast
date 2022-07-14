@@ -2,6 +2,8 @@ module github.com/feast-dev/feast
 
 go 1.17
 
+replace github.com/go-python/gopy v0.4.4 => github.com/feast-dev/gopy v0.4.1-0.20220714211711-252048177d85
+
 require (
 	github.com/apache/arrow/go/v8 v8.0.0
 	github.com/ghodss/yaml v1.0.0

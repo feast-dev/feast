@@ -87,6 +87,14 @@ github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021/go.
 github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1/go.mod h1:KJwIaB5Mv44NWtYuAOFCVOjcI94vtpEz2JU/D2v6IjE=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
+github.com/feast-dev/gopy v0.4.1-0.20220714205859-591500e3215f h1:tTjEpVu4H/ZGh4wo3WETbA9dutNM6bXMXvyZbb9GLCs=
+github.com/feast-dev/gopy v0.4.1-0.20220714205859-591500e3215f/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
+github.com/feast-dev/gopy v0.4.1-0.20220714211038-aa312c13fd79 h1:oFj6GDGR8E4S5GeMyLBvaKtvMZxj3hHqsB5Xndjxjz8=
+github.com/feast-dev/gopy v0.4.1-0.20220714211038-aa312c13fd79/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
+github.com/feast-dev/gopy v0.4.1-0.20220714211330-67b016d61ed4 h1:UfzPdqqAfrt8f+jDIY61lbzqFZYsX2BhVyNcCbdpE+U=
+github.com/feast-dev/gopy v0.4.1-0.20220714211330-67b016d61ed4/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
+github.com/feast-dev/gopy v0.4.1-0.20220714211711-252048177d85 h1:BKmfqWiDbxvviB6vemPbbNjF+ywRsBMCdk1QvrcGgkc=
+github.com/feast-dev/gopy v0.4.1-0.20220714211711-252048177d85/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
 github.com/fogleman/gg v1.3.0/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
@@ -110,8 +118,6 @@ github.com/go-logfmt/logfmt v0.3.0/go.mod h1:Qt1PoO58o5twSAckw1HlFXLmHsOX5/0LbT9
 github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
 github.com/go-logfmt/logfmt v0.5.0/go.mod h1:wCYkCAKZfumFQihp8CzCvQ3paCTfi41vtzG1KdI/P7A=
 github.com/go-logr/logr v0.4.0/go.mod h1:z6/tIYblkpsD+a4lm/fGIIU9mZ+XfAiaFtq7xTgseGU=
-github.com/go-python/gopy v0.4.4 h1:3LTsrfVcmg2VEM6wU+eh4d9EZn5H2iogObXjiQHrF8Q=
-github.com/go-python/gopy v0.4.4/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
 github.com/go-redis/redis/v8 v8.11.4 h1:kHoYkfZP6+pe04aFTnhDH6GDROa5yJdHJVNxV3F46Tg=
 github.com/go-redis/redis/v8 v8.11.4/go.mod h1:2Z2wHZXdQpCDXEGzqMockDpNyYvi2l4Pxt6RJr792+w=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
