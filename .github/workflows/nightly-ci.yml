@@ -85,7 +85,7 @@ jobs:
   #   outputs:
   #     DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
-    needs: [check_date, build-docker-image]
+    needs: [check_date]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
