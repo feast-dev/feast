@@ -23,63 +23,63 @@ jobs:
         name: Check if there were commits in the last day
         if: ${{ github.event_name == 'schedule' }}
         run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
-  # build-docker-image:
-  #   needs: [check_date]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         ref: master
-  #         submodules: recursive
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v1
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v2
-  #       with:
-  #         install: true
-  #     - name: Set up AWS SDK
-  #       uses: aws-actions/configure-aws-credentials@v1
-  #       with:
-  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #         aws-region: us-west-2
-  #     - name: Login to Amazon ECR
-  #       id: login-ecr
-  #       uses: aws-actions/amazon-ecr-login@v1
-  #     - name: Set ECR image tag
-  #       id: image-tag
-  #       run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
-  #     - name: Cache Public ECR Image
-  #       id: lambda_python_3_9
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: ~/cache
-  #         key: lambda_python_3_9
-  #     - name: Handle Cache Miss (pull public ECR image & save it to tar file)
-  #       if: steps.cache-primes.outputs.cache-hit != 'true'
-  #       run: |
-  #         mkdir -p ~/cache
-  #         docker pull public.ecr.aws/lambda/python:3.9
-  #         docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
-  #     - name: Handle Cache Hit (load docker image from tar file)
-  #       if: steps.cache-primes.outputs.cache-hit == 'true'
-  #       run: |
-  #         docker load -i ~/cache/lambda_python_3_9.tar
-  #     - name: Build and push
-  #       env:
-  #         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-  #         ECR_REPOSITORY: feast-python-server
-  #       run: |
-  #         docker build \
-  #           --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
-  #           --tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }} \
-  #           --load \
-  #           .
-  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
-  #   outputs:
-  #     DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
-  integration-test-python:
+  build-docker-image:
     needs: [check_date]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+          submodules: recursive
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Set ECR image tag
+        id: image-tag
+        run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
+      - name: Cache Public ECR Image
+        id: lambda_python_3_9
+        uses: actions/cache@v2
+        with:
+          path: ~/cache
+          key: lambda_python_3_9
+      - name: Handle Cache Miss (pull public ECR image & save it to tar file)
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/cache
+          docker pull public.ecr.aws/lambda/python:3.9
+          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+      - name: Handle Cache Hit (load docker image from tar file)
+        if: steps.cache-primes.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/cache/lambda_python_3_9.tar
+      - name: Build and push
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: feast-python-server
+        run: |
+          docker build \
+            --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }} \
+            --load \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
+    outputs:
+      DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
+  integration-test-python:
+    needs: [check_date, build-docker-image]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -115,29 +115,29 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      # - name: Set up gcloud SDK
-      #   uses: google-github-actions/setup-gcloud@v0
-      #   with:
-      #     project_id: ${{ secrets.GCP_PROJECT_ID }}
-      #     service_account_key: ${{ secrets.GCP_SA_KEY }}
-      #     export_default_credentials: true
-      # - name: Use gcloud CLI
-      #   run: gcloud info
-      # - name: Set up AWS SDK
-      #   uses: aws-actions/configure-aws-credentials@v1
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: us-west-2
-      # - name: Use AWS CLI
-      #   run: aws sts get-caller-identity
-      # - name: Upgrade pip version
-      #   run: |
-      #     pip install --upgrade "pip>=21.3.1,<22.1"
-      # - name: Get pip cache dir
-      #   id: pip-cache
-      #   run: |
-      #     echo "::set-output name=dir::$(pip cache dir)"
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Use gcloud CLI
+        run: gcloud info
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Use AWS CLI
+        run: aws sts get-caller-identity
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<22.1"
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
       - name: pip cache
         uses: actions/cache@v2
         with:
