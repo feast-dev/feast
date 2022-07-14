@@ -656,10 +656,15 @@ def test_commit():
 
     # Register Entity without commiting
     test_registry.apply_entity(entity, project, commit=False)
+    assert test_registry.cached_registry_proto
+    assert len(test_registry.cached_registry_proto.project_metadata) == 1
+    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
+    project_uuid = project_metadata.project_uuid
+    assert len(project_uuid) == 36
+    assert_project_uuid(project_uuid, test_registry)
 
     # Retrieving the entity should still succeed
     entities = test_registry.list_entities(project, allow_cache=True)
-
     entity = entities[0]
     assert (
         len(entities) == 1
@@ -668,6 +673,7 @@ def test_commit():
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
     )
+    assert_project_uuid(project_uuid, test_registry)
 
     entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
     assert (
@@ -676,6 +682,7 @@ def test_commit():
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
     )
+    assert_project_uuid(project_uuid, test_registry)
 
     # Create new registry that points to the same store
     registry_with_same_store = Registry(registry_config, None)
@@ -683,6 +690,7 @@ def test_commit():
     # Retrieving the entity should fail since the store is empty
     entities = registry_with_same_store.list_entities(project)
     assert len(entities) == 0
+    assert_project_uuid(project_uuid, registry_with_same_store)
 
     # commit from the original registry
     test_registry.commit()
@@ -692,7 +700,6 @@ def test_commit():
 
     # Retrieving the entity should now succeed
     entities = registry_with_same_store.list_entities(project)
-
     entity = entities[0]
     assert (
         len(entities) == 1
@@ -701,6 +708,7 @@ def test_commit():
         and "team" in entity.tags
         and entity.tags["team"] == "matchmaking"
     )
+    assert_project_uuid(project_uuid, registry_with_same_store)
 
     entity = test_registry.get_entity("driver_car_id", project)
     assert (
@@ -715,3 +723,9 @@ def test_commit():
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
         test_registry._get_registry_proto(project=project)
+
+
+def assert_project_uuid(project_uuid, test_registry):
+    assert len(test_registry.cached_registry_proto.project_metadata) == 1
+    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
+    assert project_metadata.project_uuid == project_uuid
