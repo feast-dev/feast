@@ -108,10 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # pull_request_target runs the workflow in the context of the base repo
-          # as such actions/checkout needs to be explicit configured to retrieve
-          # code from the PR.
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          ref: master
           submodules: recursive
       - name: Setup Python
         uses: actions/setup-python@v2
