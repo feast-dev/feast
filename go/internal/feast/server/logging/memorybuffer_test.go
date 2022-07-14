@@ -118,7 +118,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 		LogTimestamp: time.Now(),
 	})
 
-	pool := memory.NewGoAllocator()
+	pool := memory.NewCgoArrowAllocator()
 	builder := array.NewRecordBuilder(pool, b.arrowSchema)
 	defer builder.Release()
 
