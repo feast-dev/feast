@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: develop
+          ref: master
       - id: check_date
         name: Check if there were commits in the last day
         if: ${{ github.event_name == 'schedule' }}
