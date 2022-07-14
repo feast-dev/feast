@@ -225,6 +225,14 @@ feast.online\_response module
    :undoc-members:
    :show-inheritance:
 
+feast.project\_metadata module
+------------------------------
+
+.. automodule:: feast.project_metadata
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.proto\_json module
 ------------------------
 
@@ -269,6 +277,14 @@ feast.repo\_operations module
 -----------------------------
 
 .. automodule:: feast.repo_operations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.repo\_upgrade module
+--------------------------
+
+.. automodule:: feast.repo_upgrade
    :members:
    :undoc-members:
    :show-inheritance:

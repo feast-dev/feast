@@ -110,7 +110,7 @@ def test_apply_entity_success(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.integration
@@ -150,7 +150,7 @@ def test_apply_entity_integration(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.parametrize(
@@ -225,7 +225,7 @@ def test_apply_feature_view_success(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.parametrize(
@@ -299,7 +299,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.parametrize(
@@ -364,7 +364,7 @@ def test_apply_stream_feature_view_success(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.parametrize(
@@ -488,7 +488,7 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.integration
@@ -564,7 +564,7 @@ def test_apply_feature_view_integration(test_registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 @pytest.mark.integration
@@ -714,4 +714,4 @@ def test_commit():
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)

@@ -766,9 +766,7 @@ def _get_project_metadata(
     return None
 
 
-def _init_project_metadata(
-    cached_registry_proto: RegistryProto, project: str
-):
+def _init_project_metadata(cached_registry_proto: RegistryProto, project: str):
     new_project_uuid = f"{uuid.uuid4()}"
     usage.set_current_project_uuid(new_project_uuid)
     cached_registry_proto.project_metadata.append(
@@ -1773,7 +1771,7 @@ class Registry(BaseRegistry):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
         try:
             self._get_registry_proto(project=project, allow_cache=True)
-            if _get_project_metadata(self.cached_registry_proto, project):
+            if _get_project_metadata(self.cached_registry_proto, project) is None:
                 # Project metadata not initialized yet. Try pulling without cache
                 self._get_registry_proto(project=project, allow_cache=False)
         except FileNotFoundError:
@@ -1784,8 +1782,9 @@ class Registry(BaseRegistry):
 
         # Initialize project metadata if needed
         assert self.cached_registry_proto
-        if not _get_project_metadata(self.cached_registry_proto, project):
+        if _get_project_metadata(self.cached_registry_proto, project) is None:
             _init_project_metadata(self.cached_registry_proto, project)
+            self.commit()
 
         return self.cached_registry_proto
 
@@ -1819,7 +1818,7 @@ class Registry(BaseRegistry):
                 cached_registry_proto=self.cached_registry_proto, project=project
             )
 
-            if allow_cache and not expired and not old_project_metadata:
+            if allow_cache and not expired and old_project_metadata is not None:
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
 
