@@ -767,7 +767,7 @@ def _get_project_metadata(
 
 
 def _init_project_metadata(
-    cached_registry_proto: Optional[RegistryProto], project: str
+    cached_registry_proto: RegistryProto, project: str
 ):
     new_project_uuid = f"{uuid.uuid4()}"
     usage.set_current_project_uuid(new_project_uuid)

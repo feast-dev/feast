@@ -18,6 +18,7 @@ driver = Entity(
 # Indicates a data source from which feature values can be retrieved. Sources are queried when building training
 # datasets or materializing features into an online store.
 driver_stats_source = BigQuerySource(
+    name="driver_hourly_stats_source",
     # The BigQuery table where features can be found
     table="feast-oss.demo_data.driver_hourly_stats_2",
     # The event timestamp is used for point-in-time joins and for ensuring only

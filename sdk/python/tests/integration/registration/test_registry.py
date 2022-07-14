@@ -640,7 +640,7 @@ def run_test_data_source_apply(test_registry: Registry):
 
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto()
+        test_registry._get_registry_proto(project=project)
 
 
 def test_commit():
