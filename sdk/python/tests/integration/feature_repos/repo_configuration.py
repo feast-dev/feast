@@ -22,6 +22,7 @@ from feast.infra.feature_servers.local_process.config import LocalFeatureServerC
 from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
+    RegistryLocation,
 )
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -381,8 +382,6 @@ def construct_test_environment(
         online_creator = None
         online_store = test_repo_config.online_store
 
-    repo_dir_name = tempfile.mkdtemp()
-
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
@@ -393,22 +392,30 @@ def construct_test_environment(
             execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
         )
 
-        registry = (
-            f"s3://feast-integration-tests/registries/{project}/registry.db"
-        )  # type: Union[str, RegistryConfig]
     else:
         feature_server = LocalFeatureServerConfig(
             feature_logging=FeatureLoggingConfig(enabled=True)
         )
+
+    repo_dir_name = tempfile.mkdtemp()
+    if (
+        test_repo_config.python_feature_server and test_repo_config.provider == "aws"
+    ) or test_repo_config.registry_location == RegistryLocation.S3:
+        registry: Union[str, RegistryConfig] = (
+            f"s3://feast-integration-tests/registries/{project}/registry.db"
+        )
+    else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
         )
+
     config = RepoConfig(
         registry=registry,
         project=project,
         provider=test_repo_config.provider,
         offline_store=offline_store_config,
         online_store=online_store,
+        batch_engine=test_repo_config.batch_engine,
         repo_path=repo_dir_name,
         feature_server=feature_server,
         go_feature_retrieval=test_repo_config.go_feature_retrieval,

@@ -1,5 +1,6 @@
 import hashlib
 from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Optional, Type, Union
 
 from tests.integration.feature_repos.universal.data_source_creator import (
@@ -13,6 +14,11 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 
+class RegistryLocation(Enum):
+    Local = 1
+    S3 = 2
+
+
 @dataclass(frozen=False)
 class IntegrationTestRepoConfig:
     """
@@ -24,6 +30,9 @@ class IntegrationTestRepoConfig:
 
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
     online_store_creator: Optional[Type[OnlineStoreCreator]] = None
+
+    batch_engine: Optional[Union[str, Dict]] = "local"
+    registry_location: RegistryLocation = RegistryLocation.Local
 
     full_feature_names: bool = True
     infer_features: bool = False

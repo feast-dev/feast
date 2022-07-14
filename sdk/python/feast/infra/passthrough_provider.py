@@ -22,7 +22,7 @@ from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
-from feast.repo_config import RepoConfig
+from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import StreamFeatureView
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
@@ -33,10 +33,6 @@ from feast.utils import (
 )
 
 DEFAULT_BATCH_SIZE = 10_000
-
-BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.LocalMaterializationEngine",
-}
 
 
 class PassthroughProvider(Provider):
@@ -73,7 +69,7 @@ class PassthroughProvider(Provider):
         if self._batch_engine:
             return self._batch_engine
         else:
-            engine_config = self.repo_config.batch_engine_config
+            engine_config = self.repo_config._batch_engine_config
             config_is_dict = False
             if isinstance(engine_config, str):
                 engine_config_type = engine_config
@@ -129,6 +125,14 @@ class PassthroughProvider(Provider):
                 entities_to_delete=entities_to_delete,
                 partial=partial,
             )
+        if self.batch_engine:
+            self.batch_engine.update(
+                project,
+                tables_to_delete,
+                tables_to_keep,
+                entities_to_delete,
+                entities_to_keep,
+            )
 
     def teardown_infra(
         self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
@@ -136,6 +140,8 @@ class PassthroughProvider(Provider):
         set_usage_attribute("provider", self.__class__.__name__)
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
+        if self.batch_engine:
+            self.batch_engine.teardown_infra(project, tables, entities)
 
     def online_write_batch(
         self,
