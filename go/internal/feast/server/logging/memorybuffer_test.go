@@ -159,7 +159,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 	expectedRecord := builder.NewRecord()
 	assert.Nil(t, err)
 	for colIdx := 0; colIdx < int(record.NumCols()); colIdx++ {
-		assert.Equal(t, expectedRecord.Column(colIdx), record.Column(colIdx), "Columns with idx %d are not equal", colIdx)
+		assert.Equal(t, true, array.Equal(expectedRecord.Column(colIdx), record.Column(colIdx)), "Columns with idx %d are not equal", colIdx)
 	}
 
 }
