@@ -756,11 +756,11 @@ class BaseRegistry(abc.ABC):
 
 
 def _get_project_metadata(
-    cached_registry_proto: Optional[RegistryProto], project: str
+    registry_proto: Optional[RegistryProto], project: str
 ) -> Optional[ProjectMetadataProto]:
-    if not cached_registry_proto:
+    if not registry_proto:
         return None
-    for pm in cached_registry_proto.project_metadata:
+    for pm in registry_proto.project_metadata:
         if pm.project == project:
             return pm
     return None
@@ -1815,7 +1815,7 @@ class Registry(BaseRegistry):
                 )
             )
             old_project_metadata = _get_project_metadata(
-                cached_registry_proto=self.cached_registry_proto, project=project
+                registry_proto=self.cached_registry_proto, project=project
             )
 
             if allow_cache and not expired and old_project_metadata is not None:
@@ -1827,12 +1827,12 @@ class Registry(BaseRegistry):
             self.cached_registry_proto_created = datetime.utcnow()
 
             project_metadata = _get_project_metadata(
-                cached_registry_proto=self.cached_registry_proto, project=project
+                registry_proto=registry_proto, project=project
             )
             if project_metadata:
                 usage.set_current_project_uuid(project_metadata.project_uuid)
             else:
-                _init_project_metadata(self.cached_registry_proto, project)
+                _init_project_metadata(registry_proto, project)
                 self.commit()
 
             return registry_proto
