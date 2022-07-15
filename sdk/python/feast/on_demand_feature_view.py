@@ -533,7 +533,7 @@ def on_demand_feature_view(
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",
-    entity_key_serialization_version=1,
+    entity_key_serialization_version: Optional[int] = None,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -553,6 +553,7 @@ def on_demand_feature_view(
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the on demand feature view, typically the email
             of the primary maintainer.
+     entity_key_serialization_version: The serialization version for entities.
     """
     positional_attributes = ["features", "inputs"]
 
