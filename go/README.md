@@ -1,18 +1,18 @@
-This dir contains the go logic that's executed by the `EmbeddedOnlineFeatureServer` from python.
+This directory contains the Go logic that's executed by the `EmbeddedOnlineFeatureServer` from Python.
 
 ## Building and Linking
-[gopy](https://github.com/go-python/gopy) generates (and compiles) a CPython extension module from a go package. That's what we're using here, as visible in [setup.py](../setup.py)
+[gopy](https://github.com/go-python/gopy) generates (and compiles) a CPython extension module from a Go package. That's what we're using here, as visible in [setup.py](../setup.py).
 
-Under the hood, gopy invoked `go build`, and then templates `cgo` stubs for the go module that exposes the public functions from the Go module as C functions.
-For our project, this stuff can be found at `sdk/python/feast/embedded_go/lib/embedded.go` & `sdk/python/feast/embedded_go/lib/embedded_go.h` after running `python setup.py develop`
+Under the hood, gopy invokes `go build`, and then templates `cgo` stubs for the Go module that exposes the public functions from the Go module as C functions.
+For our project, this stuff can be found at `sdk/python/feast/embedded_go/lib/embedded.go` & `sdk/python/feast/embedded_go/lib/embedded_go.h` after running `make compile-go-lib`.
 
 ## Arrow memory management
 Understanding this is the trickiest part of this integration.
 
-At a high level, when using the Python<>Go integration, the python layer exports request data into an [Arrow Record batch](https://arrow.apache.org/docs/python/data.html) which is transferred to go using Arrow's zero copy mechanism.
-Similarly, the go layer converts feature values read from the online store into a Record Batch that's exported to Python using the same mechanics.
+At a high level, when using the Python<>Go integration, the Python layer exports request data into an [Arrow Record batch](https://arrow.apache.org/docs/python/data.html) which is transferred to Go using Arrow's zero copy mechanism.
+Similarly, the Go layer converts feature values read from the online store into a Record Batch that's exported to Python using the same mechanics.
 
-The first thing to note is that from the python perspective, all the export logic assumes that we're exporting to & importing from C, not Go. This is because pyarrow only interops with C, and the fact we're using Go is an implementation detail not relevant to the python layer.
+The first thing to note is that from the Python perspective, all the export logic assumes that we're exporting to & importing from C, not Go. This is because pyarrow only interops with C, and the fact we're using Go is an implementation detail not relevant to the Python layer.
 
 ### Export Entities & Request data from Python to Go
 The code exporting to C is this, in [online_feature_service.py](../sdk/python/feast/embedded_go/online_features_service.py)
@@ -39,7 +39,7 @@ schema._export_to_c(req_data_ptr_schema)
 batch._export_to_c(req_data_ptr_array)
 ```
 
-Under the hood, `allocate_schema_and_array` allocates a pointer (`struct ArrowSchema*` and `struct ArrowArray*`) in native memory (i.e. the C layer) using cffi.
+Under the hood, `allocate_schema_and_array` allocates a pointer (`struct ArrowSchema*` and `struct ArrowArray*`) in native memory (i.e. the C layer) using `cffi`.
 Next, the RecordBatch exports to this pointer using [`_export_to_c`](https://github.com/apache/arrow/blob/master/python/pyarrow/table.pxi#L2509), which uses [`ExportRecordBatch`](https://arrow.apache.org/docs/cpp/api/c_abi.html#_CPPv417ExportRecordBatchRK11RecordBatchP10ArrowArrayP11ArrowSchema) under the hood.
 
 As per the documentation for ExportRecordBatch:
@@ -64,7 +64,7 @@ defer requestDataRecords.Release()
 ```
 
 Additionally, we need to pass in a pair of pointers to `GetOnlineFeatures()` that are populated by the Go layer, and the resultant feature values can be passed back to Python (via the C layer) using zero-copy semantics.
-That happens in a snipper like this:
+That happens as follows:
 ```
 (
     features_c_schema,
@@ -87,10 +87,9 @@ result := array.NewRecord(arrow.NewSchema(outputFields, nil), outputColumns, int
 cdata.ExportArrowRecordBatch(result,
     cdata.ArrayFromPtr(output.DataPtr),
     cdata.SchemaFromPtr(output.SchemaPtr))
-
 ```
 
-The documentation for `ExportArrowRecordBatch` is great - it has this super useful caveat:
+The documentation for `ExportArrowRecordBatch` is great. It has this super useful caveat:
 
 > // The release function on the populated CArrowArray will properly decrease the reference counts,
 > // and release the memory if the record has already been released. But since this must be explicitly
