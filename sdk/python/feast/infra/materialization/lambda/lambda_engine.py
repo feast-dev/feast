@@ -100,7 +100,11 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 "feast-sdk-version": get_version(),
             },
         )
-        logger.info("Creating lambda function %s, %s", self.lambda_name, r)
+        logger.info(
+            "Creating lambda function %s, %s",
+            self.lambda_name,
+            r["ResponseMetadata"]["RequestId"],
+        )
 
         logger.info("Waiting for function %s to be active", self.lambda_name)
         waiter = self.lambda_client.get_waiter("function_active")
