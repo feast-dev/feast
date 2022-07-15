@@ -147,6 +147,7 @@ class EmbeddedOnlineFeatureServer:
             features_ptr_array, features_ptr_schema
         )
         resp = record_batch_to_online_response(record_batch)
+        del record_batch
         return OnlineResponse(resp)
 
     def start_grpc_server(

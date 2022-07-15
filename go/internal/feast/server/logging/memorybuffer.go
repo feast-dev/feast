@@ -128,7 +128,7 @@ func getArrowSchema(schema *FeatureServiceSchema) (*arrow.Schema, error) {
 // and writes them to arrow table.
 // Returns arrow table that contains all of the logs in columnar format.
 func (b *MemoryBuffer) convertToArrowRecord() (arrow.Record, error) {
-	arrowMemory := memory.NewGoAllocator()
+	arrowMemory := memory.NewCgoArrowAllocator()
 	numRows := len(b.logs)
 
 	columns := make(map[string][]*types.Value)

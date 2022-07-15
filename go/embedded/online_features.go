@@ -33,6 +33,11 @@ type OnlineFeatureService struct {
 	grpcStopCh chan os.Signal
 	httpStopCh chan os.Signal
 
+	statusColumnBuildersToRelease []*array.Int32Builder
+	tsColumnBuildersToRelease     []*array.Int64Builder
+	arraysToRelease               []arrow.Array
+	resultsToRelease              []arrow.Record
+
 	err error
 }
 
@@ -143,6 +148,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if err != nil {
 		return err
 	}
+	defer entitiesRecord.Release()
 
 	numRows := entitiesRecord.Column(0).Len()
 
@@ -155,6 +161,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if err != nil {
 		return err
 	}
+	defer requestDataRecords.Release()
 
 	requestDataProto, err := recordToProto(requestDataRecords)
 	if err != nil {
@@ -177,6 +184,24 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 	if err != nil {
 		return err
 	}
+
+	// Release all objects that are no longer required.
+	for _, statusColumnBuilderToRelease := range s.statusColumnBuildersToRelease {
+		statusColumnBuilderToRelease.Release()
+	}
+	for _, tsColumnBuilderToRelease := range s.tsColumnBuildersToRelease {
+		tsColumnBuilderToRelease.Release()
+	}
+	for _, arrayToRelease := range s.arraysToRelease {
+		arrayToRelease.Release()
+	}
+	for _, resultsToRelease := range s.resultsToRelease {
+		resultsToRelease.Release()
+	}
+	s.statusColumnBuildersToRelease = nil
+	s.tsColumnBuildersToRelease = nil
+	s.arraysToRelease = nil
+	s.resultsToRelease = nil
 
 	outputFields := make([]arrow.Field, 0)
 	outputColumns := make([]arrow.Array, 0)
@@ -210,13 +235,19 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 		}
 		tsColumn := tsColumnBuilder.NewArray()
 		outputColumns = append(outputColumns, tsColumn)
+
+		// Mark builders and arrays for release.
+		s.statusColumnBuildersToRelease = append(s.statusColumnBuildersToRelease, statusColumnBuilder)
+		s.tsColumnBuildersToRelease = append(s.tsColumnBuildersToRelease, tsColumnBuilder)
+		s.arraysToRelease = append(s.arraysToRelease, statusColumn)
+		s.arraysToRelease = append(s.arraysToRelease, tsColumn)
+		s.arraysToRelease = append(s.arraysToRelease, featureVector.Values)
 	}
 
 	result := array.NewRecord(arrow.NewSchema(outputFields, nil), outputColumns, int64(numRows))
+	s.resultsToRelease = append(s.resultsToRelease, result)
 
-	cdata.ExportArrowRecordBatch(result,
-		cdata.ArrayFromPtr(output.DataPtr),
-		cdata.SchemaFromPtr(output.SchemaPtr))
+	cdata.ExportArrowRecordBatch(result, cdata.ArrayFromPtr(output.DataPtr), cdata.SchemaFromPtr(output.SchemaPtr))
 
 	return nil
 }
