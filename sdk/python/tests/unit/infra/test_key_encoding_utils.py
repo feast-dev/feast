@@ -5,24 +5,26 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
-@pytest.mark.parametrize(
-    "entity_key,expected_contains",
-    [
-        (
-                EntityKeyProto(
-                    join_keys=["customer"],
-                    entity_values=[ValueProto(int64_val=int(2 ** 31))],
-                ),
-                b"customer",
+def test_serialize_entity_key():
+    # Should be fine
+    serialize_entity_key(
+        EntityKeyProto(
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
         ),
-        (
-                EntityKeyProto(
-                    join_keys=["user"], entity_values=[ValueProto(int32_val=int(2 ** 15))]
-                ),
-                b"user",
+        entity_key_serialization_version=2,
+    )
+    # True int64, but should also be fine.
+    serialize_entity_key(
+        EntityKeyProto(
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
         ),
-    ],
-)
-def test_serialize_entity_key(entity_key, expected_contains):
-    output = serialize_entity_key(entity_key)
-    assert output.find(expected_contains) >= 0
+        entity_key_serialization_version=2,
+    )
+
+    # Old serilization scheme, should fail.
+    with pytest.raises(BaseException):
+        serialize_entity_key(
+            EntityKeyProto(
+                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
+            ),
+        )

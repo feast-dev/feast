@@ -17,8 +17,8 @@ def _serialize_val(
         return struct.pack("<i", v.int32_val), ValueType.INT32
     elif value_type == "int64_val":
         if (
-                entity_key_serialization_version >= 0
-                and entity_key_serialization_version <= 1
+            entity_key_serialization_version >= 0
+            and entity_key_serialization_version <= 1
         ):
             return struct.pack("<l", v.int64_val), ValueType.INT64
         return struct.pack("<q", v.int64_val), ValueType.INT64
