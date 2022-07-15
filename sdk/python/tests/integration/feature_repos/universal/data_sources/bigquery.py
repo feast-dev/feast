@@ -74,6 +74,12 @@ class BigQueryDataSourceCreator(DataSourceCreator):
                 f"{self.gcp_project}.{self.project_name}.{destination_name}"
             )
 
+        # Make all datetime columns timezone aware. This should be the behaviour of
+        # `BigQueryOfflineStore.offline_write_batch`, but since we're bypassing that API here, we should follow the same
+        # rule. The schema of this initial dataframe determines the schema in the newly created BigQuery table.
+        for column in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[column]):
+                df[column] = pd.to_datetime(df[column], utc=True)
         job = self.client.load_table_from_dataframe(df, destination_name)
         job.result()
 

@@ -424,7 +424,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         job_config: bigquery.QueryJobConfig = None,
         timeout: int = 1800,
         retry_cadence: int = 10,
-    ) -> Optional[str]:
+    ) -> str:
         """
         Triggers the execution of a historical feature retrieval query and exports the results to a BigQuery table.
         Runs for a maximum amount of time specified by the timeout parameter (defaulting to 30 minutes).

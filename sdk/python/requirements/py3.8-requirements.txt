@@ -75,7 +75,7 @@ importlib-resources==5.8.0
     # via jsonschema
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.6.1
+jsonschema==4.7.1
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -89,7 +89,7 @@ mypy==0.961
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
-numpy==1.23.0
+numpy==1.23.1
     # via
     #   feast (setup.py)
     #   pandas
@@ -172,7 +172,7 @@ toml==0.10.2
     # via feast (setup.py)
 tomli==2.0.1
     # via mypy
-toolz==0.11.2
+toolz==0.12.0
     # via
     #   dask
     #   partd
@@ -180,13 +180,13 @@ tqdm==4.64.0
     # via feast (setup.py)
 typeguard==2.13.3
     # via feast (setup.py)
-typing-extensions==4.2.0
+typing-extensions==4.3.0
     # via
     #   mypy
     #   pydantic
     #   sqlalchemy2-stubs
     #   starlette
-urllib3==1.26.9
+urllib3==1.26.10
     # via requests
 uvicorn[standard]==0.18.2
     # via feast (setup.py)
