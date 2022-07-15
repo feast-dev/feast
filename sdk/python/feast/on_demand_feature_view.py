@@ -88,7 +88,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
-        entity_key_serialization_version=1,
+        entity_key_serialization_version: Optional[int] = None,
     ):
         """
         Creates an OnDemandFeatureView object.

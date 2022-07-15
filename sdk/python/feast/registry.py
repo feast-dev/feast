@@ -1162,6 +1162,7 @@ class Registry(BaseRegistry):
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
+        does_fv_exist_in_registry: bool = False
         saved_entity_key_serialization_version: Optional[int] = None
         for idx, existing_feature_view_proto in enumerate(
             existing_feature_views_of_same_type
@@ -1170,27 +1171,45 @@ class Registry(BaseRegistry):
                 existing_feature_view_proto.spec.name == feature_view_proto.spec.name
                 and existing_feature_view_proto.spec.project == project
             ):
+                saved_entity_key_serialization_version = (
+                    existing_feature_view_proto.spec.entity_key_serialization_version
+                )
+                does_fv_exist_in_registry = True
                 if (
                     feature_view.__class__.from_proto(existing_feature_view_proto)
                     == feature_view
                 ):
                     return
                 else:
-                    saved_entity_key_serialization_version = existing_feature_views_of_same_type[
-                        idx
-                    ].spec.entity_key_serialization_version
                     del existing_feature_views_of_same_type[idx]
                     break
 
-        if (
-            not saved_entity_key_serialization_version
-            or saved_entity_key_serialization_version <= 1
+        if not does_fv_exist_in_registry:
+            # Brand new FV! Lets set the serialization version to 2, AKA the correct version with the
+            # int64 fix, if the serialization version is "unset" in the FV.
+            serialization_version = (
+                feature_view.entity_key_serialization_version
+                if feature_view.entity_key_serialization_version
+                else 2
+            )
+            feature_view_proto.spec.entity_key_serialization_version = (
+                serialization_version
+            )
+            feature_view.set_entity_key_serialization_version(serialization_version)
+        elif (
+            does_fv_exist_in_registry
+            and saved_entity_key_serialization_version
+            and saved_entity_key_serialization_version <= 1
         ):
+            # Here, the feature view already exists in the registry, but doesn't have a serialization version set
+            # (or it has it set to 0 AKA "unset" in proto)
+            # in this case, we set the value to 1 (which is the current, broken serialization version)
             feature_view_proto.spec.entity_key_serialization_version = 1
             feature_view.set_entity_key_serialization_version(1)
         else:
-            feature_view_proto.spec.entity_key_serialization_version = 2
-            feature_view.set_entity_key_serialization_version(2)
+            # The FV exists in the registry, and the serialization version is set explicitly.
+            # In which case, we probably don't need to do anything?
+            pass
 
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
