@@ -415,6 +415,8 @@ func KeepOnlyRequestedFeatures(
 	vectorsByName := make(map[string]*FeatureVector)
 	expectedVectors := make([]*FeatureVector, 0)
 
+	usedVectors := make(map[string]bool)
+
 	for _, vector := range vectors {
 		vectorsByName[vector.Name] = vector
 	}
@@ -438,6 +440,14 @@ func KeepOnlyRequestedFeatures(
 			return nil, fmt.Errorf("requested feature %s can't be retrieved", featureRef)
 		}
 		expectedVectors = append(expectedVectors, vectorsByName[qualifiedName])
+		usedVectors[qualifiedName] = true
+	}
+
+	// Free arrow arrays for vectors that were not used.
+	for _, vector := range vectors {
+		if _, ok := usedVectors[vector.Name]; !ok {
+			vector.Values.Release()
+		}
 	}
 
 	return expectedVectors, nil
