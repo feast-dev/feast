@@ -6,9 +6,10 @@ Feast makes adding support for a new online store (database) easy. Developers ca
 
 In this guide, we will show you how to integrate with MySQL as an online store. While we will be implementing a specific store, this guide should be representative for adding support for any new online store.
 
-The full working code for this guide can be found at [feast-dev/feast-custom-online-store-demo](https://github.com/feast-dev/feast-custom-online-store-demo).
+The full working code for this guide can be found at [feast-dev/feast-custom-online-store-demo](https://github.com/feast-dev/feast-custom-online-store-demo) and an example of a custom offline store that was contributed by developers can be found [here](https://github.com/feast-dev/feast/pull/2401).
 
-The process of using a custom online store consists of 3 steps:
+
+The process of using a custom online store consists of 4 steps:
 
 1. Defining the `OnlineStore` class.
 2. Defining the `OnlineStoreConfig` class.
@@ -79,7 +80,7 @@ def teardown(
     entities: Sequence[Entity],
 ):
     """
-    
+
     """
     conn = self._get_conn(config)
     cur = conn.cursor(buffered=True)
@@ -243,7 +244,7 @@ To use our MySQL online store, we can use the following `feature_store.yaml`:
 project: test_custom
 registry: data/registry.db
 provider: local
-online_store: 
+online_store:
     type: feast_custom_online_store.mysql.MySQLOnlineStore
     user: foo
     password: bar
@@ -263,11 +264,21 @@ online_store: feast_custom_online_store.mysql.MySQLOnlineStore
 
 ## 4. Testing the OnlineStore class
 
+### Contrib
+
+Generally, new online stores should go in the contrib folder and have alpha functionality tags. The contrib folder is designated for community contributions that are not fully maintained by Feast maintainers and may contain potential instability and have API changes. It is recommended to add warnings to users that the online store functionality is still in alpha development and is not fully stable. In order to be classified as fully stable and be moved to the main online store folder, the online store should integrate with the full integration test suite in Feast and pass all of the test cases.
+
+### Integrating with the integration test suite and unit test suite.
+
 Even if you have created the `OnlineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo. In the Feast submodule, we can run all the unit tests with:
 
 ```
-make test
+make test-python
 ```
+
+This should run the unit tests and the unit tests should all pass. Please add unit tests for your online store that test out basic functionality of reading and writing to and from the online store. This should just be class level functionality that ensures that the methods you implemented for the OnlineStore work as expected. In order to be approved to merge into Feast, these unit tests should all pass and demonstrate that the DataSource works as intended.
+
+
 
 The universal tests, which are integration tests specifically intended to test offline and online stores, can be run with:
 
@@ -283,3 +294,53 @@ make test-python-universal
 ```
 
 to test the MySQL online store against the Feast universal tests. You should notice that some of the tests actually fail; this indicates that there is a mistake in the implementation of this online store!
+
+
+In order to test your online store, overwrite the `AVAILABLE_ONLINE_STORES` dictionary and add a reference to your online store. If you are planning to start the online store up locally(e.g spin up a local Redis Instance), then the dictionary entry should be something like:
+
+```
+{
+    "sqlite": ({"type": "sqlite"}, None),
+}
+```
+
+The key is the name of the online store and the tuple contains the online store config represented as a dictionary. Make sure that the sqlite config defines the full package so that Feast can import the online store dynamically at runtime. The None type in the tuple can be replaced by an `OnlineStoreCreator` which is only useful for specific online stores that have containerized docker images. If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store(e.g a redis instance or dynamo instance) in order to perform testing. An example of an `OnlineStoreCreator` is shown below:
+
+```
+class RedisOnlineStoreCreator(OnlineStoreCreator):
+    def __init__(self, project_name: str, **kwargs):
+        super().__init__(project_name)
+        self.container = DockerContainer("redis").with_exposed_ports("6379")
+
+    def create_online_store(self) -> Dict[str, str]:
+        self.container.start()
+        log_string_to_wait_for = "Ready to accept connections"
+        wait_for_logs(
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
+        )
+        exposed_port = self.container.get_exposed_port("6379")
+        return {"type": "redis", "connection_string": f"localhost:{exposed_port},db=0"}
+
+    def teardown(self):
+        self.container.stop()
+```
+
+
+### Dependencies
+
+Finally, if your online store requires special packages, add them to our `sdk/python/setup.py` under a new `<ONLINE>_STORE_REQUIRED` list with the packages and add it to the setup script so that if your online store is needed, users can install the necessary python packages.
+You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
+
+```
+export PYTHON=<version>
+make lock-python-ci-dependencies
+make lock-python-dependencies
+```
+
+
+### Documentation
+
+Remember to update the documentation for your online store. This can be found in `docs/reference/online-stores/`. You should also add a reference in `docs/reference/online-stores/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other online stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the online store is in alpha development.
+
+
+An example of a full pull request for adding a custom online store can be found [here](https://github.com/feast-dev/feast/pull/2401).
