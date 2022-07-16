@@ -156,7 +156,13 @@ class SqliteOnlineStore(OnlineStore):
                 f"FROM {_table_id(config.project, table)} "
                 f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
                 f"ORDER BY entity_key",
-                [serialize_entity_key(entity_key) for entity_key in entity_keys],
+                [
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=table.entity_key_serialization_version,
+                    )
+                    for entity_key in entity_keys
+                ],
             )
             rows = cur.fetchall()
 
