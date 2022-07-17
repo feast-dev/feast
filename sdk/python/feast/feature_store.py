@@ -1057,17 +1057,17 @@ class FeatureStore:
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
-            entity_pd_df = cast(pd.DataFrame, entity_df)
+            entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for fv in request_feature_views:
                 for feature in fv.features:
-                    if feature.name not in entity_pd_df.columns:
+                    if feature.name not in entity_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
                             feature_name=feature.name, feature_view_name=fv.name
                         )
             for odfv in on_demand_feature_views:
                 odfv_request_data_schema = odfv.get_request_data_schema()
                 for feature_name in odfv_request_data_schema.keys():
-                    if feature_name not in entity_pd_df.columns:
+                    if feature_name not in entity_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
                             feature_name=feature_name, feature_view_name=odfv.name,
                         )
@@ -2273,7 +2273,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def write_logged_features(
-        self, logs: Union[pa.Table, Path], source: Union[FeatureService]
+        self, logs: Union[pa.Table, Path], source: FeatureService
     ):
         """
         Write logs produced by a source (currently only feature service is supported as a source)
@@ -2302,7 +2302,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def validate_logged_features(
         self,
-        source: Union[FeatureService],
+        source: FeatureService,
         start: datetime,
         end: datetime,
         reference: ValidationReference,

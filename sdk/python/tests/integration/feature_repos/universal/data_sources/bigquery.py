@@ -13,6 +13,7 @@ from feast.infra.offline_stores.bigquery_source import (
     BigQueryLoggingDestination,
     SavedDatasetBigQueryStorage,
 )
+from feast.utils import make_df_tzaware
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -77,9 +78,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         # Make all datetime columns timezone aware. This should be the behaviour of
         # `BigQueryOfflineStore.offline_write_batch`, but since we're bypassing that API here, we should follow the same
         # rule. The schema of this initial dataframe determines the schema in the newly created BigQuery table.
-        for column in df.columns:
-            if pd.api.types.is_datetime64_any_dtype(df[column]):
-                df[column] = pd.to_datetime(df[column], utc=True)
+        df = make_df_tzaware(df)
         job = self.client.load_table_from_dataframe(df, destination_name)
         job.result()
 
