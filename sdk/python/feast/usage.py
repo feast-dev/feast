@@ -40,6 +40,7 @@ _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 _is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
 
 _constant_attributes = {
+    "project_id": "",
     "session_id": str(uuid.uuid4()),
     "installation_id": None,
     "version": get_version(),
@@ -51,6 +52,10 @@ _constant_attributes = {
         ).encode()
     ).hexdigest(),
 }
+
+
+def set_current_project_uuid(project_uuid: str):
+    _constant_attributes["project_id"] = project_uuid
 
 
 @dataclasses.dataclass

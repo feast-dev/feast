@@ -77,7 +77,8 @@ test-python-integration-local:
 		python -m pytest -n 8 --integration \
 			-k "not test_apply_entity_integration and \
 				not test_apply_feature_view_integration and \
-				not test_apply_data_source_integration" \
+				not test_apply_data_source_integration and \
+				not test_lambda_materialization" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 

@@ -1,4 +1,6 @@
+import uuid
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, List, Optional, Set, Union
 
@@ -17,6 +19,7 @@ from sqlalchemy import (  # type: ignore
 )
 from sqlalchemy.engine import Engine
 
+from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -32,6 +35,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -156,6 +160,12 @@ managed_infra = Table(
     Column("infra_proto", LargeBinary, nullable=False),
 )
 
+
+class FeastMetadataKeys(Enum):
+    LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
+    PROJECT_UUID = "project_uuid"
+
+
 feast_metadata = Table(
     "feast_metadata",
     metadata,
@@ -189,7 +199,7 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self):
+    def refresh(self, project: Optional[str]):
         # This method is a no-op since we're always reading the latest values from the db.
         pass
 
@@ -459,6 +469,22 @@ class SqlRegistry(BaseRegistry):
             "feature_view_proto",
         )
 
+    def list_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ProjectMetadata]:
+        with self.engine.connect() as conn:
+            stmt = select(feast_metadata).where(feast_metadata.c.project_id == project,)
+            rows = conn.execute(stmt).all()
+            if rows:
+                project_metadata = ProjectMetadata(project_name=project)
+                for row in rows:
+                    if row["metadata_key"] == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata.project_uuid = row["metadata_value"]
+                        break
+                    # TODO(adchia): Add other project metadata in a structured way
+                return [project_metadata]
+        return []
+
     def apply_saved_dataset(
         self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
@@ -629,6 +655,7 @@ class SqlRegistry(BaseRegistry):
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
+                (self.list_project_metadata, r.project_metadata),
             ]:
                 objs: List[Any] = lister(project)  # type: ignore
                 if objs:
@@ -651,14 +678,16 @@ class SqlRegistry(BaseRegistry):
     def _apply_object(
         self, table, project: str, id_field_name, obj, proto_field_name, name=None
     ):
+        self._maybe_init_project_metadata(project)
+
         name = name or obj.name
         with self.engine.connect() as conn:
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
             row = conn.execute(stmt).first()
-            update_datetime = datetime.utcnow()
-            update_time = int(update_datetime.timestamp())
             if hasattr(obj, "last_updated_timestamp"):
                 obj.last_updated_timestamp = update_datetime
 
@@ -685,6 +714,30 @@ class SqlRegistry(BaseRegistry):
 
             self._set_last_updated_metadata(update_datetime, project)
 
+    def _maybe_init_project_metadata(self, project):
+        # Initialize project metadata if needed
+        with self.engine.connect() as conn:
+            update_datetime = datetime.utcnow()
+            update_time = int(update_datetime.timestamp())
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value,
+                feast_metadata.c.project_id == project,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                usage.set_current_project_uuid(row["metadata_value"])
+            else:
+                new_project_uuid = f"{uuid.uuid4()}"
+                values = {
+                    "metadata_key": FeastMetadataKeys.PROJECT_UUID.value,
+                    "metadata_value": new_project_uuid,
+                    "last_updated_timestamp": update_time,
+                    "project_id": project,
+                }
+                insert_stmt = insert(feast_metadata).values(values)
+                conn.execute(insert_stmt)
+                usage.set_current_project_uuid(new_project_uuid)
+
     def _delete_object(self, table, name, project, id_field_name, not_found_exception):
         with self.engine.connect() as conn:
             stmt = delete(table).where(
@@ -708,6 +761,8 @@ class SqlRegistry(BaseRegistry):
         proto_field_name,
         not_found_exception,
     ):
+        self._maybe_init_project_metadata(project)
+
         with self.engine.connect() as conn:
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
@@ -721,6 +776,7 @@ class SqlRegistry(BaseRegistry):
     def _list_objects(
         self, table, project, proto_class, python_class, proto_field_name
     ):
+        self._maybe_init_project_metadata(project)
         with self.engine.connect() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
@@ -736,7 +792,8 @@ class SqlRegistry(BaseRegistry):
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
         with self.engine.connect() as conn:
             stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key == "last_updated_timestamp",
+                feast_metadata.c.metadata_key
+                == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()
@@ -744,7 +801,7 @@ class SqlRegistry(BaseRegistry):
             update_time = int(last_updated.timestamp())
 
             values = {
-                "metadata_key": "last_updated_timestamp",
+                "metadata_key": FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 "metadata_value": f"{update_time}",
                 "last_updated_timestamp": update_time,
                 "project_id": project,
@@ -753,7 +810,8 @@ class SqlRegistry(BaseRegistry):
                 update_stmt = (
                     update(feast_metadata)
                     .where(
-                        feast_metadata.c.metadata_key == "last_updated_timestamp",
+                        feast_metadata.c.metadata_key
+                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                         feast_metadata.c.project_id == project,
                     )
                     .values(values)
@@ -766,7 +824,8 @@ class SqlRegistry(BaseRegistry):
     def _get_last_updated_metadata(self, project: str):
         with self.engine.connect() as conn:
             stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key == "last_updated_timestamp",
+                feast_metadata.c.metadata_key
+                == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()

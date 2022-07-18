@@ -14,6 +14,7 @@
 import abc
 import json
 import logging
+import uuid
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -28,6 +29,7 @@ from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.json_format import MessageToJson
 from proto import Message
 
+from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -47,6 +49,8 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
@@ -56,7 +60,6 @@ from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
-
 
 REGISTRY_STORE_CLASS_FOR_TYPE = {
     "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
@@ -120,7 +123,6 @@ class FeastObjectType(Enum):
 
 
 FEAST_OBJECT_TYPES = [feast_object_type for feast_object_type in FeastObjectType]
-
 
 logger = logging.getLogger(__name__)
 
@@ -607,6 +609,20 @@ class BaseRegistry(abc.ABC):
             List of request feature views
         """
 
+    def list_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ProjectMetadata]:
+        """
+        Retrieves project metadata
+
+        Args:
+            project: Filter metadata based on project name
+            allow_cache: Allow returning feature views from the cached registry
+
+        Returns:
+            List of project metadata
+        """
+
     @abstractmethod
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         """
@@ -660,7 +676,7 @@ class BaseRegistry(abc.ABC):
         """Commits the state of the registry cache to the remote registry store."""
 
     @abstractmethod
-    def refresh(self):
+    def refresh(self, project: Optional[str]):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
     @staticmethod
@@ -678,6 +694,10 @@ class BaseRegistry(abc.ABC):
         """
         registry_dict: Dict[str, Any] = defaultdict(list)
         registry_dict["project"] = project
+        for project_metadata in sorted(self.list_project_metadata(project=project)):
+            registry_dict["projectMetadata"].append(
+                self._message_to_sorted_dict(project_metadata.to_proto())
+            )
         for data_source in sorted(
             self.list_data_sources(project=project), key=lambda ds: ds.name
         ):
@@ -731,6 +751,25 @@ class BaseRegistry(abc.ABC):
                 self._message_to_sorted_dict(infra_object.to_proto())
             )
         return registry_dict
+
+
+def _get_project_metadata(
+    registry_proto: Optional[RegistryProto], project: str
+) -> Optional[ProjectMetadataProto]:
+    if not registry_proto:
+        return None
+    for pm in registry_proto.project_metadata:
+        if pm.project == project:
+            return pm
+    return None
+
+
+def _init_project_metadata(cached_registry_proto: RegistryProto, project: str):
+    new_project_uuid = f"{uuid.uuid4()}"
+    usage.set_current_project_uuid(new_project_uuid)
+    cached_registry_proto.project_metadata.append(
+        ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
+    )
 
 
 class Registry(BaseRegistry):
@@ -811,13 +850,14 @@ class Registry(BaseRegistry):
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
-    def _initialize_registry(self):
+    def _initialize_registry(self, project: str):
         """Explicitly initializes the registry with an empty proto if it doesn't exist."""
         try:
-            self._get_registry_proto()
+            self._get_registry_proto(project=project)
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+            _init_project_metadata(registry_proto, project)
             self._registry_store.update_registry_proto(registry_proto)
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
@@ -829,7 +869,7 @@ class Registry(BaseRegistry):
             project: Feast project that the Infra object refers to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         self.cached_registry_proto.infra.CopyFrom(infra.to_proto())
@@ -847,7 +887,9 @@ class Registry(BaseRegistry):
         Returns:
             The stored Infra object.
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         return Infra.from_proto(registry_proto.infra)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -868,7 +910,7 @@ class Registry(BaseRegistry):
 
         entity_proto = entity.to_proto()
         entity_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_entity_proto in enumerate(
@@ -896,7 +938,9 @@ class Registry(BaseRegistry):
         Returns:
             List of entities
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         entities = []
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.project == project:
@@ -916,7 +960,9 @@ class Registry(BaseRegistry):
         Returns:
             List of data sources
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         data_sources = []
         for data_source_proto in registry_proto.data_sources:
             if data_source_proto.project == project:
@@ -934,7 +980,7 @@ class Registry(BaseRegistry):
             project: Feast project that this data source belongs to
             commit: Whether to immediately commit to the registry
         """
-        registry = self._prepare_registry_for_changes()
+        registry = self._prepare_registry_for_changes(project)
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
                 del registry.data_sources[idx]
@@ -959,7 +1005,7 @@ class Registry(BaseRegistry):
             project: Feast project that this data source belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, data_source_proto in enumerate(
@@ -990,7 +1036,7 @@ class Registry(BaseRegistry):
         feature_service_proto = feature_service.to_proto()
         feature_service_proto.spec.project = project
 
-        registry = self._prepare_registry_for_changes()
+        registry = self._prepare_registry_for_changes(project)
 
         for idx, existing_feature_service_proto in enumerate(registry.feature_services):
             if (
@@ -1017,7 +1063,7 @@ class Registry(BaseRegistry):
             List of feature services
         """
 
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
         feature_services = []
         for feature_service_proto in registry.feature_services:
             if feature_service_proto.spec.project == project:
@@ -1041,7 +1087,7 @@ class Registry(BaseRegistry):
             Returns either the specified feature service, or raises an exception if
             none is found
         """
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
 
         for feature_service_proto in registry.feature_services:
             if (
@@ -1064,7 +1110,9 @@ class Registry(BaseRegistry):
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
@@ -1090,7 +1138,7 @@ class Registry(BaseRegistry):
 
         feature_view_proto = feature_view.to_proto()
         feature_view_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         self._check_conflicting_feature_view_names(feature_view)
@@ -1146,7 +1194,7 @@ class Registry(BaseRegistry):
         Returns:
             List of stream feature views
         """
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
         stream_feature_views = []
         for stream_feature_view in registry.stream_feature_views:
             if stream_feature_view.spec.project == project:
@@ -1169,7 +1217,7 @@ class Registry(BaseRegistry):
             List of on demand feature views
         """
 
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
         on_demand_feature_views = []
         for on_demand_feature_view in registry.on_demand_feature_views:
             if on_demand_feature_view.spec.project == project:
@@ -1193,7 +1241,7 @@ class Registry(BaseRegistry):
             Returns either the specified on demand feature view, or raises an exception if
             none is found
         """
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
 
         for on_demand_feature_view in registry.on_demand_feature_views:
             if (
@@ -1217,7 +1265,7 @@ class Registry(BaseRegistry):
         Returns:
             Returns either the specified data source, or raises an exception if none is found
         """
-        registry = self._get_registry_proto(allow_cache=allow_cache)
+        registry = self._get_registry_proto(project=project, allow_cache=allow_cache)
 
         for data_source in registry.data_sources:
             if data_source.project == project and data_source.name == name:
@@ -1242,7 +1290,7 @@ class Registry(BaseRegistry):
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_feature_view_proto in enumerate(
@@ -1306,7 +1354,9 @@ class Registry(BaseRegistry):
         Returns:
             List of feature views
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         feature_views: List[FeatureView] = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
@@ -1320,13 +1370,12 @@ class Registry(BaseRegistry):
         Args:
             name: Name of feature view
             project: Feast project that this feature view belongs to
-            allow_cache: Allow returning feature view from the cached registry
 
         Returns:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(allow_cache=False)
+        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
         for feature_view_proto in registry_proto.feature_views:
             if (
                 feature_view_proto.spec.name == name
@@ -1348,7 +1397,9 @@ class Registry(BaseRegistry):
         Returns:
             List of feature views
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         feature_views: List[RequestFeatureView] = []
         for request_feature_view_proto in registry_proto.request_feature_views:
             if request_feature_view_proto.spec.project == project:
@@ -1372,7 +1423,9 @@ class Registry(BaseRegistry):
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for feature_view_proto in registry_proto.feature_views:
             if (
                 feature_view_proto.spec.name == name
@@ -1396,7 +1449,9 @@ class Registry(BaseRegistry):
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for feature_view_proto in registry_proto.stream_feature_views:
             if (
                 feature_view_proto.spec.name == name
@@ -1414,7 +1469,7 @@ class Registry(BaseRegistry):
             project: Feast project that this feature service belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, feature_service_proto in enumerate(
@@ -1439,7 +1494,7 @@ class Registry(BaseRegistry):
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_feature_view_proto in enumerate(
@@ -1501,7 +1556,7 @@ class Registry(BaseRegistry):
             project: Feast project that this entity belongs to
             commit: Whether the change should be persisted immediately
         """
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_entity_proto in enumerate(
@@ -1536,7 +1591,7 @@ class Registry(BaseRegistry):
 
         saved_dataset_proto = saved_dataset.to_proto()
         saved_dataset_proto.spec.project = project
-        self._prepare_registry_for_changes()
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_saved_dataset_proto in enumerate(
@@ -1568,7 +1623,9 @@ class Registry(BaseRegistry):
             Returns either the specified SavedDataset, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for saved_dataset in registry_proto.saved_datasets:
             if (
                 saved_dataset.spec.name == name
@@ -1590,7 +1647,9 @@ class Registry(BaseRegistry):
         Returns:
             Returns the list of SavedDatasets
         """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         return [
             SavedDataset.from_proto(saved_dataset)
             for saved_dataset in registry_proto.saved_datasets
@@ -1614,7 +1673,7 @@ class Registry(BaseRegistry):
         validation_reference_proto = validation_reference.to_proto()
         validation_reference_proto.project = project
 
-        registry_proto = self._prepare_registry_for_changes()
+        registry_proto = self._prepare_registry_for_changes(project)
         for idx, existing_validation_reference in enumerate(
             registry_proto.validation_references
         ):
@@ -1644,7 +1703,9 @@ class Registry(BaseRegistry):
                 Returns either the specified ValidationReference, or raises an exception if
                 none is found
             """
-        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for validation_reference in registry_proto.validation_references:
             if (
                 validation_reference.name == name
@@ -1662,7 +1723,7 @@ class Registry(BaseRegistry):
             project: Feast project that this object belongs to
             commit: Whether the change should be persisted immediately
         """
-        registry_proto = self._prepare_registry_for_changes()
+        registry_proto = self._prepare_registry_for_changes(project)
         for idx, existing_validation_reference in enumerate(
             registry_proto.validation_references
         ):
@@ -1676,14 +1737,26 @@ class Registry(BaseRegistry):
                 return
         raise ValidationReferenceNotFound(name, project=project)
 
+    def list_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ProjectMetadata]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return [
+            ProjectMetadata.from_proto(project_metadata)
+            for project_metadata in registry_proto.project_metadata
+            if project_metadata.project == project
+        ]
+
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
         if self.cached_registry_proto:
             self._registry_store.update_registry_proto(self.cached_registry_proto)
 
-    def refresh(self):
+    def refresh(self, project: Optional[str]):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
-        self._get_registry_proto(allow_cache=False)
+        self._get_registry_proto(project=project, allow_cache=False)
 
     def teardown(self):
         """Tears down (removes) the registry."""
@@ -1692,21 +1765,34 @@ class Registry(BaseRegistry):
     def proto(self) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
 
-    def _prepare_registry_for_changes(self):
+    def _prepare_registry_for_changes(self, project: str):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
         try:
-            self._get_registry_proto(allow_cache=True)
+            self._get_registry_proto(project=project, allow_cache=True)
+            if _get_project_metadata(self.cached_registry_proto, project) is None:
+                # Project metadata not initialized yet. Try pulling without cache
+                self._get_registry_proto(project=project, allow_cache=False)
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
+
+        # Initialize project metadata if needed
+        assert self.cached_registry_proto
+        if _get_project_metadata(self.cached_registry_proto, project) is None:
+            _init_project_metadata(self.cached_registry_proto, project)
+            self.commit()
+
         return self.cached_registry_proto
 
-    def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
+    def _get_registry_proto(
+        self, project: Optional[str], allow_cache: bool = False
+    ) -> RegistryProto:
         """Returns the cached or remote registry state
 
         Args:
+            project: Name of the Feast project (optional)
             allow_cache: Whether to allow the use of the registry cache when fetching the RegistryProto
 
         Returns: Returns a RegistryProto object which represents the state of the registry
@@ -1727,13 +1813,33 @@ class Registry(BaseRegistry):
                 )
             )
 
-            if allow_cache and not expired:
+            if project:
+                old_project_metadata = _get_project_metadata(
+                    registry_proto=self.cached_registry_proto, project=project
+                )
+
+                if allow_cache and not expired and old_project_metadata is not None:
+                    assert isinstance(self.cached_registry_proto, RegistryProto)
+                    return self.cached_registry_proto
+            elif allow_cache and not expired:
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
 
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
+
+            if not project:
+                return registry_proto
+
+            project_metadata = _get_project_metadata(
+                registry_proto=registry_proto, project=project
+            )
+            if project_metadata:
+                usage.set_current_project_uuid(project_metadata.project_uuid)
+            else:
+                _init_project_metadata(registry_proto, project)
+                self.commit()
 
             return registry_proto
 
