@@ -116,5 +116,3 @@ dmypy.json
 
 .vscode/*
 playground
-
-!tests/unit/test_project/*.db

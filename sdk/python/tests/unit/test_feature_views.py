@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-from assertpy import assertpy
 
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
@@ -18,7 +17,7 @@ from feast.types import Float32
 
 def test_create_batch_feature_view():
     batch_source = FileSource(path="some path")
-    bfv = BatchFeatureView(
+    BatchFeatureView(
         name="test batch feature view",
         entities=[],
         ttl=timedelta(days=30),

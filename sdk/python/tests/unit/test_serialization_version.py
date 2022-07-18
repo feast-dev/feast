@@ -1,9 +1,8 @@
-import os
 import tempfile
 
 from assertpy import assertpy
 
-from feast import FeatureStore, RepoConfig
+from feast import RepoConfig
 
 
 def test_registry_entity_serialization_version():
