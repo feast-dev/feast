@@ -71,11 +71,11 @@ jobs:
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local
       - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v1
-          with:
-            token: ${{ secrets.CODECOV_TOKEN }}
-            files: ./coverage.xml
-            flags: localintegrationtests
-            env_vars: OS,PYTHON
-            fail_ci_if_error: true
-            verbose: true
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: localintegrationtests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          verbose: true
