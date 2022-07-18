@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.10-requirements.txt
 #
-absl-py==1.1.0
+absl-py==1.2.0
     # via tensorflow-metadata
 anyio==3.6.1
     # via
@@ -38,7 +38,7 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.5.1
     # via feast (setup.py)
-fastapi==0.78.0
+fastapi==0.79.0
     # via feast (setup.py)
 fastavro==1.5.2
     # via
@@ -50,9 +50,9 @@ fsspec==2022.5.0
     # via dask
 google-api-core==2.8.2
     # via feast (setup.py)
-google-auth==2.9.0
+google-auth==2.9.1
     # via google-api-core
-googleapis-common-protos==1.56.3
+googleapis-common-protos==1.56.4
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -73,7 +73,7 @@ idna==3.3
     #   requests
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.6.1
+jsonschema==4.7.2
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -87,7 +87,7 @@ mypy==0.961
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
-numpy==1.22.0
+numpy==1.23.1
     # via
     #   feast (setup.py)
     #   pandas
@@ -170,7 +170,7 @@ toml==0.10.2
     # via feast (setup.py)
 tomli==2.0.1
     # via mypy
-toolz==0.11.2
+toolz==0.12.0
     # via
     #   dask
     #   partd
@@ -178,12 +178,12 @@ tqdm==4.64.0
     # via feast (setup.py)
 typeguard==2.13.3
     # via feast (setup.py)
-typing-extensions==4.2.0
+typing-extensions==4.3.0
     # via
     #   mypy
     #   pydantic
     #   sqlalchemy2-stubs
-urllib3==1.26.9
+urllib3==1.26.10
     # via requests
 uvicorn[standard]==0.18.2
     # via feast (setup.py)
