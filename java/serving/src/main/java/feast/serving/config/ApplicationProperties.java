@@ -38,22 +38,84 @@ import org.slf4j.Logger;
 /** Feast Serving properties. */
 public class ApplicationProperties {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
+  private FeastProperties feast;
+  private GrpcServer grpc;
+  private RestServer rest;
+
+  public FeastProperties getFeast() {
+    return feast;
+  }
+
+  public void setFeast(FeastProperties feast) {
+    this.feast = feast;
+  }
+
+  public GrpcServer getGrpc() {
+    return grpc;
+  }
+
+  public void setGrpc(GrpcServer grpc) {
+    this.grpc = grpc;
+  }
+
+  public RestServer getRest() {
+    return rest;
+  }
+
+  public void setRest(RestServer rest) {
+    this.rest = rest;
+  }
+
+  /**
+   * Validates all FeastProperties. This method runs after properties have been initialized and
+   * individually and conditionally validates each class.
+   */
+  @PostConstruct
+  public void validate() {
+    ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+    Validator validator = factory.getValidator();
+
+    // Validate root fields in FeastProperties
+    Set<ConstraintViolation<ApplicationProperties>> violations = validator.validate(this);
+    if (!violations.isEmpty()) {
+      throw new ConstraintViolationException(violations);
+    }
+  }
+
+  public enum StoreType {
+    REDIS,
+    REDIS_CLUSTER;
+  }
 
   public static class FeastProperties {
     /* Feast Serving build version */
     @NotBlank private String version = "unknown";
-
-    public void setRegistry(String registry) {
-      this.registry = registry;
-    }
-
     @NotBlank private String registry;
+    @NotBlank private String project;
+    private int registryRefreshInterval;
+    private int entityKeySerializationVersion;
+    /** Name of the active store configuration (only one store can be active at a time). */
+    @NotBlank private String activeStore;
+    /**
+     * Collection of store configurations. The active store is selected by the "activeStore" field.
+     */
+    @JsonMerge(OptBoolean.FALSE)
+    private List<Store> stores = new ArrayList<>();
+    /* Metric tracing properties. */
+    private TracingProperties tracing;
+    /* Feast Audit Logging properties */
+    @NotNull private LoggingProperties logging;
+    private String gcpProject;
+    private String awsRegion;
+    private String transformationServiceEndpoint;
 
     public String getRegistry() {
       return registry;
     }
 
-    @NotBlank private String project;
+    public void setRegistry(String registry) {
+      this.registry = registry;
+    }
 
     public String getProject() {
       return project;
@@ -63,14 +125,20 @@ public class ApplicationProperties {
       this.project = project;
     }
 
-    private int registryRefreshInterval;
-
     public int getRegistryRefreshInterval() {
       return registryRefreshInterval;
     }
 
     public void setRegistryRefreshInterval(int registryRefreshInterval) {
       this.registryRefreshInterval = registryRefreshInterval;
+    }
+
+    public int getEntityKeySerializationVersion() {
+      return entityKeySerializationVersion;
+    }
+
+    public void setEntityKeySerializationVersion(int entityKeySerializationVersion) {
+      this.entityKeySerializationVersion = entityKeySerializationVersion;
     }
 
     /**
@@ -92,25 +160,6 @@ public class ApplicationProperties {
       this.activeStore = activeStore;
     }
 
-    /** Name of the active store configuration (only one store can be active at a time). */
-    @NotBlank private String activeStore;
-
-    /**
-     * Collection of store configurations. The active store is selected by the "activeStore" field.
-     */
-    @JsonMerge(OptBoolean.FALSE)
-    private List<Store> stores = new ArrayList<>();
-
-    /* Metric tracing properties. */
-    private TracingProperties tracing;
-
-    /* Feast Audit Logging properties */
-    @NotNull private LoggingProperties logging;
-
-    public void setStores(List<Store> stores) {
-      this.stores = stores;
-    }
-
     /**
      * Gets Serving store configuration as a list of {@link Store}.
      *
@@ -118,6 +167,10 @@ public class ApplicationProperties {
      */
     public List<Store> getStores() {
       return stores;
+    }
+
+    public void setStores(List<Store> stores) {
+      this.stores = stores;
     }
 
     /**
@@ -129,10 +182,6 @@ public class ApplicationProperties {
       return version;
     }
 
-    public void setTracing(TracingProperties tracing) {
-      this.tracing = tracing;
-    }
-
     /**
      * Gets tracing properties
      *
@@ -140,6 +189,10 @@ public class ApplicationProperties {
      */
     public TracingProperties getTracing() {
       return tracing;
+    }
+
+    public void setTracing(TracingProperties tracing) {
+      this.tracing = tracing;
     }
 
     /**
@@ -151,8 +204,6 @@ public class ApplicationProperties {
       return logging;
     }
 
-    private String gcpProject;
-
     public String getGcpProject() {
       return gcpProject;
     }
@@ -161,17 +212,13 @@ public class ApplicationProperties {
       this.gcpProject = gcpProject;
     }
 
-    public void setAwsRegion(String awsRegion) {
-      this.awsRegion = awsRegion;
-    }
-
-    private String awsRegion;
-
     public String getAwsRegion() {
       return awsRegion;
     }
 
-    private String transformationServiceEndpoint;
+    public void setAwsRegion(String awsRegion) {
+      this.awsRegion = awsRegion;
+    }
 
     public String getTransformationServiceEndpoint() {
       return transformationServiceEndpoint;
@@ -180,16 +227,6 @@ public class ApplicationProperties {
     public void setTransformationServiceEndpoint(String transformationServiceEndpoint) {
       this.transformationServiceEndpoint = transformationServiceEndpoint;
     }
-  }
-
-  private FeastProperties feast;
-
-  public void setFeast(FeastProperties feast) {
-    this.feast = feast;
-  }
-
-  public FeastProperties getFeast() {
-    return feast;
   }
 
   /** Store configuration class for database that this Feast Serving uses. */
@@ -327,30 +364,6 @@ public class ApplicationProperties {
     }
   }
 
-  private GrpcServer grpc;
-  private RestServer rest;
-
-  public GrpcServer getGrpc() {
-    return grpc;
-  }
-
-  public void setGrpc(GrpcServer grpc) {
-    this.grpc = grpc;
-  }
-
-  public RestServer getRest() {
-    return rest;
-  }
-
-  public void setRest(RestServer rest) {
-    this.rest = rest;
-  }
-
-  public enum StoreType {
-    REDIS,
-    REDIS_CLUSTER;
-  }
-
   /** Trace metric collection properties */
   public static class TracingProperties {
 
@@ -415,22 +428,6 @@ public class ApplicationProperties {
      */
     public void setServiceName(String serviceName) {
       this.serviceName = serviceName;
-    }
-  }
-
-  /**
-   * Validates all FeastProperties. This method runs after properties have been initialized and
-   * individually and conditionally validates each class.
-   */
-  @PostConstruct
-  public void validate() {
-    ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-    Validator validator = factory.getValidator();
-
-    // Validate root fields in FeastProperties
-    Set<ConstraintViolation<ApplicationProperties>> violations = validator.validate(this);
-    if (!violations.isEmpty()) {
-      throw new ConstraintViolationException(violations);
     }
   }
 }

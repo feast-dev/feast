@@ -30,6 +30,15 @@ import org.apache.commons.lang3.tuple.Pair;
 // https://github.com/feast-dev/feast/blob/b1ccf8dd1535f721aee8bea937ee38feff80bec5/sdk/python/feast/infra/key_encoding_utils.py#L22
 // and must be kept up to date with any changes in that logic.
 public class EntityKeySerializerV2 implements EntityKeySerializer {
+  private final int entityKeySerializationVersion;
+
+  public EntityKeySerializerV2() {
+    this(1);
+  }
+
+  public EntityKeySerializerV2(int entityKeySerializationVersion) {
+    this.entityKeySerializationVersion = entityKeySerializationVersion;
+  }
 
   @Override
   public byte[] serialize(RedisProto.RedisKeyV2 entityKey) {
@@ -83,7 +92,11 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
           we use `struct.pack("<l", v.int64_val)` to get the bytes of an int64 val. This actually extracts only 4 bytes,
           instead of 8 bytes as you'd expect from to serialize an int64 value.
           */
-          buffer.addAll(encodeInteger(((Long) val.getInt64Val()).intValue()));
+          if (this.entityKeySerializationVersion <= 1) {
+            buffer.addAll(encodeInteger(((Long) val.getInt64Val()).intValue()));
+          } else {
+            buffer.addAll(encodeLong(((Long) val.getInt64Val())));
+          }
 
           break;
         default:
@@ -107,6 +120,14 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
 
   private List<Byte> encodeInteger(Integer value) {
     ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+    buffer.order(ByteOrder.LITTLE_ENDIAN);
+    buffer.putInt(value);
+
+    return Arrays.asList(ArrayUtils.toObject(buffer.array()));
+  }
+
+  private List<Byte> encodeLong(Long value) {
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
     buffer.order(ByteOrder.LITTLE_ENDIAN);
     buffer.putInt(value);
 
