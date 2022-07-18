@@ -191,12 +191,14 @@ class DatastoreOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
-        config: RepoConfig
+        config: RepoConfig,
     ):
         entities = []
         for entity_key, features, timestamp, created_ts in data:
-            document_id = compute_entity_id(entity_key,
-                                            entity_key_serialization_version=config.entity_key_serialization_version)
+            document_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
 
             key = client.key(
                 "Project", project, "Table", table.name, "Row", document_id,
@@ -243,8 +245,10 @@ class DatastoreOnlineStore(OnlineStore):
         keys: List[Key] = []
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            document_id = compute_entity_id(entity_key,
-                                            entity_key_serialization_version=config.entity_key_serialization_version)
+            document_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             key = client.key(
                 "Project", feast_project, "Table", table.name, "Row", document_id
             )
