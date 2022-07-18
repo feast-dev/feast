@@ -142,7 +142,7 @@ class FeatureStore:
             self._registry = SqlRegistry(registry_config, None)
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
-            r._initialize_registry()
+            r._initialize_registry(self.config.project)
             self._registry = r
         self._provider = get_provider(self.config, self.repo_path)
         self._go_server = None
@@ -183,7 +183,7 @@ class FeatureStore:
         """
         registry_config = self.config.get_registry_config()
         registry = Registry(registry_config, repo_path=self.repo_path)
-        registry.refresh()
+        registry.refresh(self.config.project)
 
         self._registry = registry
 
@@ -704,7 +704,7 @@ class FeatureStore:
 
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
-        self._registry.refresh()
+        self._registry.refresh(self.project)
         current_infra_proto = self._registry.proto().infra.__deepcopy__()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)

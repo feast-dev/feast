@@ -117,8 +117,14 @@ def test_apply_entity_success(sql_registry):
 
     # Register Entity
     sql_registry.apply_entity(entity, project)
+    project_metadata = sql_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 1
+    project_uuid = project_metadata[0].project_uuid
+    assert len(project_metadata[0].project_uuid) == 36
+    assert_project_uuid(project, project_uuid, sql_registry)
 
     entities = sql_registry.list_entities(project)
+    assert_project_uuid(project, project_uuid, sql_registry)
 
     entity = entities[0]
     assert (
@@ -138,10 +144,18 @@ def test_apply_entity_success(sql_registry):
     )
 
     sql_registry.delete_entity("driver_car_id", project)
+    assert_project_uuid(project, project_uuid, sql_registry)
     entities = sql_registry.list_entities(project)
+    assert_project_uuid(project, project_uuid, sql_registry)
     assert len(entities) == 0
 
     sql_registry.teardown()
+
+
+def assert_project_uuid(project, project_uuid, sql_registry):
+    project_metadata = sql_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 1
+    assert project_metadata[0].project_uuid == project_uuid
 
 
 @pytest.mark.skipif(
