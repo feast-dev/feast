@@ -61,7 +61,6 @@ from feast.stream_feature_view import StreamFeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
 
-
 REGISTRY_STORE_CLASS_FOR_TYPE = {
     "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
     "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
@@ -124,7 +123,6 @@ class FeastObjectType(Enum):
 
 
 FEAST_OBJECT_TYPES = [feast_object_type for feast_object_type in FeastObjectType]
-
 
 logger = logging.getLogger(__name__)
 
@@ -678,7 +676,7 @@ class BaseRegistry(abc.ABC):
         """Commits the state of the registry cache to the remote registry store."""
 
     @abstractmethod
-    def refresh(self, project: str):
+    def refresh(self, project: Optional[str]):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
     @staticmethod
@@ -1756,7 +1754,7 @@ class Registry(BaseRegistry):
         if self.cached_registry_proto:
             self._registry_store.update_registry_proto(self.cached_registry_proto)
 
-    def refresh(self, project: str):
+    def refresh(self, project: Optional[str]):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         self._get_registry_proto(project=project, allow_cache=False)
 
@@ -1789,12 +1787,12 @@ class Registry(BaseRegistry):
         return self.cached_registry_proto
 
     def _get_registry_proto(
-        self, project: str, allow_cache: bool = False
+        self, project: Optional[str], allow_cache: bool = False
     ) -> RegistryProto:
         """Returns the cached or remote registry state
 
         Args:
-            project: Name of the Feast project
+            project: Name of the Feast project (optional)
             allow_cache: Whether to allow the use of the registry cache when fetching the RegistryProto
 
         Returns: Returns a RegistryProto object which represents the state of the registry
@@ -1814,17 +1812,25 @@ class Registry(BaseRegistry):
                     )
                 )
             )
-            old_project_metadata = _get_project_metadata(
-                registry_proto=self.cached_registry_proto, project=project
-            )
 
-            if allow_cache and not expired and old_project_metadata is not None:
+            if project:
+                old_project_metadata = _get_project_metadata(
+                    registry_proto=self.cached_registry_proto, project=project
+                )
+
+                if allow_cache and not expired and old_project_metadata is not None:
+                    assert isinstance(self.cached_registry_proto, RegistryProto)
+                    return self.cached_registry_proto
+            elif allow_cache and not expired:
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
 
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
+
+            if not project:
+                return registry_proto
 
             project_metadata = _get_project_metadata(
                 registry_proto=registry_proto, project=project
