@@ -17,7 +17,6 @@ from tempfile import mkstemp
 
 import pandas as pd
 import pytest
-from assertpy import assertpy
 from pytest_lazyfixture import lazy_fixture
 
 from feast import FileSource
@@ -416,9 +415,6 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
     # Register Feature Views
     test_registry.apply_feature_view(odfv1, project)
     test_registry.apply_feature_view(fv1, project)
-
-    assertpy.assert_that(odfv1.entity_key_serialization_version).is_equal_to(2)
-    assertpy.assert_that(fv1.entity_key_serialization_version).is_equal_to(2)
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(

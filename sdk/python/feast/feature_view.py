@@ -110,7 +110,6 @@ class FeatureView(BaseFeatureView):
         owner: str = "",
         schema: Optional[List[Field]] = None,
         source: Optional[DataSource] = None,
-        entity_key_serialization_version: Optional[int] = None,
     ):
         """
         Creates a FeatureView object.
@@ -261,7 +260,6 @@ class FeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
-            entity_key_serialization_version=entity_key_serialization_version,
         )
         self.online = online
         self.materialization_intervals = []
@@ -432,7 +430,6 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
-            entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -523,11 +520,6 @@ class FeatureView(BaseFeatureView):
                     utils.make_tzaware(interval.end_time.ToDatetime()),
                 )
             )
-
-        if feature_view_proto.spec.entity_key_serialization_version <= 1:
-            feature_view.set_entity_key_serialization_version(1)
-        else:
-            feature_view.set_entity_key_serialization_version(2)
 
         return feature_view
 

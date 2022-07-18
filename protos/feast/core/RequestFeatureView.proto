@@ -48,7 +48,4 @@ message RequestFeatureViewSpec {
 
     // Owner of the request feature view.
     string owner = 6;
-
-    // Needed for backwards compatible behaviour when fixing
-    int32 entity_key_serialization_version = 7;
 }

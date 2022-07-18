@@ -88,7 +88,6 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
-        entity_key_serialization_version: Optional[int] = None,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -220,7 +219,6 @@ class OnDemandFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
-            entity_key_serialization_version=entity_key_serialization_version,
         )
         assert _sources is not None
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
@@ -312,7 +310,6 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-            entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -362,11 +359,6 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
         )
-
-        if on_demand_feature_view_proto.spec.entity_key_serialization_version <= 1:
-            on_demand_feature_view_obj.set_entity_key_serialization_version(1)
-        else:
-            on_demand_feature_view_obj.set_entity_key_serialization_version(2)
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
         # Create the default projection.
@@ -533,7 +525,6 @@ def on_demand_feature_view(
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",
-    entity_key_serialization_version: Optional[int] = None,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -553,7 +544,6 @@ def on_demand_feature_view(
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the on demand feature view, typically the email
             of the primary maintainer.
-     entity_key_serialization_version: The serialization version for entities.
     """
     positional_attributes = ["features", "inputs"]
 
@@ -661,7 +651,6 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
-            entity_key_serialization_version=entity_key_serialization_version,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

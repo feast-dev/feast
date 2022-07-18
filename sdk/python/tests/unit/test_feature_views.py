@@ -24,7 +24,6 @@ def test_create_batch_feature_view():
         ttl=timedelta(days=30),
         source=batch_source,
     )
-    assertpy.assert_that(bfv.entity_key_serialization_version).is_equal_to(2)
 
     with pytest.raises(ValueError):
         BatchFeatureView(
@@ -129,14 +128,10 @@ def test_stream_feature_view_serialization():
         tags={},
     )
 
-    assertpy.assert_that(sfv.entity_key_serialization_version).is_equal_to(2)
-
     sfv_proto = sfv.to_proto()
 
     new_sfv = StreamFeatureView.from_proto(sfv_proto=sfv_proto)
     assert new_sfv == sfv
-
-    assertpy.assert_that(new_sfv.entity_key_serialization_version).is_equal_to(2)
 
 
 def test_stream_feature_view_udfs():

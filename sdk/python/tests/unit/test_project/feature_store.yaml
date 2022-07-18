@@ -6,3 +6,4 @@ registry: registry.db
 flags:
   alpha_features: true
   on_demand_transforms: true
+entity_key_serialization_version: 2

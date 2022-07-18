@@ -58,9 +58,6 @@ message OnDemandFeatureViewSpec {
 
     // Owner of the on demand feature view.
     string owner = 8;
-
-    // Needed for backwards compatible behaviour when fixing
-    int32 entity_key_serialization_version = 9;
 }
 
 message OnDemandFeatureViewMeta {

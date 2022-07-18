@@ -30,7 +30,6 @@ class BatchFeatureView(FeatureView):
         owner: str = "",
         schema: Optional[List[Field]] = None,
         source: Optional[DataSource] = None,
-        entity_key_serialization_version: Optional[int] = None,
     ):
 
         if source is None:
@@ -56,5 +55,4 @@ class BatchFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
-            entity_key_serialization_version=entity_key_serialization_version,
         )
