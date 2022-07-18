@@ -61,7 +61,7 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 		onlineStore, err := NewSqliteOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else if onlineStoreType == "redis" {
-		onlineStore, err := NewRedisOnlineStore(config.Project, config.OnlineStore)
+		onlineStore, err := NewRedisOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else {
 		return nil, fmt.Errorf("%s online store type is currently not supported; only redis and sqlite are supported", onlineStoreType)

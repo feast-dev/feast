@@ -139,6 +139,8 @@ class RepoConfig(FeastBaseModel):
 
     go_feature_retrieval: Optional[bool] = False
 
+    entity_key_serialization_version: StrictInt = 0
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 

@@ -97,7 +97,7 @@ class SqliteOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=table.entity_key_serialization_version,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 )
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -159,7 +159,7 @@ class SqliteOnlineStore(OnlineStore):
                 [
                     serialize_entity_key(
                         entity_key,
-                        entity_key_serialization_version=table.entity_key_serialization_version,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
                     )
                     for entity_key in entity_keys
                 ],
@@ -172,7 +172,7 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=table.entity_key_serialization_version,
+                entity_key_serialization_version=config.entity_key_serialization_version,
             )
             res = {}
             res_ts = None

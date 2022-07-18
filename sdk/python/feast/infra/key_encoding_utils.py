@@ -25,7 +25,7 @@ def _serialize_val(
 
 def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
     """
-    Serialize keys to a bytestring so it can be used to prefix-scan through items stored in the online store
+    Serialize keys to a bytestring, so it can be used to prefix-scan through items stored in the online store
     using serialize_entity_key.
 
     This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,

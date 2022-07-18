@@ -51,7 +51,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=table.entity_key_serialization_version,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 )
                 timestamp = _to_naive_utc(timestamp)
                 if created_ts is not None:
@@ -110,7 +110,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 keys.append(
                     serialize_entity_key(
                         entity_key,
-                        entity_key_serialization_version=table.entity_key_serialization_version,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
                     )
                 )
 
