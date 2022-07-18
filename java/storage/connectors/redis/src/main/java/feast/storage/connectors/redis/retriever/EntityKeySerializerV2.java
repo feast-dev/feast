@@ -129,7 +129,7 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
   private List<Byte> encodeLong(Long value) {
     ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
     buffer.order(ByteOrder.LITTLE_ENDIAN);
-    buffer.putInt(value);
+    buffer.putLong(value);
 
     return Arrays.asList(ArrayUtils.toObject(buffer.array()));
   }
