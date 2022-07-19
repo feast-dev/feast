@@ -473,7 +473,9 @@ class SqlRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(feast_metadata.c.project_id == project,)
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+            )
             rows = conn.execute(stmt).all()
             if rows:
                 project_metadata = ProjectMetadata(project_name=project)

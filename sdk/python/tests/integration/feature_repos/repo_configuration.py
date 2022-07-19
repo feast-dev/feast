@@ -402,9 +402,9 @@ def construct_test_environment(
     if (
         test_repo_config.python_feature_server and test_repo_config.provider == "aws"
     ) or test_repo_config.registry_location == RegistryLocation.S3:
-        registry: Union[str, RegistryConfig] = (
-            f"s3://feast-integration-tests/registries/{project}/registry.db"
-        )
+        registry: Union[
+            str, RegistryConfig
+        ] = f"s3://feast-integration-tests/registries/{project}/registry.db"
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),

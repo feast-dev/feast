@@ -1709,7 +1709,9 @@ class Registry(BaseRegistry):
             Returns either the specified ValidationReference, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto(project=project, allow_cache=allow_cache)
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         for validation_reference in registry_proto.validation_references:
             if (
                 validation_reference.name == name
