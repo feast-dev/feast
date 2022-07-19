@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,8 @@ from feast.errors import (
 from feast.importer import import_class
 from feast.usage import log_exceptions
 
+warnings.simplefilter("once", RuntimeWarning)
+
 _logger = logging.getLogger(__name__)
 
 # These dict exists so that:
@@ -34,7 +37,6 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.LocalMaterializationEngine",
     "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
 }
-
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
@@ -140,6 +142,15 @@ class RepoConfig(FeastBaseModel):
     go_feature_retrieval: Optional[bool] = False
 
     entity_key_serialization_version: StrictInt = 0
+    """ Entity key serialization version: This version is used to control what serialization scheme is 
+    used when writing data to the online store. 
+    A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.  
+    A value of 2 uses a newer serialization scheme, supported as of Feast 0.23.
+    The main difference between the two scheme is that the serialization scheme v1 stored `long` values as `int`s, 
+    which would result in errors trying to serialize a range of values.
+    v2 fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
+    feature values for entities that have already been written into the online store.   
+    """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -179,6 +190,16 @@ class RepoConfig(FeastBaseModel):
             self.feature_server = get_feature_server_config_from_type(
                 self.feature_server["type"]
             )(**self.feature_server)
+
+        if self.entity_key_serialization_version <= 1:
+            warnings.warn(
+                "`entity_key_serialization_version` is either not specified in the feature_store.yaml, "
+                "or is specified to a value <= 1."
+                "This serialization version may cause errors when trying to write fields with the `Long` data type"
+                " into the online store. Specifying `entity_key_serialization_version` to 2 is recommended for"
+                " new projects. ",
+                RuntimeWarning,
+            )
 
     def get_registry_config(self):
         if isinstance(self.registry, str):
@@ -379,7 +400,7 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
+                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True, )),
                 f,
                 sort_keys=False,
             )
