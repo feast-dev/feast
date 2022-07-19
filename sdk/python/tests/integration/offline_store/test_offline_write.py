@@ -72,7 +72,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores()
+@pytest.mark.universal_offline_stores
 def test_writing_consecutively_to_offline_store(environment, universal_data_sources):
     store = environment.feature_store
     _, _, data_sources = universal_data_sources
