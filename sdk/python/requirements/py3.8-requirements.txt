@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.8-requirements.txt
 #
-absl-py==1.1.0
+absl-py==1.2.0
     # via tensorflow-metadata
 anyio==3.6.1
     # via
@@ -38,7 +38,7 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.5.1
     # via feast (setup.py)
-fastapi==0.78.0
+fastapi==0.79.0
     # via feast (setup.py)
 fastavro==1.5.1
     # via
@@ -50,15 +50,13 @@ fsspec==2022.5.0
     # via dask
 google-api-core==2.8.2
     # via feast (setup.py)
-google-auth==2.9.0
+google-auth==2.9.1
     # via google-api-core
-googleapis-common-protos==1.56.3
+googleapis-common-protos==1.56.4
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-greenlet==1.1.2
-    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
@@ -77,7 +75,7 @@ importlib-resources==5.8.0
     # via jsonschema
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.7.1
+jsonschema==4.7.2
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -199,5 +197,5 @@ watchfiles==0.15.0
     # via uvicorn
 websockets==10.3
     # via uvicorn
-zipp==3.8.0
+zipp==3.8.1
     # via importlib-resources
