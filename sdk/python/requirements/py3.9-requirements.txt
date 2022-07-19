@@ -57,8 +57,6 @@ googleapis-common-protos==1.56.4
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-greenlet==1.1.2
-    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
