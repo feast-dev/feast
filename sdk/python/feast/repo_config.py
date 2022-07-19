@@ -142,14 +142,14 @@ class RepoConfig(FeastBaseModel):
     go_feature_retrieval: Optional[bool] = False
 
     entity_key_serialization_version: StrictInt = 0
-    """ Entity key serialization version: This version is used to control what serialization scheme is 
-    used when writing data to the online store. 
-    A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.  
+    """ Entity key serialization version: This version is used to control what serialization scheme is
+    used when writing data to the online store.
+    A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.
     A value of 2 uses a newer serialization scheme, supported as of Feast 0.23.
-    The main difference between the two scheme is that the serialization scheme v1 stored `long` values as `int`s, 
+    The main difference between the two scheme is that the serialization scheme v1 stored `long` values as `int`s,
     which would result in errors trying to serialize a range of values.
     v2 fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
-    feature values for entities that have already been written into the online store.   
+    feature values for entities that have already been written into the online store.
     """
 
     def __init__(self, **data: Any):
@@ -400,7 +400,7 @@ class RepoConfig(FeastBaseModel):
         config_path = repo_path / "feature_store.yaml"
         with open(config_path, mode="w") as f:
             yaml.dump(
-                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True, )),
+                yaml.safe_load(self.json(exclude={"repo_path"}, exclude_unset=True,)),
                 f,
                 sort_keys=False,
             )
