@@ -141,7 +141,7 @@ class RepoConfig(FeastBaseModel):
 
     go_feature_retrieval: Optional[bool] = False
 
-    entity_key_serialization_version: StrictInt = 0
+    entity_key_serialization_version: StrictInt = 1
     """ Entity key serialization version: This version is used to control what serialization scheme is
     used when writing data to the online store.
     A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.

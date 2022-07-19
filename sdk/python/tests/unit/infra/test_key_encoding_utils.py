@@ -21,7 +21,7 @@ def test_serialize_entity_key():
         entity_key_serialization_version=2,
     )
 
-    # Old serilization scheme, should fail.
+    # Old serialization scheme, should fail.
     with pytest.raises(BaseException):
         serialize_entity_key(
             EntityKeyProto(
