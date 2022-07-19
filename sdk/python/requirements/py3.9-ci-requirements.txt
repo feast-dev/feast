@@ -174,7 +174,7 @@ executing==0.8.3
     # via stack-data
 fastapi==0.79.0
     # via feast (setup.py)
-fastavro==1.5.1
+fastavro==1.5.2
     # via
     #   feast (setup.py)
     #   pandavro
@@ -416,7 +416,7 @@ packaging==21.3
     #   pytest
     #   redis
     #   sphinx
-pandas==1.2.5
+pandas==1.4.3
     # via
     #   altair
     #   db-dtypes
@@ -425,7 +425,7 @@ pandas==1.2.5
     #   great-expectations
     #   pandavro
     #   snowflake-connector-python
-pandavro==1.7.0
+pandavro==1.5.2
     # via feast (setup.py)
 parso==0.8.3
     # via jedi
@@ -647,6 +647,7 @@ six==1.16.0
     #   happybase
     #   mock
     #   msrestazure
+    #   pandavro
     #   python-dateutil
     #   virtualenv
 sniffio==1.2.0

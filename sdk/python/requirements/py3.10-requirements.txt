@@ -40,7 +40,7 @@ dill==0.3.5.1
     # via feast (setup.py)
 fastapi==0.79.0
     # via feast (setup.py)
-fastavro==1.5.1
+fastavro==1.5.2
     # via
     #   feast (setup.py)
     #   pandavro
@@ -95,11 +95,11 @@ numpy==1.23.1
     #   pyarrow
 packaging==21.3
     # via dask
-pandas==1.2.5
+pandas==1.4.3
     # via
     #   feast (setup.py)
     #   pandavro
-pandavro==1.7.0
+pandavro==1.5.2
     # via feast (setup.py)
 partd==1.2.0
     # via dask
@@ -150,6 +150,7 @@ six==1.16.0
     # via
     #   google-auth
     #   grpcio
+    #   pandavro
     #   python-dateutil
 sniffio==1.2.0
     # via anyio
