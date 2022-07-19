@@ -16,9 +16,9 @@ from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
 def handler(event, context):
     """Provide an event that contains the following keys:
 
-      - operation: one of the operations in the operations dict below
-      - tableName: required for operations that interact with DynamoDB
-      - payload: a parameter to pass to the operation being performed
+    - operation: one of the operations in the operations dict below
+    - tableName: required for operations that interact with DynamoDB
+    - payload: a parameter to pass to the operation being performed
     """
     print("Received event: " + json.dumps(event, indent=2), flush=True)
 
@@ -71,7 +71,10 @@ def handler(event, context):
                 batch, feature_view, join_key_to_value_type
             )
             store._provider.online_write_batch(
-                store.config, feature_view, rows_to_write, lambda x: None,
+                store.config,
+                feature_view,
+                rows_to_write,
+                lambda x: None,
             )
             written_rows += len(rows_to_write)
         return {"written_rows": written_rows}

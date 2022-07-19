@@ -38,7 +38,11 @@ class Field:
     tags: Dict[str, str]
 
     def __init__(
-        self, *, name: str, dtype: FeastType, tags: Optional[Dict[str, str]] = None,
+        self,
+        *,
+        name: str,
+        dtype: FeastType,
+        tags: Optional[Dict[str, str]] = None,
     ):
         """
         Creates a Field object.

@@ -135,7 +135,8 @@ def _test_materialize_and_online_retrieval(
 
     # Test `feast materialize-incremental` and online retrieval.
     r = runner.run(
-        ["materialize-incremental", end_date.isoformat()], cwd=Path(store.repo_path),
+        ["materialize-incremental", end_date.isoformat()],
+        cwd=Path(store.repo_path),
     )
 
     assert r.returncode == 0, f"stdout: {r.stdout}\n stderr: {r.stderr}"

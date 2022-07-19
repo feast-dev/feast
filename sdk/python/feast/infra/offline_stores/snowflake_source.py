@@ -360,4 +360,6 @@ class SnowflakeLoggingDestination(LoggingDestination):
         )
 
     def to_data_source(self) -> DataSource:
-        return SnowflakeSource(table=self.table_name,)
+        return SnowflakeSource(
+            table=self.table_name,
+        )

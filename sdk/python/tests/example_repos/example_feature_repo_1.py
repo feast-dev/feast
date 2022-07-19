@@ -28,11 +28,13 @@ customer_profile_source = BigQuerySource(
 )
 
 customer_driver_combined_source = BigQuerySource(
-    table="feast-oss.public.customer_driver", timestamp_field="event_timestamp",
+    table="feast-oss.public.customer_driver",
+    timestamp_field="event_timestamp",
 )
 
 driver_locations_push_source = PushSource(
-    name="driver_locations_push", batch_source=driver_locations_source,
+    name="driver_locations_push",
+    batch_source=driver_locations_source,
 )
 
 driver = Entity(

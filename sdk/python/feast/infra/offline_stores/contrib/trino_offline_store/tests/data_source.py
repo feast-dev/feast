@@ -63,7 +63,10 @@ class TrinoSourceCreator(DataSourceCreator):
             )
         self.exposed_port = self.container.get_exposed_port("8080")
         self.client = Trino(
-            user="user", catalog="memory", host="localhost", port=self.exposed_port,
+            user="user",
+            catalog="memory",
+            host="localhost",
+            port=self.exposed_port,
         )
 
     def teardown(self):

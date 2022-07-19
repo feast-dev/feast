@@ -25,6 +25,7 @@ exclude = '''
     | pb2.py
     | \.pyi
     | protos
+    | sdk/python/feast/embedded_go/lib
   )/
 )
 '''

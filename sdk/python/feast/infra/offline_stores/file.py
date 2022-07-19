@@ -88,7 +88,8 @@ class FileRetrievalJob(RetrievalJob):
     def persist(self, storage: SavedDatasetStorage):
         assert isinstance(storage, SavedDatasetFileStorage)
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.uri, storage.file_options.s3_endpoint_override,
+            storage.file_options.uri,
+            storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):
@@ -314,7 +315,9 @@ class FileOfflineStore(OfflineStore):
             # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
             try:
                 if created_timestamp_column:
-                    source_df = source_df.sort_values(by=created_timestamp_column,)
+                    source_df = source_df.sort_values(
+                        by=created_timestamp_column,
+                    )
 
                 source_df = source_df.sort_values(by=timestamp_field)
 
@@ -352,7 +355,8 @@ class FileOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return FileRetrievalJob(
-            evaluation_function=evaluate_offline_job, full_feature_names=False,
+            evaluation_function=evaluate_offline_job,
+            full_feature_names=False,
         )
 
     @staticmethod
@@ -394,7 +398,8 @@ class FileOfflineStore(OfflineStore):
             data = pyarrow.parquet.read_table(data, use_threads=False, pre_buffer=False)
 
         filesystem, path = FileSource.create_filesystem_and_path(
-            destination.path, destination.s3_endpoint_override,
+            destination.path,
+            destination.s3_endpoint_override,
         )
 
         pyarrow.dataset.write_dataset(
@@ -453,7 +458,8 @@ class FileOfflineStore(OfflineStore):
 
 
 def _get_entity_df_event_timestamp_range(
-    entity_df: Union[pd.DataFrame, str], entity_df_event_timestamp_col: str,
+    entity_df: Union[pd.DataFrame, str],
+    entity_df_event_timestamp_col: str,
 ) -> Tuple[datetime, datetime]:
     if not isinstance(entity_df, pd.DataFrame):
         raise ValueError(
@@ -483,7 +489,10 @@ def _read_datasource(data_source) -> dd.DataFrame:
         else None
     )
 
-    return dd.read_parquet(data_source.path, storage_options=storage_options,)
+    return dd.read_parquet(
+        data_source.path,
+        storage_options=storage_options,
+    )
 
 
 def _field_mapping(
@@ -533,7 +542,8 @@ def _field_mapping(
     # Make sure to not have duplicated columns
     if entity_df_event_timestamp_col == timestamp_field:
         df_to_join = _run_dask_field_mapping(
-            df_to_join, {timestamp_field: f"__{timestamp_field}"},
+            df_to_join,
+            {timestamp_field: f"__{timestamp_field}"},
         )
         timestamp_field = f"__{timestamp_field}"
 
@@ -571,7 +581,9 @@ def _merge(
 
 
 def _normalize_timestamp(
-    df_to_join: dd.DataFrame, timestamp_field: str, created_timestamp_column: str,
+    df_to_join: dd.DataFrame,
+    timestamp_field: str,
+    created_timestamp_column: str,
 ) -> dd.DataFrame:
     df_to_join_types = df_to_join.dtypes
     timestamp_field_type = df_to_join_types[timestamp_field]
@@ -645,14 +657,18 @@ def _drop_duplicates(
     df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
-        all_join_keys + [entity_df_event_timestamp_col], keep="last", ignore_index=True,
+        all_join_keys + [entity_df_event_timestamp_col],
+        keep="last",
+        ignore_index=True,
     )
 
     return df_to_join.persist()
 
 
 def _drop_columns(
-    df_to_join: dd.DataFrame, timestamp_field: str, created_timestamp_column: str,
+    df_to_join: dd.DataFrame,
+    timestamp_field: str,
+    created_timestamp_column: str,
 ) -> dd.DataFrame:
     entity_df_with_features = df_to_join.drop([timestamp_field], axis=1).persist()
 

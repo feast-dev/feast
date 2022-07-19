@@ -50,7 +50,8 @@ class EmbeddedOnlineFeatureServer:
         )
 
         self._service = NewOnlineFeatureService(
-            self._config, self._transformation_callback,
+            self._config,
+            self._transformation_callback,
         )
 
         # This should raise an exception if there were any errors in NewOnlineFeatureService.
@@ -263,7 +264,9 @@ def transformation_callback(
 
 
 def logging_callback(
-    fs: "FeatureStore", feature_service_name: str, dataset_dir: str,
+    fs: "FeatureStore",
+    feature_service_name: str,
+    dataset_dir: str,
 ) -> bytes:
     feature_service = fs.get_feature_service(feature_service_name, allow_cache=True)
     try:

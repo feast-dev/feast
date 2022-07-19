@@ -144,7 +144,8 @@ def update_feature_views_with_inferred_features_and_entities(
             ):
                 fv.entity_columns.append(
                     Field(
-                        name=entity.join_key, dtype=from_value_type(entity.value_type),
+                        name=entity.join_key,
+                        dtype=from_value_type(entity.value_type),
                     )
                 )
 
@@ -166,7 +167,10 @@ def update_feature_views_with_inferred_features_and_entities(
 
         if run_inference_for_entities or run_inference_for_features:
             _infer_features_and_entities(
-                fv, join_keys, run_inference_for_features, config,
+                fv,
+                join_keys,
+                run_inference_for_features,
+                config,
             )
 
             if not fv.features:
@@ -177,7 +181,10 @@ def update_feature_views_with_inferred_features_and_entities(
 
 
 def _infer_features_and_entities(
-    fv: FeatureView, join_keys: Set[str], run_inference_for_features, config,
+    fv: FeatureView,
+    join_keys: Set[str],
+    run_inference_for_features,
+    config,
 ) -> None:
     """
     Updates the specific feature in place with inferred features and entities.

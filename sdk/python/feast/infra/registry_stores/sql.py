@@ -473,7 +473,9 @@ class SqlRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(feast_metadata.c.project_id == project,)
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+            )
             rows = conn.execute(stmt).all()
             if rows:
                 project_metadata = ProjectMetadata(project_name=project)
@@ -486,7 +488,10 @@ class SqlRegistry(BaseRegistry):
         return []
 
     def apply_saved_dataset(
-        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
+        self,
+        saved_dataset: SavedDataset,
+        project: str,
+        commit: bool = True,
     ):
         return self._apply_object(
             saved_datasets,
@@ -594,7 +599,9 @@ class SqlRegistry(BaseRegistry):
                         getattr(table.c, "feature_view_name") == name,
                         table.c.project_id == project,
                     )
-                    .values(values,)
+                    .values(
+                        values,
+                    )
                 )
                 conn.execute(update_stmt)
             else:
@@ -699,7 +706,9 @@ class SqlRegistry(BaseRegistry):
                 update_stmt = (
                     update(table)
                     .where(getattr(table.c, id_field_name) == name)
-                    .values(values,)
+                    .values(
+                        values,
+                    )
                 )
                 conn.execute(update_stmt)
             else:
@@ -709,7 +718,9 @@ class SqlRegistry(BaseRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(table).values(values,)
+                insert_stmt = insert(table).values(
+                    values,
+                )
                 conn.execute(insert_stmt)
 
             self._set_last_updated_metadata(update_datetime, project)
@@ -818,7 +829,9 @@ class SqlRegistry(BaseRegistry):
                 )
                 conn.execute(update_stmt)
             else:
-                insert_stmt = insert(feast_metadata).values(values,)
+                insert_stmt = insert(feast_metadata).values(
+                    values,
+                )
                 conn.execute(insert_stmt)
 
     def _get_last_updated_metadata(self, project: str):

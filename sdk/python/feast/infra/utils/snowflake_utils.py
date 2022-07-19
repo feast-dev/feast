@@ -342,7 +342,10 @@ def upload_df(
 
 
 def upload_local_pq(
-    path: Path, cursor: SnowflakeCursor, stage_name: str, parallel: int = 4,
+    path: Path,
+    cursor: SnowflakeCursor,
+    stage_name: str,
+    parallel: int = 4,
 ):
     """
     Args:

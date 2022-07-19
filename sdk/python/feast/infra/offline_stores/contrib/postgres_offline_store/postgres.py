@@ -127,8 +127,8 @@ class PostgreSQLOfflineStore(OfflineStore):
             else:
                 raise TypeError(entity_df)
 
-            entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-                entity_schema
+            entity_df_event_timestamp_col = (
+                offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
             )
 
             expected_join_keys = offline_utils.get_expected_join_keys(
@@ -140,7 +140,10 @@ class PostgreSQLOfflineStore(OfflineStore):
             )
 
             entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-                entity_df, entity_df_event_timestamp_col, config, df_query,
+                entity_df,
+                entity_df_event_timestamp_col,
+                config,
+                df_query,
             )
 
             query_context = offline_utils.get_feature_view_query_context(

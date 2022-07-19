@@ -92,7 +92,10 @@ def pytest_addoption(parser):
         help="Run tests with external dependencies",
     )
     parser.addoption(
-        "--benchmark", action="store_true", default=False, help="Run benchmark tests",
+        "--benchmark",
+        action="store_true",
+        default=False,
+        help="Run benchmark tests",
     )
     parser.addoption(
         "--goserver",
@@ -334,7 +337,8 @@ def feature_server_endpoint(environment):
         proc.start()
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, _check_port_open("localhost", port)), timeout_secs=10,
+            lambda: (None, _check_port_open("localhost", port)),
+            timeout_secs=10,
         )
 
     yield f"http://localhost:{port}"
@@ -372,7 +376,9 @@ def universal_data_sources(environment) -> TestData:
 def e2e_data_sources(environment: Environment):
     df = create_basic_driver_dataset()
     data_source = environment.data_source_creator.create_data_source(
-        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+        df,
+        environment.feature_store.project,
+        field_mapping={"ts_1": "ts"},
     )
 
     return df, data_source

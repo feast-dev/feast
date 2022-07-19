@@ -83,7 +83,9 @@ def get_app(
         return Response(content, media_type="text/html")
 
     app.mount(
-        "/", StaticFiles(directory=ui_dir, html=True), name="site",
+        "/",
+        StaticFiles(directory=ui_dir, html=True),
+        name="site",
     )
 
     return app

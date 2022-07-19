@@ -65,12 +65,14 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
 
     with to_logs_dataset(first_batch, pass_as_path) as logs:
         store.write_logged_features(
-            source=feature_service, logs=logs,
+            source=feature_service,
+            logs=logs,
         )
 
     with to_logs_dataset(second_batch, pass_as_path) as logs:
         store.write_logged_features(
-            source=feature_service, logs=logs,
+            source=feature_service,
+            logs=logs,
         )
     expected_columns = list(set(logs_df.columns) - {LOG_DATE_FIELD})
 
