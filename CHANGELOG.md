@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.22.1](https://github.com/feast-dev/feast/compare/v0.22.0...v0.22.1) (2022-07-19)
+
+
+### Bug Fixes
+
+* Change numpy version on setup.py and upgrade it to resolve dependabot warning ([#2887](https://github.com/feast-dev/feast/issues/2887)) ([b9190b9](https://github.com/feast-dev/feast/commit/b9190b9f37a9a05421c3a288e9ba1807124dcb12))
+* Change the feature store plan method to public modifier ([#2904](https://github.com/feast-dev/feast/issues/2904)) ([568058a](https://github.com/feast-dev/feast/commit/568058aee02e4e8b961caf312e3f1c7ff909a3f2))
+* Deprecate 3.7 wheels and fix verification workflow ([#2934](https://github.com/feast-dev/feast/issues/2934)) ([146e36d](https://github.com/feast-dev/feast/commit/146e36df5809f76d00900d0ee787bf9aa3f078bd))
+* Fix build wheels workflow to install apache-arrow correctly ([#2932](https://github.com/feast-dev/feast/issues/2932)) ([4b69e0e](https://github.com/feast-dev/feast/commit/4b69e0e839e4fdc6268ef077f02bd5b727c44370))
+* Fix grpc and update protobuf ([#2894](https://github.com/feast-dev/feast/issues/2894)) ([f726c96](https://github.com/feast-dev/feast/commit/f726c967dc132902423d336d990715c3033fe196))
+* Fix night ci syntax error and update readme ([#2935](https://github.com/feast-dev/feast/issues/2935)) ([b35553b](https://github.com/feast-dev/feast/commit/b35553b7db27c1f332dca836ce96d8c30d1100fb))
+* Fix nightly ci again ([#2939](https://github.com/feast-dev/feast/issues/2939)) ([c363619](https://github.com/feast-dev/feast/commit/c36361951d29714392b1def6e54f83ae45cd5d9a))
+* Fix the go build and use CgoArrowAllocator to prevent incorrect garbage collection ([#2919](https://github.com/feast-dev/feast/issues/2919)) ([f4f4894](https://github.com/feast-dev/feast/commit/f4f4894d1db4b2192a502999f87711b0529e6e83))
+* Fixing broken links to feast documentation on java readme and contribution ([#2892](https://github.com/feast-dev/feast/issues/2892)) ([a45e10a](https://github.com/feast-dev/feast/commit/a45e10a2558129fcb906fe3e7a03006aeea49d97))
+* Resolve small typo in README file ([#2930](https://github.com/feast-dev/feast/issues/2930)) ([9840c1b](https://github.com/feast-dev/feast/commit/9840c1b4c64898fcb06e34dcea14becce8af44c3))
+* Update gopy to point to fork to resolve github annotation errors. ([#2940](https://github.com/feast-dev/feast/issues/2940)) ([9b9fbbe](https://github.com/feast-dev/feast/commit/9b9fbbe692475d85b713b7e6707a105fca35fbf9))
+
 # [0.22.0](https://github.com/feast-dev/feast/compare/v0.21.0...v0.22.0) (2022-06-29)
 
 
