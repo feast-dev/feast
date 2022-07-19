@@ -80,11 +80,10 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
-    "google-cloud-bigquery>=2,<3",
+    "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.*,<3",
-    "google-cloud-storage>=1.34.*,<1.41",
-    "google-cloud-core>=1.4.0,<2.0.0",
+    "google-cloud-storage>=1.34.*,<3",
 ]
 
 REDIS_REQUIRED = [
@@ -154,7 +153,7 @@ CI_REQUIRED = (
         "sphinx-rtd-theme",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
-        "firebase-admin==4.5.2",
+        "firebase-admin>=5.2.0,<6",
         "pre-commit",
         "assertpy==1.1",
         "pip-tools",

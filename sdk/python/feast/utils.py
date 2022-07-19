@@ -28,6 +28,15 @@ def make_tzaware(t: datetime) -> datetime:
         return t
 
 
+def make_df_tzaware(t: pd.DataFrame) -> pd.DataFrame:
+    """Make all datetime type columns tzaware; leave everything else intact."""
+    df = t.copy()  # don't modify incoming dataframe inplace
+    for column in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[column]):
+            df[column] = pd.to_datetime(df[column], utc=True)
+    return df
+
+
 def to_naive_utc(ts: datetime) -> datetime:
     if ts.tzinfo is None:
         return ts
