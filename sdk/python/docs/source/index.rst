@@ -283,3 +283,23 @@ HBase Online Store
 .. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
     :members:
     :noindex:
+
+
+Batch Materialization Engine
+============================
+
+.. automodule:: feast.infra.materialization
+    :members: BatchMaterializationEngine, MaterializationJob, MaterializationTask
+
+Local Engine
+------------
+.. autoclass:: feast.infra.materialization.LocalMaterializationEngine
+    :members:
+    :noindex:
+
+(Alpha) Lambda Based Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.lambda.lambda_engine
+    :members:
+    :noindex:

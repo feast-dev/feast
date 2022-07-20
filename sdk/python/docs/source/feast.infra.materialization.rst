@@ -1,6 +1,14 @@
 feast.infra.materialization package
 ===================================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   feast.infra.materialization.lambda
+
 Submodules
 ----------
 
