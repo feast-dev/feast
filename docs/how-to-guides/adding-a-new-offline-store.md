@@ -6,7 +6,7 @@ Feast makes adding support for a new offline store (database) easy. Developers c
 
 In this guide, we will show you how to extend the existing File offline store and use in a feature repo. While we will be implementing a specific store, this guide should be representative for adding support for any new offline store.
 
-The full working code for this guide can be found at [feast-dev/feast-custom-offline-store-demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and an example of a custom offline store that was contributed by developers can be found [here](https://github.com/feast-dev/feast/pull/2401).
+The full working code for this guide can be found at [feast-dev/feast-custom-offline-store-demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and an example of a custom offline store that was contributed by developers can be found [here](https://github.com/feast-dev/feast/pull/2349).
 
 The process for using a custom offline store consists of 6 steps:
 
@@ -23,6 +23,10 @@ The process for using a custom offline store consists of 6 steps:
 &#x20;OfflineStore class names must end with the OfflineStore suffix!
 {% endhint %}
 
+### Contrib
+
+Generally, new offline stores should go in the contrib folder and should have warnings within the classes that state the offline store is in alpha status. The contrib folder is designated for community contributions that are not fully maintained by Feast maintainers and may contain potential instability and have API changes. It is recommended to add warnings to users that the offline store functionality is still in alpha development and is not fully stable. In order to be classified as fully stable and be moved to the main offline store folder, the offline store should integrate with the full integration test suite in Feast and pass all of the test cases.
+
 The OfflineStore class contains a couple of methods to read features from the offline store. Unlike the OnlineStore class, Feast does not manage any infrastructure for the offline store.&#x20;
 
 There are two methods that deal with reading data from the offline stores`get_historical_features`and `pull_latest_from_table_or_query`.
@@ -30,11 +34,14 @@ There are two methods that deal with reading data from the offline stores`get_hi
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
 * `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
 * `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date.
-* `write_logged_features` is a method that takes a pyarrow table or a path that points to a parquet file and writes the data to a defined source defined by `LoggingSource` and `LoggingConfig`.
+* `write_logged_features` is a method that takes a pyarrow table or a path that points to a parquet file and writes the data to a defined source defined by `LoggingSource` and `LoggingConfig`. This method is **optional** since it is only used internally for **SavedDatasets**.
 * `offline_write_batch` is a method that supports directly pushing a pyarrow table to a feature view. Given a feature view with a specific schema, this function should write the pyarrow table to the batch source defined. More details about the push api can be found [here](docs/reference/data-sources/push.md).
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
+    # Only prints out runtime warnings once.
+    warnings.simplefilter("once", RuntimeWarning)
+
     def get_historical_features(self,
                                 config: RepoConfig,
                                 feature_views: List[FeatureView],
@@ -43,6 +50,11 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                 registry: Registry, project: str,
                                 full_feature_names: bool = False) -> RetrievalJob:
         print("Getting historical features from my offline store")
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         return super().get_historical_features(config,
                                                feature_views,
                                                feature_refs,
@@ -61,6 +73,11 @@ There are two methods that deal with reading data from the offline stores`get_hi
                                         start_date: datetime,
                                         end_date: datetime) -> RetrievalJob:
         print("Pulling latest features from my offline store")
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         return super().pull_latest_from_table_or_query(config,
                                                        data_source,
                                                        join_key_columns,
@@ -115,7 +132,11 @@ This configuration information is available to the methods of the OfflineStore, 
                                 entity_df: Union[pd.DataFrame, str],
                                 registry: Registry, project: str,
                                 full_feature_names: bool = False) -> RetrievalJob:
-
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         offline_store_config = config.offline_store
         assert isinstance(offline_store_config, CustomFileOfflineStoreConfig)
         store_type = offline_store_config.type
@@ -130,7 +151,7 @@ Custom offline stores may need to implement their own instances of the `Retrieva
 
 The `RetrievalJob` interface exposes two methods - `to_df` and `to_arrow`. The expectation is for the retrieval job to be able to return the rows read from the offline store as a parquet DataFrame, or as an Arrow table respectively.
 
-Users who want to have their offline store support batch materialization (detailed in this [RFC](https://docs.google.com/document/d/1J7XdwwgQ9dY_uoV9zkRVGQjK9Sy43WISEW6D5V9qzGo/edit#heading=h.9gaqqtox9jg6)) will also need to implement `to_remote_storage` to write distribute the reading and writing of offline store records to a distributed framework. If this functionality is not needed, the RetrievalJob will default to local materialization.
+Users who want to have their offline store support scalable batch materialization for online use cases (detailed in this [RFC](https://docs.google.com/document/d/1J7XdwwgQ9dY_uoV9zkRVGQjK9Sy43WISEW6D5V9qzGo/edit#heading=h.9gaqqtox9jg6)) will also need to implement `to_remote_storage` to distribute the reading and writing of offline store records to a distributed framework. If this is not implemented, Feast will default to local materialization (pulling all records into memory to materialize).
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -175,6 +196,11 @@ class CustomFileDataSource(FileSource):
         created_timestamp_column: Optional[str] = "",
         date_partition_column: Optional[str] = "",
     ):
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         super(CustomFileDataSource, self).__init__(
             timestamp_field=timestamp_field,
             created_timestamp_column,
@@ -219,7 +245,7 @@ class CustomFileDataSource(FileSource):
 
 After implementing these classes, the custom offline store can be used by referencing it in a feature repo's `feature_store.yaml` file, specifically in the `offline_store` field. The value specified should be the fully qualified class name of the OfflineStore.&#x20;
 
-As long as your OfflineStore class is available in your Python environment, it will be imported by Feast dynamically at runtime. It is crucial to specify the type as the package that Feast can import.
+As long as your OfflineStore class is available in your Python environment, it will be imported by Feast dynamically at runtime.
 
 To use our custom file offline store, we can use the following `feature_store.yaml`:
 
@@ -229,6 +255,7 @@ project: test_custom
 registry: data/registry.db
 provider: local
 offline_store:
+    # Make sure to specify the type as the fully qualified path that Feast can import.
     type: feast_custom_offline_store.file.CustomFileOfflineStore
 ```
 {% endcode %}
@@ -264,10 +291,6 @@ driver_hourly_stats_view = FeatureView(
 
 ## 6. Testing the OfflineStore class
 
-### Contrib
-
-Generally, new offline stores should go in the contrib folder and have alpha functionality tags. The contrib folder is designated for community contributions that are not fully maintained by Feast maintainers and may contain potential instability and have API changes. It is recommended to add warnings to users that the offline store functionality is still in alpha development and is not fully stable. In order to be classified as fully stable and be moved to the main offline store folder, the offline store should integrate with the full integration test suite in Feast and pass all of the test cases.
-
 ### Integrating with the integration test suite and unit test suite.
 
 Even if you have created the `OfflineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo. In the Feast submodule, we can run all the unit tests with:
@@ -279,41 +302,50 @@ make test-python
 ```
 This should run the unit tests and the unit tests should all pass. Please add unit tests for your data source that test out basic functionality of reading and writing to and from the datasource. This should just be class level functionality that ensures that the methods you implemented for the OfflineStore and the DataSource associated with it work as expected. In order to be approved to merge into Feast, these unit tests should all pass and demonstrate that the DataSource works as intended.
 
-The universal tests, which are integration tests specifically intended to test offline and online stores, will be run against Feast to ensure that the Feast APIs works with your offline store. The universal tests can be run by running the following commands:
 
-```
-make test-python-integration-container
-make test-python-universal
-```
-
-The unit tests should succeed, but the universal tests will likely fail. The tests are parametrized based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py`. To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline and online store. In general, use the sqlite online store to test your offline store so that you don't need to setup any other online store containers. The main challenge there will be to write a `DataSourceCreator` for the offline store. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run
+The universal tests, which are integration tests specifically intended to test offline and online stores, will be run against Feast to ensure that the Feast APIs works with your offline store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom offline store. To overwrite the default configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline and online store. In general, use the sqlite online store to test your offline store so that you don't need to setup any other online store containers. The main challenge here will be to write a `DataSourceCreator` for the offline store. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run
 
 ```
 export FULL_REPO_CONFIGS_MODULE='feast_custom_offline_store.feast_tests'
 make test-python-universal
 ```
 
-to test the offline store against the Feast universal tests. You should notice that some of the tests actually fail. If you have configured the offline stores and only that offline store is being used in `FULL_REPO_CONFIGS`, `make test-python-integration-container` should work as it tests the offline store and online stores that are containerized in Docker. All of the containerized integration tests should pass and if they don't, this indicates that there is a mistake in the implementation of this offline store!
+A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
+
+```
+from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
+    PostgreSQLDataSourceCreator,
+)
+
+AVAILABLE_OFFLINE_STORES = [("postgres", PostgreSQLDataSourceCreator)]
+```
+
+to test the offline store against the Feast universal tests. If you have configured the offline stores and only that offline store is being used in `FULL_REPO_CONFIGS`, `make test-python-integration-container` should work as it tests the offline store and online stores that are containerized in Docker. All of the containerized integration tests should pass and if they don't, this indicates that there is a mistake in the implementation of this offline store!
 
 Remember to add your datasource to `repo_config.py` similar to how we added `spark`, `trino`, etc, to the dictionary `OFFLINE_STORE_CLASS_FOR_TYPE` and add the necessary configuration to `repo_configuration.py`. Namely, `AVAILABLE_OFFLINE_STORES` should load your repo configuration module.
 
 ### Dependencies
 
-Finally, if your offline store requires special packages, add them to our `sdk/python/setup.py` under a new `<OFFLINE>_STORE_REQUIRED` list with the packages and add it to the setup script so that if your offline store is needed, users can install the necessary python packages.
+Finally, if your offline store requires special packages, add them to our `sdk/python/setup.py` under a new `<OFFLINE>_STORE_REQUIRED` list with the packages and add it to the setup script so that if your offline store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default.
 You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
 
 ```
 export PYTHON=<version>
 make lock-python-ci-dependencies
-make lock-python-dependencies
 ```
 
 
-### Documentation
+### Add Documentation
 
-Remember to update the documentation for your offline store. This can be found in `docs/reference/offline-stores/` and `docs/reference/data-sources/`. You should also add a reference in `docs/reference/data-sources/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other offline stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the datasource is in alpha development.
+Remember to add documentation for your offline store. This should be added to `docs/reference/offline-stores/` and `docs/reference/data-sources/`. You should also add a reference in `docs/reference/data-sources/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other offline stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the datasource is in alpha development. Please also add some documentation on what the data model is for the specific online store for more clarity.
 
+Finally, add the python code docs by running to document the functions:
 
-An example of a full pull request for adding a custom offline store can be found [here](https://github.com/feast-dev/feast/pull/2401).
+```
+make build-sphinx
+```
+
+An example of a full pull request for adding a custom offline store can be found [here](https://github.com/feast-dev/feast/pull/2349).
+
 
 
