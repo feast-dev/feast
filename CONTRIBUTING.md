@@ -95,7 +95,7 @@ pip install --upgrade pip
 make build-ui
 ```
 
-5Install development dependencies for Feast Python SDK / CLI
+5. Install development dependencies for Feast Python SDK / CLI
 ```sh
 pip install -e ".[dev]"
 ```
