@@ -30,13 +30,15 @@ _See also:_ [_Feast quickstart_](https://docs.feast.dev/getting-started/quicksta
 
 These are meant mostly to be done in order, with examples building on previous concepts.
 
-| Time (min) | Description                                                             | Module                                                                      |
-| :--------: | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-|    30-45   | Setting up Feast projects & CI/CD + powering batch predictions          | [Module 0](https://github.com/feast-dev/feast-workshop/tree/main/module\_0) |
-|    15-20   | Streaming ingestion & online feature retrieval with Kafka, Spark, Redis | [Module 1](https://github.com/feast-dev/feast-workshop/tree/main/module\_1) |
-|    10-15   | Real-time feature engineering with on demand transformations            | [Module 2](https://github.com/feast-dev/feast-workshop/tree/main/module\_2) |
-|     TBD    | Feature server deployment (embed, as a service, AWS Lambda)             | TBD                                                                         |
-|     TBD    | Versioning features / models in Feast                                   | TBD                                                                         |
-|     TBD    | Data quality monitoring in Feast                                        | TBD                                                                         |
-|     TBD    | Batch transformations                                                   | TBD                                                                         |
-|     TBD    | Stream transformations                                                  | TBD                                                                         |
+See https://github.com/feast-dev/feast-workshop
+
+| Time (min) | Description                                                             | Module    |
+| :--------: | ----------------------------------------------------------------------- |-----------|
+|    30-45   | Setting up Feast projects & CI/CD + powering batch predictions          | Module 0  |
+|    15-20   | Streaming ingestion & online feature retrieval with Kafka, Spark, Redis | Module 1  |
+|    10-15   | Real-time feature engineering with on demand transformations            | Module 2  |
+|     TBD    | Feature server deployment (embed, as a service, AWS Lambda)             | TBD       |
+|     TBD    | Versioning features / models in Feast                                   | TBD       |
+|     TBD    | Data quality monitoring in Feast                                        | TBD       |
+|     TBD    | Batch transformations                                                   | TBD       |
+|     TBD    | Stream transformations                                                  | TBD       |

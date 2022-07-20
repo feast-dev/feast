@@ -139,7 +139,7 @@ The list below contains the functionality that contributors are planning to deve
 
 * Items below that are in development (or planned for development) will be indicated in parentheses.
 * We welcome contribution to all items in the roadmap!
-* Want to speak to a Feast contributor? We are more than happy to jump on a call. Please schedule a time using [Calendly](https://calendly.com/d/x2ry-g5bb/meet-with-feast-team).
+* Have questions about the roadmap? Go to the Slack channel to ask on #feast-development
 
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
@@ -151,7 +151,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/data-sources/postgres)
   * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/data-sources/spark)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
-  * [ ] HTTP source
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
@@ -184,30 +183,20 @@ The list below contains the functionality that contributors are planning to deve
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
   * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
-  * [ ] Cloud Run
-  * [ ] KNative
 * **Feature Serving**
   * [x] Python Client
-  * [x] REST Feature Server (Python) (Alpha release. See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
-  * [x] gRPC Feature Server (Java) (See [#1497](https://github.com/feast-dev/feast/issues/1497))
-  * [x] Push API
-  * [ ] Java Client
-  * [ ] Go Client
-  * [ ] Delete API
-  * [ ] Feature Logging (for training)
+  * [x] REST Feature Server (Python) (See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
+  * [x] REST / gRPC Feature Server (Go) (Alpha release. See [docs](https://docs.feast.dev/reference/feature-servers/go-feature-retrieval)
+  * [x] gRPC Feature Server (Java) (Alpha release. See [#1497](https://github.com/feast-dev/feast/issues/1497))
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
-  * [ ] Training-serving skew detection (in progress)
-  * [ ] Metric production
-  * [ ] Drift detection
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry
   * [x] CLI for browsing feature registry
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
+  * [x] DataHub integration (see [DataHub Feast docs](https://datahubproject.io/docs/generated/ingestion/sources/feast/))
   * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui))
-  * [ ] REST API for browsing feature registry
-
 
 ## 🎓 Important Resources
 
