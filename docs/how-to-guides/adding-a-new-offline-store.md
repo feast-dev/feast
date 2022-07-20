@@ -6,7 +6,7 @@ Feast makes adding support for a new offline store (database) easy. Developers c
 
 In this guide, we will show you how to extend the existing File offline store and use in a feature repo. While we will be implementing a specific store, this guide should be representative for adding support for any new offline store.
 
-The full working code for this guide can be found at [feast-dev/feast-custom-offline-store-demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and an example of a custom offline store that was contributed by developers can be found [here](https://github.com/feast-dev/feast/pull/2349).
+The full working code for this guide can be found at [feast-dev/feast-custom-offline-store-demo](https://github.com/feast-dev/feast-custom-offline-store-demo).
 
 The process for using a custom offline store consists of 6 steps:
 
@@ -151,7 +151,7 @@ Custom offline stores may need to implement their own instances of the `Retrieva
 
 The `RetrievalJob` interface exposes two methods - `to_df` and `to_arrow`. The expectation is for the retrieval job to be able to return the rows read from the offline store as a parquet DataFrame, or as an Arrow table respectively.
 
-Users who want to have their offline store support scalable batch materialization for online use cases (detailed in this [RFC](https://docs.google.com/document/d/1J7XdwwgQ9dY_uoV9zkRVGQjK9Sy43WISEW6D5V9qzGo/edit#heading=h.9gaqqtox9jg6)) will also need to implement `to_remote_storage` to distribute the reading and writing of offline store records to a distributed framework. If this is not implemented, Feast will default to local materialization (pulling all records into memory to materialize).
+Users who want to have their offline store support scalable batch materialization for online use cases (detailed in this [RFC](https://docs.google.com/document/d/1J7XdwwgQ9dY_uoV9zkRVGQjK9Sy43WISEW6D5V9qzGo/edit#heading=h.9gaqqtox9jg6)) will also need to implement `to_remote_storage` to distribute the reading and writing of offline store records to blob storage (such as S3). This may be used by a custom [Materialization Engine](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/materialization/batch_materialization_engine.py#L72) to parallelize the materialization of data by processing it in chunks. If this is not implemented, Feast will default to local materialization (pulling all records into memory to materialize).
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -295,15 +295,14 @@ driver_hourly_stats_view = FeatureView(
 
 Even if you have created the `OfflineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo. In the Feast submodule, we can run all the unit tests with:
 
-In order to test against the test suite, you need to create a custom `DataSourceCreator`. This class will need to implement our testing infrastructure methods, `create_data_source` and `created_saved_dataset_destination`. `create_data_source` creates a datasource for testing from the dataframe given that will register the dataframe with your offline store and return a datasource pointing to that location. See `BigQueryDataSourceCreator` for an implementation of a datawarehouse data source creator. **Saved datasets** are special datasets used for data validation and is Feast's way of snapshotting your data for future data validation.
+In order to test against the test suite, you need to create a custom `DataSourceCreator`. This class will need to implement our testing infrastructure methods, `create_data_source` and `created_saved_dataset_destination`. `create_data_source` should create a datasource based on the dataframe passed in. It may be implemented by uploading the contents of the dataframe into the offline store and returning a datasource object pointing to that location. See `BigQueryDataSourceCreator` for an implementation of a data source creator. **Saved datasets** are special datasets used for data validation and is Feast's way of snapshotting your data for future data validation.
 
 ```
 make test-python
 ```
-This should run the unit tests and the unit tests should all pass. Please add unit tests for your data source that test out basic functionality of reading and writing to and from the datasource. This should just be class level functionality that ensures that the methods you implemented for the OfflineStore and the DataSource associated with it work as expected. In order to be approved to merge into Feast, these unit tests should all pass and demonstrate that the DataSource works as intended.
+This should run the unit tests and the unit tests should all pass.
 
-
-The universal tests, which are integration tests specifically intended to test offline and online stores, will be run against Feast to ensure that the Feast APIs works with your offline store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom offline store. To overwrite the default configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline and online store. In general, use the sqlite online store to test your offline store so that you don't need to setup any other online store containers. The main challenge here will be to write a `DataSourceCreator` for the offline store. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run
+The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your offline store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom offline store. To overwrite the default configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline and online store. In general, use the sqlite online store to test your offline store so that you don't need to setup any other online store containers. The main challenge here will be to write a `DataSourceCreator` for the offline store. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run
 
 ```
 export FULL_REPO_CONFIGS_MODULE='feast_custom_offline_store.feast_tests'
@@ -312,13 +311,15 @@ make test-python-universal
 
 A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-```
+{% code title="feast/sdk/python/feast/infra/offline_stores/contrib/postgres_repo_configuration.py" %}
+```python
 from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
     PostgreSQLDataSourceCreator,
 )
 
 AVAILABLE_OFFLINE_STORES = [("postgres", PostgreSQLDataSourceCreator)]
 ```
+{% endcode %}
 
 to test the offline store against the Feast universal tests. If you have configured the offline stores and only that offline store is being used in `FULL_REPO_CONFIGS`, `make test-python-integration-container` should work as it tests the offline store and online stores that are containerized in Docker. All of the containerized integration tests should pass and if they don't, this indicates that there is a mistake in the implementation of this offline store!
 
@@ -339,13 +340,18 @@ make lock-python-ci-dependencies
 
 Remember to add documentation for your offline store. This should be added to `docs/reference/offline-stores/` and `docs/reference/data-sources/`. You should also add a reference in `docs/reference/data-sources/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other offline stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the datasource is in alpha development. Please also add some documentation on what the data model is for the specific online store for more clarity.
 
-Finally, add the python code docs by running to document the functions:
+Finally, add the python code docs by running to document the functions by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
 
+{% code title="sdk/python/docs/index.rst" %}
+```yaml
+...
+BigQuery Source
+------------------
+
+.. automodule:: feast.infra.offline_stores.bigquery_source
+    :members:
+    :exclude-members: BigQueryOptions
 ```
-make build-sphinx
-```
+{% endcode %}
 
-An example of a full pull request for adding a custom offline store can be found [here](https://github.com/feast-dev/feast/pull/2349).
-
-
-
+Adding a reference in the rst file will allow Feast to autogenerate the method documentation.

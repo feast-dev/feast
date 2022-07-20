@@ -6,7 +6,7 @@ Feast makes adding support for a new online store (database) easy. Developers ca
 
 In this guide, we will show you how to integrate with MySQL as an online store. While we will be implementing a specific store, this guide should be representative for adding support for any new online store.
 
-The full working code for this guide can be found at [feast-dev/feast-custom-online-store-demo](https://github.com/feast-dev/feast-custom-online-store-demo) and an example of a custom online store that was contributed by developers can be found [here](https://github.com/feast-dev/feast/pull/2590).
+The full working code for this guide can be found at [feast-dev/feast-custom-online-store-demo](https://github.com/feast-dev/feast-custom-online-store-demo).
 
 
 The process of using a custom online store consists of 4 steps:
@@ -300,9 +300,9 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
 make test-python
 ```
 
-This should run the unit tests and the unit tests should all pass. Please add unit tests for your online store that test out basic functionality of reading and writing to and from the online store. This should just be class level functionality that ensures that the methods you implemented for the OnlineStore work as expected. In order to be approved to merge into Feast, these unit tests should all pass and demonstrate that the DataSource works as intended.
+This should run the unit tests and the unit tests should all pass.
 
-The universal tests, which are integration tests specifically intended to test offline and online stores, will be run against Feast to ensure that the Feast APIs works with your online store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom online store. To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
+The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom online store. To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
 
 ```
 export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
@@ -311,17 +311,19 @@ make test-python-universal
 
 A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-```
+{% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
+```python
 from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
     PostgreSQLDataSourceCreator,
 )
 
 AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
 ```
+{% endcode %}
 
 to test the MySQL online store against the Feast universal tests. If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store! If you are planning to start the online store up locally(e.g spin up a local Redis Instance), then the dictionary entry should be something like:
 
-```
+```python
 {
     "sqlite": ({"type": "sqlite"}, None),
 }
@@ -329,7 +331,8 @@ to test the MySQL online store against the Feast universal tests. If there are s
 
 The key is the name of the online store and the tuple contains the online store config represented as a dictionary. Make sure that the sqlite config defines the full package so that Feast can import the online store dynamically at runtime. The None type in the tuple can be replaced by an `OnlineStoreCreator` which is only useful for specific online stores that have containerized docker images. If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store(e.g a redis instance or dynamo instance) in order to perform testing. An example of an `OnlineStoreCreator` is shown below:
 
-```
+{% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
+```python
 class RedisOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
@@ -347,7 +350,7 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
     def teardown(self):
         self.container.stop()
 ```
-
+{% endcode %}
 
 ### Add Dependencies
 
@@ -364,10 +367,17 @@ make lock-python-ci-dependencies
 
 Remember to add the documentation for your online store. This should be added to `docs/reference/online-stores/`. You should also add a reference in `docs/reference/online-stores/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other online stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the online store is in alpha development.
 
-Finally, add the python code docs by running to document the functions:
+Finally, add the python code docs by running to document the functions by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
 
-```
-make build-sphinx
-```
+{% code title="sdk/python/docs/index.rst" %}
+```yaml
+BigQuery Source
+------------------
 
-An example of a full pull request for adding a custom online store can be found [here](https://github.com/feast-dev/feast/pull/2590).
+.. automodule:: feast.infra.offline_stores.bigquery_source
+    :members:
+    :exclude-members: BigQueryOptions
+```
+{% endcode %}
+
+Adding a reference in the rst file will allow Feast to autogenerate the method documentation.
