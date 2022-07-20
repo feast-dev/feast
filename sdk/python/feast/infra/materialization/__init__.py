@@ -3,11 +3,12 @@ from .batch_materialization_engine import (
     MaterializationJob,
     MaterializationTask,
 )
-from .local_engine import LocalMaterializationEngine
+from .local_engine import LocalMaterializationEngine, LocalMaterializationJob
 
 __all__ = [
     "MaterializationJob",
     "MaterializationTask",
     "BatchMaterializationEngine",
     "LocalMaterializationEngine",
+    "LocalMaterializationJob",
 ]

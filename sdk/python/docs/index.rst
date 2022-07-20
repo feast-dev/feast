@@ -250,18 +250,21 @@ Sqlite Online Store
 
 .. automodule:: feast.infra.online_stores.sqlite
     :members:
+    :noindex:
 
 Datastore Online Store
 ----------------------
 
 .. automodule:: feast.infra.online_stores.datastore
     :members:
+    :noindex:
 
 DynamoDB Online Store
 ---------------------
 
 .. automodule:: feast.infra.online_stores.dynamodb
     :members:
+    :noindex:
 
 Redis Online Store
 ------------------
@@ -281,5 +284,25 @@ HBase Online Store
 -----------------------
 
 .. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
+    :members:
+    :noindex:
+
+
+Batch Materialization Engine
+============================
+
+.. automodule:: feast.infra.materialization
+    :members: BatchMaterializationEngine, MaterializationJob, MaterializationTask
+
+Local Engine
+------------
+.. autoclass:: feast.infra.materialization.LocalMaterializationEngine
+    :members:
+    :noindex:
+
+(Alpha) Lambda Based Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.lambda.lambda_engine
     :members:
     :noindex:
