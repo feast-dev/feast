@@ -36,7 +36,7 @@ For Feast maintainers, these are the concrete steps for making a new release.
 
 ### Update documentation
 
-In the Feast Gitbook: 
+In the Feast Gitbook (ask [Danny Chiao](https://tectonfeast.slack.com/team/U029405HFEU) in Slack for access): 
 1. Create a new space within the Feast collection
 2. Go to the overflow menu on the top -> Synchronize with Git 
    1. Specify GitHub as the provider
