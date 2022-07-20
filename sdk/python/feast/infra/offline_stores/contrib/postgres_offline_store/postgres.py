@@ -214,7 +214,7 @@ class PostgreSQLOfflineStore(OfflineStore):
 
         query = f"""
             SELECT {field_string}
-            FROM {from_expression}
+            FROM {from_expression} AS paftoq_alias
             WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
         """
 
