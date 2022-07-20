@@ -1180,6 +1180,7 @@ class Registry(BaseRegistry):
                 else:
                     del existing_feature_views_of_same_type[idx]
                     break
+
         existing_feature_views_of_same_type.append(feature_view_proto)
         if commit:
             self.commit()

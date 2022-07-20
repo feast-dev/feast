@@ -311,7 +311,7 @@ def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     table_instance = dynamodb_resource.Table(f"{PROJECT}.{dynamodb_tbl}")
     # Insert duplicate data
     dynamodb_online_store._write_batch_non_duplicates(
-        table_instance, data + data_duplicate, progress=None
+        table_instance, data + data_duplicate, None, repo_config
     )
     # Request more items than inserted
     response = table_instance.scan(Limit=20)

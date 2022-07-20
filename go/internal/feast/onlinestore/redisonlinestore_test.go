@@ -1,6 +1,7 @@
 package onlinestore
 
 import (
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,11 @@ func TestNewRedisOnlineStore(t *testing.T) {
 	var config = map[string]interface{}{
 		"connection_string": "redis://localhost:6379",
 	}
-	store, err := NewRedisOnlineStore("test", config)
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 2,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
 	var opts = store.client.Options()
 	assert.Equal(t, opts.Addr, "redis://localhost:6379")
@@ -23,7 +28,11 @@ func TestNewRedisOnlineStoreWithPassword(t *testing.T) {
 	var config = map[string]interface{}{
 		"connection_string": "redis://localhost:6379,password=secret",
 	}
-	store, err := NewRedisOnlineStore("test", config)
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 2,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
 	var opts = store.client.Options()
 	assert.Equal(t, opts.Addr, "redis://localhost:6379")
@@ -34,7 +43,11 @@ func TestNewRedisOnlineStoreWithDB(t *testing.T) {
 	var config = map[string]interface{}{
 		"connection_string": "redis://localhost:6379,db=1",
 	}
-	store, err := NewRedisOnlineStore("test", config)
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 2,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
 	var opts = store.client.Options()
 	assert.Equal(t, opts.Addr, "redis://localhost:6379")
@@ -45,7 +58,11 @@ func TestNewRedisOnlineStoreWithSsl(t *testing.T) {
 	var config = map[string]interface{}{
 		"connection_string": "redis://localhost:6379,ssl=true",
 	}
-	store, err := NewRedisOnlineStore("test", config)
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 2,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
 	var opts = store.client.Options()
 	assert.Equal(t, opts.Addr, "redis://localhost:6379")

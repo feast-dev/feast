@@ -51,7 +51,7 @@ def _assert_online_features(
         .values[0]
         .float_val
         > 0
-    )
+    ), response.to_dict()
 
     result = response.to_dict()
     assert len(result) == 5

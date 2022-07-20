@@ -199,7 +199,11 @@ class RedisOnlineStore(OnlineStore):
             # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
             # it may be significantly slower but avoids potential (rare) race conditions
             for entity_key, _, _, _ in data:
-                redis_key_bin = _redis_key(project, entity_key)
+                redis_key_bin = _redis_key(
+                    project,
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 keys.append(redis_key_bin)
                 pipe.hmget(redis_key_bin, ts_key)
             prev_event_timestamps = pipe.execute()
@@ -268,7 +272,11 @@ class RedisOnlineStore(OnlineStore):
 
         keys = []
         for entity_key in entity_keys:
-            redis_key_bin = _redis_key(project, entity_key)
+            redis_key_bin = _redis_key(
+                project,
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             keys.append(redis_key_bin)
         with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:

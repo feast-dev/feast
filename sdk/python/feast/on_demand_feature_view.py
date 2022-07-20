@@ -348,6 +348,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 sources.append(
                     RequestSource.from_proto(on_demand_source.request_data_source)
                 )
+
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[

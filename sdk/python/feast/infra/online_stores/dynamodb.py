@@ -188,7 +188,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
-        self._write_batch_non_duplicates(table_instance, data, progress)
+        self._write_batch_non_duplicates(table_instance, data, progress, config)
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
@@ -216,7 +216,13 @@ class DynamoDBOnlineStore(OnlineStore):
         )
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
+        entity_ids = [
+            compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
         batch_size = online_config.batch_size
         entity_ids_iter = iter(entity_ids)
         while True:
@@ -300,11 +306,15 @@ class DynamoDBOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
+        config: RepoConfig,
     ):
         """Deduplicate write batch request items on ``entity_id`` primary key."""
         with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
             for entity_key, features, timestamp, created_ts in data:
-                entity_id = compute_entity_id(entity_key)
+                entity_id = compute_entity_id(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 batch.put_item(
                     Item={
                         "entity_id": entity_id,  # PartitionKey

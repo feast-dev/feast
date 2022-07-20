@@ -30,6 +30,8 @@ type RepoConfig struct {
 	Flags map[string]interface{} `json:"flags"`
 	// RepoPath
 	RepoPath string `json:"repo_path"`
+	// EntityKeySerializationVersion
+	EntityKeySerializationVersion int64 `json:"entity_key_serialization_version"`
 }
 
 type RegistryConfig struct {
