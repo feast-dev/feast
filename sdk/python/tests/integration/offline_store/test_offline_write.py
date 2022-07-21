@@ -130,7 +130,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         driver_stats.name, first_df, allow_registry_cache=False
     )
 
-    after_write_df = store.get_historical_features(
+    after_write_df: pd.DataFrame = store.get_historical_features(
         entity_df=entity_df,
         features=[
             "driver_stats:conv_rate",
@@ -139,6 +139,9 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ],
         full_feature_names=False,
     ).to_df()
+    after_write_df = after_write_df.sort_values("event_timestamp").reset_index(
+        drop=True
+    )
 
     print(f"After: {after_write_df}\nFirst: {first_df}")
     print(
@@ -192,7 +195,9 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ],
         full_feature_names=False,
     ).to_df()
-
+    after_write_df = after_write_df.sort_values("event_timestamp").reset_index(
+        drop=True
+    )
     expected_df = pd.concat([first_df, second_df])
     assert len(after_write_df) == len(expected_df)
     for field in ["conv_rate", "acc_rate", "avg_daily_trips"]:
