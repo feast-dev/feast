@@ -118,21 +118,24 @@ def version():
     "-h",
     type=click.STRING,
     default="0.0.0.0",
-    help="Specify a host for the server [default: 0.0.0.0]",
+    show_default=True,
+    help="Specify a host for the server",
 )
 @click.option(
     "--port",
     "-p",
     type=click.INT,
     default=8888,
-    help="Specify a port for the server [default: 8888]",
+    show_default=True,
+    help="Specify a port for the server",
 )
 @click.option(
     "--registry_ttl_sec",
     "-r",
-    help="Number of seconds after which the registry is refreshed. Default is 5 seconds.",
+    help="Number of seconds after which the registry is refreshed",
     type=int,
     default=5,
+    show_default=True,
 )
 @click.pass_context
 def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
@@ -610,14 +613,16 @@ def init_command(project_directory, minimal: bool, template: str):
     "-h",
     type=click.STRING,
     default="127.0.0.1",
-    help="Specify a host for the server [default: 127.0.0.1]",
+    show_default=True,
+    help="Specify a host for the server",
 )
 @click.option(
     "--port",
     "-p",
     type=click.INT,
     default=6566,
-    help="Specify a port for the server [default: 6566]",
+    show_default=True,
+    help="Specify a port for the server",
 )
 @click.option(
     "--type",
@@ -625,16 +630,25 @@ def init_command(project_directory, minimal: bool, template: str):
     "type_",
     type=click.STRING,
     default="http",
-    help="Specify a server type: 'http' or 'grpc' [default: http]",
+    show_default=True,
+    help="Specify a server type: 'http' or 'grpc'",
+)
+@click.option(
+    "--go",
+    is_flag=True,
+    show_default=True,
+    help="Use Go to serve",
 )
 @click.option(
     "--no-access-log",
     is_flag=True,
-    help="Disable the Uvicorn access log.",
+    show_default=True,
+    help="Disable the Uvicorn access log",
 )
 @click.option(
     "--no-feature-log",
     is_flag=True,
+    show_default=True,
     help="Disable logging served features",
 )
 @click.pass_context
@@ -643,6 +657,7 @@ def serve_command(
     host: str,
     port: int,
     type_: str,
+    go: bool,
     no_access_log: bool,
     no_feature_log: bool,
 ):
@@ -650,6 +665,10 @@ def serve_command(
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     store = FeatureStore(repo_path=str(repo))
+
+    if go:
+        # Turn on Go feature retrieval.
+        store.config.go_feature_retrieval = True
 
     store.serve(host, port, type_, no_access_log, no_feature_log)
 
