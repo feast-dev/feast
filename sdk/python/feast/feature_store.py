@@ -1131,8 +1131,7 @@ class FeatureStore:
 
         if not from_.metadata:
             raise ValueError(
-                "RetrievalJob must contains metadata. "
-                "Use RetrievalJob produced by get_historical_features"
+                f"The RetrievalJob {type(from_)} must implement the metadata property."
             )
 
         dataset = SavedDataset(
