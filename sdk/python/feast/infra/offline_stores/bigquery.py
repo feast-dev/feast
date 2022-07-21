@@ -373,7 +373,7 @@ class BigQueryOfflineStore(OfflineStore):
                 file_obj=parquet_temp_file,
                 destination=feature_view.batch_source.table,
                 job_config=job_config,
-            )
+            ).result()
 
 
 class BigQueryRetrievalJob(RetrievalJob):
