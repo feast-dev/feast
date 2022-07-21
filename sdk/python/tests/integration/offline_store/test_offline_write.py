@@ -126,6 +126,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
+    first_df = first_df.astype({"conv_rate": "float32", "acc_rate": "float32"})
     store.write_to_offline_store(
         driver_stats.name, first_df, allow_registry_cache=False
     )
@@ -169,6 +170,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
+    second_df = second_df.astype({"conv_rate": "float32", "acc_rate": "float32"})
 
     store.write_to_offline_store(
         driver_stats.name, second_df, allow_registry_cache=False
@@ -207,5 +209,5 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ).all(), (
             f"Field: {field}\n"
             f"After: {after_write_df[field].reset_index(drop=True)}\n"
-            f"First: {first_df[field].reset_index(drop=True)}"
+            f"First: {expected_df[field].reset_index(drop=True)}"
         )
