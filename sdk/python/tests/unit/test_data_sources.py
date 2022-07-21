@@ -261,3 +261,13 @@ def test_proto_conversion():
     assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
     assert DataSource.from_proto(push_source.to_proto()) == push_source
     assert DataSource.from_proto(request_source.to_proto()) == request_source
+
+
+def test_column_conflict():
+    with pytest.raises(ValueError):
+        _ = FileSource(
+            name="test_source",
+            path="test_path",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="event_timestamp",
+        )
