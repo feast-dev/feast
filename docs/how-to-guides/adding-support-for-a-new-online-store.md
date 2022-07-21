@@ -9,22 +9,35 @@ In this guide, we will show you how to integrate with MySQL as an online store. 
 The full working code for this guide can be found at [feast-dev/feast-custom-online-store-demo](https://github.com/feast-dev/feast-custom-online-store-demo).
 
 
-The process of using a custom online store consists of 4 steps:
+The process of using a custom online store consists of 6 steps:
 
 1. Defining the `OnlineStore` class.
 2. Defining the `OnlineStoreConfig` class.
 3. Referencing the `OnlineStore` in a feature repo's `feature_store.yaml` file.
 4. Testing the `OnlineStore` class.
+5. Update dependencies.
+6. Add documentation.
 
 ## 1. Defining an OnlineStore class
-
-### Contrib
-
-Generally, new online stores should go in the contrib folder and have alpha functionality tags. The contrib folder is designated for community contributions that are not fully maintained by Feast maintainers and may contain potential instability and have API changes. It is recommended to add warnings to users that the online store functionality is still in alpha development and is not fully stable. In order to be classified as fully stable and be moved to the main online store folder, the online store should integrate with the full integration test suite in Feast and pass all of the test cases.
 
 {% hint style="info" %}
 &#x20;OnlineStore class names must end with the OnlineStore suffix!
 {% endhint %}
+
+### Contrib online stores
+
+New online stores go in `sdk/python/feast/infra/online_stores/contrib/`.
+
+#### What is a contrib plugin?
+
+- Not guaranteed to implement all interface methods
+- Not guaranteed to be stable.
+- Should have warnings for users to indicate this is a contrib plugin that is not maintained by the maintainers.
+
+#### How do I make a contrib plugin and "official" plugin?
+To move an online store plugin out of contrib, you need:
+- Github actions (i.e `make test-python-integration`) is setup to run all tests against the online store and pass.
+- At least two contributors own the plugin (ideally tracked in our OWNERS / CODEOWNERS file).
 
 The OnlineStore class broadly contains two sets of methods
 
@@ -294,68 +307,71 @@ online_store: feast_custom_online_store.mysql.MySQLOnlineStore
 
 ### Integrating with the integration test suite and unit test suite.
 
-Even if you have created the `OnlineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo. In the Feast submodule, we can run all the unit tests with:
+Even if you have created the `OnlineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo.
 
+1. In the Feast submodule, we can run all the unit tests and make sure they pass:
 ```
 make test-python
 ```
 
-This should run the unit tests and the unit tests should all pass.
 
-The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store. To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom online store. To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS`, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. In this repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
+2. The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store.
+    - To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom online store.
+    - To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS` variable, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file.
 
-```
-export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
-make test-python-universal
-```
+    A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
+    {% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
+    ```python
+    from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
+        PostgreSQLDataSourceCreator,
+    )
 
-{% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
-```python
-from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
-    PostgreSQLDataSourceCreator,
-)
+    AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
+    ```
+    {% endcode %}
 
-AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
-```
-{% endcode %}
+    If you are planning to start the online store up locally(e.g spin up a local Redis Instance), then the dictionary entry should be something like:
 
-to test the MySQL online store against the Feast universal tests. If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store! If you are planning to start the online store up locally(e.g spin up a local Redis Instance), then the dictionary entry should be something like:
+    ```python
+    {
+        "sqlite": ({"type": "sqlite"}, None),
+    }
+    ```
 
-```python
-{
-    "sqlite": ({"type": "sqlite"}, None),
-}
-```
+    The key, here, is the name of the online store and the tuple contains the online store config represented as a dictionary. The None type in the tuple can be replaced by an `OnlineStoreCreator` which is only useful for specific online stores that have containerized docker images. If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store(e.g a redis instance or dynamo instance) in order to perform testing. An example of an `OnlineStoreCreator` is shown below:
 
-The key is the name of the online store and the tuple contains the online store config represented as a dictionary. Make sure that the sqlite config defines the full package so that Feast can import the online store dynamically at runtime. The None type in the tuple can be replaced by an `OnlineStoreCreator` which is only useful for specific online stores that have containerized docker images. If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store(e.g a redis instance or dynamo instance) in order to perform testing. An example of an `OnlineStoreCreator` is shown below:
+    {% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
+    ```python
+    class RedisOnlineStoreCreator(OnlineStoreCreator):
+        def __init__(self, project_name: str, **kwargs):
+            super().__init__(project_name)
+            self.container = DockerContainer("redis").with_exposed_ports("6379")
 
-{% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
-```python
-class RedisOnlineStoreCreator(OnlineStoreCreator):
-    def __init__(self, project_name: str, **kwargs):
-        super().__init__(project_name)
-        self.container = DockerContainer("redis").with_exposed_ports("6379")
+        def create_online_store(self) -> Dict[str, str]:
+            self.container.start()
+            log_string_to_wait_for = "Ready to accept connections"
+            wait_for_logs(
+                container=self.container, predicate=log_string_to_wait_for, timeout=10
+            )
+            self.container.stop()
+    ```
+    {% endcode %}
 
-    def create_online_store(self) -> Dict[str, str]:
-        self.container.start()
-        log_string_to_wait_for = "Ready to accept connections"
-        wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=10
-        )
-        exposed_port = self.container.get_exposed_port("6379")
-        return {"type": "redis", "connection_string": f"localhost:{exposed_port},db=0"}
+3. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
 
-    def teardown(self):
-        self.container.stop()
-```
-{% endcode %}
+    ```
+    export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
+    make test-python-universal
+    ```
 
-### Add Dependencies
+    If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store!
 
-Finally, if your online store requires special packages, add them to our `sdk/python/setup.py` under a new `<ONLINE>_STORE_REQUIRED` list with the packages and add it to the setup script so that if your online store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default.
-You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
+
+### 5. Add Dependencies
+
+Add any dependencies for your online store to our `sdk/python/setup.py` under a new `<ONLINE_STORE>_REQUIRED` list with the packages and add it to the setup script so that if your online store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default.
+- You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
 
 ```
 export PYTHON=<version>
@@ -363,11 +379,15 @@ make lock-python-ci-dependencies
 ```
 
 
-### Add Documentation
+### 6. Add Documentation
 
-Remember to add the documentation for your online store. This should be added to `docs/reference/online-stores/`. You should also add a reference in `docs/reference/online-stores/README.md` and `docs/SUMMARY.md`. Add a new markdown documentation and document the functions similar to how the other online stores are documented. Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the online store is in alpha development.
+Remember to add the documentation for your online store.
+1.  Add a new markdown file to `docs/reference/online-stores/`.
+2. You should also add a reference in `docs/reference/online-stores/README.md` and `docs/SUMMARY.md`. Add a new markdown document to document your online store functionality similar to how the other online stores are documented.
 
-Finally, add the python code docs by running to document the functions by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
+**NOTE**: Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the online store is in alpha development.
+
+3. Finally, add the python code docs by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
 
 {% code title="sdk/python/docs/index.rst" %}
 ```yaml
@@ -381,3 +401,4 @@ BigQuery Source
 {% endcode %}
 
 Adding a reference in the rst file will allow Feast to autogenerate the method documentation.
+
