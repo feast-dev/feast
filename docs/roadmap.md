@@ -1,10 +1,9 @@
 # Roadmap
 
-The list below contains the functionality that contributors are planning to develop for Feast
+The list below contains the functionality that contributors are planning to develop for Feast.
 
-* Items below that are in development (or planned for development) will be indicated in parentheses.
 * We welcome contribution to all items in the roadmap!
-* Have questions about the roadmap? Go to the Slack channel to ask on #feast-development
+* Have questions about the roadmap? Go to the Slack channel to ask on #feast-development.
 
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
@@ -51,8 +50,7 @@ The list below contains the functionality that contributors are planning to deve
 * **Feature Serving**
   * [x] Python Client
   * [x] REST Feature Server (Python) (See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
-  * [x] REST / gRPC Feature Server (Go) (Alpha release. See [docs](https://docs.feast.dev/reference/feature-servers/go-feature-retrieval)
-  * [x] gRPC Feature Server (Java) (Alpha release. See [#1497](https://github.com/feast-dev/feast/issues/1497))
+  * [x] REST / gRPC Feature Server (Go) (Alpha release. See [docs](https://docs.feast.dev/reference/feature-servers/go-feature-retrieval))
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
 * **Feature Discovery and Governance**
@@ -61,4 +59,4 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Model-centric feature tracking (feature services)
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
   * [x] DataHub integration (see [DataHub Feast docs](https://datahubproject.io/docs/generated/ingestion/sources/feast/))
-  * [x] Feast Web UI (Alpha release. See [documentation](https://docs.feast.dev/reference/alpha-web-ui))
+  * [x] Feast Web UI (Alpha release. See [docs](https://docs.feast.dev/reference/alpha-web-ui))
