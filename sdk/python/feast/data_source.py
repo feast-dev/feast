@@ -273,6 +273,10 @@ class DataSource(ABC):
                 ),
                 DeprecationWarning,
             )
+        if self.timestamp_field == self.created_timestamp_column:
+            raise ValueError(
+                "Please do not use the same column for 'timestamp_field' and 'created_timestamp_column'."
+            )
         self.description = description or ""
         self.tags = tags or {}
         self.owner = owner or ""
