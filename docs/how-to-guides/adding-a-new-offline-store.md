@@ -384,7 +384,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
 {% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
-    ```python
+```python
 from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
     PostgreSQLDataSourceCreator,
 )
