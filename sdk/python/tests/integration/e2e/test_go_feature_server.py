@@ -59,7 +59,7 @@ def initialized_registry(environment, universal_data_sources):
 
 
 def server_port(environment, server_type: str):
-    if not environment.test_repo_config.go_feature_retrieval:
+    if not environment.test_repo_config.go_feature_serving:
         pytest.skip("Only for Go path")
 
     fs = environment.feature_store

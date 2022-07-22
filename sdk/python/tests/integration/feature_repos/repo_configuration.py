@@ -420,7 +420,7 @@ def construct_test_environment(
         batch_engine=test_repo_config.batch_engine,
         repo_path=repo_dir_name,
         feature_server=feature_server,
-        go_feature_retrieval=test_repo_config.go_feature_retrieval,
+        go_feature_serving=test_repo_config.go_feature_serving,
     )
 
     # Create feature_store.yaml out of the config
