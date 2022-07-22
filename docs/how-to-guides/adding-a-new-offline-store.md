@@ -368,32 +368,31 @@ driver_hourly_stats_view = FeatureView(
 
 Even if you have created the `OfflineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo.
 
-1\. In order to test against the test suite, you need to create a custom `DataSourceCreator` that implement our testing infrastructure methods, `create_data_source` and optionally, `created_saved_dataset_destination`.
+1. In order to test against the test suite, you need to create a custom `DataSourceCreator` that implement our testing infrastructure methods, `create_data_source` and optionally, `created_saved_dataset_destination`.
     * `create_data_source` should create a datasource based on the dataframe passed in. It may be implemented by uploading the contents of the dataframe into the offline store and returning a datasource object pointing to that location. See `BigQueryDataSourceCreator` for an implementation of a data source creator.
     * `created_saved_dataset_destination` is invoked when users need to save the dataset for use in data validation. This functionality is still in alpha and is **optional**.
 
-2\. Make sure that your offline store doesn't break any unit tests first by running:
+2. Make sure that your offline store doesn't break any unit tests first by running:
     ```
     make test-python
     ```
 
-3\. Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
+3. Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
     - Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
     - To overwrite the default configurations to use your own offline store, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline store that you would like Feast to test with.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-{% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
-```python
-from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
-    PostgreSQLDataSourceCreator,
-)
+    ```python
+    # Should go in sdk/python/feast/infra/offline_stores/contrib/postgres_repo_configuration.py
+    from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
+        PostgreSQLDataSourceCreator,
+    )
 
-AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
-```
-{% endcode %}
+    AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
+    ```
 
-4\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your offline store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run:
+4. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your offline store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run:
 
     ```bash
     export FULL_REPO_CONFIGS_MODULE='feast_custom_offline_store.feast_tests'
@@ -402,7 +401,7 @@ AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
 
     If the integration tests fail, this indicates that there is a mistake in the implementation of this offline store!
 
-5\. Remember to add your datasource to `repo_config.py` similar to how we added `spark`, `trino`, etc, to the dictionary `OFFLINE_STORE_CLASS_FOR_TYPE` and add the necessary configuration to `repo_configuration.py`. Namely, `AVAILABLE_OFFLINE_STORES` should load your repo configuration module.
+5. Remember to add your datasource to `repo_config.py` similar to how we added `spark`, `trino`, etc, to the dictionary `OFFLINE_STORE_CLASS_FOR_TYPE` and add the necessary configuration to `repo_configuration.py`. Namely, `AVAILABLE_OFFLINE_STORES` should load your repo configuration module.
 
 ### 7. Dependencies
 

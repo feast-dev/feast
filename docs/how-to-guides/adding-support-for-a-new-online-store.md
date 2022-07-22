@@ -331,15 +331,14 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-    {% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
     ```python
+    # Should go in sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py
     from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
         PostgreSQLDataSourceCreator,
     )
 
     AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
     ```
-    {% endcode %}
 
     If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
 
@@ -370,7 +369,7 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     ```
     {% endcode %}
 
-3. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
+3\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
 
     ```
     export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
