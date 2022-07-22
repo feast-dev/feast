@@ -2,23 +2,22 @@
 
 ## Overview
 
-The feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write + read features from Feast online stores using any programming language that can make HTTP requests.
+The Python feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write and read features from the online store using any programming language that can make HTTP requests.
 
 ## CLI
 
-There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden by a `--port` flag.
+There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden with a `--port` flag.
 
 ## Deploying as a service
 
-One can also deploy a feature server by building a docker image that bundles in the project's `feature_store.yaml`. See [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-python-server) for example.
+One can deploy a feature server by building a docker image that bundles in the project's `feature_store.yaml`. See this [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-python-server) for an example.
 
-A [remote feature server](../alpha-aws-lambda-feature-server.md) on AWS Lambda is available. A remote feature server on GCP Cloud Run is currently being developed.
-
+A [remote feature server](../alpha-aws-lambda-feature-server.md) on AWS Lambda is also available.
 
 ## Example
 
 ### Initializing a feature server
-Here's the local feature server usage example with the local template:
+Here's an example of how to start the Python feature server with a local feature repo:
 
 ```bash
 $ feast init feature_repo
@@ -27,9 +26,11 @@ Creating a new Feast repository in /home/tsotne/feast/feature_repo.
 $ cd feature_repo
 
 $ feast apply
-Registered entity driver_id
-Registered feature view driver_hourly_stats
-Deploying infrastructure for driver_hourly_stats
+Created entity driver
+Created feature view driver_hourly_stats
+Created feature service driver_activity
+
+Created sqlite table feature_repo_driver_hourly_stats
 
 $ feast materialize-incremental $(date +%Y-%m-%d)
 Materializing 1 feature views to 2021-09-09 17:00:00-07:00 into the sqlite online store.
@@ -38,8 +39,6 @@ driver_hourly_stats from 2021-09-09 16:51:08-07:00 to 2021-09-09 17:00:00-07:00:
 100%|████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 295.24it/s]
 
 $ feast serve
-This is an experimental feature. It's intended for early testing and feedback, and could change without warnings in future releases.
-INFO:     Started server process [8889]
 09/10/2021 10:42:11 AM INFO:Started server process [8889]
 INFO:     Waiting for application startup.
 09/10/2021 10:42:11 AM INFO:Waiting for application startup.
@@ -49,7 +48,7 @@ INFO:     Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 09/10/2021 10:42:11 AM INFO:Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 ```
 
-### Retrieving features from the online store
+### Retrieving features
 After the server starts, we can execute cURL commands from another terminal tab:
 
 ```bash
@@ -153,11 +152,9 @@ curl -X POST \
 ```
 
 ### Pushing features to the online and offline stores
-You can push data corresponding to a push source to the online and offline stores (note that timestamps need to be strings):
+The Python feature server also exposes an endpoint for [push sources](../../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
 
-You can also define a pushmode to push stream or batch data, either to the online store, offline store, or both. The feature server will throw an error if the online/offline store doesn't support the push api functionality.
-
-The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "online_and_offline"].
+The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "online_and_offline"]. Note that timestamps need to be strings.
 ```text
 curl -X POST "http://localhost:6566/push" -d '{
     "push_source_name": "driver_hourly_stats_push_source",
