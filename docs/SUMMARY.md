@@ -92,7 +92,7 @@
   * [.feastignore](reference/feature-repository/feast-ignore.md)
 * [Feature servers](reference/feature-servers/README.md)
   * [Python feature server](reference/feature-servers/python-feature-server.md)
-  * [Go-based feature retrieval](reference/feature-servers/go-feature-server.md)
+  * [Go feature server](reference/feature-servers/go-feature-server.md)
 * [\[Alpha\] Web UI](reference/alpha-web-ui.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
