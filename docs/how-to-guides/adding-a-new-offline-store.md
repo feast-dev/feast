@@ -47,9 +47,9 @@ To fully implement the interface for the offline store, you will need to impleme
 
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
 * `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
-* `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date.
-* `offline_write_batch` is a method that supports directly pushing a pyarrow table to a feature view. Given a feature view with a specific schema, this function should write the pyarrow table to the batch source defined. More details about the push api can be found [here](docs/reference/data-sources/push.md). This method is **optional** and only needs implementation if you want to support the push api in your offline store.
-* `write_logged_features` is a method that takes a pyarrow table or a path that points to a parquet file and writes the data to a defined source defined by `LoggingSource` and `LoggingConfig`. This method is **optional** since it is only used internally for **SavedDatasets**.
+* (optional) `offline_write_batch` is a method that supports directly pushing a pyarrow table to a feature view. Given a feature view with a specific schema, this function should write the pyarrow table to the batch source defined. More details about the push api can be found [here](docs/reference/data-sources/push.md). This method only needs implementation if you want to support the push api in your offline store.
+* (optional) `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date. This method is only used for **SavedDatasets** as part of data quality monitoring validation.
+* (optional) `write_logged_features` is a method that takes a pyarrow table or a path that points to a parquet file and writes the data to a defined source defined by `LoggingSource` and `LoggingConfig`. This method is only used internally for **SavedDatasets**.
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -163,11 +163,17 @@ This configuration can be specified in the `feature_store.yaml` as follows:
 
 {% code title="feature_repo/feature_store.yaml" %}
 ```yaml
-type: feast_custom_offline_store.file.CustomFileOfflineStore
+project: my_project
+registry: data/registry.db
+provider: local
+offline_store:
+    type: feast_custom_offline_store.file.CustomFileOfflineStore
+online_store:
+    path: data/online_store.db
 ```
 {% endcode %}
 
-This configuration information is available to the methods of the OfflineStore, via the`config: RepoConfig` parameter which is passed into the methods of the OfflineStore interface, specifically at the `config.offline_store` field of the `config` parameter.&#x20;
+This configuration information is available to the methods of the OfflineStore, via the `config: RepoConfig` parameter which is passed into the methods of the OfflineStore interface, specifically at the `config.offline_store` field of the `config` parameter.&#x20; This fields in the `feature_store.yaml` should map directly to your `OfflineStoreConfig` class that is detailed above in Section 2.
 
 {% code title="feast_custom_offline_store/file.py" %}
 ```python
@@ -246,8 +252,6 @@ class CustomFileDataSource(FileSource):
         created_timestamp_column: Optional[str] = "",
         date_partition_column: Optional[str] = "",
     ):
-        warnings.warn(
-            "This offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
@@ -325,7 +329,7 @@ Finally, the custom data source class can be use in the feature repo to define a
 
 {% code title="feature_repo/repo.py" %}
 ```python
-pdriver_hourly_stats = CustomFileDataSource(
+driver_hourly_stats = CustomFileDataSource(
     path="feature_repo/data/driver_stats.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
@@ -365,7 +369,6 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
         PostgreSQLDataSourceCreator,
     )
-    ```
     {% endcode %}
 
 4. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your offline store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run:
