@@ -348,6 +348,7 @@ If you are planning to start the online store up locally(e.g spin up a local Red
 ```python
 {
     "sqlite": ({"type": "sqlite"}, None),
+    # Specifies sqlite as the online store. The `None` object specifies to not use a containerized docker container.
 }
 ```
 
