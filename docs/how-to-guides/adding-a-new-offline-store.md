@@ -393,6 +393,7 @@ AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
 ```
 {% endcode %}
 
+{:start="4"}
 
 4. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your offline store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run:
 
