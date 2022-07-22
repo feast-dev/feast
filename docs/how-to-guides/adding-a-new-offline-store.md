@@ -144,6 +144,16 @@ To fully implement the interface for the offline store, you will need to impleme
 ```
 {% endcode %}
 
+### 1.1 Type Mapping
+
+Most online stores will have to perform some custom mapping of online store datatypes to feast value types.
+- The function to implement here are `source_datatype_to_feast_value_type` and `get_column_names_and_types` in your `DataSource` class.
+* `source_datatype_to_feast_value_type` is used to convert your DataSource's datatypes to feast value types.
+* `get_column_names_and_types` retrieves the column names and corresponding datasource types.
+
+Add any helper functions for type conversion to `sdk/python/feast/type_map.py`.
+- Be sure to implement correct type mapping so that Feast can process your feature columns without casting incorrectly that can potentially cause loss of information or incorrect data.
+
 ## 2. Defining an OfflineStoreConfig class
 
 Additional configuration may be needed to allow the OfflineStore to talk to the backing store. For example, Redshift needs configuration information like the connection information for the Redshift instance, credentials for connecting to the database, etc.
@@ -373,7 +383,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-    {% code title="feast/sdk/python/feast/infra/offline_stores/contrib/postgres_repo_configuration.py" %}
+    {% code title="feature_repo/repo.py" %}
     ```python
     from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
         PostgreSQLDataSourceCreator,
