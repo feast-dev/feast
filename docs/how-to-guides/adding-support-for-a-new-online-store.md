@@ -342,7 +342,7 @@ AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
 {% endcode %}
 
 
-    If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
+If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
 
 
     ```python
@@ -352,10 +352,10 @@ AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
     ```
 
 
-    If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.
+If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.
 
 
-    If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
+If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
     {% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
     ```python
