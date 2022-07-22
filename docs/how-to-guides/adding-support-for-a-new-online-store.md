@@ -340,7 +340,9 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
     ```
 
+
     If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
+
 
     ```python
     {
@@ -348,7 +350,9 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     }
     ```
 
+
     If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.
+
 
     If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
@@ -357,7 +361,6 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     class RedisOnlineStoreCreator(OnlineStoreCreator):
         def __init__(self, project_name: str, **kwargs):
             super().__init__(project_name)
-            self.container = DockerContainer("redis").with_exposed_ports("6379")
 
         def create_online_store(self) -> Dict[str, str]:
             self.container.start()

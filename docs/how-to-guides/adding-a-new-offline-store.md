@@ -175,6 +175,8 @@ class CustomFileOfflineStoreConfig(FeastConfigBaseModel):
 
     type: Literal["feast_custom_offline_store.file.CustomFileOfflineStore"] \
         = "feast_custom_offline_store.file.CustomFileOfflineStore"
+
+    uri: str # URI for your offline store(in this case it would be a path)
 ```
 {% endcode %}
 
