@@ -358,21 +358,21 @@ If you are planning instead to use a Dockerized container to run your tests agai
 
 If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
-    {% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
-    ```python
-    class RedisOnlineStoreCreator(OnlineStoreCreator):
-        def __init__(self, project_name: str, **kwargs):
-            super().__init__(project_name)
+{% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
+```python
+class RedisOnlineStoreCreator(OnlineStoreCreator):
+    def __init__(self, project_name: str, **kwargs):
+        super().__init__(project_name)
 
-        def create_online_store(self) -> Dict[str, str]:
-            self.container.start()
-            log_string_to_wait_for = "Ready to accept connections"
-            wait_for_logs(
-                container=self.container, predicate=log_string_to_wait_for, timeout=10
-            )
-            self.container.stop()
-    ```
-    {% endcode %}
+    def create_online_store(self) -> Dict[str, str]:
+        self.container.start()
+        log_string_to_wait_for = "Ready to accept connections"
+        wait_for_logs(
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
+        )
+        self.container.stop()
+```
+{% endcode %}
 
 3\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run:
 
