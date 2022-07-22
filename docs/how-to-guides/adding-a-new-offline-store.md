@@ -2,7 +2,7 @@
 
 ## Overview
 
-Feast makes adding support for a new offline store (database) easy. Developers can simply implement the [OfflineStore](../../sdk/python/feast/infra/offline\_stores/offline\_store.py#L41) interface to add support for a new store (other than the existing stores like Parquet files, Redshift, and Bigquery).&#x20;
+Feast makes adding support for a new offline store easy. Developers can simply implement the [OfflineStore](../../sdk/python/feast/infra/offline\_stores/offline\_store.py#L41) interface to add support for a new store (other than the existing stores like Parquet files, Redshift, and Bigquery).&#x20;
 
 In this guide, we will show you how to extend the existing File offline store and use in a feature repo. While we will be implementing a specific store, this guide should be representative for adding support for any new offline store.
 
