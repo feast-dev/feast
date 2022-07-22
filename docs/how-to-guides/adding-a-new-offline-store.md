@@ -189,6 +189,7 @@ registry: data/registry.db
 provider: local
 offline_store:
     type: feast_custom_offline_store.file.CustomFileOfflineStore
+    uri: <File URI>
 online_store:
     path: data/online_store.db
 ```
