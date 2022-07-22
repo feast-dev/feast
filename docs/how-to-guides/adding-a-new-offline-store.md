@@ -35,10 +35,10 @@ New offline stores go in `sdk/python/feast/infra/offline_stores/contrib/`.
 - Not guaranteed to be stable.
 - Should have warnings for users to indicate this is a contrib plugin that is not maintained by the maintainers.
 
-#### How do I make a contrib plugin and "official" plugin?
+#### How do I make a contrib plugin an "official" plugin?
 To move an offline store plugin out of contrib, you need:
-- Github actions (i.e `make test-python-integration`) is setup to run all tests against the offline store and pass.
-- At least two contributors own the plugin (ideally tracked in our OWNERS / CODEOWNERS file).
+- GitHub actions (i.e `make test-python-integration`) is setup to run all tests against the offline store and pass.
+- At least two contributors own the plugin (ideally tracked in our `OWNERS` / `CODEOWNERS` file).
 
 #### Define the offline store class
 The OfflineStore class contains a couple of methods to read features from the offline store. Unlike the OnlineStore class, Feast does not manage any infrastructure for the offline store.&#x20;

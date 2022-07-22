@@ -34,10 +34,10 @@ New online stores go in `sdk/python/feast/infra/online_stores/contrib/`.
 - Not guaranteed to be stable.
 - Should have warnings for users to indicate this is a contrib plugin that is not maintained by the maintainers.
 
-#### How do I make a contrib plugin and "official" plugin?
+#### How do I make a contrib plugin an "official" plugin?
 To move an online store plugin out of contrib, you need:
-- Github actions (i.e `make test-python-integration`) is setup to run all tests against the online store and pass.
-- At least two contributors own the plugin (ideally tracked in our OWNERS / CODEOWNERS file).
+- GitHub actions (i.e `make test-python-integration`) is setup to run all tests against the online store and pass.
+- At least two contributors own the plugin (ideally tracked in our `OWNERS` / `CODEOWNERS` file).
 
 The OnlineStore class broadly contains two sets of methods
 
