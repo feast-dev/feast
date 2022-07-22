@@ -668,7 +668,7 @@ def serve_command(
 
     if go:
         # Turn on Go feature retrieval.
-        store.config.go_feature_retrieval = True
+        store.config.go_feature_serving = True
 
     store.serve(host, port, type_, no_access_log, no_feature_log)
 

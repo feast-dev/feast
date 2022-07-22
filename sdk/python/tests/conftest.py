@@ -268,7 +268,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
             )
 
         if "goserver" in markers:
-            extra_dimensions.append({"go_feature_retrieval": True})
+            extra_dimensions.append({"go_feature_serving": True})
 
         configs = []
         if offline_stores:
@@ -283,7 +283,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             **dim,
                         }
                         # temporary Go works only with redis
-                        if config.get("go_feature_retrieval") and (
+                        if config.get("go_feature_serving") and (
                             not isinstance(online_store, dict)
                             or online_store["type"] != "redis"
                         ):

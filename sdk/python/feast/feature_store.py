@@ -1565,7 +1565,7 @@ class FeatureStore:
             for k, v in entity_values.items()
         }
 
-        # If Go feature server is enabled, send request to it instead of going through regular Python logic
+        # If the embedded Go code is enabled, send request to it instead of going through regular Python logic.
         if self.config.go_feature_retrieval:
             self._lazy_init_go_server()
 
@@ -2218,7 +2218,7 @@ class FeatureStore:
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_retrieval:
+        if self.config.go_feature_serving:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
             enable_logging = (
