@@ -383,15 +383,15 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
- {% tab title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
-```python
-from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
-    PostgreSQLDataSourceCreator,
-)
+    {% tab title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
+        ```python
+    from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
+        PostgreSQLDataSourceCreator,
+    )
 
-AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
-```
-{% tab %}
+    AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
+    ```
+    {% endtab %}
 
 4. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your offline store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_offline_store/feast_tests.py`, so you would run:
 
