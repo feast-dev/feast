@@ -391,18 +391,9 @@ Remember to add the documentation for your online store.
 - Be sure to cover how to create the datasource and what configuration is needed in the `feature_store.yaml` file in order to create the datasource.
 - Make sure to flag that the online store is in alpha development.
 - Add some documentation on what the data model is for the specific online store for more clarity.
-- Finally, add the python code docs by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
+- Finally, generate the python code docs by running:
 
-{% code title="sdk/python/docs/index.rst" %}
-```yaml
-BigQuery Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.bigquery_source
-    :members:
-    :exclude-members: BigQueryOptions
+```bash
+make build-sphinx
 ```
-{% endcode %}
-
-Adding a reference in the rst file will allow Feast to autogenerate the method documentation.
 
