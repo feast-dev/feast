@@ -49,8 +49,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
 * **Feature Serving**
   * [x] Python Client
-  * [x] REST Feature Server (Python) (See [RFC](https://docs.google.com/document/d/1iXvFhAsJ5jgAhPOpTdB3j-Wj1S9x3Ev\_Wr6ZpnLzER4/edit))
-  * [x] REST / gRPC Feature Server (Go) (Alpha release. See [docs](https://docs.feast.dev/reference/feature-servers/go-feature-retrieval))
+  * [x] [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server)
+  * [x] [Go feature server](https://docs.feast.dev/reference/feature-servers/go-feature-server)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
 * **Feature Discovery and Governance**
