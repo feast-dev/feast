@@ -310,9 +310,9 @@ online_store: feast_custom_online_store.mysql.MySQLOnlineStore
 Even if you have created the `OnlineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo.
 
 1. In the Feast submodule, we can run all the unit tests and make sure they pass:
-```
-make test-python
-```
+    ```
+    make test-python
+    ```
 
 
 2. The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store.
@@ -331,7 +331,7 @@ make test-python
     ```
     {% endcode %}
 
-    If you are planning to start the online store up locally(e.g spin up a local Redis Instance), then the dictionary entry should be something like:
+    If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
 
     ```python
     {
@@ -339,7 +339,9 @@ make test-python
     }
     ```
 
-    The key, here, is the name of the online store and the tuple contains the online store config represented as a dictionary. The None type in the tuple can be replaced by an `OnlineStoreCreator` which is only useful for specific online stores that have containerized docker images. If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store(e.g a redis instance or dynamo instance) in order to perform testing. An example of an `OnlineStoreCreator` is shown below:
+    If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.
+
+    If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
     {% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
     ```python
@@ -385,9 +387,11 @@ Remember to add the documentation for your online store.
 1.  Add a new markdown file to `docs/reference/online-stores/`.
 2. You should also add a reference in `docs/reference/online-stores/README.md` and `docs/SUMMARY.md`. Add a new markdown document to document your online store functionality similar to how the other online stores are documented.
 
-**NOTE**: Be sure to cover how to create the datasource and most importantly, what configuration is needed in the `feature_store.yaml` file in order to create the datasource and also make sure to flag that the online store is in alpha development.
-
-3. Finally, add the python code docs by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
+**NOTE**:Be sure to document the following things about your online store:
+- Be sure to cover how to create the datasource and what configuration is needed in the `feature_store.yaml` file in order to create the datasource.
+- Make sure to flag that the online store is in alpha development.
+- Add some documentation on what the data model is for the specific online store for more clarity.
+- Finally, add the python code docs by making sure the classes are being referenced by `sdk/python/docs/index.rst`. An example of this below:
 
 {% code title="sdk/python/docs/index.rst" %}
 ```yaml
