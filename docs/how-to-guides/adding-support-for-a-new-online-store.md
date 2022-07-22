@@ -329,17 +329,17 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     - Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different online store classes for testing.
     - To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS` variable, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file.
 
-    A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
+A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
-    {% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
-    ```python
-    from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
-        PostgreSQLDataSourceCreator,
-    )
+{% code title="sdk/python/feast/infra/online_stores/contrib/postgres_repo_configuration.py" %}
+```python
+from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
+    PostgreSQLDataSourceCreator,
+)
 
-    AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
-    ```
-    {% endcode %}
+AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
+```
+{% endcode %}
 
 
     If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
