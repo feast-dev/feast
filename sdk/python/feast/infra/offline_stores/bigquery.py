@@ -306,7 +306,7 @@ class BigQueryOfflineStore(OfflineStore):
                         file_obj=f,
                         destination=destination.table,
                         job_config=job_config,
-                    )
+                    ).result()
 
             return
 
@@ -319,7 +319,7 @@ class BigQueryOfflineStore(OfflineStore):
                 file_obj=parquet_temp_file,
                 destination=destination.table,
                 job_config=job_config,
-            )
+            ).result()
 
     @staticmethod
     def offline_write_batch(
@@ -373,7 +373,7 @@ class BigQueryOfflineStore(OfflineStore):
                 file_obj=parquet_temp_file,
                 destination=feature_view.batch_source.table,
                 job_config=job_config,
-            )
+            ).result()
 
 
 class BigQueryRetrievalJob(RetrievalJob):

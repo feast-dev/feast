@@ -126,11 +126,12 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
+    first_df = first_df.astype({"conv_rate": "float32", "acc_rate": "float32"})
     store.write_to_offline_store(
         driver_stats.name, first_df, allow_registry_cache=False
     )
 
-    after_write_df = store.get_historical_features(
+    after_write_df: pd.DataFrame = store.get_historical_features(
         entity_df=entity_df,
         features=[
             "driver_stats:conv_rate",
@@ -139,20 +140,25 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ],
         full_feature_names=False,
     ).to_df()
+    after_write_df = after_write_df.sort_values("event_timestamp").reset_index(
+        drop=True
+    )
+
+    print(f"After: {after_write_df}\nFirst: {first_df}")
+    print(
+        f"After: {after_write_df['conv_rate'].reset_index(drop=True)}\nFirst: {first_df['conv_rate'].reset_index(drop=True)}"
+    )
 
     assert len(after_write_df) == len(first_df)
-    assert np.where(
-        after_write_df["conv_rate"].reset_index(drop=True)
-        == first_df["conv_rate"].reset_index(drop=True)
-    )
-    assert np.where(
-        after_write_df["acc_rate"].reset_index(drop=True)
-        == first_df["acc_rate"].reset_index(drop=True)
-    )
-    assert np.where(
-        after_write_df["avg_daily_trips"].reset_index(drop=True)
-        == first_df["avg_daily_trips"].reset_index(drop=True)
-    )
+    for field in ["conv_rate", "acc_rate", "avg_daily_trips"]:
+        assert np.equal(
+            after_write_df[field].reset_index(drop=True),
+            first_df[field].reset_index(drop=True),
+        ).all(), (
+            f"Field: {field}\n"
+            f"After: {after_write_df[field].reset_index(drop=True)}\n"
+            f"First: {first_df[field].reset_index(drop=True)}"
+        )
 
     second_df = pd.DataFrame.from_dict(
         {
@@ -164,6 +170,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
             "created": [ts, ts],
         },
     )
+    second_df = second_df.astype({"conv_rate": "float32", "acc_rate": "float32"})
 
     store.write_to_offline_store(
         driver_stats.name, second_df, allow_registry_cache=False
@@ -190,18 +197,17 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ],
         full_feature_names=False,
     ).to_df()
-
+    after_write_df = after_write_df.sort_values("event_timestamp").reset_index(
+        drop=True
+    )
     expected_df = pd.concat([first_df, second_df])
     assert len(after_write_df) == len(expected_df)
-    assert np.where(
-        after_write_df["conv_rate"].reset_index(drop=True)
-        == expected_df["conv_rate"].reset_index(drop=True)
-    )
-    assert np.where(
-        after_write_df["acc_rate"].reset_index(drop=True)
-        == expected_df["acc_rate"].reset_index(drop=True)
-    )
-    assert np.where(
-        after_write_df["avg_daily_trips"].reset_index(drop=True)
-        == expected_df["avg_daily_trips"].reset_index(drop=True)
-    )
+    for field in ["conv_rate", "acc_rate", "avg_daily_trips"]:
+        assert np.equal(
+            after_write_df[field].reset_index(drop=True),
+            expected_df[field].reset_index(drop=True),
+        ).all(), (
+            f"Field: {field}\n"
+            f"After: {after_write_df[field].reset_index(drop=True)}\n"
+            f"First: {expected_df[field].reset_index(drop=True)}"
+        )

@@ -35,7 +35,7 @@ from feast.version import get_version
 USAGE_ENDPOINT = "https://usage.feast.dev"
 
 _logger = logging.getLogger(__name__)
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 _is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
 
