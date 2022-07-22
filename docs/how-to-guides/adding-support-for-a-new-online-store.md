@@ -369,14 +369,14 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     ```
     {% endcode %}
 
-    3\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run
+3\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run:
 
-    ```bash
-    export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
-    make test-python-universal
-    ```
+```bash
+export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
+make test-python-universal
+```
 
-If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store!
+- If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store!
 
 
 ### 5. Add Dependencies
