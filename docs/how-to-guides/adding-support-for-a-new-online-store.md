@@ -71,7 +71,7 @@ def update(
     partial: bool,
 ):
     """
-    An example of creating manging the tables needed for a mysql-backed online store.
+    An example of creating managing the tables needed for a mysql-backed online store.
     """
     warnings.warn(
         "This online store is an experimental feature in alpha development. "
@@ -345,11 +345,11 @@ AVAILABLE_ONLINE_STORES = {"postgres": (None, PostgreSQLDataSourceCreator)}
 If you are planning to start the online store up locally(e.g spin up a local Redis Instance) for testing, then the dictionary entry should be something like:
 
 
-    ```python
-    {
-        "sqlite": ({"type": "sqlite"}, None),
-    }
-    ```
+```python
+{
+    "sqlite": ({"type": "sqlite"}, None),
+}
+```
 
 
 If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.

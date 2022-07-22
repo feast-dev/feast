@@ -146,7 +146,7 @@ To fully implement the interface for the offline store, you will need to impleme
 
 ### 1.1 Type Mapping
 
-Most online stores will have to perform some custom mapping of online store datatypes to feast value types.
+Most offline stores will have to perform some custom mapping of offline store datatypes to feast value types.
 - The function to implement here are `source_datatype_to_feast_value_type` and `get_column_names_and_types` in your `DataSource` class.
 * `source_datatype_to_feast_value_type` is used to convert your DataSource's datatypes to feast value types.
 * `get_column_names_and_types` retrieves the column names and corresponding datasource types.
