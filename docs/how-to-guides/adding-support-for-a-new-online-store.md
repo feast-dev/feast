@@ -316,7 +316,7 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
 
 
 2. The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store.
-    - To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom online store.
+    - Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different online store classes for testing.
     - To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS` variable, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:

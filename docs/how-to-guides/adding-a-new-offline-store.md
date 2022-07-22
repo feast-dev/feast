@@ -63,19 +63,15 @@ To fully implement the interface for the offline store, you will need to impleme
                                 entity_df: Union[pd.DataFrame, str],
                                 registry: Registry, project: str,
                                 full_feature_names: bool = False) -> RetrievalJob:
-        print("Getting historical features from my offline store")
+        """ Perform point-in-time correct join of features onto an entity dataframe(entity key and timestamp). More details about how this should work at https://docs.feast.dev/v/v0.6-branch/user-guide/feature-retrieval#3.-historical-feature-retrieval.
+        print("Getting historical features from my offline store")."""
         warnings.warn(
             "This offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
-        return super().get_historical_features(config,
-                                               feature_views,
-                                               feature_refs,
-                                               entity_df,
-                                               registry,
-                                               project,
-                                               full_feature_names)
+        # Implementation here.
+        pass
 
     def pull_latest_from_table_or_query(self,
                                         config: RepoConfig,
@@ -86,20 +82,15 @@ To fully implement the interface for the offline store, you will need to impleme
                                         created_timestamp_column: Optional[str],
                                         start_date: datetime,
                                         end_date: datetime) -> RetrievalJob:
+        """ Pulls data from the offline store for use in materialization."""
         print("Pulling latest features from my offline store")
         warnings.warn(
             "This offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
-        return super().pull_latest_from_table_or_query(config,
-                                                       data_source,
-                                                       join_key_columns,
-                                                       feature_name_columns,
-                                                       timestamp_field=timestamp_field,
-                                                       created_timestamp_column,
-                                                       start_date,
-                                                       end_date)
+        # Implementation here.
+        pass
 
     def pull_all_from_table_or_query(
         config: RepoConfig,
@@ -110,8 +101,14 @@ To fully implement the interface for the offline store, you will need to impleme
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        return super().pull_all_from_table_or_query(
-            config, data_source, join_key_columns, feature_name_columns, timestamp_field, start_date, end_date)
+        """ Optional method that returns a Retrieval Job for all join key columns, feature name columns, and the event timestamp columns that occur between the start_date and end_date."""
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
+        # Implementation here.
+        pass
 
     def write_logged_features(
         config: RepoConfig,
@@ -120,7 +117,13 @@ To fully implement the interface for the offline store, you will need to impleme
         logging_config: LoggingConfig,
         registry: BaseRegistry,
     ):
-    """ Optional function to have Feast support logging your online features. """
+        """ Optional method to have Feast support logging your online features."""
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
+        # Implementation here.
         pass
 
     def offline_write_batch(
@@ -129,7 +132,13 @@ To fully implement the interface for the offline store, you will need to impleme
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-    """ Optional function to have Feast support the offline push api for your offline store. """
+        """ Optional method to have Feast support the offline push api for your offline store."""
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
+        # Implementation here.
         pass
 
 ```
@@ -359,8 +368,8 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     ```
 
 3. Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
-    - To run the integration tests, you must parametrize the integration test suite based on the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` to use your own custom offline store.
-    - To overwrite the default configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline and online store.
+    - Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
+    - To overwrite the default configurations to use your own offline store, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline store that you would like Feast to test with.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
 
@@ -369,6 +378,8 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     from feast.infra.offline_stores.contrib.postgres_offline_store.tests.data_source import (
         PostgreSQLDataSourceCreator,
     )
+
+    AVAILABLE_OFFLINE_STORES = [("local", PostgreSQLDataSourceCreator)]
     ```
     {% endcode %}
 
