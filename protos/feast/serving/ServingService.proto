@@ -1,0 +1,133 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package feast.serving;
+
+import "google/protobuf/timestamp.proto";
+import "feast/types/Value.proto";
+
+option java_package = "feast.proto.serving";
+option java_outer_classname = "ServingAPIProto";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
+
+service ServingService {
+    // Get information about this Feast serving.
+    rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
+    // Get online features synchronously.
+    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
+}
+
+message GetFeastServingInfoRequest {}
+
+message GetFeastServingInfoResponse {
+    // Feast version of this serving deployment.
+    string version = 1;
+}
+
+message FeatureReferenceV2 {
+    // Name of the Feature View to retrieve the feature from.
+    string feature_view_name = 1;
+
+    // Name of the Feature to retrieve the feature from.
+    string feature_name = 2;
+}
+
+// ToDo (oleksii): remove this message (since it's not used) and move EntityRow on package level
+message GetOnlineFeaturesRequestV2 {
+    // List of features that are being retrieved
+    repeated FeatureReferenceV2 features = 4;
+
+    // List of entity rows, containing entity id and timestamp data.
+    // Used during retrieval of feature rows and for joining feature
+    // rows into a final dataset
+    repeated EntityRow entity_rows = 2;
+
+    // Optional field to specify project name override. If specified, uses the
+    // given project for retrieval. Overrides the projects specified in
+    // Feature References if both are specified.
+    string project = 5;
+
+    message EntityRow {
+        // Request timestamp of this row. This value will be used,
+        // together with maxAge, to determine feature staleness.
+        google.protobuf.Timestamp timestamp = 1;
+
+        // Map containing mapping of entity name to entity value.
+        map<string,feast.types.Value> fields = 2;
+    }
+}
+
+// In JSON "val" field can be omitted
+message FeatureList {
+    repeated string val = 1;
+}
+
+message GetOnlineFeaturesRequest {
+    oneof kind {
+        string feature_service = 1;
+        FeatureList features = 2;
+    }
+    // The entity data is specified in a columnar format
+    // A map of entity name -> list of values
+    map<string, feast.types.RepeatedValue> entities = 3;
+    bool full_feature_names = 4;
+
+    // Context for OnDemand Feature Transformation
+    // (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
+    // A map of variable name -> list of values
+    map<string, feast.types.RepeatedValue> request_context = 5;
+}
+
+message GetOnlineFeaturesResponse {
+    GetOnlineFeaturesResponseMetadata metadata = 1;
+
+    // Length of "results" array should match length of requested features.
+    // We also preserve the same order of features here as in metadata.feature_names
+    repeated FeatureVector results = 2;
+
+    message FeatureVector {
+        repeated feast.types.Value values = 1;
+        repeated FieldStatus statuses = 2;
+        repeated google.protobuf.Timestamp event_timestamps = 3;
+    }
+}
+
+message GetOnlineFeaturesResponseMetadata {
+    FeatureList feature_names = 1;
+}
+
+enum FieldStatus {
+    // Status is unset for this field.
+    INVALID = 0;
+
+    // Field value is present for this field and age is within max age.
+    PRESENT = 1;
+
+    // Values could be found for entity key and age is within max age, but
+    // this field value is assigned a value on ingestion into feast.
+    NULL_VALUE = 2;
+
+    // Entity key did not return any values as they do not exist in Feast.
+    // This could suggest that the feature values have not yet been ingested
+    // into feast or the ingestion failed.
+    NOT_FOUND = 3;
+
+    // Values could be found for entity key, but field values are outside the maximum
+    // allowable range.
+    OUTSIDE_MAX_AGE = 4;
+}

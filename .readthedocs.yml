@@ -1,0 +1,12 @@
+version: 2
+
+sphinx:
+   configuration: sdk/python/docs/source/conf.py
+
+formats:
+   - pdf
+
+python:
+  version: "3.8"
+  install:
+      - requirements: sdk/python/docs/requirements.txt

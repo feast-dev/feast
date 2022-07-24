@@ -1,0 +1,185 @@
+{
+  "columnsSummaryStatistics": {
+    "credit_card_due": {
+      "name": "credit_card_due",
+      "valueType": "INT64",
+      "sampleValues": [1, 2, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "mortgage_due": {
+      "name": "mortgage_due",
+      "valueType": "INT64",
+      "sampleValues": [4, 6, 8],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "student_loan_due": {
+      "name": "student_loan_due",
+      "valueType": "INT64",
+      "sampleValues": [0, 1, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "vehicle_loan_due": {
+      "name": "vehicle_loan_due",
+      "valueType": "INT64",
+      "sampleValues": [2, 1, 0],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ]
+    },
+    "hard_pulls": {
+      "name": "hard_pulls",
+      "valueType": "INT64",
+      "sampleValues": [0, 9, 12],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "missed_payments_2y": {
+      "name": "missed_payments_2y",
+      "valueType": "INT64",
+      "sampleValues": [0, 1, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "missed_payments_1y": {
+      "name": "missed_payments_1y",
+      "valueType": "INT64",
+      "sampleValues": [0, 1, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    },
+    "missed_payments_6m": {
+      "name": "missed_payments_6m",
+      "valueType": "INT64",
+      "sampleValues": [0, 1, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ]
+    },
+    "bankruptcies": {
+      "name": "bankruptcies",
+      "valueType": "INT64",
+      "sampleValues": [0, 1, 3],
+      "histogram": [
+        { "x0": 0, "x1": 0.1, "count": 35 },
+        { "x0": 0.1, "x1": 0.2, "count": 8 },
+        { "x0": 0.2, "x1": 0.3, "count": 5 },
+        { "x0": 0.3, "x1": 0.4, "count": 3 },
+        { "x0": 0.4, "x1": 0.5, "count": 2 },
+        { "x0": 0.5, "x1": 0.6, "count": 1 },
+        { "x0": 0.6, "x1": 0.7, "count": 0 },
+        { "x0": 0.7, "x1": 0.8, "count": 1 },
+        { "x0": 0.8, "x1": 0.9, "count": 2 },
+        { "x0": 0.9, "x1": 1, "count": 1 }
+      ],
+      "proportionOfZeros": 0.01,
+      "proportionMissing": 0.01,
+      "min": 0,
+      "max": 12
+    }
+  }
+}

@@ -1,0 +1,23 @@
+default_stages:
+  - push
+repos:
+  - repo: local
+    hooks:
+      - id: format
+        name: Format
+        stages: [ push ]
+        language: system
+        entry: make format
+        pass_filenames: false
+      - id: lint
+        name: Lint
+        stages: [ push ]
+        language: system
+        entry: make lint
+        pass_filenames: false
+      - id: template
+        name: Build Templates
+        stages: [ commit ]
+        language: system
+        entry: make build-templates
+        pass_filenames: false
