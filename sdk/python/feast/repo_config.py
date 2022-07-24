@@ -57,6 +57,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "spark": "feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore",
     "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
+    "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {

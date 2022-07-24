@@ -791,3 +791,61 @@ def pg_type_code_to_arrow(code: int) -> str:
     return feast_value_type_to_pa(
         pg_type_to_feast_value_type(pg_type_code_to_pg_type(code))
     )
+
+
+
+def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
+    # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    type_map = {
+        "null": ValueType.UNKNOWN,
+        "boolean": ValueType.BOOL,
+        "tinyint": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "int": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "double": ValueType.DOUBLE,
+        "float": ValueType.FLOAT,
+        "binary": ValueType.BYTES,
+        "char": ValueType.STRING,
+        "varchar": ValueType.STRING,
+        "string": ValueType.STRING,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        # skip date,decimal,array,map,struct
+    }
+    return type_map[athena_type_as_str.lower()]
+
+
+def pa_to_athena_value_type(pa_type: pyarrow.DataType) -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        return "timestamp"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "null",
+        "bool": "bool",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "tinyint",
+        "uint32": "tinyint",
+        "uint64": "tinyint",
+        "float": "float",
+        "double": "double",
+        "binary": "binary",
+        "string": "string",
+    }
+
+    return type_map[pa_type_as_str]

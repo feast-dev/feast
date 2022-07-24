@@ -160,6 +160,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
+    DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena_source.AthenaSource",
 }
 
 
