@@ -25,6 +25,8 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
+os.environ["FEAST_USAGE"] = "False"
+os.environ["IS_TEST"] = "True"
 from feast import FeatureStore
 from feast.wait import wait_retry_backoff
 from tests.data.data_creator import create_basic_driver_dataset
@@ -218,8 +220,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     In order for pytest to group tests together (and share environment fixture)
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
-    os.environ["FEAST_USAGE"] = "False"
-    os.environ["IS_TEST"] = "True"
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
         offline_stores = None
