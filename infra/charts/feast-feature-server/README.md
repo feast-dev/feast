@@ -1,8 +1,8 @@
-# feast-python-server
+# feast-feature-server
 
 ![Version: 0.22.0](https://img.shields.io/badge/Version-0.22.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-Feast Feature Server in Python
+Feast Feature Server in Go or Python
 
 **Homepage:** <https://feast.dev/>
 

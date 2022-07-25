@@ -1,6 +1,6 @@
 apiVersion: v2
-name: feast-python-server
-description: Feast Feature Server in Python
+name: feast-feature-server
+description: Feast Feature Server in Go or Python
 type: application
 version: 0.22.0
 keywords:
