@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
 from typing import Any, Dict, List
+import os
 
 import pandas as pd
 import pytest
@@ -217,6 +218,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     In order for pytest to group tests together (and share environment fixture)
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
+    os.environ["FEAST_USAGE"] = "False"
+    os.environ["IS_TEST"] = "True"
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
         offline_stores = None
