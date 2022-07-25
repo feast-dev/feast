@@ -242,14 +242,12 @@ This service will provide an HTTP API with JSON I/O, which can be easily used wi
 
 [Read more about this feature](../reference/alpha-aws-lambda-feature-server.md)
 
-### 4.3. Java based Feature Server deployed on Kubernetes
+### 4.3. Go feature server deployed on Kubernetes
 
-For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance Java feature server.
-Besides the benefits of running on JVM, this implementation also provides a gRPC API, which guarantees good connection utilization and
-small request / response body size (compared to JSON).
-You will need the Feast Java SDK to retrieve features from this service. This SDK wraps all the gRPC logic for you and provides more convenient APIs.
+For users with very latency-sensitive and high QPS use-cases, Feast offers a high-performance [Go feature server](../reference/feature-servers/go-feature-server.md).
+It can use either HTTP or gRPC.
 
-The Java based feature server can be deployed to Kubernetes cluster via Helm charts in a few simple steps:
+The Go feature server can be deployed to a Kubernetes cluster via Helm charts in a few simple steps:
 
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
 2. Add the Feast Helm repository and download the latest charts:
@@ -259,18 +257,15 @@ helm repo update
 ```
 3. Run Helm Install
 ```
-helm install feast-release feast-charts/feast \
+helm install feast-release feast-charts/feast-feature-server \
     --set global.registry.path=s3://feast/registries/prod \
     --set global.project=<project name>
 ```
 
-This chart will deploy two services: `feature-server` and `transformation-service`.
-Both must have read access to the registry file on cloud storage. Both will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance.
-
-#### Load balancing
-
-The next step would be to install an L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of the Java feature server.
-For seamless integration with Kubernetes (including services created by Feast Helm chart) we recommend using [Istio](https://istio.io/) as Envoy's orchestrator.
+This chart will deploy a single service.
+The service must have read access to the registry file on cloud storage.
+It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance.
+In order for the Go feature server to be enabled, you should set `go_feature_serving: True` in the `feature_store.yaml`.
 
 ## 5. Ingesting features from a stream source
 

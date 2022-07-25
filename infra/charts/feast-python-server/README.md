@@ -46,7 +46,7 @@ helm install feast-python-server . --set image.repository=REPO --set image.tag=T
 
 Deployment assumes that `feature_store.yaml` exists on docker image. Example docker image:
 ```
-FROM python:3.7
+FROM python:3.8
 
 RUN apt update && \
     apt install -y jq
