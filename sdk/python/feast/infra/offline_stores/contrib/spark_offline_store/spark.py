@@ -330,8 +330,8 @@ def _get_entity_df_event_timestamp_range(
         df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
         # TODO(kzhang132): need utc conversion here.
         entity_df_event_timestamp_range = (
-            df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
             df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
+            df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
         )
     else:
         raise InvalidEntityType(type(entity_df))
