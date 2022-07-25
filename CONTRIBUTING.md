@@ -213,9 +213,10 @@ Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, th
 
 #### Running specific provider tests or running your test against specific online or offline stores
 
-1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with the ones you need by adding the pytest markers(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
+1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with specific providers or stores that you need(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
 
 ```python
+# Only parametrizes this test with the sqlite online store
 @pytest.mark.universal_online_stores(only=["sqlite"])
 def test_feature_get_online_features_types_match():
 ```
