@@ -57,3 +57,26 @@ RUN pip install feast
 
 COPY feature_store.yaml /feature_store.yaml
 ```
+
+Furthermore, if you wish to use the Go feature server, then you must install the Apache Arrow C++ libraries, and your `feature_store.yaml` should include `go_feature_server: True`.
+For more details, see the [docs](https://docs.feast.dev/reference/feature-servers/go-feature-server).
+The docker image might look like:
+```
+FROM python:3.8
+
+RUN apt update && \
+    apt install -y jq
+
+RUN pip install pip --upgrade
+
+RUN pip install feast
+
+RUN apt update
+RUN apt install -y -V ca-certificates lsb-release wget
+RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+RUN apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+RUN apt update
+RUN apt -y install libarrow-dev
+
+COPY feature_store.yaml /feature_store.yaml
+```
