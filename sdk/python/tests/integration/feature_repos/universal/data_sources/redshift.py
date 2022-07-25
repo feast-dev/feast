@@ -1,8 +1,8 @@
+import os
 import uuid
 from typing import Dict, List, Optional
 
 import pandas as pd
-import os
 
 from feast import RedshiftSource
 from feast.data_source import DataSource
@@ -25,16 +25,23 @@ class RedshiftDataSourceCreator(DataSourceCreator):
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        self.client = aws_utils.get_redshift_data_client(os.getenv("AWS_REGION", "us-west-2"))
+        self.client = aws_utils.get_redshift_data_client(
+            os.getenv("AWS_REGION", "us-west-2")
+        )
         self.s3 = aws_utils.get_s3_resource(os.getenv("AWS_REGION", "us-west-2"))
 
         self.offline_store_config = RedshiftOfflineStoreConfig(
-            cluster_id=os.getenv("AWS_CLUSTER_ID",  "feast-integration-tests"),
+            cluster_id=os.getenv("AWS_CLUSTER_ID", "feast-integration-tests"),
             region=os.getenv("AWS_REGION", "us-west-2"),
             user=os.getenv("AWS_USER", "admin"),
             database=os.getenv("AWS_DB", "feast"),
-            s3_staging_location=os.getenv("AWS_STAGING_LOCATION", "s3://feast-integration-tests/redshift/tests/ingestion"),
-            iam_role=os.getenv("AWS_IAM_ROLE", "arn:aws:iam::402087665549:role/redshift_s3_access_role"),
+            s3_staging_location=os.getenv(
+                "AWS_STAGING_LOCATION",
+                "s3://feast-integration-tests/redshift/tests/ingestion",
+            ),
+            iam_role=os.getenv(
+                "AWS_IAM_ROLE", "arn:aws:iam::402087665549:role/redshift_s3_access_role"
+            ),
         )
 
     def create_data_source(

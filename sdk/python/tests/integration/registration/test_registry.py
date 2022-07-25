@@ -11,11 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import time
 from datetime import timedelta
 from tempfile import mkstemp
 
-import os
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
@@ -64,7 +64,9 @@ def gcs_registry() -> Registry:
 
 @pytest.fixture
 def s3_registry() -> Registry:
-    aws_registry_path = os.getenv("AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries")
+    aws_registry_path = os.getenv(
+        "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+    )
     registry_config = RegistryConfig(
         path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,

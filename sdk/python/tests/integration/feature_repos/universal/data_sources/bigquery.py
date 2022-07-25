@@ -1,7 +1,7 @@
+import os
 import uuid
 from typing import Dict, List, Optional
 
-import os
 import pandas as pd
 from google.cloud import bigquery
 from google.cloud.bigquery import Dataset
@@ -54,7 +54,10 @@ class BigQueryDataSourceCreator(DataSourceCreator):
 
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig(
-            location=os.getenv("GCS_REGION", "US"), gcs_staging_location=os.getenv("GCS_STAGING_LOCATION", "gs://feast-export/"),
+            location=os.getenv("GCS_REGION", "US"),
+            gcs_staging_location=os.getenv(
+                "GCS_STAGING_LOCATION", "gs://feast-export/"
+            ),
         )
 
     def create_data_source(
