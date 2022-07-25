@@ -13,13 +13,13 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import os
 import socket
 from contextlib import closing
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
 from typing import Any, Dict, List
-import os
 
 import pandas as pd
 import pytest
