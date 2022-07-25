@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 from tempfile import mkstemp
 
+import os
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
@@ -75,12 +76,13 @@ def feature_store_with_gcs_registry():
 
 @pytest.fixture
 def feature_store_with_s3_registry():
+    aws_registry_path = os.getenv("AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries")
     return FeatureStore(
         config=RepoConfig(
-            registry=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
+            registry=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
             project="default",
             provider="aws",
-            online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+            online_store=DynamoDBOnlineStoreConfig(region=os.getenv("AWS_REGION", "us-west-2")),
             offline_store=FileOfflineStoreConfig(),
         )
     )

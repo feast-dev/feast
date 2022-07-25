@@ -15,6 +15,7 @@ import time
 from datetime import timedelta
 from tempfile import mkstemp
 
+import os
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
@@ -63,8 +64,9 @@ def gcs_registry() -> Registry:
 
 @pytest.fixture
 def s3_registry() -> Registry:
+    aws_registry_path = os.getenv("AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries")
     registry_config = RegistryConfig(
-        path=f"s3://feast-integration-tests/registries/{int(time.time() * 1000)}/registry.db",
+        path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,
     )
     return Registry(registry_config, None)
