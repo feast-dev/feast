@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "feast-python-server.fullname" . }}
+  name: {{ include "feast-feature-server.fullname" . }}
   labels:
-    {{- include "feast-python-server.labels" . | nindent 4 }}
+    {{- include "feast-feature-server.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "feast-python-server.selectorLabels" . | nindent 6 }}
+      {{- include "feast-feature-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
     {{- with .Values.podAnnotations }}
@@ -16,7 +16,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        {{- include "feast-python-server.selectorLabels" . | nindent 8 }}
+        {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
