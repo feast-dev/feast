@@ -224,7 +224,7 @@ def test_feature_get_online_features_types_match():
 2. You can also filter tests to run by using pytest's cli filtering. Instead of using the make commands to test Feast, you can filter tests by name with the `-k` parameter. The parametrized integration tests are all uniquely identified by their provider and online store so the `-k` option can select only the tests that you need to run. For example, to run only Redshift related tests, you can use the following command:
 
 ```sh
-FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration -k Redshift sdk/python/tests
+python -m pytest -n 8 --integration -k Redshift sdk/python/tests
 ```
 
 #### (Experimental) Run full integration tests against containerized services
