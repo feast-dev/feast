@@ -257,7 +257,7 @@ helm repo update
 ```
 3. Run Helm Install
 ```
-helm install feast-release feast-charts/feast-python-server \
+helm install feast-release feast-charts/feast-feature-server \
     --set global.registry.path=s3://feast/registries/prod \
     --set global.project=<project name>
 ```
@@ -266,11 +266,6 @@ This chart will deploy a single service.
 The service must have read access to the registry file on cloud storage.
 It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance.
 In order for the Go feature server to be enabled, you should set `go_feature_serving: True` in the `feature_store.yaml`.
-
-#### Load balancing
-
-The next step would be to install an L7 Load Balancer (eg, [Envoy](https://www.envoyproxy.io/)) in front of the Go feature server.
-For seamless integration with Kubernetes (including services created by Feast Helm chart) we recommend using [Istio](https://istio.io/) as Envoy's orchestrator.
 
 ## 5. Ingesting features from a stream source
 
