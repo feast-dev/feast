@@ -636,6 +636,14 @@ def _filter_ttl(
         ]
 
         df_to_join = df_to_join.persist()
+    else:
+        df_to_join = df_to_join[
+            # do not drop entity rows if one of the sources returns NaNs
+            df_to_join[timestamp_field].isna()
+            | (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
+        ]
+
+        df_to_join = df_to_join.persist()
 
     return df_to_join
 
