@@ -177,7 +177,8 @@ class SparkSource(DataSource):
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
             # Backticks make sure that spark sql knows this a table reference.
-            return f"`{self.table}`"
+            table = ".".join([f"`{x}`" for x in self.table.split(".")])
+            return table
         if self.query:
             return f"({self.query})"
 
