@@ -139,7 +139,7 @@ There are two sets of tests you can run:
 #### Local integration tests
 For this approach of running tests, you'll need to have docker set up locally: [Get Docker](https://docs.docker.com/get-docker/)
 
-It leverages a file based offline store to test against emulated versions of Datastore, DynamoDB, and Redis, using ephemeral containers. 
+It leverages a file based offline store to test against emulated versions of Datastore, DynamoDB, and Redis, using ephemeral containers.
 
 These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
 
@@ -161,17 +161,48 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   gcloud auth login
   gcloud auth application-default login
   ```
-3. Export `GCLOUD_PROJECT=[your project]` to your .zshrc
+- When you run `gcloud auth application-default login`, you should see some output of the form:
+ ```
+ Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
+ ```
+- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+3. Run `export GCLOUD_PROJECT=[your project]` to your .zshrc or .bashrc.
+4. Running `gcloud config list` should give you something like this:
+```sh
+$ gcloud config list
+[core]
+account = [your email]
+disable_usage_reporting = True
+project = [your project]
+
+Your active configuration is: [default]
+```
+5. Export gcp specific environment variables. Namely,
+```sh
+export GCS_REGION='[your gcs region e.g US]'
+export GCS_STAGING_LOCATION='[your gcs staging location]'
+```
 
 **AWS**
 1. TODO(adchia): flesh out setting up AWS login (or create helper script)
-2. Modify `RedshiftDataSourceCreator` to use your credentials
+2. To run the AWS Redshift and Dynamo integration tests you will have to export your own AWS credentials. Namely,
+
+```sh
+export AWS_REGION='[your aws region]'
+export AWS_CLUSTER_ID='[your aws cluster id]'
+export AWS_USER='[your aws user]'
+export AWS_DB='[your aws database]'
+export AWS_STAGING_LOCATION='[your s3 staging location uri]'
+export AWS_IAM_ROLE='[redshift and s3 access role]'
+export AWS_LAMBDA_ROLE='[your aws lambda execution role]'
+export AWS_REGISTRY_PATH='[your aws registry path]'
+```
 
 **Snowflake**
-1. See https://signup.snowflake.com/ to setup a trial. 
+1. See https://signup.snowflake.com/ to setup a trial.
 2. Then to run successfully, you'll need some environment variables setup:
 ```sh
-export SNOWFLAKE_CI_DEPLOYMENT='[snowflake_deployment]'                            
+export SNOWFLAKE_CI_DEPLOYMENT='[snowflake_deployment]'
 export SNOWFLAKE_CI_USER='[your user]'
 export SNOWFLAKE_CI_PASSWORD='[your pw]'
 export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
@@ -180,12 +211,28 @@ export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
+#### Running specific provider tests or running your test against specific online or offline stores
+
+1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with specific providers or stores that you need(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
+
+```python
+# Only parametrizes this test with the sqlite online store
+@pytest.mark.universal_online_stores(only=["sqlite"])
+def test_feature_get_online_features_types_match():
+```
+
+2. You can also filter tests to run by using pytest's cli filtering. Instead of using the make commands to test Feast, you can filter tests by name with the `-k` parameter. The parametrized integration tests are all uniquely identified by their provider and online store so the `-k` option can select only the tests that you need to run. For example, to run only Redshift related tests, you can use the following command:
+
+```sh
+python -m pytest -n 8 --integration -k Redshift sdk/python/tests
+```
+
 #### (Experimental) Run full integration tests against containerized services
 Test across clouds requires existing accounts on GCP / AWS / Snowflake, and may incur costs when using these services.
 
 For this approach of running tests, you'll need to have docker set up locally: [Get Docker](https://docs.docker.com/get-docker/)
 
-It's possible to run some integration tests against emulated local versions of these services, using ephemeral containers. 
+It's possible to run some integration tests against emulated local versions of these services, using ephemeral containers.
 These tests create new temporary tables / datasets locally only, and they are cleaned up. when the containers are torn down.
 
 The services with containerized replacements currently implemented are:

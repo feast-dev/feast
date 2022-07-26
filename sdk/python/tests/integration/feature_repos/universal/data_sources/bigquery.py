@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Dict, List, Optional
 
@@ -53,7 +54,10 @@ class BigQueryDataSourceCreator(DataSourceCreator):
 
     def create_offline_store_config(self):
         return BigQueryOfflineStoreConfig(
-            location="US", gcs_staging_location="gs://feast-export/"
+            location=os.getenv("GCS_REGION", "US"),
+            gcs_staging_location=os.getenv(
+                "GCS_STAGING_LOCATION", "gs://feast-export/"
+            ),
         )
 
     def create_data_source(

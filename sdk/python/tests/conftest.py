@@ -13,6 +13,7 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import os
 import socket
 from contextlib import closing
 from datetime import datetime, timedelta
@@ -24,13 +25,15 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
-from feast import FeatureStore
-from feast.wait import wait_retry_backoff
-from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+os.environ["FEAST_USAGE"] = "False"
+os.environ["IS_TEST"] = "True"
+from feast import FeatureStore  # noqa: E402
+from feast.wait import wait_retry_backoff  # noqa: E402
+from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
+from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
     OFFLINE_STORE_TO_PROVIDER_CONFIG,
@@ -39,7 +42,7 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_test_environment,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
 

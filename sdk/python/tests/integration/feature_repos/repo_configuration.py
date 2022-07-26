@@ -65,8 +65,6 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-# Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
-# 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -390,7 +388,10 @@ def construct_test_environment(
 
         feature_server = AwsLambdaFeatureServerConfig(
             enabled=True,
-            execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
+            execution_role_name=os.getenv(
+                "AWS_LAMBDA_ROLE",
+                "arn:aws:iam::402087665549:role/lambda_execution_role",
+            ),
         )
 
     else:
@@ -402,9 +403,12 @@ def construct_test_environment(
     if (
         test_repo_config.python_feature_server and test_repo_config.provider == "aws"
     ) or test_repo_config.registry_location == RegistryLocation.S3:
+        aws_registry_path = os.getenv(
+            "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+        )
         registry: Union[
             str, RegistryConfig
-        ] = f"s3://feast-integration-tests/registries/{project}/registry.db"
+        ] = f"{aws_registry_path}/{project}/registry.db"
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),
