@@ -1,7 +1,5 @@
-import socket
 import threading
 import time
-from contextlib import closing
 from datetime import datetime
 from typing import List
 
@@ -11,7 +9,7 @@ import pytest
 import pytz
 import requests
 
-from feast import FeatureService, FeatureView, ValueType
+from feast import FeatureService, ValueType
 from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 from feast.feast_object import FeastObject
 from feast.feature_logging import LoggingConfig
@@ -33,9 +31,9 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-
-from tests.utils.http_utils import free_port, check_port_open
 from tests.utils.feature_utils import generate_expected_logs, get_latest_rows
+from tests.utils.http_utils import check_port_open, free_port
+
 
 def _server_port(environment, server_type: str):
     if not environment.test_repo_config.go_feature_serving:
@@ -85,7 +83,9 @@ def _server_port(environment, server_type: str):
     # wait for graceful stop
     time.sleep(5)
 
+
 # Go test fixtures
+
 
 @pytest.fixture
 def initialized_registry(environment, universal_data_sources):
@@ -108,6 +108,7 @@ def initialized_registry(environment, universal_data_sources):
 
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
+
 
 @pytest.fixture
 def grpc_server_port(environment, initialized_registry):

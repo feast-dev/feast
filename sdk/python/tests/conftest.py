@@ -14,8 +14,6 @@
 import logging
 import multiprocessing
 import os
-import socket
-from contextlib import closing
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
@@ -45,8 +43,7 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
 from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
-
-from tests.utils.http_utils import check_port_open, free_port
+from tests.utils.http_utils import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
