@@ -26,97 +26,6 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 logger = logging.getLogger(__name__)
 
 
-def populate_test_configs(offline: bool):
-    feature_dtypes = [
-        "int32",
-        "int64",
-        "float",
-        "bool",
-        "datetime",
-    ]
-    configs: List[TypeTestConfig] = []
-    for feature_dtype in feature_dtypes:
-        for feature_is_list in [True, False]:
-            for has_empty_list in [True, False]:
-                # For non list features `has_empty_list` does nothing
-                if feature_is_list is False and has_empty_list is True:
-                    continue
-
-                configs.append(
-                    TypeTestConfig(
-                        feature_dtype=feature_dtype,
-                        feature_is_list=feature_is_list,
-                        has_empty_list=has_empty_list,
-                    )
-                )
-    return configs
-
-
-@dataclass(frozen=True, repr=True)
-class TypeTestConfig:
-    feature_dtype: str
-    feature_is_list: bool
-    has_empty_list: bool
-
-
-OFFLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=True)
-ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=False)
-
-
-@pytest.fixture(
-    params=OFFLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
-)
-def offline_types_test_fixtures(request, environment):
-    config: TypeTestConfig = request.param
-    if (
-        environment.test_repo_config.provider == "aws"
-        and config.feature_is_list is True
-    ):
-        pytest.skip("Redshift doesn't support list features")
-
-    return get_fixtures(request, environment)
-
-
-@pytest.fixture(
-    params=ONLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
-)
-def online_types_test_fixtures(request, environment):
-    return get_fixtures(request, environment)
-
-
-def get_fixtures(request, environment):
-    config: TypeTestConfig = request.param
-    # Lower case needed because Redshift lower-cases all table names
-    destination_name = (
-        f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
-            ".", ""
-        ).lower()
-    )
-    config = request.param
-    df = create_basic_driver_dataset(
-        Int64,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-    )
-    data_source = environment.data_source_creator.create_data_source(
-        df,
-        destination_name=destination_name,
-        field_mapping={"ts_1": "ts"},
-    )
-    fv = create_feature_view(
-        destination_name,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-        data_source,
-    )
-
-    return config, data_source, fv
-
-
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("entity_type", [Int32, Int64, String])
@@ -397,3 +306,94 @@ def assert_expected_arrow_types(
         assert arrow_type_checker(pa_type.value_type)
     else:
         assert arrow_type_checker(pa_type)
+
+
+def populate_test_configs(offline: bool):
+    feature_dtypes = [
+        "int32",
+        "int64",
+        "float",
+        "bool",
+        "datetime",
+    ]
+    configs: List[TypeTestConfig] = []
+    for feature_dtype in feature_dtypes:
+        for feature_is_list in [True, False]:
+            for has_empty_list in [True, False]:
+                # For non list features `has_empty_list` does nothing
+                if feature_is_list is False and has_empty_list is True:
+                    continue
+
+                configs.append(
+                    TypeTestConfig(
+                        feature_dtype=feature_dtype,
+                        feature_is_list=feature_is_list,
+                        has_empty_list=has_empty_list,
+                    )
+                )
+    return configs
+
+
+@dataclass(frozen=True, repr=True)
+class TypeTestConfig:
+    feature_dtype: str
+    feature_is_list: bool
+    has_empty_list: bool
+
+
+OFFLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=True)
+ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=False)
+
+
+@pytest.fixture(
+    params=OFFLINE_TYPE_TEST_CONFIGS,
+    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
+)
+def offline_types_test_fixtures(request, environment):
+    config: TypeTestConfig = request.param
+    if (
+        environment.test_repo_config.provider == "aws"
+        and config.feature_is_list is True
+    ):
+        pytest.skip("Redshift doesn't support list features")
+
+    return get_fixtures(request, environment)
+
+
+@pytest.fixture(
+    params=ONLINE_TYPE_TEST_CONFIGS,
+    ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
+)
+def online_types_test_fixtures(request, environment):
+    return get_fixtures(request, environment)
+
+
+def get_fixtures(request, environment):
+    config: TypeTestConfig = request.param
+    # Lower case needed because Redshift lower-cases all table names
+    destination_name = (
+        f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
+            ".", ""
+        ).lower()
+    )
+    config = request.param
+    df = create_basic_driver_dataset(
+        Int64,
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+    )
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        destination_name=destination_name,
+        field_mapping={"ts_1": "ts"},
+    )
+    fv = create_feature_view(
+        destination_name,
+        config.feature_dtype,
+        config.feature_is_list,
+        config.has_empty_list,
+        data_source,
+    )
+
+    return config, data_source, fv

@@ -2,9 +2,12 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
+@pytest.mark.integration
 def test_cli_apply_duplicated_featureview_names() -> None:
     run_simple_apply_test(
         example_repo_file_name="example_feature_repo_with_duplicated_featureview_names.py",
@@ -12,6 +15,7 @@ def test_cli_apply_duplicated_featureview_names() -> None:
     )
 
 
+@pytest.mark.integration
 def test_cli_apply_duplicate_data_source_names() -> None:
     run_simple_apply_test(
         example_repo_file_name="example_repo_duplicate_data_source_names.py",
@@ -47,6 +51,7 @@ def run_simple_apply_test(example_repo_file_name: str, expected_error: bytes):
         assert rc != 0 and expected_error in output
 
 
+@pytest.mark.integration
 def test_cli_apply_imported_featureview() -> None:
     """
     Test apply feature views with duplicated names and single py file in a feature repo using CLI
@@ -90,6 +95,7 @@ def test_cli_apply_imported_featureview() -> None:
         assert b"Created feature service driver_locations_service" in output
 
 
+@pytest.mark.integration
 def test_cli_apply_imported_featureview_with_duplication() -> None:
     """
     Test apply feature views with duplicated names and single py file in a feature repo using CLI
@@ -143,6 +149,7 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
         )
 
 
+@pytest.mark.integration
 def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
     """
     Test apply feature views with duplicated names from multiple py files in a feature repo using CLI

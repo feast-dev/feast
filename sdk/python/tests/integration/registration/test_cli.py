@@ -1,33 +1,20 @@
-import os
 import tempfile
 import uuid
-from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import List
 
 import pytest
-import yaml
 from assertpy import assertpy
 
-from feast import FeatureStore, RepoConfig
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
-)
+from feast import FeatureStore
 from tests.integration.feature_repos.repo_configuration import Environment
-from tests.integration.feature_repos.universal.data_source_creator import (
-    DataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (
-    FileDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.redshift import (
-    RedshiftDataSourceCreator,
-)
 from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.e2e_test_utils import (
+    NULLABLE_ONLINE_STORE_CONFIGS,
+    make_feature_store_yaml,
+    setup_third_party_provider_repo,
+    setup_third_party_registry_store_repo,
+)
 from tests.utils.online_read_write_test import basic_rw_test
 
 
@@ -125,58 +112,6 @@ def test_universal_cli(environment: Environment):
             runner.run(["teardown"], cwd=repo_path)
 
 
-def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
-    offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
-
-    offline_store_config = offline_creator.create_offline_store_config()
-    online_store = test_repo_config.online_store
-
-    config = RepoConfig(
-        registry=str(Path(repo_dir_name) / "registry.db"),
-        project=project,
-        provider=test_repo_config.provider,
-        offline_store=offline_store_config,
-        online_store=online_store,
-        repo_path=str(Path(repo_dir_name)),
-    )
-    config_dict = config.dict()
-    if (
-        isinstance(config_dict["online_store"], dict)
-        and "redis_type" in config_dict["online_store"]
-    ):
-        if str(config_dict["online_store"]["redis_type"]) == "RedisType.redis_cluster":
-            config_dict["online_store"]["redis_type"] = "redis_cluster"
-        elif str(config_dict["online_store"]["redis_type"]) == "RedisType.redis":
-            config_dict["online_store"]["redis_type"] = "redis"
-    config_dict["repo_path"] = str(config_dict["repo_path"])
-    return yaml.safe_dump(config_dict)
-
-
-NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
-    IntegrationTestRepoConfig(
-        provider="local",
-        offline_store_creator=FileDataSourceCreator,
-        online_store=None,
-    ),
-]
-
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
-    NULLABLE_ONLINE_STORE_CONFIGS.extend(
-        [
-            IntegrationTestRepoConfig(
-                provider="gcp",
-                offline_store_creator=BigQueryDataSourceCreator,
-                online_store=None,
-            ),
-            IntegrationTestRepoConfig(
-                provider="aws",
-                offline_store_creator=RedshiftDataSourceCreator,
-                online_store=None,
-            ),
-        ]
-    )
-
-
 @pytest.mark.integration
 @pytest.mark.parametrize("test_nullable_online_store", NULLABLE_ONLINE_STORE_CONFIGS)
 def test_nullable_online_store(test_nullable_online_store) -> None:
@@ -233,74 +168,7 @@ def test_odfv_apply(environment) -> None:
             runner.run(["teardown"], cwd=repo_path)
 
 
-@contextmanager
-def setup_third_party_provider_repo(provider_name: str):
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-
-        # Construct an example repo in a temporary dir
-        repo_path = Path(repo_dir_name)
-
-        repo_config = repo_path / "feature_store.yaml"
-
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: foo
-        registry: data/registry.db
-        provider: {provider_name}
-        online_store:
-            path: data/online_store.db
-            type: sqlite
-        offline_store:
-            type: file
-        """
-            )
-        )
-
-        (repo_path / "foo").mkdir()
-        repo_example = repo_path / "foo/provider.py"
-        repo_example.write_text(
-            (Path(__file__).parents[2] / "foo_provider.py").read_text()
-        )
-
-        yield repo_path
-
-
-@contextmanager
-def setup_third_party_registry_store_repo(registry_store: str):
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-
-        # Construct an example repo in a temporary dir
-        repo_path = Path(repo_dir_name)
-
-        repo_config = repo_path / "feature_store.yaml"
-
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: foo
-        registry:
-            registry_store_type: {registry_store}
-            path: foobar://foo.bar
-        provider: local
-        online_store:
-            path: data/online_store.db
-            type: sqlite
-        offline_store:
-            type: file
-        """
-            )
-        )
-
-        (repo_path / "foo").mkdir()
-        repo_example = repo_path / "foo/registry_store.py"
-        repo_example.write_text(
-            (Path(__file__).parents[2] / "foo_registry_store.py").read_text()
-        )
-
-        yield repo_path
-
-
+@pytest.mark.integration
 def test_3rd_party_providers() -> None:
     """
     Test running apply on third party providers
@@ -331,6 +199,7 @@ def test_3rd_party_providers() -> None:
         assertpy.assert_that(return_code).is_equal_to(0)
 
 
+@pytest.mark.integration
 def test_3rd_party_registry_store() -> None:
     """
     Test running apply on third party registry stores

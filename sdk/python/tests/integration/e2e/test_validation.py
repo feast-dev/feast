@@ -39,72 +39,6 @@ _features = [
 ]
 
 
-@ge_profiler
-def configurable_profiler(dataset: PandasDataset) -> ExpectationSuite:
-    from great_expectations.profile.user_configurable_profiler import (
-        UserConfigurableProfiler,
-    )
-
-    return UserConfigurableProfiler(
-        profile_dataset=dataset,
-        ignored_columns=["event_timestamp"],
-        excluded_expectations=[
-            "expect_table_columns_to_match_ordered_list",
-            "expect_table_row_count_to_be_between",
-        ],
-        value_set_threshold="few",
-    ).build_suite()
-
-
-@ge_profiler(with_feature_metadata=True)
-def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
-    from great_expectations.profile.user_configurable_profiler import (
-        UserConfigurableProfiler,
-    )
-
-    # always present
-    dataset.expect_column_values_to_be_in_set(
-        "global_stats__avg_ride_length__status", {FieldStatus.PRESENT}
-    )
-
-    # present at least in 70% of rows
-    dataset.expect_column_values_to_be_in_set(
-        "customer_profile__current_balance__status", {FieldStatus.PRESENT}, mostly=0.7
-    )
-
-    return UserConfigurableProfiler(
-        profile_dataset=dataset,
-        ignored_columns=["event_timestamp"]
-        + [
-            c
-            for c in dataset.columns
-            if c.endswith("__timestamp") or c.endswith("__status")
-        ],
-        excluded_expectations=[
-            "expect_table_columns_to_match_ordered_list",
-            "expect_table_row_count_to_be_between",
-        ],
-        value_set_threshold="few",
-    ).build_suite()
-
-
-@ge_profiler
-def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
-    # need to create dataframe with corrupted data first
-    df = pd.DataFrame()
-    df["current_balance"] = [-100]
-    df["avg_passenger_count"] = [0]
-
-    other_ds = PandasDataset(df)
-    other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
-    other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
-
-    # this should pass
-    other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
-
-    return other_ds.get_expectation_suite()
-
-
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 def test_historical_retrieval_with_validation(environment, universal_data_sources):
@@ -357,3 +291,72 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         p = runner.run(validate_args, cwd=local_repo.repo_path)
         assert p.returncode == 1, p.stdout.decode()
         assert "Validation failed" in p.stdout.decode(), p.stderr.decode()
+
+
+# Great expectations profilers created for testing
+
+
+@ge_profiler
+def configurable_profiler(dataset: PandasDataset) -> ExpectationSuite:
+    from great_expectations.profile.user_configurable_profiler import (
+        UserConfigurableProfiler,
+    )
+
+    return UserConfigurableProfiler(
+        profile_dataset=dataset,
+        ignored_columns=["event_timestamp"],
+        excluded_expectations=[
+            "expect_table_columns_to_match_ordered_list",
+            "expect_table_row_count_to_be_between",
+        ],
+        value_set_threshold="few",
+    ).build_suite()
+
+
+@ge_profiler(with_feature_metadata=True)
+def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
+    from great_expectations.profile.user_configurable_profiler import (
+        UserConfigurableProfiler,
+    )
+
+    # always present
+    dataset.expect_column_values_to_be_in_set(
+        "global_stats__avg_ride_length__status", {FieldStatus.PRESENT}
+    )
+
+    # present at least in 70% of rows
+    dataset.expect_column_values_to_be_in_set(
+        "customer_profile__current_balance__status", {FieldStatus.PRESENT}, mostly=0.7
+    )
+
+    return UserConfigurableProfiler(
+        profile_dataset=dataset,
+        ignored_columns=["event_timestamp"]
+        + [
+            c
+            for c in dataset.columns
+            if c.endswith("__timestamp") or c.endswith("__status")
+        ],
+        excluded_expectations=[
+            "expect_table_columns_to_match_ordered_list",
+            "expect_table_row_count_to_be_between",
+        ],
+        value_set_threshold="few",
+    ).build_suite()
+
+
+@ge_profiler
+def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
+    # need to create dataframe with corrupted data first
+    df = pd.DataFrame()
+    df["current_balance"] = [-100]
+    df["avg_passenger_count"] = [0]
+
+    other_ds = PandasDataset(df)
+    other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
+    other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
+
+    # this should pass
+    other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
+
+    return other_ds.get_expectation_suite()

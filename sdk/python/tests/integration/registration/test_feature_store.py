@@ -37,61 +37,7 @@ from tests.utils.data_source_utils import (
 )
 
 
-@pytest.fixture
-def feature_store_with_local_registry():
-    fd, registry_path = mkstemp()
-    fd, online_store_path = mkstemp()
-    return FeatureStore(
-        config=RepoConfig(
-            registry=registry_path,
-            project="default",
-            provider="local",
-            online_store=SqliteOnlineStoreConfig(path=online_store_path),
-        )
-    )
-
-
-@pytest.fixture
-def feature_store_with_gcs_registry():
-    from google.cloud import storage
-
-    storage_client = storage.Client()
-    bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
-    bucket = storage_client.bucket(bucket_name)
-    bucket = storage_client.create_bucket(bucket)
-    bucket.add_lifecycle_delete_rule(
-        age=14
-    )  # delete buckets automatically after 14 days
-    bucket.patch()
-    bucket.blob("registry.db")
-
-    return FeatureStore(
-        config=RepoConfig(
-            registry=f"gs://{bucket_name}/registry.db",
-            project="default",
-            provider="gcp",
-        )
-    )
-
-
-@pytest.fixture
-def feature_store_with_s3_registry():
-    aws_registry_path = os.getenv(
-        "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
-    )
-    return FeatureStore(
-        config=RepoConfig(
-            registry=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
-            project="default",
-            provider="aws",
-            online_store=DynamoDBOnlineStoreConfig(
-                region=os.getenv("AWS_REGION", "us-west-2")
-            ),
-            offline_store=FileOfflineStoreConfig(),
-        )
-    )
-
-
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
@@ -160,6 +106,7 @@ def test_apply_entity_integration(test_feature_store):
     test_feature_store.teardown()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
@@ -357,6 +304,7 @@ def test_apply_feature_view_integration(test_feature_store):
     test_feature_store.teardown()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
@@ -418,19 +366,7 @@ def test_apply_object_and_read(test_feature_store):
     test_feature_store.teardown()
 
 
-def test_apply_remote_repo():
-    fd, registry_path = mkstemp()
-    fd, online_store_path = mkstemp()
-    return FeatureStore(
-        config=RepoConfig(
-            registry=registry_path,
-            project="default",
-            provider="local",
-            online_store=SqliteOnlineStoreConfig(path=online_store_path),
-        )
-    )
-
-
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
@@ -488,6 +424,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         test_feature_store.teardown()
 
 
+@pytest.mark.integration
 def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
     """Test applying feature views with non-case-insensitively unique names"""
     driver = Entity(name="driver", join_keys=["driver_id"])
@@ -522,3 +459,58 @@ def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
     )
 
     feature_store_with_local_registry.teardown()
+
+
+@pytest.fixture
+def feature_store_with_local_registry():
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+    return FeatureStore(
+        config=RepoConfig(
+            registry=registry_path,
+            project="default",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=online_store_path),
+        )
+    )
+
+
+@pytest.fixture
+def feature_store_with_gcs_registry():
+    from google.cloud import storage
+
+    storage_client = storage.Client()
+    bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
+    bucket = storage_client.bucket(bucket_name)
+    bucket = storage_client.create_bucket(bucket)
+    bucket.add_lifecycle_delete_rule(
+        age=14
+    )  # delete buckets automatically after 14 days
+    bucket.patch()
+    bucket.blob("registry.db")
+
+    return FeatureStore(
+        config=RepoConfig(
+            registry=f"gs://{bucket_name}/registry.db",
+            project="default",
+            provider="gcp",
+        )
+    )
+
+
+@pytest.fixture
+def feature_store_with_s3_registry():
+    aws_registry_path = os.getenv(
+        "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+    )
+    return FeatureStore(
+        config=RepoConfig(
+            registry=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
+            project="default",
+            provider="aws",
+            online_store=DynamoDBOnlineStoreConfig(
+                region=os.getenv("AWS_REGION", "us-west-2")
+            ),
+            offline_store=FileOfflineStoreConfig(),
+        )
+    )
