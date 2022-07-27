@@ -45,6 +45,8 @@ from tests.integration.feature_repos.universal.data_sources.file import (  # noq
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
+from tests.utils.http_utils import check_port_open, free_port
+
 logger = logging.getLogger(__name__)
 
 level = logging.INFO
