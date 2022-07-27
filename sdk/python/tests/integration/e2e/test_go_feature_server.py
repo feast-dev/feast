@@ -34,31 +34,10 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 
+from tests.utils.http_utils import free_port, check_port_open
+from tests.utils.feature_utils import generate_expected_logs, get_latest_rows
 
-@pytest.fixture
-def initialized_registry(environment, universal_data_sources):
-    fs = environment.feature_store
-
-    _, _, data_sources = universal_data_sources
-    feature_views = construct_universal_feature_views(data_sources)
-
-    feature_service = FeatureService(
-        name="driver_features",
-        features=[feature_views.driver],
-        logging_config=LoggingConfig(
-            destination=environment.data_source_creator.create_logged_features_destination(),
-            sample_rate=1.0,
-        ),
-    )
-    feast_objects: List[FeastObject] = [feature_service]
-    feast_objects.extend(feature_views.values())
-    feast_objects.extend([driver(), customer(), location()])
-
-    fs.apply(feast_objects)
-    fs.materialize(environment.start_date, environment.end_date)
-
-
-def server_port(environment, server_type: str):
+def _server_port(environment, server_type: str):
     if not environment.test_repo_config.go_feature_serving:
         pytest.skip("Only for Go path")
 
@@ -106,15 +85,38 @@ def server_port(environment, server_type: str):
     # wait for graceful stop
     time.sleep(5)
 
+# Go test fixtures
+
+@pytest.fixture
+def initialized_registry(environment, universal_data_sources):
+    fs = environment.feature_store
+
+    _, _, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
+    feature_service = FeatureService(
+        name="driver_features",
+        features=[feature_views.driver],
+        logging_config=LoggingConfig(
+            destination=environment.data_source_creator.create_logged_features_destination(),
+            sample_rate=1.0,
+        ),
+    )
+    feast_objects: List[FeastObject] = [feature_service]
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer(), location()])
+
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
 
 @pytest.fixture
 def grpc_server_port(environment, initialized_registry):
-    yield from server_port(environment, "grpc")
+    yield from _server_port(environment, "grpc")
 
 
 @pytest.fixture
 def http_server_port(environment, initialized_registry):
-    yield from server_port(environment, "http")
+    yield from _server_port(environment, "http")
 
 
 @pytest.fixture
@@ -252,45 +254,3 @@ def test_feature_logging(
     persisted_logs = persisted_logs.sort_values(by="driver_id").reset_index(drop=True)
     persisted_logs = persisted_logs[expected_logs.columns]
     pd.testing.assert_frame_equal(expected_logs, persisted_logs, check_dtype=False)
-
-
-def free_port():
-    sock = socket.socket()
-    sock.bind(("", 0))
-    return sock.getsockname()[1]
-
-
-def check_port_open(host, port) -> bool:
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        return sock.connect_ex((host, port)) == 0
-
-
-def get_latest_rows(df, join_key, entity_values):
-    rows = df[df[join_key].isin(entity_values)]
-    return rows.loc[rows.groupby(join_key)["event_timestamp"].idxmax()]
-
-
-def generate_expected_logs(
-    df: pd.DataFrame,
-    feature_view: FeatureView,
-    features: List[str],
-    join_keys: List[str],
-    timestamp_column: str,
-):
-    logs = pd.DataFrame()
-    for join_key in join_keys:
-        logs[join_key] = df[join_key]
-
-    for feature in features:
-        col = f"{feature_view.name}__{feature}"
-        logs[col] = df[feature]
-        logs[f"{col}__timestamp"] = df[timestamp_column]
-        logs[f"{col}__status"] = FieldStatus.PRESENT
-        if feature_view.ttl:
-            logs[f"{col}__status"] = logs[f"{col}__status"].mask(
-                df[timestamp_column]
-                < datetime.utcnow().replace(tzinfo=pytz.UTC) - feature_view.ttl,
-                FieldStatus.OUTSIDE_MAX_AGE,
-            )
-
-    return logs.sort_values(by=join_keys).reset_index(drop=True)
