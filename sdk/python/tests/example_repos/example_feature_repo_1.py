@@ -9,18 +9,6 @@ driver_locations_source = BigQuerySource(
     created_timestamp_column="created_timestamp",
 )
 
-driver_locations_source_query = BigQuerySource(
-    query="SELECT * from feast-oss.public.drivers",
-    timestamp_field="event_timestamp",
-    created_timestamp_column="created_timestamp",
-)
-
-driver_locations_source_query_2 = BigQuerySource(
-    query="SELECT lat * 2 FROM feast-oss.public.drivers",
-    timestamp_field="event_timestamp",
-    created_timestamp_column="created_timestamp",
-)
-
 customer_profile_source = BigQuerySource(
     name="customer_profile_source",
     table="feast-oss.public.customers",
