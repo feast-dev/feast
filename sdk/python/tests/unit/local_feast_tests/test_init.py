@@ -6,6 +6,7 @@ from textwrap import dedent
 from tests.utils.cli_repo_creator import CliRunner
 
 
+@pytest.mark.integration
 def test_repo_init() -> None:
     """
     This test simply makes sure that you can run `feast apply && feast materialize` on
@@ -28,6 +29,7 @@ def test_repo_init() -> None:
         assert result.returncode == 0
 
 
+@pytest.mark.integration
 def test_repo_init_with_underscore_in_project_name() -> None:
     """
     Test `feast init` with underscore in the project name
