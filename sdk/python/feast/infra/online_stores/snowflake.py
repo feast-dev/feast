@@ -98,17 +98,16 @@ class SnowflakeOnlineStore(OnlineStore):
                 df.loc[j, "created_ts"] = created_ts
 
             dfs[i] = df
-            if progress:
-                progress(1)
 
         if dfs:
             agg_df = pd.concat(dfs)
 
+            #This combines both the data upload plus the overwrite in the same transaction
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
-                write_pandas_binary(conn, agg_df, f"{config.project}_{table.name}")
+                write_pandas_binary(conn, agg_df, f"[online-transient] {config.project}_{table.name}") #special function for writing binary to snowflake
 
                 query = f"""
-                    INSERT OVERWRITE INTO "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}"
+                    INSERT OVERWRITE INTO "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"
                         SELECT
                             "entity_feature_key",
                             "entity_key",
@@ -121,12 +120,15 @@ class SnowflakeOnlineStore(OnlineStore):
                               *,
                               ROW_NUMBER() OVER(PARTITION BY "entity_key","feature_name" ORDER BY "event_ts" DESC, "created_ts" DESC) AS "_feast_row"
                           FROM
-                              "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}")
+                              "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}")
                         WHERE
                             "_feast_row" = 1;
                 """
 
                 conn.cursor().execute(query)
+
+            if progress:
+                progress(len(data))
 
         return None
 
@@ -151,7 +153,7 @@ class SnowflakeOnlineStore(OnlineStore):
                 SELECT
                     "entity_key", "feature_name", "value", "event_ts"
                 FROM
-                    "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}"
+                    "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"
                 WHERE
                     "entity_feature_key" IN ({','.join([('TO_BINARY('+hexlify(serialize_entity_key(combo[0])+bytes(combo[1], encoding='utf-8')).__str__()[1:]+")") for combo in itertools.product(entity_keys,requested_features)])})
             """,
@@ -192,7 +194,7 @@ class SnowflakeOnlineStore(OnlineStore):
             for table in tables_to_keep:
 
                 conn.cursor().execute(
-                    f"""CREATE TRANSIENT TABLE IF NOT EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}" (
+                    f"""CREATE TRANSIENT TABLE IF NOT EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}" (
                         "entity_feature_key" BINARY,
                         "entity_key" BINARY,
                         "feature_name" VARCHAR,
@@ -205,7 +207,7 @@ class SnowflakeOnlineStore(OnlineStore):
             for table in tables_to_delete:
 
                 conn.cursor().execute(
-                    f'DROP TABLE IF EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}"'
+                    f'DROP TABLE IF EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"'
                 )
 
     def teardown(
@@ -219,7 +221,7 @@ class SnowflakeOnlineStore(OnlineStore):
         with get_snowflake_conn(config.online_store) as conn:
 
             for table in tables:
-                query = f'DROP TABLE IF EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."{config.project}_{table.name}"'
+                query = f'DROP TABLE IF EXISTS "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"'
                 conn.cursor().execute(query)
 
 

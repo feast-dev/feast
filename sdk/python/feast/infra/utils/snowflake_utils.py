@@ -126,8 +126,8 @@ def write_pandas(
         conn: Connection to be used to communicate with Snowflake.
         df: Dataframe we'd like to write back.
         table_name: Table name where we want to insert into.
-        database: Database schema and table is in, if not provided the default one will be used (Default value = None).
-        schema: Schema table is in, if not provided the default one will be used (Default value = None).
+        database: Database table is in, if not provided the connection one will be used.
+        schema: Schema table is in, if not provided the connection one will be used.
         chunk_size: Number of elements to be inserted once, if not provided all elements will be dumped once
             (Default value = None).
         compression: The compression used on the Parquet files, can only be gzip, or snappy. Gzip gives supposedly a
@@ -470,8 +470,8 @@ def write_pandas_binary(
         conn: Connection to be used to communicate with Snowflake.
         df: Dataframe we'd like to write back.
         table_name: Table name where we want to insert into.
-        database: Database schema and table is in, if not provided the default one will be used (Default value = None).
-        schema: Schema table is in, if not provided the default one will be used (Default value = None).
+        database: Database table is in, if not provided the connection one will be used.
+        schema: Schema table is in, if not provided the connection one will be used.
         chunk_size: Number of elements to be inserted once, if not provided all elements will be dumped once
             (Default value = None).
         compression: The compression used on the Parquet files, can only be gzip, or snappy. Gzip gives supposedly a

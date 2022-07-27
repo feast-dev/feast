@@ -1,6 +1,6 @@
 ---
 description: >-
-  Initial demonstration of Snowflake as an offline store with Feast, using the Snowflake demo template.
+  Initial demonstration of Snowflake as an offline+online store with Feast, using the Snowflake demo template.
 ---
 
 # Drivers stats on Snowflake
@@ -55,6 +55,14 @@ registry: ...
 provider: local
 offline_store:
     type: snowflake.offline
+    account: SNOWFLAKE_DEPLOYMENT_URL #drop .snowflakecomputing.com
+    user: USERNAME
+    password: PASSWORD
+    role: ROLE_NAME #case sensitive
+    warehouse: WAREHOUSE_NAME #case sensitive
+    database: DATABASE_NAME #case cap sensitive
+online_store:
+    type: snowflake.online
     account: SNOWFLAKE_DEPLOYMENT_URL #drop .snowflakecomputing.com
     user: USERNAME
     password: PASSWORD

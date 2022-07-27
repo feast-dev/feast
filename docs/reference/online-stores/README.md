@@ -4,6 +4,8 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 
 {% page-ref page="sqlite.md" %}
 
+{% page-ref page="snowflake.md" %}
+
 {% page-ref page="redis.md" %}
 
 {% page-ref page="datastore.md" %}
