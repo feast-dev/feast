@@ -2,7 +2,6 @@ from datetime import timedelta
 
 import pytest
 
-<<<<<<< HEAD
 from feast import BigQuerySource, Entity, FeatureView, Field
 from feast.feature_service import FeatureService
 from feast.types import Float32, String
@@ -11,11 +10,6 @@ from tests.integration.feature_repos.universal.feature_views import driver_featu
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
-=======
-from tests.integration.feature_repos.universal.entities import driver
-from tests.integration.feature_repos.universal.feature_views import driver_feature_view
-from tests.utils.e2e_test_utils import validate_offline_online_store_consistency
->>>>>>> 36f5a826a (Fix e2e tests)
 
 
 @pytest.mark.integration
@@ -38,7 +32,6 @@ def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
 
     validate_offline_online_store_consistency(fs, fv, split_dt)
-<<<<<<< HEAD
 
 
 @pytest.mark.integration
@@ -104,5 +97,3 @@ def test_read_pre_applied() -> None:
 
         assert len(store.list_feature_services()) == 2
         store.get_feature_service("new_feature_service")
-=======
->>>>>>> 36f5a826a (Fix e2e tests)
