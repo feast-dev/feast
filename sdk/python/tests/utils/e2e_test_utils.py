@@ -1,11 +1,8 @@
 import math
 import os
-import tempfile
 import time
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from textwrap import dedent
 from typing import List, Optional
 
 import pandas as pd
@@ -219,74 +216,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
     )
 
 
-@contextmanager
-def setup_third_party_provider_repo(provider_name: str):
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-
-        # Construct an example repo in a temporary dir
-        repo_path = Path(repo_dir_name)
-
-        repo_config = repo_path / "feature_store.yaml"
-
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: foo
-        registry: data/registry.db
-        provider: {provider_name}
-        online_store:
-            path: data/online_store.db
-            type: sqlite
-        offline_store:
-            type: file
-        """
-            )
-        )
-
-        (repo_path / "foo").mkdir()
-        repo_example = repo_path / "foo/provider.py"
-        repo_example.write_text(
-            (Path(__file__).parents[2] / "foo_provider.py").read_text()
-        )
-
-        yield repo_path
-
-
-@contextmanager
-def setup_third_party_registry_store_repo(registry_store: str):
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-
-        # Construct an example repo in a temporary dir
-        repo_path = Path(repo_dir_name)
-
-        repo_config = repo_path / "feature_store.yaml"
-
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: foo
-        registry:
-            registry_store_type: {registry_store}
-            path: foobar://foo.bar
-        provider: local
-        online_store:
-            path: data/online_store.db
-            type: sqlite
-        offline_store:
-            type: file
-        """
-            )
-        )
-
-        (repo_path / "foo").mkdir()
-        repo_example = repo_path / "foo/registry_store.py"
-        repo_example.write_text(
-            (Path(__file__).parents[2] / "foo_registry_store.py").read_text()
-        )
-
-        yield repo_path
-
-
 def validate_registry_data_source_apply(test_registry: Registry):
     # Create Feature Views
     batch_source = FileSource(
@@ -346,9 +275,3 @@ def validate_registry_data_source_apply(test_registry: Registry):
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
         test_registry._get_registry_proto(project=project)
-
-
-def validate_project_uuid(project_uuid, test_registry):
-    assert len(test_registry.cached_registry_proto.project_metadata) == 1
-    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
-    assert project_metadata.project_uuid == project_uuid

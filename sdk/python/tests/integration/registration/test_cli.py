@@ -1,5 +1,6 @@
 import tempfile
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
@@ -12,8 +13,6 @@ from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.e2e_test_utils import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,
-    setup_third_party_provider_repo,
-    setup_third_party_registry_store_repo,
 )
 from tests.utils.online_read_write_test_utils import basic_rw_test
 
@@ -232,3 +231,71 @@ def test_3rd_party_registry_store() -> None:
     ) as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
         assertpy.assert_that(return_code).is_equal_to(0)
+
+
+@contextmanager
+def setup_third_party_provider_repo(provider_name: str):
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+
+        # Construct an example repo in a temporary dir
+        repo_path = Path(repo_dir_name)
+
+        repo_config = repo_path / "feature_store.yaml"
+
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: foo
+        registry: data/registry.db
+        provider: {provider_name}
+        online_store:
+            path: data/online_store.db
+            type: sqlite
+        offline_store:
+            type: file
+        """
+            )
+        )
+
+        (repo_path / "foo").mkdir()
+        repo_example = repo_path / "foo/provider.py"
+        repo_example.write_text(
+            (Path(__file__).parents[2] / "foo_provider.py").read_text()
+        )
+
+        yield repo_path
+
+
+@contextmanager
+def setup_third_party_registry_store_repo(registry_store: str):
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+
+        # Construct an example repo in a temporary dir
+        repo_path = Path(repo_dir_name)
+
+        repo_config = repo_path / "feature_store.yaml"
+
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: foo
+        registry:
+            registry_store_type: {registry_store}
+            path: foobar://foo.bar
+        provider: local
+        online_store:
+            path: data/online_store.db
+            type: sqlite
+        offline_store:
+            type: file
+        """
+            )
+        )
+
+        (repo_path / "foo").mkdir()
+        repo_example = repo_path / "foo/registry_store.py"
+        repo_example.write_text(
+            (Path(__file__).parents[2] / "foo_registry_store.py").read_text()
+        )
+
+        yield repo_path
