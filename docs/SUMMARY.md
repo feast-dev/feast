@@ -79,6 +79,7 @@
   * [PostgreSQL (contrib)](reference/offline-stores/postgres.md)
 * [Online stores](reference/online-stores/README.md)
   * [SQLite](reference/online-stores/sqlite.md)
+  * [Snowflake](reference/online-stores/snowflake.md)
   * [Redis](reference/online-stores/redis.md)
   * [Datastore](reference/online-stores/datastore.md)
   * [DynamoDB](reference/online-stores/dynamodb.md)

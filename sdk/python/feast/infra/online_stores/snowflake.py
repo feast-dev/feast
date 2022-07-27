@@ -21,7 +21,7 @@ from feast.usage import log_exceptions_and_usage
 
 
 class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
-    """ Online store config for Snowflake """
+    """Online store config for Snowflake"""
 
     type: Literal["snowflake.online"] = "snowflake.online"
     """ Online store type selector"""
@@ -102,9 +102,11 @@ class SnowflakeOnlineStore(OnlineStore):
         if dfs:
             agg_df = pd.concat(dfs)
 
-            #This combines both the data upload plus the overwrite in the same transaction
+            # This combines both the data upload plus the overwrite in the same transaction
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
-                write_pandas_binary(conn, agg_df, f"[online-transient] {config.project}_{table.name}") #special function for writing binary to snowflake
+                write_pandas_binary(
+                    conn, agg_df, f"[online-transient] {config.project}_{table.name}"
+                )  # special function for writing binary to snowflake
 
                 query = f"""
                     INSERT OVERWRITE INTO "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"
