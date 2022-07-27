@@ -2,10 +2,14 @@ from datetime import timedelta
 
 import pytest
 
+<<<<<<< HEAD
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.types import ValueType
+=======
+from feast import Entity, Feature, FeatureView, ValueType
+>>>>>>> 36f5a826a (Fix e2e tests)
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -17,7 +21,11 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
+<<<<<<< HEAD
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
+=======
+from tests.utils.e2e_test_utils import validate_offline_online_store_consistency
+>>>>>>> 36f5a826a (Fix e2e tests)
 
 
 @pytest.mark.integration
