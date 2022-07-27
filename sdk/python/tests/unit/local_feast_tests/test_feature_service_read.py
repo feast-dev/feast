@@ -1,7 +1,12 @@
 import pytest
 
+<<<<<<< HEAD:sdk/python/tests/unit/local_feast_tests/test_feature_service_read.py
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+=======
+from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.online_read_write_test_utils import basic_rw_test
+>>>>>>> d02455b88 (Verify tests):sdk/python/tests/integration/online_store/test_feature_service_read.py
 
 
 @pytest.mark.integration

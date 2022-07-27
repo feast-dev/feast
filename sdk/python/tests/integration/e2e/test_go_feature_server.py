@@ -32,8 +32,13 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
+<<<<<<< HEAD
 from tests.utils.http_server import check_port_open, free_port
 from tests.utils.test_log_creator import generate_expected_logs, get_latest_rows
+=======
+from tests.utils.feature_test_utils import generate_expected_logs, get_latest_rows
+from tests.utils.http_utils import check_port_open, free_port
+>>>>>>> d02455b88 (Verify tests)
 
 
 @pytest.mark.integration
