@@ -1,7 +1,7 @@
 import pytest
 
 from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.online_read_write_test import basic_rw_test
+from tests.utils.online_read_write_test_utils import basic_rw_test
 
 
 @pytest.mark.integration

@@ -12,11 +12,6 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 FeatureVector = GetOnlineFeaturesResponse.FeatureVector
 
 
-@pytest.fixture(scope="module")
-def proto_json_patch():
-    proto_json.patch()
-
-
 def test_feature_vector_values(proto_json_patch):
     # FeatureVector contains "repeated<feast.types.Value> values" proto field.
     # We want to test that feast.types.Value can take different types in JSON
@@ -106,3 +101,8 @@ def test_feature_list(proto_json_patch):
     assertpy.assert_that(feature_list_json).is_equal_to(
         ["feature-a", "feature-b", "feature-c"]
     )
+
+
+@pytest.fixture(scope="module")
+def proto_json_patch():
+    proto_json.patch()

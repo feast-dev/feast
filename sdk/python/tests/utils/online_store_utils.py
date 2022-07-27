@@ -8,7 +8,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
-def _create_n_customer_test_samples(n=10):
+def create_n_customer_test_samples(n=10):
     return [
         (
             EntityKeyProto(
@@ -26,7 +26,7 @@ def _create_n_customer_test_samples(n=10):
     ]
 
 
-def _create_test_table(project, tbl_name, region):
+def create_test_table(project, tbl_name, region):
     client = boto3.client("dynamodb", region_name=region)
     client.create_table(
         TableName=f"{project}.{tbl_name}",
@@ -36,12 +36,12 @@ def _create_test_table(project, tbl_name, region):
     )
 
 
-def _delete_test_table(project, tbl_name, region):
+def delete_test_table(project, tbl_name, region):
     client = boto3.client("dynamodb", region_name=region)
     client.delete_table(TableName=f"{project}.{tbl_name}")
 
 
-def _insert_data_test_table(data, project, tbl_name, region):
+def insert_data_test_table(data, project, tbl_name, region):
     dynamodb_resource = boto3.resource("dynamodb", region_name=region)
     table_instance = dynamodb_resource.Table(f"{project}.{tbl_name}")
     for entity_key, features, timestamp, created_ts in data:

@@ -27,7 +27,7 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 from tests.utils.cli_utils import CliRunner
-from tests.utils.logged_features import prepare_logs
+from tests.utils.feature_test_utils import prepare_logs
 
 _features = [
     "customer_profile:current_balance",

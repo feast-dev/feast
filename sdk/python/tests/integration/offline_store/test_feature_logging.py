@@ -22,7 +22,7 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
-from tests.utils.logged_features import prepare_logs, to_logs_dataset
+from tests.utils.feature_test_utils import prepare_logs, to_logs_dataset
 
 
 @pytest.mark.integration

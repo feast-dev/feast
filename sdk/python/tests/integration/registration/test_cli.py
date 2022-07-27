@@ -15,7 +15,7 @@ from tests.utils.e2e_test_utils import (
     setup_third_party_provider_repo,
     setup_third_party_registry_store_repo,
 )
-from tests.utils.online_read_write_test import basic_rw_test
+from tests.utils.online_read_write_test_utils import basic_rw_test
 
 
 @pytest.mark.integration

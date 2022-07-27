@@ -15,9 +15,9 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from tests.utils.online_store_utils import (
-    _create_n_customer_test_samples,
-    _create_test_table,
-    _insert_data_test_table,
+    create_n_customer_test_samples,
+    create_test_table,
+    insert_data_test_table,
 )
 
 REGISTRY = "s3://test_registry/registry.db"
@@ -165,9 +165,9 @@ def test_dynamodb_online_store_online_read(
 ):
     """Test DynamoDBOnlineStore online_read method."""
     db_table_name = f"{TABLE_NAME}_online_read_{n_samples}"
-    _create_test_table(PROJECT, db_table_name, REGION)
-    data = _create_n_customer_test_samples(n=n_samples)
-    _insert_data_test_table(data, PROJECT, db_table_name, REGION)
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
 
     entity_keys, features, *rest = zip(*data)
     returned_items = dynamodb_online_store.online_read(
@@ -186,8 +186,8 @@ def test_dynamodb_online_store_online_write_batch(
 ):
     """Test DynamoDBOnlineStore online_write_batch method."""
     db_table_name = f"{TABLE_NAME}_online_write_batch_{n_samples}"
-    _create_test_table(PROJECT, db_table_name, REGION)
-    data = _create_n_customer_test_samples()
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples()
 
     entity_keys, features, *rest = zip(*data)
     dynamodb_online_store.online_write_batch(
@@ -211,10 +211,10 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore update method."""
     # create dummy table to keep
     db_table_keep_name = f"{TABLE_NAME}_keep_update"
-    _create_test_table(PROJECT, db_table_keep_name, REGION)
+    create_test_table(PROJECT, db_table_keep_name, REGION)
     # create dummy table to delete
     db_table_delete_name = f"{TABLE_NAME}_delete_update"
-    _create_test_table(PROJECT, db_table_delete_name, REGION)
+    create_test_table(PROJECT, db_table_delete_name, REGION)
 
     dynamodb_online_store.update(
         config=repo_config,
@@ -240,8 +240,8 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore teardown method."""
     db_table_delete_name_one = f"{TABLE_NAME}_delete_teardown_1"
     db_table_delete_name_two = f"{TABLE_NAME}_delete_teardown_2"
-    _create_test_table(PROJECT, db_table_delete_name_one, REGION)
-    _create_test_table(PROJECT, db_table_delete_name_two, REGION)
+    create_test_table(PROJECT, db_table_delete_name_one, REGION)
+    create_test_table(PROJECT, db_table_delete_name_two, REGION)
 
     dynamodb_online_store.teardown(
         config=repo_config,
@@ -267,9 +267,9 @@ def test_dynamodb_online_store_online_read_unknown_entity(
 ):
     """Test DynamoDBOnlineStore online_read method."""
     n_samples = 2
-    _create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
-    data = _create_n_customer_test_samples(n=n_samples)
-    _insert_data_test_table(
+    create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(
         data, PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION
     )
 
@@ -304,8 +304,8 @@ def test_dynamodb_online_store_online_read_unknown_entity(
 def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     """Test DynamoDBOnline Store deduplicate write batch request items."""
     dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
-    _create_test_table(PROJECT, dynamodb_tbl, REGION)
-    data = _create_n_customer_test_samples()
+    create_test_table(PROJECT, dynamodb_tbl, REGION)
+    data = create_n_customer_test_samples()
     data_duplicate = deepcopy(data)
     dynamodb_resource = boto3.resource("dynamodb", region_name=REGION)
     table_instance = dynamodb_resource.Table(f"{PROJECT}.{dynamodb_tbl}")
@@ -330,9 +330,9 @@ def test_dynamodb_online_store_online_read_unknown_entity_end_of_batch(
     """
     batch_size = repo_config.online_store.batch_size
     n_samples = batch_size
-    _create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
-    data = _create_n_customer_test_samples(n=n_samples)
-    _insert_data_test_table(
+    create_test_table(PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(
         data, PROJECT, f"{TABLE_NAME}_unknown_entity_{n_samples}", REGION
     )
 

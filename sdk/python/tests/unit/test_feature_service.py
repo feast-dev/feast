@@ -5,6 +5,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float32
+from tests.utils.test_wrapper_utils import no_warnings
 
 
 def test_feature_service_with_description():
@@ -16,7 +17,6 @@ def test_feature_service_with_description():
 
 def test_feature_service_without_description():
     feature_service = FeatureService(name="my-feature-service", features=[])
-    #
     assert feature_service.to_proto().spec.description == ""
 
 
@@ -73,19 +73,6 @@ def test_feature_view_kw_args_warning():
     # No name defined.
     with pytest.raises(ValueError):
         service = FeatureService(features=[], tags={"tag_1": "tag"}, description="desc")
-
-
-def no_warnings(func):
-    def wrapper_no_warnings(*args, **kwargs):
-        with pytest.warns(None) as warnings:
-            func(*args, **kwargs)
-
-        if len(warnings) > 0:
-            raise AssertionError(
-                "Warnings were raised: " + ", ".join([str(w) for w in warnings])
-            )
-
-    return wrapper_no_warnings
 
 
 @no_warnings

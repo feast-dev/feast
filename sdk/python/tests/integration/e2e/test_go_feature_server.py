@@ -31,7 +31,7 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-from tests.utils.feature_utils import generate_expected_logs, get_latest_rows
+from tests.utils.feature_test_utils import generate_expected_logs, get_latest_rows
 from tests.utils.http_utils import check_port_open, free_port
 
 

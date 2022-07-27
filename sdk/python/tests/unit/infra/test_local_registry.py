@@ -32,10 +32,7 @@ from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
-from tests.utils.e2e_test_utils import (
-    validate_project_uuid,
-    validate_registry_data_source_apply,
-)
+from tests.utils.e2e_test_utils import validate_registry_data_source_apply
 
 
 @pytest.fixture
@@ -530,3 +527,9 @@ def test_commit():
     # Will try to reload registry, which will fail because the file has been deleted
     with pytest.raises(FileNotFoundError):
         test_registry._get_registry_proto(project=project)
+
+
+def validate_project_uuid(project_uuid, test_registry):
+    assert len(test_registry.cached_registry_proto.project_metadata) == 1
+    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
+    assert project_metadata.project_uuid == project_uuid
