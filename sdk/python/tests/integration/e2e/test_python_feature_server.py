@@ -58,7 +58,9 @@ def test_get_online_features(python_fs_client):
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push(python_fs_client):
-    initial_temp = get_temperatures(python_fs_client, location_ids=[1])[0]
+    initial_temp = _get_temperatures_from_feature_server(
+        python_fs_client, location_ids=[1]
+    )[0]
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
@@ -77,10 +79,12 @@ def test_push(python_fs_client):
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    assert get_temperatures(python_fs_client, location_ids=[1]) == [initial_temp * 100]
+    assert _get_temperatures_from_feature_server(
+        python_fs_client, location_ids=[1]
+    ) == [initial_temp * 100]
 
 
-def get_temperatures(client, location_ids: List[int]):
+def _get_temperatures_from_feature_server(client, location_ids: List[int]):
     get_request_data = {
         "features": ["pushable_location_stats:temperature"],
         "entities": {"location_id": location_ids},
