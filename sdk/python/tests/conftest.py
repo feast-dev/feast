@@ -43,9 +43,13 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
 from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
+<<<<<<< HEAD
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 from tests.utils.http_utils import check_port_open, free_port
+=======
+from tests.utils.http_utils import check_port_open, free_port  # noqa: E402
+>>>>>>> 52e393bbd (Fix lint)
 
 logger = logging.getLogger(__name__)
 

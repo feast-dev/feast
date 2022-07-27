@@ -1,6 +1,7 @@
 import socket
 from contextlib import closing
 
+
 def free_port():
     sock = socket.socket()
     sock.bind(("", 0))
