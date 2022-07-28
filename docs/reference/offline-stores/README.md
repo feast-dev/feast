@@ -17,7 +17,7 @@ Here are the methods exposed by the `OfflineStore` interface, along with the cor
 Below is a matrix indicating which offline stores support which methods.
 
 | | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
-| --------------------------------- | --- | --- | --- | --- | --- | --- | --- |
+| :-------------------------------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | `get_historical_features`         | yes | yes | yes | yes | yes | yes | yes |
 | `pull_latest_from_table_or_query` | yes | yes | yes | yes | yes | yes | yes |
 | `pull_all_from_table_or_query`    | yes | yes | yes | yes | yes | yes | yes |
