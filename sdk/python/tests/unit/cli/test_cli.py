@@ -1,5 +1,4 @@
 import tempfile
-import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
