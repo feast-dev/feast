@@ -34,7 +34,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
     driver_feature_view,
 )
-from tests.utils.data_source_creator import prep_file_source
+from tests.utils.data_source_test_creator import prep_file_source
 
 
 @pytest.mark.integration

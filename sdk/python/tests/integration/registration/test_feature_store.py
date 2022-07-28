@@ -30,7 +30,7 @@ from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
-from tests.utils.data_source_creator import (
+from tests.utils.data_source_test_creator import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_arg,

@@ -5,7 +5,7 @@ import pytest
 from feast import RepoConfig
 from feast.errors import RegistryInferenceFailure
 from feast.inference import update_data_sources_with_inferred_event_timestamp_col
-from tests.utils.data_source_creator import (
+from tests.utils.data_source_test_creator import (
     prep_file_source,
     simple_bq_source_using_query_arg,
     simple_bq_source_using_table_arg,
