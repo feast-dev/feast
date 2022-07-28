@@ -16,7 +16,6 @@ Let's inspect the test setup in `sdk/python/tests/integration`:
 $ tree
 .
 ├── e2e
-│   ├── test_e2e_local.py
 │   ├── test_go_feature_server.py
 │   ├── test_python_feature_server.py
 │   ├── test_universal_e2e.py
@@ -52,25 +51,17 @@ $ tree
 │   ├── test_s3_custom_endpoint.py
 │   └── test_universal_historical_retrieval.py
 ├── online_store
-│   ├── test_feature_service_read.py
 │   ├── test_online_retrieval.py
 │   ├── test_push_features_to_online_store.py
 │   └── test_universal_online.py
-├── registration
-│   ├── test_cli.py
-│   ├── test_cli_apply_duplicates.py
-│   ├── test_cli_chdir.py
-│   ├── test_feature_service_apply.py
-│   ├── test_feature_store.py
-│   ├── test_inference.py
-│   ├── test_registry.py
-│   ├── test_sql_registry.py
-│   ├── test_stream_feature_view_apply.py
-│   ├── test_universal_odfv_feature_inference.py
-│   └── test_universal_types.py
-└── scaffolding
-    ├── test_init.py
-    └── test_partial_apply.py
+└── registration
+    ├── test_feature_store.py
+    ├── test_inference.py
+    ├── test_registry.py
+    ├── test_sql_registry.py
+    ├── test_universal_cli.py
+    ├── test_universal_odfv_feature_inference.py
+    └── test_universal_types.py
 
 ```
 
@@ -89,15 +80,15 @@ Tests in Feast are split into integration and unit tests.
 
 ### Is it an integration or unit test?
 
-- In an integration test, multiple modules of Feast are tested together. Integration tests also include testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
-    - Generally if the test requires the initialization of a feature store or an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
+- In an integration test, multiple modules of Feast are tested together. Integration tests mainly involve testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
+    - Generally if the test requires the initialization of a feature store in an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
 - Unit tests, on the other hand, test individual classes or functions for class level behavior. Unit tests should not require pytest to spin up external services and should not need to access classes in other modules of Feast.
 
 ### Main Types of Tests
 
 ## Integration tests
 
-- E2E tests
+1. E2E tests
     - E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
     - The various codepaths include:
         - basic e2e tests for offline storages
@@ -110,7 +101,7 @@ Tests in Feast are split into integration and unit tests.
             - `test_usage_e2e.py`
         - data quality monitoring feature validation
             - `test_validation.py`
-- Offline and Online Store Tests
+2. Offline and Online Store Tests
     - push API tests
         - `test_push_features_to_offline_store.py`
         - `test_push_features_to_online_store.py`
@@ -123,40 +114,39 @@ Tests in Feast are split into integration and unit tests.
         - `test_feature_logging.py`
     - online store tests
         - `test_universal_online.py`
-    - feature service tests
-        - `test_feature_service_read.py`
-- Registration Tests
-    - The registration folder contains all of the cli/terminal tests. This includes:
-        - CLI Apply and Materialize tests
+3. Registration Tests
+    - The registration folder contains all of the registry tests and some universal cl tests. This includes:
+        - CLI Apply and Materialize tests tested against on the universal test suite
         - Data type inference tests
         - Registry tests
-- Miscellaneous Tests
-    - Feast initialization smoke tests
-        - `test_init.py`
-        - `test_partial_apply.py`
-    - AWS Lambda Materialization Tests
+4. Miscellaneous Tests
+    - AWS Lambda Materialization Tests (Currently do not work)
         - `test_lambda.py`
 
 ### Unit Tests
 
-- Registry Diff Tests
+1. Registry Diff Tests
     - These are tests for the infrastructure and registry diff functionality that Feast uses to determine if changes to the registry or infrastructure is needed.
-- Infrastructure Unit Tests
-    - DynamoDB mock Tests
-    - Repository configuration tests.
+2. Local CLI Tests and Local Feast Tests
+    - These tests test all of the cli commands against the local file offline store.
+3. Infrastructure Unit Tests
+    - DynamoDB tests with dynamo mocked out
+    - Repository configuration tests
     - Schema inference unit tests
     - Key serialization tests
     - Basic provider unit tests
-- Feature Store Tests
-    - Data source unit tests
-    - Feature service unit tests
-    - Feature service, feature view, and feature validation tests
-    - Protobuf/json tests for Feast ValueTypes
-    - Serialization tests
-        - Type mapping
-        - Feast types
-        - Serialization tests due to this [issue](https://github.com/feast-dev/feast/issues/2345)
-    - Feast usage tracking unit tests
+4. Feature Store Validation Tests
+    - These test mainly contain class level validation like hashing tests, protobuf and class serialization, and error and warning handling.
+        - Data source unit tests
+        - Feature service unit tests
+        - Feature service, feature view, and feature validation tests
+        - Protobuf/json tests for Feast ValueTypes
+        - Serialization tests
+            - Type mapping
+            - Feast types
+            - Serialization tests due to this [issue](https://github.com/feast-dev/feast/issues/2345)
+        - Feast usage tracking unit tests
+
 ### DocTests
 
 Docstring tests are primarily smoke tests to make sure imports and setup functions can be executed without errors.
