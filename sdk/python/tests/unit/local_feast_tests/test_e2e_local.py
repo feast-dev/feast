@@ -15,7 +15,6 @@ from tests.utils.cli_helper_functions import CliRunner, get_example_repo
 from tests.utils.feature_store_test_functions import validate_online_features
 
 
-@pytest.mark.integration
 def test_e2e_local() -> None:
     """
     Tests the end-to-end workflow of apply, materialize, and online retrieval.
@@ -40,15 +39,15 @@ def test_e2e_local() -> None:
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
-    with runner.local_repo(
-        get_example_repo("example_feature_repo_2.py")
-        .replace("%PARQUET_PATH%", driver_stats_path)
-        .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
-        "file",
-    ) as store:
-        _test_materialize_and_online_retrieval(
-            runner, store, start_date, end_date, driver_df
-        )
+        with runner.local_repo(
+            get_example_repo("example_feature_repo_2.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
+        ) as store:
+            _test_materialize_and_online_retrieval(
+                runner, store, start_date, end_date, driver_df
+            )
 
         with runner.local_repo(
             get_example_repo("example_feature_repo_version_0_19.py")
