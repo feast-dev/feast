@@ -86,7 +86,7 @@ Tests in Feast are split into integration and unit tests.
 
 ### Main Types of Tests
 
-## Integration tests
+#### Integration tests
 
 1. E2E tests
     - E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
@@ -125,7 +125,7 @@ Tests in Feast are split into integration and unit tests.
     - AWS Lambda Materialization Tests (Currently do not work)
         - `test_lambda.py`
 
-### Unit Tests
+#### Unit Tests
 
 1. Registry Diff Tests
     - These are tests for the infrastructure and registry diff functionality that Feast uses to determine if changes to the registry or infrastructure is needed.
@@ -149,7 +149,7 @@ Tests in Feast are split into integration and unit tests.
             - Serialization tests due to this [issue](https://github.com/feast-dev/feast/issues/2345)
         - Feast usage tracking unit tests
 
-### DocTests
+#### DocTests
 
 Docstring tests are primarily smoke tests to make sure imports and setup functions can be executed without errors.
 
