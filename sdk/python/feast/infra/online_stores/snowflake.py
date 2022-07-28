@@ -92,7 +92,7 @@ class SnowflakeOnlineStore(OnlineStore):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
                     entity_key
                 ) + bytes(feature_name, encoding="utf-8")
-                df.loc[j, "entity_key"] = serialize_entity_key(entity_key)
+                df.loc[j, "entity_key"] = serialize_entity_key(entity_key, entity_key_serialization_version=2)
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
                 df.loc[j, "event_ts"] = timestamp
