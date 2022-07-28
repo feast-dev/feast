@@ -19,6 +19,10 @@ from tests.utils.e2e_test_validation import (
 from feast import FeatureStore
 from tests.integration.feature_repos.repo_configuration import Environment
 from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.e2e_test_utils import (
+    NULLABLE_ONLINE_STORE_CONFIGS,
+    make_feature_store_yaml,
+)
 from tests.utils.e2e_test_utils import make_feature_store_yaml
 from tests.utils.online_read_write_test_utils import basic_rw_test
 >>>>>>> 2b22e7ea9 (address review)
@@ -148,6 +152,9 @@ def test_odfv_apply(environment) -> None:
         finally:
             runner.run(["teardown"], cwd=repo_path)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1bd124019 (Fix)
 
 
 @pytest.mark.integration
@@ -172,6 +179,10 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             result = runner.run(["apply"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
         finally:
+<<<<<<< HEAD
             runner.run(["teardown"], cwd=repo_path)
 =======
 >>>>>>> 2b22e7ea9 (address review)
+=======
+            runner.run(["teardown"], cwd=repo_path)
+>>>>>>> 1bd124019 (Fix)

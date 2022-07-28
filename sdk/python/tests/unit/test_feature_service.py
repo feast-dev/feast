@@ -6,10 +6,14 @@ from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float32
 <<<<<<< HEAD
+<<<<<<< HEAD
 from tests.utils.test_wrappers import no_warnings
 =======
 from tests.utils.test_wrapper_utils import no_warnings
 >>>>>>> d02455b88 (Verify tests)
+=======
+from tests.utils.test_wrappers import no_warnings
+>>>>>>> 1bd124019 (Fix)
 
 
 def test_feature_service_with_description():
