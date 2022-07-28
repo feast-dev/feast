@@ -11,8 +11,8 @@ from feast.driver_test_data import (
     create_global_daily_stats_df,
 )
 from feast.feature_store import FeatureStore
-from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.feature_store_test_utils import validate_online_features
+from tests.utils.cli_helper_functions import CliRunner, get_example_repo
+from tests.utils.feature_store_test_functions import validate_online_features
 
 
 @pytest.mark.integration
@@ -40,7 +40,7 @@ def test_e2e_local() -> None:
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
-        with runner.local_repo(
+    with runner.local_repo(
             get_example_repo("example_feature_repo_2.py")
             .replace("%PARQUET_PATH%", driver_stats_path)
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),

@@ -16,7 +16,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Float64, Int64, String, UnixTimestamp, ValueType
-from tests.utils.data_source_utils import prep_file_source
+from tests.utils.data_source_creator import prep_file_source
 
 
 def test_infer_datasource_names_file():

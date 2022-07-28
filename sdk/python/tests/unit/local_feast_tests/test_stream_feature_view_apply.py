@@ -13,8 +13,8 @@ from feast.entity import Entity
 from feast.field import Field
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Float32
-from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.data_source_utils import prep_file_source
+from tests.utils.cli_helper_functions import CliRunner, get_example_repo
+from tests.utils.data_source_creator import prep_file_source
 
 
 def test_apply_stream_feature_view(simple_dataset_1) -> None:

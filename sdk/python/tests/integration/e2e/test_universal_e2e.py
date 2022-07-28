@@ -7,9 +7,9 @@ from feast.feature_service import FeatureService
 from feast.types import Float32, String
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
-from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.e2e_test_utils import validate_offline_online_store_consistency
-from tests.utils.online_read_write_test_utils import basic_rw_test
+from tests.utils.cli_helper_functions import CliRunner, get_example_repo
+from tests.utils.e2e_test_validation_functions import validate_offline_online_store_consistency
+from tests.utils.basic_read_write_test import basic_rw_test
 
 
 @pytest.mark.integration

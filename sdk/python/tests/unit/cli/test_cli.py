@@ -5,7 +5,7 @@ from textwrap import dedent
 
 from assertpy import assertpy
 
-from tests.utils.cli_utils import CliRunner
+from tests.utils.cli_helper_functions import CliRunner
 
 
 def test_3rd_party_providers() -> None:

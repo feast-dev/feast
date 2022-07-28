@@ -14,7 +14,7 @@ from feast.infra.online_stores.dynamodb import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from tests.utils.online_store_utils import (
+from tests.utils.dynamo_table_creator import (
     create_n_customer_test_samples,
     create_test_table,
     insert_data_test_table,

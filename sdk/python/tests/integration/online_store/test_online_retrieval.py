@@ -11,7 +11,7 @@ from feast.errors import FeatureViewNotFoundException
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
-from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.cli_helper_functions import CliRunner, get_example_repo
 
 
 @pytest.mark.integration
