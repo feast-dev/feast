@@ -90,7 +90,7 @@ Tests in Feast are split into integration and unit tests.
 
 1. E2E tests
     - E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
-    - The various codepaths include:
+    - The main codepaths include:
         - basic e2e tests for offline storages
             - `test_universal_e2e.py`
         - go feature server
@@ -102,18 +102,20 @@ Tests in Feast are split into integration and unit tests.
         - data quality monitoring feature validation
             - `test_validation.py`
 2. Offline and Online Store Tests
-    - push API tests
-        - `test_push_features_to_offline_store.py`
-        - `test_push_features_to_online_store.py`
-        - `test_offline_write.py`
-    - historical retrieval tests
-        -  `test_universal_historical_retrieval.py`
-    - online retrieval tests
-        - `test_universal_online.py`
-    - data quality monitoring feature logging tests
-        - `test_feature_logging.py`
-    - online store tests
-        - `test_universal_online.py`
+    - Offline and online store tests mainly test for the offline and online retrieval functionality.
+    - The various specific functionalities that are tested include:
+        - push API tests
+            - `test_push_features_to_offline_store.py`
+            - `test_push_features_to_online_store.py`
+            - `test_offline_write.py`
+        - historical retrieval tests
+            -  `test_universal_historical_retrieval.py`
+        - online retrieval tests
+            - `test_universal_online.py`
+        - data quality monitoring feature logging tests
+            - `test_feature_logging.py`
+        - online store tests
+            - `test_universal_online.py`
 3. Registration Tests
     - The registration folder contains all of the registry tests and some universal cl tests. This includes:
         - CLI Apply and Materialize tests tested against on the universal test suite
@@ -268,6 +270,19 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 * The core tests for offline / online store behavior are parametrized by the `FULL_REPO_CONFIGS` variable defined in `feature_repos/repo_configuration.py`. To overwrite this variable without modifying the Feast repo, create your own file that contains a `FULL_REPO_CONFIGS` (which will require adding a new `IntegrationTestRepoConfig` or two) and set the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. Then the core offline / online store tests can be run with `make test-python-universal`.
 * See the [custom offline store demo](https://github.com/feast-dev/feast-custom-offline-store-demo) and the [custom online store demo](https://github.com/feast-dev/feast-custom-online-store-demo) for examples.
 
+### What are some important things to keep in mind when adding a new offline / online store?
+
+#### Type mapping/Inference
+
+Many problems arise when implementing your data store's type conversion to interface with Feast datatypes.
+1. You will need to correctly update `inference.py` so that Feast can infer your datasource schemas
+2. You also need to update `type_map.py` so that Feast knows how to convert your datastores types to Feast-recognized types in `feast/types.py`.
+
+#### Historical and online retrieval
+
+The most important functionality in Feast is historical and online retrieval. Most of the e2e and universal integration test test this functionality in some way. Making sure this functionality works also indirectly asserts that reading and writing from your datastore works as intended.
+
+
 ### To include a new offline / online store in the main Feast repo
 
 * Extend `data_source_creator.py` for your offline store.
@@ -284,7 +299,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 ### To include a new online store
 
 * In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
-* In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for online stores you want to test.
+* In `repo_configuration.py`, add new `IntegrationTestRepoConfig` for online stores you want to test.
 * Run the full test suite with `make test-python-integration`
 
 ### To use custom data in a new test
