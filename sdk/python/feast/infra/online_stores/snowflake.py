@@ -90,10 +90,11 @@ class SnowflakeOnlineStore(OnlineStore):
 
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=2
+                    entity_key, entity_key_serialization_version=2
                 ) + bytes(feature_name, encoding="utf-8")
-                df.loc[j, "entity_key"] = serialize_entity_key(entity_key, entity_key_serialization_version=2)
+                df.loc[j, "entity_key"] = serialize_entity_key(
+                    entity_key, entity_key_serialization_version=2
+                )
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
                 df.loc[j, "event_ts"] = timestamp
@@ -166,7 +167,9 @@ class SnowflakeOnlineStore(OnlineStore):
             )
 
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key, entity_key_serialization_version=2)
+            entity_key_bin = serialize_entity_key(
+                entity_key, entity_key_serialization_version=2
+            )
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():

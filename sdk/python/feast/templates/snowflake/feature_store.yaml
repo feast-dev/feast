@@ -9,7 +9,6 @@ offline_store:
     role: SNOWFLAKE_ROLE
     warehouse: SNOWFLAKE_WAREHOUSE
     database: SNOWFLAKE_DATABASE
-entity_key_serialization_version: 2
 online_store:
     type: snowflake.online
     account: SNOWFLAKE_DEPLOYMENT_URL
