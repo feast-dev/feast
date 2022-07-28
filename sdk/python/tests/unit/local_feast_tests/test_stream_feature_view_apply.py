@@ -1,4 +1,11 @@
-from datetime import timedelta
+import os
+import tempfile
+from datetime import datetime, timedelta
+
+from feast.driver_test_data import (
+    create_driver_hourly_stats_df,
+    create_global_daily_stats_df,
+)
 
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat
@@ -16,8 +23,25 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
     Test apply of StreamFeatureView.
     """
     runner = CliRunner()
+    with tempfile.TemporaryDirectory() as data_dir:
+        # Generate test data.
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+
+        driver_entities = [1001, 1002, 1003, 1004, 1005]
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
+
+        global_df = create_global_daily_stats_df(start_date, end_date)
+        global_stats_path = os.path.join(data_dir, "global_stats.parquet")
+        global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
+
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_2.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
@@ -82,8 +106,25 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
     Test apply of StreamFeatureView udfs are serialized correctly and usable.
     """
     runner = CliRunner()
+    with tempfile.TemporaryDirectory() as data_dir:
+        # Generate test data.
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+
+        driver_entities = [1001, 1002, 1003, 1004, 1005]
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
+
+        global_df = create_global_daily_stats_df(start_date, end_date)
+        global_stats_path = os.path.join(data_dir, "global_stats.parquet")
+        global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
+
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_2.py")
+            .replace("%PARQUET_PATH%", driver_stats_path)
+            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+            "file",
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
