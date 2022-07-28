@@ -10,7 +10,8 @@ import pytz
 from pydantic import Field
 from pydantic.schema import Literal
 
-from feast import Entity, FeatureView
+from feast.entity import Entity
+from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake_utils import get_snowflake_conn, write_pandas_binary
