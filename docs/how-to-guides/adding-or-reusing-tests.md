@@ -151,8 +151,6 @@ Tests in Feast are split into integration and unit tests.
 
 Docstring tests are primarily smoke tests to make sure imports and setup functions can be executed without errors.
 
-### Debugging Test Failures
-
 ## Understanding the test suite with an example test
 
 ### Example test
@@ -249,10 +247,12 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 - The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories and the `conftest.py` file. This by default pulls in a standard dataset with driver and customer entities(that we have pre-defined), certain feature views, and feature values.
     - The `environment` fixture sets up a feature store, parametrized by the provider and the online/offline store. It allows the test to query against that feature store without needing to worry about the underlying implementation or any setup that may be involved in creating instances of these datastores.
     - Each fixture creates a different integration test with its own `IntegrationTestRepoConfig` which is used by pytest to generate a unique test testing one of the different environments that require testing.
+
 - Feast tests also use a variety of markers:
     - The `pytest.mark.integration` marker is used to designate integration tests which will cause the test to be run when you call `make test-python-integration`.
     - The `@pytest.mark.universal_offline_stores` marker will parametrize the test on all of the universal offline stores including file, redshift, bigquery and snowflake.
     - The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name(fully qualified path) or just the feature name itself.
+
 
 ## Writing a new test or reusing existing tests
 
