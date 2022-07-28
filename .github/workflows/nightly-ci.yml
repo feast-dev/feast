@@ -25,7 +25,7 @@ jobs:
         run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
 
   integration-test-python:
-    needs: check_date
+    needs: [check_date]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    steps:
+     steps:
       - uses: actions/checkout@v2
         with:
           # pull_request_target runs the workflow in the context of the base repo
