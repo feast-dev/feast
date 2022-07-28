@@ -1,22 +1,10 @@
 import tempfile
-<<<<<<< HEAD
-=======
-import uuid
->>>>>>> 2b22e7ea9 (address review)
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
-
-<<<<<<< HEAD
-<<<<<<< HEAD
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
-=======
-import pytest
-from assertpy import assertpy
-
-from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.e2e_test_utils import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,

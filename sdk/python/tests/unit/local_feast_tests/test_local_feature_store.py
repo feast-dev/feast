@@ -13,11 +13,7 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Int64, String
-<<<<<<< HEAD
 from tests.utils.data_source_test_creator import prep_file_source
-=======
-from tests.utils.data_source_utils import prep_file_source
->>>>>>> 2b22e7ea9 (address review)
 
 
 @pytest.mark.parametrize(

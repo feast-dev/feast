@@ -26,13 +26,8 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-<<<<<<< HEAD
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.test_log_creator import prepare_logs
-=======
-from tests.utils.cli_utils import CliRunner
-from tests.utils.feature_test_utils import prepare_logs
->>>>>>> d02455b88 (Verify tests)
 
 _features = [
     "customer_profile:current_balance",

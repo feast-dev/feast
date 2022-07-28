@@ -3,16 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from textwrap import dedent
 
-<<<<<<< HEAD
-<<<<<<< HEAD:sdk/python/tests/unit/local_feast_tests/test_init.py
 from tests.utils.cli_repo_creator import CliRunner
-=======
-import pytest
-
-=======
->>>>>>> 2b22e7ea9 (address review)
-from tests.utils.cli_utils import CliRunner
->>>>>>> d02455b88 (Verify tests):sdk/python/tests/integration/scaffolding/test_init.py
 
 
 def test_repo_init() -> None:

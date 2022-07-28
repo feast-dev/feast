@@ -4,29 +4,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-<<<<<<< HEAD
-=======
-import pytest
->>>>>>> 2b22e7ea9 (address review)
 
 from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
 from feast.feature_store import FeatureStore
-<<<<<<<< HEAD:sdk/python/tests/unit/local_feast_tests/test_e2e_local.py
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.feature_records import validate_online_features
-========
-from tests.utils.cli_utils import CliRunner, get_example_repo
-from tests.utils.feature_store_test_utils import validate_online_features
->>>>>>>> d02455b88 (Verify tests):sdk/python/tests/unit/infra/online_store/test_e2e_local.py
 
 
-<<<<<<< HEAD
-=======
-@pytest.mark.integration
->>>>>>> 2b22e7ea9 (address review)
 def test_e2e_local() -> None:
     """
     Tests the end-to-end workflow of apply, materialize, and online retrieval.
