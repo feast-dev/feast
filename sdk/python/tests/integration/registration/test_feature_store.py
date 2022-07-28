@@ -14,6 +14,7 @@
 import os
 import time
 from datetime import timedelta
+from tempfile import mkstemp
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
@@ -26,6 +27,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
 from tests.utils.data_source_utils import (
@@ -216,6 +218,20 @@ def test_apply_feature_view_integration(test_feature_store):
     assert len(feature_views) == 0
 
     test_feature_store.teardown()
+
+
+@pytest.fixture
+def feature_store_with_local_registry():
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+    return FeatureStore(
+        config=RepoConfig(
+            registry=registry_path,
+            project="default",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=online_store_path),
+        )
+    )
 
 
 @pytest.fixture
