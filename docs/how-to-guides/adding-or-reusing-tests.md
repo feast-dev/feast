@@ -79,18 +79,87 @@ $ tree
 
 ## Structure of the test suite
 
-Tests in Feast are primarily split into integration and unit tests.
+Tests in Feast are split into integration and unit tests.
 
-### Integration Tests
+
+### Is it an integration or unit test?
+
+- In an integration test, multiple modules of Feast are tested together. Integration tests also include testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
+    - Generally if the test requires the initialization of a feature store or an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
+- Unit tests, on the other hand, test individual classes or functions for class level behavior. Unit tests should not require pytest to spin up external services and should not need to access classes in other modules of Feast.
+
+### Main Types of Tests
+
+## Integration tests
+
+- E2E tests
+    - E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
+    - The various codepaths include:
+        - local file offline storage
+            - `test_e2e_local.py`
+            - `test_universal_e2e.py`
+        - go feature server
+            - `test_go_feature_server.py`
+        - python http server
+            - `test_python_feature_server.py`
+        - usage tracking
+            - `test_usage_e2e.py`
+        - data quality monitoring feature validation
+            - `test_validation.py`
+- Offline and Online Store Tests
+    - push API tests
+        - `test_push_features_to_offline_store.py`
+        - `test_push_features_to_online_store.py`
+        - `test_offline_write.py`
+    - historical retrieval tests
+        -  `test_universal_historical_retrieval.py`
+    - online retrieval tests
+        - `test_universal_online.py`
+    - data quality monitoring feature logging tests
+        - `test_feature_logging.py`
+    - online store tests
+        - `test_universal_online.py`
+    - feature service tests
+        - `test_feature_service_read.py`
+- Registration Tests
+    - The registration folder contains all of the cli/terminal tests. This includes:
+        - CLI Apply and Materialize tests
+        - Data type inference tests
+        - Registry tests
+- Miscellaneous Tests
+    - Feast initialization smoke tests
+        - `test_init.py`
+        - `test_partial_apply.py`
+    - AWS Lambda Materialization Tests
+        - `test_lambda.py`
 
 ### Unit Tests
 
+- Registry Diff Tests
+    - These are tests for the infrastructure and registry diff functionality that Feast uses to determine if changes to the registry or infrastructure is needed.
+- Infrastructure Unit Tests
+    - DynamoDB mock Tests
+    - Repository configuration tests.
+    - Schema inference unit tests
+    - Key serialization tests
+    - Basic provider unit tests
+- Feature Store Tests
+    - Data source unit tests
+    - Feature service unit tests
+    - Feature service, feature view, and feature validation tests
+    - Protobuf/json tests for Feast ValueTypes
+    - Serialization tests
+        - Type mapping
+        - Feast types
+        - Serialization tests due to this [issue](https://github.com/feast-dev/feast/issues/2345)
+    - Feast usage tracking unit tests
 ### DocTests
 
-Docstring tests are primarily smoke test to make sure imports and setup functions can be executed without errors.
+Docstring tests are primarily smoke tests to make sure imports and setup functions can be executed without errors.
 
 ### Debugging Test Failures
 
+1.
 ## Understanding the test suite with an example test
 
 ### What is the universal test suite?
@@ -199,12 +268,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     - The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name(fully qualified path) or just the feature name itself.
 
 ## Writing a new test or reusing existing tests
-
-### Is it an integration or unit test?
-
-- In integration tests, multiple modules of Feast are tested together. This also includes testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
-    - Generally if the test requires the initialization of a feature store or an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
-- Unit tests, on the other hand, test individual classes or functions for class level behavior. Unit tests should not require pytest to spin up external services and should not need to access classes in other modules of Feast.
 
 ### To add a new test to an existing test file
 
