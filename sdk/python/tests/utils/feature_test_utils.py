@@ -16,7 +16,9 @@ from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_I
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 
 
-def get_latest_rows(df: pd.DataFrame, join_key: str, entity_values: List[str]) -> pd.DataFrame:
+def get_latest_rows(
+    df: pd.DataFrame, join_key: str, entity_values: List[str]
+) -> pd.DataFrame:
     """
     Return latest rows in a dataframe based on join key and entity values.
 
