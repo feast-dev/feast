@@ -37,8 +37,12 @@ from tests.utils.http_server import check_port_open, free_port
 from tests.utils.test_log_creator import generate_expected_logs, get_latest_rows
 =======
 from tests.utils.feature_test_utils import generate_expected_logs, get_latest_rows
+<<<<<<< HEAD
 from tests.utils.http_utils import check_port_open, free_port
 >>>>>>> d02455b88 (Verify tests)
+=======
+from tests.utils.http_server_test_utils import check_port_open, free_port
+>>>>>>> b22e148f5 (Fix)
 
 
 @pytest.mark.integration
