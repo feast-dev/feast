@@ -5,7 +5,7 @@ from textwrap import dedent
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
-from tests.utils.e2e_test_utils import (
+from tests.utils.e2e_test_validation_functions import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,
 )
@@ -33,12 +33,6 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             assertpy.assert_that(result.returncode).is_equal_to(0)
         finally:
             runner.run(["teardown"], cwd=repo_path)
->>>>>>> 2b22e7ea9 (address review)
-=======
-from assertpy import assertpy
-
-from tests.utils.cli_utils import CliRunner
->>>>>>> 1bd124019 (Fix)
 
 
 def test_3rd_party_providers() -> None:
