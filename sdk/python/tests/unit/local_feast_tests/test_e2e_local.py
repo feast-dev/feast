@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from feast.driver_test_data import (
     create_driver_hourly_stats_df,
