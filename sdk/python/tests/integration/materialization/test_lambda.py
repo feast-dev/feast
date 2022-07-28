@@ -17,7 +17,9 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
-from tests.utils.e2e_test_validation_functions import validate_offline_online_store_consistency
+from tests.utils.e2e_test_validation_functions import (
+    validate_offline_online_store_consistency,
+)
 
 
 @pytest.mark.integration
