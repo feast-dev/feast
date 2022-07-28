@@ -5,7 +5,6 @@ from pathlib import Path
 from tests.utils.cli_repo_creator import CliRunner
 
 
-@pytest.mark.integration
 def test_cli_chdir() -> None:
     """
     This test simply makes sure that you can run 'feast --chdir COMMAND'
