@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 
+from feast.feature_service import FeatureService
 from feast import BigQuerySource, Entity, FeatureView, Field
 from feast.types import Float32, String
 from tests.integration.feature_repos.universal.entities import driver
@@ -71,3 +72,28 @@ def test_partial() -> None:
 
         basic_rw_test(store, view_name="driver_locations")
         basic_rw_test(store, view_name="driver_locations_100")
+
+
+@pytest.mark.integration
+def test_read_pre_applied() -> None:
+    """
+    Read feature values from the FeatureStore using a FeatureService.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
+    ) as store:
+
+        assert len(store.list_feature_services()) == 1
+        fs = store.get_feature_service("driver_locations_service")
+        assert len(fs.tags) == 1
+        assert fs.tags["release"] == "production"
+
+        fv = store.get_feature_view("driver_locations")
+
+        fs = FeatureService(name="new_feature_service", features=[fv[["lon"]]])
+
+        store.apply([fs])
+
+        assert len(store.list_feature_services()) == 2
+        store.get_feature_service("new_feature_service")

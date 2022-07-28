@@ -17,7 +17,7 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
@@ -83,7 +83,7 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
