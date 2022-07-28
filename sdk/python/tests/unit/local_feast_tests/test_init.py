@@ -3,12 +3,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from textwrap import dedent
 
-import pytest
-
 from tests.utils.cli_utils import CliRunner
 
 
-@pytest.mark.integration
 def test_repo_init() -> None:
     """
     This test simply makes sure that you can run `feast apply && feast materialize` on
@@ -31,7 +28,6 @@ def test_repo_init() -> None:
         assert result.returncode == 0
 
 
-@pytest.mark.integration
 def test_repo_init_with_underscore_in_project_name() -> None:
     """
     Test `feast init` with underscore in the project name

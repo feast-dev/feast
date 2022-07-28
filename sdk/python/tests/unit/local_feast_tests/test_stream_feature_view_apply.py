@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-import pytest
-
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
@@ -13,7 +11,6 @@ from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.data_source_utils import prep_file_source
 
 
-@pytest.mark.integration
 def test_apply_stream_feature_view(simple_dataset_1) -> None:
     """
     Test apply of StreamFeatureView.
@@ -80,7 +77,6 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
         assert features["dummy_field"] == [None]
 
 
-@pytest.mark.integration
 def test_stream_feature_view_udf(simple_dataset_1) -> None:
     """
     Test apply of StreamFeatureView udfs are serialized correctly and usable.

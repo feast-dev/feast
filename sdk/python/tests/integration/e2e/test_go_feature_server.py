@@ -9,10 +9,10 @@ import pytest
 import pytz
 import requests
 
-from feast import FeatureService, ValueType
 from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 from feast.feast_object import FeastObject
 from feast.feature_logging import LoggingConfig
+from feast.feature_service import FeatureService
 from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -22,6 +22,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.type_map import python_values_to_proto_values
+from feast.value_type import ValueType
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,

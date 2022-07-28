@@ -1,19 +1,12 @@
 import pandas as pd
 import pytest
 
-from feast import (
-    BigQuerySource,
-    Entity,
-    Feature,
-    FeatureService,
-    FileSource,
-    RedshiftSource,
-    RepoConfig,
-    SnowflakeSource,
-    ValueType,
-)
+from feast import BigQuerySource, FileSource, RedshiftSource, SnowflakeSource
 from feast.data_source import RequestSource
+from feast.entity import Entity
 from feast.errors import DataSourceNoNameException, SpecifiedFeaturesNotPresentError
+from feast.feature import Feature
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.inference import update_feature_views_with_inferred_features_and_entities
@@ -21,7 +14,8 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
     SparkSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, Float64, Int64, String, UnixTimestamp
+from feast.repo_config import RepoConfig
+from feast.types import Float32, Float64, Int64, String, UnixTimestamp, ValueType
 from tests.utils.data_source_utils import prep_file_source
 
 

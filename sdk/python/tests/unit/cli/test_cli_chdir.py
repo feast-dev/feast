@@ -2,12 +2,9 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pytest
-
 from tests.utils.cli_utils import CliRunner
 
 
-@pytest.mark.integration
 def test_cli_chdir() -> None:
     """
     This test simply makes sure that you can run 'feast --chdir COMMAND'
