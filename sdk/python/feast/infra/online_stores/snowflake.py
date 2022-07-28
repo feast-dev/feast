@@ -166,7 +166,7 @@ class SnowflakeOnlineStore(OnlineStore):
             )
 
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key)
+            entity_key_bin = serialize_entity_key(entity_key, entity_key_serialization_version=2)
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():
