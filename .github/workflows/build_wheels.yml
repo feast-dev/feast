@@ -66,7 +66,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.7.0
         env:
           CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* cp37-* *-musllinux_x86_64 cp310-macosx_x86_64"
+          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
@@ -150,7 +150,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest,  macos-10.15 ]
-        python-version: [ "3.8", "3.9", "3.10"]
+        python-version: [ "3.7", "3.8", "3.9", "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
