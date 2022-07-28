@@ -14,103 +14,142 @@ Let's inspect the test setup in `sdk/python/tests/integration`:
 
 ```bash
 $ tree
-
 .
 ├── e2e
-│   └── test_universal_e2e.py
+│   ├── test_e2e_local.py
+│   ├── test_go_feature_server.py
+│   ├── test_python_feature_server.py
+│   ├── test_universal_e2e.py
+│   ├── test_usage_e2e.py
+│   └── test_validation.py
 ├── feature_repos
+│   ├── integration_test_repo_config.py
 │   ├── repo_configuration.py
 │   └── universal
+│       ├── catalog
 │       ├── data_source_creator.py
 │       ├── data_sources
+│       │   ├── __init__.py
 │       │   ├── bigquery.py
 │       │   ├── file.py
-│       │   └── redshift.py
+│       │   ├── redshift.py
+│       │   └── snowflake.py
 │       ├── entities.py
-│       └── feature_views.py
+│       ├── feature_views.py
+│       ├── online_store
+│       │   ├── __init__.py
+│       │   ├── datastore.py
+│       │   ├── dynamodb.py
+│       │   ├── hbase.py
+│       │   └── redis.py
+│       └── online_store_creator.py
+├── materialization
+│   └── test_lambda.py
 ├── offline_store
+│   ├── test_feature_logging.py
+│   ├── test_offline_write.py
+│   ├── test_push_features_to_offline_store.py
 │   ├── test_s3_custom_endpoint.py
 │   └── test_universal_historical_retrieval.py
 ├── online_store
-│   ├── test_e2e_local.py
 │   ├── test_feature_service_read.py
 │   ├── test_online_retrieval.py
+│   ├── test_push_features_to_online_store.py
 │   └── test_universal_online.py
 ├── registration
 │   ├── test_cli.py
-│   ├── test_cli_apply_duplicated_featureview_names.py
+│   ├── test_cli_apply_duplicates.py
 │   ├── test_cli_chdir.py
 │   ├── test_feature_service_apply.py
 │   ├── test_feature_store.py
 │   ├── test_inference.py
 │   ├── test_registry.py
+│   ├── test_sql_registry.py
+│   ├── test_stream_feature_view_apply.py
 │   ├── test_universal_odfv_feature_inference.py
 │   └── test_universal_types.py
 └── scaffolding
     ├── test_init.py
-    ├── test_partial_apply.py
-    ├── test_repo_config.py
-    └── test_repo_operations.py
+    └── test_partial_apply.py
 
-8 directories, 27 files
 ```
 
-`feature_repos` has setup files for most tests in the test suite and pytest fixtures for other tests. These fixtures parametrize on different offline stores, online stores, etc. and thus abstract away store specific implementations so tests don't need to rewrite e.g. uploading dataframes to a specific store for setup.
+- `feature_repos` has setup files for most tests in the test suite.
+- `conftest.py` and some of the individual test files contain fixtures which can be used to  on different offline stores, online stores, etc. and thus abstract away store specific implementations so we don't need to rewrite the same test implementation for different stores.
 
-## Understanding an example test
+## Structure of the test suite
+
+Tests in Feast are primarily split into integration and unit tests.
+
+### Integration Tests
+
+### Unit Tests
+
+### DocTests
+
+Docstring tests are primarily smoke test to make sure imports and setup functions can be executed without errors.
+
+### Debugging Test Failures
+
+## Understanding the test suite with an example test
+
+### What is the universal test suite?
+
+The universal test suite verifies that crucial Feast functions(e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
+
+We use pytest [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html) to accomplish this without writing excess code.
+
+### Example test
 
 Let's look at a sample test using the universal repo:
 
 {% tabs %}
-{% tab title="Python" %}
+{% tab code="sdk/python/tests/integration/offline_store/test_universal_historical_retrieval.py" %}
 ```python
 @pytest.mark.integration
-@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
     (entities, datasets, data_sources) = universal_data_sources
+
     feature_views = construct_universal_feature_views(data_sources)
 
-    customer_df, driver_df, orders_df, global_df, entity_df = (
-        datasets["customer"],
-        datasets["driver"],
-        datasets["orders"],
-        datasets["global"],
-        datasets["entity"],
-    )
-    # ... more test code
-
-    customer_fv, driver_fv, driver_odfv, order_fv, global_fv = (
-        feature_views["customer"],
-        feature_views["driver"],
-        feature_views["driver_odfv"],
-        feature_views["order"],
-        feature_views["global"],
-    )
+    entity_df_with_request_data = datasets.entity_df.copy(deep=True)
+    entity_df_with_request_data["val_to_add"] = [
+        i for i in range(len(entity_df_with_request_data))
+    ]
+    entity_df_with_request_data["driver_age"] = [
+        i + 100 for i in range(len(entity_df_with_request_data))
+    ]
 
     feature_service = FeatureService(
-        "convrate_plus100",
+        name="convrate_plus100",
+        features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
+    )
+    feature_service_entity_mapping = FeatureService(
+        name="entity_mapping",
         features=[
-            feature_views["driver"][["conv_rate"]],
-            feature_views["driver_odfv"]
+            feature_views.location.with_name("origin").with_join_key_map(
+                {"location_id": "origin_id"}
+            ),
+            feature_views.location.with_name("destination").with_join_key_map(
+                {"location_id": "destination_id"}
+            ),
         ],
     )
 
-    feast_objects = []
-    feast_objects.extend(
+    store.apply(
         [
-            customer_fv,
-            driver_fv,
-            driver_odfv,
-            order_fv,
-            global_fv,
             driver(),
             customer(),
+            location(),
             feature_service,
+            feature_service_entity_mapping,
+            *feature_views.values(),
         ]
     )
-    store.apply(feast_objects)
     # ... more test code
 
     job_from_df = store.get_historical_features(
@@ -122,32 +161,56 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
             "conv_rate_plus_100:conv_rate_plus_100",
+            "conv_rate_plus_100:conv_rate_plus_100_rounded",
             "conv_rate_plus_100:conv_rate_plus_val_to_add",
             "order:order_is_success",
             "global_stats:num_rides",
             "global_stats:avg_ride_length",
+            "field_mapping:feature_name",
         ],
         full_feature_names=full_feature_names,
     )
+
+    if job_from_df.supports_remote_storage_export():
+        files = job_from_df.to_remote_storage()
+        print(files)
+        assert len(files) > 0  # This test should be way more detailed
+
+    start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
     # ... more test code
 
-    assert_frame_equal(
-        expected_df, actual_df_from_df_entities, check_dtype=False,
+    validate_dataframes(
+        expected_df,
+        table_from_df_entities,
+        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
     )
     # ... more test code
 ```
 {% endtab %}
 {% endtabs %}
 
-The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories. This by default pulls in a standard dataset with driver and customer entities, certain feature views, and feature values. By including the environment as a parameter, the test automatically parametrizes across other offline / online store combinations.
+- The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories and the `conftest.py` file. This by default pulls in a standard dataset with driver and customer entities(that we have pre-defined), certain feature views, and feature values.
+    - The `environment` fixture sets up a feature store, parametrized by the provider and the online/offline store. It allows the test to query against that feature store without needing to worry about the underlying implementation or any setup that may be involved in creating instances of these datastores.
+    - Each fixture creates a different integration test with its own `IntegrationTestRepoConfig` which is used by pytest to generate a unique test testing one of the different environments that require testing.
+- Feast tests also use a variety of markers:
+    - The `pytest.mark.integration` marker is used to designate integration tests which will cause the test to be run when you call `make test-python-integration`.
+    - The `@pytest.mark.universal_offline_stores` marker will parametrize the test on all of the universal offline stores including file, redshift, bigquery and snowflake.
+    - The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name(fully qualified path) or just the feature name itself.
 
 ## Writing a new test or reusing existing tests
 
+### Is it an integration or unit test?
+
+- In integration tests, multiple modules of Feast are tested together. This also includes testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
+    - Generally if the test requires the initialization of a feature store or an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
+- Unit tests, on the other hand, test individual classes or functions for class level behavior. Unit tests should not require pytest to spin up external services and should not need to access classes in other modules of Feast.
+
 ### To add a new test to an existing test file
 
-* Use the same function signatures as an existing test (e.g. use `environment` as an argument) to include the relevant test fixtures.
-* If possible, expand an individual test instead of writing a new test, due to the cost of standing up offline / online stores.
+* Use the same function signatures as an existing test (e.g. use `environment` and `universal_data_sources` as an argument) to include the relevant test fixtures.
+* If possible, expand an individual test instead of writing a new test, due to the cost of starting up offline / online stores.
+* Use the `universal_offline_stores` and `universal_online_store` markers to parametrize the test against different offline store and online store combinations. You can also designate specific online and offline stores to test by using the `only` parameter on the marker.
 
 ### To test a new offline / online store from a plugin repo
 
@@ -171,7 +234,7 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 ### To include a new online store
 
 * In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
-* In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for offline stores you want to test.
+* In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for online stores you want to test.
 * Run the full test suite with `make test-python-integration`
 
 ### To use custom data in a new test
@@ -209,3 +272,4 @@ Starting 6006
 * You should be able to run the integration tests and have the redis cluster tests pass.
 * If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
 * To stop the cluster, run `./create-cluster stop` and then `./create-cluster clean`.
+
