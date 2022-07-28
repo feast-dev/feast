@@ -41,7 +41,7 @@ def test_e2e_local() -> None:
         global_stats_path = os.path.join(data_dir, "global_stats.parquet")
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
-        with runner.local_repo(
+    with runner.local_repo(
             get_example_repo("example_feature_repo_2.py")
             .replace("%PARQUET_PATH%", driver_stats_path)
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
