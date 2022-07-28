@@ -41,10 +41,10 @@ def test_e2e_local() -> None:
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
     with runner.local_repo(
-            get_example_repo("example_feature_repo_2.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
-            "file",
+        get_example_repo("example_feature_repo_2.py")
+        .replace("%PARQUET_PATH%", driver_stats_path)
+        .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+        "file",
     ) as store:
         _test_materialize_and_online_retrieval(
             runner, store, start_date, end_date, driver_df
