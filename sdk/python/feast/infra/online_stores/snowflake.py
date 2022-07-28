@@ -90,7 +90,8 @@ class SnowflakeOnlineStore(OnlineStore):
 
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key
+                    entity_key,
+                    entity_key_serialization_version=2
                 ) + bytes(feature_name, encoding="utf-8")
                 df.loc[j, "entity_key"] = serialize_entity_key(entity_key, entity_key_serialization_version=2)
                 df.loc[j, "feature_name"] = feature_name
