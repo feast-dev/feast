@@ -24,7 +24,6 @@ driver_stats_source = SnowflakeSource(
     # The Snowflake table where features can be found
     database=yaml.safe_load(open("feature_store.yaml"))["offline_store"]["database"],
     table=f"{project_name}_feast_driver_hourly_stats",
-    warehouse="SNOWFLAKE_WAREHOUSE",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     timestamp_field="event_timestamp",

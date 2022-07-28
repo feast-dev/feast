@@ -13,7 +13,6 @@ def bootstrap():
     from feast.driver_test_data import create_driver_hourly_stats_df
 
     repo_path = pathlib.Path(__file__).parent.absolute()
-    config_file = repo_path / "feature_store.yaml"
 
     project_name = str(repo_path)[str(repo_path).rfind("/") + 1 :]
 
@@ -23,7 +22,6 @@ def bootstrap():
     driver_entities = [1001, 1002, 1003, 1004, 1005]
     driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
     data_path = repo_path / "data"
     data_path.mkdir(exist_ok=True)
     driver_stats_path = data_path / "driver_stats.parquet"
@@ -37,6 +35,17 @@ def bootstrap():
     snowflake_role = click.prompt("Snowflake Role Name (Case Sensitive):")
     snowflake_warehouse = click.prompt("Snowflake Warehouse Name (Case Sensitive):")
     snowflake_database = click.prompt("Snowflake Database Name (Case Sensitive):")
+
+    config_file = repo_path / "feature_store.yaml"
+    for i in range(2):
+        replace_str_in_file(
+            config_file, "SNOWFLAKE_DEPLOYMENT_URL", snowflake_deployment_url
+        )
+        replace_str_in_file(config_file, "SNOWFLAKE_USER", snowflake_user)
+        replace_str_in_file(config_file, "SNOWFLAKE_PASSWORD", snowflake_password)
+        replace_str_in_file(config_file, "SNOWFLAKE_ROLE", snowflake_role)
+        replace_str_in_file(config_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
+        replace_str_in_file(config_file, "SNOWFLAKE_DATABASE", snowflake_database)
 
     if click.confirm(
         f'Should I upload example data to Snowflake (overwriting "{project_name}_feast_driver_hourly_stats" table)?',
@@ -65,20 +74,6 @@ def bootstrap():
             auto_create_table=True,
         )
         conn.close()
-
-    repo_path = pathlib.Path(__file__).parent.absolute()
-    config_file = repo_path / "feature_store.yaml"
-    driver_file = repo_path / "driver_repo.py"
-    replace_str_in_file(
-        config_file, "SNOWFLAKE_DEPLOYMENT_URL", snowflake_deployment_url
-    )
-    replace_str_in_file(config_file, "SNOWFLAKE_USER", snowflake_user)
-    replace_str_in_file(config_file, "SNOWFLAKE_PASSWORD", snowflake_password)
-    replace_str_in_file(config_file, "SNOWFLAKE_ROLE", snowflake_role)
-    replace_str_in_file(config_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
-    replace_str_in_file(config_file, "SNOWFLAKE_DATABASE", snowflake_database)
-
-    replace_str_in_file(driver_file, "SNOWFLAKE_WAREHOUSE", snowflake_warehouse)
 
 
 def replace_str_in_file(file_path, match_str, sub_str):
