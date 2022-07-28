@@ -142,9 +142,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 
 The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories. This by default pulls in a standard dataset with driver and customer entities, certain feature views, and feature values. By including the environment as a parameter, the test automatically parametrizes across other offline / online store combinations.
 
-## Debugging Test Failures
-
-
 ## Writing a new test or reusing existing tests
 
 ### To add a new test to an existing test file
