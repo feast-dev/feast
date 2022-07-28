@@ -88,12 +88,19 @@ class SnowflakeOnlineStore(OnlineStore):
             if created_ts is not None:
                 created_ts = _to_naive_utc(created_ts)
 
+            entity_key_serialization_version = (
+                config.entity_key_serialization_version
+                if config.entity_key_serialization_version
+                else 2
+            )
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key, entity_key_serialization_version=2
+                    entity_key,
+                    entity_key_serialization_version=entity_key_serialization_version,
                 ) + bytes(feature_name, encoding="utf-8")
                 df.loc[j, "entity_key"] = serialize_entity_key(
-                    entity_key, entity_key_serialization_version=2
+                    entity_key,
+                    entity_key_serialization_version=entity_key_serialization_version,
                 )
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
@@ -149,6 +156,20 @@ class SnowflakeOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
+        entity_fetch_str = ",".join(
+            [
+                (
+                    "TO_BINARY("
+                    + hexlify(
+                        serialize_entity_key(combo[0])
+                        + bytes(combo[1], encoding="utf-8")
+                    ).__str__()[1:]
+                    + ")"
+                )
+                for combo in itertools.product(entity_keys, requested_features)
+            ]
+        )
+
         with get_snowflake_conn(config.online_store) as conn:
 
             df = (
@@ -160,15 +181,21 @@ class SnowflakeOnlineStore(OnlineStore):
                 FROM
                     "{config.online_store.database}"."{config.online_store.schema_}"."[online-transient] {config.project}_{table.name}"
                 WHERE
-                    "entity_feature_key" IN ({','.join([('TO_BINARY('+hexlify(serialize_entity_key(combo[0])+bytes(combo[1], encoding='utf-8')).__str__()[1:]+")") for combo in itertools.product(entity_keys,requested_features)])})
+                    "entity_feature_key" IN ({entity_fetch_str})
             """,
                 )
                 .fetch_pandas_all()
             )
 
+        entity_key_serialization_version = (
+            config.entity_key_serialization_version
+            if config.entity_key_serialization_version
+            else 2
+        )
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
-                entity_key, entity_key_serialization_version=2
+                entity_key,
+                entity_key_serialization_version=entity_key_serialization_version,
             )
             res = {}
             res_ts = None
