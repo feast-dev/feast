@@ -2,7 +2,10 @@ from datetime import timedelta
 
 import pytest
 
-from feast import Entity, Feature, FeatureView, ValueType
+from feast.entity import Entity
+from feast.feature import Feature
+from feast.feature_view import FeatureView
+from feast.types import ValueType
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,

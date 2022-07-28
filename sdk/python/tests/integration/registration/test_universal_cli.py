@@ -6,7 +6,7 @@ from textwrap import dedent
 import pytest
 from assertpy import assertpy
 
-from feast import FeatureStore
+from feast.feature_store import FeatureStore
 from tests.integration.feature_repos.repo_configuration import Environment
 from tests.utils.cli_utils import CliRunner, get_example_repo
 from tests.utils.e2e_test_utils import (
