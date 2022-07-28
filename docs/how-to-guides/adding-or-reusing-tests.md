@@ -258,6 +258,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     * The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name (fully qualified path) or just the feature name itself.
 
 
+## Debugging Test Failures
+
+
 ## Writing a new test or reusing existing tests
 
 ### To add a new test to an existing test file
