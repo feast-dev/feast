@@ -1,11 +1,50 @@
 import tempfile
+<<<<<<< HEAD
+=======
+import uuid
+>>>>>>> 2b22e7ea9 (address review)
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+<<<<<<< HEAD
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
+=======
+import pytest
+from assertpy import assertpy
+
+from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.e2e_test_utils import (
+    NULLABLE_ONLINE_STORE_CONFIGS,
+    make_feature_store_yaml,
+)
+
+
+@pytest.mark.parametrize("test_nullable_online_store", NULLABLE_ONLINE_STORE_CONFIGS)
+def test_nullable_online_store(test_nullable_online_store) -> None:
+    project = f"test_nullable_online_store{str(uuid.uuid4()).replace('-', '')[:8]}"
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+        try:
+            repo_path = Path(repo_dir_name)
+            feature_store_yaml = make_feature_store_yaml(
+                project, test_nullable_online_store, repo_path
+            )
+
+            repo_config = repo_path / "feature_store.yaml"
+
+            repo_config.write_text(dedent(feature_store_yaml))
+
+            repo_example = repo_path / "example.py"
+            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            result = runner.run(["apply"], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+        finally:
+            runner.run(["teardown"], cwd=repo_path)
+>>>>>>> 2b22e7ea9 (address review)
 
 
 def test_3rd_party_providers() -> None:

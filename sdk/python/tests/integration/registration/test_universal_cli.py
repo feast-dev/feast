@@ -6,6 +6,7 @@ from textwrap import dedent
 import pytest
 from assertpy import assertpy
 
+<<<<<<< HEAD
 from feast.feature_store import FeatureStore
 from tests.integration.feature_repos.repo_configuration import Environment
 from tests.utils.basic_read_write_test import basic_rw_test
@@ -14,6 +15,13 @@ from tests.utils.e2e_test_validation import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,
 )
+=======
+from feast import FeatureStore
+from tests.integration.feature_repos.repo_configuration import Environment
+from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.e2e_test_utils import make_feature_store_yaml
+from tests.utils.online_read_write_test_utils import basic_rw_test
+>>>>>>> 2b22e7ea9 (address review)
 
 
 @pytest.mark.integration
@@ -139,6 +147,7 @@ def test_odfv_apply(environment) -> None:
             assertpy.assert_that(result.returncode).is_equal_to(0)
         finally:
             runner.run(["teardown"], cwd=repo_path)
+<<<<<<< HEAD
 
 
 @pytest.mark.integration
@@ -164,3 +173,5 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             assertpy.assert_that(result.returncode).is_equal_to(0)
         finally:
             runner.run(["teardown"], cwd=repo_path)
+=======
+>>>>>>> 2b22e7ea9 (address review)
