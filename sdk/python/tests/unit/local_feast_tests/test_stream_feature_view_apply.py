@@ -2,14 +2,13 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 
+from feast.aggregation import Aggregation
+from feast.data_format import AvroFormat
+from feast.data_source import KafkaSource
 from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
-
-from feast.aggregation import Aggregation
-from feast.data_format import AvroFormat
-from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.field import Field
 from feast.stream_feature_view import stream_feature_view
@@ -38,10 +37,10 @@ def test_apply_stream_feature_view(simple_dataset_1) -> None:
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
     with runner.local_repo(
-            get_example_repo("example_feature_repo_2.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
-            "file",
+        get_example_repo("example_feature_repo_2.py")
+        .replace("%PARQUET_PATH%", driver_stats_path)
+        .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+        "file",
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
@@ -121,10 +120,10 @@ def test_stream_feature_view_udf(simple_dataset_1) -> None:
         global_df.to_parquet(path=global_stats_path, allow_truncated_timestamps=True)
 
     with runner.local_repo(
-            get_example_repo("example_feature_repo_2.py")
-            .replace("%PARQUET_PATH%", driver_stats_path)
-            .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
-            "file",
+        get_example_repo("example_feature_repo_2.py")
+        .replace("%PARQUET_PATH%", driver_stats_path)
+        .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
+        "file",
     ) as fs, prep_file_source(
         df=simple_dataset_1, timestamp_field="ts_1"
     ) as file_source:
