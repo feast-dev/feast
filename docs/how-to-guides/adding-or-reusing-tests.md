@@ -79,8 +79,13 @@ $ tree
 
 ## Structure of the test suite
 
-Tests in Feast are split into integration and unit tests.
+### What is the universal test suite?
 
+The universal test suite verifies that crucial Feast functions(e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
+
+We use pytest [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html) to accomplish this without writing excess code.
+
+Tests in Feast are split into integration and unit tests.
 
 ### Is it an integration or unit test?
 
@@ -95,8 +100,7 @@ Tests in Feast are split into integration and unit tests.
 - E2E tests
     - E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
     - The various codepaths include:
-        - local file offline storage
-            - `test_e2e_local.py`
+        - basic e2e tests for offline storages
             - `test_universal_e2e.py`
         - go feature server
             - `test_go_feature_server.py`
@@ -159,14 +163,7 @@ Docstring tests are primarily smoke tests to make sure imports and setup functio
 
 ### Debugging Test Failures
 
-1.
 ## Understanding the test suite with an example test
-
-### What is the universal test suite?
-
-The universal test suite verifies that crucial Feast functions(e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
-
-We use pytest [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html) to accomplish this without writing excess code.
 
 ### Example test
 
