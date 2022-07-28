@@ -43,10 +43,10 @@ def test_e2e_local() -> None:
             .replace("%PARQUET_PATH%", driver_stats_path)
             .replace("%PARQUET_PATH_GLOBAL%", global_stats_path),
             "file",
-        ) as store:
-            _test_materialize_and_online_retrieval(
-                runner, store, start_date, end_date, driver_df
-            )
+    ) as store:
+        _test_materialize_and_online_retrieval(
+            runner, store, start_date, end_date, driver_df
+        )
 
         with runner.local_repo(
             get_example_repo("example_feature_repo_version_0_19.py")
