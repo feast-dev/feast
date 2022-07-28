@@ -27,6 +27,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
 from tests.utils.data_source_test_creator import (
