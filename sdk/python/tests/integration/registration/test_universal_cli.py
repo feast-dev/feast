@@ -13,7 +13,6 @@ from tests.utils.e2e_test_utils import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,
 )
-from tests.utils.e2e_test_utils import make_feature_store_yaml
 from tests.utils.online_read_write_test_utils import basic_rw_test
 
 

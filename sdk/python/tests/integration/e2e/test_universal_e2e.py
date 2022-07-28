@@ -2,8 +2,8 @@ from datetime import timedelta
 
 import pytest
 
-from feast.feature_service import FeatureService
 from feast import BigQuerySource, Entity, FeatureView, Field
+from feast.feature_service import FeatureService
 from feast.types import Float32, String
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
