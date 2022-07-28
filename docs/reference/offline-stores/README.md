@@ -2,42 +2,58 @@
 
 Please see [Offline Store](../../getting-started/architecture-and-components/offline-store.md) for a conceptual explanation of offline stores.
 
-Here is a list of functionality supported by some or all offline stores:
+There are currently four core offline store implementations: `FileOfflineStore`, `BigQueryOfflineStore`, `SnowflakeOfflineStore`, and `RedshiftOfflineStore`.
+There are several additional implementations contributed by the Feast community: `PostgreSQLOfflineStore`, `SparkOfflineStore`, and `TrinoOfflineStore`.
+These community contributions are not guaranteed to be stable, and might not have the same functionality as the core implementations.
+Details for each specific offline store, such as how to configure it in a `feature_store.yaml`, can be found at the bottom of this page.
 
-* Point-in-time correct retrieval of historical features. Data scientists use this to get historical training data.
-* Retrieval of most recent feature values. [Providers](../../getting-started/architecture-and-components/provider.md) use this to materialize features into the online store.
-* Persisting a dataframe. ML engineers use this to persist data from streaming pipelines into an offline store.
+Here are the methods exposed by the `OfflineStore` interface, along with the core functionality supported by the method:
+* `get_historical_features`: point-in-time correct join to retrieve historical features
+* `pull_latest_from_table_or_query`: retrieve latest feature values for materialization into the online store
+* `pull_all_from_table_or_query`: retrieved a saved dataset
+* `offline_write_batch`: persist dataframes to the offline store, primarily for push sources
+* `write_logged_features`: persist logged features to the offline store, for feature logging
 
-Below is a matrix indicating which offline stores support what functionality.
+Below is a matrix indicating which offline stores support which methods.
 
-| | historical retrieval | retrieval of most recent features | persisting a dataframe |
-| ------------------- | --- | --- | ------ |
-| File                | yes | yes | yes |
-| BigQuery            | yes | yes | yes |
-| Snowflake           | yes | yes | yes |
-| Redshift            | yes | yes | yes |
-| Postgres (contrib)  | yes | yes | no  |
-| Spark (contrib)     | yes | yes | no  |
-| Trino (contrib)     | yes | yes | no  |
+| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
+| --------------------------------- | --- | --- | --- | --- | --- | --- | --- |
+| `get_historical_features`         | yes | yes | yes | yes | yes | yes | yes |
+| `pull_latest_from_table_or_query` | yes | yes | yes | yes | yes | yes | yes |
+| `pull_all_from_table_or_query`    | yes | yes | yes | yes | yes | yes | yes |
+| `offline_write_batch`             | yes | yes | yes | yes | no  | no  | no  |
+| `write_logged_features`           | yes | yes | yes | yes | no  | no  | no  |
 
-Retrieving features generates a `RetrievalJob` specific to an offline store, such as a `SnowflakeRetrievalJob`. Here is a list of functionality supported by some or all `RetrievalJob`s:
-* Persisting into the corresponding offline store. This is used for saving training datasets. See this [tutorial](../../tutorials/validating-historical-features.md) for more info.
-* Converting to a pandas dataframe. This is to allow the features to be consumed locally, e.g. for training a model in a notebook.
-* Converting to a pyarrow table. This is to allow the features to be consumed locally, e.g. for training a model in a notebook.
-* Exporting to remote storage (e.g. S3, GCS). This is to allow the features to be consumed in a distributed fashion, e.g. for distributed training or distributed materialization of features into the online store.
+The first three of these methods all return a `RetrievalJob` specific to an offline store, such as a `SnowflakeRetrievalJob`. Here is a list of functionality supported by `RetrievalJob`s:
+* local execution of Python-based on-demand transforms
+* remote execution of Python-based on-demand transforms
+* export to dataframe
+* export to arrow table
+* export to arrow batches (to handle large datasets in memory)
+* export to SQL
+* export to data lake (S3, GCS, etc.)
+* export to data warehouse
+* export as Spark dataframe
+* persist results in the offline store
+* preview the query plan before execution (`RetrievalJob`s are lazily executed)
+* read partitioned data
 
 Below is a matrix indicating which `RetrievalJob`s support what functionality.
 
-|   | write to offline store | convert to pandas | convert to pyarrow | export to remote storage |
-| ------------------- | --- | --- | --- | ------------ |
-| File                | yes | yes | yes | no           |
-| BigQuery            | yes | yes | yes | to GCS       |
-| Snowflake           | yes | yes | yes | to Snowflake |
-| Redshift            | yes | yes | yes | to S3        |
-| Postgres (contrib)  | no  | yes | yes | no           |
-| Spark (contrib)     | no  | yes | yes | no           |
-| Trino (contrib)     | no  | yes | yes | no           |
-
+| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
+| --------------------------------- | --- | --- | --- | --- | --- | --- | --- |
+| local execution of Python-based on-demand transforms         | yes | yes | yes | yes | yes | no  | yes |
+| remote execution of Python-based on-demand transforms        | no  | no  | no  | no  | no  | no  | no  |
+| export to dataframe                                          | yes | yes | yes | yes | yes | yes | yes |
+| export to arrow table                                        | yes | yes | yes | yes | yes | yes | yes |
+| export to arrow batches (to handle large datasets in memory) | no  | no  | no  | yes | no  | no  | no  |
+| export to SQL                                                | no  | yes | no  | yes | yes | no  | yes |
+| export to data lake (S3, GCS, etc.)                          | no  | no  | yes | no  | yes | no  | no  |
+| export to data warehouse                                     | no  | yes | yes | yes | yes | no  | no  |
+| export as Spark dataframe                                    | no  | no  | no  | no  | no  | yes | no  |
+| persist results in the offline store                         | yes | yes | yes | yes | yes | yes | no  |
+| preview the query plan before execution                      | yes | yes | yes | yes | yes | yes | yes |
+| read partitioned data                                        | yes | yes | yes | yes | yes | yes | yes |
 
 {% page-ref page="file.md" %}
 
