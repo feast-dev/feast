@@ -1,7 +1,8 @@
 # Offline store
 
-An offline store is a storage and compute system such as BigQuery or Snowflake.
-Offline stores expose an interface for working with historical time-series feature values that are stored in [data sources](../../getting-started/concepts/data-source.md).
+An offline store is an interface for working with historical time-series feature values that are stored in [data sources](../../getting-started/concepts/data-source.md).
+The `OfflineStore` interface has several different implementations, such as `BigQueryOfflineStore`, each of which is backed by a different storage and compute engine.
+For more details on which offline stores are supported, please see [Offline Stores](../../reference/offline-stores/).
 
 Offline stores are primarily used for two reasons:
 1. Building training datasets from time-series features.
@@ -12,7 +13,5 @@ When building training datasets or materializing features into an online store, 
 
 Only a single offline store can be used at a time.
 Moreover, offline stores are not compatible with all data sources; for example, the `BigQuery` offline store cannot be used to query a file-based data source.
-
-Please see [Offline Stores](../../reference/offline-stores/) for more details on how to configure offline stores and what functionality each offline store supports.
 
 Please see [Push Source](../../reference/data-sources/push.md) for more details on how to push features directly to the offline store in your feature store.
