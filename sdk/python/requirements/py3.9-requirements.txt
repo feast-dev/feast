@@ -87,7 +87,7 @@ mypy==0.961
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
-numpy==1.22.0
+numpy==1.21.6
     # via
     #   feast (setup.py)
     #   pandas
