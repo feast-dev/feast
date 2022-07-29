@@ -7,7 +7,7 @@ on: [pull_request]
 jobs:
   integration-test-python-local:
     # This is local integration tests on your fork that should only be run for pull requests on your fork
-    if: github.repository == ‘kevjumba/feast’ # swap here with your project
+    if: github.repository == 'kevjumba/feast' # swap here with your project
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
