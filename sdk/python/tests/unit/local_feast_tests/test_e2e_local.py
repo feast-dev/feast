@@ -10,8 +10,8 @@ from feast.driver_test_data import (
     create_global_daily_stats_df,
 )
 from feast.feature_store import FeatureStore
-from tests.utils.cli_helper_functions import CliRunner, get_example_repo
-from tests.utils.feature_store_test_functions import validate_online_features
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+from tests.utils.feature_records import validate_online_features
 
 
 def test_e2e_local() -> None:

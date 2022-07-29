@@ -27,7 +27,7 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-from tests.utils.feature_store_test_functions import (
+from tests.utils.feature_records import (
     assert_feature_service_correctness,
     assert_feature_service_entity_mapping_correctness,
     get_expected_training_df,

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from textwrap import dedent
 
-from tests.utils.cli_helper_functions import CliRunner
+from tests.utils.cli_repo_creator import CliRunner
 
 
 def test_repo_init() -> None:

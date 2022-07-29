@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-from tests.utils.cli_helper_functions import CliRunner, get_example_repo
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
 def test_cli_apply_duplicated_featureview_names() -> None:

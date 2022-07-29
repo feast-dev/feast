@@ -32,7 +32,7 @@ from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
-from tests.utils.e2e_test_validation_functions import (
+from tests.utils.e2e_test_validation import (
     validate_registry_data_source_apply,
 )
 

@@ -13,7 +13,7 @@ from feast.entity import Entity
 from feast.field import Field
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Float32
-from tests.utils.cli_helper_functions import CliRunner, get_example_repo
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
 

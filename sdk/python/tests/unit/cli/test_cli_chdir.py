@@ -2,7 +2,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tests.utils.cli_helper_functions import CliRunner
+from tests.utils.cli_repo_creator import CliRunner
 
 
 def test_cli_chdir() -> None:
