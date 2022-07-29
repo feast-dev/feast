@@ -2,8 +2,7 @@ from datetime import timedelta
 
 import yaml
 
-from feast import Entity, FeatureService, FeatureView, Field, SnowflakeSource
-from feast.types import Float32, Int64
+from feast import Entity, FeatureService, FeatureView, SnowflakeSource
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
@@ -25,7 +24,6 @@ driver_stats_source = SnowflakeSource(
     # The Snowflake table where features can be found
     database=yaml.safe_load(open("feature_store.yaml"))["offline_store"]["database"],
     table=f"{project_name}_feast_driver_hourly_stats",
-    warehouse="SNOWFLAKE_WAREHOUSE",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     timestamp_field="event_timestamp",
@@ -51,14 +49,6 @@ driver_stats_fv = FeatureView(
     # amount of historical scanning required for historical feature values
     # during retrieval
     ttl=timedelta(weeks=52),
-    # The list of features defined below act as a schema to both define features
-    # for both materialization of features into a store, and are used as references
-    # during retrieval for building a training dataset or serving features
-    schema=[
-        Field(name="conv_rate", dtype=Float32),
-        Field(name="acc_rate", dtype=Float32),
-        Field(name="avg_daily_trips", dtype=Int64),
-    ],
     # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on Redshift for driver statistics
     # features

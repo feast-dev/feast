@@ -2,7 +2,7 @@
 
 ## Description
 
-The Snowflake offline store provides support for reading [SnowflakeSources](../data-sources/snowflake.md).
+The [Snowflake](https://trial.snowflake.com) offline store provides support for reading [SnowflakeSources](../data-sources/snowflake.md).
 
 * Snowflake tables and views are allowed as sources.
 * All joins happen within Snowflake.
@@ -11,7 +11,7 @@ The Snowflake offline store provides support for reading [SnowflakeSources](../d
   * This allows you to call
      * `to_snowflake` to save the dataset into Snowflake
      * `to_sql` to get the SQL query that would execute on `to_df`
-     * `to_arrow_chunks` to get the result in batches ([Snowflake python connector docs](https://docs.snowflake.com/en/user-guide/python-connector-api.html#get_result_batches)) 
+     * `to_arrow_chunks` to get the result in batches ([Snowflake python connector docs](https://docs.snowflake.com/en/user-guide/python-connector-api.html#get_result_batches))
 
 ## Example
 

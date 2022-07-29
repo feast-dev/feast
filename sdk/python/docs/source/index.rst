@@ -250,18 +250,21 @@ Sqlite Online Store
 
 .. automodule:: feast.infra.online_stores.sqlite
     :members:
+    :noindex:
 
 Datastore Online Store
 ----------------------
 
 .. automodule:: feast.infra.online_stores.datastore
     :members:
+    :noindex:
 
 DynamoDB Online Store
 ---------------------
 
 .. automodule:: feast.infra.online_stores.dynamodb
     :members:
+    :noindex:
 
 Redis Online Store
 ------------------

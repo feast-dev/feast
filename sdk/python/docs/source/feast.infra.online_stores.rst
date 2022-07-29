@@ -52,6 +52,14 @@ feast.infra.online\_stores.redis module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.online\_stores.snowflake module
+-------------------------------------------
+
+.. automodule:: feast.infra.online_stores.snowflake
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.online\_stores.sqlite module
 ----------------------------------------
 

@@ -27,6 +27,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 * **Online Stores**
+  * [x] [Snowflake](https://docs.feast.dev/reference/online-stores/snowflake)
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
