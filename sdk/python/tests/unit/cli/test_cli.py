@@ -2,6 +2,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
+
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
