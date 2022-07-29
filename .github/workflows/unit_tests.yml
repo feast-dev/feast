@@ -1,6 +1,6 @@
 name: unit-tests
 
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
@@ -72,6 +72,7 @@ jobs:
         run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
+        if: github.repository == 'feast-dev/feast'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml

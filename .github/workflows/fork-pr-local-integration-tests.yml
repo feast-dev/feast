@@ -1,4 +1,4 @@
-name: pr-local-integration-tests
+name: fork-pr-local-integration-tests
 # This runs local tests with containerized stubs of online stores. This is the main dev workflow
 
 on: [pull_request]
