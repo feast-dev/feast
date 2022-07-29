@@ -1,7 +1,7 @@
 import pytest
 
 from tests.utils.basic_read_write_test import basic_rw_test
-from tests.utils.cli_repo_creator import CliRunner, get_example_repoe_service_read.py
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
 @pytest.mark.integration
