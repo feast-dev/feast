@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.2](https://github.com/feast-dev/feast/compare/v0.22.1...v0.22.2) (2022-07-29)
+
+
+### Reverts
+
+* **ci:** "Fix night ci syntax error and update readme ([#2935](https://github.com/feast-dev/feast/issues/2935))" ([31f54c8](https://github.com/feast-dev/feast/commit/31f54c8c41319a217c0f606c9a72544031c22a41))
+* **ci:** fix: Fix nightly ci again ([#2939](https://github.com/feast-dev/feast/issues/2939)). This reverts commit c36361951d29714392b1def6e54f83ae45cd5d9a. ([33cbaeb](https://github.com/feast-dev/feast/commit/33cbaeb7bade95e25a3921826c57f4e3b58b309d))
+* **ci:** Revert "ci: Add a nightly CI job for integration tests ([#2652](https://github.com/feast-dev/feast/issues/2652))" ([d4bb394](https://github.com/feast-dev/feast/commit/d4bb3943c1b4be10af5a2f624d771c217f63a63c))
+* **ci:** Revert "fix: Deprecate 3.7 wheels and fix verification workflow ([#2934](https://github.com/feast-dev/feast/issues/2934))" ([efadb22](https://github.com/feast-dev/feast/commit/efadb22e811e76a49ebd42f20d4363b4bfc876a9))
+* Revert "fix: Change numpy version on setup.py and upgrade it to resolve dependabot warning ([#2887](https://github.com/feast-dev/feast/issues/2887))" ([87190cb](https://github.com/feast-dev/feast/commit/87190cbce867dd3a9130c3d59c79bdc2b4cddbee))
+
 ## [0.22.1](https://github.com/feast-dev/feast/compare/v0.22.0...v0.22.1) (2022-07-19)
 
 
