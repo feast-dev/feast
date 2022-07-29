@@ -7,6 +7,7 @@ from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
 
+
 def test_3rd_party_providers() -> None:
     """
     Test running apply on third party providers
