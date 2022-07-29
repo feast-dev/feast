@@ -9,7 +9,6 @@ from assertpy import assertpy
 from feast.feature_store import FeatureStore
 from tests.integration.feature_repos.repo_configuration import Environment
 from tests.utils.basic_read_write_test import basic_rw_test
-
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.e2e_test_validation import (
     NULLABLE_ONLINE_STORE_CONFIGS,

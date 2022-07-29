@@ -1,12 +1,14 @@
 import tempfile
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from assertpy import assertpy
 
-from tests.utils.cli_repo_creator import CliRunner
-from tests.utils.e2e_test_validation_functions import (
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+from tests.utils.e2e_test_validation import (
     NULLABLE_ONLINE_STORE_CONFIGS,
     make_feature_store_yaml,
 )
