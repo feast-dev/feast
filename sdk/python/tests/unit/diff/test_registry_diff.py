@@ -4,7 +4,7 @@ from feast.diff.registry_diff import (
 )
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from tests.utils.data_source_utils import prep_file_source
+from tests.utils.data_source_test_creator import prep_file_source
 
 
 def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):

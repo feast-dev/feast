@@ -1,14 +1,15 @@
-import math
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import timedelta
 
-import pandas as pd
 import pytest
-from pytz import utc
 
-from feast import FeatureStore, FeatureView
+from feast import BigQuerySource, Entity, FeatureView, Field
+from feast.feature_service import FeatureService
+from feast.types import Float32, String
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
+from tests.utils.basic_read_write_test import basic_rw_test
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
 @pytest.mark.integration
@@ -30,133 +31,69 @@ def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     # we use timestamp from generated dataframe as a split point
     split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
 
-    run_offline_online_store_consistency_test(fs, fv, split_dt)
+    validate_offline_online_store_consistency(fs, fv, split_dt)
 
 
-def check_offline_and_online_features(
-    fs: FeatureStore,
-    fv: FeatureView,
-    driver_id: int,
-    event_timestamp: datetime,
-    expected_value: Optional[float],
-    full_feature_names: bool,
-    check_offline_store: bool = True,
-) -> None:
-    # Check online store
-    response_dict = fs.get_online_features(
-        [f"{fv.name}:value"],
-        [{"driver_id": driver_id}],
-        full_feature_names=full_feature_names,
-    ).to_dict()
+@pytest.mark.integration
+def test_partial() -> None:
+    """
+    Add another table to existing repo using partial apply API. Make sure both the table
+    applied via CLI apply and the new table are passing RW test.
+    """
 
-    if full_feature_names:
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
+    ) as store:
+        driver = Entity(name="driver", join_keys=["test"])
 
-        if expected_value:
-            assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
-            assert (
-                abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
-            ), f"Response: {response_dict}, Expected: {expected_value}"
-        else:
-            assert response_dict[f"{fv.name}__value"][0] is None
-    else:
-        if expected_value:
-            assert response_dict["value"][0], f"Response: {response_dict}"
-            assert (
-                abs(response_dict["value"][0] - expected_value) < 1e-6
-            ), f"Response: {response_dict}, Expected: {expected_value}"
-        else:
-            assert response_dict["value"][0] is None
+        driver_locations_source = BigQuerySource(
+            table="feast-oss.public.drivers",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        )
 
-    # Check offline store
-    if check_offline_store:
-        df = fs.get_historical_features(
-            entity_df=pd.DataFrame.from_dict(
-                {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
-            ),
-            features=[f"{fv.name}:value"],
-            full_feature_names=full_feature_names,
-        ).to_df()
+        driver_locations_100 = FeatureView(
+            name="driver_locations_100",
+            entities=[driver],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="lat", dtype=Float32),
+                Field(name="lon", dtype=String),
+                Field(name="name", dtype=String),
+                Field(name="test", dtype=String),
+            ],
+            online=True,
+            batch_source=driver_locations_source,
+            tags={},
+        )
 
-        if full_feature_names:
-            if expected_value:
-                assert (
-                    abs(
-                        df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                        - expected_value
-                    )
-                    < 1e-6
-                )
-            else:
-                assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
-                    df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                )
-        else:
-            if expected_value:
-                assert (
-                    abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
-                )
-            else:
-                assert not df.to_dict(orient="list")["value"] or math.isnan(
-                    df.to_dict(orient="list")["value"][0]
-                )
+        store.apply([driver_locations_100])
+
+        basic_rw_test(store, view_name="driver_locations")
+        basic_rw_test(store, view_name="driver_locations_100")
 
 
-def run_offline_online_store_consistency_test(
-    fs: FeatureStore, fv: FeatureView, split_dt: datetime
-) -> None:
-    now = datetime.utcnow()
+@pytest.mark.integration
+def test_read_pre_applied() -> None:
+    """
+    Read feature values from the FeatureStore using a FeatureService.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
+    ) as store:
 
-    full_feature_names = True
-    check_offline_store: bool = True
+        assert len(store.list_feature_services()) == 1
+        fs = store.get_feature_service("driver_locations_service")
+        assert len(fs.tags) == 1
+        assert fs.tags["release"] == "production"
 
-    # Run materialize()
-    # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
-    start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
-    end_date = split_dt
-    fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
+        fv = store.get_feature_view("driver_locations")
 
-    # check result of materialize()
-    check_offline_and_online_features(
-        fs=fs,
-        fv=fv,
-        driver_id=1,
-        event_timestamp=end_date,
-        expected_value=0.3,
-        full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
-    )
+        fs = FeatureService(name="new_feature_service", features=[fv[["lon"]]])
 
-    check_offline_and_online_features(
-        fs=fs,
-        fv=fv,
-        driver_id=2,
-        event_timestamp=end_date,
-        expected_value=None,
-        full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
-    )
+        store.apply([fs])
 
-    # check prior value for materialize_incremental()
-    check_offline_and_online_features(
-        fs=fs,
-        fv=fv,
-        driver_id=3,
-        event_timestamp=end_date,
-        expected_value=4,
-        full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
-    )
-
-    # run materialize_incremental()
-    fs.materialize_incremental(feature_views=[fv.name], end_date=now)
-
-    # check result of materialize_incremental()
-    check_offline_and_online_features(
-        fs=fs,
-        fv=fv,
-        driver_id=3,
-        event_timestamp=now,
-        expected_value=5,
-        full_feature_names=full_feature_names,
-        check_offline_store=check_offline_store,
-    )
+        assert len(store.list_feature_services()) == 2
+        store.get_feature_service("new_feature_service")

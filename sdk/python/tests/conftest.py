@@ -14,8 +14,6 @@
 import logging
 import multiprocessing
 import os
-import socket
-from contextlib import closing
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
@@ -45,6 +43,7 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
 from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +326,7 @@ def feature_server_endpoint(environment):
         yield environment.feature_store.get_feature_server_endpoint()
         return
 
-    port = _free_port()
+    port = free_port()
 
     proc = Process(
         target=start_test_local_server,
@@ -340,7 +339,7 @@ def feature_server_endpoint(environment):
         proc.start()
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, _check_port_open("localhost", port)),
+            lambda: (None, check_port_open("localhost", port)),
             timeout_secs=10,
         )
 
@@ -353,21 +352,10 @@ def feature_server_endpoint(environment):
         wait_retry_backoff(
             lambda: (
                 None,
-                not _check_port_open("localhost", environment.get_local_server_port()),
+                not check_port_open("localhost", environment.get_local_server_port()),
             ),
             timeout_secs=30,
         )
-
-
-def _check_port_open(host, port) -> bool:
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        return sock.connect_ex((host, port)) == 0
-
-
-def _free_port():
-    sock = socket.socket()
-    sock.bind(("", 0))
-    return sock.getsockname()[1]
 
 
 @pytest.fixture

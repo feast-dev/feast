@@ -1,20 +1,13 @@
 import random
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal as pd_assert_frame_equal
-from pytz import utc
 
-from feast import utils
 from feast.entity import Entity
-from feast.errors import (
-    FeatureNameCollisionError,
-    RequestDataNotFoundInEntityDfException,
-)
+from feast.errors import RequestDataNotFoundInEntityDfException
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -34,261 +27,15 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
+from tests.utils.feature_records import (
+    assert_feature_service_correctness,
+    assert_feature_service_entity_mapping_correctness,
+    get_expected_training_df,
+    get_response_feature_name,
+    validate_dataframes,
+)
 
 np.random.seed(0)
-
-
-def convert_timestamp_records_to_utc(
-    records: List[Dict[str, Any]], column: str
-) -> List[Dict[str, Any]]:
-    for record in records:
-        record[column] = utils.make_tzaware(record[column]).astimezone(utc)
-    return records
-
-
-# Find the latest record in the given time range and filter
-def find_asof_record(
-    records: List[Dict[str, Any]],
-    ts_key: str,
-    ts_start: datetime,
-    ts_end: datetime,
-    filter_keys: Optional[List[str]] = None,
-    filter_values: Optional[List[Any]] = None,
-) -> Dict[str, Any]:
-    filter_keys = filter_keys or []
-    filter_values = filter_values or []
-    assert len(filter_keys) == len(filter_values)
-    found_record: Dict[str, Any] = {}
-    for record in records:
-        if (
-            all(
-                [
-                    record[filter_key] == filter_value
-                    for filter_key, filter_value in zip(filter_keys, filter_values)
-                ]
-            )
-            and ts_start <= record[ts_key] <= ts_end
-        ):
-            if not found_record or found_record[ts_key] < record[ts_key]:
-                found_record = record
-    return found_record
-
-
-def get_expected_training_df(
-    customer_df: pd.DataFrame,
-    customer_fv: FeatureView,
-    driver_df: pd.DataFrame,
-    driver_fv: FeatureView,
-    orders_df: pd.DataFrame,
-    order_fv: FeatureView,
-    location_df: pd.DataFrame,
-    location_fv: FeatureView,
-    global_df: pd.DataFrame,
-    global_fv: FeatureView,
-    field_mapping_df: pd.DataFrame,
-    field_mapping_fv: FeatureView,
-    entity_df: pd.DataFrame,
-    event_timestamp: str,
-    full_feature_names: bool = False,
-):
-    # Convert all pandas dataframes into records with UTC timestamps
-    customer_records = convert_timestamp_records_to_utc(
-        customer_df.to_dict("records"), customer_fv.batch_source.timestamp_field
-    )
-    driver_records = convert_timestamp_records_to_utc(
-        driver_df.to_dict("records"), driver_fv.batch_source.timestamp_field
-    )
-    order_records = convert_timestamp_records_to_utc(
-        orders_df.to_dict("records"), event_timestamp
-    )
-    location_records = convert_timestamp_records_to_utc(
-        location_df.to_dict("records"), location_fv.batch_source.timestamp_field
-    )
-    global_records = convert_timestamp_records_to_utc(
-        global_df.to_dict("records"), global_fv.batch_source.timestamp_field
-    )
-    field_mapping_records = convert_timestamp_records_to_utc(
-        field_mapping_df.to_dict("records"),
-        field_mapping_fv.batch_source.timestamp_field,
-    )
-    entity_rows = convert_timestamp_records_to_utc(
-        entity_df.to_dict("records"), event_timestamp
-    )
-
-    # Set sufficiently large ttl that it effectively functions as infinite for the calculations below.
-    default_ttl = timedelta(weeks=52)
-
-    # Manually do point-in-time join of driver, customer, and order records against
-    # the entity df
-    for entity_row in entity_rows:
-        customer_record = find_asof_record(
-            customer_records,
-            ts_key=customer_fv.batch_source.timestamp_field,
-            ts_start=entity_row[event_timestamp]
-            - get_feature_view_ttl(customer_fv, default_ttl),
-            ts_end=entity_row[event_timestamp],
-            filter_keys=["customer_id"],
-            filter_values=[entity_row["customer_id"]],
-        )
-        driver_record = find_asof_record(
-            driver_records,
-            ts_key=driver_fv.batch_source.timestamp_field,
-            ts_start=entity_row[event_timestamp]
-            - get_feature_view_ttl(driver_fv, default_ttl),
-            ts_end=entity_row[event_timestamp],
-            filter_keys=["driver_id"],
-            filter_values=[entity_row["driver_id"]],
-        )
-        order_record = find_asof_record(
-            order_records,
-            ts_key=customer_fv.batch_source.timestamp_field,
-            ts_start=entity_row[event_timestamp]
-            - get_feature_view_ttl(order_fv, default_ttl),
-            ts_end=entity_row[event_timestamp],
-            filter_keys=["customer_id", "driver_id"],
-            filter_values=[entity_row["customer_id"], entity_row["driver_id"]],
-        )
-        origin_record = find_asof_record(
-            location_records,
-            ts_key=location_fv.batch_source.timestamp_field,
-            ts_start=order_record[event_timestamp]
-            - get_feature_view_ttl(location_fv, default_ttl),
-            ts_end=order_record[event_timestamp],
-            filter_keys=["location_id"],
-            filter_values=[order_record["origin_id"]],
-        )
-        destination_record = find_asof_record(
-            location_records,
-            ts_key=location_fv.batch_source.timestamp_field,
-            ts_start=order_record[event_timestamp]
-            - get_feature_view_ttl(location_fv, default_ttl),
-            ts_end=order_record[event_timestamp],
-            filter_keys=["location_id"],
-            filter_values=[order_record["destination_id"]],
-        )
-        global_record = find_asof_record(
-            global_records,
-            ts_key=global_fv.batch_source.timestamp_field,
-            ts_start=order_record[event_timestamp]
-            - get_feature_view_ttl(global_fv, default_ttl),
-            ts_end=order_record[event_timestamp],
-        )
-
-        field_mapping_record = find_asof_record(
-            field_mapping_records,
-            ts_key=field_mapping_fv.batch_source.timestamp_field,
-            ts_start=order_record[event_timestamp]
-            - get_feature_view_ttl(field_mapping_fv, default_ttl),
-            ts_end=order_record[event_timestamp],
-        )
-
-        entity_row.update(
-            {
-                (
-                    f"customer_profile__{k}" if full_feature_names else k
-                ): customer_record.get(k, None)
-                for k in (
-                    "current_balance",
-                    "avg_passenger_count",
-                    "lifetime_trip_count",
-                )
-            }
-        )
-        entity_row.update(
-            {
-                (f"driver_stats__{k}" if full_feature_names else k): driver_record.get(
-                    k, None
-                )
-                for k in ("conv_rate", "avg_daily_trips")
-            }
-        )
-        entity_row.update(
-            {
-                (f"order__{k}" if full_feature_names else k): order_record.get(k, None)
-                for k in ("order_is_success",)
-            }
-        )
-        entity_row.update(
-            {
-                "origin__temperature": origin_record.get("temperature", None),
-                "destination__temperature": destination_record.get("temperature", None),
-            }
-        )
-        entity_row.update(
-            {
-                (f"global_stats__{k}" if full_feature_names else k): global_record.get(
-                    k, None
-                )
-                for k in (
-                    "num_rides",
-                    "avg_ride_length",
-                )
-            }
-        )
-
-        # get field_mapping_record by column name, but label by feature name
-        entity_row.update(
-            {
-                (
-                    f"field_mapping__{feature}" if full_feature_names else feature
-                ): field_mapping_record.get(column, None)
-                for (
-                    column,
-                    feature,
-                ) in field_mapping_fv.batch_source.field_mapping.items()
-            }
-        )
-
-    # Convert records back to pandas dataframe
-    expected_df = pd.DataFrame(entity_rows)
-
-    # Move "event_timestamp" column to front
-    current_cols = expected_df.columns.tolist()
-    current_cols.remove(event_timestamp)
-    expected_df = expected_df[[event_timestamp] + current_cols]
-
-    # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
-    if full_feature_names:
-        expected_column_types = {
-            "order__order_is_success": "int32",
-            "driver_stats__conv_rate": "float32",
-            "customer_profile__current_balance": "float32",
-            "customer_profile__avg_passenger_count": "float32",
-            "global_stats__avg_ride_length": "float32",
-            "field_mapping__feature_name": "int32",
-        }
-    else:
-        expected_column_types = {
-            "order_is_success": "int32",
-            "conv_rate": "float32",
-            "current_balance": "float32",
-            "avg_passenger_count": "float32",
-            "avg_ride_length": "float32",
-            "feature_name": "int32",
-        }
-
-    for col, typ in expected_column_types.items():
-        expected_df[col] = expected_df[col].astype(typ)
-
-    conv_feature_name = "driver_stats__conv_rate" if full_feature_names else "conv_rate"
-    conv_plus_feature_name = response_feature_name(
-        "conv_rate_plus_100", full_feature_names
-    )
-    expected_df[conv_plus_feature_name] = expected_df[conv_feature_name] + 100
-    expected_df[
-        response_feature_name("conv_rate_plus_100_rounded", full_feature_names)
-    ] = (
-        expected_df[conv_plus_feature_name]
-        .astype("float")
-        .round()
-        .astype(pd.Int32Dtype())
-    )
-    if "val_to_add" in expected_df.columns:
-        expected_df[
-            response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
-        ] = (expected_df[conv_feature_name] + expected_df["val_to_add"])
-
-    return expected_df
 
 
 @pytest.mark.integration
@@ -396,7 +143,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
-    assert_frame_equal(
+    validate_dataframes(
         expected_df,
         actual_df_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
@@ -420,7 +167,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     )
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
 
-    assert_frame_equal(
+    validate_dataframes(
         expected_df,
         table_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
@@ -570,15 +317,15 @@ def test_historical_features_with_entities_from_query(
     # Not requesting the on demand transform with an entity_df query (can't add request data in them)
     expected_df_query = full_expected_df.drop(
         columns=[
-            response_feature_name("conv_rate_plus_100", full_feature_names),
-            response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
-            response_feature_name("avg_daily_trips", full_feature_names),
-            response_feature_name("conv_rate", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
+            get_response_feature_name("avg_daily_trips", full_feature_names),
+            get_response_feature_name("conv_rate", full_feature_names),
             "origin__temperature",
             "destination__temperature",
         ]
     )
-    assert_frame_equal(
+    validate_dataframes(
         expected_df_query,
         actual_df_from_sql_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
@@ -590,7 +337,7 @@ def test_historical_features_with_entities_from_query(
             table_from_sql_entities[col].dtype
         )
 
-    assert_frame_equal(
+    validate_dataframes(
         expected_df_query,
         table_from_sql_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
@@ -654,22 +401,22 @@ def test_historical_features_persisting(
         full_feature_names,
     ).drop(
         columns=[
-            response_feature_name("conv_rate_plus_100", full_feature_names),
-            response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
-            response_feature_name("avg_daily_trips", full_feature_names),
-            response_feature_name("conv_rate", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
+            get_response_feature_name("avg_daily_trips", full_feature_names),
+            get_response_feature_name("conv_rate", full_feature_names),
             "origin__temperature",
             "destination__temperature",
         ]
     )
 
-    assert_frame_equal(
+    validate_dataframes(
         expected_df,
         saved_dataset.to_df(),
         keys=[event_timestamp, "driver_id", "customer_id"],
     )
 
-    assert_frame_equal(
+    validate_dataframes(
         job.to_df(),
         saved_dataset.to_df(),
         keys=[event_timestamp, "driver_id", "customer_id"],
@@ -732,16 +479,16 @@ def test_historical_features_with_no_ttl(
         full_feature_names,
     ).drop(
         columns=[
-            response_feature_name("conv_rate_plus_100", full_feature_names),
-            response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
-            response_feature_name("avg_daily_trips", full_feature_names),
-            response_feature_name("conv_rate", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100", full_feature_names),
+            get_response_feature_name("conv_rate_plus_100_rounded", full_feature_names),
+            get_response_feature_name("avg_daily_trips", full_feature_names),
+            get_response_feature_name("conv_rate", full_feature_names),
             "origin__temperature",
             "destination__temperature",
         ]
     )
 
-    assert_frame_equal(
+    validate_dataframes(
         expected_df,
         job.to_df(),
         keys=[event_timestamp, "driver_id", "customer_id"],
@@ -842,139 +589,4 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df.columns)
-    assert_frame_equal(expected_df, actual_df, keys=["driver_id"])
-
-
-def response_feature_name(feature: str, full_feature_names: bool) -> str:
-    if feature in {"conv_rate", "avg_daily_trips"} and full_feature_names:
-        return f"driver_stats__{feature}"
-
-    if (
-        feature
-        in {
-            "conv_rate_plus_100",
-            "conv_rate_plus_100_rounded",
-            "conv_rate_plus_val_to_add",
-        }
-        and full_feature_names
-    ):
-        return f"conv_rate_plus_100__{feature}"
-
-    return feature
-
-
-def get_feature_view_ttl(
-    feature_view: FeatureView, default_ttl: timedelta
-) -> timedelta:
-    """Returns the ttl of a feature view if it is non-zero. Otherwise returns the specified default."""
-    return feature_view.ttl if feature_view.ttl else default_ttl
-
-
-def assert_feature_service_correctness(
-    store, feature_service, full_feature_names, entity_df, expected_df, event_timestamp
-):
-
-    job_from_df = store.get_historical_features(
-        entity_df=entity_df,
-        features=feature_service,
-        full_feature_names=full_feature_names,
-    )
-
-    actual_df_from_df_entities = job_from_df.to_df()
-
-    expected_df = expected_df[
-        [
-            event_timestamp,
-            "order_id",
-            "driver_id",
-            "customer_id",
-            response_feature_name("conv_rate", full_feature_names),
-            response_feature_name("conv_rate_plus_100", full_feature_names),
-            "driver_age",
-        ]
-    ]
-
-    assert_frame_equal(
-        expected_df,
-        actual_df_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
-    )
-
-
-def assert_feature_service_entity_mapping_correctness(
-    store, feature_service, full_feature_names, entity_df, expected_df, event_timestamp
-):
-    if full_feature_names:
-        job_from_df = store.get_historical_features(
-            entity_df=entity_df,
-            features=feature_service,
-            full_feature_names=full_feature_names,
-        )
-        actual_df_from_df_entities = job_from_df.to_df()
-
-        expected_df: pd.DataFrame = (
-            expected_df.sort_values(
-                by=[
-                    event_timestamp,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                    "origin_id",
-                    "destination_id",
-                ]
-            )
-            .drop_duplicates()
-            .reset_index(drop=True)
-        )
-        expected_df = expected_df[
-            [
-                event_timestamp,
-                "order_id",
-                "driver_id",
-                "customer_id",
-                "origin_id",
-                "destination_id",
-                "origin__temperature",
-                "destination__temperature",
-            ]
-        ]
-
-        assert_frame_equal(
-            expected_df,
-            actual_df_from_df_entities,
-            keys=[
-                event_timestamp,
-                "order_id",
-                "driver_id",
-                "customer_id",
-                "origin_id",
-                "destination_id",
-            ],
-        )
-    else:
-        # using 2 of the same FeatureView without full_feature_names=True will result in collision
-        with pytest.raises(FeatureNameCollisionError):
-            job_from_df = store.get_historical_features(
-                entity_df=entity_df,
-                features=feature_service,
-                full_feature_names=full_feature_names,
-            )
-
-
-def assert_frame_equal(expected_df, actual_df, keys):
-    expected_df: pd.DataFrame = (
-        expected_df.sort_values(by=keys).drop_duplicates().reset_index(drop=True)
-    )
-
-    actual_df = (
-        actual_df[expected_df.columns]
-        .sort_values(by=keys)
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
-
-    pd_assert_frame_equal(
-        expected_df,
-        actual_df,
-        check_dtype=False,
-    )
+    validate_dataframes(expected_df, actual_df, keys=["driver_id"])
