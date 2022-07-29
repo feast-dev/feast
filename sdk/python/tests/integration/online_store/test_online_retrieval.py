@@ -21,7 +21,7 @@ def test_online() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
 
@@ -268,7 +268,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")

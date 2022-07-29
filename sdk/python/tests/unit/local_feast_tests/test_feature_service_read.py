@@ -12,7 +12,7 @@ def test_feature_service_read() -> None:
 
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
 
         basic_rw_test(
