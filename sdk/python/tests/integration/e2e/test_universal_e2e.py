@@ -9,9 +9,7 @@ from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
-from tests.utils.e2e_test_validation import (
-    validate_offline_online_store_consistency,
-)
+from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
 @pytest.mark.integration

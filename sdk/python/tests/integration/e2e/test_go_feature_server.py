@@ -33,10 +33,7 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 from tests.utils.http_server import check_port_open, free_port
-from tests.utils.test_log_creator import (
-    generate_expected_logs,
-    get_latest_rows,
-)
+from tests.utils.test_log_creator import generate_expected_logs, get_latest_rows
 
 
 @pytest.mark.integration

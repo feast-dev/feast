@@ -26,9 +26,7 @@ from feast.field import Field
 from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Int64, String
-from tests.utils.e2e_test_validation import (
-    validate_registry_data_source_apply,
-)
+from tests.utils.e2e_test_validation import validate_registry_data_source_apply
 
 
 @pytest.fixture
