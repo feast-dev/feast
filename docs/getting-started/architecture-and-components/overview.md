@@ -5,6 +5,7 @@
 ## Functionality
 
 * **Create Batch Features:** ELT/ETL systems like Spark and SQL are used to transform data in the batch store.
+* **Create Stream Features:** 
 * **Feast Apply:** The user (or CI) publishes versioned controlled feature definitions using `feast apply`. This CLI command updates infrastructure and persists definitions in the object store registry.
 * **Feast Materialize:** The user (or scheduler) executes `feast materialize` which loads features from the offline store into the online store.
 * **Model Training:** A model training pipeline is launched. It uses the Feast Python SDK to retrieve a training dataset and trains a model.
@@ -23,8 +24,10 @@ A complete Feast deployment contains the following components:
   * Materialize (load) feature values into the online store.
   * Build and retrieve training datasets from the offline store.
   * Retrieve online features.
+* **Stream Processor:** The Stream Processor can be used to ingest feature data from streams and write it into the online or offline stores. Currently, there's an experimental Spark processor that's able to consume data from Kafka.
+* **Batch Materialization Engine:** The [Batch Materialize Engine](batch-materialization-engine.md) component launches a process which loads data into the online store from the offline store. By default, Feast uses a local in-process engine implementation to materialize data. However, additional infrastructure can be used for a more scalable materialization process. 
 * **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store is populated by materialization jobs and from [stream ingestion](../../reference/data-sources/push.md).
-* **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets. Feast does not manage the offline store directly, but runs queries against it.
+* **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets. For Feature retrieval and materialization, Feast does not manage the offline store directly, but runs queries against it. However, offline stores can be configured to write data to the offline store if Feast is configured to log served features and the offline store supports this functionality.
 
 {% hint style="info" %}
 Java and Go Clients are also available for online feature retrieval.
