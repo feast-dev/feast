@@ -46,7 +46,7 @@ fastavro==1.5.3
     #   pandavro
 fissix==21.11.13
     # via bowler
-fsspec==2022.7.0
+fsspec==2022.7.1
     # via dask
 google-api-core==2.8.2
     # via feast (setup.py)
@@ -59,11 +59,11 @@ googleapis-common-protos==1.56.4
     #   tensorflow-metadata
 greenlet==1.1.2
     # via sqlalchemy
-grpcio==1.47.0
+grpcio==1.48.0
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.47.0
+grpcio-reflection==1.48.0
     # via feast (setup.py)
 h11==0.13.0
     # via uvicorn
