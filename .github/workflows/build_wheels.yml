@@ -187,18 +187,6 @@ jobs:
           cd dist/
           pip install wheel
           for f in *.whl; do pip install $f || true; done
-      - name: Install apache-arrow on ubuntu
-        if: ${{ matrix.from-source && matrix.os == 'ubuntu-latest' }}
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V libarrow-dev
-      - name: Install apache-arrow on macos
-        if: ${{ matrix.from-source && matrix.os == 'macos-10.15' && matrix.python-version != '3.10' }}
-        run: brew install apache-arrow
       - name: Install dist with go
         if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
         env:
