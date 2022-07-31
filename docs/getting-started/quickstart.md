@@ -82,7 +82,7 @@ online_store:
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
 from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
