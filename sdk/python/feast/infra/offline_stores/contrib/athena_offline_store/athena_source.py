@@ -1,24 +1,23 @@
 import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
-#from feast import type_map
+# from feast import type_map
 from feast import type_map
-
 from feast.data_source import DataSource
 from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
 from feast.feature_logging import LoggingDestination
+
+# from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     LoggingConfig as LoggingConfigProto,
 )
-#from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
-
-'''
+"""
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
-'''
+"""
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
@@ -69,7 +68,7 @@ class AthenaSource(DataSource):
         # The default Athena schema is named "public".
         _database = "default" if table and not database else database
         self.athena_options = AthenaOptions(
-            table=table, query=query, database=_database,  data_source=data_source
+            table=table, query=query, database=_database, data_source=data_source
         )
 
         if table is None and query is None:
@@ -92,7 +91,7 @@ class AthenaSource(DataSource):
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
-            date_partition_column = date_partition_column,
+            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -187,10 +186,15 @@ class AthenaSource(DataSource):
         # the data source is validated. We don't need the results though.
         self.get_table_column_names_and_types(config)
 
-    def get_table_query_string(self) -> str:
+    def get_table_query_string(self, config: Optional[RepoConfig] = None) -> str:
         """Returns a string that can directly be used to reference this table in SQL."""
         if self.table:
-            return f'"{self.data_source}"."{self.database}"."{self.table}"'
+            data_source = self.data_source
+            database = self.database
+            if config:
+                data_source = config.offline_store.data_source
+                database = config.offline_store.database
+            return f'"{data_source}"."{database}"."{self.table}"'
         else:
             return f"({self.query})"
 
@@ -209,7 +213,9 @@ class AthenaSource(DataSource):
         """
         from botocore.exceptions import ClientError
 
-        from feast.infra.offline_stores.contrib.athena_offline_store.athena import AthenaOfflineStoreConfig
+        from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
+            AthenaOfflineStoreConfig,
+        )
         from feast.infra.utils import aws_utils
 
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
@@ -237,7 +243,9 @@ class AthenaSource(DataSource):
                 config.offline_store.database,
                 f"SELECT * FROM ({self.query}) LIMIT 1",
             )
-            columns = aws_utils.get_athena_query_result(client, statement_id)["ResultSetMetadata"]["ColumnInfo"]
+            columns = aws_utils.get_athena_query_result(client, statement_id)[
+                "ResultSetMetadata"
+            ]["ColumnInfo"]
 
         return [(column["Name"], column["Type"].upper()) for column in columns]
 
@@ -301,9 +309,15 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
 
     athena_options: AthenaOptions
 
-    def __init__(self, table_ref: str):
+    def __init__(
+        self,
+        table_ref: str,
+        query: str = None,
+        database: str = None,
+        data_source: str = None,
+    ):
         self.athena_options = AthenaOptions(
-            table=table_ref, query=None, database=None, data_source=None
+            table=table_ref, query=query, database=database, data_source=data_source
         )
 
     @staticmethod
@@ -314,9 +328,7 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
-        return SavedDatasetStorageProto(
-            athena_storage=self.athena_options.to_proto()
-        )
+        return SavedDatasetStorageProto(athena_storage=self.athena_options.to_proto())
 
     def to_data_source(self) -> DataSource:
         return AthenaSource(table=self.athena_options.table)

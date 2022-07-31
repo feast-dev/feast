@@ -93,7 +93,9 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
     min_event_timestamp: Optional[str]
     max_event_timestamp: str
-    date_partition_column: Optional[str] # this attribute is added because partition pruning affects Athena's query performance.
+    date_partition_column: Optional[
+        str
+    ]  # this attribute is added because partition pruning affects Athena's query performance.
 
 
 def get_feature_view_query_context(
@@ -168,7 +170,7 @@ def get_feature_view_query_context(
             entity_selections=entity_selections,
             min_event_timestamp=min_event_timestamp,
             max_event_timestamp=max_event_timestamp,
-            date_partition_column=date_partition_column
+            date_partition_column=date_partition_column,
         )
         query_context.append(context)
 

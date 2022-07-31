@@ -21,7 +21,7 @@ from feast.errors import (
     RedshiftQueryError,
     RedshiftTableNameTooLong,
 )
-from feast.type_map import pa_to_redshift_value_type,pa_to_athena_value_type
+from feast.type_map import pa_to_athena_value_type, pa_to_redshift_value_type
 
 try:
     import boto3
@@ -675,6 +675,7 @@ def list_s3_files(aws_region: str, path: str) -> List[str]:
 
 # Athena
 
+
 def get_athena_data_client(aws_region: str):
     """
     Get the athena Data API Service client for the given AWS region.
@@ -689,7 +690,7 @@ def get_athena_data_client(aws_region: str):
     reraise=True,
 )
 def execute_athena_query_async(
-        athena_data_client, data_source: str, database: str, query: str
+    athena_data_client, data_source: str, database: str, query: str
 ) -> dict:
     """Execute Athena statement asynchronously. Does not wait for the query to finish.
 
@@ -708,14 +709,12 @@ def execute_athena_query_async(
         # return athena_data_client.execute_statement(
         return athena_data_client.start_query_execution(
             QueryString=query,
-            QueryExecutionContext={
-                'Database': database
-            },
-            WorkGroup='primary'
+            QueryExecutionContext={"Database": database},
+            WorkGroup="primary",
         )
 
     except ClientError as e:
-        raise AthenaQueryError()
+        raise AthenaQueryError(e)
 
 
 class AthenaStatementNotFinishedError(Exception):
@@ -740,22 +739,28 @@ def wait_for_athena_execution(athena_data_client, execution: dict) -> None:
     Returns: None
 
     """
-    response = athena_data_client.get_query_execution(QueryExecutionId=execution["QueryExecutionId"])
+    response = athena_data_client.get_query_execution(
+        QueryExecutionId=execution["QueryExecutionId"]
+    )
     if response["QueryExecution"]["Status"]["State"] in ("QUEUED", "RUNNING"):
         raise AthenaStatementNotFinishedError  # Retry
     if response["QueryExecution"]["Status"]["State"] != "SUCCEEDED":
         raise AthenaQueryError(response)  # Don't retry. Raise exception.
 
 
-def drop_temp_table(athena_data_client, data_source: str, database: str, temp_table: str):
-    query =  f'DROP TABLE `{database}.{temp_table}`'
-    execute_athena_query_async(
-        athena_data_client, data_source, database, query
-    )
+def drop_temp_table(
+    athena_data_client, data_source: str, database: str, temp_table: str
+):
+    query = f"DROP TABLE `{database}.{temp_table}`"
+    execute_athena_query_async(athena_data_client, data_source, database, query)
 
 
 def execute_athena_query(
-        athena_data_client, data_source: str, database: str, query: str, temp_table: str = None
+    athena_data_client,
+    data_source: str,
+    database: str,
+    query: str,
+    temp_table: str = None,
 ) -> str:
     """Execute athena statement synchronously. Waits for the query to finish.
 
@@ -808,13 +813,13 @@ class AthenaTableNameTooLong(Exception):
 
 
 def unload_athena_query_to_pa(
-        athena_data_client,
-        data_source: str,
-        database: str,
-        s3_resource,
-        s3_path: str,
-        query: str,
-        temp_table: str,
+    athena_data_client,
+    data_source: str,
+    database: str,
+    s3_resource,
+    s3_path: str,
+    query: str,
+    temp_table: str,
 ) -> pa.Table:
     """Unload Athena Query results to S3 and get the results in PyArrow Table format"""
     bucket, key = get_bucket_and_key(s3_path)
@@ -830,13 +835,13 @@ def unload_athena_query_to_pa(
 
 
 def unload_athena_query_to_df(
-        athena_data_client,
-        data_source: str,
-        database: str,
-        s3_resource,
-        s3_path: str,
-        query: str,
-        temp_table: str,
+    athena_data_client,
+    data_source: str,
+    database: str,
+    s3_resource,
+    s3_path: str,
+    query: str,
+    temp_table: str,
 ) -> pd.DataFrame:
     """Unload Athena Query results to S3 and get the results in Pandas DataFrame format"""
     table = unload_athena_query_to_pa(
@@ -846,17 +851,17 @@ def unload_athena_query_to_df(
         s3_resource,
         s3_path,
         query,
-        temp_table
+        temp_table,
     )
     return table.to_pandas()
 
 
 def execute_athena_query_and_unload_to_s3(
-        athena_data_client,
-        data_source: str,
-        database: str,
-        query: str,
-        temp_table: str,
+    athena_data_client,
+    data_source: str,
+    database: str,
+    query: str,
+    temp_table: str,
 ) -> None:
     """Unload Athena Query results to S3
 
@@ -873,13 +878,13 @@ def execute_athena_query_and_unload_to_s3(
 
 
 def upload_df_to_athena(
-        athena_client,
-        data_source: str,
-        database: str,
-        s3_resource,
-        s3_path: str,
-        table_name: str,
-        df: pd.DataFrame,
+    athena_client,
+    data_source: str,
+    database: str,
+    s3_resource,
+    s3_path: str,
+    table_name: str,
+    df: pd.DataFrame,
 ):
     """Uploads a Pandas DataFrame to S3(Athena) as a new table.
 
@@ -920,15 +925,15 @@ def upload_df_to_athena(
 
 
 def upload_arrow_table_to_athena(
-        table: Union[pyarrow.Table, Path],
-        athena_client,
-        data_source: str,
-        database: str,
-        s3_resource,
-        s3_path: str,
-        table_name: str,
-        schema: Optional[pyarrow.Schema] = None,
-        fail_if_exists: bool = True,
+    table: Union[pyarrow.Table, Path],
+    athena_client,
+    data_source: str,
+    database: str,
+    s3_resource,
+    s3_path: str,
+    table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
+    fail_if_exists: bool = True,
 ):
     """Uploads an Arrow Table to S3(Athena).
 
@@ -978,7 +983,7 @@ def upload_arrow_table_to_athena(
         f"CREATE EXTERNAL TABLE {database}.{table_name} "
         f"({column_query_list}) "
         f"STORED AS PARQUET "
-        f"LOCATION '{s3_path[:s3_path.rfind('/')]}' " 
+        f"LOCATION '{s3_path[:s3_path.rfind('/')]}' "
         f"TBLPROPERTIES('parquet.compress' = 'SNAPPY') "
     )
 

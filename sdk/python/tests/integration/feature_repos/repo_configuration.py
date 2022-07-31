@@ -39,6 +39,10 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.data_sources.athena import (
+    AthenaDataSourceCreator,
+)
+
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_source,
@@ -89,6 +93,7 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
     "snowflake": ("aws", SnowflakeDataSourceCreator),
+    "athena": ("aws", AthenaDataSourceCreator),
 }
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
@@ -108,6 +113,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ("gcp", BigQueryDataSourceCreator),
             ("aws", RedshiftDataSourceCreator),
             ("aws", SnowflakeDataSourceCreator),
+            ("aws", AthenaDataSourceCreator),
         ]
     )
 

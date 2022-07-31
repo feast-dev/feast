@@ -26,7 +26,9 @@ def test_end_to_end():
         )
 
         driver = Entity(
-            name="driver_id", value_type=ValueType.INT64, description="driver id",
+            name="driver_id",
+            value_type=ValueType.INT64,
+            description="driver id",
         )
 
         driver_hourly_stats_view = FeatureView(

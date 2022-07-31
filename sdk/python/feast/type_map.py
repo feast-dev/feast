@@ -793,7 +793,6 @@ def pg_type_code_to_arrow(code: int) -> str:
     )
 
 
-
 def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
     # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
     type_map = {

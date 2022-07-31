@@ -49,35 +49,22 @@ class AthenaDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        # destination_name = self.get_prefixed_table_name(destination_name)
-        # test_name, table_name = destination_name.split('.')
-
-        table_name = destination_name
-        s3_target = (
-            self.offline_store_config.s3_staging_location
-            + "/"
-            + self.project_name
-            + "/"
-            + table_name
-            + "/"
-            + table_name
-            + ".parquet"
-        )
+        destination_name = self.get_prefixed_table_name(destination_name)
 
         aws_utils.upload_df_to_athena(
             self.client,
             self.offline_store_config.data_source,
             self.offline_store_config.database,
             self.s3,
-            s3_target,
-            table_name,
+            self.offline_store_config.s3_staging_location,
+            destination_name,
             df,
         )
 
-        self.tables.append(table_name)
+        self.tables.append(destination_name)
 
         return AthenaSource(
-            table=table_name,
+            table=destination_name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
@@ -91,11 +78,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         )
         self.tables.append(table)
 
-        return SavedDatasetAthenaStorage(
-            table_ref=table,
-            database=self.offline_store_config.database,
-            data_source=self.offline_store_config.data_source,
-        )
+        return SavedDatasetAthenaStorage(table_ref=table)
 
     def create_logged_features_destination(self) -> LoggingDestination:
         table = self.get_prefixed_table_name(
@@ -109,7 +92,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         return self.offline_store_config
 
     def get_prefixed_table_name(self, suffix: str) -> str:
-        return f"{self.project_name}_{suffix}"
+        return f"{self.project_name}.{suffix}"
 
     def teardown(self):
         for table in self.tables:
@@ -119,14 +102,3 @@ class AthenaDataSourceCreator(DataSourceCreator):
                 self.offline_store_config.database,
                 f"DROP TABLE IF EXISTS {table}",
             )
-
-
-FULL_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(),
-    IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=AthenaDataSourceCreator,
-    ),
-]
-
-AVAILABLE_OFFLINE_STORES = [("aws", AthenaDataSourceCreator)]

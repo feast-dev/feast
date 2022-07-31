@@ -25,23 +25,21 @@ from pytz import utc
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_logging import LoggingConfig, LoggingSource, LoggingDestination
+from feast.feature_logging import LoggingConfig, LoggingDestination, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
+from feast.infra.offline_stores import offline_utils
+from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
+    AthenaLoggingDestination,
+    AthenaSource,
+    SavedDatasetAthenaStorage,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
 )
-
-from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
-    AthenaSource,
-    AthenaLoggingDestination,
-    SavedDatasetAthenaStorage,
-)
 from feast.infra.utils import aws_utils
-from feast.infra.offline_stores import offline_utils
-
-from feast.registry import Registry
+from feast.registry import Registry, BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -82,7 +80,7 @@ class AthenaOfflineStore(OfflineStore):
         assert isinstance(data_source, AthenaSource)
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
 
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string(config)
 
         partition_by_join_key_string = ", ".join(join_key_columns)
         if partition_by_join_key_string != "":
@@ -99,9 +97,7 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
-        athena_client = aws_utils.get_athena_data_client(
-            config.offline_store.region
-        )
+        athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         start_date = start_date.astimezone(tz=utc)
@@ -142,15 +138,13 @@ class AthenaOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert isinstance(data_source, AthenaSource)
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string(config)
 
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        athena_client = aws_utils.get_athena_data_client(
-            config.offline_store.region
-        )
+        athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         date_partition_column = data_source.date_partition_column
@@ -186,9 +180,7 @@ class AthenaOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
 
-        athena_client = aws_utils.get_athena_data_client(
-            config.offline_store.region
-        )
+        athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         # get pandas dataframe consisting of 1 row (LIMIT 1) and generate the schema out of it
@@ -197,13 +189,16 @@ class AthenaOfflineStore(OfflineStore):
         )
 
         # find timestamp column of entity df.(default = "event_timestamp"). Exception occurs if there are more than two timestamp columns.
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
         # get min,max of event_timestamp.
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, entity_df_event_timestamp_col, athena_client, config,
+            entity_df,
+            entity_df_event_timestamp_col,
+            athena_client,
+            config,
         )
 
         @contextlib.contextmanager
@@ -211,9 +206,7 @@ class AthenaOfflineStore(OfflineStore):
 
             table_name = offline_utils.get_temp_entity_table_name()
 
-            _upload_entity_df(
-                entity_df, athena_client, config, s3_resource, table_name
-            )
+            _upload_entity_df(entity_df, athena_client, config, s3_resource, table_name)
 
             expected_join_keys = offline_utils.get_expected_join_keys(
                 project, feature_views, registry
@@ -232,7 +225,6 @@ class AthenaOfflineStore(OfflineStore):
                 entity_df_event_timestamp_range,
             )
 
-
             # Generate the Athena SQL query from the query context
             query = offline_utils.build_point_in_time_query(
                 query_context,
@@ -247,7 +239,7 @@ class AthenaOfflineStore(OfflineStore):
                 yield query
             finally:
 
-                #Always clean up the temp Athena table
+                # Always clean up the temp Athena table
                 aws_utils.execute_athena_query(
                     athena_client,
                     config.offline_store.data_source,
@@ -255,9 +247,12 @@ class AthenaOfflineStore(OfflineStore):
                     f"DROP TABLE IF EXISTS {config.offline_store.database}.{table_name}",
                 )
 
-                bucket = config.offline_store.s3_staging_location.replace("s3://", "").split("/", 1)[0]
-                aws_utils.delete_s3_directory(s3_resource,bucket, "entity_df/"+table_name+"/")
-
+                bucket = config.offline_store.s3_staging_location.replace(
+                    "s3://", ""
+                ).split("/", 1)[0]
+                aws_utils.delete_s3_directory(
+                    s3_resource, bucket, "entity_df/" + table_name + "/"
+                )
 
         return AthenaRetrievalJob(
             query=query_generator,
@@ -276,21 +271,18 @@ class AthenaOfflineStore(OfflineStore):
             ),
         )
 
-
     @staticmethod
     def write_logged_features(
         config: RepoConfig,
         data: Union[pyarrow.Table, Path],
         source: LoggingSource,
         logging_config: LoggingConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         destination = logging_config.destination
         assert isinstance(destination, AthenaLoggingDestination)
 
-        athena_client = aws_utils.get_athena_data_client(
-            config.offline_store.region
-        )
+        athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
         if isinstance(data, Path):
             s3_path = f"{config.offline_store.s3_staging_location}/logged_features/{uuid.uuid4()}"
@@ -299,7 +291,7 @@ class AthenaOfflineStore(OfflineStore):
 
         aws_utils.upload_arrow_table_to_athena(
             table=data,
-            athena_data_client=athena_client,
+            athena_client=athena_client,
             data_source=config.offline_store.data_source,
             database=config.offline_store.database,
             s3_resource=s3_resource,
@@ -332,7 +324,6 @@ class AthenaRetrievalJob(RetrievalJob):
             on_demand_feature_views (optional): A list of on demand transforms to apply at retrieval time
         """
 
-
         if not isinstance(query, str):
             self._query_generator = query
         else:
@@ -352,7 +343,6 @@ class AthenaRetrievalJob(RetrievalJob):
         )
         self._metadata = metadata
 
-
     @property
     def full_feature_names(self) -> bool:
         return self._full_feature_names
@@ -362,9 +352,15 @@ class AthenaRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def get_temp_s3_path(self) -> str:
-        return self._config.offline_store.s3_staging_location + "/unload/" + str(uuid.uuid4())
+        return (
+            self._config.offline_store.s3_staging_location
+            + "/unload/"
+            + str(uuid.uuid4())
+        )
 
-    def get_temp_table_dml_header(self, temp_table_name:str, temp_external_location:str) -> str:
+    def get_temp_table_dml_header(
+        self, temp_table_name: str, temp_external_location: str
+    ) -> str:
         temp_table_dml_header = f"""
                                     CREATE TABLE {temp_table_name} 
                                     WITH (
@@ -387,7 +383,8 @@ class AthenaRetrievalJob(RetrievalJob):
                 self._config.offline_store.database,
                 self._s3_resource,
                 temp_external_location,
-                self.get_temp_table_dml_header(temp_table_name, temp_external_location) + query,
+                self.get_temp_table_dml_header(temp_table_name, temp_external_location)
+                + query,
                 temp_table_name,
             )
 
@@ -402,7 +399,8 @@ class AthenaRetrievalJob(RetrievalJob):
                 self._config.offline_store.database,
                 self._s3_resource,
                 temp_external_location,
-                self.get_temp_table_dml_header(temp_table_name, temp_external_location) + query,
+                self.get_temp_table_dml_header(temp_table_name, temp_external_location)
+                + query,
                 temp_table_name,
             )
 
@@ -412,7 +410,33 @@ class AthenaRetrievalJob(RetrievalJob):
 
     def persist(self, storage: SavedDatasetStorage):
         assert isinstance(storage, SavedDatasetAthenaStorage)
-        # self.to_athena(table_name=storage.athena_options.table)
+        self.to_athena(table_name=storage.athena_options.table)
+
+    @log_exceptions_and_usage
+    def to_athena(self, table_name: str) -> None:
+
+        if self.on_demand_feature_views:
+            transformed_df = self.to_df()
+
+            _upload_entity_df(
+                transformed_df,
+                self._athena_client,
+                self._config,
+                self._s3_resource,
+                table_name,
+            )
+
+            return
+
+        with self._query_generator() as query:
+            query = f'CREATE TABLE "{table_name}" AS ({query});\n'
+
+            aws_utils.execute_athena_query(
+                self._athena_client,
+                self._config.offline_store.data_source,
+                self._config.offline_store.database,
+                query,
+            )
 
 
 def _upload_entity_df(
@@ -496,12 +520,14 @@ def _get_entity_df_event_timestamp_range(
             f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max "
             f"FROM ({entity_df})",
         )
-        res = aws_utils.get_athena_query_result(athena_client, statement_id)[
-            "Records"
-        ][0]
+        res = aws_utils.get_athena_query_result(athena_client, statement_id)
         entity_df_event_timestamp_range = (
-            res.parse(res[0]["stringValue"]),
-            res.parse(res[1]["stringValue"]),
+            datetime.strptime(
+                res["Rows"][1]["Data"][0]["VarCharValue"], "%Y-%m-%d %H:%M:%S.%f"
+            ),
+            datetime.strptime(
+                res["Rows"][1]["Data"][1]["VarCharValue"], "%Y-%m-%d %H:%M:%S.%f"
+            ),
         )
     else:
         raise InvalidEntityType(type(entity_df))
