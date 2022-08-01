@@ -73,7 +73,9 @@ def test_cli_apply_imported_featureview() -> None:
 
         # Import feature view from an existing file so it exists in two files.
         repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+        repo_example.write_text(
+            get_example_repo("example_feature_repo_with_driver_stats_feature_view.py")
+        )
         repo_example_2 = repo_path / "example_2.py"
         repo_example_2.write_text(
             "from example import driver_hourly_stats_view\n"
@@ -117,7 +119,9 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
 
         # Import feature view with duplicated name to try breaking the deduplication logic.
         repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+        repo_example.write_text(
+            get_example_repo("example_feature_repo_with_driver_stats_feature_view.py")
+        )
         repo_example_2 = repo_path / "example_2.py"
         repo_example_2.write_text(
             "from datetime import timedelta\n"
@@ -170,7 +174,11 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
         # Create multiple py files containing the same feature view name
         for i in range(3):
             repo_example = repo_path / f"example{i}.py"
-            repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+            repo_example.write_text(
+                get_example_repo(
+                    "example_feature_repo_with_driver_stats_feature_view.py"
+                )
+            )
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
         assert (
