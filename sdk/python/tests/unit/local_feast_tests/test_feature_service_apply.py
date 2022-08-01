@@ -1,10 +1,7 @@
-import pytest
-
 from feast.feature_service import FeatureService
 from tests.utils.cli_utils import CliRunner, get_example_repo
 
 
-@pytest.mark.integration
 def test_read_pre_applied() -> None:
     """
     Read feature values from the FeatureStore using a FeatureService.
