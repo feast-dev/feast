@@ -4,7 +4,7 @@ on: [pull_request]
 
 jobs:
   integration-test-python:
-    if: github.repository == 'kevjumba/feast' # swap here with your project
+    if: github.repository == 'kevjumba/feast' # swap here with your project id
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -96,6 +96,7 @@ jobs:
           SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
           SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+        # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
         run: |
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "BigQuery and not dynamo and not Redshift"
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift"
