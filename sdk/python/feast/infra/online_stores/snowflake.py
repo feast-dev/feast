@@ -96,11 +96,11 @@ class SnowflakeOnlineStore(OnlineStore):
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=entity_key_serialization_version,
+                    entity_key_serialization_version,
                 ) + bytes(feature_name, encoding="utf-8")
                 df.loc[j, "entity_key"] = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=entity_key_serialization_version,
+                    entity_key_serialization_version,
                 )
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
@@ -156,12 +156,18 @@ class SnowflakeOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
+        entity_key_serialization_version = (
+            config.entity_key_serialization_version
+            if config.entity_key_serialization_version
+            else 2
+        )
+
         entity_fetch_str = ",".join(
             [
                 (
                     "TO_BINARY("
                     + hexlify(
-                        serialize_entity_key(combo[0])
+                        serialize_entity_key(combo[0], entity_key_serialization_version)
                         + bytes(combo[1], encoding="utf-8")
                     ).__str__()[1:]
                     + ")"
@@ -187,15 +193,10 @@ class SnowflakeOnlineStore(OnlineStore):
                 .fetch_pandas_all()
             )
 
-        entity_key_serialization_version = (
-            config.entity_key_serialization_version
-            if config.entity_key_serialization_version
-            else 2
-        )
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=entity_key_serialization_version,
+                entity_key_serialization_version,
             )
             res = {}
             res_ts = None
