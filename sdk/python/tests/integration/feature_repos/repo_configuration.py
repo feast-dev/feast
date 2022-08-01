@@ -75,11 +75,11 @@ REDIS_CLUSTER_CONFIG = {
 
 SNOWFLAKE_CONFIG = {
     "type": "snowflake.online",
-    "account": os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
-    "user": os.environ["SNOWFLAKE_CI_USER"],
-    "password": os.environ["SNOWFLAKE_CI_PASSWORD"],
-    "role": os.environ["SNOWFLAKE_CI_ROLE"],
-    "warehouse": os.environ["SNOWFLAKE_CI_WAREHOUSE"],
+    "account": os.environ.get("SNOWFLAKE_CI_DEPLOYMENT", ""),
+    "user": os.environ.get("SNOWFLAKE_CI_USER", ""),
+    "password": os.environ.get("SNOWFLAKE_CI_PASSWORD", ""),
+    "role": os.environ.get("SNOWFLAKE_CI_ROLE", ""),
+    "warehouse": os.environ.get("SNOWFLAKE_CI_WAREHOUSE", ""),
     "database": "FEAST",
     "schema": "ONLINE",
 }
