@@ -18,14 +18,7 @@
 
 ## Overview
 
-Feast (**Fea**ture **St**ore) is an open source feature store for machine learning. Feast is the fastest path to manage existing infrastructure to productionize analytic data for model training and online inference.
-
-
-Feast allows ML platform teams to:
-
-* **Make features consistently available for training and serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (for serving pre-computed features online).&#x20;
-* **Avoid data leakage** by generating point-in-time correct feature sets so data scientists can focus on feature engineering rather than debugging error-prone dataset joining logic. This ensure that future feature values do not leak to models during training.
-* **Decouple ML from data infrastructure** by providing a single data access layer that abstracts feature storage from feature retrieval, ensuring models remain portable as you move from training models to serving models, from batch models to realtime models, and from one data infra system to another.
+Feast is an open source feature store for machine learning. Feast is the fastest path to productionizing analytic data for model training and online inference.
 
 Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
@@ -169,6 +162,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
 * **Online Stores**
+  * [x] [Snowflake](https://docs.feast.dev/reference/online-stores/snowflake)
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
@@ -202,6 +196,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Amundsen integration (see [Feast extractor](https://github.com/amundsen-io/amundsen/blob/main/databuilder/databuilder/extractor/feast_extractor.py))
   * [x] DataHub integration (see [DataHub Feast docs](https://datahubproject.io/docs/generated/ingestion/sources/feast/))
   * [x] Feast Web UI (Alpha release. See [docs](https://docs.feast.dev/reference/alpha-web-ui))
+
 
 ## 🎓 Important Resources
 
