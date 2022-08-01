@@ -10,7 +10,6 @@ def test_feature_service_read() -> None:
     with runner.local_repo(
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
-
         basic_rw_test(
             store,
             view_name="driver_locations",

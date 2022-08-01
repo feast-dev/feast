@@ -11,7 +11,10 @@ def basic_rw_test(
 ) -> None:
     """
     This is a provider-independent test suite for reading and writing from the online store, to
-    be used by provider-specific  tests.
+    be used by provider-specific tests.
+
+    The specified feature view must have exactly two features: one named 'lat' with type Float32
+    and one with name 'lon' with type String.
     """
     table = store.get_feature_view(name=view_name)
 

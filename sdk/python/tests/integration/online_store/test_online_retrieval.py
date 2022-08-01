@@ -24,7 +24,6 @@ def test_online() -> None:
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
-
         driver_locations_fv = store.get_feature_view(name="driver_locations")
         customer_profile_fv = store.get_feature_view(name="customer_profile")
         customer_driver_combined_fv = store.get_feature_view(

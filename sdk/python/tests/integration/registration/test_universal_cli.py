@@ -159,7 +159,7 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
             repo_config.write_text(dedent(feature_store_yaml))
 
             repo_example = repo_path / "example.py"
-            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            repo_example.write_text(get_example_repo("empty_feature_repo.py"))
             result = runner.run(["apply"], cwd=repo_path)
             assertpy.assert_that(result.returncode).is_equal_to(0)
         finally:
