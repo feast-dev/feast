@@ -49,9 +49,8 @@ def run_simple_apply_test(example_repo_file_name: str, expected_error: bytes):
 
 def test_cli_apply_imported_featureview() -> None:
     """
-    Test apply feature views with duplicated names and single py file in a feature repo using CLI
+    Tests that applying a feature view imported from a separate Python file is successful.
     """
-
     with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
         runner = CliRunner()
         # Construct an example repo in a temporary dir
@@ -72,8 +71,11 @@ def test_cli_apply_imported_featureview() -> None:
             )
         )
 
+        # Import feature view from an existing file so it exists in two files.
         repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+        repo_example.write_text(
+            get_example_repo("example_feature_repo_with_driver_stats_feature_view.py")
+        )
         repo_example_2 = repo_path / "example_2.py"
         repo_example_2.write_text(
             "from example import driver_hourly_stats_view\n"
@@ -92,9 +94,9 @@ def test_cli_apply_imported_featureview() -> None:
 
 def test_cli_apply_imported_featureview_with_duplication() -> None:
     """
-    Test apply feature views with duplicated names and single py file in a feature repo using CLI
+    Tests that applying feature views with duplicated names is not possible, even if one of the
+    duplicated feature views is imported from another file.
     """
-
     with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
         runner = CliRunner()
         # Construct an example repo in a temporary dir
@@ -115,8 +117,11 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
             )
         )
 
+        # Import feature view with duplicated name to try breaking the deduplication logic.
         repo_example = repo_path / "example.py"
-        repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+        repo_example.write_text(
+            get_example_repo("example_feature_repo_with_driver_stats_feature_view.py")
+        )
         repo_example_2 = repo_path / "example_2.py"
         repo_example_2.write_text(
             "from datetime import timedelta\n"
@@ -147,7 +152,6 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
     """
     Test apply feature views with duplicated names from multiple py files in a feature repo using CLI
     """
-
     with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
         runner = CliRunner()
         # Construct an example repo in a temporary dir
@@ -170,7 +174,11 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
         # Create multiple py files containing the same feature view name
         for i in range(3):
             repo_example = repo_path / f"example{i}.py"
-            repo_example.write_text(get_example_repo("example_feature_repo_2.py"))
+            repo_example.write_text(
+                get_example_repo(
+                    "example_feature_repo_with_driver_stats_feature_view.py"
+                )
+            )
         rc, output = runner.run_with_output(["apply"], cwd=repo_path)
 
         assert (

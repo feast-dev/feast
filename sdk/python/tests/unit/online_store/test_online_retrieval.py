@@ -14,17 +14,15 @@ from feast.repo_config import RegistryConfig
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
-@pytest.mark.integration
 def test_online() -> None:
     """
     Test reading from the online store in local mode.
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
-
         driver_locations_fv = store.get_feature_view(name="driver_locations")
         customer_profile_fv = store.get_feature_view(name="customer_profile")
         customer_driver_combined_fv = store.get_feature_view(
@@ -251,13 +249,11 @@ def test_online() -> None:
         os.rename(store.config.registry + "_fake", store.config.registry)
 
 
-@pytest.mark.integration
 def test_online_to_df():
     """
     Test dataframe conversion. Make sure the response columns and rows are
     the same order as the request.
     """
-
     driver_ids = [1, 2, 3]
     customer_ids = [4, 5, 6]
     name = "foo"
@@ -268,7 +264,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "bigquery"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")

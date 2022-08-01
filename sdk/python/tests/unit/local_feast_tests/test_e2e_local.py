@@ -5,11 +5,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from feast import Entity, FeatureView, Field, FileSource
 from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
 from feast.feature_store import FeatureStore
+from feast.types import Float32, String
+from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.feature_records import validate_online_features
 
@@ -120,3 +123,41 @@ def _test_materialize_and_online_retrieval(
 
     assert r.returncode == 0, f"stdout: {r.stdout}\n stderr: {r.stderr}"
     validate_online_features(store, driver_df, end_date)
+
+
+def test_partial() -> None:
+    """
+    Add another table to existing repo using partial apply API. Make sure both the table
+    applied via CLI apply and the new table are passing RW test.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        driver = Entity(name="driver", join_keys=["test"])
+
+        driver_locations_source = FileSource(
+            path="data/driver_locations.parquet",  # Fake path
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        )
+
+        driver_locations_100 = FeatureView(
+            name="driver_locations_100",
+            entities=[driver],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="lat", dtype=Float32),
+                Field(name="lon", dtype=String),
+                Field(name="name", dtype=String),
+                Field(name="test", dtype=String),
+            ],
+            online=True,
+            batch_source=driver_locations_source,
+            tags={},
+        )
+
+        store.apply([driver_locations_100])
+
+        basic_rw_test(store, view_name="driver_locations")
+        basic_rw_test(store, view_name="driver_locations_100")
