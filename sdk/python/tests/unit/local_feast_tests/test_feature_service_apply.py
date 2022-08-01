@@ -8,7 +8,7 @@ def test_read_pre_applied() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_with_feature_service.py"), "file"
     ) as store:
         assert len(store.list_feature_services()) == 1
         fs = store.get_feature_service("driver_locations_service")
