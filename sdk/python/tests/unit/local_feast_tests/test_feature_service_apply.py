@@ -1,5 +1,5 @@
 from feast.feature_service import FeatureService
-from tests.utils.cli_utils import CliRunner, get_example_repo
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
 def test_read_pre_applied() -> None:
