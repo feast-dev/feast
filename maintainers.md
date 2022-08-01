@@ -1,0 +1,2 @@
+# Setting up your environment
+> Please see the [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions and [Contributing Guide](https://github.com/feast-dev/feast/blob/master/CONTRIBUTING.md) for specific details on how to set up your develop environment and contribute to Feast.
