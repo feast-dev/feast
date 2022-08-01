@@ -2,14 +2,8 @@ name: pr-integration-tests
 
 on: [pull_request]
 
-# concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
-#concurrency:
-#  group: pr-integration-tests-${{ github.event.pull_request.number }}
-#  cancel-in-progress: true
-
 jobs:
   integration-test-python:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: github.repository == 'kevjumba/feast' # swap here with your project
     runs-on: ${{ matrix.os }}
     strategy:
