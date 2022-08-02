@@ -6,5 +6,5 @@ A materialization engine abstracts over specific technologies or frameworks that
 
 If the built-in engines are not sufficient, you can create your own custom materialization engine. Please see [this guide](../../how-to-guides/creating-a-custom-materialization-engine.md) for more details.
 
-Please see [feature\_store.yaml](../../reference/feature-repository/feature-store-yaml.md#overview) for configuring providers.
+Please see [feature\_store.yaml](../../reference/feature-repository/feature-store-yaml.md#overview) for configuring engines.
 
