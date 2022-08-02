@@ -8,7 +8,7 @@ These can be specified either by a table reference or a SQL query.
 ## Disclaimer
 
 The PostgreSQL data source does not achieve full test coverage.
-Please do not assume complete stability of the API.
+Please do not assume complete stability.
 
 ## Examples
 

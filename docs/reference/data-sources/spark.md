@@ -7,7 +7,7 @@ Spark data sources are tables or files that can be loaded from some Spark store 
 ## Disclaimer
 
 The Spark data source does not achieve full test coverage.
-Please do not assume complete stability of the API.
+Please do not assume complete stability.
 
 ## Examples
 

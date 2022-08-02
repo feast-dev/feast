@@ -8,7 +8,7 @@ The PostgreSQL offline store provides support for reading [PostgreSQLSources](..
 ## Disclaimer
 
 The PostgreSQL offline store does not achieve full test coverage.
-Please do not assume complete stability of the API.
+Please do not assume complete stability.
 
 ## Example
 
