@@ -1,4 +1,4 @@
-# Adding or reusing tests
+# Testing Suite
 
 ## Overview
 
