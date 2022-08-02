@@ -31,3 +31,7 @@ Please see [Offline Store](../../getting-started/architecture-and-components/off
 {% content-ref url="postgres.md" %}
 [postgres.md](postgres.md)
 {% endcontent-ref %}
+
+{% content-ref url="trino.md" %}
+[trino.md](trino.md)
+{% endcontent-ref %}
