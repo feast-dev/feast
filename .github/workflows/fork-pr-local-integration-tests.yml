@@ -63,4 +63,4 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
-        run: make test-python-integration-local
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not test_apply_entity_integration and not test_apply_feature_view_integration and not test_apply_data_source_integration and not test_lambda_materialization" sdk/python/tests
