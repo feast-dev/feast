@@ -22,31 +22,33 @@ For Feast maintainers, these are the concrete steps for making a new release.
 
 ### Release for Python and Java SDK
 1. Generate a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or retrieve your saved personal access token.
-   - The personal access token should have all of the permissions under the `repo` checkbox.
+   * The personal access token should have all of the permissions under the `repo` checkbox.
 2. Access the `Actions` tab on the main `feast-dev/feast` repo and find the `release` action.
 3. Look for the header `This workflow has a workflow_dispatch event trigger` again and click `Run Workflow` on the right.
+   * If you are making a minor or major release, you should run it off of the master branch.
+   * If you are making a patch release, run it off of the corresponding minor release branch.
 4. Try the dry run first with your personal access token. If this succeeds, uncheck `Dry Run` and run the release workflow.
 5. All of the jobs should succeed besides the UI job which needs to be released separately. Ping a maintainer on Slack to run the UI release manually.
 6. Try to install the feast release in your local environment and test out the `feast init` -> `feast apply` workflow to verify as a sanity check that the release worked correctly.
 
 ### (for minor releases) Post-release steps
 1. Create a new branch based on master (i.e. v0.22-branch) and push to the main Feast repo. This will be where cherry-picks go for future patch releases and where documentation will point.
-2. Write a summary of the release in the GitHub release 
+2. Write a summary of the release in the GitHub release
    1. By default, Semantic Release will pull in messages from commits (features vs fixes, etc). But this is hard to digest still, so it helps to have a high level overview.
 
 ### Update documentation
 
-In the Feast Gitbook (ask [Danny Chiao](https://tectonfeast.slack.com/team/U029405HFEU) in Slack for access): 
+In the Feast Gitbook (ask [Danny Chiao](https://tectonfeast.slack.com/team/U029405HFEU) in Slack for access):
 1. Create a new space within the Feast collection
-2. Go to the overflow menu on the top -> Synchronize with Git 
+2. Go to the overflow menu on the top -> Synchronize with Git
    1. Specify GitHub as the provider
-   
+
       ![](new_branch_part_1.png)
    2. Configure to point to the new release branch
 
       ![](new_branch_part_2.png)
 3. Publish the new page for this branch as part of the collection
-   
+
    ![](new_branch_part_3.png)
 4. Go back to the main Feast collection and go to the overflow menu -> "Customize collection"
 
