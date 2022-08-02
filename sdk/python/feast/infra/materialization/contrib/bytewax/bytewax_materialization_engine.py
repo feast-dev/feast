@@ -2,8 +2,6 @@ import uuid
 from datetime import datetime
 from typing import Callable, List, Literal, Sequence, Union
 
-import kubernetes
-import kubernetes.client
 import yaml
 from kubernetes import client
 from kubernetes import config as k8s_config
@@ -36,15 +34,12 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     type: Literal["bytewax"] = "bytewax"
     """ Materialization type selector"""
 
-    pods: int = 3
-    """ (optional) The number of Kubernetes pods to create.
-    For each feature view to be materialized, Bytewax will create a job with the specified
-    number of pods and distribute the work among them.
-    """
-
     namespace: StrictStr = "default"
     """ (optional) The namespace in Kubernetes to use when creating services, configuration maps and jobs.
     """
+
+    image: StrictStr = "bytewax/bytewax-feast:latest"
+    """ (optional) The container image to use when running the materialization job."""
 
     env: List[dict] = []
     """ (optional) A list of environment variables to set in the created Kubernetes pods.
@@ -169,7 +164,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             self._create_job_definition(
                 job_id,
                 self.namespace,
-                self.batch_engine_config.pods,
+                len(paths),  # Create a pod for each parquet file
                 self.batch_engine_config.env,
             )
         except FailToCreateError as failures:

@@ -29,7 +29,6 @@ Then configure them in the batch_engine section of `feature_store.yaml`:
 batch_engine:
   type: bytewax
   namespace: bytewax
-  pods: 3
   env:
     - name: AWS_ACCESS_KEY_ID
       valueFrom:
@@ -51,9 +50,10 @@ The Bytewax materialization engine is configured through the The `feature_store.
 batch_engine:
   type: bytewax
   namespace: bytewax
-  pods: 3
+  image: bytewax/bytewax-feast:latest
 ```
 
 The `namespace` configuration directive specifies which Kubernetes [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) jobs, services and configuration maps will be created in.
 
-The `pods` configuration directive is used to configure the number of Bytewax pods that will be started for each FeatureView that is being materialized.
+The `image` parameter specifies which container image to use when running the materialization job. To create a custom image based on this container, please see the [GitHub repository](https://github.com/bytewax/bytewax-feast) for this image.
+

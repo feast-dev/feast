@@ -1,9 +1,9 @@
-from typing import Any, Iterable, List
+from typing import List
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import s3fs
-from bytewax import Dataflow, cluster_main
+from bytewax import Dataflow, cluster_main  # type: ignore
 from bytewax.inputs import AdvanceTo, Emit, ManualInputConfig, distribute
 from bytewax.parse import proc_env
 from tqdm import tqdm

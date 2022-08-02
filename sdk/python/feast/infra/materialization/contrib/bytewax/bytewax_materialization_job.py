@@ -1,10 +1,6 @@
 from typing import Optional
 
-import kubernetes
-import kubernetes.client
 from kubernetes import client
-from kubernetes import config as k8s_config
-from kubernetes import utils
 
 from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJob,
