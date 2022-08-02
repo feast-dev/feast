@@ -1,4 +1,4 @@
-# Spark (contrib)
+# Spark offline store (contrib)
 
 ## Description
 

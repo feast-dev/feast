@@ -1,4 +1,4 @@
-# Snowflake
+# Snowflake offline store
 
 ## Description
 

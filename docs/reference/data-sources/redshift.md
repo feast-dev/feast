@@ -1,4 +1,4 @@
-# Redshift
+# Redshift source
 
 ## Description
 

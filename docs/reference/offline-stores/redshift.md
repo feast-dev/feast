@@ -1,4 +1,4 @@
-# Redshift
+# Redshift offline store
 
 ## Description
 

@@ -1,4 +1,4 @@
-# Snowflake
+# Snowflake online store
 
 ## Description
 

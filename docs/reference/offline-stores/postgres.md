@@ -1,4 +1,4 @@
-# PostgreSQL (contrib)
+# PostgreSQL offline store (contrib)
 
 ## Description
 

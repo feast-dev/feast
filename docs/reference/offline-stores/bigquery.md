@@ -1,4 +1,4 @@
-# BigQuery
+# BigQuery offline store
 
 ## Description
 
