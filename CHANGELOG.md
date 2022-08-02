@@ -1,5 +1,51 @@
 # Changelog
 
+# [0.23.0](https://github.com/feast-dev/feast/compare/v0.22.0...v0.23.0) (2022-08-02)
+
+
+### Bug Fixes
+
+* Add dummy alias to pull_all_from_table_or_query ([#2956](https://github.com/feast-dev/feast/issues/2956)) ([5e45228](https://github.com/feast-dev/feast/commit/5e45228a406e6ee7f82e41cab7f734730ff2e73f))
+* Bump version of Guava to mitigate cve ([#2896](https://github.com/feast-dev/feast/issues/2896)) ([51df8be](https://github.com/feast-dev/feast/commit/51df8be5d3b9bc702393d00e9a6370c703510358))
+* Change numpy version on setup.py and upgrade it to resolve dependabot warning ([#2887](https://github.com/feast-dev/feast/issues/2887)) ([80ea7a9](https://github.com/feast-dev/feast/commit/80ea7a93a9d7ea19f9a1218430e008a33eb6d788))
+* Change the feature store plan method to public modifier ([#2904](https://github.com/feast-dev/feast/issues/2904)) ([0ec7d1a](https://github.com/feast-dev/feast/commit/0ec7d1abd3f509e17870ca168ece356382fb7fe9))
+* Deprecate 3.7 wheels and fix verification workflow ([#2934](https://github.com/feast-dev/feast/issues/2934)) ([040c910](https://github.com/feast-dev/feast/commit/040c9107b719a7b3f3c70ab743f148e47b0a0982))
+* Do not allow same column to be reused in data sources ([#2965](https://github.com/feast-dev/feast/issues/2965)) ([661c053](https://github.com/feast-dev/feast/commit/661c0535f34b042846562a3fb4cdab4ab4403459))
+* Fix build wheels workflow to install apache-arrow correctly ([#2932](https://github.com/feast-dev/feast/issues/2932)) ([bdeb4ae](https://github.com/feast-dev/feast/commit/bdeb4aeaf2a5cfa144a65cc84f7bfb26e3077e7a))
+* Fix file offline store logic for feature views without ttl ([#2971](https://github.com/feast-dev/feast/issues/2971)) ([26f6b69](https://github.com/feast-dev/feast/commit/26f6b69b0e2c8a4ea37b43e3d1eaa4cdb8c085a9))
+* Fix grpc and update protobuf ([#2894](https://github.com/feast-dev/feast/issues/2894)) ([86e9efd](https://github.com/feast-dev/feast/commit/86e9efdc893de817a359feb939f06717716c0b17))
+* Fix night ci syntax error and update readme ([#2935](https://github.com/feast-dev/feast/issues/2935)) ([b917540](https://github.com/feast-dev/feast/commit/b917540c27052c01f872a2de686a6dd3b7a16e9c))
+* Fix nightly ci again ([#2939](https://github.com/feast-dev/feast/issues/2939)) ([1603c9e](https://github.com/feast-dev/feast/commit/1603c9e7765e08bb1832c03b66b754afbf8a9b4d))
+* Fix the go build and use CgoArrowAllocator to prevent incorrect garbage collection ([#2919](https://github.com/feast-dev/feast/issues/2919)) ([130746e](https://github.com/feast-dev/feast/commit/130746ea5cfadad6ef467c0cb0490d4745fdad70))
+* Fix typo in CONTRIBUTING.md ([#2955](https://github.com/feast-dev/feast/issues/2955)) ([8534f69](https://github.com/feast-dev/feast/commit/8534f69026d03e6e5964ef3e9bc69cc18397a879))
+* Fixing broken links to feast documentation on java readme and contribution ([#2892](https://github.com/feast-dev/feast/issues/2892)) ([d044588](https://github.com/feast-dev/feast/commit/d044588d702b3dc2dd6b9a9e28056df19d942a09))
+* Fixing Spark min / max entity df event timestamps range return order ([#2735](https://github.com/feast-dev/feast/issues/2735)) ([ac55ce2](https://github.com/feast-dev/feast/commit/ac55ce25388abfa35e93097bd14190eeba08a165))
+* Move gcp back to 1.47.0 since grpcio-tools 1.48.0 got yanked from pypi ([#2990](https://github.com/feast-dev/feast/issues/2990)) ([fc447eb](https://github.com/feast-dev/feast/commit/fc447eb3d0345dba6a45cdf5b1c1c2e982766cb9))
+* Refactor testing and sort out unit and integration tests ([#2975](https://github.com/feast-dev/feast/issues/2975)) ([2680f7b](https://github.com/feast-dev/feast/commit/2680f7b031717b64e6ea3addf150369dccebdbc1))
+* Remove hard-coded integration test setup for AWS & GCP ([#2970](https://github.com/feast-dev/feast/issues/2970)) ([e4507ac](https://github.com/feast-dev/feast/commit/e4507ac16540cb3a7e29c31121963a0fe8f79fe4))
+* Resolve small typo in README file ([#2930](https://github.com/feast-dev/feast/issues/2930)) ([16ae902](https://github.com/feast-dev/feast/commit/16ae902909911bbf45d0e430895b3bc20bba01e9))
+* Revert "feat: Add snowflake online store ([#2902](https://github.com/feast-dev/feast/issues/2902))" ([#2909](https://github.com/feast-dev/feast/issues/2909)) ([38fd001](https://github.com/feast-dev/feast/commit/38fd00195f8ed309b2e7bae06d48cb10ab82f5aa))
+* Snowflake_online_read fix ([#2988](https://github.com/feast-dev/feast/issues/2988)) ([651ce34](https://github.com/feast-dev/feast/commit/651ce341687034ce07ca959f805f3c90dccfd4cc))
+* Spark source support table with pattern "db.table" ([#2606](https://github.com/feast-dev/feast/issues/2606)) ([3ce5139](https://github.com/feast-dev/feast/commit/3ce51391e0b2ebdec68c81d93b54f5d06bb427a6)), closes [#2605](https://github.com/feast-dev/feast/issues/2605)
+* Switch mysql log string to use regex ([#2976](https://github.com/feast-dev/feast/issues/2976)) ([5edf4b0](https://github.com/feast-dev/feast/commit/5edf4b0332a298a0e172dd58e0a627efe5705eec))
+* Update gopy to point to fork to resolve github annotation errors. ([#2940](https://github.com/feast-dev/feast/issues/2940)) ([ba2dcf1](https://github.com/feast-dev/feast/commit/ba2dcf13fe9dc4c082816a737100e00e3e9a8ad2))
+* Version entity serialization mechanism and fix issue with int64 vals ([#2944](https://github.com/feast-dev/feast/issues/2944)) ([d0d27a3](https://github.com/feast-dev/feast/commit/d0d27a35a0d63a139970cb17542764ff2aaf6aaf))
+
+
+### Features
+
+* Add an experimental lambda-based materialization engine ([#2923](https://github.com/feast-dev/feast/issues/2923)) ([6f79069](https://github.com/feast-dev/feast/commit/6f79069c561eba888d070c46aae920f7ad0c2319))
+* Add column reordering to `write_to_offline_store` ([#2876](https://github.com/feast-dev/feast/issues/2876)) ([8abc2ef](https://github.com/feast-dev/feast/commit/8abc2ef76d461b6b4bbd97e2dfdf29c1c335cb80))
+* Add custom JSON table tab w/ formatting ([#2851](https://github.com/feast-dev/feast/issues/2851)) ([0159f38](https://github.com/feast-dev/feast/commit/0159f3875de7c8509c465346bd13dd11fba0d467))
+* Add CustomSourceOptions to SavedDatasetStorage ([#2958](https://github.com/feast-dev/feast/issues/2958)) ([23c09c8](https://github.com/feast-dev/feast/commit/23c09c83bc530de830ba867b10ceb02f113db5d6))
+* Add Go option to `feast serve` command ([#2966](https://github.com/feast-dev/feast/issues/2966)) ([a36a695](https://github.com/feast-dev/feast/commit/a36a6950b34d718ad328b4faca0c178fb23a3100))
+* Add interfaces for batch materialization engine ([#2901](https://github.com/feast-dev/feast/issues/2901)) ([38b28ca](https://github.com/feast-dev/feast/commit/38b28ca0181610c65d966a2f09456dbb102fbced))
+* Add pages for individual Features to the Feast UI ([#2850](https://github.com/feast-dev/feast/issues/2850)) ([9b97fca](https://github.com/feast-dev/feast/commit/9b97fca876d9520d6e1f9025562036330cc0aabd))
+* Add snowflake online store ([#2902](https://github.com/feast-dev/feast/issues/2902)) ([f758f9e](https://github.com/feast-dev/feast/commit/f758f9e148212d08f63df155e864940c27d92155)), closes [#2903](https://github.com/feast-dev/feast/issues/2903)
+* Add Snowflake online store (again) ([#2922](https://github.com/feast-dev/feast/issues/2922)) ([2ef71fc](https://github.com/feast-dev/feast/commit/2ef71fc6b3ec4fca3b543f2f64bed765b09c3af4)), closes [#2903](https://github.com/feast-dev/feast/issues/2903)
+* Add to_remote_storage method to RetrievalJob ([#2916](https://github.com/feast-dev/feast/issues/2916)) ([109ee9c](https://github.com/feast-dev/feast/commit/109ee9cff5bcda46889583f2968003f6a3e375b3))
+* Support retrieval from multiple feature views with different join keys ([#2835](https://github.com/feast-dev/feast/issues/2835)) ([056cfa1](https://github.com/feast-dev/feast/commit/056cfa1b21db4ff092b9d1f9c06f7300a4c9f4b7))
+
 # [0.22.0](https://github.com/feast-dev/feast/compare/v0.21.0...v0.22.0) (2022-06-29)
 
 
