@@ -2,10 +2,18 @@
 
 ## Overview
 
-Starting with feast version 0.22, the feast cli supports a new command, `repo-upgrade` to automate the process of upgrading feast repositories to use the latest supported API.
+Starting with Feast 0.20, the APIs of many core objects (e.g. feature views and entities) have been changed.
+For example, many parameters have been renamed.
+These changes were made in a backwards-compatible fashion; existing Feast repositories will continue to work until Feast 0.23, without any changes required.
+However, Feast 0.24 will fully deprecate all of the old parameters, so in order to use Feast 0.24+ users must modify their Feast repositories.
 
-The upgrade command aims to change the Feast API used in the feature repo to the latest version offered by Feast. When running the command, the feast CLI analyzes the source code in the feature repo files using [bowler](https://pybowler.io/), and attempted to rewrite the files in a best-effort way. It's possible for there to be parts of the API that are not upgraded automatically. To make this command better, we welcome feedback and code contributions to the upgrade implementation!
+There are currently deprecation warnings that indicate to users exactly how to modify their repos.
+In order to make the process somewhat easier, Feast 0.23 also introduces a new CLI command, `repo-upgrade`, that will partially automate the process of upgrading Feast repositories.
 
+The upgrade command aims to automatically modify the object definitions in a feature repo to match the API required by Feast 0.24+. When running the command, the Feast CLI analyzes the source code in the feature repo files using [bowler](https://pybowler.io/), and attempted to rewrite the files in a best-effort way. It's possible for there to be parts of the API that are not upgraded automatically.
+
+The `repo-upgrade` command is specifically meant for upgrading Feast repositories that were initially created in versions 0.23 and below to be compatible with versions 0.24 and above.
+It is not intended to work for any future upgrades.
 
 ## Usage
 
