@@ -158,12 +158,13 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 ### To include a new offline / online store in the main Feast repo
 
 * Extend `data_source_creator.py` for your offline store.
-* In `repo_configuration.py` add a new`IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
+* In `repo_configuration.py` add a new `IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
+    - Generally, you should only need to test against sqlite. However, if you need to test against a production online store, then you can also test against redis or dynamodb.
 * Run the full test suite with `make test-python-integration.`
 
 ### Including a new offline / online store in the main Feast repo from external plugins with community maintainers.
 
-* This folder is for plugins that are officially maintained with community owners. Place the APIs in feast/infra/offline_stores/contrib/.
+* This folder is for plugins that are officially maintained with community owners. Place the APIs in `feast/infra/offline_stores/contrib/`.
 * Extend `data_source_creator.py` for your offline store and implement the required APIs.
 * In `contrib_repo_configuration.py` add a new `IntegrationTestRepoConfig` (depending on how many online stores you want to test).
 * Run the test suite on the contrib test suite with `make test-python-contrib-universal`.
@@ -171,7 +172,7 @@ The key fixtures are the `environment` and `universal_data_sources` fixtures, wh
 ### To include a new online store
 
 * In `repo_configuration.py` add a new config that maps to a serialized version of configuration you need in `feature_store.yaml` to setup the online store.
-* In `repo_configuration.py`, add new`IntegrationTestRepoConfig` for offline stores you want to test.
+* In `repo_configuration.py`, add new `IntegrationTestRepoConfig` for online stores you want to test.
 * Run the full test suite with `make test-python-integration`
 
 ### To use custom data in a new test
@@ -197,7 +198,7 @@ def your_test(environment: Environment):
 
 * Install redis on your computer. If you are a mac user, you should be able to `brew install redis`.
     * Running `redis-server --help` and `redis-cli --help` should show corresponding help menus.
-* Run `cd scripts/create-cluster` and run `./create-cluster start` then `./create-cluster create` to start the server. You should see output that looks like this:
+* * Run `./infra/scripts/redis-cluster.sh start` then `./infra/scripts/redis-cluster.sh create` to start the redis cluster locally. You should see output that looks like this:
 ~~~~
 Starting 6001
 Starting 6002
@@ -208,4 +209,4 @@ Starting 6006
 ~~~~
 * You should be able to run the integration tests and have the redis cluster tests pass.
 * If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
-* To stop the cluster, run `./create-cluster stop` and then `./create-cluster clean`.
+* To stop the cluster, run `./infra/scripts/redis-cluster.sh stop` and then `./infra/scripts/redis-cluster.sh clean`.
