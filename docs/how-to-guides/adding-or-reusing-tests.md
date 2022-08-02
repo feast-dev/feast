@@ -40,7 +40,7 @@ $ tree
 │       │   ├── datastore.py
 │       │   ├── dynamodb.py
 │       │   ├── hbase.py
-│       │   └── redis.py
+│       │   └── Redis.py
 │       └── online_store_creator.py
 ├── materialization
 │   └── test_lambda.py
@@ -72,7 +72,7 @@ $ tree
 
 ### What is the universal test suite?
 
-The universal test suite verifies that crucial Feast functions(e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
+The universal test suite verifies that crucial Feast functions (e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
 
 We use pytest [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html) to accomplish this without writing excess code.
 
@@ -80,9 +80,9 @@ Tests in Feast are split into integration and unit tests.
 
 ### Is it an integration or unit test?
 
-- In an integration test, multiple modules of Feast are tested together. Integration tests mainly involve testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
+- Integration tests test non local Feast behavior. Integration tests mainly involve testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
     - Generally if the test requires the initialization of a feature store in an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
-- Unit tests, on the other hand, test individual classes or functions for class level behavior. Unit tests should not require pytest to spin up external services and should not need to access classes in other modules of Feast.
+- Unit tests, on the other hand, unit tests primarily test local and class level behavior that does not require spinning up an external service. If your test can be run locally without using any other services besides pytest, it is a unit test.
 
 ### Main Types of Tests
 
@@ -246,14 +246,14 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 {% endtab %}
 {% endtabs %}
 
-- The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories and the `conftest.py` file. This by default pulls in a standard dataset with driver and customer entities(that we have pre-defined), certain feature views, and feature values.
+- The key fixtures are the `environment` and `universal_data_sources` fixtures, which are defined in the `feature_repos` directories and the `conftest.py` file. This by default pulls in a standard dataset with driver and customer entities (that we have pre-defined), certain feature views, and feature values.
     - The `environment` fixture sets up a feature store, parametrized by the provider and the online/offline store. It allows the test to query against that feature store without needing to worry about the underlying implementation or any setup that may be involved in creating instances of these datastores.
     - Each fixture creates a different integration test with its own `IntegrationTestRepoConfig` which is used by pytest to generate a unique test testing one of the different environments that require testing.
 
 - Feast tests also use a variety of markers:
-    - The `pytest.mark.integration` marker is used to designate integration tests which will cause the test to be run when you call `make test-python-integration`.
+    - The `@pytest.mark.integration` marker is used to designate integration tests which will cause the test to be run when you call `make test-python-integration`.
     - The `@pytest.mark.universal_offline_stores` marker will parametrize the test on all of the universal offline stores including file, redshift, bigquery and snowflake.
-    - The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name(fully qualified path) or just the feature name itself.
+    - The `full_feature_names` parametrization defines whether or not the test should reference features as their full feature name (fully qualified path) or just the feature name itself.
 
 
 ## Writing a new test or reusing existing tests
@@ -264,6 +264,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
 * If possible, expand an individual test instead of writing a new test, due to the cost of starting up offline / online stores.
 * Use the `universal_offline_stores` and `universal_online_store` markers to parametrize the test against different offline store and online store combinations. You can also designate specific online and offline stores to test by using the `only` parameter on the marker.
 
+```python
+@pytest.mark.universal_online_stores(only=["redis"])
+```
 ### To test a new offline / online store from a plugin repo
 
 * Install Feast in editable mode with `pip install -e`.
@@ -287,7 +290,7 @@ The most important functionality in Feast is historical and online retrieval. Mo
 
 * Extend `data_source_creator.py` for your offline store.
 * In `repo_configuration.py` add a new `IntegrationTestRepoConfig` or two (depending on how many online stores you want to test).
-    - Generally, you should only need to test against sqlite. However, if you need to test against a production online store, then you can also test against redis or dynamodb.
+    - Generally, you should only need to test against sqlite. However, if you need to test against a production online store, then you can also test against Redis or dynamodb.
 * Run the full test suite with `make test-python-integration.`
 
 ### Including a new offline / online store in the main Feast repo from external plugins with community maintainers.
@@ -322,11 +325,11 @@ def your_test(environment: Environment):
     # ... run test
 ```
 
-### Running your own redis cluster for testing
+### Running your own Redis cluster for testing
 
-* Install redis on your computer. If you are a mac user, you should be able to `brew install redis`.
-    * Running `redis-server --help` and `redis-cli --help` should show corresponding help menus.
-* * Run `./infra/scripts/redis-cluster.sh start` then `./infra/scripts/redis-cluster.sh create` to start the redis cluster locally. You should see output that looks like this:
+* Install Redis on your computer. If you are a mac user, you should be able to `brew install Redis`.
+    * Running `Redis-server --help` and `Redis-cli --help` should show corresponding help menus.
+* * Run `./infra/scripts/Redis-cluster.sh start` then `./infra/scripts/Redis-cluster.sh create` to start the Redis cluster locally. You should see output that looks like this:
 ~~~~
 Starting 6001
 Starting 6002
@@ -335,7 +338,6 @@ Starting 6004
 Starting 6005
 Starting 6006
 ~~~~
-* You should be able to run the integration tests and have the redis cluster tests pass.
-* If you would like to run your own redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
-* To stop the cluster, run `./infra/scripts/redis-cluster.sh stop` and then `./infra/scripts/redis-cluster.sh clean`.
-
+* You should be able to run the integration tests and have the Redis cluster tests pass.
+* If you would like to run your own Redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
+* To stop the cluster, run `./infra/scripts/Redis-cluster.sh stop` and then `./infra/scripts/Redis-cluster.sh clean`.
