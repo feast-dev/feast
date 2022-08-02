@@ -50,6 +50,6 @@ Below is a matrix indicating which functionality is supported by `BigQueryRetrie
 | remote execution of Python-based on-demand transforms | no  |
 | persist results in the offline store                  | yes |
 | preview the query plan before execution               | yes |
-| read partitioned data                                 | yes |
+| read partitioned data                                 | no  |
 
 To compare this set of functionality against other offline stores, please see the full [functionality matrix](overview.md#functionality-matrix).
