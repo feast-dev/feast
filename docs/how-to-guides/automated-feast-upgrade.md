@@ -14,19 +14,18 @@ At the root of a feature repo, you can run `feast repo-upgrade`. By default, the
 An example:
 ```bash
 $ feast repo-upgrade --write
-/Users/achal/tecton/feast/.direnv/python-3.8.12/lib/python3.8/site-packages/pkg_resources/_vendor/packaging/specifiers.py:273: DeprecationWarning: Creating a LegacyVersion has been deprecated and will be removed in the next major release
---- /Users/achal/tecton/feast/prompt_dory/example.py
-+++ /Users/achal/tecton/feast/prompt_dory/example.py
+--- /Users/achal/feast/prompt_dory/example.py
++++ /Users/achal/feast/prompt_dory/example.py
 @@ -13,7 +13,6 @@
-     path="/Users/achal/tecton/feast/prompt_dory/data/driver_stats.parquet",
+     path="/Users/achal/feast/prompt_dory/data/driver_stats.parquet",
      event_timestamp_column="event_timestamp",
      created_timestamp_column="created",
 -    date_partition_column="created"
  )
 
  # Define an entity for the driver. You can think of entity as a primary key used to
---- /Users/achal/tecton/feast/prompt_dory/example.py
-+++ /Users/achal/tecton/feast/prompt_dory/example.py
+--- /Users/achal/feast/prompt_dory/example.py
++++ /Users/achal/feast/prompt_dory/example.py
 @@ -3,7 +3,7 @@
  from google.protobuf.duration_pb2 import Duration
  import pandas as pd
@@ -36,8 +35,8 @@ $ feast repo-upgrade --write
 
  # Read data from parquet files. Parquet is convenient for local development mode. For
  # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
---- /Users/achal/tecton/feast/prompt_dory/example.py
-+++ /Users/achal/tecton/feast/prompt_dory/example.py
+--- /Users/achal/feast/prompt_dory/example.py
++++ /Users/achal/feast/prompt_dory/example.py
 @@ -4,6 +4,7 @@
  import pandas as pd
 
@@ -46,8 +45,8 @@ $ feast repo-upgrade --write
 
  # Read data from parquet files. Parquet is convenient for local development mode. For
  # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
---- /Users/achal/tecton/feast/prompt_dory/example.py
-+++ /Users/achal/tecton/feast/prompt_dory/example.py
+--- /Users/achal/feast/prompt_dory/example.py
++++ /Users/achal/feast/prompt_dory/example.py
 @@ -28,9 +29,9 @@
      entities=["driver_id"],
      ttl=Duration(seconds=86400 * 365),
