@@ -61,14 +61,26 @@ Below is a matrix indicating which `RetrievalJob`s support what functionality.
 
 ## Reference
 
-{% page-ref page="file.md" %}
+{% content-ref url="file.md" }
+[file.md](file.md)
+{% endcontent-ref %}
 
-{% page-ref page="snowflake.md" %}
+{% content-ref url="snowflake.md" }
+[snowflake.md](snowflake.md)
+{% endcontent-ref %}
 
-{% page-ref page="bigquery.md" %}
+{% content-ref url="bigquery.md" }
+[bigquery.md](bigquery.md)
+{% endcontent-ref %}
 
-{% page-ref page="redshift.md" %}
+{% content-ref url="redshift.md" }
+[redshift.md](redshift.md)
+{% endcontent-ref %}
 
-{% page-ref page="spark.md" %}
+{% content-ref url="spark.md" }
+[spark.md](spark.md)
+{% endcontent-ref %}
 
-{% page-ref page="postgres.md" %}
+{% content-ref url="postgres.md" }
+[postgres.md](postgres.md)
+{% endcontent-ref %}
