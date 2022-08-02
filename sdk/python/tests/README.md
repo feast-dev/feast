@@ -40,7 +40,7 @@ $ tree
 │       │   ├── datastore.py
 │       │   ├── dynamodb.py
 │       │   ├── hbase.py
-│       │   └── Redis.py
+│       │   └── redis.py
 │       └── online_store_creator.py
 ├── materialization
 │   └── test_lambda.py
@@ -84,14 +84,14 @@ Tests in Feast are split into integration and unit tests.
     * Generally if the test requires the initialization of a feature store in an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
 * Unit tests, on the other hand, unit tests primarily test local and class level behavior that does not require spinning up an external service. If your test can be run locally without using any other services besides pytest, it is a unit test.
 
-### Main Types of Tests
+### Main types of tests
 
 #### Integration tests
 
 1. E2E tests
-    * E2E tests test end-to-end functionality of Feast over the various codepaths(initialize a feature store, apply, and materialize).
+    * E2E tests test end-to-end functionality of Feast over the various codepaths (initialize a feature store, apply, and materialize).
     * The main codepaths include:
-        * basic e2e tests for offline storages
+        * basic e2e tests for offline stores
             * `test_universal_e2e.py`
         * go feature server
             * `test_go_feature_server.py`
@@ -117,7 +117,7 @@ Tests in Feast are split into integration and unit tests.
         * online store tests
             * `test_universal_online.py`
 3. Registration Tests
-    * The registration folder contains all of the registry tests and some universal cl tests. This includes:
+    * The registration folder contains all of the registry tests and some universal cli tests. This includes:
         * CLI Apply and Materialize tests tested against on the universal test suite
         * Data type inference tests
         * Registry tests
@@ -125,7 +125,7 @@ Tests in Feast are split into integration and unit tests.
     * AWS Lambda Materialization Tests (Currently do not work)
         * `test_lambda.py`
 
-#### Unit Tests
+#### Unit tests
 
 1. Registry Diff Tests
     * These are tests for the infrastructure and registry diff functionality that Feast uses to determine if changes to the registry or infrastructure is needed.
@@ -149,7 +149,7 @@ Tests in Feast are split into integration and unit tests.
             * Serialization tests due to this [issue](https://github.com/feast-dev/feast/issues/2345)
         * Feast usage tracking unit tests
 
-#### DocTests
+#### Docstring tests
 
 Docstring tests are primarily smoke tests to make sure imports and setup functions can be executed without errors.
 
@@ -327,9 +327,9 @@ def your_test(environment: Environment):
 
 ### Running your own Redis cluster for testing
 
-* Install Redis on your computer. If you are a mac user, you should be able to `brew install Redis`.
-    * Running `Redis-server --help` and `Redis-cli --help` should show corresponding help menus.
-* * Run `./infra/scripts/Redis-cluster.sh start` then `./infra/scripts/Redis-cluster.sh create` to start the Redis cluster locally. You should see output that looks like this:
+* Install Redis on your computer. If you are a mac user, you should be able to `brew install redis`.
+    * Running `redis-server --help` and `redis-cli --help` should show corresponding help menus.
+* * Run `./infra/scripts/redis-cluster.sh start` then `./infra/scripts/redis-cluster.sh create` to start the Redis cluster locally. You should see output that looks like this:
 ~~~~
 Starting 6001
 Starting 6002
@@ -340,4 +340,4 @@ Starting 6006
 ~~~~
 * You should be able to run the integration tests and have the Redis cluster tests pass.
 * If you would like to run your own Redis cluster, you can run the above commands with your own specified ports and connect to the newly configured cluster.
-* To stop the cluster, run `./infra/scripts/Redis-cluster.sh stop` and then `./infra/scripts/Redis-cluster.sh clean`.
+* To stop the cluster, run `./infra/scripts/redis-cluster.sh stop` and then `./infra/scripts/redis-cluster.sh clean`.
