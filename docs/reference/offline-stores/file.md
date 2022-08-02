@@ -2,10 +2,12 @@
 
 ## Description
 
-The File offline store provides support for reading [FileSources](../data-sources/file.md).
+The file offline store provides support for reading [FileSources](../data-sources/file.md).
+It uses Dask as the compute engine.
 
-* Only Parquet files are currently supported.
-* All data is downloaded and joined using Python and may not scale to production workloads.
+{% hint style="warning" %}
+All data is downloaded and joined using Python and therefore may not scale to production workloads.
+{% endhint %}
 
 ## Example
 
@@ -19,4 +21,36 @@ offline_store:
 ```
 {% endcode %}
 
-Configuration options are available [here](https://rtd.feast.dev/en/latest/#feast.repo_config.FileOfflineStoreConfig).
+The full set of configuration options is available in [FileOfflineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.offline_stores.file.FileOfflineStoreConfig).
+
+## Functionality Matrix
+
+The set of functionality supported by offline stores is described in detail [here](README.md#functionality).
+Below is a matrix indicating which functionality is supported by the file offline store.
+
+| | File |
+| :-------------------------------- | :-- |
+| `get_historical_features`         | yes |
+| `pull_latest_from_table_or_query` | yes |
+| `pull_all_from_table_or_query`    | yes |
+| `offline_write_batch`             | yes |
+| `write_logged_features`           | yes |
+
+Below is a matrix indicating which functionality is supported by `FileRetrievalJob`.
+
+| | File |
+| --------------------------------- | --- |
+| export to dataframe                                   | yes |
+| export to arrow table                                 | yes |
+| export to arrow batches                               | no  |
+| export to SQL                                         | no  |
+| export to data lake (S3, GCS, etc.)                   | no  |
+| export to data warehouse                              | no  |
+| export as Spark dataframe                             | no  |
+| local execution of Python-based on-demand transforms  | yes |
+| remote execution of Python-based on-demand transforms | no  |
+| persist results in the offline store                  | yes |
+| preview the query plan before execution               | yes |
+| read partitioned data                                 | yes |
+
+To compare this set of functionality against other offline stores, please see the full [functionality matrix](README.md#functionality-matrix).
