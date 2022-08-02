@@ -28,7 +28,7 @@ The full set of configuration options is available in [SnowflakeOfflineStoreConf
 
 ## Functionality Matrix
 
-The set of functionality supported by offline stores is described in detail [here](README.md#functionality).
+The set of functionality supported by offline stores is described in detail [here](overview.md#functionality).
 Below is a matrix indicating which functionality is supported by the Snowflake offline store.
 
 | | Snowflake |
@@ -56,4 +56,4 @@ Below is a matrix indicating which functionality is supported by `SnowflakeRetri
 | preview the query plan before execution               | yes |
 | read partitioned data                                 | yes |
 
-To compare this set of functionality against other offline stores, please see the full [functionality matrix](README.md#functionality-matrix).
+To compare this set of functionality against other offline stores, please see the full [functionality matrix](overview.md#functionality-matrix).
