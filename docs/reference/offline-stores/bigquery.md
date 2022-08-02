@@ -29,11 +29,11 @@ Below is a matrix indicating which functionality is supported by the BigQuery of
 
 | | BigQuery |
 | :-------------------------------- | :-- |
-| `get_historical_features`         | yes |
-| `pull_latest_from_table_or_query` | yes |
-| `pull_all_from_table_or_query`    | yes |
-| `offline_write_batch`             | yes |
-| `write_logged_features`           | yes |
+| `get_historical_features` (point-in-time correct join)             | yes |
+| `pull_latest_from_table_or_query` (retrieve latest feature values) | yes |
+| `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes |
+| `offline_write_batch` (persist dataframes to offline store)        | yes |
+| `write_logged_features` (persist logged features to offline store) | yes |
 
 Below is a matrix indicating which functionality is supported by `BigQueryRetrievalJob`.
 

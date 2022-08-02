@@ -41,11 +41,11 @@ Below is a matrix indicating which functionality is supported by the Spark offli
 
 | | Spark |
 | :-------------------------------- | :-- |
-| `get_historical_features`         | yes |
-| `pull_latest_from_table_or_query` | yes |
-| `pull_all_from_table_or_query`    | yes |
-| `offline_write_batch`             | no  |
-| `write_logged_features`           | no  |
+| `get_historical_features` (point-in-time correct join)             | yes |
+| `pull_latest_from_table_or_query` (retrieve latest feature values) | yes |
+| `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes |
+| `offline_write_batch` (persist dataframes to offline store)        | no  |
+| `write_logged_features` (persist logged features to offline store) | no  |
 
 Below is a matrix indicating which functionality is supported by `SparkRetrievalJob`.
 
