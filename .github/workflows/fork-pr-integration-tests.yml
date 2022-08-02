@@ -1,10 +1,10 @@
-name: pr-integration-tests
+name: fork-pr-integration-tests
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   integration-test-python:
-    if: github.repository == 'kevjumba/feast' # swap here with your project id
+    if: github.repository == 'your github repo' # swap here with your project id
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
