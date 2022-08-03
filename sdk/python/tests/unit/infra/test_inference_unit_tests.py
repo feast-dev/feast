@@ -46,13 +46,9 @@ def test_infer_datasource_names_dwh():
         assert data_source_with_query.name == source_name
 
         # If we have a query and no name, throw an error
-        if dwh_class == SparkSource:
-            with pytest.raises(DataSourceNoNameException):
-                print(f"Testing dwh {dwh_class}")
-                data_source = dwh_class(query="test_query")
-        else:
+        with pytest.raises(DataSourceNoNameException):
+            print(f"Testing dwh {dwh_class}")
             data_source = dwh_class(query="test_query")
-            assert data_source.name == ""
 
 
 def test_on_demand_features_type_inference():
@@ -105,71 +101,6 @@ def test_on_demand_features_type_inference():
             Feature(name="missing", dtype=ValueType.STRING),
         ],
         {"date_request": date_request},
-    )
-    def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        return data
-
-    with pytest.raises(SpecifiedFeaturesNotPresentError):
-        test_view_with_missing_feature.infer_features()
-
-
-# TODO(kevjumba): remove this in feast 0.24 when deprecating
-@pytest.mark.parametrize(
-    "request_source_schema",
-    [
-        [Field(name="some_date", dtype=UnixTimestamp)],
-        {"some_date": ValueType.UNIX_TIMESTAMP},
-    ],
-)
-def test_datasource_inference(request_source_schema):
-    # Create Feature Views
-    date_request = RequestSource(
-        name="date_request",
-        schema=request_source_schema,
-    )
-
-    @on_demand_feature_view(
-        # Note: we deliberately use positional arguments here to test that they work correctly,
-        # even though positional arguments are deprecated in favor of keyword arguments.
-        # TODO(felixwang9817): Remove positional arguments once they are fully deprecated.
-        [
-            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
-            Feature(name="string_output", dtype=ValueType.STRING),
-        ],
-        sources=[date_request],
-    )
-    def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
-        return data
-
-    test_view.infer_features()
-
-    @on_demand_feature_view(
-        sources=[date_request],
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="object_output", dtype=String),
-        ],
-    )
-    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        data["object_output"] = features_df["some_date"].astype(str)
-        return data
-
-    with pytest.raises(ValueError, match="Value with native type object"):
-        invalid_test_view.infer_features()
-
-    @on_demand_feature_view(
-        sources=[date_request],
-        features=[
-            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
-            Feature(name="missing", dtype=ValueType.STRING),
-        ],
     )
     def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()

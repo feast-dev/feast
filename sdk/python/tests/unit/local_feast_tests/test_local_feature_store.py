@@ -55,7 +55,6 @@ def test_apply_feature_view_success(test_feature_store):
         path="file://feast/*",
         timestamp_field="ts_col",
         created_timestamp_column="timestamp",
-        date_partition_column="date_partition_col",
     )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["entity_id"])

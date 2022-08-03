@@ -138,10 +138,10 @@ def create_conv_rate_request_source():
 def create_similarity_request_source():
     return RequestSource(
         name="similarity_input",
-        schema={
-            "vector_double": ValueType.DOUBLE_LIST,
-            "vector_float": ValueType.FLOAT_LIST,
-        },
+        schema=[
+            Field(name="vector_doube", dtype=Array(Float64)),
+            Field(name="vector_float", dtype=Array(Float32)),
+        ],
     )
 
 
