@@ -23,7 +23,7 @@ from feast.utils import _get_column_names
 
 
 def test_get_column_names_preserves_feature_ordering():
-    entity = Entity("my-entity", description="My entity")
+    entity = Entity(name="my-entity", description="My entity")
     fv = FeatureView(
         name="my-fv",
         entities=[entity],
