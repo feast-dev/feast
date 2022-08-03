@@ -10,13 +10,14 @@ There is a CLI command that starts the server: `feast serve`. By default, Feast 
 
 ## Deploying as a service
 
-One can deploy a feature server by building a docker image that bundles in the project's `feature_store.yaml`. See this [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-python-server) for an example.
+One can deploy a feature server by building a docker image that bundles in the project's `feature_store.yaml`. See this [helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-python-server) for an example on how to run Feast on Kubernetes.
 
-A [remote feature server](../alpha-aws-lambda-feature-server.md) on AWS Lambda is also available.
+A [remote feature server](alpha-aws-lambda-feature-server.md) on AWS Lambda is also available.
 
 ## Example
 
 ### Initializing a feature server
+
 Here's an example of how to start the Python feature server with a local feature repo:
 
 ```bash
@@ -49,6 +50,7 @@ INFO:     Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
 ```
 
 ### Retrieving features
+
 After the server starts, we can execute cURL commands from another terminal tab:
 
 ```bash
@@ -140,7 +142,7 @@ $  curl -X POST \
 
 It's also possible to specify a feature service name instead of the list of features:
 
-```text
+```
 curl -X POST \
   "http://localhost:6566/get-online-features" \
   -d '{
@@ -152,10 +154,12 @@ curl -X POST \
 ```
 
 ### Pushing features to the online and offline stores
+
 The Python feature server also exposes an endpoint for [push sources](../../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
 
-The request definition for pushmode is a string parameter `to` where the options are: ["online", "offline", "online_and_offline"]. Note that timestamps need to be strings.
-```text
+The request definition for pushmode is a string parameter `to` where the options are: \["online", "offline", "online\_and\_offline"]. Note that timestamps need to be strings.
+
+```
 curl -X POST "http://localhost:6566/push" -d '{
     "push_source_name": "driver_hourly_stats_push_source",
     "df": {
@@ -171,6 +175,7 @@ curl -X POST "http://localhost:6566/push" -d '{
 ```
 
 or equivalently from Python:
+
 ```python
 import json
 import requests
