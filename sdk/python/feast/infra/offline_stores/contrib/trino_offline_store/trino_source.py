@@ -2,6 +2,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import ValueType
 from feast.data_source import DataSource
+from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import Trino
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_type_map import (
     trino_to_feast_value_type,
@@ -86,26 +87,30 @@ class TrinoSource(DataSource):
     def __init__(
         self,
         *,
-        event_timestamp_column: Optional[str] = "",
+        name: Optional[str] = None,
+        timestamp_field: Optional[str] = None,
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         query: Optional[str] = None,
-        name: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = None,
     ):
+        # If no name, use the table as the default name.
+        if name is None and table is None:
+            raise DataSourceNoNameException()
+        name = name or table
+        assert name
+
         super().__init__(
             name=name if name else "",
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
 
         self._trino_options = TrinoOptions(table=table, query=query)

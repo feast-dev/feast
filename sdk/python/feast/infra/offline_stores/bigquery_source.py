@@ -1,11 +1,10 @@
-import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from typeguard import typechecked
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -24,36 +23,32 @@ class BigQuerySource(DataSource):
     def __init__(
         self,
         *,
-        event_timestamp_column: Optional[str] = "",
+        name: Optional[str] = None,
+        timestamp_field: Optional[str] = None,
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
         query: Optional[str] = None,
-        name: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
         Args:
-            table (optional): The BigQuery table where features can be found.
-            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
-                timestamp column used for point in time joins of feature values.
-            created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
-            field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
-                or view. Only used for feature columns, not entities or timestamp columns.
-            date_partition_column (deprecated): Timestamp column used for partitioning.
-            query (optional): SQL query to execute to generate data for this data source.
             name (optional): Name for the source. Defaults to the table if not specified.
+            timestamp_field (optional): Event timestamp field used for point in time
+                joins of feature values.
+            table (optional): The BigQuery table where features can be found.
+            created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
+            field_mapping (optional): A dictionary mapping of column names in this data source to feature names in a feature table
+                or view. Only used for feature columns, not entities or timestamp columns.
+            query (optional): SQL query to execute to generate data for this data source.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp field used for point in time
-                joins of feature values.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -63,37 +58,20 @@ class BigQuerySource(DataSource):
 
         self.bigquery_options = BigQueryOptions(table=table, query=query)
 
-        if date_partition_column:
-            warnings.warn(
-                (
-                    "The argument 'date_partition_column' is not supported for BigQuery sources. "
-                    "It will be removed in Feast 0.24+"
-                ),
-                DeprecationWarning,
-            )
-
-        # If no name, use the table as the default name
-        _name = name
-        if not _name:
-            if table:
-                _name = table
-            else:
-                warnings.warn(
-                    (
-                        f"Starting in Feast 0.24, Feast will require either a name for a data source (if using query) or `table`: {self.query}"
-                    ),
-                    DeprecationWarning,
-                )
+        # If no name, use the table as the default name.
+        if name is None and table is None:
+            raise DataSourceNoNameException()
+        name = name or table
+        assert name
 
         super().__init__(
-            name=_name if _name else "",
-            event_timestamp_column=event_timestamp_column,
+            name=name,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__

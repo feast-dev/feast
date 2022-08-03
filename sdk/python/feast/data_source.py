@@ -16,7 +16,7 @@ import enum
 import warnings
 from abc import ABC, abstractmethod
 from datetime import timedelta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
@@ -183,8 +183,8 @@ class DataSource(ABC):
 
     Args:
         name: Name of data source, which should be unique within a project
-        event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
-            timestamp column used for point in time joins of feature values.
+        timestamp_field (optional): Event timestamp field used for point-in-time joins of
+            feature values.
         created_timestamp_column (optional): Timestamp column indicating when the row
             was created, used for deduplicating rows.
         field_mapping (optional): A dictionary mapping of column names in this data
@@ -211,22 +211,22 @@ class DataSource(ABC):
     def __init__(
         self,
         *,
-        event_timestamp_column: Optional[str] = None,
+        name: str,
+        timestamp_field: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        name: Optional[str] = None,
-        timestamp_field: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
+
         Args:
-            name: Name of data source, which should be unique within a project
-            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
-                timestamp column used for point in time joins of feature values.
+            name: Name of data source, which should be unique within a project.
+            timestamp_field (optional): Event timestamp field used for point-in-time joins of
+                feature values.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -237,27 +237,9 @@ class DataSource(ABC):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp field used for point
-                in time joins of feature values.
         """
-        if not name:
-            warnings.warn(
-                (
-                    "Names for data sources need to be supplied. "
-                    "Data sources without names will not be supported after Feast 0.24."
-                ),
-                UserWarning,
-            )
-        self.name = name or ""
-        if not timestamp_field and event_timestamp_column:
-            warnings.warn(
-                (
-                    "The argument 'event_timestamp_column' is being deprecated. Please use 'timestamp_field' instead. "
-                    "instead. Feast 0.24 and onwards will not support the argument 'event_timestamp_column' for datasources."
-                ),
-                DeprecationWarning,
-            )
-        self.timestamp_field = timestamp_field or event_timestamp_column or ""
+        self.name = name
+        self.timestamp_field = timestamp_field or ""
         self.created_timestamp_column = (
             created_timestamp_column if created_timestamp_column else ""
         )
@@ -387,12 +369,11 @@ class DataSource(ABC):
 class KafkaSource(DataSource):
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        event_timestamp_column: Optional[str] = "",
+        name: str,
+        timestamp_field: str,
+        message_format: StreamFormat,
         bootstrap_servers: Optional[str] = None,
         kafka_bootstrap_servers: Optional[str] = None,
-        message_format: Optional[StreamFormat] = None,
         topic: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
@@ -400,7 +381,6 @@ class KafkaSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
         watermark_delay_threshold: Optional[timedelta] = None,
     ):
@@ -409,12 +389,11 @@ class KafkaSource(DataSource):
 
         Args:
             name: Name of data source, which should be unique within a project
-            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
-                timestamp column used for point in time joins of feature values.
-            bootstrap_servers: (Deprecated) The servers of the kafka broker in the form "localhost:9092".
-            kafka_bootstrap_servers: The servers of the kafka broker in the form "localhost:9092".
+            timestamp_field: Event timestamp field used for point-in-time joins of feature values.
             message_format: StreamFormat of serialized messages.
-            topic: The name of the topic to read from in the kafka source.
+            bootstrap_servers: (Deprecated) The servers of the kafka broker in the form "localhost:9092".
+            kafka_bootstrap_servers (optional): The servers of the kafka broker in the form "localhost:9092".
+            topic (optional): The name of the topic to read from in the kafka source.
             created_timestamp_column (optional): Timestamp column indicating when the row
                 was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
@@ -425,25 +404,10 @@ class KafkaSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp field used for point
-                in time joins of feature values.
-            batch_source: The datasource that acts as a batch source.
-            watermark_delay_threshold: The watermark delay threshold for stream data. Specifically how
-                late stream data can arrive without being discarded.
+            batch_source (optional): The datasource that acts as a batch source.
+            watermark_delay_threshold (optional): The watermark delay threshold for stream data.
+                Specifically how late stream data can arrive without being discarded.
         """
-        positional_attributes = [
-            "name",
-            "event_timestamp_column",
-            "bootstrap_servers",
-            "message_format",
-            "topic",
-        ]
-        _name = name
-        _event_timestamp_column = event_timestamp_column
-        _kafka_bootstrap_servers = kafka_bootstrap_servers or bootstrap_servers or ""
-        _message_format = message_format
-        _topic = topic or ""
-
         if bootstrap_servers:
             warnings.warn(
                 (
@@ -453,53 +417,25 @@ class KafkaSource(DataSource):
                 DeprecationWarning,
             )
 
-        if args:
-            warnings.warn(
-                (
-                    "Kafka parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct Kafka sources"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"Kafka sources, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _event_timestamp_column = args[1]
-            if len(args) >= 3:
-                _kafka_bootstrap_servers = args[2]
-            if len(args) >= 4:
-                _message_format = args[3]
-            if len(args) >= 5:
-                _topic = args[4]
-
-        if _message_format is None:
-            raise ValueError("Message format must be specified for Kafka source")
-
-        if not timestamp_field and not _event_timestamp_column:
-            raise ValueError("Timestamp field must be specified for Kafka source")
-
         super().__init__(
-            event_timestamp_column=_event_timestamp_column,
+            name=name,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
-            name=_name,
-            timestamp_field=timestamp_field,
         )
         self.batch_source = batch_source
 
+        kafka_bootstrap_servers = kafka_bootstrap_servers or bootstrap_servers or ""
+        topic = topic or ""
+
         self.kafka_options = KafkaOptions(
-            kafka_bootstrap_servers=_kafka_bootstrap_servers,
-            message_format=_message_format,
-            topic=_topic,
+            kafka_bootstrap_servers=kafka_bootstrap_servers,
+            message_format=message_format,
+            topic=topic,
             watermark_delay_threshold=watermark_delay_threshold,
         )
 
@@ -539,7 +475,6 @@ class KafkaSource(DataSource):
             )
         return KafkaSource(
             name=data_source.name,
-            event_timestamp_column=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
             kafka_bootstrap_servers=data_source.kafka_options.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(
@@ -615,54 +550,15 @@ class RequestSource(DataSource):
     def __init__(
         self,
         *args,
-        name: Optional[str] = None,
-        schema: Optional[Union[Dict[str, ValueType], List[Field]]] = None,
+        name: str,
+        schema: List[Field],
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
-        positional_attributes = ["name", "schema"]
-        _name = name
-        _schema = schema
-        if args:
-            warnings.warn(
-                (
-                    "Request source parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct request sources"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"feature views, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _schema = args[1]
-
-        super().__init__(name=_name, description=description, tags=tags, owner=owner)
-        if not _schema:
-            raise ValueError("Schema needs to be provided for Request Source")
-        if isinstance(_schema, Dict):
-            warnings.warn(
-                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.24. "
-                "Please use List[Field] instead for the schema",
-                DeprecationWarning,
-            )
-            schema_list = []
-            for key, value_type in _schema.items():
-                schema_list.append(Field(name=key, dtype=from_value_type(value_type)))
-            self.schema = schema_list
-        elif isinstance(_schema, List):
-            self.schema = _schema
-        else:
-            raise Exception(
-                "Schema type must be either dictionary or list, not "
-                + str(type(_schema))
-            )
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
+        self.schema = schema
 
     def validate(self, config: RepoConfig):
         pass
@@ -694,38 +590,18 @@ class RequestSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-
-        deprecated_schema = data_source.request_data_options.deprecated_schema
         schema_pb = data_source.request_data_options.schema
+        list_schema = []
+        for field_proto in schema_pb:
+            list_schema.append(Field.from_proto(field_proto))
 
-        if deprecated_schema and not schema_pb:
-            warnings.warn(
-                "Schema in RequestSource is changing type. The schema data type Dict[str, ValueType] is being deprecated in Feast 0.24. "
-                "Please use List[Field] instead for the schema",
-                DeprecationWarning,
-            )
-            dict_schema = {}
-            for key, val in deprecated_schema.items():
-                dict_schema[key] = ValueType(val)
-            return RequestSource(
-                name=data_source.name,
-                schema=dict_schema,
-                description=data_source.description,
-                tags=dict(data_source.tags),
-                owner=data_source.owner,
-            )
-        else:
-            list_schema = []
-            for field_proto in schema_pb:
-                list_schema.append(Field.from_proto(field_proto))
-
-            return RequestSource(
-                name=data_source.name,
-                schema=list_schema,
-                description=data_source.description,
-                tags=dict(data_source.tags),
-                owner=data_source.owner,
-            )
+        return RequestSource(
+            name=data_source.name,
+            schema=list_schema,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
+        )
 
     def to_proto(self) -> DataSourceProto:
 
@@ -782,7 +658,7 @@ class KinesisSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         return KinesisSource(
             name=data_source.name,
-            event_timestamp_column=data_source.timestamp_field,
+            timestamp_field=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
             record_format=StreamFormat.from_proto(
                 data_source.kinesis_options.record_format
@@ -790,8 +666,6 @@ class KinesisSource(DataSource):
             region=data_source.kinesis_options.region,
             stream_name=data_source.kinesis_options.stream_name,
             created_timestamp_column=data_source.created_timestamp_column,
-            timestamp_field=data_source.timestamp_field,
-            date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -809,78 +683,33 @@ class KinesisSource(DataSource):
 
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        event_timestamp_column: Optional[str] = "",
+        name: str,
+        record_format: StreamFormat,
+        region: str,
+        stream_name: str,
+        timestamp_field: Optional[str] = "",
         created_timestamp_column: Optional[str] = "",
-        record_format: Optional[StreamFormat] = None,
-        region: Optional[str] = "",
-        stream_name: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        timestamp_field: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
     ):
-        positional_attributes = [
-            "name",
-            "event_timestamp_column",
-            "created_timestamp_column",
-            "record_format",
-            "region",
-            "stream_name",
-        ]
-        _name = name
-        _event_timestamp_column = event_timestamp_column
-        _created_timestamp_column = created_timestamp_column
-        _record_format = record_format
-        _region = region or ""
-        _stream_name = stream_name or ""
-        if args:
-            warnings.warn(
-                (
-                    "Kinesis parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct kinesis sources"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"kinesis sources, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _event_timestamp_column = args[1]
-            if len(args) >= 3:
-                _created_timestamp_column = args[2]
-            if len(args) >= 4:
-                _record_format = args[3]
-            if len(args) >= 5:
-                _region = args[4]
-            if len(args) >= 6:
-                _stream_name = args[5]
-
-        if _record_format is None:
+        if record_format is None:
             raise ValueError("Record format must be specified for kinesis source")
 
         super().__init__(
-            name=_name,
-            event_timestamp_column=_event_timestamp_column,
-            created_timestamp_column=_created_timestamp_column,
+            name=name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
-            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
         self.batch_source = batch_source
         self.kinesis_options = KinesisOptions(
-            record_format=_record_format, region=_region, stream_name=_stream_name
+            record_format=record_format, region=region, stream_name=stream_name
         )
 
     def __eq__(self, other):
@@ -942,15 +771,15 @@ class PushSource(DataSource):
 
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        batch_source: Optional[DataSource] = None,
+        name: str,
+        batch_source: DataSource,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
         """
         Creates a PushSource object.
+
         Args:
             name: Name of the push source
             batch_source: The batch source that backs this push source. It's used when materializing from the offline
@@ -959,35 +788,9 @@ class PushSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
-
         """
-        positional_attributes = ["name", "batch_source"]
-        _name = name
-        _batch_source = batch_source
-        if args:
-            warnings.warn(
-                (
-                    "Push source parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct push sources"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"push sources, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _batch_source = args[1]
-
-        super().__init__(name=_name, description=description, tags=tags, owner=owner)
-        if not _batch_source:
-            raise ValueError(
-                f"batch_source parameter is needed for push source {self.name}"
-            )
-        self.batch_source = _batch_source
+        super().__init__(name=name, description=description, tags=tags, owner=owner)
+        self.batch_source = batch_source
 
     def __eq__(self, other):
         if not isinstance(other, PushSource):
