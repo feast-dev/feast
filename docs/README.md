@@ -2,11 +2,11 @@
 
 ## What is Feast?
 
-Feast (**Fea**ture **St**ore) is a customizable operational data system that re-uses existing infrastructure to manage and serve machine learning features to realtime models.&#x20;
+Feast (**Fea**ture **St**ore) is a customizable operational data system that re-uses existing infrastructure to manage and serve machine learning features to realtime models.
 
 Feast allows ML platform teams to:
 
-* **Make features consistently available for training and serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (for serving pre-computed features online).&#x20;
+* **Make features consistently available for training and serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (to serve pre-computed features online).
 * **Avoid data leakage** by generating point-in-time correct feature sets so data scientists can focus on feature engineering rather than debugging error-prone dataset joining logic. This ensure that future feature values do not leak to models during training.
 * **Decouple ML from data infrastructure** by providing a single data access layer that abstracts feature storage from feature retrieval, ensuring models remain portable as you move from training models to serving models, from batch models to realtime models, and from one data infra system to another.
 
@@ -19,8 +19,6 @@ Feast allows ML platform teams to:
 ## Who is Feast for?
 
 Feast helps ML platform teams with DevOps experience productionize real-time models. Feast can also help these teams build towards a feature platform that improves collaboration between engineers and data scientists.
-
-&#x20;&#x20;
 
 Feast is likely **not** the right tool if you
 
