@@ -78,6 +78,7 @@
   * [Redshift](reference/offline-stores/redshift.md)
   * [Spark (contrib)](reference/offline-stores/spark.md)
   * [PostgreSQL (contrib)](reference/offline-stores/postgres.md)
+  * [Trino (contrib)](reference/offline-stores/trino.md)
 * [Online stores](reference/online-stores/README.md)
   * [SQLite](reference/online-stores/sqlite.md)
   * [Snowflake](reference/online-stores/snowflake.md)
