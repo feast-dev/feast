@@ -27,7 +27,7 @@ The first three of these methods all return a `RetrievalJob` specific to an offl
 
 There are currently four core offline store implementations: `FileOfflineStore`, `BigQueryOfflineStore`, `SnowflakeOfflineStore`, and `RedshiftOfflineStore`.
 There are several additional implementations contributed by the Feast community  (`PostgreSQLOfflineStore`, `SparkOfflineStore`, and `TrinoOfflineStore`), which are not guaranteed to be stable or to match the functionality of the core implementations.
-Details for each specific offline store, such as how to configure it in a `feature_store.yaml`, can be found at the bottom of this page.
+Details for each specific offline store, such as how to configure it in a `feature_store.yaml`, can be found [here](README.md).
 
 Below is a matrix indicating which offline stores support which methods.
 
