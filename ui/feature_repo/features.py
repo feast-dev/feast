@@ -2,14 +2,13 @@ from datetime import timedelta
 
 import pandas as pd
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.data_source import RequestSource
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Bool, Int64, String
 
 zipcode = Entity(
     name="zipcode",
-    value_type=ValueType.INT64,
     description="A zipcode",
     tags={"owner": "danny@tecton.ai", "team": "hack week",},
 )
@@ -82,7 +81,6 @@ zipcode_money_features = FeatureView(
 
 dob_ssn = Entity(
     name="dob_ssn",
-    value_type=ValueType.STRING,
     description="Date of birth and last four digits of social security number",
     tags={"owner": "tony@tecton.ai", "team": "hack week",},
 )
