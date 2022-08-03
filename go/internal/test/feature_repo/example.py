@@ -25,9 +25,9 @@ driver = Entity(name="driver_id", description="driver id")
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=Duration(seconds=86400 * 365 * 10),
-    features=[
+    schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
