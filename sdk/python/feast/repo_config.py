@@ -394,7 +394,7 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(v, Dict):
             return
 
-        _logger.warn(
+        _logger.warning(
             "Flags are no longer necessary in Feast. Experimental features will log warnings instead."
         )
 

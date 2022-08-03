@@ -501,8 +501,8 @@ class FeatureStore:
             )
             if feature_service_from_registry != _features:
                 warnings.warn(
-                    "The FeatureService object that has been passed in as an argument is"
-                    "inconsistent with the version from Registry. Potentially a newer version"
+                    "The FeatureService object that has been passed in as an argument is "
+                    "inconsistent with the version from the registry. Potentially a newer version "
                     "of the FeatureService has been applied to the registry."
                 )
             for projection in feature_service_from_registry.feature_view_projections:
