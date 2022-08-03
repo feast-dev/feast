@@ -1,4 +1,4 @@
-# Redis
+# Redis online store
 
 ## Description
 

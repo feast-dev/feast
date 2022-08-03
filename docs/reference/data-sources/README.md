@@ -1,6 +1,6 @@
 # Data sources
 
-Please see [Data Source](../../getting-started/concepts/feature-view.md#data-source) for an explanation of data sources.
+Please see [Data Source](../../getting-started/concepts/data-source.md) for an explanation of data sources.
 
 {% content-ref url="file.md" %}
 [file.md](file.md)
@@ -36,4 +36,8 @@ Please see [Data Source](../../getting-started/concepts/feature-view.md#data-sou
 
 {% content-ref url="postgres.md" %}
 [postgres.md]([postgres].md)
+{% endcontent-ref %}
+
+{% content-ref url="trino.md" %}
+[trino.md]([trino].md)
 {% endcontent-ref %}

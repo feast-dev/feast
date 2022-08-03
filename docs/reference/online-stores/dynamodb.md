@@ -1,4 +1,4 @@
-# DynamoDB
+# DynamoDB online store
 
 ## Description
 
