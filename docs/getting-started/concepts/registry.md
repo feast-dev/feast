@@ -1,6 +1,6 @@
 # Registry
 
-The Feast registry is where all applied Feast objects (e.g. Feature views, entities, etc) are stored. The registry exposes methods to apply, list, retrieve and delete these objects. The registry is an abstraction with multiple possible implementations.
+Feast uses a registry to store all applied Feast objects (e.g. Feature views, entities, etc). The registry exposes methods to apply, list, retrieve and delete these objects, and is an abstraction with multiple implementations.
 
 ### Options for registry implementations
 
@@ -12,7 +12,7 @@ Alternatively, a [SQL Registry](../../tutorials/using-scalable-registry.md) can 
 
 ### Updating the registry
 
-We recommend users store their Feast feature definitions in a version controlled repository, which then automatically stays syncs with the registry. Users will often also want multiple registries to correspond to different environments (e.g. dev vs staging vs prod), with staging and production registries with locked down write access since they can impact real user traffic. See [Running Feast in Production](../../how-to-guides/running-feast-in-production.md#1.-automatically-deploying-changes-to-your-feature-definitions) for details on how to set this up.&#x20;
+We recommend users store their Feast feature definitions in a version controlled repository, which then via CI/CD automatically stays synced with the registry. Users will often also want multiple registries to correspond to different environments (e.g. dev vs staging vs prod), with staging and production registries with locked down write access since they can impact real user traffic. See [Running Feast in Production](../../how-to-guides/running-feast-in-production.md#1.-automatically-deploying-changes-to-your-feature-definitions) for details on how to set this up.
 
 ### Accessing the registry from clients
 
@@ -39,7 +39,7 @@ provider: aws
 registry: s3://feast-test-s3-bucket/registry.pb
 online_store: null
 offline_store:
-  type: filey
+  type: file
 ```
 
 Instantiating a `FeatureStore` object can then point to this:

@@ -1,6 +1,6 @@
 # \[Beta] Web UI
 
-**Warning**: This is an _experimental_ feature. To our knowledge, this is stable, but there are still rough edges in the experience. Contributions are welcome!&#x20;
+**Warning**: This is an _experimental_ feature. To our knowledge, this is stable, but there are still rough edges in the experience. Contributions are welcome!
 
 ## Overview
 
