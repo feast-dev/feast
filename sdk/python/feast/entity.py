@@ -60,7 +60,7 @@ class Entity:
     def __init__(
         self,
         *,
-        name: Optional[str] = None,
+        name: str,
         join_keys: Optional[List[str]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
@@ -71,20 +71,17 @@ class Entity:
 
         Args:
             name: The unique name of the entity.
-            join_keys: A list of properties that uniquely identifies different entities within the
-                collection. This currently only supports a list of size one, but is intended to
-                eventually support multiple join keys.
-            description: A human-readable description.
-            tags: A dictionary of key-value pairs to store arbitrary metadata.
-            owner: The owner of the entity, typically the email of the primary maintainer.
+            join_keys (optional): A list of properties that uniquely identifies different entities
+                within the collection. This currently only supports a list of size one, but is
+                intended to eventually support multiple join keys.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the entity, typically the email of the primary maintainer.
 
         Raises:
             ValueError: Parameters are specified incorrectly.
         """
-        if not name:
-            raise ValueError("Name needs to be specified")
         self.name = name
-
         self.value_type = ValueType.UNKNOWN
 
         # For now, both the `join_key` and `join_keys` attributes are set correctly,

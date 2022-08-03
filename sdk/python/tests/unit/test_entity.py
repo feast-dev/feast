@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import assertpy
+import pytest
 
 from feast.entity import Entity
 from feast.value_type import ValueType
@@ -40,6 +41,11 @@ def test_entity_without_tags_empty_dict():
 
 def test_entity_without_description():
     _ = Entity(name="my-entity")
+
+
+def test_entity_without_name():
+    with pytest.raises(TypeError):
+        _ = Entity()
 
 
 def test_name_not_specified():
