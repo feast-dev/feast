@@ -1,4 +1,4 @@
-# SQLite
+# SQLite online store
 
 ## Description
 

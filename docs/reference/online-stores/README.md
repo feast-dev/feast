@@ -2,14 +2,26 @@
 
 Please see [Online Store](../../getting-started/architecture-and-components/online-store.md) for an explanation of online stores.
 
-{% page-ref page="sqlite.md" %}
+{% content-ref url="sqlite.md" %}
+[sqlite.md](sqlite.md)
+{% endcontent-ref %}
 
-{% page-ref page="snowflake.md" %}
+{% content-ref url="snowflake.md" %}
+[snowflake.md](snowflake.md)
+{% endcontent-ref %}
 
-{% page-ref page="redis.md" %}
+{% content-ref url="redis.md" %}
+[redis.md](redis.md)
+{% endcontent-ref %}
 
-{% page-ref page="datastore.md" %}
+{% content-ref url="datastore.md" %}
+[datastore.md](datastore.md)
+{% endcontent-ref %}
 
-{% page-ref page="dynamodb.md" %}
+{% content-ref url="dynamodb.md" %}
+[dynamodb.md](dynamodb.md)
+{% endcontent-ref %}
 
-{% page-ref page="postgres.md" %}
+{% content-ref url="postgres.md" %}
+[postgres.md](postgres.md)
+{% endcontent-ref %}
