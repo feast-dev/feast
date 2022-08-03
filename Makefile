@@ -63,7 +63,7 @@ benchmark-python-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests -k "not test_sql_registry"
 
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
