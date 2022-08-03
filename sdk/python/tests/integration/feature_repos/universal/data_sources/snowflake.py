@@ -34,8 +34,8 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
             warehouse=os.environ["SNOWFLAKE_CI_WAREHOUSE"],
             database="FEAST",
             schema="OFFLINE",
-            storage_integration_name="FEAST_S3",
-            blob_export_location="s3://feast-snowflake-offload/export",
+            storage_integration_name=os.getenv("BLOB_EXPORT_STORAGE_NAME", "FEAST_S3"),
+            blob_export_location=os.getenv("BLOB_EXPORT_URI", "s3://feast-snowflake-offload/export"),
         )
 
     def create_data_source(
