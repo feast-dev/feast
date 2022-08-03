@@ -39,9 +39,6 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
       connection_string: localhost:6379,password=[YOUR PASSWORD]
     offline_store:
       type: file
-    flags:
-      alpha_features: true
-      on_demand_transforms: true
     ```
 4. Run `feast apply` to apply your local features to the remote registry
 5. Materialize features to the online store:

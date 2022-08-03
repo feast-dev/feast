@@ -3,6 +3,3 @@ registry:
   cache_ttl_seconds: {{ .Values.global.registry.cache_ttl_seconds }}
 provider: local
 project: {{ .Values.global.project }}
-flags:
-  on_demand_transforms: true
-  alpha_features: true
