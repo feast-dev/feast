@@ -20,6 +20,8 @@ from feast import flags
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
     FeastFeatureServerTypeSetError,
+    FeastOfflineStoreInvalidName,
+    FeastOnlineStoreInvalidName,
     FeastProviderNotSetError,
 )
 from feast.importer import import_class
@@ -217,7 +219,8 @@ class RepoConfig(FeastBaseModel):
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
-        assert "provider" in values
+        if "provider" not in values:
+            raise FeastProviderNotSetError()
 
         # Set the default type
         # This is only direct reference to a provider or online store that we should have
@@ -253,7 +256,8 @@ class RepoConfig(FeastBaseModel):
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
-        assert "provider" in values
+        if "provider" not in values:
+            raise FeastProviderNotSetError()
 
         # Set the default type
         if "type" not in values["offline_store"]:
@@ -375,8 +379,8 @@ def get_data_source_class_from_type(data_source_type: str):
 def get_online_config_from_type(online_store_type: str):
     if online_store_type in ONLINE_STORE_CLASS_FOR_TYPE:
         online_store_type = ONLINE_STORE_CLASS_FOR_TYPE[online_store_type]
-    else:
-        assert online_store_type.endswith("OnlineStore")
+    elif not online_store_type.endswith("OnlineStore"):
+        raise FeastOnlineStoreInvalidName(online_store_type)
     module_name, online_store_class_type = online_store_type.rsplit(".", 1)
     config_class_name = f"{online_store_class_type}Config"
 
@@ -386,8 +390,8 @@ def get_online_config_from_type(online_store_type: str):
 def get_offline_config_from_type(offline_store_type: str):
     if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
         offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
-    else:
-        assert offline_store_type.endswith("OfflineStore")
+    elif not offline_store_type.endswith("OfflineStore"):
+        raise FeastOfflineStoreInvalidName(offline_store_type)
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 
