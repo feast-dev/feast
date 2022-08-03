@@ -52,6 +52,7 @@
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
 * [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Upgrading for Feast 0.20+](how-to-guides/automated-feast-upgrade.md)
+* [Adding a customer provider](how-to-guides/creating-a-custom-provider.md)
 * [Adding a custom batch materialization engine](how-to-guides/creating-a-custom-materialization-engine.md)
 * [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
 * [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
