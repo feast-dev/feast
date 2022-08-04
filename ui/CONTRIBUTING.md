@@ -9,7 +9,7 @@
     - [`yarn start`](#yarn-start)
     - [`yarn test`](#yarn-test)
 - [Release process](#release-process)
-  - [Publishing the Feast Package to NPM](#publishing-the-feast-package-to-npm)
+  - [(Advanced) Manually publishing the Feast Package to NPM](#advanced-manually-publishing-the-feast-package-to-npm)
     - [Requirements](#requirements)
     - [Steps for Publishing](#steps-for-publishing)
   - [2) Linking to the new UI in the Feast Python SDK](#2-linking-to-the-new-ui-in-the-feast-python-sdk)
@@ -73,15 +73,15 @@ Launches the test runner in the interactive watch mode.\
 See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
 # Release process
-There are a couple of components in Feast that are tied to the Web UI:
+There are a couple of components in Feast that are tied to the Web UI. These are all automatically handled during the release GitHub action:
 1. the npm package
+   - The release process for Feast automatically bumps the package version (see [bump_file_versions.py](../infra/scripts/release/bump_file_versions.py)) and releases the new NPM package (see [publish.yml](../.github/workflows/publish.yml) in the `publish-web-ui-npm` job)
 2. the Feast Python SDK, which bundles in a compiled version of the Feast Web UI which is run on a `feast ui` CLI command.
+   - The bundled Web UI in the Python SDK always compiles in the latest npm version
 
-The bundled Web UI in the Python SDK always compiles in the latest npm version, so we only need to ensure the npm package is published correctly
+## (Advanced) Manually publishing the Feast Package to NPM
 
-**TODO(adchia): Update Feast's release process to automatically bump versions and publish npm packages as part of semantic release**
-
-## Publishing the Feast Package to NPM
+This generally should not be necessary, since new package versions are released with the overall Feast release workflow (see [publish.yml](../.github/workflows/publish.yml) in the `publish-web-ui-npm` job)
 
 The Feast UI is published as a module to NPM and can be found here: https://www.npmjs.com/package/@feast-dev/feast-ui
 
