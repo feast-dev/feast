@@ -130,7 +130,7 @@ jobs:
 
   publish-python-sdk:
     runs-on: ubuntu-latest
-    needs: [build_wheels]
+    needs: [build_wheels, publish-web-ui-npm]
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -196,4 +196,5 @@ jobs:
         working-directory: ./ui
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          # This publish is working using an NPM automation token to bypass 2FA
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
