@@ -486,7 +486,6 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
     sys.platform == "darwin" and "GITHUB_REF" in os.environ,
     reason="does not run on mac github actions",
 )
-@pytest.mark.integration
 @pytest.mark.parametrize(
     "sql_registry",
     [
