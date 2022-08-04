@@ -17,7 +17,7 @@
 In this doc, we describe how to contribute both to the Feast Web UI NPM package as well as the embedded Feast UI in the Python SDK (i.e. what's run when you run `feast ui`)
 
 ## `feast ui` command
-You can see the logic in [../sdk/python/ui](../sdk/python/feast/ui/). This instance is loaded in [../sdk/python/ui_server.py](../sdk/python/feast/ui_server.py). 
+You can see the logic in [../sdk/python/feast/ui](../sdk/python/feast/ui/). This instance is loaded in [../sdk/python/feast/ui_server.py](../sdk/python/feast/ui_server.py). 
 
 Under the hood, what happens is that the Feast SDK spins up a server which exposes an endpoint to the registry. It then mounts the UI on the server and points it to fetch data from that registry.
 
@@ -96,4 +96,4 @@ To publish a new version of the module, you will need:
 2. Bump the version number in `package.json` as appropriate.
 3. Package the modules for distributions. Run the library build script with `yarn build:lib`. We use [Rollup](https://rollupjs.org/) for building the module, and the configs are in the `rollup.config.js` file.
 4. Publish the package to NPM. Run `npm publish`
-5. [Check NPM to see that the package was properly publish](https://www.npmjs.com/package/@feast-dev/feast-ui).
+5. [Check NPM to see that the package was properly published](https://www.npmjs.com/package/@feast-dev/feast-ui).
