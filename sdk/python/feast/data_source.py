@@ -340,6 +340,7 @@ class DataSource(ABC):
 class KafkaSource(DataSource):
     def __init__(
         self,
+        *,
         name: str,
         timestamp_field: str,
         message_format: StreamFormat,
@@ -515,7 +516,7 @@ class RequestSource(DataSource):
 
     def __init__(
         self,
-        *args,
+        *,
         name: str,
         schema: List[Field],
         description: Optional[str] = "",
@@ -649,6 +650,7 @@ class KinesisSource(DataSource):
 
     def __init__(
         self,
+        *,
         name: str,
         record_format: StreamFormat,
         region: str,
@@ -736,6 +738,7 @@ class PushSource(DataSource):
 
     def __init__(
         self,
+        *,
         name: str,
         batch_source: DataSource,
         description: Optional[str] = "",
