@@ -19,7 +19,7 @@ driver_hourly_stats = FileSource(
 driver = Entity(name="driver_id", description="driver id",)
 driver_hourly_stats_view = BatchFeatureView(
     name="driver_hourly_stats",
-    entities=["driver_id"],
+    entities=[driver],
     ttl=timedelta(seconds=86400000),
     schema=[
         Field(name="conv_rate", dtype=Float32),
