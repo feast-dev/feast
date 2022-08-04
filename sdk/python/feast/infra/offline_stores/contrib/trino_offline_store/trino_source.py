@@ -125,7 +125,8 @@ class TrinoSource(DataSource):
             )
 
         return (
-            self.name == other.name
+            super().__eq__(other)
+            and self.name == other.name
             and self.trino_options.table == other.trino_options.table
             and self.trino_options.query == other.trino_options.query
             and self.timestamp_field == other.timestamp_field
