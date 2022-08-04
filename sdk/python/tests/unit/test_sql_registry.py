@@ -110,7 +110,6 @@ def mysql_registry():
 
 @pytest.fixture(scope="session")
 def sqlite_registry():
-
     registry_config = RegistryConfig(
         registry_type="sql",
         path="sqlite://",
