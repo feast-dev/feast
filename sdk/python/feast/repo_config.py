@@ -16,7 +16,6 @@ from pydantic import (
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Optional, Union
 
-from feast import flags
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
     FeastFeatureServerTypeSetError,
@@ -126,7 +125,7 @@ class RepoConfig(FeastBaseModel):
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
     flags: Any
-    """ Flags: Feature flags for experimental features (optional) """
+    """ Flags (deprecated field): Feature flags for experimental features """
 
     repo_path: Optional[Path] = None
 
@@ -331,15 +330,9 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(v, Dict):
             return
 
-        for flag_name, val in v.items():
-            if flag_name not in flags.FLAG_NAMES:
-                _logger.warn(
-                    "Unrecognized flag: %s. This feature may be invalid, or may refer "
-                    "to a previously experimental feature which has graduated to production.",
-                    flag_name,
-                )
-            if type(val) is not bool:
-                raise ValueError(f"Flag value, {val}, not valid.")
+        _logger.warning(
+            "Flags are no longer necessary in Feast. Experimental features will log warnings instead."
+        )
 
         return v
 

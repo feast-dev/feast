@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import uuid
+import warnings
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
@@ -22,15 +23,12 @@ from feast.entity import Entity
 from feast.errors import (
     AwsAPIGatewayDoesNotExist,
     AwsLambdaDoesNotExist,
-    ExperimentalFeatureNotEnabled,
     IncompatibleRegistryStoreClass,
     RepoConfigPathDoesNotExist,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
 )
 from feast.feature_view import FeatureView
-from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
-from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.feature_servers.aws_lambda.config import AwsLambdaFeatureServerConfig
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.utils import aws_utils
@@ -74,8 +72,11 @@ class AwsProvider(PassthroughProvider):
             )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
-            if not enable_aws_lambda_feature_server(self.repo_config):
-                raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
+            warnings.warn(
+                "AWS Lambda based feature serving is an experimental feature. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
             # Since the AWS Lambda feature server will attempt to load the registry, we
             # only allow the registry to be in S3.

@@ -2,10 +2,6 @@
 
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
-{% hint style="info" %}
-To enable this feature, run **`feast alpha enable aws_lambda_feature_server`**
-{% endhint %}
-
 ## Overview
 
 The AWS Lambda feature server is an HTTP endpoint that serves features with JSON I/O, deployed as a Docker image through AWS Lambda and AWS API Gateway. This enables users to get features from Feast using any programming language that can make HTTP requests. A [local feature server](feature-servers/python-feature-server.md) is also available. A remote feature server on GCP Cloud Run is currently being developed.
@@ -14,7 +10,7 @@ The AWS Lambda feature server is an HTTP endpoint that serves features with JSON
 
 The AWS Lambda feature server is only available to projects using the `AwsProvider` with registries on S3. It is disabled by default. To enable it, `feature_store.yaml` must be modified; specifically, the `enable` flag must be on and an `execution_role_name` must be specified. For example, after running `feast init -t aws`, changing the registry to be on S3, and enabling the feature server, the contents of `feature_store.yaml` should look similar to the following:
 
-```text
+```
 project: dev
 registry: s3://feast/registries/dev
 provider: aws
@@ -27,9 +23,6 @@ offline_store:
   database: feast
   s3_staging_location: s3://feast/redshift/tests/staging_location
   iam_role: arn:aws:iam::{aws_account}:role/redshift_s3_access_role
-flags:
-  alpha_features: true
-  aws_lambda_feature_server: true
 feature_server:
   enabled: True
   execution_role_name: arn:aws:iam::{aws_account}:role/lambda_execution_role
@@ -41,12 +34,12 @@ If enabled, the feature server will be deployed during `feast apply`. After it i
 
 Feast requires the following permissions in order to deploy and teardown AWS Lambda feature server:
 
-| Permissions                                                                                                                                           | Resources                                                |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------        |
-| <p>lambda:CreateFunction</p><p>lambda:GetFunction</p><p>lambda:DeleteFunction</p><p>lambda:AddPermission</p><p>lambda:UpdateFunctionConfiguration</p> | arn:aws:lambda:\<region>:\<account_id>:function:feast-\* |
-| <p>ecr:CreateRepository</p><p>ecr:DescribeRepositories</p><p>ecr:DeleteRepository</p><p>ecr:PutImage</p><p>ecr:DescribeImages</p><p>ecr:BatchDeleteImage</p><p>ecr:CompleteLayerUpload</p><p>ecr:UploadLayerPart</p><p>ecr:InitiateLayerUpload</p><p>ecr:BatchCheckLayerAvailability</p><p>ecr:GetDownloadUrlForLayer</p><p>ecr:GetRepositoryPolicy</p><p>ecr:SetRepositoryPolicy</p><p>ecr:GetAuthorizationToken</p> | \* |
-| <p>iam:PassRole</p> | arn:aws:iam::\<account_id>:role/<lambda-execution-role-name> |
-| <p>apigateway:*</p> | <p>arn:aws:apigateway:*::/apis/*/routes/*/routeresponses</p><p>arn:aws:apigateway:*::/apis/*/routes/*/routeresponses/*</p><p>arn:aws:apigateway:*::/apis/*/routes/*</p><p>arn:aws:apigateway:*::/apis/*/routes</p><p>arn:aws:apigateway:*::/apis/*/integrations</p><p>arn:aws:apigateway:*::/apis/*/stages/*/routesettings/*</p><p>arn:aws:apigateway:*::/apis/*</p><p>arn:aws:apigateway:*::/apis</p> |
+| Permissions                                                                                                                                                                                                                                                                                                                                                                                                           | Resources                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <p>lambda:CreateFunction</p><p>lambda:GetFunction</p><p>lambda:DeleteFunction</p><p>lambda:AddPermission</p><p>lambda:UpdateFunctionConfiguration</p>                                                                                                                                                                                                                                                                 | arn:aws:lambda:\<region>:\<account_id>:function:feast-\*                                                                                                                                                                                                                                                                                                                                               |
+| <p>ecr:CreateRepository</p><p>ecr:DescribeRepositories</p><p>ecr:DeleteRepository</p><p>ecr:PutImage</p><p>ecr:DescribeImages</p><p>ecr:BatchDeleteImage</p><p>ecr:CompleteLayerUpload</p><p>ecr:UploadLayerPart</p><p>ecr:InitiateLayerUpload</p><p>ecr:BatchCheckLayerAvailability</p><p>ecr:GetDownloadUrlForLayer</p><p>ecr:GetRepositoryPolicy</p><p>ecr:SetRepositoryPolicy</p><p>ecr:GetAuthorizationToken</p> | \*                                                                                                                                                                                                                                                                                                                                                                                                     |
+| <p>iam:PassRole</p>                                                                                                                                                                                                                                                                                                                                                                                                   | arn:aws:iam::\<account_id>:role/<lambda-execution-role-name>                                                                                                                                                                                                                                                                                                                                           |
+| <p>apigateway:*</p>                                                                                                                                                                                                                                                                                                                                                                                                   | <p>arn:aws:apigateway:*::/apis/*/routes/*/routeresponses</p><p>arn:aws:apigateway:*::/apis/*/routes/*/routeresponses/*</p><p>arn:aws:apigateway:*::/apis/*/routes/*</p><p>arn:aws:apigateway:*::/apis/*/routes</p><p>arn:aws:apigateway:*::/apis/*/integrations</p><p>arn:aws:apigateway:*::/apis/*/stages/*/routesettings/*</p><p>arn:aws:apigateway:*::/apis/*</p><p>arn:aws:apigateway:*::/apis</p> |
 
 The following inline policy can be used to grant Feast the necessary permissions:
 

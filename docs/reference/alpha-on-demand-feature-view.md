@@ -2,10 +2,6 @@
 
 **Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
 
-{% hint style="info" %}
-To enable this feature, run **`feast alpha enable on_demand_transforms`**
-{% endhint %}
-
 ## Overview
 
 On demand feature views allows users to use existing features and request time data \(features only available at request time\) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.

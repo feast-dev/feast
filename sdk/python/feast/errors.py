@@ -319,14 +319,6 @@ class ConflictingFeatureViewNames(Exception):
         )
 
 
-class ExperimentalFeatureNotEnabled(Exception):
-    def __init__(self, feature_flag_name: str):
-        super().__init__(
-            f"You are attempting to use an experimental feature that is not enabled. Please run "
-            f"`feast alpha enable {feature_flag_name}` "
-        )
-
-
 class RepoConfigPathDoesNotExist(Exception):
     def __init__(self):
         super().__init__("The repo_path attribute does not exist for the repo_config.")
