@@ -74,7 +74,7 @@ def test_create_stream_feature_view():
         aggregations=[],
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         StreamFeatureView(
             name="test batch feature view",
             entities=[],
