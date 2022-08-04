@@ -245,6 +245,8 @@ The services with containerized replacements currently implemented are:
 
 You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
 
+## Feast UI
+See [Feast contributing guide](ui/CONTRIBUTING.md)
 
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
