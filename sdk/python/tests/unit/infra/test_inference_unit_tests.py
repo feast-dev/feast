@@ -111,6 +111,60 @@ def test_on_demand_features_type_inference():
         test_view_with_missing_feature.infer_features()
 
 
+def test_datasource_inference():
+    # Create Feature Views
+    date_request = RequestSource(
+        name="date_request",
+        schema=[Field(name="some_date", dtype=UnixTimestamp)],
+    )
+
+    @on_demand_feature_view(
+        sources=[date_request],
+        schema=[
+            Field(name="output", dtype=UnixTimestamp),
+            Field(name="string_output", dtype=String),
+        ],
+    )
+    def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
+        return data
+
+    test_view.infer_features()
+
+    @on_demand_feature_view(
+        sources=[date_request],
+        schema=[
+            Field(name="output", dtype=UnixTimestamp),
+            Field(name="object_output", dtype=String),
+        ],
+    )
+    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        data["object_output"] = features_df["some_date"].astype(str)
+        return data
+
+    with pytest.raises(ValueError, match="Value with native type object"):
+        invalid_test_view.infer_features()
+
+    @on_demand_feature_view(
+        sources=[date_request],
+        features=[
+            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
+            Feature(name="missing", dtype=ValueType.STRING),
+        ],
+    )
+    def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
+        data = pd.DataFrame()
+        data["output"] = features_df["some_date"]
+        return data
+
+    with pytest.raises(SpecifiedFeaturesNotPresentError):
+        test_view_with_missing_feature.infer_features()
+
+
 def test_feature_view_inference_respects_basic_inference():
     """
     Tests that feature view inference respects the basic inference that occurs during creation.
