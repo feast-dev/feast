@@ -15,7 +15,6 @@ from .data_source import (
     KinesisSource,
     PushSource,
     RequestSource,
-    SourceType,
 )
 from .entity import Entity
 from .feature import Feature
@@ -47,7 +46,6 @@ __all__ = [
     "FeatureView",
     "OnDemandFeatureView",
     "RepoConfig",
-    "SourceType",
     "StreamFeatureView",
     "ValueType",
     "BigQuerySource",

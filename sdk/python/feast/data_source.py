@@ -31,19 +31,6 @@ from feast.types import from_value_type
 from feast.value_type import ValueType
 
 
-class SourceType(enum.Enum):
-    """
-    DataSource value type. Used to define source types in DataSource.
-    """
-
-    UNKNOWN = 0
-    BATCH_FILE = 1
-    BATCH_BIGQUERY = 2
-    STREAM_KAFKA = 3
-    STREAM_KINESIS = 4
-    BATCH_TRINO = 5
-
-
 class KafkaOptions:
     """
     DataSource Kafka options used to source features from Kafka messages
