@@ -62,6 +62,7 @@ benchmark-python:
 benchmark-python-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
+# Runs all unit tests. Omits test_sql_registry since it requires Docker containers.
 test-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 sdk/python/tests -k "not test_sql_registry"
 

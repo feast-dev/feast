@@ -86,8 +86,8 @@ class Entity:
 
         # For now, both the `join_key` and `join_keys` attributes are set correctly,
         # so both are usable.
-        # TODO(felixwang9817): Remove the usage of `join_key` throughout the codebase
-        # when the usage of `join_key` as a parameter is removed.
+        # TODO(felixwang9817): Fully remove the usage of `join_key` throughout the codebase,
+        # at which point the `join_key` attribute no longer needs to be set.
         if join_keys and len(join_keys) > 1:
             raise ValueError(
                 "An entity may only have single join key. "

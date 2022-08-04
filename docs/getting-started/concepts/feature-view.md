@@ -84,7 +84,7 @@ location_stats_fv= FeatureView(
     entities=["location"],
     schema=[
         Field(name="temperature", dtype=Int32),
-        Field(name="location", dtype=Int64),
+        Field(name="location_id", dtype=Int64),
     ],
     source=BigQuerySource(
         table="feast-oss.demo_data.location_stats"

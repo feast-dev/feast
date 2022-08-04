@@ -22,7 +22,7 @@ zipcode_source = FileSource(
 
 zipcode_features = FeatureView(
     name="zipcode_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="city", dtype=String),
@@ -31,6 +31,7 @@ zipcode_features = FeatureView(
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -43,7 +44,7 @@ zipcode_features = FeatureView(
 
 zipcode_features = FeatureView(
     name="zipcode_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="city", dtype=String),
@@ -52,6 +53,7 @@ zipcode_features = FeatureView(
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -64,11 +66,12 @@ zipcode_features = FeatureView(
 
 zipcode_money_features = FeatureView(
     name="zipcode_money_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -94,7 +97,7 @@ credit_history_source = FileSource(
 
 credit_history = FeatureView(
     name="credit_history",
-    entities=["dob_ssn"],
+    entities=[dob_ssn],
     ttl=timedelta(days=9000),
     schema=[
         Field(name="credit_card_due", dtype=Int64),
@@ -106,6 +109,7 @@ credit_history = FeatureView(
         Field(name="missed_payments_1y", dtype=Int64),
         Field(name="missed_payments_6m", dtype=Int64),
         Field(name="bankruptcies", dtype=Int64),
+        Field(name="dob_ssn", dtype=String),
     ],
     source=credit_history_source,
     tags={
