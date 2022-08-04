@@ -169,14 +169,6 @@ feast.field module
    :undoc-members:
    :show-inheritance:
 
-feast.flags module
-------------------
-
-.. automodule:: feast.flags
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.flags\_helper module
 --------------------------
 

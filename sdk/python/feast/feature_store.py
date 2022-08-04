@@ -40,7 +40,7 @@ from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
-from feast import feature_server, flags, flags_helper, ui_server, utils
+from feast import feature_server, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource, PushMode
@@ -50,7 +50,6 @@ from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
-    ExperimentalFeatureNotEnabled,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityDfException,
@@ -502,8 +501,8 @@ class FeatureStore:
             )
             if feature_service_from_registry != _features:
                 warnings.warn(
-                    "The FeatureService object that has been passed in as an argument is"
-                    "inconsistent with the version from Registry. Potentially a newer version"
+                    "The FeatureService object that has been passed in as an argument is "
+                    "inconsistent with the version from the registry. Potentially a newer version "
                     "of the FeatureService has been applied to the registry."
                 )
             for projection in feature_service_from_registry.feature_view_projections:
@@ -533,11 +532,12 @@ class FeatureStore:
         sfvs_to_update: List[StreamFeatureView],
     ):
         """Validates all feature views."""
-        if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
-        ):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+        if len(odfvs_to_update) > 0:
+            warnings.warn(
+                "On demand feature view is an experimental feature. "
+                "This API is stable, but the functionality does not scale well for offline retrieval",
+                RuntimeWarning,
+            )
 
         set_usage_attribute("odfv", bool(odfvs_to_update))
 
@@ -2284,8 +2284,11 @@ class FeatureStore:
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
-        if not flags_helper.enable_on_demand_feature_views(self.config):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+        warnings.warn(
+            "On demand feature view is an experimental feature. "
+            "This API is stable, but the functionality does not scale well for offline retrieval",
+            RuntimeWarning,
+        )
 
         from feast import transformation_server
 
