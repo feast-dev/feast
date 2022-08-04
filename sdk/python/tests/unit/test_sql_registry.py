@@ -190,8 +190,8 @@ def assert_project_uuid(project, project_uuid, sql_registry):
 @pytest.mark.parametrize(
     "sql_registry",
     [
-        # lazy_fixture("mysql_registry"),
-        # lazy_fixture("pg_registry"),
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
