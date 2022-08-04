@@ -42,24 +42,6 @@ def driver_feature_view(
     )
 
 
-def global_feature_view(
-    data_source: DataSource,
-    name="test_entityless",
-    infer_features: bool = False,
-    value_type: ValueType = ValueType.INT32,
-) -> FeatureView:
-    return FeatureView(
-        name=name,
-        entities=[],
-        # Test that Features still work for FeatureViews.
-        features=None
-        if infer_features
-        else [Feature(name="entityless_value", dtype=value_type)],
-        ttl=timedelta(days=5),
-        source=data_source,
-    )
-
-
 def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["conv_rate_plus_100"] = features_df["conv_rate"] + 100
