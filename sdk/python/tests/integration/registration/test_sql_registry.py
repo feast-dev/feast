@@ -108,13 +108,28 @@ def mysql_registry():
     container.stop()
 
 
+@pytest.fixture(scope="session")
+def sqlite_registry():
+
+    registry_config = RegistryConfig(
+        registry_type="sql",
+        path="sqlite://",
+    )
+
+    yield SqlRegistry(registry_config, None)
+
+
 @pytest.mark.skipif(
     sys.platform == "darwin" and "GITHUB_REF" in os.environ,
     reason="does not run on mac github actions",
 )
 @pytest.mark.parametrize(
     "sql_registry",
-    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
 )
 def test_apply_entity_success(sql_registry):
     entity = Entity(
@@ -174,7 +189,11 @@ def assert_project_uuid(project, project_uuid, sql_registry):
 )
 @pytest.mark.parametrize(
     "sql_registry",
-    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
 )
 def test_apply_feature_view_success(sql_registry):
     # Create Feature Views
@@ -250,7 +269,11 @@ def test_apply_feature_view_success(sql_registry):
 )
 @pytest.mark.parametrize(
     "sql_registry",
-    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
 )
 def test_apply_on_demand_feature_view_success(sql_registry):
     # Create Feature Views
@@ -334,7 +357,11 @@ def test_apply_on_demand_feature_view_success(sql_registry):
 )
 @pytest.mark.parametrize(
     "sql_registry",
-    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
 )
 @pytest.mark.parametrize(
     "request_source_schema",
@@ -462,7 +489,11 @@ def test_modify_feature_views_success(sql_registry, request_source_schema):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "sql_registry",
-    [lazy_fixture("mysql_registry"), lazy_fixture("pg_registry")],
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
 )
 def test_apply_data_source(sql_registry):
     # Create Feature Views
