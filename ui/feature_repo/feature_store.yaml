@@ -5,6 +5,3 @@ online_store:
   type: sqlite
 offline_store:
   type: file
-flags:
-  alpha_features: true
-  on_demand_transforms: true
