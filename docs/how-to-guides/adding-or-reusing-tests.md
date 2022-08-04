@@ -6,11 +6,13 @@ This guide will go over:
 
 1. how Feast tests are setup
 2. how to extend the test suite to test new functionality
-3. how to use the existing test suite to test a new custom offline / online store.
+3. how to use the existing test suite to test a new custom offline / online store
 
 ## Test suite overview
 
-Let's inspect the test setup in `sdk/python/tests/integration`:
+Unit tests are contained in `sdk/python/tests/unit`.
+Integration tests are contained in `sdk/python/tests/integration`.
+Let's inspect the structure of `sdk/python/tests/integration`:
 
 ```bash
 $ tree
@@ -51,14 +53,12 @@ $ tree
 │   ├── test_s3_custom_endpoint.py
 │   └── test_universal_historical_retrieval.py
 ├── online_store
-│   ├── test_online_retrieval.py
 │   ├── test_push_features_to_online_store.py
 │   └── test_universal_online.py
 └── registration
     ├── test_feature_store.py
     ├── test_inference.py
     ├── test_registry.py
-    ├── test_sql_registry.py
     ├── test_universal_cli.py
     ├── test_universal_odfv_feature_inference.py
     └── test_universal_types.py
@@ -66,23 +66,25 @@ $ tree
 ```
 
 * `feature_repos` has setup files for most tests in the test suite.
-* `conftest.py` and some of the individual test files contain fixtures which can be used to  on different offline stores, online stores, etc. and thus abstract away store specific implementations so we don't need to rewrite the same test implementation for different stores.
+* `conftest.py` (in the parent directory) contains the most common [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html), which are designed as an abstraction on top of specific offline/online stores, so tests do not need to be rewritten for different stores. Individual test files also contain more specific fixtures.
+* The tests are organized by which Feast component(s) they test.
 
 ## Structure of the test suite
 
-### What is the universal test suite?
+### Universal feature repo
 
-The universal test suite verifies that crucial Feast functions (e.g `get_historical_features`, `get_online_features` etc.) have the correct behavior for each of the different environments that Feast could be used in. These environments are combinations of an offline store, online store, and provider and the universal test suite serves to run basic functional verification against all of these different permutations.
+The universal feature repo refers to a set of fixtures (e.g. `environment` and `universal_data_sources`) that can be parametrized to cover various combinations of offline stores, online stores, and providers.
+This allows tests to run against all these various combinations without requiring excess code.
+The universal feature repo is constructed by fixtures in `conftest.py` with help from the various files in `feature_repos`.
 
-We use pytest [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html) to accomplish this without writing excess code.
+### Integration vs. unit tests
 
 Tests in Feast are split into integration and unit tests.
+If a test requires external resources (e.g. cloud resources on GCP or AWS), it is an integration test.
+If a test can be run purely locally (where locally includes Docker resources), it is a unit test.
 
-### Is it an integration or unit test?
-
-* Integration tests test non local Feast behavior. Integration tests mainly involve testing of Feast components that connect to services outside of Feast(e.g connecting to gcp or aws clients).
-    * Generally if the test requires the initialization of a feature store in an external environment in order to test (i.e using our universal test fixtures), it is probably an integration test.
-* Unit tests, on the other hand, unit tests primarily test local and class level behavior that does not require spinning up an external service. If your test can be run locally without using any other services besides pytest, it is a unit test.
+* Integration tests test non-local Feast behavior. For example, tests that require reading data from BigQuery or materializing data to DynamoDB are integration tests. Integration tests also tend to involve more complex Feast functionality.
+* Unit tests test local Feast behavior. For example, tests that only require registering feature views are unit tests. Unit tests tend to only involve simple Feast functionality.
 
 ### Main types of tests
 
