@@ -56,7 +56,7 @@ $ feast repo-upgrade --write
 --- /Users/achal/feast/prompt_dory/example.py
 +++ /Users/achal/feast/prompt_dory/example.py
 @@ -28,9 +29,9 @@
-     entities=["driver_id"],
+     entities=[driver_id],
      ttl=Duration(seconds=86400 * 365),
      features=[
 -        Feature(name="conv_rate", dtype=ValueType.FLOAT),

@@ -110,7 +110,7 @@ driver = Entity(
 
 driver_locations = FeatureView(
     name="driver_locations",
-    entities=["driver"],
+    entities=[driver],
     ttl=timedelta(days=1),
     schema=[
         Field(name="lat", dtype=Float32),

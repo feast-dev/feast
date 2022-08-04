@@ -23,12 +23,14 @@ Feature views allow Feast to model your existing feature data in a consistent wa
 {% tabs %}
 {% tab title="driver_trips_feature_view.py" %}
 ```python
-from feast import BigQuerySource, FeatureView, Field
+from feast import BigQuerySource, Entity, FeatureView, Field
 from feast.types import Float32, Int64
+
+driver = Entity(name="driver", join_keys=["driver_id"])
 
 driver_stats_fv = FeatureView(
     name="driver_activity",
-    entities=["driver"],
+    entities=[driver],
     schema=[
         Field(name="trips_today", dtype=Int64),
         Field(name="rating", dtype=Float32),
@@ -93,7 +95,7 @@ location = Entity(name="location", join_keys=["location_id"])
 
 location_stats_fv= FeatureView(
     name="location_stats",
-    entities=["location"],
+    entities=[location],
     schema=[
         Field(name="temperature", dtype=Int32),
         Field(name="location_id", dtype=Int64),
