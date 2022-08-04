@@ -191,9 +191,9 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 > and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**
-### Setup your GCP Bigquery Instance
+### Setup your GCP BigQuery Instance
 1. You can get free credits [here](https://cloud.google.com/free/docs/free-cloud-features#free-trial).
-2. You will need to setup a service account, enable the bigquery api, and create a staging location for a bucket.
+2. You will need to setup a service account, enable the BigQuery api, and create a staging location for a bucket.
   * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
   * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running gcp tests and remember to save the bucket name.
 3. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
@@ -202,30 +202,30 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   gcloud auth login
   gcloud auth application-default login
   ```
-- When you run `gcloud auth application-default login`, you should see some output of the form:
- ```
- Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
- ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+  - When you run `gcloud auth application-default login`, you should see some output of the form:
+  ```
+  Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
+  ```
+  - You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
 5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
 6. Running `gcloud config list` should give you something like this:
-```sh
-$ gcloud config list
-[core]
-account = [your email]
-disable_usage_reporting = True
-project = [your project id]
+  ```sh
+  $ gcloud config list
+  [core]
+  account = [your email]
+  disable_usage_reporting = True
+  project = [your project id]
 
-Your active configuration is: [default]
-```
+  Your active configuration is: [default]
+  ```
 7. Export gcp specific environment variables. Namely,
-```sh
-export GCS_REGION='[your gcs region e.g US]'
-export GCS_STAGING_LOCATION='[your gcs staging location]'
-```
-**NOTE**: Your `GCS_STAGING_LOCATION` should be in the form `gs://<bucket name>` where the bucket name is from step 2.
+  ```sh
+  export GCS_REGION='[your gcs region e.g US]'
+  export GCS_STAGING_LOCATION='[your gcs staging location]'
+  ```
+  **NOTE**: Your `GCS_STAGING_LOCATION` should be in the form `gs://<bucket name>` where the bucket name is from step 2.
 
-8. Once authenticated, you should be able to run the integration tests for bigquery without any failures.
+8. Once authenticated, you should be able to run the integration tests for BigQuery without any failures.
 
 **AWS**
 1. Setup AWS by creating an account, database, and cluster. You will need to enable Redshift and Dynamo.

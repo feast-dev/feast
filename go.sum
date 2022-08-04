@@ -87,6 +87,12 @@ github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021/go.
 github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1/go.mod h1:KJwIaB5Mv44NWtYuAOFCVOjcI94vtpEz2JU/D2v6IjE=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
+github.com/feast-dev/gopy v0.4.1-0.20220714205859-591500e3215f h1:tTjEpVu4H/ZGh4wo3WETbA9dutNM6bXMXvyZbb9GLCs=
+github.com/feast-dev/gopy v0.4.1-0.20220714205859-591500e3215f/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
+github.com/feast-dev/gopy v0.4.1-0.20220714211038-aa312c13fd79 h1:oFj6GDGR8E4S5GeMyLBvaKtvMZxj3hHqsB5Xndjxjz8=
+github.com/feast-dev/gopy v0.4.1-0.20220714211038-aa312c13fd79/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
+github.com/feast-dev/gopy v0.4.1-0.20220714211330-67b016d61ed4 h1:UfzPdqqAfrt8f+jDIY61lbzqFZYsX2BhVyNcCbdpE+U=
+github.com/feast-dev/gopy v0.4.1-0.20220714211330-67b016d61ed4/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
 github.com/feast-dev/gopy v0.4.1-0.20220714211711-252048177d85 h1:BKmfqWiDbxvviB6vemPbbNjF+ywRsBMCdk1QvrcGgkc=
 github.com/feast-dev/gopy v0.4.1-0.20220714211711-252048177d85/go.mod h1:tlA/KcD7rM8B+NQJR4SASwiinfKY0aiMFanHszR8BZA=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=

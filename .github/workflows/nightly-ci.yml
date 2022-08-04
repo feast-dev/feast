@@ -11,6 +11,7 @@ on:
 
 jobs:
   check_date:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
@@ -24,6 +25,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' }}
         run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
   build-docker-image:
+    if: github.repository == 'feast-dev/feast'
     needs: [check_date]
     runs-on: ubuntu-latest
     steps:
@@ -79,6 +81,7 @@ jobs:
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
+    if: github.repository == 'feast-dev/feast'
     needs: [check_date, build-docker-image]
     runs-on: ${{ matrix.os }}
     strategy:
