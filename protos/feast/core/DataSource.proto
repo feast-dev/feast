@@ -32,7 +32,7 @@ import "feast/core/Feature.proto";
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
-  reserved 6 to 10;
+  reserved 4, 6 to 10;
 
   // Type of Data Source.
   // Next available id: 12
@@ -71,10 +71,6 @@ message DataSource {
 
   // Must specify event timestamp column name
   string timestamp_field = 3;
-
-  // (Optional) Specify partition column
-  // useful for file sources
-  string date_partition_column = 4;
 
   // Must specify creation timestamp column name
   string created_timestamp_column = 5;

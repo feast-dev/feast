@@ -190,7 +190,6 @@ class DataSource(ABC):
         field_mapping (optional): A dictionary mapping of column names in this data
             source to feature names in a feature table or view. Only used for feature
             columns, not entity or timestamp columns.
-        date_partition_column (optional): Timestamp column used for partitioning.
         description (optional) A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the data source, typically the email of the primary
@@ -203,7 +202,6 @@ class DataSource(ABC):
     timestamp_field: str
     created_timestamp_column: str
     field_mapping: Dict[str, str]
-    date_partition_column: str
     description: str
     tags: Dict[str, str]
     owner: str
@@ -215,7 +213,6 @@ class DataSource(ABC):
         timestamp_field: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -232,7 +229,6 @@ class DataSource(ABC):
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to feature names in a feature table or view. Only used for feature
                 columns, not entity or timestamp columns.
-            date_partition_column (optional): Timestamp column used for partitioning.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
@@ -244,17 +240,6 @@ class DataSource(ABC):
             created_timestamp_column if created_timestamp_column else ""
         )
         self.field_mapping = field_mapping if field_mapping else {}
-        self.date_partition_column = (
-            date_partition_column if date_partition_column else ""
-        )
-        if date_partition_column:
-            warnings.warn(
-                (
-                    "The argument 'date_partition_column' is being deprecated. "
-                    "Feast 0.25 and onwards will not support 'date_timestamp_column' for data sources."
-                ),
-                DeprecationWarning,
-            )
         if (
             self.timestamp_field
             and self.timestamp_field == self.created_timestamp_column
@@ -284,7 +269,6 @@ class DataSource(ABC):
             or self.timestamp_field != other.timestamp_field
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
-            or self.date_partition_column != other.date_partition_column
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
@@ -377,7 +361,6 @@ class KafkaSource(DataSource):
         topic: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -399,7 +382,6 @@ class KafkaSource(DataSource):
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to feature names in a feature table or view. Only used for feature
                 columns, not entity or timestamp columns.
-            date_partition_column (optional): Timestamp column used for partitioning.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
@@ -422,7 +404,6 @@ class KafkaSource(DataSource):
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
-            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -484,7 +465,6 @@ class KafkaSource(DataSource):
             topic=data_source.kafka_options.topic,
             created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,
-            date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -506,7 +486,6 @@ class KafkaSource(DataSource):
 
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
         return data_source_proto
@@ -746,7 +725,6 @@ class KinesisSource(DataSource):
 
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
 

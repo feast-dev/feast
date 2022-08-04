@@ -17,7 +17,6 @@ class PostgreSQLSource(DataSource):
         timestamp_field: Optional[str] = "",
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -29,7 +28,6 @@ class PostgreSQLSource(DataSource):
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
-            date_partition_column=date_partition_column,
             description=description,
             tags=tags,
             owner=owner,
@@ -62,7 +60,6 @@ class PostgreSQLSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -82,7 +79,6 @@ class PostgreSQLSource(DataSource):
 
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
-        data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
 
