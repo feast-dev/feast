@@ -58,7 +58,7 @@ class SnowflakeSource(DataSource):
                 maintainer.
         """
         if table is None and query is None:
-            raise ValueError('No "table" argument provided.')
+            raise ValueError('No "table" or "query" argument provided.')
 
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
