@@ -71,7 +71,7 @@ generated_data_source = FileSource(
     path="benchmark_data.parquet", timestamp_field="event_timestamp",
 )
 
-entity = Entity(name="entity", value_type=ValueType.STRING,)
+entity = Entity(name="entity")
 
 benchmark_feature_views = [
     FeatureView(

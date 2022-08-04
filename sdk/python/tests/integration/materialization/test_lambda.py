@@ -45,8 +45,7 @@ def test_lambda_materialization_consistency():
     fs = lambda_environment.feature_store
     driver = Entity(
         name="driver_id",
-        join_key="driver_id",
-        value_type=ValueType.INT64,
+        join_keys=["driver_id"],
     )
 
     driver_stats_fv = FeatureView(

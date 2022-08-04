@@ -74,16 +74,17 @@ It is suggested that you dynamically specify the new FeatureView name using `.wi
 {% tabs %}
 {% tab title="location_stats_feature_view.py" %}
 ```python
-from feast import BigQuerySource, Entity, FeatureView, Field, ValueType
-from feast.types import Int32
+from feast import BigQuerySource, Entity, FeatureView, Field
+from feast.types import Int32, Int64
 
-location = Entity(name="location", join_keys=["location_id"], value_type=ValueType.INT64)
+location = Entity(name="location", join_keys=["location_id"])
 
 location_stats_fv= FeatureView(
     name="location_stats",
     entities=["location"],
     schema=[
-        Field(name="temperature", dtype=Int32)
+        Field(name="temperature", dtype=Int32),
+        Field(name="location_id", dtype=Int64),
     ],
     source=BigQuerySource(
         table="feast-oss.demo_data.location_stats"

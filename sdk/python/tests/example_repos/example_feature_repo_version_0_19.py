@@ -14,9 +14,8 @@ driver_hourly_stats = FileSource(
 
 driver = Entity(
     name="driver_id",
-    value_type=ValueType.INT64,
     description="driver id",
-    join_key="driver_id",  # Changed to `join_keys` in 0.20
+    join_keys=["driver_id"],  # Changed to `join_keys` in 0.20
 )
 
 

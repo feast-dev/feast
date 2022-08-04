@@ -82,7 +82,7 @@ online_store:
 
 from datetime import timedelta
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
@@ -98,7 +98,7 @@ driver_hourly_stats = FileSource(
 # fetch features.
 # Entity has a name used for later reference (in a feature view, eg)
 # and join_key to identify physical field name used in storages
-driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
+driver = Entity(name="driver", join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
@@ -111,6 +111,7 @@ driver_hourly_stats_view = FeatureView(
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int64),
     ],
     online=True,
     source=driver_hourly_stats,
@@ -165,7 +166,7 @@ feast apply
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureView, Field, FileSource
 from feast.types import Float32, Int64
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
@@ -181,7 +182,7 @@ driver_hourly_stats = FileSource(
 # fetch features.
 # Entity has a name used for later reference (in a feature view, eg)
 # and join_key to identify physical field name used in storages
-driver = Entity(name="driver", value_type=ValueType.INT64, join_keys=["driver_id"], description="driver id",)
+driver = Entity(name="driver", join_keys=["driver_id"], description="driver id",)
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
@@ -194,6 +195,7 @@ driver_hourly_stats_view = FeatureView(
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="driver_id", dtype=Int64),
     ],
     online=True,
     source=driver_hourly_stats,
