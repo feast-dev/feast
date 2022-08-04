@@ -113,7 +113,7 @@ def test_apply_feature_view_success(test_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -334,7 +334,7 @@ def test_modify_feature_views_success(test_registry):
         schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

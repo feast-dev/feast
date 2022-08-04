@@ -53,7 +53,7 @@ def test_lambda_materialization_consistency():
         entities=["driver_id"],
         ttl=timedelta(weeks=52),
         features=[Feature(name="value", dtype=ValueType.FLOAT)],
-        batch_source=ds,
+        source=ds,
     )
 
     try:

@@ -677,7 +677,7 @@ class FeatureStore:
             ...     name="driver_hourly_stats",
             ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
-            ...     batch_source=driver_hourly_stats,
+            ...     source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
             ...     data_sources=[driver_hourly_stats],
@@ -790,7 +790,7 @@ class FeatureStore:
             ...     name="driver_hourly_stats",
             ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
-            ...     batch_source=driver_hourly_stats,
+            ...     source=driver_hourly_stats,
             ... )
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """

@@ -26,7 +26,7 @@ driver_hourly_stats_view = BatchFeatureView(
         Field(name="string_feature", dtype=String),
     ],
     online=True,
-    batch_source=driver_hourly_stats,
+    source=driver_hourly_stats,
     tags={},
 )
 

@@ -124,7 +124,7 @@ def test_write_to_online_store_event_check(environment):
             name="feature_view_123",
             schema=[Field(name="string_col", dtype=String)],
             entities=[e],
-            batch_source=file_source,
+            source=file_source,
             ttl=timedelta(minutes=5),
         )
         # Register Feature View and Entity

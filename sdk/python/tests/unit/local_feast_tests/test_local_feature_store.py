@@ -70,7 +70,7 @@ def test_apply_feature_view_success(test_feature_store):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -126,7 +126,7 @@ def test_apply_object_and_read(test_feature_store):
         ],
         entities=[e1],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -141,7 +141,7 @@ def test_apply_object_and_read(test_feature_store):
         ],
         entities=[e2],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -173,7 +173,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
             name="my_feature_view_1",
             schema=[Field(name="string_col", dtype=String)],
             entities=[e],
-            batch_source=file_source,
+            source=file_source,
             ttl=timedelta(minutes=5),
         )
 
@@ -203,7 +203,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
             name="my_feature_view_1",
             schema=[Field(name="int64_col", dtype=Int64)],
             entities=[e],
-            batch_source=file_source,
+            source=file_source,
             ttl=timedelta(minutes=5),
         )
         test_feature_store.apply([fv1])
@@ -225,7 +225,7 @@ def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
         entities=[driver],
         ttl=timedelta(seconds=10),
         online=False,
-        batch_source=FileSource(path="driver_stats.parquet"),
+        source=FileSource(path="driver_stats.parquet"),
         tags={},
     )
 
@@ -234,7 +234,7 @@ def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
         entities=[customer],
         ttl=timedelta(seconds=10),
         online=False,
-        batch_source=FileSource(path="customer_stats.parquet"),
+        source=FileSource(path="customer_stats.parquet"),
         tags={},
     )
     try:

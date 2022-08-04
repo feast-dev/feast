@@ -25,7 +25,7 @@ driver_locations = FeatureView(
         Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_locations_source,
+    source=driver_locations_source,
     tags={},
 )
 

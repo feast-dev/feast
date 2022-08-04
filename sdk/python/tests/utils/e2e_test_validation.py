@@ -239,7 +239,7 @@ def validate_registry_data_source_apply(test_registry: Registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

@@ -189,8 +189,8 @@ def assert_project_uuid(project, project_uuid, sql_registry):
 @pytest.mark.parametrize(
     "sql_registry",
     [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
+        # lazy_fixture("mysql_registry"),
+        # lazy_fixture("pg_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -215,7 +215,7 @@ def test_apply_feature_view_success(sql_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -383,7 +383,7 @@ def test_modify_feature_views_success(sql_registry):
         schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -511,7 +511,7 @@ def test_apply_data_source(sql_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

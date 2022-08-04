@@ -52,7 +52,7 @@ driver_stats_fv = FeatureView(
     # Batch sources are used to find feature values. In the case of this feature
     # view we will query a source table on Redshift for driver statistics
     # features
-    batch_source=driver_stats_source,
+    source=driver_stats_source,
 )
 
 driver_stats_fs = FeatureService(name="driver_activity", features=[driver_stats_fv])

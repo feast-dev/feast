@@ -569,7 +569,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         name="driver_stats",
         entities=[driver],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
-        batch_source=driver_stats_data_source,
+        source=driver_stats_data_source,
         ttl=None,
     )
 

@@ -155,7 +155,7 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
             Field(name="embedding_double", dtype=Array(Float64)),
             Field(name="embedding_float", dtype=Array(Float32)),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(hours=2),
     )
     return item_embeddings_feature_view

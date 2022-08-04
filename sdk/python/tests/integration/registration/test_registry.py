@@ -129,7 +129,7 @@ def test_apply_feature_view_integration(test_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

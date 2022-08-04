@@ -29,7 +29,7 @@ driver_hourly_stats_view = FeatureView(
         Feature(name="avg_daily_trips", dtype=ValueType.INT64),
     ],
     online=True,
-    batch_source=driver_hourly_stats,  # Changed to `source` in 0.20
+    source=driver_hourly_stats,  # Changed to `source` in 0.20
     tags={},
 )
 
@@ -50,7 +50,7 @@ global_stats_feature_view = FeatureView(
         Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
     ],
     online=True,
-    batch_source=global_daily_stats,  # Changed to `source` in 0.20
+    source=global_daily_stats,  # Changed to `source` in 0.20
     tags={},
 )
 

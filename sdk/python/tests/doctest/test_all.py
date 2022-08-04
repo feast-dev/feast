@@ -35,7 +35,7 @@ def setup_feature_store():
             Field(name="acc_rate", dtype=Float32),
             Field(name="avg_daily_trips", dtype=Int64),
         ],
-        batch_source=driver_hourly_stats,
+        source=driver_hourly_stats,
     )
     fs.apply([driver_hourly_stats_view, driver])
     fs.materialize(

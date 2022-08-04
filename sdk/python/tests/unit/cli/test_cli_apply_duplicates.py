@@ -136,7 +136,7 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
             "   entities=['driver_id'],\n"
             "   ttl=timedelta(days=1),\n"
             "   online=True,\n"
-            "   batch_source=driver_hourly_stats,\n"
+            "   source=driver_hourly_stats,\n"
             "   tags={'dummy': 'true'})\n"
         )
 
