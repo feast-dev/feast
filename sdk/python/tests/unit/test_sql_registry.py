@@ -22,7 +22,7 @@ from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
-from feast import Feature, FileSource, RequestSource
+from feast import FileSource, RequestSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
@@ -389,9 +389,9 @@ def test_modify_feature_views_success(sql_registry):
     )
 
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=String),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )
@@ -409,9 +409,9 @@ def test_modify_feature_views_success(sql_registry):
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=Float32),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )

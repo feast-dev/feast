@@ -5,7 +5,6 @@ from feast import BigQuerySource, FileSource, RedshiftSource, SnowflakeSource
 from feast.data_source import RequestSource
 from feast.entity import Entity
 from feast.errors import DataSourceNoNameException, SpecifiedFeaturesNotPresentError
-from feast.feature import Feature
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -15,7 +14,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 )
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
-from feast.types import Float32, Float64, Int64, String, UnixTimestamp, ValueType
+from feast.types import Float32, Float64, Int64, String, UnixTimestamp
 from tests.utils.data_source_test_creator import prep_file_source
 
 
@@ -74,13 +73,10 @@ def test_on_demand_features_type_inference():
     test_view.infer_features()
 
     @on_demand_feature_view(
-        # Note: we deliberately use `inputs` instead of `sources` to test that `inputs`
-        # still works correctly, even though it is deprecated.
-        # TODO(felixwang9817): Remove references to `inputs` once it is fully deprecated.
-        inputs={"date_request": date_request},
-        features=[
-            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
-            Feature(name="object_output", dtype=ValueType.STRING),
+        sources=[date_request],
+        schema=[
+            Field(name="output", dtype=UnixTimestamp),
+            Field(name="object_output", dtype=String),
         ],
     )
     def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -93,14 +89,11 @@ def test_on_demand_features_type_inference():
         invalid_test_view.infer_features()
 
     @on_demand_feature_view(
-        # Note: we deliberately use positional arguments here to test that they work correctly,
-        # even though positional arguments are deprecated in favor of keyword arguments.
-        # TODO(felixwang9817): Remove positional arguments once they are fully deprecated.
-        [
-            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
-            Feature(name="missing", dtype=ValueType.STRING),
+        schema=[
+            Field(name="output", dtype=UnixTimestamp),
+            Field(name="missing", dtype=String),
         ],
-        {"date_request": date_request},
+        sources=[date_request],
     )
     def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
         data = pd.DataFrame()
@@ -151,9 +144,9 @@ def test_datasource_inference():
 
     @on_demand_feature_view(
         sources=[date_request],
-        features=[
-            Feature(name="output", dtype=ValueType.UNIX_TIMESTAMP),
-            Feature(name="missing", dtype=ValueType.STRING),
+        schema=[
+            Field(name="output", dtype=UnixTimestamp),
+            Field(name="missing", dtype=String),
         ],
     )
     def test_view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:

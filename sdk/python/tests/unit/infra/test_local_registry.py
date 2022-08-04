@@ -23,7 +23,6 @@ from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
@@ -340,9 +339,9 @@ def test_modify_feature_views_success(test_registry):
     )
 
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=String),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )
@@ -360,9 +359,9 @@ def test_modify_feature_views_success(test_registry):
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=Float32),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )

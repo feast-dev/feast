@@ -13,14 +13,12 @@
 # limitations under the License.
 
 import pandas as pd
-import pytest
 
-from feast import RequestSource
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
-from feast.types import Float32, String, UnixTimestamp
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.types import Float32
 
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -113,7 +111,7 @@ def test_inputs_parameter_deprecation_in_odfv():
     with pytest.warns(DeprecationWarning):
 
         @on_demand_feature_view(
-            inputs={"date_request": date_request},
+            sources=[date_request],
             schema=[
                 Field(name="output", dtype=UnixTimestamp),
                 Field(name="string_output", dtype=String),
@@ -134,7 +132,6 @@ def test_inputs_parameter_deprecation_in_odfv():
     with pytest.raises(ValueError):
 
         @on_demand_feature_view(
-            inputs={"date_request": date_request},
             sources=[date_request],
             schema=[
                 Field(name="output", dtype=UnixTimestamp),
@@ -148,7 +145,7 @@ def test_inputs_parameter_deprecation_in_odfv():
             return data
 
     @on_demand_feature_view(
-        inputs={"odfv": date_request},
+        sources=[date_request],
         schema=[
             Field(name="output", dtype=UnixTimestamp),
             Field(name="string_output", dtype=String),
