@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import pandas as pd
+
 from feast.data_source import RequestSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -7,7 +10,6 @@ from feast.field import Field
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
 from feast.value_type import ValueType
-from google.protobuf.duration_pb2 import Duration
 from feast import FileSource
 
 file_path = "driver_stats.parquet"
@@ -27,7 +29,7 @@ driver = Entity(name="driver_id", description="driver id")
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=[driver],
-    ttl=Duration(seconds=86400 * 7),
+    ttl=timedelta(seconds=86400 * 7),
     schema=[
         Field(name="conv_rate", dtype=Float64),
         Field(name="acc_rate", dtype=Float32),
@@ -77,7 +79,7 @@ benchmark_feature_views = [
     FeatureView(
         name=f"feature_view_{i}",
         entities=[entity],
-        ttl=Duration(seconds=86400),
+        ttl=timedelta(seconds=86400),
         schema=[Field(name=f"feature_{10 * i + j}", dtype=Int64) for j in range(10)],
         online=True,
         source=generated_data_source,

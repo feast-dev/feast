@@ -1,10 +1,12 @@
+from datetime import timedelta
+
 import pandas as pd
+
 from feast.data_source import RequestSource
 from feast.field import Field
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.request_feature_view import RequestFeatureView
 from feast.types import Float32, Float64, Int64, String
-from google.protobuf.duration_pb2 import Duration
 from feast.field import Field
 
 from feast import Entity, Feature, BatchFeatureView, FileSource
@@ -18,7 +20,7 @@ driver = Entity(name="driver_id", description="driver id",)
 driver_hourly_stats_view = BatchFeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
-    ttl=Duration(seconds=86400000),
+    ttl=timedelta(seconds=86400000),
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
