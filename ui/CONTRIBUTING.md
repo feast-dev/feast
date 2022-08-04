@@ -1,6 +1,7 @@
 <h2>Table of contents</h2>
 
-- [General contributor](#general-contributor)
+- [General contributor notes](#general-contributor-notes)
+  - [`feast ui` command](#feast-ui-command)
   - [NPM package project structure](#npm-package-project-structure)
   - [Tests](#tests)
   - [Yarn commands](#yarn-commands)
@@ -8,13 +9,18 @@
     - [`yarn start`](#yarn-start)
     - [`yarn test`](#yarn-test)
 - [Release process](#release-process)
-  - [1) Publishing the Feast Package to NPM](#1-publishing-the-feast-package-to-npm)
+  - [Publishing the Feast Package to NPM](#publishing-the-feast-package-to-npm)
     - [Requirements](#requirements)
     - [Steps for Publishing](#steps-for-publishing)
   - [2) Linking to the new UI in the Feast Python SDK](#2-linking-to-the-new-ui-in-the-feast-python-sdk)
 
-# General contributor 
+# General contributor notes
 In this doc, we describe how to contribute both to the Feast Web UI NPM package as well as the embedded Feast UI in the Python SDK (i.e. what's run when you run `feast ui`)
+
+## `feast ui` command
+You can see the logic in [../sdk/python/ui](../sdk/python/feast/ui/). This instance is loaded in [../sdk/python/ui_server.py](../sdk/python/feast/ui_server.py). 
+
+Under the hood, what happens is that the Feast SDK spins up a server which exposes an endpoint to the registry. It then mounts the UI on the server and points it to fetch data from that registry.
 
 ## NPM package project structure
 The Web UI is powered by a JSON registry dump from Feast (running `feast registry-dump`). Running `yarn start` launches a UI
@@ -71,9 +77,11 @@ There are a couple of components in Feast that are tied to the Web UI:
 1. the npm package
 2. the Feast Python SDK, which bundles in a compiled version of the Feast Web UI which is run on a `feast ui` CLI command.
 
+The bundled Web UI in the Python SDK always compiles in the latest npm version, so we only need to ensure the npm package is published correctly
+
 **TODO(adchia): Update Feast's release process to automatically bump versions and publish npm packages as part of semantic release**
 
-## 1) Publishing the Feast Package to NPM
+## Publishing the Feast Package to NPM
 
 The Feast UI is published as a module to NPM and can be found here: https://www.npmjs.com/package/@feast-dev/feast-ui
 
@@ -92,6 +100,6 @@ To publish a new version of the module, you will need:
 5. [Check NPM to see that the package was properly publish](https://www.npmjs.com/package/@feast-dev/feast-ui).
 
 ## 2) Linking to the new UI in the Feast Python SDK
-You can see the logic in [../sdk/python/ui](../sdk/python/feast/ui/). This instance is loaded in [../sdk/python/ui_server.py](../sdk/python/feast/ui_server.py). 
+
 
 To ensure this gets released in the next Feast SDK patch release, update the `package.json` file in [../sdk/python/ui](../sdk/python/feast/ui/) (specifically bumping the version of @feast-dev/feast-ui to the new version).
