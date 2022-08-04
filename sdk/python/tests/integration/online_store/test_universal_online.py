@@ -331,15 +331,16 @@ def test_online_retrieval_with_shared_batch_source(environment, universal_data_s
     fs = environment.feature_store
 
     entities, datasets, data_sources = universal_data_sources
+    driver_entity = driver()
     driver_stats_v1 = FeatureView(
         name="driver_stats_v1",
-        entities=["driver"],
+        entities=[driver_entity],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
         source=data_sources.driver,
     )
     driver_stats_v2 = FeatureView(
         name="driver_stats_v2",
-        entities=["driver"],
+        entities=[driver_entity],
         schema=[
             Field(name="avg_daily_trips", dtype=Int32),
             Field(name="conv_rate", dtype=Float32),
@@ -347,7 +348,7 @@ def test_online_retrieval_with_shared_batch_source(environment, universal_data_s
         source=data_sources.driver,
     )
 
-    fs.apply([driver(), driver_stats_v1, driver_stats_v2])
+    fs.apply([driver_entity, driver_stats_v1, driver_stats_v2])
 
     data = pd.DataFrame(
         {

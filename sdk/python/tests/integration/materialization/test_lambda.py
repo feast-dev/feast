@@ -50,7 +50,7 @@ def test_lambda_materialization_consistency():
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",
-        entities=["driver_id"],
+        entities=[driver],
         ttl=timedelta(weeks=52),
         features=[Feature(name="value", dtype=ValueType.FLOAT)],
         source=ds,

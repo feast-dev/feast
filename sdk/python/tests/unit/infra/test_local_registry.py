@@ -32,6 +32,7 @@ from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
+from tests.integration.feature_repos.universal.entities import driver
 from tests.utils.e2e_test_validation import validate_registry_data_source_apply
 
 
@@ -181,7 +182,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
 
     driver_daily_features_view = FeatureView(
         name="driver_daily_features",
-        entities=["driver"],
+        entities=[driver()],
         ttl=timedelta(seconds=8640000000),
         schema=[
             Field(name="daily_miles_driven", dtype=Float32),
