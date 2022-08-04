@@ -14,7 +14,7 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
 from typeguard import typechecked
@@ -23,7 +23,6 @@ from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -78,8 +77,6 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
-        source (optional): The source of data for this group of features. May be a stream source, or a batch source.
-            If a stream source, the source should contain a batch_source for backfills & batch materialization.
     """
 
     name: str
@@ -100,25 +97,24 @@ class FeatureView(BaseFeatureView):
     @log_exceptions
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        entities: Optional[Union[List[Entity], List[str]]] = None,
-        ttl: Optional[Union[Duration, timedelta]] = None,
-        batch_source: Optional[DataSource] = None,
-        stream_source: Optional[DataSource] = None,
-        features: Optional[List[Feature]] = None,
+        *,
+        name: str,
+        source: DataSource,
+        entities: List[Entity] = None,
+        ttl: timedelta = None,
+        schema: Optional[List[Field]] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
         description: str = "",
         owner: str = "",
-        schema: Optional[List[Field]] = None,
-        source: Optional[DataSource] = None,
     ):
         """
         Creates a FeatureView object.
 
         Args:
             name: The unique name of the feature view.
+            source: The source of data for this group of features. May be a stream source, or a batch source.
+                If a stream source, the source should contain a batch_source for backfills & batch materialization.
             entities: The list of entities with which this group of features is associated.
             ttl: The amount of time this group of features lives. A ttl of 0 indicates that
                 this group of features lives forever. Note that large ttl's or a ttl of 0
@@ -137,115 +133,49 @@ class FeatureView(BaseFeatureView):
                 and entity columns. If entity columns are included in the schema, a List[Entity]
                 must be passed to `entities` instead of a List[str]; otherwise, the entity columns
                 will be mistakenly interpreted as feature columns.
-            source (optional): The source of data for this group of features. May be a stream source, or a batch source.
-                If a stream source, the source should contain a batch_source for backfills & batch materialization.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        positional_attributes = ["name", "entities", "ttl"]
+        self.name = name
+        self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
+        self.ttl = ttl
+        self.schema = schema or []
 
-        _name = name
-        _entities = entities
-        _ttl = ttl
-
-        if args:
-            warnings.warn(
-                (
-                    "feature view parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct feature views"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
+        # Initialize data sources.
+        if (
+            isinstance(source, PushSource)
+            or isinstance(source, KafkaSource)
+            or isinstance(source, KinesisSource)
+        ):
+            self.stream_source = source
+            if not source.batch_source:
                 raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"feature views, for backwards compatibility."
+                    f"A batch_source needs to be specified for stream source `{source.name}`"
                 )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _entities = args[1]
-            if len(args) >= 3:
-                _ttl = args[2]
-
-        if not _name:
-            raise ValueError("feature view name needs to be specified")
-
-        self.name = _name
-
-        self.entities = (
-            [e.name if isinstance(e, Entity) else e for e in _entities]
-            if _entities
-            else [DUMMY_ENTITY_NAME]
-        )
-        if _entities and isinstance(_entities[0], str):
-            warnings.warn(
-                (
-                    "The `entities` parameter should be a list of `Entity` objects. "
-                    "Feast 0.24 and onwards will not support passing in a list of "
-                    "strings to define entities."
-                ),
-                DeprecationWarning,
-            )
-
-        self._initialize_sources(_name, batch_source, stream_source, source)
-
-        if isinstance(_ttl, Duration):
-            self.ttl = timedelta(seconds=int(_ttl.seconds))
-            warnings.warn(
-                (
-                    "The option to pass a Duration object to the ttl parameter is being deprecated. "
-                    "Please pass a timedelta object instead. Feast 0.24 and onwards will not support "
-                    "Duration objects."
-                ),
-                DeprecationWarning,
-            )
-        elif isinstance(_ttl, timedelta) or _ttl is None:
-            self.ttl = _ttl
+            else:
+                self.batch_source = source.batch_source
         else:
-            raise ValueError(f"unknown value type specified for ttl {type(_ttl)}")
+            self.stream_source = None
+            self.batch_source = source
 
-        if features is not None:
-            warnings.warn(
-                (
-                    "The `features` parameter is being deprecated in favor of the `schema` parameter. "
-                    "Please switch from using `features` to `schema`. This will also requiring switching "
-                    "feature definitions from using `Feature` to `Field`. Feast 0.24 and onwards will not "
-                    "support the `features` parameter."
-                ),
-                DeprecationWarning,
-            )
-
-        _schema = schema or []
-        if len(_schema) == 0 and features is not None:
-            _schema = [Field.from_feature(feature) for feature in features]
-        self.schema = _schema
-
-        # If a user has added entity fields to schema, then they should also have switched
-        # to using a List[Entity], in which case entity and feature columns can be separated
-        # here. Conversely, if the user is still using a List[str], they must not have added
-        # added entity fields, in which case we can set the `features` attribute directly
-        # equal to the schema.
-        _features: List[Field] = []
+        # Initialize features and entity columns.
+        features: List[Field] = []
         self.entity_columns = []
-        if _entities and len(_entities) > 0 and isinstance(_entities[0], str):
-            _features = _schema
-        else:
-            join_keys = []
-            if _entities:
-                for entity in _entities:
-                    if isinstance(entity, Entity):
-                        join_keys += entity.join_keys
 
-            for field in _schema:
-                if field.name in join_keys:
-                    self.entity_columns.append(field)
-                else:
-                    _features.append(field)
+        join_keys = []
+        if entities:
+            for entity in entities:
+                join_keys += entity.join_keys
+
+        for field in self.schema:
+            if field.name in join_keys:
+                self.entity_columns.append(field)
+            else:
+                features.append(field)
 
         # TODO(felixwang9817): Add more robust validation of features.
-        cols = [field.name for field in _schema]
+        cols = [field.name for field in self.schema]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -258,49 +188,14 @@ class FeatureView(BaseFeatureView):
                 )
 
         super().__init__(
-            name=_name,
-            features=_features,
+            name=name,
+            features=features,
             description=description,
             tags=tags,
             owner=owner,
         )
         self.online = online
         self.materialization_intervals = []
-
-    def _initialize_sources(self, name, batch_source, stream_source, source):
-        if source:
-            if (
-                isinstance(source, PushSource)
-                or isinstance(source, KafkaSource)
-                or isinstance(source, KinesisSource)
-            ):
-                self.stream_source = source
-                if not source.batch_source:
-                    raise ValueError(
-                        f"A batch_source needs to be specified for stream source `{source.name}`"
-                    )
-                else:
-                    self.batch_source = source.batch_source
-            else:
-                self.stream_source = stream_source
-                self.batch_source = source
-        else:
-            warnings.warn(
-                "batch_source and stream_source have been deprecated in favor of `source`."
-                "The deprecated fields will be removed in Feast 0.24.",
-                DeprecationWarning,
-            )
-            if stream_source is not None and isinstance(stream_source, PushSource):
-                self.stream_source = stream_source
-                self.batch_source = stream_source.batch_source
-            else:
-                if batch_source is None:
-                    raise ValueError(
-                        f"A batch_source needs to be specified for feature view `{name}`"
-                    )
-                self.stream_source = stream_source
-                self.batch_source = batch_source
-        self.source = source
 
     def __hash__(self):
         return super().__hash__()
@@ -309,8 +204,7 @@ class FeatureView(BaseFeatureView):
         fv = FeatureView(
             name=self.name,
             ttl=self.ttl,
-            source=self.batch_source,
-            stream_source=self.stream_source,
+            source=self.stream_source if self.stream_source else self.batch_source,
             schema=self.schema,
             tags=self.tags,
             online=self.online,

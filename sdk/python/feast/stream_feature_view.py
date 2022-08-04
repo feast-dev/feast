@@ -10,7 +10,7 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.aggregation import Aggregation
-from feast.data_source import DataSource, KafkaSource, PushSource
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -76,7 +76,8 @@ class StreamFeatureView(FeatureView):
     def __init__(
         self,
         *,
-        name: Optional[str] = None,
+        name: str,
+        source: DataSource,
         entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -84,7 +85,6 @@ class StreamFeatureView(FeatureView):
         description: Optional[str] = "",
         owner: Optional[str] = "",
         schema: Optional[List[Field]] = None,
-        source: Optional[DataSource] = None,
         aggregations: Optional[List[Aggregation]] = None,
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
@@ -95,9 +95,6 @@ class StreamFeatureView(FeatureView):
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
-
-        if source is None:
-            raise ValueError("Stream Feature views need a source to be specified")
 
         if (
             type(source).__name__ not in SUPPORTED_STREAM_SOURCES
@@ -117,18 +114,11 @@ class StreamFeatureView(FeatureView):
         self.mode = mode or ""
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
-        _batch_source = None
-        if isinstance(source, KafkaSource) or isinstance(source, PushSource):
-            _batch_source = source.batch_source if source.batch_source else None
-        _ttl = ttl
-        if not _ttl:
-            _ttl = timedelta(days=0)
+
         super().__init__(
             name=name,
             entities=entities,
-            ttl=_ttl,
-            batch_source=_batch_source,
-            stream_source=source,
+            ttl=ttl or timedelta(days=0),
             tags=tags,
             online=online,
             description=description,
