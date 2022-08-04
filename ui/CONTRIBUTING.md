@@ -12,7 +12,6 @@
   - [(Advanced) Manually publishing the Feast Package to NPM](#advanced-manually-publishing-the-feast-package-to-npm)
     - [Requirements](#requirements)
     - [Steps for Publishing](#steps-for-publishing)
-  - [2) Linking to the new UI in the Feast Python SDK](#2-linking-to-the-new-ui-in-the-feast-python-sdk)
 
 # General contributor notes
 In this doc, we describe how to contribute both to the Feast Web UI NPM package as well as the embedded Feast UI in the Python SDK (i.e. what's run when you run `feast ui`)
@@ -98,8 +97,3 @@ To publish a new version of the module, you will need:
 3. Package the modules for distributions. Run the library build script with `yarn build:lib`. We use [Rollup](https://rollupjs.org/) for building the module, and the configs are in the `rollup.config.js` file.
 4. Publish the package to NPM. Run `npm publish`
 5. [Check NPM to see that the package was properly publish](https://www.npmjs.com/package/@feast-dev/feast-ui).
-
-## 2) Linking to the new UI in the Feast Python SDK
-
-
-To ensure this gets released in the next Feast SDK patch release, update the `package.json` file in [../sdk/python/ui](../sdk/python/feast/ui/) (specifically bumping the version of @feast-dev/feast-ui to the new version).
