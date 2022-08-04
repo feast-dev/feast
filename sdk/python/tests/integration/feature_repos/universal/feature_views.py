@@ -12,7 +12,6 @@ from feast import (
     OnDemandFeatureView,
     PushSource,
     StreamFeatureView,
-    ValueType,
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
@@ -222,12 +221,11 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
     global_stats_feature_view = FeatureView(
         name="global_stats",
         entities=[],
-        features=None
+        schema=None
         if infer_features
         else [
-            # Test that Features still work for FeatureViews.
-            Feature(name="num_rides", dtype=ValueType.INT32),
-            Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
+            Field(name="num_rides", dtype=Int32),
+            Field(name="avg_ride_length", dtype=Float32),
         ],
         source=source,
         ttl=timedelta(days=2),
@@ -270,8 +268,7 @@ def create_field_mapping_feature_view(source):
     return FeatureView(
         name="field_mapping",
         entities=[],
-        # Test that Features still work for FeatureViews.
-        features=[Feature(name="feature_name", dtype=ValueType.INT32)],
+        schema=[Field(name="feature_name", dtype=Int32)],
         source=source,
         ttl=timedelta(days=2),
     )
