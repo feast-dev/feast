@@ -41,44 +41,33 @@ class SparkSource(DataSource):
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
     ):
-        # If no name, use the table_ref as the default name
-        _name = name
-        if not _name:
-            if table:
-                _name = table
-            else:
-                raise DataSourceNoNameException()
-
-        if date_partition_column:
-            warnings.warn(
-                (
-                    "The argument 'date_partition_column' is not supported for Spark sources."
-                    "It will be removed in Feast 0.24+"
-                ),
-                DeprecationWarning,
-            )
+        # If no name, use the table as the default name.
+        if name is None and table is None:
+            raise DataSourceNoNameException()
+        name = name or table
+        assert name
 
         super().__init__(
-            name=_name,
-            event_timestamp_column=event_timestamp_column,
+            name=name,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
+
         warnings.warn(
             "The spark data source API is an experimental feature in alpha development. "
             "This API is unstable and it could and most probably will be changed in the future.",
             RuntimeWarning,
         )
+
         self.spark_options = SparkOptions(
             table=table,
             query=query,

@@ -93,7 +93,6 @@ class SparkDataSourceCreator(DataSourceCreator):
             table=destination_name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 

@@ -313,12 +313,7 @@ def test_apply_stream_feature_view_success(test_registry):
     "test_registry",
     [lazy_fixture("local_registry")],
 )
-# TODO(kevjumba): remove this in feast 0.24 when deprecating
-@pytest.mark.parametrize(
-    "request_source_schema",
-    [[Field(name="my_input_1", dtype=Int32)], {"my_input_1": ValueType.INT32}],
-)
-def test_modify_feature_views_success(test_registry, request_source_schema):
+def test_modify_feature_views_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -329,7 +324,7 @@ def test_modify_feature_views_success(test_registry, request_source_schema):
 
     request_source = RequestSource(
         name="request_source",
-        schema=request_source_schema,
+        schema=[Field(name="my_input_1", dtype=Int32)],
     )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
