@@ -196,4 +196,5 @@ jobs:
         working-directory: ./ui
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          # This publish is working using an NPM automation token to bypass 2FA
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
