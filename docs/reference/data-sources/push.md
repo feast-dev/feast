@@ -27,7 +27,7 @@ Feast allows users to push features previously registered in a feature view to t
 Note that the push schema needs to also include the entity.
 
 ```python
-from feast import PushSource, ValueType, BigQuerySource, FeatureView, Feature, Field
+from feast import Entity, PushSource, ValueType, BigQuerySource, FeatureView, Feature, Field
 from feast.types import Int64
 
 push_source = PushSource(
@@ -35,9 +35,11 @@ push_source = PushSource(
     batch_source=BigQuerySource(table="test.test"),
 )
 
+user = Entity(name="user", join_keys=["user_id"])
+
 fv = FeatureView(
     name="feature view",
-    entities=["user_id"],
+    entities=[user],
     schema=[Field(name="life_time_value", dtype=Int64)],
     source=push_source,
 )

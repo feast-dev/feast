@@ -105,7 +105,7 @@ driver = Entity(name="driver", join_keys=["driver_id"], description="driver id",
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver"],  # reference entity by name
+    entities=[driver],
     ttl=timedelta(seconds=86400 * 1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
@@ -189,7 +189,7 @@ driver = Entity(name="driver", join_keys=["driver_id"], description="driver id",
 # data to our model online.
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver"],  # reference entity by name
+    entities=[driver],
     ttl=timedelta(seconds=86400 * 1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
