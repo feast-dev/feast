@@ -13,7 +13,6 @@
 # limitations under the License.
 import json
 import logging
-import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -45,7 +44,6 @@ from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="(?!feast)")
 
 
 class NoOptionDefaultFormat(click.Command):
@@ -197,11 +195,6 @@ def data_source_describe(ctx: click.Context, name: str):
         print(e)
         exit(1)
 
-    warnings.warn(
-        "Describing data sources will only work properly if all data sources have names or table names specified. "
-        "Starting Feast 0.24, data source unique names will be required to encourage data source discovery.",
-        RuntimeWarning,
-    )
     print(
         yaml.dump(
             yaml.safe_load(str(data_source)), default_flow_style=False, sort_keys=False
@@ -224,11 +217,6 @@ def data_source_list(ctx: click.Context):
 
     from tabulate import tabulate
 
-    warnings.warn(
-        "Listing data sources will only work properly if all data sources have names or table names specified. "
-        "Starting Feast 0.24, data source unique names will be required to encourage data source discovery",
-        RuntimeWarning,
-    )
     print(tabulate(table, headers=["NAME", "CLASS"], tablefmt="plain"))
 
 
