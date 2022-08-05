@@ -79,13 +79,9 @@ test-python-integration-local:
 		FEAST_IS_LOCAL_TEST=True \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
 		python -m pytest -n 8 --integration \
-			-k "not test_apply_entity_integration and \
-				not test_apply_feature_view_integration and \
-				not test_apply_data_source_integration and \
-				not test_lambda_materialization and \
-				not test_feature_view_inference_success and \
-				not test_update_file_data_source_with_inferred_event_timestamp_col and \
-				not test_nullable_online_store" \
+			-k "not gcs_registry and \
+ 				not s3_registry and \
+ 				not test_lambda_materialization" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
@@ -97,9 +93,32 @@ test-python-integration-container:
 		python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
-test-python-universal-contrib:
+test-python-universal-spark:
 	PYTHONPATH='.' \
-	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.contrib_repo_configuration \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not test_historical_retrieval_fails_on_validation and \
+			not test_historical_retrieval_with_validation and \
+			not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
+			not test_universal_cli and \
+			not test_go_feature_server and \
+			not test_feature_logging and \
+			not test_reorder_columns and \
+			not test_logged_features_validation and \
+			not test_lambda_materialization_consistency and \
+			not test_offline_write and \
+			not test_push_features_to_offline_store.py and \
+			not gcs_registry and \
+			not s3_registry and \
+			not test_universal_types" \
+ 	 sdk/python/tests
+
+test-python-universal-trino:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
  	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
@@ -110,6 +129,13 @@ test-python-universal-contrib:
 			not test_universal_cli and \
 			not test_go_feature_server and \
 			not test_feature_logging and \
+			not test_reorder_columns and \
+			not test_logged_features_validation and \
+			not test_lambda_materialization_consistency and \
+			not test_offline_write and \
+			not test_push_features_to_offline_store.py and \
+			not gcs_registry and \
+			not s3_registry and \
 			not test_universal_types" \
  	 sdk/python/tests
 

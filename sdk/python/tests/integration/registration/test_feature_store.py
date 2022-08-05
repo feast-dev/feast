@@ -30,11 +30,7 @@ from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float64, Int64, String
-from tests.utils.data_source_test_creator import (
-    prep_file_source,
-    simple_bq_source_using_query_arg,
-    simple_bq_source_using_table_arg,
-)
+from tests.utils.data_source_test_creator import prep_file_source
 
 
 @pytest.mark.integration
@@ -96,37 +92,11 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             tags={},
         )
 
-        fv2 = FeatureView(
-            name="fv2",
-            entities=[entity],
-            ttl=timedelta(minutes=5),
-            online=True,
-            batch_source=simple_bq_source_using_table_arg(dataframe_source, "ts_1"),
-            tags={},
-        )
-
-        fv3 = FeatureView(
-            name="fv3",
-            entities=[entity],
-            ttl=timedelta(minutes=5),
-            online=True,
-            batch_source=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
-            tags={},
-        )
-
-        test_feature_store.apply([entity, fv1, fv2, fv3])  # Register Feature Views
+        test_feature_store.apply([entity, fv1])  # Register Feature Views
         feature_view_1 = test_feature_store.list_feature_views()[0]
-        feature_view_2 = test_feature_store.list_feature_views()[1]
-        feature_view_3 = test_feature_store.list_feature_views()[2]
 
         actual_file_source = {
             (feature.name, feature.dtype) for feature in feature_view_1.features
-        }
-        actual_bq_using_table_arg_source = {
-            (feature.name, feature.dtype) for feature in feature_view_2.features
-        }
-        actual_bq_using_query_arg_source = {
-            (feature.name, feature.dtype) for feature in feature_view_3.features
         }
         expected = {
             ("float_col", Float64),
@@ -134,12 +104,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             ("string_col", String),
         }
 
-        assert (
-            expected
-            == actual_file_source
-            == actual_bq_using_table_arg_source
-            == actual_bq_using_query_arg_source
-        )
+        assert expected == actual_file_source
 
         test_feature_store.teardown()
 

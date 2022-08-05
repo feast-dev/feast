@@ -1,6 +1,3 @@
-from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import (
-    SparkDataSourceCreator,
-)
 from feast.infra.offline_stores.contrib.trino_offline_store.tests.data_source import (
     TrinoSourceCreator,
 )
@@ -10,7 +7,6 @@ from tests.integration.feature_repos.universal.online_store.redis import (
 )
 
 AVAILABLE_OFFLINE_STORES = [
-    ("local", SparkDataSourceCreator),
     ("local", TrinoSourceCreator),
 ]
 
