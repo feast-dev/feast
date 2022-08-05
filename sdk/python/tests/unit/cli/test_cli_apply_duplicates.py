@@ -15,7 +15,7 @@ def test_cli_apply_duplicated_featureview_names() -> None:
 def test_cli_apply_duplicate_data_source_names() -> None:
     run_simple_apply_test(
         example_repo_file_name="example_repo_duplicate_data_source_names.py",
-        expected_error=b"Please ensure that all data source names are case-insensitively unique",
+        expected_error=b"Multiple data sources share the same case-insensitive name",
     )
 
 
