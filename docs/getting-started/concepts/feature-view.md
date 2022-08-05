@@ -2,7 +2,23 @@
 
 ## Feature views
 
-A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Feature views consist of zero or more [entities](entity.md), one or more [features](feature-view.md#feature), and a [data source](data-source.md). Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view. If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
+{% hint style="warning" %}
+**Note**: feature views do not work with non-timestamped data. A workaround is to insert dummy timestamps
+{% endhint %}
+
+A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-ingestion.md). Depending on the kind of feature view, it may contain some lightweight (experimental) feature transformations (see [\[Alpha\] On demand feature views](feature-view.md#alpha-on-demand-feature-views)).
+
+Feature views consist of:
+
+* a [data source](data-ingestion.md)
+* zero or more [entities](entity.md)
+  * If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
+* a name to uniquely identify this feature view in the project.
+* (optional, but recommended) a schema specifying one or more [features](feature-view.md#feature) (without this, Feast will infer the schema by reading from the data source)
+* (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
+* (optional) a TTL, which limits how far back Feast will look when generating historical datasets
+
+Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
 
 {% tabs %}
 {% tab title="driver_trips_feature_view.py" %}
@@ -30,10 +46,6 @@ Feature views are used during
 * The generation of training datasets by querying the data source of feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
 * Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/data-sources/push.md).
 * Retrieval of features from the online store. Feature views provide the schema definition to Feast in order to look up features from the online store.
-
-{% hint style="info" %}
-Feast does not generate feature values. It acts as the ingestion and serving system. The data sources described within feature views should reference feature values in their already computed form.
-{% endhint %}
 
 ## Feature views without entities
 
@@ -131,16 +143,30 @@ trips_today = Field(
 )
 ```
 
-Together with [data sources](data-source.md), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](feature-retrieval.md#feature-references).
+Together with [data sources](data-ingestion.md), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](feature-retrieval.md#feature-references).
 
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
 ## \[Alpha] On demand feature views
 
-On demand feature views allows users to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths:
+On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.
+
+Currently, these transformations are executed locally. This is fine for online serving, but does not scale well offline.
+
+### Why use on demand feature views?
+
+This enables data scientists to easily impact the online feature retrieval path. For example, a data scientist could
+
+1. Call `get_historical_features` to generate a training dataframe
+2. Iterate in notebook on feature engineering in Pandas
+3. Copy transformation logic into on demand feature views and commit to a dev branch of the feature repository
+4. Verify with `get_historical_features` (on a small dataset) that the transformation gives expected output over historical data
+5. Verify with `get_online_features` on dev branch that the transformation correctly outputs online features
+6. Submit a pull request to the staging / prod branches which impact production traffic
 
 ```python
 from feast import Field, RequestSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float64
 
 # Define a request data source which encodes features / information only

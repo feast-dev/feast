@@ -1,4 +1,4 @@
-# Adding a custom materialization engine
+# Adding a custom batch materialization engine
 
 ### Overview
 
@@ -7,10 +7,10 @@ Feast batch materialization operations (`materialize` and `materialize-increment
 Custom batch materialization engines allow Feast users to extend Feast to customize the materialization process. Examples include:
 
 * Setting up custom materialization-specific infrastructure during `feast apply` (e.g. setting up Spark clusters or Lambda Functions)
-* Launching custom batch ingestion \(materialization\) jobs \(Spark, Beam, AWS Lambda\)
+* Launching custom batch ingestion (materialization) jobs (Spark, Beam, AWS Lambda)
 * Tearing down custom materialization-specific infrastructure during `feast teardown` (e.g. tearing down Spark clusters, or deleting Lambda Functions)
 
-Feast comes with built-in materialization engines, e.g, `LocalMaterializationEngine`, and an experimental `LambdaMaterializationEngine`. However, users can develop their own materialization engines by creating a class that implements the contract in the [BatchMaterializationEngine class](https://github.com/feast-dev/feast/blob/6d7b38a39024b7301c499c20cf4e7aef6137c47c/sdk/python/feast/infra/materialization/batch_materialization_engine.py#L72).
+Feast comes with built-in materialization engines, e.g, `LocalMaterializationEngine`, and an experimental `LambdaMaterializationEngine`. However, users can develop their own materialization engines by creating a class that implements the contract in the [BatchMaterializationEngine class](https://github.com/feast-dev/feast/blob/6d7b38a39024b7301c499c20cf4e7aef6137c47c/sdk/python/feast/infra/materialization/batch\_materialization\_engine.py#L72).
 
 ### Guide
 
@@ -79,14 +79,13 @@ class MyCustomEngine(LocalMaterializationEngine):
             )
             for task in tasks
         ]
-
 ```
 
 Notice how in the above engine we have only overwritten two of the methods on the `LocalMaterializatinEngine`, namely `update` and `materialize`. These two methods are convenient to replace if you are planning to launch custom batch jobs.
 
 #### Step 2: Configuring Feast to use the engine
 
-Configure your [feature\_store.yaml](../reference/feature-repository/feature-store-yaml.md) file to point to your new engine class:
+Configure your [feature\_store.yaml](../../reference/feature-repository/feature-store-yaml.md) file to point to your new engine class:
 
 ```yaml
 project: repo
@@ -99,7 +98,7 @@ offline_store:
     type: file
 ```
 
-Notice how the `batch_engine` field above points to the module and class where your engine can be found. 
+Notice how the `batch_engine` field above points to the module and class where your engine can be found.
 
 #### Step 3: Using the engine
 
@@ -109,7 +108,7 @@ Now you should be able to use your engine by running a Feast command:
 feast apply
 ```
 
-```text
+```
 Registered entity driver_id
 Registered feature view driver_hourly_stats
 Deploying infrastructure for driver_hourly_stats

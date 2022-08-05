@@ -9,7 +9,7 @@ The Feast Web UI allows users to explore their feature repository through a Web 
 * Browsing Feast objects (feature views, entities, data sources, feature services, and saved datasets) and their relationships
 * Searching and filtering for Feast objects by tags
 
-![Sample UI](ui.png)
+![Sample UI](../../ui/sample.png)
 
 ## Usage
 

@@ -6,8 +6,8 @@ All Feast operations execute through a `provider`. Operations like materializing
 
 Custom providers allow Feast users to extend Feast to execute any custom logic. Examples include:
 
-* Launching custom streaming ingestion jobs \(Spark, Beam\)
-* Launching custom batch ingestion \(materialization\) jobs \(Spark, Beam\)
+* Launching custom streaming ingestion jobs (Spark, Beam)
+* Launching custom batch ingestion (materialization) jobs (Spark, Beam)
 * Adding custom validation to feature repositories during `feast apply`
 * Adding custom infrastructure setup logic which runs during `feast apply`
 * Extending Feast commands with in-house metrics, logging, or tracing
@@ -87,7 +87,7 @@ It is possible to overwrite all the methods on the provider class. In fact, it i
 
 #### Step 2: Configuring Feast to use the provider
 
-Configure your [feature\_store.yaml](../reference/feature-repository/feature-store-yaml.md) file to point to your new provider class:
+Configure your [feature\_store.yaml](../../reference/feature-repository/feature-store-yaml.md) file to point to your new provider class:
 
 ```yaml
 project: repo
@@ -100,7 +100,7 @@ offline_store:
     type: file
 ```
 
-Notice how the `provider` field above points to the module and class where your provider can be found. 
+Notice how the `provider` field above points to the module and class where your provider can be found.
 
 #### Step 3: Using the provider
 
@@ -110,7 +110,7 @@ Now you should be able to use your provider by running a Feast command:
 feast apply
 ```
 
-```text
+```
 Registered entity driver_id
 Registered feature view driver_hourly_stats
 Deploying infrastructure for driver_hourly_stats
@@ -128,4 +128,3 @@ That's it. You should now have a fully functional custom provider!
 ### Next steps
 
 Have a look at the [custom provider demo repository](https://github.com/feast-dev/feast-custom-provider-demo) for a fully functional example of a custom provider. Feel free to fork it when creating your own custom provider!
-

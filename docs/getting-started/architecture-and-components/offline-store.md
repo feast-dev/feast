@@ -1,6 +1,6 @@
 # Offline store
 
-An offline store is an interface for working with historical time-series feature values that are stored in [data sources](../../getting-started/concepts/data-source.md).
+An offline store is an interface for working with historical time-series feature values that are stored in [data sources](../../getting-started/concepts/data-ingestion.md).
 The `OfflineStore` interface has several different implementations, such as `BigQueryOfflineStore`, each of which is backed by a different storage and compute engine.
 For more details on which offline stores are supported, please see [Offline Stores](../../reference/offline-stores/).
 
