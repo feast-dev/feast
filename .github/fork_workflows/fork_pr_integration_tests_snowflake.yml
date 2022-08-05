@@ -1,21 +1,11 @@
-name: pr-local-integration-tests
-# This runs local tests with containerized stubs of online stores. This is the main dev workflow
+name: fork-pr-integration-tests-snowflake
 
-on:
-  pull_request_target:
-    types:
-      - opened
-      - synchronize
-      - labeled
+on: [pull_request]
 
 jobs:
-  integration-test-python-local:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
-    if:
-      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) ||
-      github.repository != 'feast-dev/feast'
-    runs-on: ${{ matrix.os }}p
+  integration-test-python:
+    if: github.repository == 'your github repo' # swap here with your project id
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +14,16 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
         with:
@@ -38,6 +38,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.0
+
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1,<22.1"
@@ -66,13 +72,25 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: brew install apache-arrow
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Test local integration tests
+      - name: Setup Redis Cluster
+        run: |
+          docker pull vishnunair/docker-redis-cluster:latest
+          docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
+      - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
-          FEAST_USAGE: "False"
-          IS_TEST: "True"
-          FEAST_LOCAL_ONLINE_CONTAINER: "True"
-          FEAST_IS_LOCAL_TEST: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not gcs_registry and not s3_registry and not test_lambda_materialization" sdk/python/tests
+          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
+          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
+          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
+          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
+          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+        # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
+        run: |
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp"
+

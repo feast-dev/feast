@@ -9,6 +9,7 @@ on:
 
 jobs:
   lint-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -22,6 +23,7 @@ jobs:
         run: make lint-java
 
   unit-test-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     needs: lint-java
     steps:
@@ -54,8 +56,9 @@ jobs:
   integration-test:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
-      (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))) &&
+      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     needs: unit-test-java
     steps:
