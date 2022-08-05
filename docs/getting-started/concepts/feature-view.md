@@ -18,7 +18,7 @@ Feature views consist of:
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
 
-Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.&#x20;
+Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
 
 {% tabs %}
 {% tab title="driver_trips_feature_view.py" %}
@@ -149,8 +149,6 @@ Together with [data sources](data-ingestion.md), they indicate to Feast where to
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
 ## \[Alpha] On demand feature views
-
-_See more details in_&#x20;
 
 On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.
 

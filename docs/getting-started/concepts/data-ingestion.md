@@ -14,7 +14,7 @@ Feast supports primarily **time-stamped** tabular data as data sources. There ar
 
 * **Batch data sources:** ideally, these live in data warehouses (BigQuery, Snowflake, Redshift), but can be in data lakes (S3, GCS, etc). Feast supports ingesting and querying data across both.
 * **Stream data sources**: Feast does **not** have native streaming integrations. It does however facilitate making streaming features available in different environments. There are two kinds of sources:
-  * **Push sources** allow users to push features into Feast, and make it available for training / batch scoring ("offline"), for realtime feature serving ("online") or both.&#x20;
+  * **Push sources** allow users to push features into Feast, and make it available for training / batch scoring ("offline"), for realtime feature serving ("online") or both.
   * **\[Alpha] Stream sources** allow users to register metadata from Kafka or Kinesis sources. The onus is on the user to ingest from these sources, though Feast provides some limited helper methods to ingest directly from Kafka / Kinesis topics.
 * **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into **on-demand feature views**, which allow light-weight feature engineering and combining features across sources.
 
@@ -22,7 +22,7 @@ Feast supports primarily **time-stamped** tabular data as data sources. There ar
 
 Ingesting from batch sources is only necessary to power real-time models. This is done through **materialization**. Under the hood, Feast manages an _offline store_ (to scalably generate training data from batch sources) and an _online store_ (to provide low-latency access to features for real-time models).
 
-A key command to use in Feast is the `materialize_incremental` command, which fetches the latest values for all entities in the batch source and ingests these values into the online store.&#x20;
+A key command to use in Feast is the `materialize_incremental` command, which fetches the latest values for all entities in the batch source and ingests these values into the online store.
 
 Materialization can be called programmatically or through the CLI:
 
@@ -30,7 +30,7 @@ Materialization can be called programmatically or through the CLI:
 
 <summary>Code example: programmatic scheduled materialization</summary>
 
-This snippet creates a feature store object which points to the registry (which knows of all defined features) and the online store (DynamoDB in this case), and&#x20;
+This snippet creates a feature store object which points to the registry (which knows of all defined features) and the online store (DynamoDB in this case), and
 
 ```python
 # Define Python callable
