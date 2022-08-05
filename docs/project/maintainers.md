@@ -19,16 +19,17 @@
         - Runs all of the unit tests that should always pass.
     - `linter`
         - Lints your pr for styling or complexity issues using mypy, isort, and flake.
-    - `fork-pr-integration-tests`
-        - Run all of the integration tests to test Feast functionality on your fork.
-            1. Move the `fork_pr_integration_tests.yml` from `.github/fork_workflows` to `.github/workflows`.
-            2. Edit `fork_pr_integration_tests.yml` (more details below) to only run the integration tests that are relevant to your area of interest.
+    - `fork-pr-integration-tests-[provider]`
+        - Run all of the integration tests to test Feast functionality on your fork for a specific provider.
+        - The `.github/workflows` folder has examples of common workflows(`aws`, `gcp`, and `snowflake`).
+            1. Move the `fork_pr_integration_tests_[provider].yml` from `.github/fork_workflows` to `.github/workflows`.
+            2. Edit `fork_pr_integration_tests_[provider].yml` (more details below) to only run the integration tests that are relevant to your area of interest.
             3. Push the workflow to your branch and it should automatically be added to the actions on your fork.
     - `build_wheels`
         - Release verification workflow to use for [release](docs/project/release-process.md).
 
 ## Integration Test Workflow Changes
-Fork specific integration tests are run by the `fork_pr_integration_tests.yml` yaml workflow file.
+Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[provider]` yaml workflow files.
 
 1. Under the `integration-test-python` job, replace `your github repo` with your feast github repo name.
 2. If your offline store/online store needs special setup, add it to the job similar to how gcp is setup.

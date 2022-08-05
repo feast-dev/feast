@@ -9,6 +9,7 @@ on:
 
 jobs:
   build-docker-images:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -46,6 +47,7 @@ jobs:
           fi
 
   lint-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -55,6 +57,7 @@ jobs:
         run: make lint-java
 
   unit-test-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -80,6 +83,7 @@ jobs:
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
 
   integration-test:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
