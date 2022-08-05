@@ -22,7 +22,7 @@ No, there are [feature views without entities](concepts/feature-view.md#feature-
 
 Feast expects that each version of a model corresponds to a different feature service.
 
-Feature views once they are used by a feature service are intended to be immutable and not deleted (until a feature service is removed). In the future, `feast plan` and \`feast apply will throw errors if it sees this kind of behavior.
+Feature views once they are used by a feature service are intended to be immutable and not deleted (until a feature service is removed). In the future, `feast plan` and `feast apply` will throw errors if it sees this kind of behavior.
 
 ### What is the difference between data sources and the offline store?
 
@@ -88,7 +88,7 @@ Yes. Specifically:
 
 ### Does Feast support X storage engine?
 
-The list of supported offline and online stores can be found [here](../reference/offline-stores/) and [here](../reference/online-stores/), respectively. The [roadmap](../roadmap.md) indicates the stores for which we are planning to add support. Finally, our Provider abstraction is built to be extensible, so you can plug in your own implementations of offline and online stores. Please see more details about custom providers [here](broken-reference).
+The list of supported offline and online stores can be found [here](../reference/offline-stores/) and [here](../reference/online-stores/), respectively. The [roadmap](../roadmap.md) indicates the stores for which we are planning to add support. Finally, our Provider abstraction is built to be extensible, so you can plug in your own implementations of offline and online stores. Please see more details about customizing Feast [here](../how-to-guides/customizing-feast/).
 
 ### Does Feast support using different clouds for offline vs online stores?
 

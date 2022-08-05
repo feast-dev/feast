@@ -37,7 +37,7 @@ At _serving time_, users specify _entity key(s)_ to fetch the latest feature val
 
 Kind of.
 
-In practice, this is most relevant for _batch scoring models_ (e.g. predict user churn for all existing users) that are offline only. For these use cases, Feast supports generating features for a SQL backed list of entities. There is an [open GitHub issue](https://github.com/feast-dev/feast/issues/1611) that welcomes contribution to make this a more intuitive API.
+In practice, this is most relevant for _batch scoring models_ (e.g. predict user churn for all existing users) that are offline only. For these use cases, Feast supports generating features for a SQL-backed list of entities. There is an [open GitHub issue](https://github.com/feast-dev/feast/issues/1611) that welcomes contribution to make this a more intuitive API.
 
 For _real-time feature retrieval_, there is no out of the box support for this because it would promote expensive and slow scan operations. Users can still pass in a large list of entities for retrieval, but this does not scale well.
 {% endhint %}

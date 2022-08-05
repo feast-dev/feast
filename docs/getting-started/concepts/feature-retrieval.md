@@ -5,7 +5,7 @@
 Generally, Feast supports several patterns of feature retrieval:
 
 1. Training data generation (via `feature_store.get_historical_features(...)`)
-2. Offline feature retrieval for batch predictions (for example predicting user churn for all users on a daily basis)
+2. Offline feature retrieval for batch scoring (via `feature_store.get_historical_features(...)`)
 3. Online feature retrieval for real-time model predictions (via `feature_store.get_online_features(...)`)
 
 Each of these retrieval mechanisms accept:
@@ -218,7 +218,7 @@ online_features = fs.get_online_features(
 )
 ```
 
-It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, It is not possible to reference (or retrieve) features from multiple projects at the same time.
+It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
 
 {% hint style="info" %}
 Note, if you're using [Feature views without entities](feature-view.md#feature-views-without-entities), then those features can be added here without additional entity values in the `entity_rows`
