@@ -199,7 +199,8 @@ NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
     ),
 ]
 
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
+# Only test if this is NOT a local test
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     NULLABLE_ONLINE_STORE_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(
