@@ -4,8 +4,8 @@
 [overview.md](overview.md)
 {% endcontent-ref %}
 
-{% content-ref url="data-source.md" %}
-[data-source.md](data-source.md)
+{% content-ref url="data-ingestion.md" %}
+[data-ingestion.md](data-ingestion.md)
 {% endcontent-ref %}
 
 {% content-ref url="entity.md" %}

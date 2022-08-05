@@ -6,11 +6,11 @@
 **Note**: feature views do not work with non-timestamped data. A workaround is to insert dummy timestamps
 {% endhint %}
 
-A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-source.md). Depending on the kind of feature view, it may contain some lightweight (experimental) feature transformations (see [\[Alpha\] On demand feature views](feature-view.md#alpha-on-demand-feature-views)).
+A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-ingestion.md). Depending on the kind of feature view, it may contain some lightweight (experimental) feature transformations (see [\[Alpha\] On demand feature views](feature-view.md#alpha-on-demand-feature-views)).
 
 Feature views consist of:
 
-* a [data source](data-source.md)
+* a [data source](data-ingestion.md)
 * zero or more [entities](entity.md)
   * If the features are not related to a specific object, the feature view might not have entities; see [feature views without entities](feature-view.md#feature-views-without-entities) below.
 * a name to uniquely identify this feature view in the project.
@@ -144,7 +144,7 @@ trips_today = Field(
 )
 ```
 
-Together with [data sources](data-source.md), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](feature-retrieval.md#feature-references).
+Together with [data sources](data-ingestion.md), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](feature-retrieval.md#feature-references).
 
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 

@@ -10,7 +10,7 @@
 * [Quickstart](getting-started/quickstart.md)
 * [Concepts](getting-started/concepts/README.md)
   * [Overview](getting-started/concepts/overview.md)
-  * [Data ingestion](getting-started/concepts/data-source.md)
+  * [Data ingestion](getting-started/concepts/data-ingestion.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)

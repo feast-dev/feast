@@ -2,7 +2,7 @@
 
 ### Feast project structure
 
-The top-level namespace within Feast is a **project**. Users define one or more [feature views](feature-view.md) within a project. Each feature view contains one or more [features](feature-view.md#feature). These features typically relate to one or more [entities](entity.md). A feature view must always have a [data source](data-source.md), which in turn is used during the generation of training [datasets](feature-retrieval.md#dataset) and when materializing feature values into the online store.
+The top-level namespace within Feast is a **project**. Users define one or more [feature views](feature-view.md) within a project. Each feature view contains one or more [features](feature-view.md#feature). These features typically relate to one or more [entities](entity.md). A feature view must always have a [data source](data-ingestion.md), which in turn is used during the generation of training [datasets](feature-retrieval.md#dataset) and when materializing feature values into the online store.
 
 ![](<../../.gitbook/assets/image (7).png>)
 
@@ -12,7 +12,7 @@ The top-level namespace within Feast is a **project**. Users define one or more 
 
 For _offline use cases_ that only rely on batch data, Feast does not need to ingest data and can query your existing data (leveraging a compute engine, whether it be a data warehouse or (experimental) Spark / Trino). Feast can help manage **pushing** streaming features to a batch source to make features available for training.
 
-For _online use cases_, Feast supports **ingesting** features from batch sources to make them available online (through a process called **materialization**), and **pushing** streaming features to make them available both offline / online. We explore this more in the next concept page ([Data ingestion](data-source.md))
+For _online use cases_, Feast supports **ingesting** features from batch sources to make them available online (through a process called **materialization**), and **pushing** streaming features to make them available both offline / online. We explore this more in the next concept page ([Data ingestion](data-ingestion.md))
 
 ### Feature registration and retrieval
 
