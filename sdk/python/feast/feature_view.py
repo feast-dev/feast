@@ -60,10 +60,10 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source (optional): The batch source of data where this group of features
+        batch_source: The batch source of data where this group of features
             is stored. This is optional ONLY if a push source is specified as the
             stream_source, since push sources contain their own batch sources. This is deprecated in favor of `source`.
-        stream_source (optional): The stream source of data where this group of features
+        stream_source: The stream source of data where this group of features
             is stored. This is deprecated in favor of `source`.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
@@ -92,7 +92,6 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
-    source: Optional[DataSource]
 
     @log_exceptions
     def __init__(
@@ -100,12 +99,12 @@ class FeatureView(BaseFeatureView):
         *,
         name: str,
         source: DataSource,
+        schema: Optional[List[Field]] = None,
         entities: List[Entity] = None,
         ttl: timedelta = None,
-        schema: Optional[List[Field]] = None,
-        tags: Optional[Dict[str, str]] = None,
         online: bool = True,
         description: str = "",
+        tags: Optional[Dict[str, str]] = None,
         owner: str = "",
     ):
         """
@@ -115,24 +114,18 @@ class FeatureView(BaseFeatureView):
             name: The unique name of the feature view.
             source: The source of data for this group of features. May be a stream source, or a batch source.
                 If a stream source, the source should contain a batch_source for backfills & batch materialization.
-            entities: The list of entities with which this group of features is associated.
-            ttl: The amount of time this group of features lives. A ttl of 0 indicates that
+            schema (optional): The schema of the feature view, including feature, timestamp,
+                and entity columns.
+            entities (optional): The list of entities with which this group of features is associated.
+            ttl (optional): The amount of time this group of features lives. A ttl of 0 indicates that
                 this group of features lives forever. Note that large ttl's or a ttl of 0
                 can result in extremely computationally intensive queries.
-            batch_source: The batch source of data where this group of features is stored.
-            stream_source (optional): The stream source of data where this group of features
-                is stored.
-            features (deprecated): The list of features defined as part of this feature view.
-            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
             description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
-            schema (optional): The schema of the feature view, including feature, timestamp,
-                and entity columns. If entity columns are included in the schema, a List[Entity]
-                must be passed to `entities` instead of a List[str]; otherwise, the entity columns
-                will be mistakenly interpreted as feature columns.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
