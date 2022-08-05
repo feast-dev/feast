@@ -10,7 +10,7 @@
 * [Quickstart](getting-started/quickstart.md)
 * [Concepts](getting-started/concepts/README.md)
   * [Overview](getting-started/concepts/overview.md)
-  * [Data source](getting-started/concepts/data-source.md)
+  * [Data ingestion](getting-started/concepts/data-source.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
@@ -31,11 +31,11 @@
 
 ## Tutorials
 
-* [Overview](tutorials/tutorials-overview.md)
-* [Driver ranking](tutorials/driver-ranking-with-feast.md)
-* [Fraud detection on GCP](tutorials/fraud-detection.md)
-* [Real-time credit scoring on AWS](tutorials/real-time-credit-scoring-on-aws.md)
-* [Driver stats on Snowflake](tutorials/driver-stats-on-snowflake.md)
+* [Sample use-case tutorials](tutorials/tutorials-overview/README.md)
+  * [Driver ranking](tutorials/tutorials-overview/driver-ranking-with-feast.md)
+  * [Fraud detection on GCP](tutorials/tutorials-overview/fraud-detection.md)
+  * [Real-time credit scoring on AWS](tutorials/tutorials-overview/real-time-credit-scoring-on-aws.md)
+  * [Driver stats on Snowflake](tutorials/tutorials-overview/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Using Scalable Registry](tutorials/using-scalable-registry.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
@@ -50,12 +50,12 @@
   * [Load data into the online store](how-to-guides/feast-snowflake-gcp-aws/load-data-into-the-online-store.md)
   * [Read features from the online store](how-to-guides/feast-snowflake-gcp-aws/read-features-from-the-online-store.md)
 * [Running Feast in production](how-to-guides/running-feast-in-production.md)
-* [Upgrading from Feast 0.9](https://docs.google.com/document/u/1/d/1AOsr\_baczuARjCpmZgVd8mCqTF4AZ49OEyU4Cn-uTT0/edit)
 * [Upgrading for Feast 0.20+](how-to-guides/automated-feast-upgrade.md)
-* [Adding a customer provider](how-to-guides/creating-a-custom-provider.md)
-* [Adding a custom batch materialization engine](how-to-guides/creating-a-custom-materialization-engine.md)
-* [Adding a new online store](how-to-guides/adding-support-for-a-new-online-store.md)
-* [Adding a new offline store](how-to-guides/adding-a-new-offline-store.md)
+* [Customizing Feast](how-to-guides/customizing-feast/README.md)
+  * [Adding a custom batch materialization engine](how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md)
+  * [Adding a new offline store](how-to-guides/customizing-feast/adding-a-new-offline-store.md)
+  * [Adding a new online store](how-to-guides/customizing-feast/adding-support-for-a-new-online-store.md)
+  * [Adding a custom provider](how-to-guides/customizing-feast/creating-a-custom-provider.md)
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 
 ## Reference

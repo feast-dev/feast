@@ -33,14 +33,11 @@ At _training time_, users control what entities they want to look up, for exampl
 At _serving time_, users specify _entity key(s)_ to fetch the latest feature values for to power a real-time model prediction (e.g. a fraud detection model that needs to fetch the transaction user's features).
 
 {% hint style="info" %}
-**Q: Can I retrieve features for **_**all**_** entities in Feast?**
+**Q: Can I retrieve features for all entities?**
 
-Kind of. \
+Kind of.
 
-
-In practice, this is most relevant for _batch scoring models_ (e.g. predict user churn for all existing users) that are offline only. For these use cases, Feast supports generating features for a SQL backed list of entities. There is an [open GitHub issue](https://github.com/feast-dev/feast/issues/1611) that welcomes contribution to make this a more intuitive API.&#x20;
-
-
+In practice, this is most relevant for _batch scoring models_ (e.g. predict user churn for all existing users) that are offline only. For these use cases, Feast supports generating features for a SQL backed list of entities. There is an [open GitHub issue](https://github.com/feast-dev/feast/issues/1611) that welcomes contribution to make this a more intuitive API.
 
 For _real-time feature retrieval_, there is no out of the box support for this because it would promote expensive and slow scan operations. Users can still pass in a large list of entities for retrieval, but this does not scale well.
 {% endhint %}
