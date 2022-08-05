@@ -47,8 +47,6 @@ class BatchFeatureView(FeatureView):
             name=name,
             entities=entities,
             ttl=ttl,
-            batch_source=None,
-            stream_source=None,
             tags=tags,
             online=online,
             description=description,

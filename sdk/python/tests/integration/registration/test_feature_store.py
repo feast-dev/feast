@@ -88,7 +88,7 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=[entity],
             ttl=timedelta(minutes=5),
             online=True,
-            batch_source=file_source,
+            source=file_source,
             tags={},
         )
 
@@ -139,7 +139,7 @@ def test_apply_feature_view_integration(test_feature_store):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

@@ -143,7 +143,7 @@ def test_partial() -> None:
                 Field(name="test", dtype=String),
             ],
             online=True,
-            batch_source=driver_locations_source,
+            source=driver_locations_source,
             tags={},
         )
 

@@ -125,7 +125,7 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
         repo_example_2 = repo_path / "example_2.py"
         repo_example_2.write_text(
             "from datetime import timedelta\n"
-            "from example import driver_hourly_stats, driver_hourly_stats_view\n"
+            "from example import driver, driver_hourly_stats, driver_hourly_stats_view\n"
             "from feast import FeatureService, FeatureView\n"
             "a_feature_service = FeatureService(\n"
             "   name='driver_locations_service',\n"
@@ -133,10 +133,10 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
             ")\n"
             "driver_hourly_stats_view_2 = FeatureView(\n"
             "   name='driver_hourly_stats',\n"
-            "   entities=['driver_id'],\n"
+            "   entities=[driver],\n"
             "   ttl=timedelta(days=1),\n"
             "   online=True,\n"
-            "   batch_source=driver_hourly_stats,\n"
+            "   source=driver_hourly_stats,\n"
             "   tags={'dummy': 'true'})\n"
         )
 

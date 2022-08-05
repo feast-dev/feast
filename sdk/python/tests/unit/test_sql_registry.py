@@ -22,7 +22,7 @@ from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
-from feast import Feature, FileSource, RequestSource
+from feast import FileSource, RequestSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
@@ -33,6 +33,7 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
+from tests.integration.feature_repos.universal.entities import driver
 
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
@@ -215,7 +216,7 @@ def test_apply_feature_view_success(sql_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
@@ -287,7 +288,7 @@ def test_apply_on_demand_feature_view_success(sql_registry):
 
     driver_daily_features_view = FeatureView(
         name="driver_daily_features",
-        entities=["driver"],
+        entities=[driver()],
         ttl=timedelta(seconds=8640000000),
         schema=[
             Field(name="daily_miles_driven", dtype=Float32),
@@ -383,14 +384,14 @@ def test_modify_feature_views_success(sql_registry):
         schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.STRING),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=String),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )
@@ -408,9 +409,9 @@ def test_modify_feature_views_success(sql_registry):
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
-        features=[
-            Feature(name="odfv1_my_feature_1", dtype=ValueType.FLOAT),
-            Feature(name="odfv1_my_feature_2", dtype=ValueType.INT32),
+        schema=[
+            Field(name="odfv1_my_feature_1", dtype=Float32),
+            Field(name="odfv1_my_feature_2", dtype=Int32),
         ],
         sources=[request_source],
     )
@@ -511,7 +512,7 @@ def test_apply_data_source(sql_registry):
         ],
         entities=[entity],
         tags={"team": "matchmaking"},
-        batch_source=batch_source,
+        source=batch_source,
         ttl=timedelta(minutes=5),
     )
 

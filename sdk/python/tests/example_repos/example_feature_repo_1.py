@@ -51,7 +51,7 @@ driver_locations = FeatureView(
         Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_locations_source,
+    source=driver_locations_source,
     tags={},
 )
 
@@ -65,7 +65,7 @@ pushed_driver_locations = FeatureView(
         Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    stream_source=driver_locations_push_source,
+    source=driver_locations_push_source,
     tags={},
 )
 
@@ -80,7 +80,7 @@ customer_profile = FeatureView(
         Field(name="customer_id", dtype=String),
     ],
     online=True,
-    batch_source=customer_profile_source,
+    source=customer_profile_source,
     tags={},
 )
 
@@ -94,7 +94,7 @@ customer_driver_combined = FeatureView(
         Field(name="customer_id", dtype=String),
     ],
     online=True,
-    batch_source=customer_driver_combined_source,
+    source=customer_driver_combined_source,
     tags={},
 )
 

@@ -28,7 +28,7 @@ def test_get_column_names_preserves_feature_ordering():
         name="my-fv",
         entities=[entity],
         ttl=timedelta(days=1),
-        batch_source=BigQuerySource(table="non-existent-mock"),
+        source=BigQuerySource(table="non-existent-mock"),
         schema=[
             Field(name="a", dtype=String),
             Field(name="b", dtype=String),

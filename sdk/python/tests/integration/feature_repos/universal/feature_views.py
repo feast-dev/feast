@@ -12,7 +12,6 @@ from feast import (
     OnDemandFeatureView,
     PushSource,
     StreamFeatureView,
-    ValueType,
 )
 from feast.data_source import DataSource, RequestSource
 from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
@@ -37,24 +36,6 @@ def driver_feature_view(
         entities=[d],
         schema=[Field(name=d.join_key, dtype=entity_type)]
         + ([] if infer_features else [Field(name="value", dtype=dtype)]),
-        ttl=timedelta(days=5),
-        source=data_source,
-    )
-
-
-def global_feature_view(
-    data_source: DataSource,
-    name="test_entityless",
-    infer_features: bool = False,
-    value_type: ValueType = ValueType.INT32,
-) -> FeatureView:
-    return FeatureView(
-        name=name,
-        entities=[],
-        # Test that Features still work for FeatureViews.
-        features=None
-        if infer_features
-        else [Feature(name="entityless_value", dtype=value_type)],
         ttl=timedelta(days=5),
         source=data_source,
     )
@@ -155,7 +136,7 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
             Field(name="embedding_double", dtype=Array(Float64)),
             Field(name="embedding_float", dtype=Array(Float32)),
         ],
-        batch_source=source,
+        source=source,
         ttl=timedelta(hours=2),
     )
     return item_embeddings_feature_view
@@ -240,12 +221,11 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
     global_stats_feature_view = FeatureView(
         name="global_stats",
         entities=[],
-        features=None
+        schema=None
         if infer_features
         else [
-            # Test that Features still work for FeatureViews.
-            Feature(name="num_rides", dtype=ValueType.INT32),
-            Feature(name="avg_ride_length", dtype=ValueType.FLOAT),
+            Field(name="num_rides", dtype=Int32),
+            Field(name="avg_ride_length", dtype=Float32),
         ],
         source=source,
         ttl=timedelta(days=2),
@@ -288,8 +268,7 @@ def create_field_mapping_feature_view(source):
     return FeatureView(
         name="field_mapping",
         entities=[],
-        # Test that Features still work for FeatureViews.
-        features=[Feature(name="feature_name", dtype=ValueType.INT32)],
+        schema=[Field(name="feature_name", dtype=Int32)],
         source=source,
         ttl=timedelta(days=2),
     )

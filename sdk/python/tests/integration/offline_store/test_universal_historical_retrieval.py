@@ -185,15 +185,16 @@ def test_historical_features_with_shared_batch_source(
     store = environment.feature_store
 
     entities, datasets, data_sources = universal_data_sources
+    driver_entity = driver()
     driver_stats_v1 = FeatureView(
         name="driver_stats_v1",
-        entities=["driver"],
+        entities=[driver_entity],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
         source=data_sources.driver,
     )
     driver_stats_v2 = FeatureView(
         name="driver_stats_v2",
-        entities=["driver"],
+        entities=[driver_entity],
         schema=[
             Field(name="avg_daily_trips", dtype=Int32),
             Field(name="conv_rate", dtype=Float32),
@@ -201,7 +202,7 @@ def test_historical_features_with_shared_batch_source(
         source=data_sources.driver,
     )
 
-    store.apply([driver(), driver_stats_v1, driver_stats_v2])
+    store.apply([driver_entity, driver_stats_v1, driver_stats_v2])
 
     with pytest.raises(KeyError):
         store.get_historical_features(
@@ -569,7 +570,7 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         name="driver_stats",
         entities=[driver],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
-        batch_source=driver_stats_data_source,
+        source=driver_stats_data_source,
         ttl=None,
     )
 
