@@ -560,16 +560,19 @@ class SqlRegistry(BaseRegistry):
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        return self._get_object(
-            managed_infra,
-            "infra_obj",
-            project,
-            InfraProto,
-            Infra,
-            "infra_name",
-            "infra_proto",
-            None,
-        )
+        try:
+            return self._get_object(
+                managed_infra,
+                "infra_obj",
+                project,
+                InfraProto,
+                Infra,
+                "infra_name",
+                "infra_proto",
+                None,
+            )
+        except Exception:
+            return Infra.from_proto(InfraProto())
 
     def apply_user_metadata(
         self,
@@ -687,7 +690,8 @@ class SqlRegistry(BaseRegistry):
     ):
         self._maybe_init_project_metadata(project)
 
-        name = name or obj.name
+        name = name or obj.name if hasattr(obj, name) else None
+        assert name, f"name needs to be provided for {obj}"
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
