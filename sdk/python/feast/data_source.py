@@ -602,16 +602,6 @@ class RequestSource(DataSource):
 
 
 @typechecked
-class RequestDataSource(RequestSource):
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "The 'RequestDataSource' class is deprecated and was renamed to RequestSource. Please use RequestSource instead. This class name will be removed in Feast 0.24.",
-            DeprecationWarning,
-        )
-        super().__init__(*args, **kwargs)
-
-
-@typechecked
 class KinesisSource(DataSource):
     def validate(self, config: RepoConfig):
         pass
