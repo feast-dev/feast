@@ -20,7 +20,7 @@ Features are _registered_ as code in a version controlled repository, and tie to
 
 
 
-Feast supports several patterns of feature retrieval.&#x20;
+Feast supports several patterns of feature retrieval.
 
 |                         Use case                         |                                                Example                                                 |            API            |
 | :------------------------------------------------------: | :----------------------------------------------------------------------------------------------------: | :-----------------------: |

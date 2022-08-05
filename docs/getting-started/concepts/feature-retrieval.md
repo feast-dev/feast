@@ -17,7 +17,7 @@ Each of these retrieval mechanisms accept:
 
 <summary>How to: generate training data</summary>
 
-Feast abstracts away point-in-time join complexities with the `get_historical_features` API.&#x20;
+Feast abstracts away point-in-time join complexities with the `get_historical_features` API.
 
 It expects an **entity dataframe (or SQL query)** and a **list of feature references (or feature service)**
 
