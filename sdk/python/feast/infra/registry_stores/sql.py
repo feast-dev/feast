@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional, Set, Union
+from typing import Any, Callable, List, Optional, Set, Union
 
 from sqlalchemy import (  # type: ignore
     BigInteger,
@@ -685,7 +685,13 @@ class SqlRegistry(BaseRegistry):
         pass
 
     def _apply_object(
-        self, table, project: str, id_field_name, obj, proto_field_name, name=None
+        self,
+        table: Table,
+        project: str,
+        id_field_name,
+        obj,
+        proto_field_name,
+        name=None,
     ):
         self._maybe_init_project_metadata(project)
 
@@ -752,7 +758,9 @@ class SqlRegistry(BaseRegistry):
                 conn.execute(insert_stmt)
                 usage.set_current_project_uuid(new_project_uuid)
 
-    def _delete_object(self, table, name, project, id_field_name, not_found_exception):
+    def _delete_object(
+        self, table: Table, name: str, project: str, id_field_name: str, not_found_exception: Optional[Callable]
+    ):
         with self.engine.connect() as conn:
             stmt = delete(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
@@ -766,14 +774,14 @@ class SqlRegistry(BaseRegistry):
 
     def _get_object(
         self,
-        table,
-        name,
-        project,
-        proto_class,
-        python_class,
-        id_field_name,
-        proto_field_name,
-        not_found_exception,
+        table: Table,
+        name: str,
+        project: str,
+        proto_class: Any,
+        python_class: Any,
+        id_field_name: str,
+        proto_field_name: str,
+        not_found_exception: Optional[Callable],
     ):
         self._maybe_init_project_metadata(project)
 
@@ -791,7 +799,12 @@ class SqlRegistry(BaseRegistry):
             return None
 
     def _list_objects(
-        self, table, project, proto_class, python_class, proto_field_name
+        self,
+        table: Table,
+        project: str,
+        proto_class: Any,
+        python_class: Any,
+        proto_field_name: str,
     ):
         self._maybe_init_project_metadata(project)
         with self.engine.connect() as conn:
