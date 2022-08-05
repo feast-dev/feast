@@ -560,19 +560,18 @@ class SqlRegistry(BaseRegistry):
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        try:
-            return self._get_object(
-                managed_infra,
-                "infra_obj",
-                project,
-                InfraProto,
-                Infra,
-                "infra_name",
-                "infra_proto",
-                None,
-            )
-        except Exception:
-            return Infra.from_proto(InfraProto())
+        infra_object = self._get_object(
+            managed_infra,
+            "infra_obj",
+            project,
+            InfraProto,
+            Infra,
+            "infra_name",
+            "infra_proto",
+            None,
+        )
+        infra_object = infra_object or InfraProto()
+        return Infra.from_proto(infra_object)
 
     def apply_user_metadata(
         self,
@@ -786,7 +785,10 @@ class SqlRegistry(BaseRegistry):
             if row:
                 _proto = proto_class.FromString(row[proto_field_name])
                 return python_class.from_proto(_proto)
-        raise not_found_exception(name, project)
+        if not_found_exception:
+            raise not_found_exception(name, project)
+        else:
+            return None
 
     def _list_objects(
         self, table, project, proto_class, python_class, proto_field_name
