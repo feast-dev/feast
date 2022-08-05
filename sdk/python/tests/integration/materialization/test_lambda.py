@@ -3,9 +3,9 @@ from datetime import timedelta
 import pytest
 
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_view import FeatureView
-from feast.types import ValueType
+from feast.field import Field
+from feast.types import Float32
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -52,7 +52,7 @@ def test_lambda_materialization_consistency():
         name="driver_hourly_stats",
         entities=[driver],
         ttl=timedelta(weeks=52),
-        features=[Feature(name="value", dtype=ValueType.FLOAT)],
+        schema=[Field(name="value", dtype=Float32)],
         source=ds,
     )
 
