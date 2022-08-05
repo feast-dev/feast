@@ -62,9 +62,8 @@ class FeatureView(BaseFeatureView):
             can result in extremely computationally intensive queries.
         batch_source: The batch source of data where this group of features
             is stored. This is optional ONLY if a push source is specified as the
-            stream_source, since push sources contain their own batch sources. This is deprecated in favor of `source`.
-        stream_source: The stream source of data where this group of features
-            is stored. This is deprecated in favor of `source`.
+            stream_source, since push sources contain their own batch sources.
+        stream_source: The stream source of data where this group of features is stored.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
         entity_columns: The list of entity columns contained in the schema. If not specified,
