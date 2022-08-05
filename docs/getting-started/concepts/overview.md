@@ -22,4 +22,8 @@ Features are _registered_ as code in a version controlled repository, and tie to
 
 Feast supports several patterns of feature retrieval.&#x20;
 
-<table><thead><tr><th>Use case</th><th>Example</th><th data-type="select">API</th></tr></thead><tbody><tr><td>Training data generation</td><td>Fetching user and item features for (user, item) pairs when training a production recommendation model </td><td></td></tr><tr><td>Offline feature retrieval for batch predictions</td><td>Predicting user churn for all users on a daily basis</td><td></td></tr><tr><td>Online feature retrieval for real-time model predictions</td><td>Fetching pre-computed features to predict whether a real-time credit card transaction is fraudulent</td><td></td></tr></tbody></table>
+|                         Use case                         |                                                Example                                                 |            API            |
+| :------------------------------------------------------: | :----------------------------------------------------------------------------------------------------: | :-----------------------: |
+|                 Training data generation                 | Fetching user and item features for (user, item) pairs when training a production recommendation model | `get_historical_features` |
+|     Offline feature retrieval for batch predictions      |                          Predicting user churn for all users on a daily basis                          | `get_historical_features` |
+| Online feature retrieval for real-time model predictions |  Fetching pre-computed features to predict whether a real-time credit card transaction is fraudulent   |   `get_online_features`   |
