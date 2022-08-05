@@ -109,10 +109,6 @@ Yes. There are two ways to use S3 in Feast:
 * Using Redshift as a data source via Spectrum ([AWS tutorial](https://docs.aws.amazon.com/redshift/latest/dg/tutorial-nested-data-create-table.html)), and then continuing with the [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/) guide. See a [presentation](https://youtu.be/pMFbRJ7AnBk?t=9463) we did on this at our apply() meetup.
 * Using the `s3_endpoint_override` in a `FileSource` data source. This endpoint is more suitable for quick proof of concepts that won't necessarily scale for production use cases.
 
-### How can I use Spark with Feast?
-
-Feast supports ingestion via Spark (See ) does not support Spark natively. However, you can create a [custom provider](broken-reference) that will support Spark, which can help with more scalable materialization and ingestion.
-
 ### Is Feast planning on supporting X functionality?
 
 Please see the [roadmap](../roadmap.md).
