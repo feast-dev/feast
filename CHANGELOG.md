@@ -1,5 +1,17 @@
 # Changelog
 
+# [0.24.0](https://github.com/felixwang9817/feast/compare/v0.23.0...v0.24.0) (2022-08-05)
+
+
+### Bug Fixes
+
+* More explicit error messages ([#2708](https://github.com/felixwang9817/feast/issues/2708)) ([e4d7afd](https://github.com/felixwang9817/feast/commit/e4d7afdce8fc2596d1a27f2d85f259f2fa35bafa))
+
+
+### Features
+
+* Empty file ([e12b33c](https://github.com/felixwang9817/feast/commit/e12b33c729f02fcfd5110eb29a8af96de7da32bb))
+
 # [0.23.0](https://github.com/feast-dev/feast/compare/v0.22.0...v0.23.0) (2022-08-02)
 
 
