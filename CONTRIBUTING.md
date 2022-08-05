@@ -193,9 +193,9 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 **GCP**
 ### Setup your GCP BigQuery Instance
 1. You can get free credits [here](https://cloud.google.com/free/docs/free-cloud-features#free-trial).
-2. You will need to setup a service account, enable the BigQuery api, and create a staging location for a bucket.
+2. You will need to setup a service account, enable the BigQuery API, and create a staging location for a bucket.
   * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
-  * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running gcp tests and remember to save the bucket name.
+  * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running GCP tests and remember to save the bucket name.
 3. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
 4. Login to gcloud if you haven't already:
   ```
@@ -218,7 +218,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 
   Your active configuration is: [default]
   ```
-7. Export gcp specific environment variables. Namely,
+7. Export GCP specific environment variables. Namely,
   ```sh
   export GCS_REGION='[your gcs region e.g US]'
   export GCS_STAGING_LOCATION='[your gcs staging location]'

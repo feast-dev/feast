@@ -109,7 +109,7 @@
 
 * [Contribution process](project/contributing.md)
 * [Development guide](project/development-guide.md)
+  * [Maintainer Docs](project/maintainers.md)
 * [Versioning policy](project/versioning-policy.md)
 * [Release process](project/release-process.md)
-* [Maintainer Docs](project/maintainers.md)
 * [Feast 0.9 vs Feast 0.10+](project/feast-0.9-vs-feast-0.10+.md)
