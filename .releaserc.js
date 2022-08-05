@@ -30,6 +30,7 @@ module.exports = {
                 {tag: 'Breaking', release: 'minor'},
                 {type: '*!', release: 'minor'},
             ],
+            // Ensure that the "BREAKING CHANGE" notes in commit footers are parsed
             "parserOpts": {
                 "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
             }
@@ -44,6 +45,7 @@ module.exports = {
         }],
 
         ["@semantic-release/release-notes-generator", {
+            // Ensure that a "Breaking Changes" section is added to the release notes
             "preset": "angular"
         }],
 
