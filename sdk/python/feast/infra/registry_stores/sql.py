@@ -695,7 +695,7 @@ class SqlRegistry(BaseRegistry):
     ):
         self._maybe_init_project_metadata(project)
 
-        name = name or obj.name if hasattr(obj, name) else None
+        name = name or obj.name if hasattr(obj, "name") else None
         assert name, f"name needs to be provided for {obj}"
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
@@ -759,7 +759,12 @@ class SqlRegistry(BaseRegistry):
                 usage.set_current_project_uuid(new_project_uuid)
 
     def _delete_object(
-        self, table: Table, name: str, project: str, id_field_name: str, not_found_exception: Optional[Callable]
+        self,
+        table: Table,
+        name: str,
+        project: str,
+        id_field_name: str,
+        not_found_exception: Optional[Callable],
     ):
         with self.engine.connect() as conn:
             stmt = delete(table).where(
