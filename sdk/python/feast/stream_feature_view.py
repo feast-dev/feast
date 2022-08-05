@@ -79,7 +79,7 @@ class StreamFeatureView(FeatureView):
         name: str,
         source: DataSource,
         entities: Optional[Union[List[Entity], List[str]]] = None,
-        ttl: Optional[timedelta] = None,
+        ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
         online: Optional[bool] = True,
         description: Optional[str] = "",
@@ -118,7 +118,7 @@ class StreamFeatureView(FeatureView):
         super().__init__(
             name=name,
             entities=entities,
-            ttl=ttl or timedelta(days=0),
+            ttl=ttl,
             tags=tags,
             online=online,
             description=description,
