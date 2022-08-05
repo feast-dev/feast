@@ -1,4 +1,3 @@
-import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -53,9 +52,9 @@ class FeatureService:
     @log_exceptions
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        features: Optional[List[Union[FeatureView, OnDemandFeatureView]]] = None,
+        *,
+        name: str,
+        features: List[Union[FeatureView, OnDemandFeatureView]],
         tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
@@ -64,39 +63,19 @@ class FeatureService:
         """
         Creates a FeatureService object.
 
-        Raises:
-            ValueError: If one of the specified features is not a valid type.
+        Args:
+            name: The unique name of the feature service.
+            feature_view_projections: A list containing feature views and feature view
+                projections, representing the features in the feature service.
+            description: A human-readable description.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the feature service, typically the email of the primary
+                maintainer.
+            created_timestamp: The time when the feature service was created.
+            last_updated_timestamp: The time when the feature service was last updated.
         """
-        positional_attributes = ["name", "features"]
-        _name = name
-        _features = features
-        if args:
-            warnings.warn(
-                (
-                    "Feature service parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.24+ will not support positional arguments to construct feature service"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"feature service, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _features = args[1]
-
-        if not _name:
-            raise ValueError("Feature service name needs to be specified")
-
-        if not _features:
-            # Technically, legal to create feature service with no feature views before.
-            _features = []
-
-        self.name = _name
-        self._features = _features
+        self.name = name
+        self._features = features
         self.feature_view_projections = []
         self.description = description
         self.tags = tags or {}
