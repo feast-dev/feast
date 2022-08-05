@@ -28,7 +28,11 @@ module.exports = {
             "releaseRules": [
                 {breaking: true, release: 'minor'},
                 {tag: 'Breaking', release: 'minor'},
-            ]
+                {type: '*!', release: 'minor'},
+            ],
+            "parserOpts": {
+                "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
+            }
         }],
 
         ["@semantic-release/exec", {
@@ -39,7 +43,9 @@ module.exports = {
             "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
         }],
 
-        "@semantic-release/release-notes-generator",
+        ["@semantic-release/release-notes-generator", {
+            "preset": "angular"
+        }],
 
         // Update the changelog
         [
