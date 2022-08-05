@@ -9,7 +9,7 @@ Overview of typical production configuration is given below:
 ![Overview](production-simple.png)
 
 {% hint style="success" %}
-**Important note:** Feast is highly customizable and modular. Most Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration.&#x20;
+**Important note:** Feast is highly customizable and modular. Most Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration.
 
 For example, you might not have a stream source and, thus, no need to write features in real-time to an online store. Or you might not need to retrieve online features. Feast also often provides multiple options to achieve the same goal. We discuss tradeoffs below.
 {% endhint %}
@@ -30,14 +30,14 @@ The first step to setting up a deployment of Feast is to create a Git repository
 
 ### Setting up CI/CD to automatically update the registry
 
-We recommend typically setting up CI/CD to automatically run `feast plan` and `feast apply` when pull requests are opened / merged.&#x20;
+We recommend typically setting up CI/CD to automatically run `feast plan` and `feast apply` when pull requests are opened / merged.
 
 ### Setting up multiple environments
 
 Most teams will need to have a feature store deployed to more than one environment. There are two common ways teams approach this
 
 1. Have separate GitHub branches for each environment
-2. Have separate `feature_store.yaml` files that correspond to each environment&#x20;
+2. Have separate `feature_store.yaml` files that correspond to each environment
 
 For the second approach, we have created an example repository ([Feast Repository Example](https://github.com/feast-dev/feast-ci-repo-example)) which contains two Feast projects, one per environment.
 
