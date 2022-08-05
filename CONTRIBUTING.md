@@ -1,6 +1,42 @@
-# Development Guide: Main Feast Repository
+<h1>Development Guide: Main Feast Repository</h1>
+
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
+<h2>Table of Contents</h2>
+
+- [Overview](#overview)
+- [Community](#community)
+- [Making a pull request](#making-a-pull-request)
+  - [Pull request checklist](#pull-request-checklist)
+  - [Forking the repo](#forking-the-repo)
+  - [Pre-commit Hooks](#pre-commit-hooks)
+  - [Signing off commits](#signing-off-commits)
+  - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
+- [Feast Python SDK / CLI](#feast-python-sdk--cli)
+  - [Environment Setup](#environment-setup)
+  - [Code Style & Linting](#code-style--linting)
+  - [Unit Tests](#unit-tests)
+  - [Integration Tests](#integration-tests)
+    - [Local integration tests](#local-integration-tests)
+    - [(Advanced) Full integration tests](#advanced-full-integration-tests)
+    - [(Advanced) Running specific provider tests or running your test against specific online or offline stores](#advanced-running-specific-provider-tests-or-running-your-test-against-specific-online-or-offline-stores)
+    - [(Experimental) Run full integration tests against containerized services](#experimental-run-full-integration-tests-against-containerized-services)
+  - [Contrib integration tests](#contrib-integration-tests)
+    - [(Contrib) Running tests for Spark offline store](#contrib-running-tests-for-spark-offline-store)
+    - [(Contrib) Running tests for Trino offline store](#contrib-running-tests-for-trino-offline-store)
+    - [(Contrib) Running tests for Postgres offline store](#contrib-running-tests-for-postgres-offline-store)
+    - [(Contrib) Running tests for Postgres online store](#contrib-running-tests-for-postgres-online-store)
+    - [(Contrib) Running tests for HBase online store](#contrib-running-tests-for-hbase-online-store)
+- [(Experimental) Feast UI](#experimental-feast-ui)
+- [Feast Java Serving](#feast-java-serving)
+- [Feast Go Client](#feast-go-client)
+  - [Environment Setup](#environment-setup-1)
+  - [Building](#building)
+  - [Code Style & Linting](#code-style--linting-1)
+  - [Unit Tests](#unit-tests-1)
+  - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
+- [Issues](#issues)
+  
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
@@ -147,7 +183,7 @@ These tests create new temporary tables / datasets locally only, and they are cl
 make test-python-integration-local
 ```
 
-#### Full integration tests
+#### (Advanced) Full integration tests
 To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
 
 > Note: you can manually control what tests are run today by inspecting
@@ -211,7 +247,7 @@ export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
 
 Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
 
-#### Running specific provider tests or running your test against specific online or offline stores
+#### (Advanced) Running specific provider tests or running your test against specific online or offline stores
 
 1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with specific providers or stores that you need(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
 
@@ -245,7 +281,25 @@ The services with containerized replacements currently implemented are:
 
 You can run `make test-python-integration-container` to run tests against the containerized versions of dependencies.
 
-## Feast UI
+### Contrib integration tests
+#### (Contrib) Running tests for Spark offline store
+You can run `make test-python-universal-spark` to run all tests against the Spark offline store. (Note: you'll have to run `pip install -e ".[dev]"` first).
+
+Not all tests are passing yet
+
+#### (Contrib) Running tests for Trino offline store
+You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+
+#### (Contrib) Running tests for Postgres offline store
+TODO
+
+#### (Contrib) Running tests for Postgres online store
+TODO
+
+#### (Contrib) Running tests for HBase online store
+TODO
+
+## (Experimental) Feast UI
 See [Feast contributing guide](ui/CONTRIBUTING.md)
 
 ## Feast Java Serving
