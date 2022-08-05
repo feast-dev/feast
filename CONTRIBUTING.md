@@ -2,6 +2,8 @@
 
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
+<h2>Table of Contents</h2>
+
 - [Overview](#overview)
 - [Community](#community)
 - [Making a pull request](#making-a-pull-request)
