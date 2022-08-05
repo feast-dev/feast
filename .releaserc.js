@@ -43,7 +43,11 @@ module.exports = {
             "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
         }],
 
-        "@semantic-release/release-notes-generator",
+        ["@semantic-release/release-notes-generator", {
+            "parserOpts": {
+                "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
+            }
+        }],
 
         // Update the changelog
         [
