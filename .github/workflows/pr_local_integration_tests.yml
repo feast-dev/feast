@@ -82,4 +82,4 @@ jobs:
           FEAST_USAGE: "False"
           IS_TEST: "True"
           FEAST_LOCAL_ONLINE_CONTAINER: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not test_apply_entity_integration and not test_apply_feature_view_integration and not test_apply_data_source_integration and not test_lambda_materialization" sdk/python/tests
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not test_apply_entity_integration and not test_apply_feature_view_integration and not test_apply_data_source_integration and not test_lambda_materialization and not test_feature_view_inference_success and not test_update_file_data_source_with_inferred_event_timestamp_col and not test_nullable_online_store" sdk/python/tests
