@@ -210,14 +210,11 @@ class FeatureView(BaseFeatureView):
             online=self.online,
         )
 
-        # This is deliberately set outside of the FV initialization to avoid the deprecation warning.
-        # TODO(felixwang9817): Move this into the FV initialization when the deprecation warning
-        # is removed.
+        # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
-        fv.entities = self.entities
         return fv
 
     def __eq__(self, other):
