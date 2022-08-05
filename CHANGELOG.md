@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.25.0](https://github.com/felixwang9817/feast/compare/v0.24.0...v0.25.0) (2022-08-05)
+
+
+### Features
+
+* Yet another empty file ([#3](https://github.com/felixwang9817/feast/issues/3)) ([bbf6ae9](https://github.com/felixwang9817/feast/commit/bbf6ae9d30159cb9e513feee5f439d07c1130d59))
+
 # [0.24.0](https://github.com/felixwang9817/feast/compare/v0.23.0...v0.24.0) (2022-08-05)
 
 
