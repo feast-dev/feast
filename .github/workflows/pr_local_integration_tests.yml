@@ -13,8 +13,8 @@ jobs:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) ||
+      github.repository != 'feast-dev/feast'
     runs-on: ${{ matrix.os }}p
     strategy:
       fail-fast: false
@@ -70,11 +70,13 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Set up gcloud SDK # TODO(adchia): remove this dependency
         uses: google-github-actions/setup-gcloud@v0
+        if: github.repository == 'feast-dev/feast'
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
       - name: Use gcloud CLI
+        if: github.repository == 'feast-dev/feast'
         run: gcloud info
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
@@ -82,4 +84,5 @@ jobs:
           FEAST_USAGE: "False"
           IS_TEST: "True"
           FEAST_LOCAL_ONLINE_CONTAINER: "True"
+          FEAST_IS_LOCAL_TEST: "True"
         run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not test_apply_entity_integration and not test_apply_feature_view_integration and not test_apply_data_source_integration and not test_lambda_materialization and not test_feature_view_inference_success and not test_update_file_data_source_with_inferred_event_timestamp_col and not test_nullable_online_store" sdk/python/tests
