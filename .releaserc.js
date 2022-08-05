@@ -28,7 +28,11 @@ module.exports = {
             "releaseRules": [
                 {breaking: true, release: 'minor'},
                 {tag: 'Breaking', release: 'minor'},
-            ]
+                {type: '*!', release: 'minor'},
+            ],
+            "parserOpts": {
+                "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
+            }
         }],
 
         ["@semantic-release/exec", {
