@@ -28,7 +28,12 @@ module.exports = {
             "releaseRules": [
                 {breaking: true, release: 'minor'},
                 {tag: 'Breaking', release: 'minor'},
-            ]
+                {type: '*!', release: 'minor'},
+            ],
+            // Ensure that the "BREAKING CHANGE" notes in commit footers are parsed
+            "parserOpts": {
+                "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
+            }
         }],
 
         ["@semantic-release/exec", {
@@ -39,7 +44,10 @@ module.exports = {
             "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
         }],
 
-        "@semantic-release/release-notes-generator",
+        ["@semantic-release/release-notes-generator", {
+            // Ensure that a "Breaking Changes" section is added to the release notes
+            "preset": "angular"
+        }],
 
         // Update the changelog
         [
