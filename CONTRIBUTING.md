@@ -2,6 +2,10 @@
 
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
+<h1>Maintainer's Guide</h1>
+
+> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers.
+
 <h2>Table of Contents</h2>
 
 - [Overview](#overview)
@@ -36,7 +40,7 @@
   - [Unit Tests](#unit-tests-1)
   - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
 - [Issues](#issues)
-  
+
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
@@ -191,36 +195,45 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 > and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**
-1. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
-2. Then run login to gcloud:
+### Setup your GCP BigQuery Instance
+1. You can get free credits [here](https://cloud.google.com/free/docs/free-cloud-features#free-trial).
+2. You will need to setup a service account, enable the BigQuery API, and create a staging location for a bucket.
+  * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
+  * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running GCP tests and remember to save the bucket name.
+3. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
+4. Login to gcloud if you haven't already:
   ```
   gcloud auth login
   gcloud auth application-default login
   ```
-- When you run `gcloud auth application-default login`, you should see some output of the form:
- ```
- Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
- ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
-3. Run `export GCLOUD_PROJECT=[your project]` to your .zshrc or .bashrc.
-4. Running `gcloud config list` should give you something like this:
-```sh
-$ gcloud config list
-[core]
-account = [your email]
-disable_usage_reporting = True
-project = [your project]
+  - When you run `gcloud auth application-default login`, you should see some output of the form:
+  ```
+  Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
+  ```
+  - You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
+6. Running `gcloud config list` should give you something like this:
+  ```sh
+  $ gcloud config list
+  [core]
+  account = [your email]
+  disable_usage_reporting = True
+  project = [your project id]
 
-Your active configuration is: [default]
-```
-5. Export gcp specific environment variables. Namely,
-```sh
-export GCS_REGION='[your gcs region e.g US]'
-export GCS_STAGING_LOCATION='[your gcs staging location]'
-```
+  Your active configuration is: [default]
+  ```
+7. Export GCP specific environment variables. Namely,
+  ```sh
+  export GCS_REGION='[your gcs region e.g US]'
+  export GCS_STAGING_LOCATION='[your gcs staging location]'
+  ```
+  **NOTE**: Your `GCS_STAGING_LOCATION` should be in the form `gs://<bucket name>` where the bucket name is from step 2.
+
+8. Once authenticated, you should be able to run the integration tests for BigQuery without any failures.
 
 **AWS**
-1. TODO(adchia): flesh out setting up AWS login (or create helper script)
+1. Setup AWS by creating an account, database, and cluster. You will need to enable Redshift and Dynamo.
+  * You can get free credits [here](https://aws.amazon.com/free/?all-free-tier.sort-by=item.additionalFields.SortRank&al[…]f.Free%20Tier%20Types=*all&awsf.Free%20Tier%20Categories=*all).
 2. To run the AWS Redshift and Dynamo integration tests you will have to export your own AWS credentials. Namely,
 
 ```sh
@@ -236,16 +249,37 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
 
 **Snowflake**
 1. See https://signup.snowflake.com/ to setup a trial.
-2. Then to run successfully, you'll need some environment variables setup:
-```sh
-export SNOWFLAKE_CI_DEPLOYMENT='[snowflake_deployment]'
-export SNOWFLAKE_CI_USER='[your user]'
-export SNOWFLAKE_CI_PASSWORD='[your pw]'
-export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
-export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
-```
+2. Setup your account and if you are not an `ACCOUNTADMIN` (if you created your own account, you should be), give yourself the `SYSADMIN` role.
+  ```sql
+  grant role accountadmin, sysadmin to user user2;
+  ```
+  * Also remember to save your [account name](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#:~:text=organization_name%20is%20the%20name%20of,your%20account%20within%20your%20organization), username, and role.
+3. Create a warehouse and database named `FEAST` with the schema `OFFLINE`.
+  ```sql
+  create or replace warehouse feast_tests_wh with
+  warehouse_size='MEDIUM' --set your warehouse size to whatever your budget allows--
+  auto_suspend = 180
+  auto_resume = true
+  initially_suspended=true;
 
-Then run `make test-python-integration`. Note that for Snowflake / GCP / AWS, this will create new temporary tables / datasets.
+  create or replace database FEAST;
+  use database FEAST;
+  create schema OFFLINE;
+  ```
+4. You will need to create a data unloading location(either on S3, GCP, or Azure). Detailed instructions [here](https://docs.snowflake.com/en/user-guide/data-unload-overview.html). You will need to save the storage export location and the storage export name.
+5. Then to run successfully, you'll need some environment variables setup:
+  ```sh
+  export SNOWFLAKE_CI_DEPLOYMENT='[your snowflake account name]'
+  export SNOWFLAKE_CI_USER='[your snowflake username]'
+  export SNOWFLAKE_CI_PASSWORD='[your snowflake pw]'
+  export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
+  export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
+  export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
+  export BLOB_EXPORT_URI='[your data unloading blob uri]`
+  ```
+6. Once everything is setup, running snowflake integration tests should pass without failures.
+
+Note that for Snowflake / GCP / AWS, running `make test-python-integration`  will create new temporary tables / datasets in your cloud storage tables.
 
 #### (Advanced) Running specific provider tests or running your test against specific online or offline stores
 
