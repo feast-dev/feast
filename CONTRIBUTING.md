@@ -2,6 +2,10 @@
 
 > Please see [Development Guide](https://docs.feast.dev/project/development-guide) for project level development instructions.
 
+<h1>Maintainer's Guide</h1>
+
+> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers.
+
 <h2>Table of Contents</h2>
 
 - [Overview](#overview)
@@ -36,7 +40,7 @@
   - [Unit Tests](#unit-tests-1)
   - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
 - [Issues](#issues)
-  
+
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
