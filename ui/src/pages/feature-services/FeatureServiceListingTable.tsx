@@ -53,10 +53,10 @@ const FeatureServiceListingTable = ({
       },
     },
     {
-      name: "Created at",
-      field: "meta.createdTimestamp",
+      name: "Last updated",
+      field: "meta.lastUpdatedTimestamp",
       render: (date: Date) => {
-        return date.toLocaleDateString("en-CA");
+        return date ? date.toLocaleDateString("en-CA") : "n/a";
       },
     },
   ];

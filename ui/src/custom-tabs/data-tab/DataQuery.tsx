@@ -1,9 +1,5 @@
 import { useQuery } from "react-query";
 
-interface DataQueryInterface {
-  featureView: string | undefined;
-}
-
 const DataQuery = (featureView: string) => {
   const queryKey = `data-tab-namespace:${featureView}`;
 
@@ -13,8 +9,7 @@ const DataQuery = (featureView: string) => {
       // Customizing the URL based on your needs
       const url = `/demo-custom-tabs/demo.json`;
 
-      return fetch(url)
-        .then((res) => res.json())
+      return fetch(url).then((res) => res.json());
     },
     {
       enabled: !!featureView, // Only start the query when the variable is not undefined
