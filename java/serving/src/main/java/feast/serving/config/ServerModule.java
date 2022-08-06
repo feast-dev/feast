@@ -18,9 +18,9 @@ package feast.serving.config;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
-import feast.serving.controller.HealthServiceController;
-import feast.serving.grpc.OnlineServingGrpcServiceV2;
 import feast.serving.service.ServingServiceV2;
+import feast.serving.service.controller.HealthServiceController;
+import feast.serving.service.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.health.v1.HealthGrpc;

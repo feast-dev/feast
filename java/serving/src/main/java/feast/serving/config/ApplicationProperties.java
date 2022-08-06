@@ -23,16 +23,14 @@ package feast.serving.config;
 
 import com.fasterxml.jackson.annotation.JsonMerge;
 import com.fasterxml.jackson.annotation.OptBoolean;
-import feast.common.logging.config.LoggingProperties;
-import feast.storage.connectors.redis.retriever.RedisClusterStoreConfig;
-import feast.storage.connectors.redis.retriever.RedisStoreConfig;
+import feast.serving.connectors.redis.retriever.RedisClusterStoreConfig;
+import feast.serving.connectors.redis.retriever.RedisStoreConfig;
 import io.lettuce.core.ReadFrom;
 import java.time.Duration;
 import java.util.*;
 import javax.annotation.PostConstruct;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import org.slf4j.Logger;
 
 /** Feast Serving properties. */
@@ -103,8 +101,6 @@ public class ApplicationProperties {
     private List<Store> stores = new ArrayList<>();
     /* Metric tracing properties. */
     private TracingProperties tracing;
-    /* Feast Audit Logging properties */
-    @NotNull private LoggingProperties logging;
     private String gcpProject;
     private String awsRegion;
     private String transformationServiceEndpoint;
@@ -193,15 +189,6 @@ public class ApplicationProperties {
 
     public void setTracing(TracingProperties tracing) {
       this.tracing = tracing;
-    }
-
-    /**
-     * Gets logging properties
-     *
-     * @return logging properties
-     */
-    public LoggingProperties getLogging() {
-      return logging;
     }
 
     public String getGcpProject() {

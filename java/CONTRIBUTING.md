@@ -6,7 +6,7 @@
 This guide is targeted at developers looking to contribute to Feast components in
 the feast-java Repository:
 - [Feast Serving](#feast-serving)
-- [Feast Java Client](#feast-java-client)
+- [Feast Serving Client](#feast-serving-client)
 
 > Don't see the Feast component that you want to contribute to here?  
 > Check out the [Development Guide](https://docs.feast.dev/v/master/project/development-guide)
@@ -42,12 +42,12 @@ Run all Unit tests:
 make test-java
 ```
 
-Run all Integration tests:
+Run all Integration tests (note: this also runs GCS + S3 based tests which should fail):
 ```
 make test-java-integration
 ```
 
-Building Docker images for Feast Core &amp; Feast Serving:
+Building Docker images for Feast Serving:
 ```
 make build-docker REGISTRY=gcr.io/kf-feast VERSION=develop
 ```
@@ -64,12 +64,12 @@ Specifically, proto-generated code is not indexed by IntelliJ. To fix this, navi
 ## Feast Serving
 See instructions [here](serving/README.md) for developing.
 
-## Feast Java Client
+## Feast Serving Client
 ### Environment Setup
-Setting up your development environment for Feast Java SDK:
+Setting up your development environment:
 1. Complete the feast-java [Common Setup](#common-setup)
 
-> Feast Java Client is a Java Client for retrieving Features from a running Feast Serving instance.  
+> Feast Serving Client is a Serving Client for retrieving Features from a running Feast Serving instance.  
 > See the [Feast Serving Section](#feast-serving) section for how to get a Feast Serving instance running.
 
 ### Building
