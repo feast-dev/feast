@@ -19,6 +19,13 @@ class DataSourceNoNameException(Exception):
         )
 
 
+class DataSourceRepeatNamesException(Exception):
+    def __init__(self, ds_name: str):
+        super().__init__(
+            f"Multiple data sources share the same case-insensitive name {ds_name}."
+        )
+
+
 class FeastObjectNotFoundException(Exception):
     pass
 
