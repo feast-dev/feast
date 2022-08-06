@@ -14,33 +14,28 @@ def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
             name="to_delete",
             entities=[entity],
             source=file_source,
-            ttl=None,
         )
         unchanged_fv = FeatureView(
             name="fv1",
             entities=[entity],
             source=file_source,
-            ttl=None,
         )
         pre_changed = FeatureView(
             name="fv2",
             entities=[entity],
             source=file_source,
-            ttl=None,
             tags={"when": "before"},
         )
         post_changed = FeatureView(
             name="fv2",
             entities=[entity],
             source=file_source,
-            ttl=None,
             tags={"when": "after"},
         )
         to_add = FeatureView(
             name="to_add",
             entities=[entity],
             source=file_source,
-            ttl=None,
         )
 
         keep, delete, update, add = tag_objects_for_keep_delete_update_add(
@@ -68,14 +63,12 @@ def test_diff_registry_objects_feature_views(simple_dataset_1):
             name="fv2",
             entities=[entity],
             source=file_source,
-            ttl=None,
             tags={"when": "before"},
         )
         post_changed = FeatureView(
             name="fv2",
             entities=[entity],
             source=file_source,
-            ttl=None,
             tags={"when": "after"},
         )
 

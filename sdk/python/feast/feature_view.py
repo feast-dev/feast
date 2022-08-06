@@ -100,7 +100,7 @@ class FeatureView(BaseFeatureView):
         source: DataSource,
         schema: Optional[List[Field]] = None,
         entities: List[Entity] = None,
-        ttl: timedelta = None,
+        ttl: timedelta = timedelta(days=0),
         online: bool = True,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
