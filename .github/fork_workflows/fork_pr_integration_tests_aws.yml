@@ -1,37 +1,18 @@
-name: nightly-ci
+name: fork-pr-integration-tests-aws
 
-on:
-  schedule:
-    - cron: '00 08 * * *'  # early morning 08:00 AM UTC, which is 1 AM PST/4 AM EST.
-
-# concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
-#concurrency:
-#  group: pr-integration-tests-${{ github.event.pull_request.number }}
-#  cancel-in-progress: true
+on: [pull_request]
 
 jobs:
-  check_date:
-    if: github.repository == 'feast-dev/feast'
-    runs-on: ubuntu-latest
-    name: Check latest commit
-    outputs:
-      WAS_EDITED: ${{ steps.check_date.outputs.WAS_EDITED }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: master
-      - id: check_date
-        name: Check if there were commits in the last day
-        if: ${{ github.event_name == 'schedule' }}
-        run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
   build-docker-image:
-    if: github.repository == 'feast-dev/feast'
-    needs: [check_date]
+    if: github.repository == 'your github repo' # swap here with your project id
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: master
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -81,8 +62,7 @@ jobs:
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
-    if: github.repository == 'feast-dev/feast'
-    needs: [check_date, build-docker-image]
+    if: github.repository == 'your github repo' # swap here with your project id
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -105,7 +85,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Setup Python
         uses: actions/setup-python@v2
@@ -118,14 +101,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
-      - name: Use gcloud CLI
-        run: gcloud info
       - name: Set up AWS SDK
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -175,20 +150,10 @@ jobs:
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
-          FEAST_USAGE: "False"
-          IS_TEST: "True"
-          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
-          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
-          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
-          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
-          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: integrationtests
-          env_vars: OS,PYTHON
-          fail_ci_if_error: true
-          verbose: true
+        run: |
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery"
+
+

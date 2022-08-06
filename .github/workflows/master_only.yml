@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-lambda-docker-image:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -58,6 +59,7 @@ jobs:
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python-and-go:
+    if: github.repository == 'feast-dev/feast'
     needs: build-lambda-docker-image
     runs-on: ${{ matrix.os }}
     strategy:
@@ -180,6 +182,7 @@ jobs:
         run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmarks
 
   build-all-docker-images:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     strategy:
       matrix:

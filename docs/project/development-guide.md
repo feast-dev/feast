@@ -8,6 +8,7 @@ This guide is targeted at developers looking to contribute to Feast:
 * [Making a Pull Request](development-guide.md#making-a-pull-request)
 * [Feast Data Storage Format](development-guide.md#feast-data-storage-format)
 * [Feast Protobuf API](development-guide.md#feast-protobuf-api)
+* [Maintainer Guide](./maintainers.md)
 
 > Learn How the Feast [Contributing Process](contributing.md) works.
 
