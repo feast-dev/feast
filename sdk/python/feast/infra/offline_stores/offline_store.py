@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 import pandas as pd
 import pyarrow
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -91,12 +92,13 @@ class RetrievalJob(ABC):
                 )
 
         if validation_reference:
-            warnings.warn(
-                "Dataset validation is an experimental feature. "
-                "This API is unstable and it could and most probably will be changed in the future. "
-                "We do not guarantee that future changes will maintain backward compatibility.",
-                RuntimeWarning,
-            )
+            if not flags_helper.is_test():
+                warnings.warn(
+                    "Dataset validation is an experimental feature. "
+                    "This API is unstable and it could and most probably will be changed in the future. "
+                    "We do not guarantee that future changes will maintain backward compatibility.",
+                    RuntimeWarning,
+                )
 
             validation_result = validation_reference.profile.validate(features_df)
             if not validation_result.is_success:
@@ -136,12 +138,13 @@ class RetrievalJob(ABC):
                 )
 
         if validation_reference:
-            warnings.warn(
-                "Dataset validation is an experimental feature. "
-                "This API is unstable and it could and most probably will be changed in the future. "
-                "We do not guarantee that future changes will maintain backward compatibility.",
-                RuntimeWarning,
-            )
+            if not flags_helper.is_test():
+                warnings.warn(
+                    "Dataset validation is an experimental feature. "
+                    "This API is unstable and it could and most probably will be changed in the future. "
+                    "We do not guarantee that future changes will maintain backward compatibility.",
+                    RuntimeWarning,
+                )
 
             validation_result = validation_reference.profile.validate(features_df)
             if not validation_result.is_success:

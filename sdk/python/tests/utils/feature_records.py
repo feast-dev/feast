@@ -6,7 +6,7 @@ import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from pytz import utc
 
-from feast import FeatureStore, utils
+from feast import FeatureService, FeatureStore, utils
 from feast.errors import FeatureNameCollisionError
 from feast.feature_view import FeatureView
 
@@ -283,12 +283,17 @@ def get_response_feature_name(feature: str, full_feature_names: bool) -> str:
 
 
 def assert_feature_service_correctness(
-    store, feature_service, full_feature_names, entity_df, expected_df, event_timestamp
+    store: FeatureStore,
+    feature_service: FeatureService,
+    full_feature_names: bool,
+    entity_df,
+    expected_df,
+    event_timestamp,
 ):
 
     job_from_df = store.get_historical_features(
         entity_df=entity_df,
-        features=feature_service,
+        features=store.get_feature_service(feature_service.name),
         full_feature_names=full_feature_names,
     )
 

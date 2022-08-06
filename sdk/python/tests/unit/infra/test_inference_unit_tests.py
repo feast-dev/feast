@@ -190,7 +190,11 @@ def test_feature_view_inference_respects_basic_inference():
     assert len(feature_view_1.entity_columns) == 1
 
     update_feature_views_with_inferred_features_and_entities(
-        [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+        [feature_view_1],
+        [entity1],
+        RepoConfig(
+            provider="local", project="test", entity_key_serialization_version=2
+        ),
     )
     assert len(feature_view_1.schema) == 2
     assert len(feature_view_1.features) == 1
@@ -203,7 +207,9 @@ def test_feature_view_inference_respects_basic_inference():
     update_feature_views_with_inferred_features_and_entities(
         [feature_view_2],
         [entity1, entity2],
-        RepoConfig(provider="local", project="test"),
+        RepoConfig(
+            provider="local", project="test", entity_key_serialization_version=2
+        ),
     )
     assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
@@ -228,7 +234,11 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
         assert len(feature_view_1.entity_columns) == 0
 
         update_feature_views_with_inferred_features_and_entities(
-            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+            [feature_view_1],
+            [entity1],
+            RepoConfig(
+                provider="local", project="test", entity_key_serialization_version=2
+            ),
         )
 
         # The schema is only used as a parameter, as is therefore not updated during inference.
@@ -259,7 +269,11 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
         assert len(feature_view_1.entity_columns) == 1
 
         update_feature_views_with_inferred_features_and_entities(
-            [feature_view_1], [entity1], RepoConfig(provider="local", project="test")
+            [feature_view_1],
+            [entity1],
+            RepoConfig(
+                provider="local", project="test", entity_key_serialization_version=2
+            ),
         )
 
         # The schema is only used as a parameter, as is therefore not updated during inference.
@@ -305,7 +319,9 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         update_feature_views_with_inferred_features_and_entities(
             [feature_view_1, feature_view_2],
             [entity1],
-            RepoConfig(provider="local", project="test"),
+            RepoConfig(
+                provider="local", project="test", entity_key_serialization_version=2
+            ),
         )
         feature_service.infer_features(
             fvs_to_update={

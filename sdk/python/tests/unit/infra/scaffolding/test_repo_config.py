@@ -42,6 +42,7 @@ def test_nullable_online_store_aws():
         registry: "registry.db"
         provider: aws
         online_store: null
+        entity_key_serialization_version: 2
         """
         ),
         expect_error="__root__ -> offline_store -> cluster_id\n"
@@ -57,6 +58,7 @@ def test_nullable_online_store_gcp():
         registry: "registry.db"
         provider: gcp
         online_store: null
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -71,6 +73,7 @@ def test_nullable_online_store_local():
         registry: "registry.db"
         provider: local
         online_store: null
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -84,6 +87,7 @@ def test_local_config():
         project: foo
         registry: "registry.db"
         provider: local
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -99,6 +103,7 @@ def test_local_config_with_full_online_class():
         provider: local
         online_store:
             type: feast.infra.online_stores.sqlite.SqliteOnlineStore
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -114,6 +119,7 @@ def test_local_config_with_full_online_class_directly():
         registry: "registry.db"
         provider: local
         online_store: feast.infra.online_stores.sqlite.SqliteOnlineStore
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -128,6 +134,7 @@ def test_gcp_config():
         project: foo
         registry: gs://registry.db
         provider: gcp
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -161,6 +168,7 @@ def test_no_online_store_type():
         provider: local
         online_store:
             path: "blah"
+        entity_key_serialization_version: 2
         """
         ),
         expect_error=None,
@@ -190,6 +198,7 @@ def test_no_project():
         provider: local
         online_store:
             path: foo
+        entity_key_serialization_version: 2
         """
         ),
         expect_error="1 validation error for RepoConfig\n"

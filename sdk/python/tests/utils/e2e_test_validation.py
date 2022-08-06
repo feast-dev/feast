@@ -177,6 +177,7 @@ def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
         offline_store=offline_store_config,
         online_store=online_store,
         repo_path=str(Path(repo_dir_name)),
+        entity_key_serialization_version=2,
     )
     config_dict = config.dict()
     if (

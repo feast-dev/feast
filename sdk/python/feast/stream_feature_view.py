@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import dill
 from typeguard import typechecked
 
-from feast import utils
+from feast import flags_helper, utils
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -90,11 +90,12 @@ class StreamFeatureView(FeatureView):
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
     ):
-        warnings.warn(
-            "Stream Feature Views are experimental features in alpha development. "
-            "Some functionality may still be unstable so functionality can change in the future.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Stream Feature Views are experimental features in alpha development. "
+                "Some functionality may still be unstable so functionality can change in the future.",
+                RuntimeWarning,
+            )
 
         if (
             type(source).__name__ not in SUPPORTED_STREAM_SOURCES

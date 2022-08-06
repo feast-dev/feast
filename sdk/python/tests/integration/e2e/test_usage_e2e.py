@@ -57,6 +57,7 @@ def test_usage_on(dummy_exporter, enabling_toggle):
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(temp_dir, "online.db")
                 ),
+                entity_key_serialization_version=2,
             )
         )
         entity = Entity(
@@ -95,6 +96,7 @@ def test_usage_off(dummy_exporter, enabling_toggle):
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(temp_dir, "online.db")
                 ),
+                entity_key_serialization_version=2,
             )
         )
         entity = Entity(
