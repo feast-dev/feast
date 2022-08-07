@@ -971,7 +971,7 @@ def upload_arrow_table_to_athena(
     bucket, key = get_bucket_and_key(s3_path)
 
     column_query_list = ", ".join(
-        [f"{field.name} {pa_to_athena_value_type(field.type)}" for field in schema]
+        [f"`{field.name}` {pa_to_athena_value_type(field.type)}" for field in schema]
     )
 
     with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:

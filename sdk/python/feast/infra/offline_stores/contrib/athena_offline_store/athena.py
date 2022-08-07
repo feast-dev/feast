@@ -149,8 +149,8 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        end_date = end_date.astimezone(tz=utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
         query = f"""
             SELECT {field_string}
