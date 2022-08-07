@@ -29,6 +29,7 @@ from pathlib import Path
 
 import requests
 
+from feast import flags_helper
 from feast.constants import DEFAULT_FEAST_USAGE_VALUE, FEAST_USAGE
 from feast.version import get_version
 
@@ -172,7 +173,8 @@ def _export(event: typing.Dict[str, typing.Any]):
 
 
 def _produce_event(ctx: UsageContext):
-    is_test = bool({"pytest", "unittest"} & sys.modules.keys())
+    # Cannot check for unittest because typeguard pulls in unittest
+    is_test = flags_helper.is_test() or bool({"pytest"} & sys.modules.keys())
     event = {
         "timestamp": datetime.utcnow().isoformat(),
         "is_test": is_test,
