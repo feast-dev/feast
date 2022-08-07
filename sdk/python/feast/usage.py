@@ -169,7 +169,6 @@ _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    print(f"DANNY_{event}")
     _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=30)
 
 
