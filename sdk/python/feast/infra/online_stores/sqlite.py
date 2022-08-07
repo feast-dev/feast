@@ -243,7 +243,12 @@ class SqliteOnlineStore(OnlineStore):
 
 
 def _initialize_conn(db_path: str):
-    Path(db_path).parent.mkdir(exist_ok=True)
+    if db_path == ":memory:":
+        # Handle sqlite special filename case :memory:. Since feast doesn't handle URI filenames, ignore
+        # identifying in-memory databases specified with URI format
+        pass
+    else:
+        Path(db_path).parent.mkdir(exist_ok=True)
     return sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
