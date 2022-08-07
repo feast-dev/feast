@@ -87,14 +87,15 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
           break;
         case INT64_VAL:
           buffer.addAll(encodeInteger(ValueProto.ValueType.Enum.INT64.getNumber()));
-          buffer.addAll(encodeInteger(Integer.BYTES));
           /* This is super dumb - but in https://github.com/feast-dev/feast/blob/dcae1606f53028ce5413567fb8b66f92cfef0f8e/sdk/python/feast/infra/key_encoding_utils.py#L9
           we use `struct.pack("<l", v.int64_val)` to get the bytes of an int64 val. This actually extracts only 4 bytes,
           instead of 8 bytes as you'd expect from to serialize an int64 value.
           */
           if (this.entityKeySerializationVersion <= 1) {
+            buffer.addAll(encodeInteger(Integer.BYTES));
             buffer.addAll(encodeInteger(((Long) val.getInt64Val()).intValue()));
           } else {
+            buffer.addAll(encodeInteger(Long.BYTES));
             buffer.addAll(encodeLong(((Long) val.getInt64Val())));
           }
 

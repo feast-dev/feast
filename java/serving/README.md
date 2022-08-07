@@ -41,7 +41,7 @@ From the Feast GitHub root, run:
    java \
      -Xms1g \
      -Xmx4g \
-     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     -jar java/serving/target/feast-serving-[YOUR VERSION]-jar-with-dependencies.jar \
      classpath:/application.yml,file:./application-override.yaml
    ```
 5. Now you have a Feast Serving gRPC service running on port 6566 locally!
@@ -124,7 +124,7 @@ You can debug this like any other Java executable. Swap the java command above w
      -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y \
      -Xms1g \
      -Xmx4g \
-     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     -jar java/serving/target/feast-serving-[YOUR VERSION]-jar-with-dependencies.jar \
      classpath:/application.yml,file:./application-override.yaml
    ```
 Now you can attach e.g. a Remote debugger in IntelliJ to port 5005 to debug / make breakpoints.
