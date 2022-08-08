@@ -18,6 +18,7 @@ from tests.utils.e2e_test_validation import validate_offline_online_store_consis
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Run this test manually after creating an EKS cluster.")
 def test_bytewax_materialization():
     bytewax_config = IntegrationTestRepoConfig(
         provider="aws",
