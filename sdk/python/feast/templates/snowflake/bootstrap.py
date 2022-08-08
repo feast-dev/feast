@@ -13,7 +13,7 @@ def bootstrap():
 
     from feast.driver_test_data import create_driver_hourly_stats_df
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
 
     project_name = str(repo_path)[str(repo_path).rfind("/") + 1 :]
 

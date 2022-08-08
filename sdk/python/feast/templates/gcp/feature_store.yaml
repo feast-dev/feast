@@ -1,4 +1,0 @@
-project: my_project
-registry: data/registry.db
-provider: gcp
-entity_key_serialization_version: 2

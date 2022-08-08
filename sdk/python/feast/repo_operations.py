@@ -411,7 +411,7 @@ def init_repo(repo_name: str, template: str):
         os.remove(bootstrap_path)
 
     # Template the feature_store.yaml file
-    feature_store_yaml_path = repo_path / "feature_store.yaml"
+    feature_store_yaml_path = repo_path / "feature_repo" / "feature_store.yaml"
     replace_str_in_file(
         feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
     )
