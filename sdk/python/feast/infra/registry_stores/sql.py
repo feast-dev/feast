@@ -688,15 +688,16 @@ class SqlRegistry(BaseRegistry):
         self,
         table: Table,
         project: str,
-        id_field_name,
-        obj,
-        proto_field_name,
-        name=None,
+        id_field_name: str,
+        obj: Any,
+        proto_field_name: str,
+        name: Optional[str] = None,
     ):
         self._maybe_init_project_metadata(project)
 
         name = name or obj.name if hasattr(obj, "name") else None
         assert name, f"name needs to be provided for {obj}"
+
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
