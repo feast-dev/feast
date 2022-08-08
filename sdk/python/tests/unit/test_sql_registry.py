@@ -167,6 +167,9 @@ def test_apply_entity_success(sql_registry):
         and entity.tags["team"] == "matchmaking"
     )
 
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    assert entity.created_timestamp == entity.last_updated_timestamp
+
     sql_registry.delete_entity("driver_car_id", project)
     assert_project_uuid(project, project_uuid, sql_registry)
     entities = sql_registry.list_entities(project)
@@ -254,6 +257,9 @@ def test_apply_feature_view_success(sql_registry):
         and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
+
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    assert feature_view.created_timestamp == feature_view.last_updated_timestamp
 
     sql_registry.delete_feature_view("my_feature_view_1", project)
     feature_views = sql_registry.list_feature_views(project)
