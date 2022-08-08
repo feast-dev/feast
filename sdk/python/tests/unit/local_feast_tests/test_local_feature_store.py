@@ -261,5 +261,6 @@ def feature_store_with_local_registry():
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
+            entity_key_serialization_version=2,
         )
     )

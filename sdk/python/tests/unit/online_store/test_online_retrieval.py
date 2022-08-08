@@ -142,6 +142,7 @@ def test_online() -> None:
                 online_store=store.config.online_store,
                 project=store.project,
                 provider=store.config.provider,
+                entity_key_serialization_version=2,
             )
         )
 
@@ -204,6 +205,7 @@ def test_online() -> None:
                 online_store=store.config.online_store,
                 project=store.project,
                 provider=store.config.provider,
+                entity_key_serialization_version=2,
             )
         )
 

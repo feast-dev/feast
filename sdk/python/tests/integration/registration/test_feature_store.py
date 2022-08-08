@@ -194,6 +194,7 @@ def feature_store_with_local_registry():
             project="default",
             provider="local",
             online_store=SqliteOnlineStoreConfig(path=online_store_path),
+            entity_key_serialization_version=2,
         )
     )
 
@@ -217,6 +218,7 @@ def feature_store_with_gcs_registry():
             registry=f"gs://{bucket_name}/registry.db",
             project="default",
             provider="gcp",
+            entity_key_serialization_version=2,
         )
     )
 
@@ -235,5 +237,6 @@ def feature_store_with_s3_registry():
                 region=os.getenv("AWS_REGION", "us-west-2")
             ),
             offline_store=FileOfflineStoreConfig(),
+            entity_key_serialization_version=2,
         )
     )

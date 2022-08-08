@@ -368,6 +368,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
+    entity_key_serialization_version: int = 2,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -437,6 +438,7 @@ def construct_test_environment(
         repo_path=repo_dir_name,
         feature_server=feature_server,
         go_feature_serving=test_repo_config.go_feature_serving,
+        entity_key_serialization_version=entity_key_serialization_version,
     )
 
     # Create feature_store.yaml out of the config

@@ -18,7 +18,10 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
             file_source,
         ]
         update_data_sources_with_inferred_event_timestamp_col(
-            data_sources, RepoConfig(provider="local", project="test")
+            data_sources,
+            RepoConfig(
+                provider="local", project="test", entity_key_serialization_version=2
+            ),
         )
         actual_event_timestamp_cols = [
             source.timestamp_field for source in data_sources
@@ -30,7 +33,10 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
         with pytest.raises(RegistryInferenceFailure):
             # two viable timestamp_fields
             update_data_sources_with_inferred_event_timestamp_col(
-                [file_source], RepoConfig(provider="local", project="test")
+                [file_source],
+                RepoConfig(
+                    provider="local", project="test", entity_key_serialization_version=2
+                ),
             )
 
 
@@ -46,7 +52,9 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
 
     update_data_sources_with_inferred_event_timestamp_col(
         data_sources_copy.values(),
-        RepoConfig(provider="local", project="test"),
+        RepoConfig(
+            provider="local", project="test", entity_key_serialization_version=2
+        ),
     )
     actual_event_timestamp_cols = [
         source.timestamp_field for source in data_sources_copy.values()

@@ -40,7 +40,7 @@ from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
-from feast import feature_server, ui_server, utils
+from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource, PushMode
@@ -533,7 +533,7 @@ class FeatureStore:
         sfvs_to_update: List[StreamFeatureView],
     ):
         """Validates all feature views."""
-        if len(odfvs_to_update) > 0:
+        if len(odfvs_to_update) > 0 and not flags_helper.is_test():
             warnings.warn(
                 "On demand feature view is an experimental feature. "
                 "This API is stable, but the functionality does not scale well for offline retrieval",
@@ -1123,12 +1123,13 @@ class FeatureStore:
         Raises:
             ValueError if given retrieval job doesn't have metadata
         """
-        warnings.warn(
-            "Saving dataset is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Saving dataset is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         if not from_.metadata:
             raise ValueError(
@@ -1175,12 +1176,13 @@ class FeatureStore:
         Raises:
             SavedDatasetNotFound
         """
-        warnings.warn(
-            "Retrieving datasets is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Retrieving datasets is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         dataset = self._registry.get_saved_dataset(name, self.project)
         provider = self._get_provider()
@@ -1374,12 +1376,13 @@ class FeatureStore:
             allow_registry_cache: Whether to allow cached versions of the registry.
             to: Whether to push to online or offline store. Defaults to online store only.
         """
-        warnings.warn(
-            "Push source is an experimental feature. "
-            "This API is unstable and it could and might change in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Push source is an experimental feature. "
+                "This API is unstable and it could and might change in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
@@ -2268,11 +2271,12 @@ class FeatureStore:
         self, host: str, port: int, get_registry_dump: Callable, registry_ttl_sec: int
     ) -> None:
         """Start the UI server locally"""
-        warnings.warn(
-            "The Feast UI is an experimental feature. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if flags_helper.is_test():
+            warnings.warn(
+                "The Feast UI is an experimental feature. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
         ui_server.start_server(
             self,
             host=host,
@@ -2352,12 +2356,13 @@ class FeatureStore:
             or None if successful.
 
         """
-        warnings.warn(
-            "Logged features validation is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Logged features validation is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")

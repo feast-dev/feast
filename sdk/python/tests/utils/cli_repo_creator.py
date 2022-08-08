@@ -76,6 +76,7 @@ class CliRunner:
                 path: {data_path / "online_store.db"}
             offline_store:
                 type: {offline_store}
+            entity_key_serialization_version: 2
             """
                 )
             )

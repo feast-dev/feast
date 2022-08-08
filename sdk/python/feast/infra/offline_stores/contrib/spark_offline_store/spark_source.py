@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from pyspark.sql import SparkSession
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
@@ -62,11 +63,12 @@ class SparkSource(DataSource):
             owner=owner,
         )
 
-        warnings.warn(
-            "The spark data source API is an experimental feature in alpha development. "
-            "This API is unstable and it could and most probably will be changed in the future.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "The spark data source API is an experimental feature in alpha development. "
+                "This API is unstable and it could and most probably will be changed in the future.",
+                RuntimeWarning,
+            )
 
         self.spark_options = SparkOptions(
             table=table,

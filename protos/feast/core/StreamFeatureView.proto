@@ -24,7 +24,6 @@ option java_package = "feast.proto.core";
 
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";

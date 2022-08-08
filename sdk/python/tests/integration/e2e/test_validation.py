@@ -150,25 +150,32 @@ def test_logged_features_validation(environment, universal_data_sources):
 
     # add some non-existing entities to check NotFound feature handling
     for i in range(5):
-        entity_df = entity_df.append(
-            {
-                "customer_id": 2000 + i,
-                "driver_id": 6000 + i,
-                "event_timestamp": datetime.datetime.now(),
-            },
-            ignore_index=True,
+        entity_df = pd.concat(
+            [
+                entity_df,
+                pd.DataFrame.from_records(
+                    [
+                        {
+                            "customer_id": 2000 + i,
+                            "driver_id": 6000 + i,
+                            "event_timestamp": datetime.datetime.now(),
+                        }
+                    ]
+                ),
+            ]
         )
 
+    store_fs = store.get_feature_service(feature_service.name)
     reference_dataset = store.create_saved_dataset(
         from_=store.get_historical_features(
-            entity_df=entity_df, features=feature_service, full_feature_names=True
+            entity_df=entity_df, features=store_fs, full_feature_names=True
         ),
         name="reference_for_validating_logged_features",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
 
     log_source_df = store.get_historical_features(
-        entity_df=entity_df, features=feature_service, full_feature_names=False
+        entity_df=entity_df, features=store_fs, full_feature_names=False
     ).to_df()
     logs_df = prepare_logs(log_source_df, feature_service, store)
 
@@ -229,7 +236,9 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         columns=["order_id", "origin_id", "destination_id", "driver_id"]
     )
     retrieval_job = store.get_historical_features(
-        entity_df=entity_df, features=feature_service, full_feature_names=True
+        entity_df=entity_df,
+        features=store.get_feature_service(feature_service.name),
+        full_feature_names=True,
     )
     logs_df = prepare_logs(retrieval_job.to_df(), feature_service, store)
     saved_dataset = store.create_saved_dataset(
