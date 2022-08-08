@@ -832,7 +832,7 @@ def pa_to_athena_value_type(pa_type: pyarrow.DataType) -> str:
     # Other mappings have also been adjusted accordingly.
     type_map = {
         "null": "null",
-        "bool": "bool",
+        "bool": "boolean",
         "int8": "tinyint",
         "int16": "smallint",
         "int32": "int",
