@@ -688,15 +688,16 @@ class SqlRegistry(BaseRegistry):
         self,
         table: Table,
         project: str,
-        id_field_name,
-        obj,
-        proto_field_name,
-        name=None,
+        id_field_name: str,
+        obj: Any,
+        proto_field_name: str,
+        name: Optional[str] = None,
     ):
         self._maybe_init_project_metadata(project)
 
         name = name or obj.name if hasattr(obj, "name") else None
         assert name, f"name needs to be provided for {obj}"
+
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
@@ -721,9 +722,16 @@ class SqlRegistry(BaseRegistry):
                 )
                 conn.execute(update_stmt)
             else:
+                obj_proto = obj.to_proto()
+
+                if hasattr(obj_proto, "meta") and hasattr(
+                    obj_proto.meta, "created_timestamp"
+                ):
+                    obj_proto.meta.created_timestamp.FromDatetime(update_datetime)
+
                 values = {
                     id_field_name: name,
-                    proto_field_name: obj.to_proto().SerializeToString(),
+                    proto_field_name: obj_proto.SerializeToString(),
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
