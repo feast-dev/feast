@@ -1,4 +1,5 @@
 import uuid
+import os
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -31,12 +32,14 @@ class AthenaDataSourceCreator(DataSourceCreator):
         super().__init__(project_name)
         self.client = aws_utils.get_athena_data_client("ap-northeast-2")
         self.s3 = aws_utils.get_s3_resource("ap-northeast-2")
-
+        data_source = os.environ.get("S3_DATA_SOURCE") if os.environ.get("S3_DATA_SOURCE") else "AwsDataCatalog"
+        database = os.environ.get("S3_DATABASE") if os.environ.get("S3_DATABASE") else "default"
+        bucket_name = os.environ.get("S3_BUCKET_NAME") if os.environ.get("S3_BUCKET_NAME") else "feast-integration-tests"
         self.offline_store_config = AthenaOfflineStoreConfig(
-            data_source="AwsDataCatalog",
+            data_source=f"{data_source}",
             region="ap-northeast-2",
-            database="sampledb",
-            s3_staging_location="s3://sagemaker-yelo-test/test_dir",
+            database=f"{database}",
+            s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
 
     def create_data_source(
@@ -49,22 +52,32 @@ class AthenaDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        destination_name = self.get_prefixed_table_name(destination_name)
+        table_name = destination_name
+        s3_target = (
+            self.offline_store_config.s3_staging_location
+            + "/"
+            + self.project_name
+            + "/"
+            + table_name
+            + "/"
+            + table_name
+            + ".parquet"
+        )
 
         aws_utils.upload_df_to_athena(
             self.client,
             self.offline_store_config.data_source,
             self.offline_store_config.database,
             self.s3,
-            self.offline_store_config.s3_staging_location,
-            destination_name,
+            s3_target,
+            table_name,
             df,
         )
 
-        self.tables.append(destination_name)
+        self.tables.append(table_name)
 
         return AthenaSource(
-            table=destination_name,
+            table=table_name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
@@ -78,7 +91,11 @@ class AthenaDataSourceCreator(DataSourceCreator):
         )
         self.tables.append(table)
 
-        return SavedDatasetAthenaStorage(table_ref=table)
+        return SavedDatasetAthenaStorage(
+            table_ref=table,
+            database=self.offline_store_config.database,
+            data_source=self.offline_store_config.data_source,
+        )
 
     def create_logged_features_destination(self) -> LoggingDestination:
         table = self.get_prefixed_table_name(
@@ -92,7 +109,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         return self.offline_store_config
 
     def get_prefixed_table_name(self, suffix: str) -> str:
-        return f"{self.project_name}.{suffix}"
+        return f"{self.project_name}_{suffix}"
 
     def teardown(self):
         for table in self.tables:

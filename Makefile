@@ -139,6 +139,27 @@ test-python-universal-trino:
 			not test_universal_types" \
  	 sdk/python/tests
 
+test-python-universal-athena:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+	S3_DATABASE=sampledb \
+	S3_BUCKET_NAME=sagemaker-yelo-test \
+ 	python -m pytest -n 1 --integration \
+ 	 	-k "not test_go_feature_server and \
+		    not test_logged_features_validation and \
+		    not test_lambda and \
+		    not test_feature_logging and \
+		    not test_offline_write and \
+		    not test_push_offline and \
+		    not test_historical_retrieval_with_validation and \
+		    not test_historical_features_persisting and \
+		    not test_historical_retrieval_fails_on_validation" \
+	sdk/python/tests
+
+
+
 test-python-universal-postgres:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
@@ -229,7 +250,7 @@ install-go-ci-dependencies:
 	python -m pip install pybindgen==0.22.0 protobuf==3.20.1
 
 install-protoc-dependencies:
-	pip install grpcio-tools==1.47.0 mypy-protobuf==3.1.0
+	pip install grpcio-tools==1.48.0 mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
