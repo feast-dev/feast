@@ -83,7 +83,9 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
 
     try:
         conn = snowflake.connector.connect(
-            application="feast", autocommit=autocommit, **kwargs
+            application="feast",
+            autocommit=autocommit,
+            **kwargs,
         )
 
         return conn
