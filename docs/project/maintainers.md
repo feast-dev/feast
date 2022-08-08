@@ -55,3 +55,5 @@ Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[p
     - Each test in Feast is parametrized by its offline and online store so we can filter out tests by name. The above command chooses only tests with BigQuery that do not use Dynamo or Redshift.
 
 5. Everytime a pull request or a change to a pull request is made, the integration tests, the local integration tests, the unit tests, and the linter should run.
+
+> Sample fork setups can be found here: [snowflake](https://github.com/kevjumba/feast/pull/30) and [bigquery](https://github.com/kevjumba/feast/pull/31).

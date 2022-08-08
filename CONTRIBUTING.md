@@ -256,7 +256,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   ```
   * Also remember to save your [account name](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#:~:text=organization_name%20is%20the%20name%20of,your%20account%20within%20your%20organization), username, and role.
 3. Create Dashboard and add a Tile.
-4. Create a warehouse and database named `FEAST` with the schema `OFFLINE`.
+4. Create a warehouse and database named `FEAST` with the schemas `OFFLINE` and `ONLINE`.
   ```sql
   create or replace warehouse feast_tests_wh with
   warehouse_size='MEDIUM' --set your warehouse size to whatever your budget allows--
@@ -267,8 +267,9 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   create or replace database FEAST;
   use database FEAST;
   create schema OFFLINE;
+  create schema ONLINE;
   ```
-5. You will need to create a data unloading location(either on S3, GCP, or Azure). Detailed instructions [here](https://docs.snowflake.com/en/user-guide/data-unload-overview.html). You will need to save the storage export location and the storage export name.
+5. You will need to create a data unloading location(either on S3, GCP, or Azure). Detailed instructions [here](https://docs.snowflake.com/en/user-guide/data-unload-overview.html). You will need to save the storage export location and the storage export name. You will need to create a [storage integration ](https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html) in your warehouse to make this work. Name this storage integration `FEAST_S3`.
 6. Then to run successfully, you'll need some environment variables setup:
   ```sh
   export SNOWFLAKE_CI_DEPLOYMENT='[your snowflake account name]'
