@@ -722,9 +722,16 @@ class SqlRegistry(BaseRegistry):
                 )
                 conn.execute(update_stmt)
             else:
+                obj_proto = obj.to_proto()
+
+                if hasattr(obj_proto, "meta") and hasattr(
+                    obj_proto.meta, "created_timestamp"
+                ):
+                    obj_proto.meta.created_timestamp.FromDatetime(update_datetime)
+
                 values = {
                     id_field_name: name,
-                    proto_field_name: obj.to_proto().SerializeToString(),
+                    proto_field_name: obj_proto.SerializeToString(),
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
