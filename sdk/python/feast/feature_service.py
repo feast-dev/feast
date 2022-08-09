@@ -67,12 +67,10 @@ class FeatureService:
             name: The unique name of the feature service.
             feature_view_projections: A list containing feature views and feature view
                 projections, representing the features in the feature service.
-            description: A human-readable description.
-            tags: A dictionary of key-value pairs to store arbitrary metadata.
-            owner: The owner of the feature service, typically the email of the primary
-                maintainer.
-            created_timestamp: The time when the feature service was created.
-            last_updated_timestamp: The time when the feature service was last updated.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the feature view, typically the email of the
+                primary maintainer.
         """
         self.name = name
         self._features = features
