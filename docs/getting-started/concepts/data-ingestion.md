@@ -79,7 +79,7 @@ materialize_bash = BashOperator(
 
 </details>
 
-### Batch Data Schema Inference
+### Batch data schema inference
 
 If the `schema` parameter is not specified when defining a data source, Feast attempts to infer the schema of the data source during `feast apply`. 
 The way it does this depends on the implementation of the offline store. For the offline stores that ship with Feast out of the box this inference is performed by inspecting the schema of the table in the cloud data warehouse, 
