@@ -59,11 +59,18 @@ jobs:
       matrix:
         component: [ feature-server-java ]
     env:
+      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: 'true'
+      - uses: google-github-actions/setup-gcloud@v0
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - run: gcloud auth configure-docker --quiet
       - name: Get m2 cache
         run: |
@@ -73,7 +80,7 @@ jobs:
       - name: Build image
         run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
 
-  integration-test:
+  integration-test-java-pr:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test')) ||
