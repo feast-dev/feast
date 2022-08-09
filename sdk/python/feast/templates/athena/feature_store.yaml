@@ -10,3 +10,4 @@ offline_store:
     database: sampledb
     data_source: AwsDataCatalog
     s3_staging_location: s3://sagemaker-yelo-test
+entity_key_serialization_version: 2
