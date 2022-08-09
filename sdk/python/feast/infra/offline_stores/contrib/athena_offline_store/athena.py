@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow as pa
-from dateutil import parser
 from pydantic import StrictStr
 from pydantic.typing import Literal
 from pytz import utc
@@ -25,7 +24,7 @@ from pytz import utc
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_logging import LoggingConfig, LoggingDestination, LoggingSource
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
@@ -39,7 +38,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.utils import aws_utils
-from feast.registry import Registry, BaseRegistry
+from feast.registry import BaseRegistry, Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -149,13 +148,10 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
-        start_date = start_date.astimezone(tz=utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        end_date = end_date.astimezone(tz=utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date.astimezone(tz=utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}' AND TIMESTAMP '{end_date.astimezone(tz=utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}'
             {"AND "+date_partition_column+" >= '"+start_date.strftime('%Y-%m-%d')+"' AND "+date_partition_column+" <= '"+end_date.strftime('%Y-%m-%d')+"' " if date_partition_column != "" and date_partition_column is not None else ''}
         """
 

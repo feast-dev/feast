@@ -1,23 +1,14 @@
 import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
-# from feast import type_map
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException, RedshiftCredentialsError
+from feast.errors import DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
-
-# from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     LoggingConfig as LoggingConfigProto,
 )
-
-"""
-from feast.protos.feast.core.SavedDataset_pb2 import (
-    SavedDatasetStorage as SavedDatasetStorageProto,
-)
-"""
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
 )
