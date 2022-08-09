@@ -512,6 +512,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                 "gcs_staging_location needs to be specified for the big query "
                 "offline store when executing `to_remote_storage()`"
             )
+
         table = self.to_bigquery()
 
         job_config = bigquery.job.ExtractJobConfig()
