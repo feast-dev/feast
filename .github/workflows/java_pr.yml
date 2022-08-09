@@ -53,6 +53,26 @@ jobs:
           name: java-coverage-report
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
 
+  build-docker-image-java:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [ feature-server-java ]
+    env:
+      REGISTRY: gcr.io/kf-feast
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - run: gcloud auth configure-docker --quiet
+      - name: Get m2 cache
+        run: |
+          infra/scripts/download-maven-cache.sh \
+          --archive-uri ${MAVEN_CACHE} \
+          --output-dir .
+      - name: Build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+
   integration-test:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:

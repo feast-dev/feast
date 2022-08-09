@@ -10,7 +10,7 @@ COPY java/pom.xml .
 COPY java/datatypes/pom.xml datatypes/pom.xml
 COPY java/serving/pom.xml serving/pom.xml
 COPY java/serving-client/pom.xml serving-client/pom.xml
-COPY java/docs/coverage/pom.xml docs/coverage/pom.xml
+COPY java/coverage/pom.xml coverage/pom.xml
 
 # Setting Maven repository .m2 directory relative to /build folder gives the
 # user to optionally use cached repository when building the image by copying
