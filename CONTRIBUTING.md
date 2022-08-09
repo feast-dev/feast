@@ -201,6 +201,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
     * Remember to save your `PROJECT_ID` and your `key.json`. These will be your secrets that you will need to configure in Github actions. Namely, `secrets.GCP_PROJECT_ID` and `secrets.GCP_SA_KEY`. The `GCP_SA_KEY` value is the contents of your `key.json` file.
   * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running GCP tests and remember to save the bucket name.
+    * Make sure to add the service account email that you created in the previous step to the users that can access your bucket. Then, make sure to give the account the correct access roles, namely `objectCreator`, `objectViewer`, `objectAdmin`, and `admin`, so that your tests can use the bucket.
 3. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
 4. Login to gcloud if you haven't already:
   ```
@@ -255,6 +256,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   grant role accountadmin, sysadmin to user user2;
   ```
   * Also remember to save your [account name](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#:~:text=organization_name%20is%20the%20name%20of,your%20account%20within%20your%20organization), username, and role.
+  * Your account name can be found under
 3. Create Dashboard and add a Tile.
 4. Create a warehouse and database named `FEAST` with the schemas `OFFLINE` and `ONLINE`.
   ```sql
