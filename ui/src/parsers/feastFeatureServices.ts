@@ -19,7 +19,8 @@ const FeastFeatureServiceSchema = z.object({
     description: z.string().optional(),
   }),
   meta: z.object({
-    createdTimestamp: z.string().transform((val) => new Date(val)),
+    createdTimestamp: z.string().transform((val) => new Date(val)).optional(),
+    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)).optional(),
   }),
 });
 

@@ -52,7 +52,11 @@ There are very few tests for this UI. There is a smoke test that ensures pages c
 
 ## Yarn commands
 
-If you would like to simply try things out and see how the UI works, you can simply run the code in this repo. First:
+If you would like to simply try things out and see how the UI works, you can simply run the code in this repo. 
+
+> **Note**: there is an `.npmrc` which is setup for automatic releases. You'll need to comment out the line in there and continue
+
+First:
 
 ### `yarn install` 
 

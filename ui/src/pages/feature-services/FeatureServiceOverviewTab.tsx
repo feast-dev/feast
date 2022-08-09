@@ -66,14 +66,20 @@ const FeatureServiceOverviewTab = () => {
                 description="Feature Views"
               />
             </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={`${data.meta.createdTimestamp.toLocaleDateString(
-                  "en-CA"
-                )}`}
-                description="Created"
-              />
-            </EuiFlexItem>
+            {data.meta.lastUpdatedTimestamp ? (
+              <EuiFlexItem>
+                <EuiStat
+                  title={`${data.meta.lastUpdatedTimestamp.toLocaleDateString(
+                    "en-CA"
+                  )}`}
+                  description="Last updated"
+                />
+              </EuiFlexItem>
+            ) : (
+              <EuiText>
+                No last updated timestamp specified on this feature service.
+              </EuiText>
+            )}
           </EuiFlexGroup>
           <EuiFlexGroup>
             <EuiFlexItem grow={2}>
