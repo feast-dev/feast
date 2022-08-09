@@ -29,12 +29,9 @@
 
     <modules>
         <module>datatypes</module>
-        <module>storage/api</module>
-        <module>storage/connectors</module>
         <module>serving</module>
-        <module>sdk</module>
-        <module>docs/coverage</module>
-        <module>common</module>
+        <module>serving-client</module>
+        <module>coverage</module>
     </modules>
 
     <properties>
@@ -91,6 +88,7 @@
  */
 ]]>
         </license.content>
+        <!--suppress UnresolvedMavenProperty -->
         <parent.basedir>${maven.multiModuleProjectDirectory}</parent.basedir>
 
         <skipUTs>false</skipUTs>

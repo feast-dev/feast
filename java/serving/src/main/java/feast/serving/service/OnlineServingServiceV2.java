@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import feast.common.models.Feature;
 import feast.proto.core.FeatureServiceProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
@@ -31,21 +30,28 @@ import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesReques
 import feast.proto.serving.TransformationServiceAPIProto.TransformFeaturesResponse;
 import feast.proto.serving.TransformationServiceAPIProto.ValueType;
 import feast.proto.types.ValueProto;
+import feast.serving.connectors.Feature;
+import feast.serving.connectors.OnlineRetriever;
 import feast.serving.registry.RegistryRepository;
 import feast.serving.util.Metrics;
-import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
+// TODO(adchia): Delegate to FeatureStore class that acts as a fat client
 public class OnlineServingServiceV2 implements ServingServiceV2 {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(OnlineServingServiceV2.class);
-  private final Tracer tracer;
-  private final OnlineRetrieverV2 retriever;
+  private final Optional<Tracer> tracerOptional;
+  private final OnlineRetriever retriever;
   private final RegistryRepository registryRepository;
   private final OnlineTransformationService onlineTransformationService;
   private final String project;
@@ -56,16 +62,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       ValueProto.Value.newBuilder().setStringVal(DUMMY_ENTITY_VAL).build();
 
   public OnlineServingServiceV2(
-      OnlineRetrieverV2 retriever,
-      Tracer tracer,
+      OnlineRetriever retriever,
       RegistryRepository registryRepository,
       OnlineTransformationService onlineTransformationService,
-      String project) {
+      String project,
+      Optional<Tracer> tracerOptional) {
     this.retriever = retriever;
-    this.tracer = tracer;
     this.registryRepository = registryRepository;
     this.onlineTransformationService = onlineTransformationService;
     this.project = project;
+    this.tracerOptional = tracerOptional;
   }
 
   /** {@inheritDoc} */
@@ -107,20 +113,21 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     List<Map<String, ValueProto.Value>> entityRows = getEntityRows(request);
 
-    Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
+    Span storageRetrievalSpan =
+        tracerOptional.map(tracer -> tracer.buildSpan("storageRetrieval").start()).orElse(null);
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.setTag("entities", entityRows.size());
       storageRetrievalSpan.setTag("features", retrievedFeatureReferences.size());
     }
 
-    List<List<feast.storage.api.retriever.Feature>> features =
-        retrieveFeatures(retrievedFeatureReferences, entityRows);
+    List<List<Feature>> features = retrieveFeatures(retrievedFeatureReferences, entityRows);
 
     if (storageRetrievalSpan != null) {
       storageRetrievalSpan.finish();
     }
 
-    Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
+    Span postProcessingSpan =
+        tracerOptional.map(tracer -> tracer.buildSpan("postProcessing").start()).orElse(null);
 
     ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder =
         ServingAPIProto.GetOnlineFeaturesResponse.newBuilder();
@@ -141,7 +148,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           responseBuilder.addResultsBuilder();
 
       for (int rowIdx = 0; rowIdx < features.size(); rowIdx++) {
-        feast.storage.api.retriever.Feature feature = features.get(rowIdx).get(featureIdx);
+        Feature feature = features.get(rowIdx).get(featureIdx);
         if (feature == null) {
           vectorBuilder.addValues(nullValue);
           vectorBuilder.addStatuses(FieldStatus.NOT_FOUND);
@@ -172,7 +179,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                 ServingAPIProto.FeatureList.newBuilder()
                     .addAllVal(
                         retrievedFeatureReferences.stream()
-                            .map(Feature::getFeatureReference)
+                            .map(FeatureUtil::getFeatureReference)
                             .collect(Collectors.toList()))));
 
     if (postProcessingSpan != null) {
@@ -202,7 +209,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       ServingAPIProto.GetOnlineFeaturesRequest request) {
     if (request.getFeatures().getValCount() > 0) {
       return request.getFeatures().getValList().stream()
-          .map(Feature::parseFeatureReference)
+          .map(FeatureUtil::parseFeatureReference)
           .collect(Collectors.toList());
     }
 
@@ -246,7 +253,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     return entityRows;
   }
 
-  private List<List<feast.storage.api.retriever.Feature>> retrieveFeatures(
+  private List<List<Feature>> retrieveFeatures(
       List<FeatureReferenceV2> featureReferences, List<Map<String, ValueProto.Value>> entityRows) {
     // Prepare feature reference to index mapping. This mapping will be used to arrange the
     // retrieved features to the same order as in the input.
@@ -267,10 +274,9 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     // Create placeholders for retrieved features.
-    List<List<feast.storage.api.retriever.Feature>> features = new ArrayList<>(entityRows.size());
+    List<List<Feature>> features = new ArrayList<>(entityRows.size());
     for (int i = 0; i < entityRows.size(); i++) {
-      List<feast.storage.api.retriever.Feature> featuresPerEntity =
-          new ArrayList<>(featureReferences.size());
+      List<Feature> featuresPerEntity = new ArrayList<>(featureReferences.size());
       for (int j = 0; j < featureReferences.size(); j++) {
         featuresPerEntity.add(null);
       }
@@ -311,7 +317,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                 });
         entityRowsPerGroup.add(entityRowPerGroup);
       }
-      List<List<feast.storage.api.retriever.Feature>> featuresPerGroup =
+      List<List<Feature>> featuresPerGroup =
           retriever.getOnlineFeatures(entityRowsPerGroup, featureReferencesPerGroup, entityNames);
       for (int i = 0; i < featuresPerGroup.size(); i++) {
         for (int j = 0; j < featureReferencesPerGroup.size(); j++) {
@@ -329,7 +335,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       List<FeatureReferenceV2> onDemandFeatureSources,
       List<FeatureReferenceV2> retrievedFeatureReferences,
       ServingAPIProto.GetOnlineFeaturesRequest request,
-      List<List<feast.storage.api.retriever.Feature>> features,
+      List<List<Feature>> features,
       ServingAPIProto.GetOnlineFeaturesResponse.Builder responseBuilder) {
 
     List<Pair<String, List<ValueProto.Value>>> onDemandContext =
@@ -366,7 +372,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     // Send out requests to the FTS and process the responses.
     Set<String> onDemandFeatureStringReferences =
         onDemandFeatureReferences.stream()
-            .map(r -> Feature.getFeatureReference(r))
+            .map(r -> FeatureUtil.getFeatureReference(r))
             .collect(Collectors.toSet());
 
     for (FeatureReferenceV2 featureReference : onDemandFeatureReferences) {
@@ -418,7 +424,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    * @param maxAge feature's max age.
    */
   private static boolean checkOutsideMaxAge(
-      feast.storage.api.retriever.Feature feature, Timestamp entityTimestamp, Duration maxAge) {
+      Feature feature, Timestamp entityTimestamp, Duration maxAge) {
 
     if (maxAge.equals(Duration.getDefaultInstance())) { // max age is not set
       return false;
@@ -457,7 +463,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private void populateCountMetrics(
       FeatureReferenceV2 featureRef,
       ServingAPIProto.GetOnlineFeaturesResponse.FeatureVectorOrBuilder featureVector) {
-    String featureRefString = Feature.getFeatureReference(featureRef);
+    String featureRefString = FeatureUtil.getFeatureReference(featureRef);
     featureVector
         .getStatusesList()
         .forEach(
@@ -475,7 +481,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     featureReferences.forEach(
         featureReference ->
             Metrics.requestFeatureCount
-                .labels(project, Feature.getFeatureReference(featureReference))
+                .labels(project, FeatureUtil.getFeatureReference(featureReference))
                 .inc());
   }
 }

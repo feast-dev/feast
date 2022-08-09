@@ -14,21 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.it;
+package feast.serving.connectors.redis.retriever;
 
-import feast.proto.core.RegistryProto;
-import feast.serving.service.config.ApplicationProperties;
+import io.lettuce.core.*;
+import java.util.List;
+import java.util.Map;
 
-public class ServingRedisLocalRegistryIT extends ServingBaseTests {
-  @Override
-  ApplicationProperties.FeastProperties createFeastProperties() {
-    return TestUtils.createBasicFeastProperties(
-        environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
-  }
+public interface RedisClientAdapter {
+  RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields);
 
-  @Override
-  void updateRegistryFile(RegistryProto.Registry registry) {}
+  RedisFuture<Map<byte[], byte[]>> hgetall(byte[] key);
 
-  @Override
-  public void shouldRefreshRegistryAndServeNewFeatures() throws InterruptedException {}
+  void flushCommands();
 }

@@ -16,9 +16,9 @@
  */
 package feast.serving.util;
 
-import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.serving.service.FeatureUtil;
 
 public class RequestHelper {
 
@@ -29,7 +29,7 @@ public class RequestHelper {
     }
     // All FeatureReferences should have FeatureTable name and Feature name
     for (String featureReference : request.getFeatures().getValList()) {
-      validateOnlineRequestFeatureReference(Feature.parseFeatureReference(featureReference));
+      validateOnlineRequestFeatureReference(FeatureUtil.parseFeatureReference(featureReference));
     }
   }
 
