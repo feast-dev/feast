@@ -120,16 +120,16 @@ abstract class ServingEnvironment {
     Module overrideConfig = registryConfig();
     Module registryConfig;
     if (overrideConfig != null) {
-      registryConfig = Modules.override(new RegistryConfig()).with(registryConfig());
+      registryConfig = Modules.override(new RegistryConfigModule()).with(registryConfig());
     } else {
-      registryConfig = new RegistryConfig();
+      registryConfig = new RegistryConfigModule();
     }
 
     injector =
         Guice.createInjector(
-            new ServingServiceConfigV2(),
+            new ServingServiceV2Module(),
             registryConfig,
-            new InstrumentationConfig(),
+            new InstrumentationConfigModule(),
             appPropertiesModule,
             new ServerModule());
 

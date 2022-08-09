@@ -28,8 +28,8 @@ import io.opentracing.Tracer;
 import java.util.Optional;
 import org.slf4j.Logger;
 
-public class ServingServiceConfigV2 extends AbstractModule {
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ServingServiceConfigV2.class);
+public class ServingServiceV2Module extends AbstractModule {
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ServingServiceV2Module.class);
 
   @Provides
   public ServingServiceV2 registryBasedServingServiceV2(
@@ -39,13 +39,13 @@ public class ServingServiceConfigV2 extends AbstractModule {
     final ServingServiceV2 servingService;
     final ApplicationProperties.Store store = applicationProperties.getFeast().getActiveStore();
 
-    OnlineRetriever retrieverV2;
+    OnlineRetriever retriever;
     // TODO: Support more store types, and potentially use a plugin model here.
     switch (store.getType()) {
       case REDIS_CLUSTER:
         RedisClientAdapter redisClusterClient =
             RedisClusterClient.create(store.getRedisClusterConfig());
-        retrieverV2 =
+        retriever =
             new RedisOnlineRetriever(
                 applicationProperties.getFeast().getProject(),
                 redisClusterClient,
@@ -55,7 +55,7 @@ public class ServingServiceConfigV2 extends AbstractModule {
       case REDIS:
         RedisClientAdapter redisClient = RedisClient.create(store.getRedisConfig());
         log.info("Created EntityKeySerializerV2");
-        retrieverV2 =
+        retriever =
             new RedisOnlineRetriever(
                 applicationProperties.getFeast().getProject(),
                 redisClient,
@@ -78,7 +78,7 @@ public class ServingServiceConfigV2 extends AbstractModule {
 
     servingService =
         new OnlineServingServiceV2(
-            retrieverV2,
+            retriever,
             registryRepository,
             onlineTransformationService,
             applicationProperties.getFeast().getProject(),

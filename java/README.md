@@ -3,7 +3,7 @@
 ### Overview
 
 This repository contains the following Feast components.
-* Feast Serving: A service used to serve the latest feature values to models.
+* Feast Serving: A gRPC service used to serve the latest feature values to models.
 * Feast Serving Client: A client used to retrieve features from Feast Serving.
 
 ### Architecture

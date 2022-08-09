@@ -32,9 +32,9 @@ public class ServingGuiceApplication {
 
     final Injector i =
         Guice.createInjector(
-            new ServingServiceConfigV2(),
-            new RegistryConfig(),
-            new InstrumentationConfig(),
+            new ServingServiceV2Module(),
+            new RegistryConfigModule(),
+            new InstrumentationConfigModule(),
             new ServerModule(),
             new ApplicationPropertiesModule(args));
 

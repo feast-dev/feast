@@ -22,7 +22,7 @@ import io.opentracing.Tracer;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
 import io.opentracing.noop.NoopTracerFactory;
 
-public class InstrumentationConfig extends AbstractModule {
+public class InstrumentationConfigModule extends AbstractModule {
 
   @Provides
   public Tracer tracer(ApplicationProperties applicationProperties) {

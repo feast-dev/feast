@@ -27,7 +27,7 @@ import feast.serving.registry.*;
 import java.net.URI;
 import java.util.Optional;
 
-public class RegistryConfig extends AbstractModule {
+public class RegistryConfigModule extends AbstractModule {
   @Provides
   Storage googleStorage(ApplicationProperties applicationProperties) {
     return StorageOptions.newBuilder()

@@ -13,22 +13,25 @@ the feast-java Repository:
 > to learn how Feast components are distributed over multiple repositories.
 
 ### Repository structure
-There are three key top level packages:
-- `serving`: Feast Serving (a gRPC + HTTP service to serve features)
+There are four key top level packages:
+- `serving`: Feast Serving (a gRPC service to serve features)
 - `serving-client`: Feast Serving Client (a thin Java client to communicate with Feast serving via gRPC )
 - `datatypes`: A symlink to the overall project protos. These include the core serving gRPC protos, proto representations of all objects in the Feast registry.
+- `coverage`: Generates JaCoCo coverage reports
 
 #### Feast Serving:
 The primary entrypoint into the Feast Serving server is `ServingGuiceApplication`, which connects to the rest of the packages:
 - `connectors`: Contains online store connectors (e.g. Redis)
+- `exception`: Contains user-facing exceptions thrown by Feast Serving
 - `registry`: Logic to parse a Feast file-based registry (in GCS, S3, or local) into the `Registry` proto object, and automatically re-sync the registry. 
 - `service`: Core logic that exposes and backs the serving APIs. This includes communication with a feature transformation server to execute on demand transformations
-  - `config`: 
+  - The root code in this package creates the main entrypoint (`ServingServiceV2`) which is injected into `OnlineServingGrpcServiceV2` in `grpc/` implement the gRPC service.
+  - `config`: Guice modules to power the server and config
     - Includes server config / guice modules in `ServerModule` 
     - Maps overall Feast Serving user configuration from Java to YAML in `ApplicationPropertiesModule` and `ApplicationProperties`
-- Miscellaneous
-  - `exception`: Contains user-facing exceptions thrown by Feast Serving
-
+  - `controller`: server controllers (right now, only a gRPC health check)
+  - `grpc`: Implementation of the gRPC serving service
+  - `interceptors`: gRPC interceptors (currently used to produce metrics around each gRPC request)
 
 ### Common Setup
 Common Environment Setup for all feast-java Feast components:

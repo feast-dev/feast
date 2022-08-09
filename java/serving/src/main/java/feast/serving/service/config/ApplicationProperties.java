@@ -56,14 +56,6 @@ public class ApplicationProperties {
     this.grpc = grpc;
   }
 
-  public RestServer getRest() {
-    return rest;
-  }
-
-  public void setRest(RestServer rest) {
-    this.rest = rest;
-  }
-
   /**
    * Validates all FeastProperties. This method runs after properties have been initialized and
    * individually and conditionally validates each class.
