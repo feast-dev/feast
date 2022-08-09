@@ -1,3 +1,6 @@
+from feast.file_utils import replace_str_in_file
+
+
 def bootstrap():
     # Bootstrap() will automatically be called from the init_repo() during `feast init`
 
@@ -21,14 +24,6 @@ def bootstrap():
 
     example_py_file = repo_path / "example.py"
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 if __name__ == "__main__":

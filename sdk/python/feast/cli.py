@@ -590,7 +590,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     "--template",
     "-t",
     type=click.Choice(
-        ["local", "gcp", "aws", "snowflake", "spark", "postgres", "hbase"],
+        ["local", "gcp", "aws", "snowflake", "spark", "postgres", "hbase", "cassandra"],
         case_sensitive=False,
     ),
     help="Specify a template for the created project",

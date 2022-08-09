@@ -25,3 +25,7 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 {% content-ref url="postgres.md" %}
 [postgres.md](postgres.md)
 {% endcontent-ref %}
+
+{% content-ref url="cassandra.md" %}
+[cassandra.md](cassandra.md)
+{% endcontent-ref %}

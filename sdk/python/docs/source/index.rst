@@ -287,6 +287,13 @@ HBase Online Store
     :members:
     :noindex:
 
+Cassandra Online Store
+-----------------------
+
+.. automodule:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store
+    :members:
+    :noindex:
+
 
 Batch Materialization Engine
 ============================

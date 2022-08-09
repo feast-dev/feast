@@ -1,6 +1,7 @@
 import click
 import snowflake.connector
 
+from feast.file_utils import replace_str_in_file
 from feast.infra.utils.snowflake_utils import write_pandas
 
 
@@ -74,14 +75,6 @@ def bootstrap():
             auto_create_table=True,
         )
         conn.close()
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 if __name__ == "__main__":

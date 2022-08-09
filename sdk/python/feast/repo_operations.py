@@ -20,6 +20,7 @@ from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
+from feast.file_utils import replace_str_in_file
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
@@ -404,14 +405,6 @@ def init_repo(repo_name: str, template: str):
 def is_valid_name(name: str) -> bool:
     """A name should be alphanumeric values and underscores but not start with an underscore"""
     return not name.startswith("_") and re.compile(r"\W+").search(name) is None
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 def generate_project_name() -> str:
