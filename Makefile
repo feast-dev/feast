@@ -169,7 +169,7 @@ test-python-universal-cassandra-no-cloud-providers:
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
 	FEAST_USAGE=False \
 	IS_TEST=True \
-	python -m pytest -n 8 --integration \
+	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
 	  not test_apply_entity_integration               and \
 	  not test_apply_feature_view_integration         and \

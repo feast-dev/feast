@@ -13,6 +13,14 @@ Subpackages
 Submodules
 ----------
 
+feast.infra.online\_stores.contrib.cassandra\_repo\_configuration module
+------------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.cassandra_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.online\_stores.contrib.hbase\_repo\_configuration module
 --------------------------------------------------------------------
 
