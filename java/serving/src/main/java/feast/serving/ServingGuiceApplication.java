@@ -18,7 +18,7 @@ package feast.serving;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import feast.serving.config.*;
+import feast.serving.service.config.*;
 import io.grpc.Server;
 import java.io.IOException;
 

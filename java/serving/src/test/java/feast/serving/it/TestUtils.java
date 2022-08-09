@@ -22,7 +22,7 @@ import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.types.ValueProto;
-import feast.serving.config.ApplicationProperties;
+import feast.serving.service.config.ApplicationProperties;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;

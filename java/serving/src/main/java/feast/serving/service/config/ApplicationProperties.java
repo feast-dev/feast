@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.config;
+package feast.serving.service.config;
 
 // Feast configuration properties that maps Feast configuration from default application.yml file to
 // a Java object.

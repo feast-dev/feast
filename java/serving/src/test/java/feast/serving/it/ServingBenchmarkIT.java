@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.math.Quantiles;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
-import feast.serving.config.ApplicationProperties;
+import feast.serving.service.config.ApplicationProperties;
 import feast.serving.util.DataGenerator;
 import java.util.List;
 import java.util.LongSummaryStatistics;

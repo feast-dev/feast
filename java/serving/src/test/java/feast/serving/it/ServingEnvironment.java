@@ -24,7 +24,7 @@ import com.google.inject.*;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import feast.proto.serving.ServingServiceGrpc;
-import feast.serving.config.*;
+import feast.serving.service.config.*;
 import feast.serving.service.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
