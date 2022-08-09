@@ -352,7 +352,7 @@ If you are planning to start the online store up locally(e.g spin up a local Red
 }
 ```
 
-If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class. You should make this class available to feast through the `PYTEST_PLUGINS` environment variable.
+If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class. You should make this class available to pytest through the `PYTEST_PLUGINS` environment variable.
 
 If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
