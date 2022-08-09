@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { FeastFeatureColumnSchema } from "./feastFeatureViews";
-import { FEAST_FEATURE_VALUE_TYPES } from "./types";
 
 const FeatureViewProjectionSchema = z.object({
   featureViewProjection: z.object({
