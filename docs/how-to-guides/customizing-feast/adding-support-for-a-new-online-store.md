@@ -318,7 +318,7 @@ online_store: feast_custom_online_store.mysql.MySQLOnlineStore
 
 ## 4. Testing the OnlineStore class
 
-### Integrating with the integration test suite and unit test suite.
+### 4.1 Integrating with the integration test suite and unit test suite.
 
 Even if you have created the `OnlineStore` class in a separate repo, you can still test your implementation against the Feast test suite, as long as you have Feast as a submodule in your repo.
 
@@ -352,7 +352,7 @@ If you are planning to start the online store up locally(e.g spin up a local Red
 }
 ```
 
-If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class.
+If you are planning instead to use a Dockerized container to run your tests against your online store, you can define a `OnlineStoreCreator` and replace the `None` object above with your `OnlineStoreCreator` class. You should make this class available to feast through the `PYTEST_PLUGINS` environment variable.
 
 If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
@@ -372,12 +372,28 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
 ```
 {% endcode %}
 
-3\. You should swap out the `FULL_REPO_CONFIGS` environment variable and run the integration tests against your online store. In the example repo, the file that overwrites `FULL_REPO_CONFIGS` is `feast_custom_online_store/feast_tests.py`, so you would run:
+3\. Add a Makefile target to the Makefile to run your datastore specific tests by setting the `FULL_REPO_CONFIGS_MODULE` and `PYTEST_PLUGINS` environment variables. You can remove certain tests that are not relevant or still do not work for your datastore using the `-k` option.
 
-```bash
-export FULL_REPO_CONFIGS_MODULE='feast_custom_online_store.feast_tests'
-make test-python-universal
+{% code title="Makefile" %}
+```Makefile
+test-python-universal-postgres:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -x --integration \
+			-k "not test_historical_retrieval_fails_on_validation and \
+				not test_historical_retrieval_with_validation and \
+				not test_historical_features_persisting and \
+				not test_historical_retrieval_fails_on_validation and \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_universal_types" \
+			sdk/python/tests
 ```
+{% endcode %}
 
 * If there are some tests that fail, this indicates that there is a mistake in the implementation of this online store!
 
