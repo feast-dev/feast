@@ -199,7 +199,9 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 1. You can get free credits [here](https://cloud.google.com/free/docs/free-cloud-features#free-trial).
 2. You will need to setup a service account, enable the BigQuery API, and create a staging location for a bucket.
   * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
+    * Remember to save your `PROJECT_ID` and your `key.json`. These will be your secrets that you will need to configure in Github actions. Namely, `secrets.GCP_PROJECT_ID` and `secrets.GCP_SA_KEY`. The `GCP_SA_KEY` value is the contents of your `key.json` file.
   * Follow these [instructions](https://cloud.google.com/storage/docs/creating-buckets) in your project to create a bucket for running GCP tests and remember to save the bucket name.
+    * Make sure to add the service account email that you created in the previous step to the users that can access your bucket. Then, make sure to give the account the correct access roles, namely `objectCreator`, `objectViewer`, `objectAdmin`, and `admin`, so that your tests can use the bucket.
 3. Install the [Cloud SDK](https://cloud.google.com/sdk/docs/install).
 4. Login to gcloud if you haven't already:
   ```
@@ -222,7 +224,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 
   Your active configuration is: [default]
   ```
-7. Export GCP specific environment variables. Namely,
+7. Export GCP specific environment variables in your workflow. Namely,
   ```sh
   export GCS_REGION='[your gcs region e.g US]'
   export GCS_STAGING_LOCATION='[your gcs staging location]'
@@ -254,7 +256,9 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   grant role accountadmin, sysadmin to user user2;
   ```
   * Also remember to save your [account name](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#:~:text=organization_name%20is%20the%20name%20of,your%20account%20within%20your%20organization), username, and role.
-3. Create a warehouse and database named `FEAST` with the schema `OFFLINE`.
+  * Your account name can be found under
+3. Create Dashboard and add a Tile.
+4. Create a warehouse and database named `FEAST` with the schemas `OFFLINE` and `ONLINE`.
   ```sql
   create or replace warehouse feast_tests_wh with
   warehouse_size='MEDIUM' --set your warehouse size to whatever your budget allows--
@@ -265,9 +269,10 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   create or replace database FEAST;
   use database FEAST;
   create schema OFFLINE;
+  create schema ONLINE;
   ```
-4. You will need to create a data unloading location(either on S3, GCP, or Azure). Detailed instructions [here](https://docs.snowflake.com/en/user-guide/data-unload-overview.html). You will need to save the storage export location and the storage export name.
-5. Then to run successfully, you'll need some environment variables setup:
+5. You will need to create a data unloading location(either on S3, GCP, or Azure). Detailed instructions [here](https://docs.snowflake.com/en/user-guide/data-unload-overview.html). You will need to save the storage export location and the storage export name. You will need to create a [storage integration ](https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html) in your warehouse to make this work. Name this storage integration `FEAST_S3`.
+6. Then to run successfully, you'll need some environment variables setup:
   ```sh
   export SNOWFLAKE_CI_DEPLOYMENT='[your snowflake account name]'
   export SNOWFLAKE_CI_USER='[your snowflake username]'
@@ -277,7 +282,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
   export BLOB_EXPORT_URI='[your data unloading blob uri]`
   ```
-6. Once everything is setup, running snowflake integration tests should pass without failures.
+7. Once everything is setup, running snowflake integration tests should pass without failures.
 
 Note that for Snowflake / GCP / AWS, running `make test-python-integration`  will create new temporary tables / datasets in your cloud storage tables.
 
