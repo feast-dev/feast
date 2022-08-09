@@ -51,9 +51,6 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
-from tests.integration.feature_repos.universal.online_store.cassandra import (
-    CassandraOnlineStoreCreator,
-)
 from tests.integration.feature_repos.universal.online_store.datastore import (
     DatastoreOnlineStoreCreator,
 )
@@ -102,7 +99,6 @@ AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
-    "cassandra": ({"type": "cassandra"}, CassandraOnlineStoreCreator),
 }
 
 # Only configure Cloud DWH if running full integration tests
