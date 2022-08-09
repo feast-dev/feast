@@ -30,18 +30,18 @@ class AthenaDataSourceCreator(DataSourceCreator):
         self.client = aws_utils.get_athena_data_client("ap-northeast-2")
         self.s3 = aws_utils.get_s3_resource("ap-northeast-2")
         data_source = (
-            os.environ.get("S3_DATA_SOURCE")
-            if os.environ.get("S3_DATA_SOURCE")
+            os.environ.get("ATHENA_DATA_SOURCE")
+            if os.environ.get("ATHENA_DATA_SOURCE")
             else "AwsDataCatalog"
         )
         database = (
-            os.environ.get("S3_DATABASE")
-            if os.environ.get("S3_DATABASE")
+            os.environ.get("ATHENA_DATABASE")
+            if os.environ.get("ATHENA_DATABASE")
             else "default"
         )
         bucket_name = (
-            os.environ.get("S3_BUCKET_NAME")
-            if os.environ.get("S3_BUCKET_NAME")
+            os.environ.get("ATHENA_S3_BUCKET_NAME")
+            if os.environ.get("ATHENA_S3_BUCKET_NAME")
             else "feast-integration-tests"
         )
         self.offline_store_config = AthenaOfflineStoreConfig(
