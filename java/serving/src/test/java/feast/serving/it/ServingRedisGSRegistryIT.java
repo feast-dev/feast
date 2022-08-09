@@ -16,12 +16,12 @@
  */
 package feast.serving.it;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import com.google.cloud.storage.*;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
 import feast.proto.core.RegistryProto;
-import feast.serving.config.ApplicationProperties;
+import feast.serving.service.config.ApplicationProperties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;

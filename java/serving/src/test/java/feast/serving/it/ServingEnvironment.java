@@ -24,8 +24,8 @@ import com.google.inject.*;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
 import feast.proto.serving.ServingServiceGrpc;
-import feast.serving.config.*;
-import feast.serving.grpc.OnlineServingGrpcServiceV2;
+import feast.serving.service.config.*;
+import feast.serving.service.grpc.OnlineServingGrpcServiceV2;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -120,16 +120,16 @@ abstract class ServingEnvironment {
     Module overrideConfig = registryConfig();
     Module registryConfig;
     if (overrideConfig != null) {
-      registryConfig = Modules.override(new RegistryConfig()).with(registryConfig());
+      registryConfig = Modules.override(new RegistryConfigModule()).with(registryConfig());
     } else {
-      registryConfig = new RegistryConfig();
+      registryConfig = new RegistryConfigModule();
     }
 
     injector =
         Guice.createInjector(
-            new ServingServiceConfigV2(),
+            new ServingServiceV2Module(),
             registryConfig,
-            new InstrumentationConfig(),
+            new InstrumentationConfigModule(),
             appPropertiesModule,
             new ServerModule());
 
