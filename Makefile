@@ -146,7 +146,7 @@ test-python-universal-athena:
  	FEAST_USAGE=False IS_TEST=True \
 	S3_DATABASE=sampledb \
 	S3_BUCKET_NAME=sagemaker-yelo-test \
- 	python -m pytest -n 1 --integration \
+ 	python -m pytest -n 8 --integration \
  	 	-k "not test_go_feature_server and \
 		    not test_logged_features_validation and \
 		    not test_lambda and \
@@ -155,7 +155,9 @@ test-python-universal-athena:
 		    not test_push_offline and \
 		    not test_historical_retrieval_with_validation and \
 		    not test_historical_features_persisting and \
-		    not test_historical_retrieval_fails_on_validation" \
+		    not test_historical_retrieval_fails_on_validation and \
+			not gcs_registry and \
+			not s3_registry"  \
 	sdk/python/tests
 
 

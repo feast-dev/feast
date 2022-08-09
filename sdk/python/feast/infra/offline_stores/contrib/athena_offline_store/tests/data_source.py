@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -16,9 +16,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena_source impor
 )
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
-)
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )

@@ -103,7 +103,6 @@ class AthenaOfflineStore(OfflineStore):
         end_date = end_date.astimezone(tz=utc)
 
         query = f"""
-            
             SELECT
                 {field_string}
                 {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
@@ -358,13 +357,13 @@ class AthenaRetrievalJob(RetrievalJob):
         self, temp_table_name: str, temp_external_location: str
     ) -> str:
         temp_table_dml_header = f"""
-                                    CREATE TABLE {temp_table_name} 
+                                    CREATE TABLE {temp_table_name}
                                     WITH (
-                                    external_location = '{temp_external_location}', 
+                                    external_location = '{temp_external_location}',
                                     format = 'parquet',
                                     write_compression = 'snappy'
                                     )
-                                    as 
+                                    as
                                 """
         return temp_table_dml_header
 
@@ -598,7 +597,7 @@ WITH entity_dataframe AS (
     {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
       AND {{ featureview.date_partition_column }} <= '{{ featureview.max_event_timestamp[:10] }}'
     {% endif %}
-    
+
     {% if featureview.ttl == 0 %}{% else %}
     AND {{ featureview.timestamp_field }} >= from_iso8601_timestamp('{{ featureview.min_event_timestamp }}')
         {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
