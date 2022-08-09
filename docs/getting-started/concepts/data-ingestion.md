@@ -1,6 +1,6 @@
 # Data ingestion
 
-### Data source
+## Data source
 
 The data source refers to raw underlying data (e.g. a table in BigQuery).
 
@@ -18,7 +18,7 @@ Feast supports primarily **time-stamped** tabular data as data sources. There ar
   * **\[Alpha] Stream sources** allow users to register metadata from Kafka or Kinesis sources. The onus is on the user to ingest from these sources, though Feast provides some limited helper methods to ingest directly from Kafka / Kinesis topics.
 * **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into **on-demand feature views**, which allow light-weight feature engineering and combining features across sources.
 
-### Batch data ingestion
+## Batch data ingestion
 
 Ingesting from batch sources is only necessary to power real-time models. This is done through **materialization**. Under the hood, Feast manages an _offline store_ (to scalably generate training data from batch sources) and an _online store_ (to provide low-latency access to features for real-time models).
 
@@ -58,6 +58,8 @@ materialize_python = PythonOperator(
 
 <summary>Code example: CLI based materialization</summary>
 
+
+
 #### How to run this in the CLI
 
 ```bash
@@ -77,7 +79,14 @@ materialize_bash = BashOperator(
 
 </details>
 
-### Stream data ingestion
+### Batch Data Schema Inference
+
+If the `schema` parameter is not specified when defining a data source, Feast attempts to infer the schema of the data source during `feast apply`. 
+The way it does this depends on the implementation of the offline store. For the offline stores that ship with Feast out of the box this inference is performed by inspecting the schema of the table in the cloud data warehouse, 
+or if a query is provided to the source, by running the query with a `LIMIT` clause and inspecting the result.   
+
+
+## Stream data ingestion
 
 Ingesting from stream sources happens either via a Push API or via a contrib processor that leverages an existing Spark context.
 

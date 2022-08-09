@@ -13,6 +13,11 @@ However, there's inherent limitations with a file-based registry, since changing
 
 An alternative to the file-based registry is the [SQLRegistry](https://rtd.feast.dev/en/latest/feast.infra.registry_stores.html#feast.infra.registry_stores.sql.SqlRegistry) which ships with Feast. This implementation stores the registry in a relational database, and allows for changes to individual objects atomically.
 Under the hood, the SQL Registry implementation uses [SQLAlchemy](https://docs.sqlalchemy.org/en/14/) to abstract over the different databases. Consequently, any [database supported](https://docs.sqlalchemy.org/en/14/core/engines.html#supported-databases) by SQLAlchemy can be used by the SQL Registry.
+The following databases are supported and tested out of the box:
+- PostgreSQL
+- MySQL
+- Sqlite
+
 Feast can use the SQL Registry via a config change in the feature_store.yaml file. An example of how to configure this would be:
 
 ```yaml
