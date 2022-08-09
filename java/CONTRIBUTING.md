@@ -20,12 +20,12 @@ There are three key top level packages:
 
 #### Feast Serving:
 The primary entrypoint into the Feast Serving server is `ServingGuiceApplication`, which connects to the rest of the packages:
-- `config`: 
-  - Includes server config / guice modules in `ServerModule` 
-  - Maps overall Feast Serving user configuration from Java to YAML in `ApplicationPropertiesModule` and `ApplicationProperties`
 - `connectors`: Contains online store connectors (e.g. Redis)
-- `registry`: Logic to parse a Feast file-based registry (in GCS, S3, or local) to understand how to query from the online store.
+- `registry`: Logic to parse a Feast file-based registry (in GCS, S3, or local) into the `Registry` proto object, and automatically re-sync the registry. 
 - `service`: Core logic that exposes and backs the serving APIs. This includes communication with a feature transformation server to execute on demand transformations
+  - `config`: 
+    - Includes server config / guice modules in `ServerModule` 
+    - Maps overall Feast Serving user configuration from Java to YAML in `ApplicationPropertiesModule` and `ApplicationProperties`
 - Miscellaneous
   - `exception`: Contains user-facing exceptions thrown by Feast Serving
 
