@@ -571,7 +571,6 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
         entities=[driver],
         schema=[Field(name="avg_daily_trips", dtype=Int32)],
         source=driver_stats_data_source,
-        ttl=None,
     )
 
     store.apply([driver, driver_fv])
