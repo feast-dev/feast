@@ -19,7 +19,9 @@ There are four key top level packages:
 - `datatypes`: A symlink to the overall project protos. These include the core serving gRPC protos, proto representations of all objects in the Feast registry.
 - `coverage`: Generates JaCoCo coverage reports
 
-#### Feast Serving:
+#### Feast Serving
+> **Note:** there are references to metrics collection in the code. These are unused and exist for legacy reasons (from when this used Spring Boot), but remain in the code until published to StatsD / Prometheus Pushgateway.
+
 The primary entrypoint into the Feast Serving server is `ServingGuiceApplication`, which connects to the rest of the packages:
 - `connectors`: Contains online store connectors (e.g. Redis)
 - `exception`: Contains user-facing exceptions thrown by Feast Serving
