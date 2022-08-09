@@ -46,7 +46,7 @@ It is a good idea though to lock down the registry file so only the CI/CD pipeli
 
 ### Does Feast support streaming sources?
 
-Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/data-sources/push.md). Streaming transformations are actively being worked on.
+Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from stream sources. In the current version of Feast, we support [push based ingestion](../reference/data-sources/push.md). Feast also defines a [stream processor](../tutorials/building-streaming-features.md) that allows a deeper integration with stream sources.
 
 ### Does Feast support feature transformation?
 
@@ -93,6 +93,17 @@ The list of supported offline and online stores can be found [here](../reference
 ### Does Feast support using different clouds for offline vs online stores?
 
 Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live (Using the AWS provider also allows for deployment to AWS Lambda). You can override the offline and online stores to be in different clouds if you wish.
+
+### What is the difference between a data source and an offline store?
+
+The data source and the offline store are closely tied, but separate concepts. 
+The offline store controls how feast talks to a data store for historical feature retrieval, and the data source points to specific table (or query) within a data store. Offline stores are infrastructure-level connectors to data stores like Snowflake.
+
+Additional differences:
+
+- Data sources may be specific to a project (e.g. feed ranking), but offline stores are agnostic and used across projects.
+- A feast project may define several data sources that power different feature views, but a feast project has a single offline store.
+- Feast users typically need to define data sources when using feast, but only need to use/configure existing offline stores without creating new ones.
 
 ### How can I add a custom online store?
 

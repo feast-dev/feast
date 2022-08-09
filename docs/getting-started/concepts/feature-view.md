@@ -150,6 +150,8 @@ Together with [data sources](data-ingestion.md), they indicate to Feast where to
 
 Feature names must be unique within a [feature view](feature-view.md#feature-view).
 
+Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
+
 ## \[Alpha] On demand feature views
 
 On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.
