@@ -429,7 +429,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
     def to_snowflake(self, table_name: str, temporary=False) -> None:
         """Save dataset as a new Snowflake table"""
-        if self.on_demand_feature_views is not None:
+        if self.on_demand_feature_views:
             transformed_df = self.to_df()
 
             write_pandas(
