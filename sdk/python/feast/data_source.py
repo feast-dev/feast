@@ -156,6 +156,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake_source.SnowflakeSource",
     DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource",
     DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
+    DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena_source.AthenaSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
@@ -183,6 +184,7 @@ class DataSource(ABC):
             maintainer.
         timestamp_field (optional): Event timestamp field used for point in time
             joins of feature values.
+        date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
     """
 
     name: str
@@ -192,6 +194,7 @@ class DataSource(ABC):
     description: str
     tags: Dict[str, str]
     owner: str
+    date_partition_column: str
 
     def __init__(
         self,
@@ -203,6 +206,7 @@ class DataSource(ABC):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        date_partition_column: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
@@ -220,6 +224,7 @@ class DataSource(ABC):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
+            date_partition_column (optional): Timestamp column used for partitioning. Not supported by all stores
         """
         self.name = name
         self.timestamp_field = timestamp_field or ""
@@ -237,6 +242,9 @@ class DataSource(ABC):
         self.description = description or ""
         self.tags = tags or {}
         self.owner = owner or ""
+        self.date_partition_column = (
+            date_partition_column if date_partition_column else ""
+        )
 
     def __hash__(self):
         return hash((self.name, self.timestamp_field))
@@ -256,6 +264,7 @@ class DataSource(ABC):
             or self.timestamp_field != other.timestamp_field
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
+            or self.date_partition_column != other.date_partition_column
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
