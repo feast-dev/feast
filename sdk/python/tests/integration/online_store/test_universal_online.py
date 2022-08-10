@@ -13,11 +13,14 @@ import pytest
 import requests
 from botocore.exceptions import BotoCoreError
 
-from feast import Entity, FeatureService, FeatureView, Field
+from feast.entity import Entity
 from feast.errors import (
     FeatureNameCollisionError,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.feature_service import FeatureService
+from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.online_response import TIMESTAMP_POSTFIX
 from feast.types import Float32, Int32, String
 from feast.wait import wait_retry_backoff
@@ -765,6 +768,21 @@ def test_online_store_cleanup(environment, universal_data_sources):
         features=features, entity_rows=entity_rows
     ).to_dict()
     assert all(v is None for v in online_features["value"])
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
+def test_online_retrieval_success(feature_store_for_online_retrieval):
+    """
+    Tests that online retrieval executes successfully (i.e. without errors).
+
+    Does not test for correctness of the results of online retrieval.
+    """
+    fs, feature_refs, entity_rows = feature_store_for_online_retrieval
+    fs.get_online_features(
+        features=feature_refs,
+        entity_rows=entity_rows,
+    )
 
 
 def response_feature_name(
