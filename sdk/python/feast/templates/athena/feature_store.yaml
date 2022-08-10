@@ -1,0 +1,13 @@
+project: repo
+registry: registry.db
+provider: aws
+online_store:
+    type: sqlite
+    path: online_store.db
+offline_store:
+    type: athena
+    region: ap-northeast-2
+    database: sampledb
+    data_source: AwsDataCatalog
+    s3_staging_location: s3://sagemaker-yelo-test
+entity_key_serialization_version: 2

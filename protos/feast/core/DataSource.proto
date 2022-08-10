@@ -49,6 +49,7 @@ message DataSource {
     PUSH_SOURCE = 9;
     BATCH_TRINO = 10;
     BATCH_SPARK = 11;
+    BATCH_ATHENA = 12;
   }
 
   // Unique name of data source within the project
@@ -171,6 +172,22 @@ message DataSource {
     string database = 4;
   }
 
+  // Defines options for DataSource that sources features from a Athena Query
+  message AthenaOptions {
+    // Athena table name
+    string table = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+
+    // Athena database name
+    string database = 3;
+
+    // Athena schema name
+    string data_source = 4;
+  }
+
   // Defines options for DataSource that sources features from a Snowflake Query
   message SnowflakeOptions {
     // Snowflake table name
@@ -242,5 +259,6 @@ message DataSource {
     PushOptions push_options = 22;
     SparkOptions spark_options = 27;
     TrinoOptions trino_options = 30;
+    AthenaOptions athena_options = 35;
   }
 }

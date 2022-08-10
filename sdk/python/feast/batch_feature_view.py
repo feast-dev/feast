@@ -14,6 +14,7 @@ SUPPORTED_BATCH_SOURCES = {
     "SnowflakeSource",
     "SparkSource",
     "TrinoSource",
+    "AthenaSource",
 }
 
 

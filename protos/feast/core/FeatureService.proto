@@ -60,6 +60,7 @@ message LoggingConfig {
     RedshiftDestination redshift_destination = 5;
     SnowflakeDestination snowflake_destination = 6;
     CustomDestination custom_destination = 7;
+    AthenaDestination athena_destination = 8;
   }
 
   message FileDestination {
@@ -77,6 +78,11 @@ message LoggingConfig {
 
   message RedshiftDestination {
     // Destination table name. ClusterId and database will be taken from an offline store config
+    string table_name = 1;
+  }
+
+  message AthenaDestination {
+    // Destination table name. data_source and database will be taken from an offline store config
     string table_name = 1;
   }
 

@@ -139,6 +139,33 @@ test-python-universal-trino:
 			not test_universal_types" \
  	 sdk/python/tests
 
+#To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
+#Modify environment variables ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_S3_BUCKET_NAME if you want to change the data source, database, and bucket name of S3 to use.
+#If tests fail with the pytest -n 8 option, change the number to 1.
+test-python-universal-athena:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+	ATHENA_DATA_SOURCE=AwsDataCatalog \
+	ATHENA_DATABASE=default \
+	ATHENA_S3_BUCKET_NAME=feast-integration-tests \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not test_go_feature_server and \
+		    not test_logged_features_validation and \
+		    not test_lambda and \
+		    not test_feature_logging and \
+		    not test_offline_write and \
+		    not test_push_offline and \
+		    not test_historical_retrieval_with_validation and \
+		    not test_historical_features_persisting and \
+		    not test_historical_retrieval_fails_on_validation and \
+			not gcs_registry and \
+			not s3_registry"  \
+	sdk/python/tests
+
+
+
 test-python-universal-postgres:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \

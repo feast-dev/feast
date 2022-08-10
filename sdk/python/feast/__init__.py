@@ -5,6 +5,9 @@ except ModuleNotFoundError:
     from importlib_metadata import PackageNotFoundError, version as _version  # type: ignore
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
+    AthenaSource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
@@ -50,4 +53,5 @@ __all__ = [
     "SnowflakeSource",
     "PushSource",
     "RequestSource",
+    "AthenaSource",
 ]
