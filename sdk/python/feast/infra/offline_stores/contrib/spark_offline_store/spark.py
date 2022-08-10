@@ -245,7 +245,7 @@ class SparkRetrievalJob(RetrievalJob):
         self.spark_session = spark_session
         self.query = query
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
     @property
@@ -253,7 +253,7 @@ class SparkRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:

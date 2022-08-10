@@ -168,7 +168,7 @@ class RetrievalJob(ABC):
 
     @property
     @abstractmethod
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
         pass
 
