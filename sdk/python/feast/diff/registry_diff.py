@@ -17,6 +17,7 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
@@ -137,19 +138,39 @@ def diff_registry_objects(
     else:
         current_spec = current_proto.spec
         new_spec = new_proto.spec
-    if current_spec != new_spec:
+    if current != new:
         for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            if getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                transition = TransitionType.UPDATE
-                property_diffs.append(
-                    PropertyDiff(
-                        _field.name,
-                        getattr(current_spec, _field.name),
-                        getattr(new_spec, _field.name),
+            elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
+                if _field.name == "user_defined_function":
+                    current_spec = cast(OnDemandFeatureViewSpec, current_proto)
+                    new_spec = cast(OnDemandFeatureViewSpec, new_proto)
+                    current_udf = current_spec.user_defined_function
+                    new_udf = new_spec.user_defined_function
+                    for _udf_field in current_udf.DESCRIPTOR.fields:
+                        if _udf_field.name == "body":
+                            continue
+                        if getattr(current_udf, _udf_field.name) != getattr(
+                            new_udf, _udf_field.name
+                        ):
+                            transition = TransitionType.UPDATE
+                            property_diffs.append(
+                                PropertyDiff(
+                                    _field.name + "." + _udf_field.name,
+                                    getattr(current_udf, _udf_field.name),
+                                    getattr(new_udf, _udf_field.name),
+                                )
+                            )
+                else:
+                    transition = TransitionType.UPDATE
+                    property_diffs.append(
+                        PropertyDiff(
+                            _field.name,
+                            getattr(current_spec, _field.name),
+                            getattr(new_spec, _field.name),
+                        )
                     )
-                )
     return FeastObjectDiff(
         name=new_spec.name,
         feast_object_type=object_type,
