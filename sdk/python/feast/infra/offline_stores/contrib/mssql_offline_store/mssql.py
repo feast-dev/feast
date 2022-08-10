@@ -15,6 +15,7 @@ from pydantic.typing import Literal
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from feast.errors import InvalidEntityType
 
 from feast import FileSource, errors
 from feast.data_source import DataSource
@@ -34,8 +35,8 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import _get_requested_feature_views_to_features_dict
-
+from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
+from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext, build_point_in_time_query
 EntitySchema = Dict[str, np.dtype]
 
 
@@ -50,13 +51,9 @@ class MsSqlServerOfflineStoreConfig(FeastBaseModel):
      format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
 
 
-ENGINE = None
 
-
-def _make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
-    if ENGINE is None:
-        ENGINE = create_engine(config.connection_string)
-    return ENGINE
+def make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
+    return create_engine(config.connection_string)
 
 
 class MsSqlServerOfflineStore(OfflineStore):
@@ -96,7 +93,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             ) outer_t
             WHERE outer_t._feast_row = 1
             """
-        engine = _make_engine(config.offline_store)
+        engine = make_engine(config.offline_store)
 
         return MsSqlServerRetrievalJob(
             query=query,
@@ -130,7 +127,7 @@ class MsSqlServerOfflineStore(OfflineStore):
                 WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
             )
             """
-        engine = _make_engine(config.offline_store)
+        engine = make_engine(config.offline_store)
 
         return MsSqlServerRetrievalJob(
             query=query,
@@ -154,7 +151,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
-        engine = _make_engine(config.offline_store)
+        engine = make_engine(config.offline_store)
 
         (
             table_schema,
@@ -171,22 +168,29 @@ class MsSqlServerOfflineStore(OfflineStore):
             entity_df_event_timestamp_col,
             table_schema,
         )
+        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+            entity_df,
+            entity_df_event_timestamp_col,
+            engine,
+        )
 
         # Build a query context containing all information required to template the SQL query
         query_context = get_feature_view_query_context(
-            feature_refs, feature_views, registry, project
+            feature_refs, feature_views, registry, project, entity_df_timestamp_range=entity_df_event_timestamp_range,
         )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df
         # Generate the SQL query from the query context
         query = build_point_in_time_query(
             query_context,
-            min_timestamp=datetime.now() - timedelta(days=365),
-            max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=table_name,
             entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            entity_df_columns=table_schema.keys(),
             full_feature_names=full_feature_names,
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+
         )
+        query = query.replace("`", "")
 
         job = MsSqlServerRetrievalJob(
             query=query,
@@ -197,6 +201,82 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
         return job
 
+
+def get_feature_view_query_context(
+    feature_refs: List[str],
+    feature_views: List[FeatureView],
+    registry: BaseRegistry,
+    project: str,
+    entity_df_timestamp_range: Tuple[datetime, datetime],
+) -> List[FeatureViewQueryContext]:
+    """Build a query context containing all information required to template a point-in-time SQL query"""
+
+    (
+        feature_views_to_feature_map,
+        on_demand_feature_views_to_features,
+    ) = _get_requested_feature_views_to_features_dict(
+        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
+    )
+
+    query_context = []
+    for feature_view, features in feature_views_to_feature_map.items():
+        join_keys = []
+        entity_selections = []
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
+        }
+        for entity_name in feature_view.entities:
+            entity = registry.get_entity(entity_name, project)
+            join_keys.append(entity.join_key)
+            join_key_column = reverse_field_mapping.get(
+                entity.join_key, entity.join_key
+            )
+            entity_selections.append(f"{join_key_column} AS {entity.join_key}")
+
+        if isinstance(feature_view.ttl, timedelta):
+            ttl_seconds = int(feature_view.ttl.total_seconds())
+        else:
+            ttl_seconds = 0
+
+
+        timestamp_field = reverse_field_mapping.get(
+            feature_view.batch_source.timestamp_field,
+            feature_view.batch_source.timestamp_field,
+        )
+        created_timestamp_column = reverse_field_mapping.get(
+            feature_view.batch_source.created_timestamp_column,
+            feature_view.batch_source.created_timestamp_column,
+        )
+
+        date_partition_column = reverse_field_mapping.get(
+            feature_view.batch_source.date_partition_column,
+            feature_view.batch_source.date_partition_column,
+        )
+        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
+        min_event_timestamp = None
+        if feature_view.ttl:
+            min_event_timestamp = to_naive_utc(
+                entity_df_timestamp_range[0] - feature_view.ttl
+            ).isoformat()
+
+        context = FeatureViewQueryContext(
+            name=feature_view.projection.name_to_use(),
+            ttl=ttl_seconds,
+            entities=join_keys,
+            features=features,
+            field_mapping=feature_view.batch_source.field_mapping,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            # TODO: Make created column optional and not hardcoded
+            table_subquery=feature_view.batch_source.get_table_query_string(),
+            entity_selections=entity_selections,
+            min_event_timestamp=min_event_timestamp,
+            max_event_timestamp=max_event_timestamp,
+            date_partition_column=date_partition_column,
+        )
+        query_context.append(context)
+
+    return query_context
 
 def _assert_expected_columns_in_dataframe(
     join_keys: Set[str], entity_df_event_timestamp_col: str, entity_df: pandas.DataFrame
@@ -320,21 +400,6 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         return self._metadata
 
 
-@dataclass(frozen=True)
-class FeatureViewQueryContext:
-    """Context object used to template a point-in-time SQL query"""
-
-    name: str
-    ttl: int
-    entities: List[str]
-    features: List[str]  # feature reference format
-    table_ref: str
-    timestamp_field: str
-    created_timestamp_column: Optional[str]
-    table_subquery: str
-    entity_selections: List[str]
-
-
 def _upload_entity_df_into_sqlserver_and_get_entity_schema(
     engine: sqlalchemy.engine.Engine,
     config: RepoConfig,
@@ -378,99 +443,44 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
     return entity_schema
 
-
-def get_feature_view_query_context(
-    feature_refs: List[str],
-    feature_views: List[FeatureView],
-    registry: BaseRegistry,
-    project: str,
-) -> List[FeatureViewQueryContext]:
-    """Build a query context containing all information required to template a point-in-time SQL query"""
-
-    (
-        feature_views_to_feature_map,
-        on_demand_feature_views_to_features,
-    ) = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
-    )
-
-    query_context = []
-    for feature_view, features in feature_views_to_feature_map.items():
-        join_keys = []
-        entity_selections = []
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.batch_source.field_mapping.items()
-        }
-        for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project)
-            join_keys.append(entity.join_key)
-            join_key_column = reverse_field_mapping.get(
-                entity.join_key, entity.join_key
-            )
-            entity_selections.append(f"{join_key_column} AS {entity.join_key}")
-
-        if isinstance(feature_view.ttl, timedelta):
-            ttl_seconds = int(feature_view.ttl.total_seconds())
-        else:
-            ttl_seconds = 0
-
-        # assert isinstance(feature_view.source, MsSqlServerSource)
-
-        timestamp_field = feature_view.batch_source.timestamp_field
-        created_timestamp_column = feature_view.batch_source.created_timestamp_column
-
-        context = FeatureViewQueryContext(
-            name=feature_view.name,
-            ttl=ttl_seconds,
-            entities=join_keys,
-            features=features,
-            table_ref=feature_view.batch_source.get_table_query_string().replace(
-                "`", ""
-            ),
-            timestamp_field=reverse_field_mapping.get(timestamp_field, timestamp_field),
-            created_timestamp_column=reverse_field_mapping.get(
-                created_timestamp_column, created_timestamp_column
-            ),
-            # TODO: Make created column optional and not hardcoded
-            table_subquery=feature_view.batch_source.get_table_query_string().replace(
-                "`", ""
-            ),
-            entity_selections=entity_selections,
-        )
-        query_context.append(context)
-    return query_context
-
-
-def build_point_in_time_query(
-    feature_view_query_contexts: List[FeatureViewQueryContext],
-    min_timestamp: datetime,
-    max_timestamp: datetime,
-    left_table_query_string: str,
+def _get_entity_df_event_timestamp_range(
+    entity_df: Union[pandas.DataFrame, str],
     entity_df_event_timestamp_col: str,
-    full_feature_names: bool = False,
-):
+    engine: Session,
+) -> Tuple[datetime, datetime]:
+    if isinstance(entity_df, pandas.DataFrame):
+        entity_df_event_timestamp = entity_df.loc[
+            :, entity_df_event_timestamp_col
+        ].infer_objects()
+        if pandas.api.types.is_string_dtype(entity_df_event_timestamp):
+            entity_df_event_timestamp = pandas.to_datetime(
+                entity_df_event_timestamp, utc=True
+            )
+        entity_df_event_timestamp_range = (
+            entity_df_event_timestamp.min().to_pydatetime(),
+            entity_df_event_timestamp.max().to_pydatetime(),
+        )
+    elif isinstance(entity_df, str):
+        # If the entity_df is a string (SQL query), determine range
+        # from table
+        df = pandas.read_sql(entity_df, con=engine).fillna(value=np.nan)
+        entity_df_event_timestamp = df.loc[
+            :, entity_df_event_timestamp_col
+        ].infer_objects()
+        if pandas.api.types.is_string_dtype(entity_df_event_timestamp):
+            entity_df_event_timestamp = pandas.to_datetime(
+                entity_df_event_timestamp, utc=True
+            )
+        entity_df_event_timestamp_range = (
+            entity_df_event_timestamp.min().to_pydatetime(),
+            entity_df_event_timestamp.max().to_pydatetime(),
+        )
+        print(entity_df)
+        pass
+    else:
+         raise InvalidEntityType(type(entity_df))
 
-    """Build point-in-time query between each feature view table and the entity dataframe"""
-    template = Environment(loader=BaseLoader()).from_string(
-        source=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
-    )
-
-    # Add additional fields to dict
-    template_context = {
-        "min_timestamp": min_timestamp,
-        "max_timestamp": max_timestamp,
-        "left_table_query_string": left_table_query_string,
-        "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
-        "unique_entity_keys": set(
-            [entity for fv in feature_view_query_contexts for entity in fv.entities]
-        ),
-        "featureviews": [asdict(context) for context in feature_view_query_contexts],
-        "full_feature_names": full_feature_names,
-    }
-
-    query = template.render(template_context)
-    return query
-
+    return entity_df_event_timestamp_range
 
 # TODO: Optimizations
 #   * Use NEWID() instead of ROW_NUMBER(), or join on entity columns directly
@@ -495,43 +505,53 @@ WITH entity_dataframe AS (
         {% endfor %}
     FROM {{ left_table_query_string }}
 ),
+
 {% for featureview in featureviews %}
+
 {{ featureview.name }}__entity_dataframe AS (
     SELECT
-        {{ featureview.entities | join(', ')}},
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
         entity_timestamp,
         {{featureview.name}}__entity_row_unique_id
     FROM entity_dataframe
-    GROUP BY {{ featureview.entities | join(', ')}}, entity_timestamp, {{featureview.name}}__entity_row_unique_id
+    GROUP BY
+        {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+        entity_timestamp,
+        {{featureview.name}}__entity_row_unique_id
 ),
+
 /*
  This query template performs the point-in-time correctness join for a single feature set table
  to the provided entity table.
+
  1. We first join the current feature_view to the entity dataframe that has been passed.
  This JOIN has the following logic:
-    - For each row of the entity dataframe, only keep the rows where the `event_timestamp_column`
+    - For each row of the entity dataframe, only keep the rows where the timestamp_field`
     is less than the one provided in the entity dataframe
-    - If there a TTL for the current feature_view, also keep the rows where the `event_timestamp_column`
+    - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
     is higher the the one provided minus the TTL
     - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
     computed previously
+
  The output of this CTE will contain all the necessary information and already filtered out most
  of the data that is not relevant.
 */
+
 {{ featureview.name }}__subquery AS (
     SELECT
-        t.{{ featureview.event_timestamp_column }} as event_timestamp,
-        {{ 't.' + featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
-        t.{{ featureview.entity_selections | join(', ')}},
+        {{ featureview.timestamp_field }} as event_timestamp,
+        {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
+        {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
         {% for feature in featureview.features %}
-            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+            {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
-    FROM {{ featureview.table_subquery }} t
-    WHERE {{ featureview.event_timestamp_column }} <= (SELECT MAX(entity_timestamp) FROM entity_dataframe)
+    FROM {{ featureview.table_subquery }}
+    WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
     {% if featureview.ttl == 0 %}{% else %}
-    AND {{ featureview.ttl }} >= DATEDIFF(SECOND, {{ featureview.event_timestamp_column }}, (SELECT MIN(entity_timestamp) FROM entity_dataframe) )
+    AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
     {% endif %}
 ),
+
 {{ featureview.name }}__base AS (
     SELECT
         subquery.*,
@@ -541,18 +561,20 @@ WITH entity_dataframe AS (
     INNER JOIN entity_dataframe
         ON 1=1
         AND subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
+
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.ttl }} > = DATEDIFF(SECOND, subquery.event_timestamp, entity_dataframe.{{entity_df_event_timestamp_col}})
         {% endif %}
+
         {% for entity in featureview.entities %}
         AND subquery.{{ entity }} = entity_dataframe.{{ entity }}
         {% endfor %}
 ),
+
 /*
  2. If the `created_timestamp_column` has been set, we need to
  deduplicate the data first. This is done by calculating the
  `MAX(created_at_timestamp)` for each event_timestamp.
-
  We then join the data on the next CTE
 */
 {% if featureview.created_timestamp_column %}
@@ -565,6 +587,7 @@ WITH entity_dataframe AS (
     GROUP BY {{featureview.name}}__entity_row_unique_id, event_timestamp
 ),
 {% endif %}
+
 /*
  3. The data has been filtered during the first CTE "*__base"
  Thus we only need to compute the latest timestamp of each feature.
@@ -576,6 +599,7 @@ WITH entity_dataframe AS (
         {% if featureview.created_timestamp_column %}
             ,MAX({{ featureview.name }}__base.created_timestamp) AS created_timestamp
         {% endif %}
+
     FROM {{ featureview.name }}__base
     {% if featureview.created_timestamp_column %}
         INNER JOIN {{ featureview.name }}__dedup
@@ -583,8 +607,10 @@ WITH entity_dataframe AS (
         AND {{ featureview.name }}__dedup.event_timestamp = {{ featureview.name }}__base.event_timestamp
         AND {{ featureview.name }}__dedup.created_timestamp = {{ featureview.name }}__base.created_timestamp
     {% endif %}
+
     GROUP BY {{ featureview.name }}__base.{{ featureview.name }}__entity_row_unique_id
 ),
+
 /*
  4. Once we know the latest value of each feature for a given timestamp,
  we can join again the data back to the original "base" dataset
@@ -599,11 +625,14 @@ WITH entity_dataframe AS (
             AND base.created_timestamp = {{ featureview.name }}__latest.created_timestamp
         {% endif %}
 ){% if loop.last %}{% else %}, {% endif %}
+
 {% endfor %}
+
 /*
  Joins the outputs of multiple time travel joins to a single table.
  The entity_dataframe dataset being our source of truth here.
  */
+
 SELECT entity_dataframe.*
 {% for featureview in featureviews %}
     {% for feature in featureview.features %}

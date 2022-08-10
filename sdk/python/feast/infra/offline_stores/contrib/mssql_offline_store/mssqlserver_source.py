@@ -208,8 +208,7 @@ class MsSqlServerSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        raise NotImplementedError()
-        # return type_map.mssqlserver_to_feast_value_type
+        return lambda x: x
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
@@ -220,11 +219,18 @@ class MsSqlServerSource(DataSource):
             config.offline_store.connection_string
         )
         name_type_pairs = []
-        database, table_name = self.table_ref.split(".")
-        columns_query = f"""
-            SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{table_name} and table_schema = {database}'
-        """
+        if (len(self.table_ref.split(".")) == 2):
+            database, table_name = self.table_ref.split(".")
+            columns_query = f"""
+                SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '{table_name}' and table_schema = '{database}'
+            """
+        else:
+            columns_query = f"""
+                SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '{self.table_ref}'
+            """
+
         table_schema = pandas.read_sql(columns_query, conn)
         name_type_pairs.extend(
             list(
