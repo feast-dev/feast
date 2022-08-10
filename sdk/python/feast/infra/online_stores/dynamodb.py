@@ -65,7 +65,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
 
 class DynamoDBOnlineStore(OnlineStore):
     """
-    Online feature store for AWS DynamoDB.
+    AWS DynamoDB implementation of the online store interface.
 
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.

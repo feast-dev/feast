@@ -50,8 +50,7 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
 class SqliteOnlineStore(OnlineStore):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    SQLite implementation of the online store interface.
 
     Attributes:
         _conn: SQLite connection.

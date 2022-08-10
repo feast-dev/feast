@@ -75,8 +75,10 @@ class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
 
 class DatastoreOnlineStore(OnlineStore):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    Google Cloud Datastore implementation of the online store interface.
+
+    Attributes:
+        _client: Datastore connection.
     """
 
     _client: Optional[datastore.Client] = None
