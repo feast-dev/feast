@@ -74,6 +74,7 @@ jobs:
 
   release:
     name: release
+    needs: publish-web-ui-npm
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
