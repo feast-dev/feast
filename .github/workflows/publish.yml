@@ -185,6 +185,9 @@ jobs:
   publish-web-ui-npm:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
+    env:
+      # This publish is working using an NPM automation token to bypass 2FA
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
