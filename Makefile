@@ -164,24 +164,50 @@ test-python-universal-athena:
 			not s3_registry"  \
 	sdk/python/tests
 
-
-
-test-python-universal-postgres:
+test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
 		FEAST_USAGE=False \
 		IS_TEST=True \
-		python -m pytest -x --integration \
-			-k "not test_historical_retrieval_fails_on_validation and \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_historical_features and \
 				not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
-				not test_historical_retrieval_fails_on_validation and \
+ 				not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types" \
+ 			sdk/python/tests
+
+test-python-universal-postgres-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_push and \
+				not test_get_online_features and \
 				not test_universal_cli and \
-				not test_go_feature_server and \
-				not test_feature_logging and \
-				not test_universal_types" \
-			sdk/python/tests
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types" \
+ 			sdk/python/tests
 
 test-python-universal-cassandra:
 	PYTHONPATH='.' \
