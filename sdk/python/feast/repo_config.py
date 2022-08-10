@@ -483,8 +483,8 @@ def get_feature_server_config_from_type(feature_server_type: str):
     return import_class(module_name, config_class_name, config_class_name)
 
 
-def load_repo_config(repo_path: Path) -> RepoConfig:
-    config_path = repo_path / "feature_store.yaml"
+def load_repo_config(fs_yaml_file: Path, repo_path: Path) -> RepoConfig:
+    config_path = fs_yaml_file
 
     with open(config_path) as f:
         raw_config = yaml.safe_load(os.path.expandvars(f.read()))

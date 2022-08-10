@@ -297,7 +297,7 @@ class Provider(ABC):
         return None
 
 
-def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
+def get_provider(config: RepoConfig) -> Provider:
     if "." not in config.provider:
         if config.provider not in PROVIDERS_CLASS_FOR_TYPE:
             raise errors.FeastProviderNotImplementedError(config.provider)

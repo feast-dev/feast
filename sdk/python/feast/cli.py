@@ -72,8 +72,18 @@ class NoOptionDefaultFormat(click.Command):
     default="info",
     help="The logging level. One of DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive).",
 )
+@click.option(
+    "--feature-store-yaml",
+    "-f",
+    help="Override the directory where the CLI should look for the feature_store.yaml file.",
+)
 @click.pass_context
-def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
+def cli(
+    ctx: click.Context,
+    chdir: Optional[str],
+    log_level: str,
+    feature_store_yaml: Optional[str],
+):
     """
     Feast CLI
 
@@ -83,6 +93,11 @@ def cli(ctx: click.Context, chdir: Optional[str], log_level: str):
     """
     ctx.ensure_object(dict)
     ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
+    ctx.obj["FS_YAML_FILE"] = (
+        Path(feature_store_yaml).absolute()
+        if feature_store_yaml
+        else ctx.obj["CHDIR"] / "feature_store.yaml"
+    )
     try:
         level = getattr(logging, log_level.upper())
         logging.basicConfig(
@@ -143,7 +158,8 @@ def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
     Shows the Feast UI over the current directory
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     # Pass in the registry_dump method to get around a circular dependency
     store.serve_ui(
@@ -161,7 +177,8 @@ def endpoint(ctx: click.Context):
     Display feature server endpoints
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     endpoint = store.get_feature_server_endpoint()
     if endpoint is not None:
@@ -188,7 +205,8 @@ def data_source_describe(ctx: click.Context, name: str):
     Describe a data source
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     try:
@@ -216,7 +234,8 @@ def data_source_list(ctx: click.Context):
     List all data sources
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     table = []
     for datasource in store.list_data_sources():
@@ -248,7 +267,8 @@ def entity_describe(ctx: click.Context, name: str):
     Describe an entity
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     try:
@@ -271,7 +291,8 @@ def entity_list(ctx: click.Context):
     List all entities
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     table = []
     for entity in store.list_entities():
@@ -298,7 +319,8 @@ def feature_service_describe(ctx: click.Context, name: str):
     Describe a feature service
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     try:
@@ -323,7 +345,8 @@ def feature_service_list(ctx: click.Context):
     List all feature services
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     feature_services = []
     for feature_service in store.list_feature_services():
@@ -355,7 +378,8 @@ def feature_view_describe(ctx: click.Context, name: str):
     Describe a feature view
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     try:
@@ -378,7 +402,8 @@ def feature_view_list(ctx: click.Context):
     List all feature views
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     table = []
     for feature_view in [
@@ -421,7 +446,8 @@ def on_demand_feature_view_describe(ctx: click.Context, name: str):
     [Experimental] Describe an on demand feature view
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     try:
@@ -446,7 +472,8 @@ def on_demand_feature_view_list(ctx: click.Context):
     [Experimental] List all on demand feature views
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     table = []
     for on_demand_feature_view in store.list_on_demand_feature_views():
@@ -469,8 +496,9 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     Create or update a feature store deployment
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
-    repo_config = load_repo_config(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(fs_yaml_file, repo)
     try:
         plan(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
@@ -489,8 +517,10 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     Create or update a feature store deployment
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
-    repo_config = load_repo_config(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+
+    repo_config = load_repo_config(fs_yaml_file, repo)
     try:
         apply_total(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
@@ -504,8 +534,9 @@ def teardown_command(ctx: click.Context):
     Tear down deployed feature store infrastructure
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
-    repo_config = load_repo_config(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(fs_yaml_file, repo)
 
     teardown(repo_config, repo)
 
@@ -517,8 +548,9 @@ def registry_dump_command(ctx: click.Context):
     Print contents of the metadata registry
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
-    repo_config = load_repo_config(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(fs_yaml_file, repo)
 
     click.echo(registry_dump(repo_config, repo_path=repo))
 
@@ -545,7 +577,8 @@ def materialize_command(
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
@@ -573,7 +606,8 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
     store.materialize_incremental(
         feature_views=None if not views else views,
@@ -663,7 +697,8 @@ def serve_command(
 ):
     """Start a feature server locally on a given port."""
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     if go:
@@ -685,7 +720,8 @@ def serve_command(
 def serve_transformations_command(ctx: click.Context, port: int):
     """[Experimental] Start a feature consumption server locally on a given port."""
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     store.serve_transformations(port)
@@ -724,7 +760,8 @@ def validate(
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     store = FeatureStore(repo_path=str(repo))
 
     feature_service = store.get_feature_service(name=feature_service)
@@ -766,7 +803,8 @@ def repo_upgrade(ctx: click.Context, write: bool):
     Upgrade a feature repo in place.
     """
     repo = ctx.obj["CHDIR"]
-    cli_check_repo(repo)
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
     try:
         RepoUpgrader(repo, write).upgrade()
     except FeastProviderLoginError as e:

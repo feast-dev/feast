@@ -325,13 +325,12 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 
-def cli_check_repo(repo_path: Path):
+def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
     sys.path.append(str(repo_path))
-    config_path = repo_path / "feature_store.yaml"
-    if not config_path.exists():
+    if not fs_yaml_file.exists():
         print(
-            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running feast from an initialized "
-            f"feast repository. "
+            f"Can't find feature repo configuration file at {fs_yaml_file}. "
+            "Make sure you're running feast from an initialized feast repository."
         )
         sys.exit(1)
 
