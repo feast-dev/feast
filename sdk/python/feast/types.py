@@ -13,6 +13,7 @@
 # limitations under the License.
 from abc import ABC, abstractmethod
 from enum import Enum
+from multiprocessing.sharedctypes import Value
 from typing import Dict, Union
 
 from feast.value_type import ValueType

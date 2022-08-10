@@ -532,6 +532,31 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
     return value_type
 
+def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
+    type_map = {
+        "bigint": ValueType.FLOAT,
+        "binary": ValueType.BYTES,
+        "bit": ValueType.BOOL,
+        "char": ValueType.STRING,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "float": ValueType.FLOAT,
+        "nchar": ValueType.STRING,
+        "nvarchar": ValueType.STRING,
+        "nvarchar(max)": ValueType.STRING,
+        "real": ValueType.FLOAT,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
+        "varbinary": ValueType.BYTES,
+        "varchar": ValueType.STRING,
+        "None": ValueType.NULL,
+        # skip date, geometry, hllsketch, time, timetz
+    }
+    if mssql_type_as_str.lower() not in type_map:
+        raise ValueError(f"Mssql type not supported by feast {mssql_type_as_str}")
+    return type_map[mssql_type_as_str.lower()]
+
+
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html

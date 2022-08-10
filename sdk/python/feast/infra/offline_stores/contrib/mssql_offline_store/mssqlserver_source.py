@@ -208,7 +208,7 @@ class MsSqlServerSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        return lambda x: x
+        return type_map.mssql_to_feast_value_type
 
     def get_table_column_names_and_types(
         self, config: RepoConfig

@@ -35,8 +35,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
-from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext, build_point_in_time_query
+from feast.infra.offline_stores.offline_utils import build_point_in_time_query, get_feature_view_query_context
 EntitySchema = Dict[str, np.dtype]
 
 
@@ -200,83 +199,6 @@ class MsSqlServerOfflineStore(OfflineStore):
             on_demand_feature_views=registry.list_on_demand_feature_views(project),
         )
         return job
-
-
-def get_feature_view_query_context(
-    feature_refs: List[str],
-    feature_views: List[FeatureView],
-    registry: BaseRegistry,
-    project: str,
-    entity_df_timestamp_range: Tuple[datetime, datetime],
-) -> List[FeatureViewQueryContext]:
-    """Build a query context containing all information required to template a point-in-time SQL query"""
-
-    (
-        feature_views_to_feature_map,
-        on_demand_feature_views_to_features,
-    ) = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
-    )
-
-    query_context = []
-    for feature_view, features in feature_views_to_feature_map.items():
-        join_keys = []
-        entity_selections = []
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.batch_source.field_mapping.items()
-        }
-        for entity_name in feature_view.entities:
-            entity = registry.get_entity(entity_name, project)
-            join_keys.append(entity.join_key)
-            join_key_column = reverse_field_mapping.get(
-                entity.join_key, entity.join_key
-            )
-            entity_selections.append(f"{join_key_column} AS {entity.join_key}")
-
-        if isinstance(feature_view.ttl, timedelta):
-            ttl_seconds = int(feature_view.ttl.total_seconds())
-        else:
-            ttl_seconds = 0
-
-
-        timestamp_field = reverse_field_mapping.get(
-            feature_view.batch_source.timestamp_field,
-            feature_view.batch_source.timestamp_field,
-        )
-        created_timestamp_column = reverse_field_mapping.get(
-            feature_view.batch_source.created_timestamp_column,
-            feature_view.batch_source.created_timestamp_column,
-        )
-
-        date_partition_column = reverse_field_mapping.get(
-            feature_view.batch_source.date_partition_column,
-            feature_view.batch_source.date_partition_column,
-        )
-        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
-        min_event_timestamp = None
-        if feature_view.ttl:
-            min_event_timestamp = to_naive_utc(
-                entity_df_timestamp_range[0] - feature_view.ttl
-            ).isoformat()
-
-        context = FeatureViewQueryContext(
-            name=feature_view.projection.name_to_use(),
-            ttl=ttl_seconds,
-            entities=join_keys,
-            features=features,
-            field_mapping=feature_view.batch_source.field_mapping,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            # TODO: Make created column optional and not hardcoded
-            table_subquery=feature_view.batch_source.get_table_query_string(),
-            entity_selections=entity_selections,
-            min_event_timestamp=min_event_timestamp,
-            max_event_timestamp=max_event_timestamp,
-            date_partition_column=date_partition_column,
-        )
-        query_context.append(context)
-
-    return query_context
 
 def _assert_expected_columns_in_dataframe(
     join_keys: Set[str], entity_df_event_timestamp_col: str, entity_df: pandas.DataFrame
@@ -475,8 +397,6 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp.min().to_pydatetime(),
             entity_df_event_timestamp.max().to_pydatetime(),
         )
-        print(entity_df)
-        pass
     else:
          raise InvalidEntityType(type(entity_df))
 
