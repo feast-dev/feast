@@ -399,9 +399,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         self.client = client
         self.config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = (
-            on_demand_feature_views if on_demand_feature_views else []
-        )
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
         if self.config.offline_store.gcs_staging_location:
             self._gcs_path = (
@@ -417,7 +415,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
     def _to_df_internal(self) -> pd.DataFrame:
@@ -426,29 +424,27 @@ class BigQueryRetrievalJob(RetrievalJob):
             return df
 
     def to_sql(self) -> str:
-        """
-        Returns the SQL query that will be executed in BigQuery to build the historical feature table.
-        """
+        """Returns the underlying SQL query."""
         with self._query_generator() as query:
             return query
 
     def to_bigquery(
         self,
-        job_config: bigquery.QueryJobConfig = None,
+        job_config: Optional[bigquery.QueryJobConfig] = None,
         timeout: int = 1800,
         retry_cadence: int = 10,
     ) -> str:
         """
-        Triggers the execution of a historical feature retrieval query and exports the results to a BigQuery table.
-        Runs for a maximum amount of time specified by the timeout parameter (defaulting to 30 minutes).
+        Synchronously executes the underlying query and exports the result to a BigQuery table. The
+        underlying BigQuery job runs for a limited amount of time (the default is 30 minutes).
 
         Args:
-            job_config: An optional bigquery.QueryJobConfig to specify options like destination table, dry run, etc.
-            timeout: An optional number of seconds for setting the time limit of the QueryJob.
-            retry_cadence: An optional number of seconds for setting how long the job should checked for completion.
+            job_config (optional): A bigquery.QueryJobConfig to specify options like the destination table, dry run, etc.
+            timeout (optional): The time limit of the BigQuery job in seconds. Defaults to 30 minutes.
+            retry_cadence (optional): The number of seconds for setting how long the job should checked for completion.
 
         Returns:
-            Returns the destination table name or returns None if job_config.dry_run is True.
+            Returns the destination table name or None if job_config.dry_run is True.
         """
 
         if not job_config:

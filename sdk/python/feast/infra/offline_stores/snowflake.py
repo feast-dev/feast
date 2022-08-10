@@ -386,9 +386,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self.snowflake_conn = snowflake_conn
         self.config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = (
-            on_demand_feature_views if on_demand_feature_views else []
-        )
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
         self.export_path: Optional[str]
         if self.config.offline_store.blob_export_location:
@@ -401,7 +399,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
     def _to_df_internal(self) -> pd.DataFrame:
