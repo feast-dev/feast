@@ -66,7 +66,7 @@ You should already have checked out the existing minor release branch from step 
 7. Verify the releases all show the new version:
    - [NPM package](http://npmjs.com/package/@feast-dev/feast-ui)
    - [PyPI link](https://pypi.org/project/feast/)
-   - [DockerHub images (feature server, python feature server, feature transformation server)](https://hub.docker.com/u/feastdev)
+   - [DockerHub images (Java + Python feature servers, feature transformation server)](https://hub.docker.com/u/feastdev)
    - [Maven repo (feast-datatypes, feast-serving-client)](https://mvnrepository.com/artifact/dev.feast)
 
 ### 4. (for minor releases) Post-release steps
