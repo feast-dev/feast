@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.23.1](https://github.com/feast-dev/feast/compare/v0.23.0...v0.23.1) (2022-08-10)
+
+
+### Bug Fixes
+
+* Check if on_demand_feature_views is an empty list rather than None for snowflake provider ([#3046](https://github.com/feast-dev/feast/issues/3046)) ([6af401f](https://github.com/feast-dev/feast/commit/6af401f09da5de1fdcb6ad7e74a42fc515307040))
+* Fix Feast Java inconsistency with int64 serialization vs python ([#3031](https://github.com/feast-dev/feast/issues/3031)) ([f340aeb](https://github.com/feast-dev/feast/commit/f340aeb020e1e6c51d8d4a8978924f51c585306c))
+* Fixing Web UI, which fails for the SQL registry ([#3028](https://github.com/feast-dev/feast/issues/3028)) ([d584ecd](https://github.com/feast-dev/feast/commit/d584ecdfffa4ef19ef8cfbb3da49cd7dd7b7de91))
+* More explicit error messages ([#2708](https://github.com/feast-dev/feast/issues/2708)) ([ca48963](https://github.com/feast-dev/feast/commit/ca48963c69a0d9eae103fb3c44e54edd5241593a))
+* Return an empty infra object from sql registry when it doesn't exist ([#3022](https://github.com/feast-dev/feast/issues/3022)) ([9a64e77](https://github.com/feast-dev/feast/commit/9a64e772d8682bb0fed78aa7af8b304bbf330d6b))
+
 # [0.23.0](https://github.com/feast-dev/feast/compare/v0.22.0...v0.23.0) (2022-08-02)
 
 
