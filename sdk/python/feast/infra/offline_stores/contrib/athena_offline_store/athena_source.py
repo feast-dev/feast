@@ -1,9 +1,8 @@
-import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNotFoundException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -56,7 +55,7 @@ class AthenaSource(DataSource):
 
 
         """
-        # The default Athena schema is named "public".
+
         _database = "default" if table and not database else database
         self.athena_options = AthenaOptions(
             table=table, query=query, database=_database, data_source=data_source
@@ -64,18 +63,12 @@ class AthenaSource(DataSource):
 
         if table is None and query is None:
             raise ValueError('No "table" argument provided.')
-        _name = name
-        if not _name:
-            if table:
-                _name = table
-            else:
-                warnings.warn(
-                    (
-                        f"Starting in Feast 0.21, Feast will require either a name for a data source (if using query) "
-                        f"or `table`: {self.query}"
-                    ),
-                    DeprecationWarning,
-                )
+
+        # If no name, use the table as the default name.
+        if name is None and table is None:
+            raise DataSourceNoNameException()
+        _name = name or table
+        assert _name
 
         super().__init__(
             name=_name if _name else "",
