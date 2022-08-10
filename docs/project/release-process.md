@@ -55,7 +55,7 @@ You should already have checked out the existing minor release branch from step 
    * If you are making a patch release, run it off of the corresponding minor release branch.
 4. Try the dry run first with your personal access token. If this succeeds, uncheck `Dry Run` and run the release workflow.
 5. Then try running normally (without dry run). 
-   - First, the `release` workflow will kick off. This publishes an NPM package for the Web UI ([NPM package](http://npmjs.com/package/@feast-dev/feast-ui), 
+   - First, the `release` workflow will kick off. This publishes an NPM package for the Web UI ([NPM package](http://npmjs.com/package/@feast-dev/feast-ui)), 
      bumps files versions (e.g. helm chart, UI, Java pom.xml files), and generate a changelog using Semantic Release.
      All jobs should succeed. 
    - Second, the `publish` workflow will kick off. This builds all the Python wheels ([PyPI link](https://pypi.org/project/feast/), 
@@ -63,7 +63,11 @@ You should already have checked out the existing minor release branch from step 
      publishes the Java Serving Client + Datatypes libraries to Maven ([Maven repo](https://mvnrepository.com/artifact/dev.feast))
 6. Try to install the Feast Python release in your local environment and test out the `feast init` -> `feast apply` 
    workflow to verify as a sanity check that the release worked correctly.
-7. Verify the PyPI release, DockerHub images, Java libraries, and the NPM package all show your new release version.
+7. Verify the releases all show the new version:
+   - [NPM package](http://npmjs.com/package/@feast-dev/feast-ui)
+   - [PyPI link](https://pypi.org/project/feast/)
+   - [DockerHub images (feature server, python feature server, feature transformation server)](https://hub.docker.com/u/feastdev)
+   - [Maven repo (feast-datatypes, feast-serving-client)](https://mvnrepository.com/artifact/dev.feast)
 
 ### 4. (for minor releases) Post-release steps
 #### 4a: Creating a new branch
@@ -94,5 +98,5 @@ In the Feast Gitbook (ask [Danny Chiao](https://tectonfeast.slack.com/team/U0294
 5. Configure the default space to be your new branch and save
 
    ![](new_branch_part_5.png)
-6. Verify on http://docs.feast.dev that this new space is the default (this may take a few minutes to propagate, and 
-   your browser cache may be caching the old branch as the default)
+6. Verify on [docs.feast.dev](http://docs.feast.dev) that this new space is the default (this may take a few minutes to 
+   propagate, and your browser cache may be caching the old branch as the default)
