@@ -732,9 +732,10 @@ class BaseRegistry(abc.ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-            odfv_dict["spec"]["userDefinedFunction"]["body"] = dill.source.getsource(
-                on_demand_feature_view.udf
-            )
+
+            odfv_dict["spec"]["userDefinedFunction"][
+                "body"
+            ] = on_demand_feature_view.udf_string
             registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),

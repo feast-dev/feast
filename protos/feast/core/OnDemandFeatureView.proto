@@ -83,4 +83,7 @@ message UserDefinedFunction {
 
     // The python-syntax function body (serialized by dill)
     bytes body = 2;
+
+    // The string representation of the udf
+    string body_text = 3;
 }

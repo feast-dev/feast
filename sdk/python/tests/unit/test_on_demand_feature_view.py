@@ -55,6 +55,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf1,
+        udf_string="udf1 source code"
     )
     on_demand_feature_view_2 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -64,6 +65,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf1,
+        udf_string="udf1 source code"
     )
     on_demand_feature_view_3 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -73,6 +75,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf2,
+        udf_string="udf2 source code"
     )
     on_demand_feature_view_4 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -82,6 +85,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf2,
+        udf_string="udf2 source code",
         description="test",
     )
 
