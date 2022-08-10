@@ -24,6 +24,30 @@ jobs:
         name: Check if there were commits in the last day
         if: ${{ github.event_name == 'schedule' }}
         run: echo '::set-output name=WAS_EDITED::'$(test -n "$(git log --format=%H --since='24 hours ago')" && echo 'true' || echo 'false')
+  cleanup_dynamo_tables:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    name: Cleanup dynamo tables which can fail to cleanup
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: "3.8"
+          architecture: x64
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Install boto3
+        run: pip install boto3
+      - name: Run DynamoDB cleanup script
+        run: python infra/scripts/cleanup_dynamo_ci.py
   build-docker-image:
     if: github.repository == 'feast-dev/feast'
     needs: [check_date]
@@ -82,7 +106,7 @@ jobs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
     if: github.repository == 'feast-dev/feast'
-    needs: [check_date, build-docker-image]
+    needs: [check_date, build-docker-image, cleanup_dynamo_tables]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
