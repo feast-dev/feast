@@ -40,8 +40,8 @@ module.exports = {
             // Validate the type of release we are doing
             "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
 
-            // Bump all version files
-            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
+            // Bump all version files and build UI / update yarn.lock
+            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui"
         }],
 
         ["@semantic-release/release-notes-generator", {
@@ -66,7 +66,8 @@ module.exports = {
                     "CHANGELOG.md",
                     "java/pom.xml",
                     "infra/charts/**/*.*",
-                    "ui/package.json"
+                    "ui/package.json",
+                    "sdk/python/feast/ui/yarn.lock"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }
