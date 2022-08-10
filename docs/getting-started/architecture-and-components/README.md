@@ -4,10 +4,6 @@
 [overview.md](overview.md)
 {% endcontent-ref %}
 
-{% content-ref url="feature-repository.md" %}
-[feature-repository.md](feature-repository.md)
-{% endcontent-ref %}
-
 {% content-ref url="registry.md" %}
 [registry.md](registry.md)
 {% endcontent-ref %}
