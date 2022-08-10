@@ -91,6 +91,9 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     schema_: Optional[str] = Field(None, alias="schema")
     """ Snowflake schema name """
 
+    authenticator: Optional[str] = None
+    """ Snowflake authenticator name """
+
     storage_integration_name: Optional[str] = None
     """ Storage integration name in snowflake """
 

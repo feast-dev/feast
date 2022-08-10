@@ -298,7 +298,11 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def __init__(self, table_ref: str):
         self.snowflake_options = SnowflakeOptions(
-            database=None, schema=None, table=table_ref, query=None, warehouse=None
+            database=None,
+            schema=None,
+            table=table_ref,
+            query=None,
+            warehouse=None,
         )
 
     @staticmethod

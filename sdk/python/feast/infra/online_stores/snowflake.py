@@ -53,6 +53,9 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
 
+    authenticator: Optional[str] = None
+    """ Snowflake authenticator name """
+
     class Config:
         allow_population_by_field_name = True
 
