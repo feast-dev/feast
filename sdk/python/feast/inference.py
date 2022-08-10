@@ -7,7 +7,9 @@ from feast.errors import RegistryInferenceFailure
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field, from_value_type
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import MsSqlServerSource
+from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
+    MsSqlServerSource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource

@@ -1,18 +1,21 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-from typing import Callable, Dict, Iterable, Optional, Tuple
 import json
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 import pandas
 from sqlalchemy import create_engine
 
 from feast import type_map
 from feast.data_source import DataSource
+from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
+    MsSqlServerOfflineStoreConfig,
+)
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.value_type import ValueType
 from feast.repo_config import RepoConfig
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import MsSqlServerOfflineStoreConfig
+from feast.value_type import ValueType
+
 
 class MsSqlServerOptions:
     """
@@ -20,7 +23,9 @@ class MsSqlServerOptions:
     """
 
     def __init__(
-        self, connection_str: Optional[str], table_ref: Optional[str],
+        self,
+        connection_str: Optional[str],
+        table_ref: Optional[str],
     ):
         self._connection_str = connection_str
         self._table_ref = table_ref
@@ -67,7 +72,8 @@ class MsSqlServerOptions:
         options = json.loads(sqlserver_options_proto.configuration)
 
         sqlserver_options = cls(
-            table_ref=options["table_ref"], connection_str=options["connection_str"],
+            table_ref=options["table_ref"],
+            connection_str=options["connection_str"],
         )
 
         return sqlserver_options
@@ -94,6 +100,7 @@ class MsSqlServerOptions:
 class MsSqlServerSource(DataSource):
     def __init__(
         self,
+        name: str,
         table_ref: Optional[str] = None,
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
@@ -103,7 +110,6 @@ class MsSqlServerSource(DataSource):
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = None,
-        name: Optional[str] = None
     ):
         self._mssqlserver_options = MsSqlServerOptions(
             connection_str=connection_str, table_ref=table_ref
@@ -111,14 +117,14 @@ class MsSqlServerSource(DataSource):
         self._connection_str = connection_str
 
         super().__init__(
-            created_timestamp_column = created_timestamp_column,
-            field_mapping = field_mapping,
-            date_partition_column = date_partition_column,
-            description = description,
-            tags = tags,
-            owner = owner,
-            name = name,
-            timestamp_field = event_timestamp_column,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
+            description=description,
+            tags=tags,
+            owner=owner,
+            name=name,
+            timestamp_field=event_timestamp_column,
         )
 
     def __eq__(self, other):
@@ -137,11 +143,14 @@ class MsSqlServerSource(DataSource):
         )
 
     def __hash__(self):
-        return hash((
-            self.name,
-            self.mssqlserver_options.connection_str,
-            self.timestamp_field,
-            self.created_timestamp_column))
+        return hash(
+            (
+                self.name,
+                self.mssqlserver_options.connection_str,
+                self.timestamp_field,
+                self.created_timestamp_column,
+            )
+        )
 
     @property
     def table_ref(self):
@@ -199,12 +208,17 @@ class MsSqlServerSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        return type_map.mssqlserver_to_feast_value_type
+        raise NotImplementedError()
+        # return type_map.mssqlserver_to_feast_value_type
 
-    def get_table_column_names_and_types(self, config: RepoConfig) -> Iterable[Tuple[str, str]]:
+    def get_table_column_names_and_types(
+        self, config: RepoConfig
+    ) -> Iterable[Tuple[str, str]]:
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
         conn = create_engine(config.offline_store.connection_string)
-        self._mssqlserver_options.connection_str = config.offline_store.connection_string
+        self._mssqlserver_options.connection_str = (
+            config.offline_store.connection_string
+        )
         name_type_pairs = []
         database, table_name = self.table_ref.split(".")
         columns_query = f"""

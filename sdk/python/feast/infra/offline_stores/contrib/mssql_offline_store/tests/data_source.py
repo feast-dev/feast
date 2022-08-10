@@ -1,5 +1,5 @@
-import uuid
 import os
+import uuid
 from typing import Dict, List
 from venv import create
 
@@ -8,7 +8,9 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast.data_source import DataSource
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import MsSqlServerOfflineStoreConfig
+from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
+    MsSqlServerOfflineStoreConfig,
+)
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,
 )
@@ -16,15 +18,17 @@ from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 
+
 class MsqlDataSourceCreator(DataSourceCreator):
     mssql_offline_store_config: MsSqlServerOfflineStoreConfig
+
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         if not self.mssql_offline_store_config:
             self.create_offline_store_config()
 
     def create_offline_store_config(self) -> MsSqlServerOfflineStoreConfig:
-        #TODO: Fill in connection string
+        # TODO: Fill in connection string
         connection_string = os.getenv("AZURE_CONNECTION_STRING", "")
         self.mssql_offline_store_config = MsSqlServerOfflineStoreConfig()
         self.mssql_offline_store_config.connection_string = connection_string
@@ -60,6 +64,7 @@ class MsqlDataSourceCreator(DataSourceCreator):
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
         )
+
     def get_prefixed_table_name(self, destination_name: str) -> str:
         # TODO fix this
         return f"{self.project_name}_{destination_name}"

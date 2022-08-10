@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-from collections import defaultdict
+
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
@@ -10,7 +11,6 @@ from tqdm import tqdm
 from feast import FeatureService, errors
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob

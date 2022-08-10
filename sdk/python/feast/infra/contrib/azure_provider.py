@@ -15,18 +15,22 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
-from feast.infra.provider import (
-    Provider,
-)
+from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
+from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
-from feast.utils import make_tzaware, _convert_arrow_to_proto, _get_column_names, _run_pyarrow_field_mapping
+from feast.utils import (
+    _convert_arrow_to_proto,
+    _get_column_names,
+    _run_pyarrow_field_mapping,
+    make_tzaware,
+)
 
 DEFAULT_BATCH_SIZE = 10_000
+
 
 class AzureProvider(Provider):
     def __init__(self, config: RepoConfig):
@@ -38,7 +42,7 @@ class AzureProvider(Provider):
             else None
         )
 
-    #@log_exceptions_and_usage(registry="az")
+    # @log_exceptions_and_usage(registry="az")
     def update_infra(
         self,
         project: str,
@@ -59,7 +63,7 @@ class AzureProvider(Provider):
                 partial=partial,
             )
 
-    #@log_exceptions_and_usage(registry="az")
+    # @log_exceptions_and_usage(registry="az")
     def teardown_infra(
         self,
         project: str,
@@ -69,7 +73,7 @@ class AzureProvider(Provider):
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
 
-    #@log_exceptions_and_usage(registry="az")
+    # @log_exceptions_and_usage(registry="az")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -82,7 +86,7 @@ class AzureProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
-    #@log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001), registry="az")
+    # @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001), registry="az")
     def online_read(
         self,
         config: RepoConfig,
@@ -92,16 +96,23 @@ class AzureProvider(Provider):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result = []
         if self.online_store:
-            result = self.online_store.online_read(config, table, entity_keys, requested_features)
+            result = self.online_store.online_read(
+                config, table, entity_keys, requested_features
+            )
         return result
 
     def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
+        self,
+        feature_view: FeatureView,
+        entities: List[Entity],
+        df: pandas.DataFrame,
     ):
         table = pa.Table.from_pandas(df)
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_pyarrow_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         join_keys = {entity.join_key: entity.value_type for entity in entities}
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
@@ -116,7 +127,7 @@ class AzureProvider(Provider):
         feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
@@ -136,7 +147,7 @@ class AzureProvider(Provider):
             data_source=feature_view.batch_source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=event_timestamp_column,
             created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
@@ -145,7 +156,9 @@ class AzureProvider(Provider):
         table = offline_job.to_arrow()
 
         if feature_view.batch_source.field_mapping is not None:
-            table = _run_pyarrow_field_mapping(table, feature_view.batch_source.field_mapping)
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
         join_keys = {entity.join_key: entity.value_type for entity in entities}
 
@@ -159,14 +172,14 @@ class AzureProvider(Provider):
                     lambda x: pbar.update(x),
                 )
 
-    #@log_exceptions_and_usage(registry="az")
+    # @log_exceptions_and_usage(registry="az")
     def get_historical_features(
         self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
@@ -182,9 +195,7 @@ class AzureProvider(Provider):
         return job
 
     def retrieve_saved_dataset(
-        self,
-        config: RepoConfig,
-        dataset: SavedDataset
+        self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
         feature_name_columns = [
             ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
@@ -209,7 +220,7 @@ class AzureProvider(Provider):
         feature_service: FeatureService,
         logs: Union[pa.Table, str],
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ):
         assert (
             feature_service.logging_config is not None
@@ -229,7 +240,7 @@ class AzureProvider(Provider):
         start_date: datetime,
         end_date: datetime,
         config: RepoConfig,
-        registry: Registry,
+        registry: BaseRegistry,
     ) -> RetrievalJob:
         assert (
             feature_service.logging_config is not None

@@ -3,31 +3,23 @@
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Set,
-    Union,
-)
-from feast.infra.offline_stores import offline_utils
-from feast.on_demand_feature_view import OnDemandFeatureView
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas
 import pyarrow
+import sqlalchemy
 from jinja2 import BaseLoader, Environment
 from pydantic.types import StrictStr
 from pydantic.typing import Literal
 from sqlalchemy import create_engine
-import sqlalchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from feast import errors
+from feast import FileSource, errors
 from feast.data_source import DataSource
-
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
@@ -37,13 +29,11 @@ from feast.infra.offline_stores.offline_store import (
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
-from feast.infra.provider import (
-    RetrievalJob,
-)
-from feast.registry import Registry
+from feast.infra.provider import RetrievalJob
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast import FileSource
 from feast.utils import _get_requested_feature_views_to_features_dict
 
 EntitySchema = Dict[str, np.dtype]
@@ -52,9 +42,7 @@ EntitySchema = Dict[str, np.dtype]
 class MsSqlServerOfflineStoreConfig(FeastBaseModel):
     """Offline store config for SQL Server"""
 
-    type: Literal[
-        "mssql"
-    ] = "mssql"
+    type: Literal["mssql"] = "mssql"
     """ Offline store type selector"""
 
     connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
@@ -62,24 +50,24 @@ class MsSqlServerOfflineStoreConfig(FeastBaseModel):
      format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
 
 
+ENGINE = None
+
+
+def _make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
+    if ENGINE is None:
+        ENGINE = create_engine(config.connection_string)
+    return ENGINE
+
+
 class MsSqlServerOfflineStore(OfflineStore):
-    def __init__(self):
-        self._engine = None
-
-    def _make_engine(self, config: RepoConfig = None) -> Session:
-        if self._engine is None:
-            self._engine = create_engine(config.connection_string)
-        return self._engine
-
     @staticmethod
-    #@log_exceptions_and_usage(offline_store="mssql")
+    # @log_exceptions_and_usage(offline_store="mssql")
     def pull_latest_from_table_or_query(
-        self,
         config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
@@ -92,7 +80,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
             )
-        timestamps = [event_timestamp_column]
+        timestamps = [timestamp_field]
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
@@ -104,35 +92,34 @@ class MsSqlServerOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression} inner_t
-                WHERE {event_timestamp_column} BETWEEN CONVERT(DATETIMEOFFSET, '{start_date}', 120) AND CONVERT(DATETIMEOFFSET, '{end_date}', 120)
+                WHERE {timestamp_field} BETWEEN CONVERT(DATETIMEOFFSET, '{start_date}', 120) AND CONVERT(DATETIMEOFFSET, '{end_date}', 120)
             ) outer_t
             WHERE outer_t._feast_row = 1
             """
-        self._make_engine(config.offline_store)
+        engine = _make_engine(config.offline_store)
 
         return MsSqlServerRetrievalJob(
             query=query,
-            engine=self._engine,
-            config=config,
+            engine=engine,
+            config=config.offline_store,
             full_feature_names=False,
             on_demand_feature_views=None,
         )
 
     @staticmethod
-    #@log_exceptions_and_usage(offline_store="mssql")
+    # @log_exceptions_and_usage(offline_store="mssql")
     def pull_all_from_table_or_query(
-        self,
         config: RepoConfig,
         data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
-        event_timestamp_column: str,
+        timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
         assert type(data_source).__name__ == "MsSqlServerSource"
         from_expression = data_source.get_table_query_string().replace("`", "")
-        timestamps = [event_timestamp_column]
+        timestamps = [timestamp_field]
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
         query = f"""
@@ -140,34 +127,34 @@ class MsSqlServerOfflineStore(OfflineStore):
             FROM (
                 SELECT {field_string}
                 FROM {from_expression}
-                WHERE {event_timestamp_column} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+                WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
             )
             """
-        self._make_engine(config.offline_store)
+        engine = _make_engine(config.offline_store)
 
         return MsSqlServerRetrievalJob(
             query=query,
-            engine=self._engine,
-            config=config,
+            engine=engine,
+            config=config.offline_store,
             full_feature_names=False,
+            on_demand_feature_views=None,
         )
 
     @staticmethod
-    #@log_exceptions_and_usage(offline_store="mssql")
+    # @log_exceptions_and_usage(offline_store="mssql")
     def get_historical_features(
-        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
-        engine = self._make_engine(config.offline_store)
+        engine = _make_engine(config.offline_store)
 
         (
             table_schema,
@@ -203,7 +190,7 @@ class MsSqlServerOfflineStore(OfflineStore):
 
         job = MsSqlServerRetrievalJob(
             query=query,
-            engine=self._engine,
+            engine=engine,
             config=config.offline_store,
             full_feature_names=full_feature_names,
             on_demand_feature_views=registry.list_on_demand_feature_views(project),
@@ -239,7 +226,7 @@ def _assert_expected_columns_in_sqlserver(
 
 
 def _get_join_keys(
-    project: str, feature_views: List[FeatureView], registry: Registry
+    project: str, feature_views: List[FeatureView], registry: BaseRegistry
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
@@ -279,7 +266,7 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         self,
         query: str,
         engine: Engine,
-        config: RepoConfig,
+        config: MsSqlServerOfflineStoreConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]],
         metadata: Optional[RetrievalMetadata] = None,
@@ -314,7 +301,8 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetFileStorage)
 
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.file_url, storage.file_options.s3_endpoint_override,
+            storage.file_options.uri,
+            storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):
@@ -341,7 +329,7 @@ class FeatureViewQueryContext:
     entities: List[str]
     features: List[str]  # feature reference format
     table_ref: str
-    event_timestamp_column: str
+    timestamp_field: str
     created_timestamp_column: Optional[str]
     table_subquery: str
     entity_selections: List[str]
@@ -351,7 +339,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
     engine: sqlalchemy.engine.Engine,
     config: RepoConfig,
     entity_df: Union[pandas.DataFrame, str],
-) -> EntitySchema:
+) -> Tuple[Dict[Any, Any], str]:
     """
     Uploads a Pandas entity dataframe into a SQL Server table and constructs the
     schema from the original entity_df dataframe.
@@ -368,20 +356,19 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
         limited_entity_df = MsSqlServerRetrievalJob(
             f"SELECT TOP 1 * FROM {table_id}",
             engine,
-            config,
+            config.offline_store,
             full_feature_names=False,
             on_demand_feature_views=None,
         ).to_df()
 
-        entity_schema = dict(zip(limited_entity_df.columns, limited_entity_df.dtypes)), table_id
+        entity_schema = (
+            dict(zip(limited_entity_df.columns, limited_entity_df.dtypes)),
+            table_id,
+        )
 
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we don't have unnecessary columns
-        entity_df.to_sql(
-            name=table_id,
-            con=engine,
-            index=False
-        )
+        entity_df.to_sql(name=table_id, con=engine, index=False)
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes)), table_id
     else:
         raise ValueError(
@@ -395,7 +382,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 def get_feature_view_query_context(
     feature_refs: List[str],
     feature_views: List[FeatureView],
-    registry: Registry,
+    registry: BaseRegistry,
     project: str,
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a point-in-time SQL query"""
@@ -412,7 +399,7 @@ def get_feature_view_query_context(
         join_keys = []
         entity_selections = []
         reverse_field_mapping = {
-            v: k for k, v in feature_view.source.field_mapping.items()
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
         }
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
@@ -427,25 +414,27 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        #assert isinstance(feature_view.source, MsSqlServerSource)
+        # assert isinstance(feature_view.source, MsSqlServerSource)
 
-        event_timestamp_column = feature_view.source.event_timestamp_column
-        created_timestamp_column = feature_view.source.created_timestamp_column
+        timestamp_field = feature_view.batch_source.timestamp_field
+        created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
         context = FeatureViewQueryContext(
             name=feature_view.name,
             ttl=ttl_seconds,
             entities=join_keys,
             features=features,
-            table_ref=feature_view.source.table_ref,
-            event_timestamp_column=reverse_field_mapping.get(
-                event_timestamp_column, event_timestamp_column
+            table_ref=feature_view.batch_source.get_table_query_string().replace(
+                "`", ""
             ),
+            timestamp_field=reverse_field_mapping.get(timestamp_field, timestamp_field),
             created_timestamp_column=reverse_field_mapping.get(
                 created_timestamp_column, created_timestamp_column
             ),
             # TODO: Make created column optional and not hardcoded
-            table_subquery=feature_view.source.get_table_query_string().replace("`", ""),
+            table_subquery=feature_view.batch_source.get_table_query_string().replace(
+                "`", ""
+            ),
             entity_selections=entity_selections,
         )
         query_context.append(context)

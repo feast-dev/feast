@@ -3,14 +3,14 @@
 
 import os
 import uuid
+from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryFile
+from urllib.parse import urlparse
 
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry import RegistryConfig
 from feast.registry_store import RegistryStore
-from pathlib import Path
-from datetime import datetime
-from urllib.parse import urlparse
-from tempfile import TemporaryFile
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -18,10 +18,10 @@ REGISTRY_SCHEMA_VERSION = "1"
 class AzBlobRegistryStore(RegistryStore):
     def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         try:
-            from azure.storage.blob import BlobClient
-            from azure.identity import DefaultAzureCredential
-            from azure.storage.blob import BlobServiceClient
             import logging
+
+            from azure.identity import DefaultAzureCredential
+            from azure.storage.blob import BlobClient, BlobServiceClient
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
@@ -39,9 +39,10 @@ class AzBlobRegistryStore(RegistryStore):
             logger.setLevel(logging.ERROR)
 
             # Attempt to use shared account key to login first
-            if 'REGISTRY_BLOB_KEY' in os.environ:
+            if "REGISTRY_BLOB_KEY" in os.environ:
                 client = BlobServiceClient(
-                    account_url=self._account_url, credential=os.environ['REGISTRY_BLOB_KEY']
+                    account_url=self._account_url,
+                    credential=os.environ["REGISTRY_BLOB_KEY"],
                 )
                 self.blob = client.get_blob_client(
                     container=self._container, blob=self._path

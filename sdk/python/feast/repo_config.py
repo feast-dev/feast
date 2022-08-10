@@ -61,7 +61,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
-    "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore"
+    "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
