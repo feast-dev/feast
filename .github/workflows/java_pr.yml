@@ -54,6 +54,7 @@ jobs:
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
 
   build-docker-image-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     strategy:
       matrix:
