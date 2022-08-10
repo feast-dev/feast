@@ -19,7 +19,6 @@
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
 * [Architecture](getting-started/architecture-and-components/README.md)
   * [Overview](getting-started/architecture-and-components/overview.md)
-  * [Feature repository](getting-started/architecture-and-components/feature-repository.md)
   * [Registry](getting-started/architecture-and-components/registry.md)
   * [Offline store](getting-started/architecture-and-components/offline-store.md)
   * [Online store](getting-started/architecture-and-components/online-store.md)
