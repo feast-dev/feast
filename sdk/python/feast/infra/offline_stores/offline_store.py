@@ -142,12 +142,22 @@ class RetrievalJob(ABC):
 
     @abstractmethod
     def _to_df_internal(self) -> pd.DataFrame:
-        """Synchronously executes the underlying query and returns the result as a pandas dataframe."""
+        """
+        Synchronously executes the underlying query and returns the result as a pandas dataframe.
+
+        Does not handle on demand transformations or dataset validation. For either of those,
+        `to_df` should be used.
+        """
         pass
 
     @abstractmethod
     def _to_arrow_internal(self) -> pyarrow.Table:
-        """Synchronously executes the underlying query and returns the result as an arrow table."""
+        """
+        Synchronously executes the underlying query and returns the result as an arrow table.
+
+        Does not handle on demand transformations or dataset validation. For either of those,
+        `to_arrow` should be used.
+        """
         pass
 
     @property
