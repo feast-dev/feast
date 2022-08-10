@@ -1,0 +1,16 @@
+project: dqm_repo
+registry: data/registry.db
+provider: local
+offline_store:
+    type: file
+online_store:
+    path: data/online_store.db
+entity_key_serialization_version: 2
+feature_server:
+    enabled: True
+    feature_logging:
+        enabled: True
+        flush_interval_secs: 60
+        write_to_disk_interval_secs: 10
+    
+go_feature_retrieval: False
