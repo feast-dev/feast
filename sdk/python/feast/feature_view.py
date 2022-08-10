@@ -351,6 +351,7 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto object based on the feature view protobuf.
         """
+        print(feature_view_proto.spec.batch_source)
         batch_source = DataSource.from_proto(feature_view_proto.spec.batch_source)
         stream_source = (
             DataSource.from_proto(feature_view_proto.spec.stream_source)

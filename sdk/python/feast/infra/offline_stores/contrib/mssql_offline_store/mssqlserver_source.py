@@ -12,7 +12,7 @@ from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.value_type import ValueType
 from feast.repo_config import RepoConfig
-
+from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import MsSqlServerOfflineStoreConfig
 
 class MsSqlServerOptions:
     """
@@ -165,6 +165,7 @@ class MsSqlServerSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         options = json.loads(data_source.custom_options.configuration)
         return MsSqlServerSource(
+            name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table_ref=options["table_ref"],
             connection_str=options["connection_string"],
@@ -183,7 +184,7 @@ class MsSqlServerSource(DataSource):
         data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
-
+        data_source_proto.name = self.name
         return data_source_proto
 
     def get_table_query_string(self) -> str:
@@ -193,20 +194,22 @@ class MsSqlServerSource(DataSource):
     def validate(self, config: RepoConfig):
         # As long as the query gets successfully executed, or the table exists,
         # the data source is validated. We don't need the results though.
-        # self.get_table_column_names_and_types()
+        self.get_table_column_names_and_types(config)
         return None
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.mssqlserver_to_feast_value_type
 
-    def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
-        conn = create_engine(self._connection_str)
+    def get_table_column_names_and_types(self, config: RepoConfig) -> Iterable[Tuple[str, str]]:
+        assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
+        conn = create_engine(config.offline_store.connection_string)
+        self._mssqlserver_options.connection_str = config.offline_store.connection_string
         name_type_pairs = []
         database, table_name = self.table_ref.split(".")
         columns_query = f"""
-            SELECT COLUMN_NAME, DATA_TYPE FROM {database}.INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{table_name}'
+            SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = '{table_name} and table_schema = {database}'
         """
         table_schema = pandas.read_sql(columns_query, conn)
         name_type_pairs.extend(

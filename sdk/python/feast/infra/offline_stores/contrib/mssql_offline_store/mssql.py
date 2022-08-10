@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from feast import errors
 from feast.data_source import DataSource
 
-from .mssqlserver_source import MsSqlServerSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import (
@@ -45,7 +44,6 @@ from feast.registry import Registry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast import FileSource
-from feast.usage import log_exceptions_and_usage
 from feast.utils import _get_requested_feature_views_to_features_dict
 
 EntitySchema = Dict[str, np.dtype]
@@ -55,8 +53,8 @@ class MsSqlServerOfflineStoreConfig(FeastBaseModel):
     """Offline store config for SQL Server"""
 
     type: Literal[
-        "feast_azure_provider.mssqlserver.MsSqlServerOfflineStore"
-    ] = "feast_azure_provider.mssqlserver.MsSqlServerOfflineStore"
+        "mssql"
+    ] = "mssql"
     """ Offline store type selector"""
 
     connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
@@ -74,7 +72,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         return self._engine
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    #@log_exceptions_and_usage(offline_store="mssql")
     def pull_latest_from_table_or_query(
         self,
         config: RepoConfig,
@@ -87,10 +85,6 @@ class MsSqlServerOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert type(data_source).__name__ == "MsSqlServerSource"
-        assert (
-            config.offline_store.type
-            == "feast_azure_provider.mssqlserver.MsSqlServerOfflineStore"
-        )
         from_expression = data_source.get_table_query_string().replace("`", "")
 
         partition_by_join_key_string = ", ".join(join_key_columns)
@@ -125,7 +119,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    #@log_exceptions_and_usage(offline_store="mssql")
     def pull_all_from_table_or_query(
         self,
         config: RepoConfig,
@@ -137,10 +131,6 @@ class MsSqlServerOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert type(data_source).__name__ == "MsSqlServerSource"
-        assert (
-            config.offline_store.type
-            == "feast_azure_provider.mssqlserver.MsSqlServerOfflineStore"
-        )
         from_expression = data_source.get_table_query_string().replace("`", "")
         timestamps = [event_timestamp_column]
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
@@ -163,7 +153,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    #@log_exceptions_and_usage(offline_store="mssql")
     def get_historical_features(
         self,
         config: RepoConfig,
@@ -437,7 +427,7 @@ def get_feature_view_query_context(
         else:
             ttl_seconds = 0
 
-        assert isinstance(feature_view.source, MsSqlServerSource)
+        #assert isinstance(feature_view.source, MsSqlServerSource)
 
         event_timestamp_column = feature_view.source.event_timestamp_column
         created_timestamp_column = feature_view.source.created_timestamp_column

@@ -38,7 +38,7 @@ class AzureProvider(Provider):
             else None
         )
 
-    @log_exceptions_and_usage(registry="az")
+    #@log_exceptions_and_usage(registry="az")
     def update_infra(
         self,
         project: str,
@@ -59,7 +59,7 @@ class AzureProvider(Provider):
                 partial=partial,
             )
 
-    @log_exceptions_and_usage(registry="az")
+    #@log_exceptions_and_usage(registry="az")
     def teardown_infra(
         self,
         project: str,
@@ -69,7 +69,7 @@ class AzureProvider(Provider):
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
 
-    @log_exceptions_and_usage(registry="az")
+    #@log_exceptions_and_usage(registry="az")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -82,7 +82,7 @@ class AzureProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
-    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001), registry="az")
+    #@log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001), registry="az")
     def online_read(
         self,
         config: RepoConfig,
@@ -159,7 +159,7 @@ class AzureProvider(Provider):
                     lambda x: pbar.update(x),
                 )
 
-    @log_exceptions_and_usage(registry="az")
+    #@log_exceptions_and_usage(registry="az")
     def get_historical_features(
         self,
         config: RepoConfig,

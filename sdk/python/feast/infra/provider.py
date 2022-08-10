@@ -25,6 +25,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "gcp": "feast.infra.gcp.GcpProvider",
     "aws": "feast.infra.aws.AwsProvider",
     "local": "feast.infra.local.LocalProvider",
+    "azure": "feast.infra.contrib.azure_provider.AzureProvider",
 }
 
 
