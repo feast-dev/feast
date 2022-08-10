@@ -133,7 +133,7 @@ jobs:
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: [build_wheels, publish-web-ui-npm]
+    needs: [build_wheels]
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -181,28 +181,3 @@ jobs:
           mkdir -p /root/.m2/
           echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
           infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root
-
-  publish-web-ui-npm:
-    if: github.repository == 'feast-dev/feast'
-    runs-on: ubuntu-latest
-    env:
-      # This publish is working using an NPM automation token to bypass 2FA
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install yarn dependencies
-        working-directory: ./ui
-        run: yarn install
-      - name: Build yarn rollup
-        working-directory: ./ui
-        run: yarn build:lib
-      - name: Publish UI package
-        working-directory: ./ui
-        run: npm publish
-        env:
-          # This publish is working using an NPM automation token to bypass 2FA
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
