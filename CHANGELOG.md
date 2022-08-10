@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.3](https://github.com/feast-dev/feast/compare/v0.22.2...v0.22.3) (2022-08-10)
+
+
+### Bug Fixes
+
+* Check if on_demand_feature_views is an empty list rather than None for snowflake provider ([#3046](https://github.com/feast-dev/feast/issues/3046)) ([67af727](https://github.com/feast-dev/feast/commit/67af727da3380634e1e9940ee5f9cb8720df1ab5))
+* Fixing Web UI, which fails for the SQL registry ([#3028](https://github.com/feast-dev/feast/issues/3028)) ([56d645c](https://github.com/feast-dev/feast/commit/56d645ca8b792a49ee87ad2b4f4c54d0bb1fdf8b))
+* More explicit error messages ([#2708](https://github.com/feast-dev/feast/issues/2708)) ([93c1c15](https://github.com/feast-dev/feast/commit/93c1c1517e7ebeaf6ded8487934eba465d7eb9d5))
+* Move gcp back to 1.47.0 since grpcio-tools 1.48.0 got yanked from pypi ([#2990](https://github.com/feast-dev/feast/issues/2990)) ([f7e44da](https://github.com/feast-dev/feast/commit/f7e44da49f92ccab0bd9c016b30de7dc28ffa796))
+* Return an empty infra object from sql registry when it doesn't exist ([#3022](https://github.com/feast-dev/feast/issues/3022)) ([329bc47](https://github.com/feast-dev/feast/commit/329bc475fb0d81a2afdce38eed8342d1446e37ed))
+
 ## [0.22.2](https://github.com/feast-dev/feast/compare/v0.22.1...v0.22.2) (2022-07-29)
 
 
