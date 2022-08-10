@@ -24,7 +24,7 @@ def test_online_retrieval(environment, universal_data_sources, benchmark):
     feature_views = construct_universal_feature_views(data_sources)
 
     feature_service = FeatureService(
-        "convrate_plus100",
+        name="convrate_plus100",
         features=[feature_views.driver[["conv_rate"]], feature_views.driver_odfv],
     )
 
