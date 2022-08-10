@@ -59,25 +59,19 @@ class RetrievalMetadata:
 
 
 class RetrievalJob(ABC):
-    """RetrievalJob is used to manage the execution of a historical feature retrieval"""
-
-    @property
-    @abstractmethod
-    def full_feature_names(self) -> bool:
-        pass
-
-    @property
-    @abstractmethod
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
-        pass
+    """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
 
     def to_df(
         self, validation_reference: Optional["ValidationReference"] = None
     ) -> pd.DataFrame:
         """
-        Return dataset as Pandas DataFrame synchronously including on demand transforms
+        Synchronously executes the underlying query and returns the result as a pandas dataframe.
+
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
         Args:
-            validation_reference: If provided resulting dataset will be validated against this reference profile.
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
         """
         features_df = self._to_df_internal()
 
@@ -106,23 +100,17 @@ class RetrievalJob(ABC):
 
         return features_df
 
-    @abstractmethod
-    def _to_df_internal(self) -> pd.DataFrame:
-        """Return dataset as Pandas DataFrame synchronously"""
-        pass
-
-    @abstractmethod
-    def _to_arrow_internal(self) -> pyarrow.Table:
-        """Return dataset as pyarrow Table synchronously"""
-        pass
-
     def to_arrow(
         self, validation_reference: Optional["ValidationReference"] = None
     ) -> pyarrow.Table:
         """
-        Return dataset as pyarrow Table synchronously
+        Synchronously executes the underlying query and returns the result as an arrow table.
+
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
         Args:
-            validation_reference: If provided resulting dataset will be validated against this reference profile.
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
         """
         if not self.on_demand_feature_views and not validation_reference:
             return self._to_arrow_internal()
@@ -153,35 +141,48 @@ class RetrievalJob(ABC):
         return pyarrow.Table.from_pandas(features_df)
 
     @abstractmethod
+    def _to_df_internal(self) -> pd.DataFrame:
+        """Synchronously executes the underlying query and returns the result as a pandas dataframe."""
+        pass
+
+    @abstractmethod
+    def _to_arrow_internal(self) -> pyarrow.Table:
+        """Synchronously executes the underlying query and returns the result as an arrow table."""
+        pass
+
+    @property
+    @abstractmethod
+    def full_feature_names(self) -> bool:
+        """Returns True if full feature names should be applied to the results of the query."""
+        pass
+
+    @property
+    @abstractmethod
+    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+        """Returns a list containing all the on demand feature views to be handled."""
+        pass
+
+    @abstractmethod
     def persist(self, storage: SavedDatasetStorage):
-        """
-        Run the retrieval and persist the results in the same offline store used for read.
-        """
+        """Synchronously executes the underlying query and persists the result in the same offline store."""
         pass
 
     @property
     @abstractmethod
     def metadata(self) -> Optional[RetrievalMetadata]:
-        """
-        Return metadata information about retrieval.
-        Should be available even before materializing the dataset itself.
-        """
+        """Returns metadata about the retrieval job."""
         pass
 
     def supports_remote_storage_export(self) -> bool:
-        """
-        This method should return True if the RetrievalJob supports `to_remote_storage()`.
-        """
+        """Returns True if the RetrievalJob supports `to_remote_storage`."""
         return False
 
     def to_remote_storage(self) -> List[str]:
         """
-        This method should export the result of this RetrievalJob to
-        remote storage (such as S3, GCS, HDFS, etc).
-        Implementations of this method should export the results as
-        multiple parquet files, each file sized appropriately
-        depending on how much data is being returned by the retrieval
-        job.
+        Synchronously executes the underlying query and exports the results to remote storage (e.g. S3 or GCS).
+
+        Implementations of this method should export the results as multiple parquet files, each file sized
+        appropriately depending on how much data is being returned by the retrieval job.
 
         Returns:
             A list of parquet file paths in remote storage.
