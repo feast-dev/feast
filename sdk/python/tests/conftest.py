@@ -14,10 +14,11 @@
 import logging
 import multiprocessing
 import os
+import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import pytest
@@ -25,7 +26,7 @@ from _pytest.nodes import Item
 
 os.environ["FEAST_USAGE"] = "False"
 os.environ["IS_TEST"] = "True"
-from feast import FeatureStore  # noqa: E402
+from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
 from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
@@ -38,10 +39,16 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     Environment,
     TestData,
     construct_test_environment,
+    construct_universal_feature_views,
     construct_universal_test_data,
 )
 from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.entities import (  # noqa: E402
+    customer,
+    driver,
+    location,
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
@@ -373,3 +380,44 @@ def e2e_data_sources(environment: Environment):
     )
 
     return df, data_source
+
+
+@pytest.fixture
+def feature_store_for_online_retrieval(
+    environment, universal_data_sources
+) -> Tuple[FeatureStore, List[str], List[Dict[str, int]]]:
+    """
+    Returns a feature store that is ready for online retrieval, along with entity rows and feature
+    refs that can be used to query for online features.
+    """
+    fs = environment.feature_store
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
+    feast_objects = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer(), location()])
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
+
+    sample_drivers = random.sample(entities.driver_vals, 10)
+    sample_customers = random.sample(entities.customer_vals, 10)
+
+    entity_rows = [
+        {"driver_id": d, "customer_id": c, "val_to_add": 50}
+        for (d, c) in zip(sample_drivers, sample_customers)
+    ]
+
+    feature_refs = [
+        "driver_stats:conv_rate",
+        "driver_stats:avg_daily_trips",
+        "customer_profile:current_balance",
+        "customer_profile:avg_passenger_count",
+        "customer_profile:lifetime_trip_count",
+        "conv_rate_plus_100:conv_rate_plus_100",
+        "conv_rate_plus_100:conv_rate_plus_val_to_add",
+        "global_stats:num_rides",
+        "global_stats:avg_ride_length",
+    ]
+
+    return fs, feature_refs, entity_rows
