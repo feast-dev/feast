@@ -59,25 +59,19 @@ class RetrievalMetadata:
 
 
 class RetrievalJob(ABC):
-    """RetrievalJob is used to manage the execution of a historical feature retrieval"""
-
-    @property
-    @abstractmethod
-    def full_feature_names(self) -> bool:
-        pass
-
-    @property
-    @abstractmethod
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
-        pass
+    """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
 
     def to_df(
         self, validation_reference: Optional["ValidationReference"] = None
     ) -> pd.DataFrame:
         """
-        Return dataset as Pandas DataFrame synchronously including on demand transforms
+        Synchronously executes the underlying query and returns the result as a pandas dataframe.
+
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
         Args:
-            validation_reference: If provided resulting dataset will be validated against this reference profile.
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
         """
         features_df = self._to_df_internal()
 
@@ -106,23 +100,17 @@ class RetrievalJob(ABC):
 
         return features_df
 
-    @abstractmethod
-    def _to_df_internal(self) -> pd.DataFrame:
-        """Return dataset as Pandas DataFrame synchronously"""
-        pass
-
-    @abstractmethod
-    def _to_arrow_internal(self) -> pyarrow.Table:
-        """Return dataset as pyarrow Table synchronously"""
-        pass
-
     def to_arrow(
         self, validation_reference: Optional["ValidationReference"] = None
     ) -> pyarrow.Table:
         """
-        Return dataset as pyarrow Table synchronously
+        Synchronously executes the underlying query and returns the result as an arrow table.
+
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
         Args:
-            validation_reference: If provided resulting dataset will be validated against this reference profile.
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
         """
         if not self.on_demand_feature_views and not validation_reference:
             return self._to_arrow_internal()
@@ -153,35 +141,58 @@ class RetrievalJob(ABC):
         return pyarrow.Table.from_pandas(features_df)
 
     @abstractmethod
-    def persist(self, storage: SavedDatasetStorage):
+    def _to_df_internal(self) -> pd.DataFrame:
         """
-        Run the retrieval and persist the results in the same offline store used for read.
+        Synchronously executes the underlying query and returns the result as a pandas dataframe.
+
+        Does not handle on demand transformations or dataset validation. For either of those,
+        `to_df` should be used.
+        """
+        pass
+
+    @abstractmethod
+    def _to_arrow_internal(self) -> pyarrow.Table:
+        """
+        Synchronously executes the underlying query and returns the result as an arrow table.
+
+        Does not handle on demand transformations or dataset validation. For either of those,
+        `to_arrow` should be used.
         """
         pass
 
     @property
     @abstractmethod
+    def full_feature_names(self) -> bool:
+        """Returns True if full feature names should be applied to the results of the query."""
+        pass
+
+    @property
+    @abstractmethod
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+        """Returns a list containing all the on demand feature views to be handled."""
+        pass
+
+    @abstractmethod
+    def persist(self, storage: SavedDatasetStorage):
+        """Synchronously executes the underlying query and persists the result in the same offline store."""
+        pass
+
+    @property
+    @abstractmethod
     def metadata(self) -> Optional[RetrievalMetadata]:
-        """
-        Return metadata information about retrieval.
-        Should be available even before materializing the dataset itself.
-        """
+        """Returns metadata about the retrieval job."""
         pass
 
     def supports_remote_storage_export(self) -> bool:
-        """
-        This method should return True if the RetrievalJob supports `to_remote_storage()`.
-        """
+        """Returns True if the RetrievalJob supports `to_remote_storage`."""
         return False
 
     def to_remote_storage(self) -> List[str]:
         """
-        This method should export the result of this RetrievalJob to
-        remote storage (such as S3, GCS, HDFS, etc).
-        Implementations of this method should export the results as
-        multiple parquet files, each file sized appropriately
-        depending on how much data is being returned by the retrieval
-        job.
+        Synchronously executes the underlying query and exports the results to remote storage (e.g. S3 or GCS).
+
+        Implementations of this method should export the results as multiple parquet files, each file sized
+        appropriately depending on how much data is being returned by the retrieval job.
 
         Returns:
             A list of parquet file paths in remote storage.
@@ -191,8 +202,8 @@ class RetrievalJob(ABC):
 
 class OfflineStore(ABC):
     """
-    OfflineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    An offline store defines the interface that Feast uses to interact with the storage and compute system that
+    handles offline features.
     """
 
     @staticmethod
@@ -208,24 +219,24 @@ class OfflineStore(ABC):
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        This method pulls data from the offline store, and the FeatureStore class is used to write
-        this data into the online store. This method is invoked when running materialization (using
-        the `feast materialize` or `feast materialize-incremental` commands, or the corresponding
-        FeatureStore.materialize() method. This method pulls data from the offline store, and the FeatureStore
-        class is used to write this data into the online store.
+        Extracts the latest entity rows (i.e. the combination of join key columns, feature columns, and
+        timestamp columns) from the specified data source that lie within the specified time range.
 
-        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
-        have all already been mapped to column names of the source table and those column names are the values passed
-        into this function.
+        All of the column names should refer to columns that exist in the data source. In particular,
+        any mapping of column names must have already happened.
 
         Args:
-            config: Repo configuration object
-            data_source: Data source to pull all of the columns from
-            join_key_columns: Columns of the join keys
-            feature_name_columns: Columns of the feature names needed
-            timestamp_field: Timestamp column
-            start_date: Starting date of query
-            end_date: Ending date of query
+            config: The config for the current feature store.
+            data_source: The data source from which the entity rows will be extracted.
+            join_key_columns: The columns of the join keys.
+            feature_name_columns: The columns of the features.
+            timestamp_field: The timestamp column, used to determine which rows are the most recent.
+            created_timestamp_column: The column indicating when the row was created, used to break ties.
+            start_date: The start of the time range.
+            end_date: The end of the time range.
+
+        Returns:
+            A RetrievalJob that can be executed to get the entity rows.
         """
         pass
 
@@ -240,6 +251,25 @@ class OfflineStore(ABC):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        """
+        Retrieves the point-in-time correct historical feature values for the specified entity rows.
+
+        Args:
+            config: The config for the current feature store.
+            feature_views: A list containing all feature views that are referenced in the entity rows.
+            feature_refs: The features to be retrieved.
+            entity_df: A collection of rows containing all entity columns on which features need to be joined,
+                as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
+                provided or a SQL query.
+            registry: The registry for the current feature store.
+            project: Feast project to which the feature views belong.
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
+
+        Returns:
+            A RetrievalJob that can be executed to get the features.
+        """
         pass
 
     @staticmethod
@@ -254,20 +284,23 @@ class OfflineStore(ABC):
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        Returns a Retrieval Job for all join key columns, feature name columns, and the event timestamp columns that occur between the start_date and end_date.
+        Extracts all the entity rows (i.e. the combination of join key columns, feature columns, and
+        timestamp columns) from the specified data source that lie within the specified time range.
 
-        Note that join_key_columns, feature_name_columns, timestamp_field, and created_timestamp_column
-        have all already been mapped to column names of the source table and those column names are the values passed
-        into this function.
+        All of the column names should refer to columns that exist in the data source. In particular,
+        any mapping of column names must have already happened.
 
         Args:
-            config: Repo configuration object
-            data_source: Data source to pull all of the columns from
-            join_key_columns: Columns of the join keys
-            feature_name_columns: Columns of the feature names needed
-            timestamp_field: Timestamp column
-            start_date: Starting date of query
-            end_date: Ending date of query
+            config: The config for the current feature store.
+            data_source: The data source from which the entity rows will be extracted.
+            join_key_columns: The columns of the join keys.
+            feature_name_columns: The columns of the features.
+            timestamp_field: The timestamp column.
+            start_date: The start of the time range.
+            end_date: The end of the time range.
+
+        Returns:
+            A RetrievalJob that can be executed to get the entity rows.
         """
         pass
 
@@ -280,19 +313,18 @@ class OfflineStore(ABC):
         registry: BaseRegistry,
     ):
         """
-        Write logged features to a specified destination (taken from logging_config) in the offline store.
-        Data can be appended to an existing table (destination) or a new one will be created automatically
-         (if it doesn't exist).
-        Hence, this function can be called repeatedly with the same destination to flush logs in chunks.
+        Writes logged features to a specified destination in the offline store.
+
+        If the specified destination exists, data will be appended; otherwise, the destination will be
+        created and data will be added. Thus this function can be called repeatedly with the same
+        destination to flush logs in chunks.
 
         Args:
-            config: Repo configuration object
-            data: Arrow table or path to parquet directory that contains logs dataset.
-            source: Logging source that provides schema and some additional metadata.
-            logging_config: used to determine destination
-            registry: Feast registry
-
-        This is an optional method that could be supported only be some stores.
+            config: The config for the current feature store.
+            data: An arrow table or a path to parquet directory that contains the logs to write.
+            source: The logging source that provides a schema and some additional metadata.
+            logging_config: A LoggingConfig object that determines where the logs will be written.
+            registry: The registry for the current feature store.
         """
         raise NotImplementedError()
 
@@ -304,16 +336,13 @@ class OfflineStore(ABC):
         progress: Optional[Callable[[int], Any]],
     ):
         """
-        Write features to a specified destination in the offline store.
-        Data can be appended to an existing table (destination) or a new one will be created automatically
-         (if it doesn't exist).
-        Hence, this function can be called repeatedly with the same destination config to write features.
+        Writes the specified arrow table to the data source underlying the specified feature view.
 
         Args:
-            config: Repo configuration object
-            feature_view: FeatureView to write the data to.
-            table: pyarrow table containing feature data and timestamp column for historical feature retrieval
-            progress: Optional function to be called once every mini-batch of rows is written to
-            the online store. Can be used to display progress.
+            config: The config for the current feature store.
+            feature_view: The feature view whose batch source should be written.
+            table: The arrow table to write.
+            progress: Function to be called once a portion of the data has been written, used
+                to show progress.
         """
         raise NotImplementedError()

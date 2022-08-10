@@ -247,7 +247,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
             self._query_generator = query_generator
         self.config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
     @property
@@ -255,7 +255,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
     def _to_df_internal(self) -> pd.DataFrame:
