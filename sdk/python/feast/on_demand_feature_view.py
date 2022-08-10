@@ -59,12 +59,12 @@ class OnDemandFeatureView(BaseFeatureView):
             maintainer.
     """
 
-    # TODO(adchia): remove inputs from proto and declaration
     name: str
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
     udf: FunctionType
+    udf_string: str
     description: str
     tags: Dict[str, str]
     owner: str
@@ -83,6 +83,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ]
         ],
         udf: FunctionType,
+        udf_string: str = "",
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -99,6 +100,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 which will refer to them by name.
             udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
+            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
@@ -125,6 +127,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 ] = odfv_source.projection
 
         self.udf = udf  # type: ignore
+        self.udf_string = udf_string
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -137,6 +140,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources=list(self.source_feature_view_projections.values())
             + list(self.source_request_sources.values()),
             udf=self.udf,
+            udf_string=self.udf_string,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -157,6 +161,7 @@ class OnDemandFeatureView(BaseFeatureView):
             self.source_feature_view_projections
             != other.source_feature_view_projections
             or self.source_request_sources != other.source_request_sources
+            or self.udf_string != other.udf_string
             or self.udf.__code__.co_code != other.udf.__code__.co_code
         ):
             return False
@@ -198,6 +203,7 @@ class OnDemandFeatureView(BaseFeatureView):
             user_defined_function=UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
+                body_text=self.udf_string,
             ),
             description=self.description,
             tags=self.tags,
@@ -250,6 +256,7 @@ class OnDemandFeatureView(BaseFeatureView):
             udf=dill.loads(
                 on_demand_feature_view_proto.spec.user_defined_function.body
             ),
+            udf_string=on_demand_feature_view_proto.spec.user_defined_function.body_text,
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
@@ -438,6 +445,7 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+        udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,
@@ -447,6 +455,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            udf_string=udf_string,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

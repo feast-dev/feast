@@ -69,6 +69,7 @@ def conv_rate_plus_100_feature_view(
         schema=[] if infer_features else _features,
         sources=sources,
         udf=conv_rate_plus_100,
+        udf_string="raw udf source",
     )
 
 
@@ -106,6 +107,7 @@ def similarity_feature_view(
         sources=sources,
         schema=[] if infer_features else _fields,
         udf=similarity,
+        udf_string="similarity raw udf",
     )
 
 
