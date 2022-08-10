@@ -37,7 +37,7 @@ DEFAULT_BATCH_SIZE = 10_000
 
 class PassthroughProvider(Provider):
     """
-    The Passthrough provider delegates all operations to the underlying online and offline stores.
+    The passthrough provider delegates all operations to the underlying online and offline stores.
     """
 
     def __init__(self, config: RepoConfig):
