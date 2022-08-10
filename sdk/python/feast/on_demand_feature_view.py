@@ -83,7 +83,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ]
         ],
         udf: FunctionType,
-        udf_string: str,
+        udf_string: str = "",
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -140,6 +140,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources=list(self.source_feature_view_projections.values())
             + list(self.source_request_sources.values()),
             udf=self.udf,
+            udf_string=self.udf_string,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
