@@ -241,22 +241,6 @@ feast.proto\_json module
    :undoc-members:
    :show-inheritance:
 
-feast.registry module
----------------------
-
-.. automodule:: feast.registry
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.registry\_store module
-----------------------------
-
-.. automodule:: feast.registry_store
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.repo\_config module
 -------------------------
 

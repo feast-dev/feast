@@ -37,6 +37,14 @@ feast.infra.online\_stores.contrib.postgres module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.online\_stores.contrib.postgres\_repo\_configuration module
+-----------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.postgres_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

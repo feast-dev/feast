@@ -10,7 +10,7 @@ Subpackages
    feast.infra.materialization
    feast.infra.offline_stores
    feast.infra.online_stores
-   feast.infra.registry_stores
+   feast.infra.registry
    feast.infra.utils
 
 Submodules

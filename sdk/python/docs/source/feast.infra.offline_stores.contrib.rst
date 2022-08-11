@@ -7,12 +7,21 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.infra.offline_stores.contrib.athena_offline_store
    feast.infra.offline_stores.contrib.postgres_offline_store
    feast.infra.offline_stores.contrib.spark_offline_store
    feast.infra.offline_stores.contrib.trino_offline_store
 
 Submodules
 ----------
+
+feast.infra.offline\_stores.contrib.athena\_repo\_configuration module
+----------------------------------------------------------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.athena_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 feast.infra.offline\_stores.contrib.postgres\_repo\_configuration module
 ------------------------------------------------------------------------
