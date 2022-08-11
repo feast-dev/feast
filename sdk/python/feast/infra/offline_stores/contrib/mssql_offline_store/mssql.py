@@ -31,6 +31,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.usage import log_exceptions_and_usage
 
 EntitySchema = Dict[str, np.dtype]
 
@@ -52,7 +53,7 @@ def make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
 
 class MsSqlServerOfflineStore(OfflineStore):
     @staticmethod
-    # @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mssql")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -98,7 +99,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    # @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mssql")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -132,7 +133,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    # @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mssql")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
