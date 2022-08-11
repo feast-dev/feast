@@ -193,9 +193,7 @@ test-python-universal-postgres-online:
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -n 8 --integration \
- 			-k "not test_push and \
-				not test_get_online_features and \
-				not test_universal_cli and \
+ 			-k "not test_universal_cli and \
  				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
