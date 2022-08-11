@@ -24,7 +24,7 @@ class MsqlDataSourceCreator(DataSourceCreator):
             self.create_offline_store_config()
 
     def create_offline_store_config(self) -> MsSqlServerOfflineStoreConfig:
-        # TODO: Fill in connection string
+        # TODO(kevjumba): Fill in connection string
         connection_string = os.getenv("AZURE_CONNECTION_STRING", "")
         self.mssql_offline_store_config = MsSqlServerOfflineStoreConfig()
         self.mssql_offline_store_config.connection_string = connection_string
@@ -62,7 +62,6 @@ class MsqlDataSourceCreator(DataSourceCreator):
         )
 
     def get_prefixed_table_name(self, destination_name: str) -> str:
-        # TODO fix this
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
