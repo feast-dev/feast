@@ -66,6 +66,7 @@ def main():
     setup_data()
     existing_repo_config = load_repo_config(Path("."))
 
+    # Update to default online store since otherwise, relies on Dockerized Redis service
     fs = FeatureStore(config=existing_repo_config.copy(update={"online_store": {}}))
     fs.apply(
         [
