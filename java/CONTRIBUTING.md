@@ -59,6 +59,7 @@ mvn spotless:apply
 ### Project Makefile
 The Project Makefile provides useful shorthands for common development tasks:
 
+> Note: These commands rely on a local version of `feast` (Python) to be installed
 
 Run all Unit tests:
 ```
