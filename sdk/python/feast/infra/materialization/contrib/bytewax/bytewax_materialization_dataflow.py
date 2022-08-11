@@ -23,7 +23,6 @@ class BytewaxMaterializationDataflow:
         self.feature_store = FeatureStore(config=config)
 
         self.feature_view = feature_view
-        self.offline_store = feature_view.source
         self.paths = paths
 
         self._run_dataflow()
