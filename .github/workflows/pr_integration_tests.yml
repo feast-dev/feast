@@ -167,7 +167,7 @@ jobs:
       - name: Install apache-arrow on macos
         if: matrix.os == 'macOS-latest'
         run: brew install apache-arrow
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Setup Redis Cluster
         run: |

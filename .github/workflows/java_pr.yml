@@ -167,7 +167,7 @@ jobs:
           sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
           sudo apt update
           sudo apt install -y -V libarrow-dev
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: make install-python-ci-dependencies
       - name: Run integration tests
         run:  make test-java-integration
