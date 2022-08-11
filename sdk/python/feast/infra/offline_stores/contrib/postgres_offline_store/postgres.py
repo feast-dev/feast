@@ -118,15 +118,6 @@ class PostgreSQLOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
 
-        # (
-        #     entity_schema,
-        #     df_query,
-        #     table_name,
-        # ) = _get_entity_schema_df_query_and_table_name(
-        #     config=config,
-        #     entity_df=entity_df,
-        # )
-
         entity_schema = _get_entity_schema(entity_df, config)
 
         entity_df_event_timestamp_col = (
@@ -418,26 +409,6 @@ def _get_entity_schema(
         return get_query_schema(config.offline_store, df_query)
     else:
         raise InvalidEntityType(type(entity_df))
-
-
-def _get_entity_schema_df_query_and_table_name(
-    config: RepoConfig, entity_df: Union[pd.DataFrame, str]
-) -> Tuple[Dict[str, np.dtype], str, Optional[str]]:
-
-    table_name = None
-    if isinstance(entity_df, pd.DataFrame):
-        table_name = offline_utils.get_temp_entity_table_name()
-        entity_schema = df_to_postgres_table(
-            config.offline_store, entity_df, table_name
-        )
-        df_query = table_name
-    elif isinstance(entity_df, str):
-        df_query = f"({entity_df}) AS sub"
-        entity_schema = get_query_schema(config.offline_store, df_query)
-    else:
-        raise TypeError(entity_df)
-
-    return entity_schema, df_query, table_name
 
 
 # Copied from the Feast Redshift offline store implementation
