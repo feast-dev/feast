@@ -354,7 +354,7 @@ Setting up your development environment for Feast Go SDK:
 ### Building
 Build the Feast Go Client with the `go` toolchain:
 ```sh
-make go build
+make build
 ```
 
 ### Code Style & Linting
