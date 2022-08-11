@@ -63,15 +63,15 @@ REGISTRY_SCHEMA_VERSION = "1"
 REGISTRY_STORE_CLASS_FOR_TYPE = {
     "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
     "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
-    "LocalRegistryStore": "feast.infra.local.LocalRegistryStore",
+    "FileRegistryStore": "feast.infra.local.FileRegistryStore",
     "PostgreSQLRegistryStore": "feast.infra.registry_stores.contrib.postgres.registry_store.PostgreSQLRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
     "gs": "GCSRegistryStore",
     "s3": "S3RegistryStore",
-    "file": "LocalRegistryStore",
-    "": "LocalRegistryStore",
+    "file": "FileRegistryStore",
+    "": "FileRegistryStore",
 }
 
 

@@ -28,7 +28,7 @@ class LocalProvider(PassthroughProvider):
         return infra
 
 
-class LocalRegistryStore(RegistryStore):
+class FileRegistryStore(RegistryStore):
     def __init__(self, registry_config: RegistryConfig, repo_path: Path):
         registry_path = Path(registry_config.path)
         if registry_path.is_absolute():

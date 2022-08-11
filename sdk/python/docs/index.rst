@@ -173,7 +173,7 @@ Local Provider
 
 .. automodule:: feast.infra.local
     :members:
-    :exclude-members: LocalRegistryStore
+    :exclude-members: FileRegistryStore
 
 GCP Provider
 ------------------
