@@ -21,7 +21,7 @@ class AzBlobRegistryStore(RegistryStore):
             import logging
 
             from azure.identity import DefaultAzureCredential
-            from azure.storage.blob import BlobClient, BlobServiceClient
+            from azure.storage.blob import BlobServiceClient
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
@@ -59,9 +59,9 @@ class AzBlobRegistryStore(RegistryStore):
             self.blob = client.get_blob_client(
                 container=self._container, blob=self._path
             )
-        except:
+        except Exception as e:
             print(
-                "Could not connect to blob. Check the following\nIs the URL specified correctly?\nIs you IAM role set to Storage Blob Data Contributor?\n"
+                f"Could not connect to blob. Check the following\nIs the URL specified correctly?\nIs you IAM role set to Storage Blob Data Contributor? \n Errored out with exception {e}"
             )
 
         return
@@ -94,5 +94,5 @@ class AzBlobRegistryStore(RegistryStore):
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
-        self.blob.upload_blob(file_obj, overwrite=True)
+        self.blob.upload_blob(file_obj, overwrite=True)  # type: ignore
         return

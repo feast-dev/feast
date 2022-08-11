@@ -219,7 +219,7 @@ class MsSqlServerSource(DataSource):
             config.offline_store.connection_string
         )
         name_type_pairs = []
-        if (len(self.table_ref.split(".")) == 2):
+        if len(self.table_ref.split(".")) == 2:
             database, table_name = self.table_ref.split(".")
             columns_query = f"""
                 SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS

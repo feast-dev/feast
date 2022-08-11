@@ -1,11 +1,7 @@
 import os
-import uuid
-from typing import Dict, List
-from venv import create
+from typing import Dict
 
 import pandas as pd
-from pyspark import SparkConf
-from pyspark.sql import SparkSession
 
 from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (

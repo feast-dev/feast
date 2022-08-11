@@ -21,7 +21,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
-from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 from feast.utils import (
     _convert_arrow_to_proto,
     _get_column_names,

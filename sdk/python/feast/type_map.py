@@ -532,6 +532,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
     return value_type
 
+
 def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     type_map = {
         "bigint": ValueType.FLOAT,
@@ -555,7 +556,6 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     if mssql_type_as_str.lower() not in type_map:
         raise ValueError(f"Mssql type not supported by feast {mssql_type_as_str}")
     return type_map[mssql_type_as_str.lower()]
-
 
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:

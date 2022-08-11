@@ -1,41 +1,37 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas
 import pyarrow
 import sqlalchemy
-from jinja2 import BaseLoader, Environment
 from pydantic.types import StrictStr
 from pydantic.typing import Literal
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
-from feast.errors import InvalidEntityType
+from sqlalchemy.orm import sessionmaker
 
 from feast import FileSource, errors
 from feast.data_source import DataSource
+from feast.errors import InvalidEntityType
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
-from feast.infra.offline_stores.offline_store import (
-    OfflineStore,
-    RetrievalJob,
-    RetrievalMetadata,
-)
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalMetadata
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+    build_point_in_time_query,
+    get_feature_view_query_context,
 )
 from feast.infra.provider import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.infra.offline_stores.offline_utils import build_point_in_time_query, get_feature_view_query_context
+
 EntitySchema = Dict[str, np.dtype]
 
 
@@ -48,7 +44,6 @@ class MsSqlServerOfflineStoreConfig(FeastBaseModel):
     connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
     """Connection string containing the host, port, and configuration parameters for SQL Server
      format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
-
 
 
 def make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
@@ -175,7 +170,11 @@ class MsSqlServerOfflineStore(OfflineStore):
 
         # Build a query context containing all information required to template the SQL query
         query_context = get_feature_view_query_context(
-            feature_refs, feature_views, registry, project, entity_df_timestamp_range=entity_df_event_timestamp_range,
+            feature_refs,
+            feature_views,
+            registry,
+            project,
+            entity_df_timestamp_range=entity_df_event_timestamp_range,
         )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df
@@ -187,7 +186,6 @@ class MsSqlServerOfflineStore(OfflineStore):
             entity_df_columns=table_schema.keys(),
             full_feature_names=full_feature_names,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
-
         )
         query = query.replace("`", "")
 
@@ -199,6 +197,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             on_demand_feature_views=registry.list_on_demand_feature_views(project),
         )
         return job
+
 
 def _assert_expected_columns_in_dataframe(
     join_keys: Set[str], entity_df_event_timestamp_col: str, entity_df: pandas.DataFrame
@@ -336,7 +335,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
     if type(entity_df) is str:
         # TODO: This should be a temporary table, right?
-        session.execute(f"SELECT * INTO {table_id} FROM ({entity_df}) t")
+        session.execute(f"SELECT * INTO {table_id} FROM ({entity_df}) t")  # type: ignore
 
         session.commit()
 
@@ -365,10 +364,11 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
     return entity_schema
 
+
 def _get_entity_df_event_timestamp_range(
     entity_df: Union[pandas.DataFrame, str],
     entity_df_event_timestamp_col: str,
-    engine: Session,
+    engine: Engine,
 ) -> Tuple[datetime, datetime]:
     if isinstance(entity_df, pandas.DataFrame):
         entity_df_event_timestamp = entity_df.loc[
@@ -398,9 +398,10 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp.max().to_pydatetime(),
         )
     else:
-         raise InvalidEntityType(type(entity_df))
+        raise InvalidEntityType(type(entity_df))
 
     return entity_df_event_timestamp_range
+
 
 # TODO: Optimizations
 #   * Use NEWID() instead of ROW_NUMBER(), or join on entity columns directly
