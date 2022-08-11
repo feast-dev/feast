@@ -66,46 +66,6 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - name: Setup Python (to call feast apply)
-        uses: actions/setup-python@v2
-        id: setup-python
-        with:
-          python-version: 3.8
-          architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18.0
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Install pip-tools
-        run: pip install pip-tools
-      - name: Install apache-arrow on ubuntu
-        run: |
-          sudo apt update
-          sudo apt install -y -V ca-certificates lsb-release wget
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt update
-          sudo apt install -y -V libarrow-dev
-      - name: Install Python dependencies
-        run: make install-python-ci-dependencies
       - uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -127,6 +87,8 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
+    env:
+      PYTHON: 3.8
     steps:
       - uses: actions/checkout@v2
         with:
