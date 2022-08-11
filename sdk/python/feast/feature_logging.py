@@ -18,7 +18,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 
 if TYPE_CHECKING:
     from feast.feature_service import FeatureService
-    from feast.registry import BaseRegistry
+    from feast.infra.registry.registry import BaseRegistry
 
 
 REQUEST_ID_FIELD = "__request_id"

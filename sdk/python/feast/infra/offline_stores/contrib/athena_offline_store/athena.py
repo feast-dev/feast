@@ -37,8 +37,8 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.registry import BaseRegistry, Registry
 from feast.infra.utils import aws_utils
-from feast.registry import BaseRegistry, Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage

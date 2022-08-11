@@ -47,11 +47,11 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
+from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.registry_store import NoopRegistryStore
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -61,10 +61,10 @@ from feast.stream_feature_view import StreamFeatureView
 REGISTRY_SCHEMA_VERSION = "1"
 
 REGISTRY_STORE_CLASS_FOR_TYPE = {
-    "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
-    "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
-    "FileRegistryStore": "feast.infra.local.FileRegistryStore",
-    "PostgreSQLRegistryStore": "feast.infra.registry_stores.contrib.postgres.registry_store.PostgreSQLRegistryStore",
+    "GCSRegistryStore": "feast.infra.registry.gcs.GCSRegistryStore",
+    "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
+    "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
+    "PostgreSQLRegistryStore": "feast.infra.registry.contrib.postgres.postgres_registry_store.PostgreSQLRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
@@ -806,7 +806,7 @@ class Registry(BaseRegistry):
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
         if registry_config and registry_config.registry_type == "sql":
-            from feast.infra.registry_stores.sql import SqlRegistry
+            from feast.infra.registry.sql import SqlRegistry
 
             return SqlRegistry(registry_config, repo_path)
         else:

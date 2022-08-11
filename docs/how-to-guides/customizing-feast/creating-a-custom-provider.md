@@ -37,7 +37,7 @@ from feast.infra.local import LocalProvider
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import Registry
+from feast.infra.registry.registry import Registry
 from feast.repo_config import RepoConfig
 
 

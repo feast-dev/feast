@@ -13,8 +13,8 @@ from feast.constants import (
     FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME,
     REGISTRY_ENV_NAME,
 )
-from feast.infra.local import FileRegistryStore
-from feast.registry import get_registry_store_class_from_scheme
+from feast.infra.registry.file import FileRegistryStore
+from feast.infra.registry.registry import get_registry_store_class_from_scheme
 
 # Load RepoConfig
 config_base64 = os.environ[FEATURE_STORE_YAML_ENV_NAME]

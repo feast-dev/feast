@@ -38,8 +38,8 @@ from feast.infra.offline_stores.redshift_source import (
     RedshiftLoggingDestination,
     SavedDatasetRedshiftStorage,
 )
+from feast.infra.registry.registry import BaseRegistry
 from feast.infra.utils import aws_utils
-from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage

@@ -25,8 +25,8 @@ from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.registry.registry import Registry
 from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
-from feast.registry import Registry
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String

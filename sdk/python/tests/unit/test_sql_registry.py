@@ -28,7 +28,7 @@ from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.infra.registry_stores.sql import SqlRegistry
+from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
