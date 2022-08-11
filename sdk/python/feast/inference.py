@@ -199,10 +199,10 @@ def _infer_features_and_entities(
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
     }
-    for column in columns_to_exclude:
-        if column in fv.batch_source.field_mapping:
-            columns_to_exclude.remove(column)
-            columns_to_exclude.add(fv.batch_source.field_mapping[column])
+    for original_col, mapped_col in fv.batch_source.field_mapping.items():
+        if mapped_col in columns_to_exclude:
+            columns_to_exclude.remove(mapped_col)
+            columns_to_exclude.add(original_col)
 
     table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
         config
