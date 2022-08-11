@@ -13,7 +13,7 @@ from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto

@@ -19,7 +19,7 @@ from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import Provider
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig

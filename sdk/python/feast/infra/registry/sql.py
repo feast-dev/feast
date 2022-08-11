@@ -34,7 +34,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto

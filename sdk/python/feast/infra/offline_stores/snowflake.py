@@ -40,7 +40,7 @@ from feast.infra.offline_stores.snowflake_source import (
     SnowflakeLoggingDestination,
     SnowflakeSource,
 )
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,

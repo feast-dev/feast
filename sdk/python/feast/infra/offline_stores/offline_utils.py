@@ -17,7 +17,7 @@ from feast.errors import (
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
 from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc

@@ -25,7 +25,7 @@ from feast.data_source import DataSource
 from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
-from feast.infra.registry.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage

@@ -77,7 +77,8 @@ from feast.inference import (
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
-from feast.infra.registry.registry import BaseRegistry, Registry
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
