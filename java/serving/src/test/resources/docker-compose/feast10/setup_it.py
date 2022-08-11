@@ -1,3 +1,4 @@
+from pathlib import Path
 from feast.repo_config import load_repo_config
 from datetime import datetime, timedelta
 

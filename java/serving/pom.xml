@@ -82,6 +82,7 @@
         </configuration>
       </plugin>
 
+      <!-- Call feast apply before running integration tests -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>

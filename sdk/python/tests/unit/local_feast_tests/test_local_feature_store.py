@@ -128,10 +128,6 @@ def test_apply_on_demand_feature_view_success(test_feature_store):
         ttl=timedelta(minutes=5),
     )
 
-    @on_demand_feature_view(
-
-    )
-
     # Register Feature View
     test_feature_store.apply([entity, fv1])
 
