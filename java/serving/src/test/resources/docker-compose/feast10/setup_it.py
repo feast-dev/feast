@@ -42,8 +42,8 @@ def setup_data():
     # (link https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)
     # about this benchmark setup
     def generate_data(
-        num_rows: int, num_features: int, destination: str
-    ) -> pd.DataFrame:
+        num_rows, num_features, destination
+    ):
         features = [f"feature_{i}" for i in range(num_features)]
         columns = ["entity", "event_timestamp"] + features
         df = pd.DataFrame(0, index=np.arange(num_rows), columns=columns)
