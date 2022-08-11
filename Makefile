@@ -171,8 +171,7 @@ test-python-universal-postgres-offline:
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -n 8 --integration \
- 			-k "not test_historical_features and \
-				not test_historical_retrieval_with_validation and \
+ 			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
  				not test_universal_cli and \
  				not test_go_feature_server and \
