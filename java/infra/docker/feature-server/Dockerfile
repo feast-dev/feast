@@ -20,7 +20,7 @@ COPY java/docs/coverage/pom.xml docs/coverage/pom.xml
 # user to optionally use cached repository when building the image by copying
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3"
-#COPY java/pom.xml .m2/* .m2/
+COPY java/pom.xml .m2/* .m2/
 RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY java/ .
