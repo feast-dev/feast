@@ -580,17 +580,17 @@ class BaseRegistry(abc.ABC):
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Args:
-                name: Name of dataset
-                project: Feast project that this dataset belongs to
-                allow_cache: Whether to allow returning this dataset from a cached registry
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
 
-            Returns:
-                Returns either the specified ValidationReference, or raises an exception if
-                none is found
-            """
+        Returns:
+            Returns either the specified ValidationReference, or raises an exception if
+            none is found
+        """
 
     # TODO: Needs to be implemented.
     def list_validation_references(
@@ -1692,17 +1692,17 @@ class Registry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Args:
-                name: Name of dataset
-                project: Feast project that this dataset belongs to
-                allow_cache: Whether to allow returning this dataset from a cached registry
+        Args:
+            name: Name of dataset
+            project: Feast project that this dataset belongs to
+            allow_cache: Whether to allow returning this dataset from a cached registry
 
-            Returns:
-                Returns either the specified ValidationReference, or raises an exception if
-                none is found
-            """
+        Returns:
+            Returns either the specified ValidationReference, or raises an exception if
+            none is found
+        """
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )

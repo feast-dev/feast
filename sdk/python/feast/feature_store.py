@@ -2349,10 +2349,10 @@ class FeatureStore:
         self, name: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Raises:
-                ValidationReferenceNotFoundException: The validation reference could not be found.
+        Raises:
+            ValidationReferenceNotFoundException: The validation reference could not be found.
         """
         ref = self._registry.get_validation_reference(
             name, project=self.project, allow_cache=allow_cache

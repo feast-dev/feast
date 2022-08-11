@@ -136,4 +136,6 @@ Unit &amp; Integration Tests can be used to verify functionality:
 mvn test -pl serving --also-make
 # run integration tests
 mvn verify -pl serving --also-make
+# run integration tests with debugger
+mvn -Dmaven.failsafe.debug verify -pl serving --also-make
 ```

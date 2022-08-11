@@ -34,12 +34,12 @@ class LoggingSource:
 
     @abc.abstractmethod
     def get_schema(self, registry: "BaseRegistry") -> pa.Schema:
-        """ Generate schema for logs destination. """
+        """Generate schema for logs destination."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_log_timestamp_column(self) -> str:
-        """ Return timestamp column that must exist in generated schema. """
+        """Return timestamp column that must exist in generated schema."""
         raise NotImplementedError
 
 
