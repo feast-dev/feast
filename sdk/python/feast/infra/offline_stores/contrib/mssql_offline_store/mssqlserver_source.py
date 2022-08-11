@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-
+import warnings
 import json
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
@@ -16,6 +16,8 @@ from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
+# Make sure spark warning doesn't raise more than once.
+warnings.simplefilter("once", RuntimeWarning)
 
 class MsSqlServerOptions:
     """
@@ -111,6 +113,11 @@ class MsSqlServerSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = None,
     ):
+        warnings.warn(
+            "The synapse/mssql data source is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         self._mssqlserver_options = MsSqlServerOptions(
             connection_str=connection_str, table_ref=table_ref
         )

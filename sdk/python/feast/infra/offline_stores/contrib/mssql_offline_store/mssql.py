@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-
+import warnings
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -33,6 +33,9 @@ from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
 
+# Make sure spark warning doesn't raise more than once.
+warnings.simplefilter("once", RuntimeWarning)
+
 EntitySchema = Dict[str, np.dtype]
 
 
@@ -64,6 +67,11 @@ class MsSqlServerOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        warnings.warn(
+            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         assert type(data_source).__name__ == "MsSqlServerSource"
         from_expression = data_source.get_table_query_string().replace("`", "")
 
@@ -110,6 +118,11 @@ class MsSqlServerOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert type(data_source).__name__ == "MsSqlServerSource"
+        warnings.warn(
+            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         from_expression = data_source.get_table_query_string().replace("`", "")
         timestamps = [timestamp_field]
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
@@ -143,6 +156,11 @@ class MsSqlServerOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        warnings.warn(
+            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         expected_join_keys = _get_join_keys(project, feature_views, registry)
 
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)

@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-
+import warnings
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -28,11 +28,19 @@ from feast.utils import (
     make_tzaware,
 )
 
+# Make sure spark warning doesn't raise more than once.
+warnings.simplefilter("once", RuntimeWarning)
+
 DEFAULT_BATCH_SIZE = 10_000
 
 
 class AzureProvider(Provider):
     def __init__(self, config: RepoConfig):
+        warnings.warn(
+            "The azure provider  is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         self.repo_config = config
         self.offline_store = get_offline_store_from_config(config.offline_store)
         self.online_store = (
@@ -69,6 +77,11 @@ class AzureProvider(Provider):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
+        warnings.warn(
+            "The azure provider  is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
 
@@ -93,6 +106,7 @@ class AzureProvider(Provider):
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+
         result = []
         if self.online_store:
             result = self.online_store.online_read(
