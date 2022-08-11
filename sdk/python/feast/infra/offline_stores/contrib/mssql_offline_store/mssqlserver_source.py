@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-import warnings
 import json
+import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 import pandas
@@ -18,6 +18,7 @@ from feast.value_type import ValueType
 
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
+
 
 class MsSqlServerOptions:
     """
