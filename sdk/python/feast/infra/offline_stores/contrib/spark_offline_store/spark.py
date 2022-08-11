@@ -1,3 +1,4 @@
+import tempfile
 import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
@@ -6,6 +7,7 @@ import numpy as np
 import pandas
 import pandas as pd
 import pyarrow
+import pyarrow.parquet as pq
 import pyspark
 from pydantic import StrictStr
 from pyspark import SparkConf
@@ -267,8 +269,11 @@ class SparkRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-        df = self.to_df()
-        return pyarrow.Table.from_pandas(df)  # noqa
+
+        # write to temp parquet and then load it as pyarrow table from disk
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.to_spark_df().write.parquet(temp_dir, mode="overwrite")
+            return pq.read_table(temp_dir)
 
     def persist(self, storage: SavedDatasetStorage):
         """
