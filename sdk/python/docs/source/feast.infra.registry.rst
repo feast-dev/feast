@@ -4,6 +4,14 @@ feast.infra.registry package
 Submodules
 ----------
 
+feast.infra.registry.base\_registry module
+------------------------------------------
+
+.. automodule:: feast.infra.registry.base_registry
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.registry.file module
 --------------------------------
 
