@@ -1,6 +1,8 @@
 import warnings
 
-from feast.infra.registry.registry import BaseRegistry, Registry
+from feast.infra.registry.registry import BaseRegistry, Registry  # noqa
+
+warnings.simplefilter("once")
 
 warnings.warn(
     "The BaseRegistry class has been moved to the feast.infra.registry.base_registry module. "
