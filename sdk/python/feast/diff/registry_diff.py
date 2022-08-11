@@ -144,8 +144,8 @@ def diff_registry_objects(
                 continue
             elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
                 if _field.name == "user_defined_function":
-                    current_spec = cast(OnDemandFeatureViewSpec, current_proto)
-                    new_spec = cast(OnDemandFeatureViewSpec, new_proto)
+                    current_spec = cast(OnDemandFeatureViewSpec, current_proto.spec)
+                    new_spec = cast(OnDemandFeatureViewSpec, new_proto.spec)
                     current_udf = current_spec.user_defined_function
                     new_udf = new_spec.user_defined_function
                     for _udf_field in current_udf.DESCRIPTOR.fields:

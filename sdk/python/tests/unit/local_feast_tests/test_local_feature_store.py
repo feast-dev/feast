@@ -11,6 +11,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Int64, String
 from tests.utils.data_source_test_creator import prep_file_source
@@ -92,6 +93,63 @@ def test_apply_feature_view_success(test_feature_store):
         and feature_views[0].features[3].name == "fs1_my_feature_4"
         and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_on_demand_feature_view_success(test_feature_store):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["entity_id"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="entity_id", dtype=Int64),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    @on_demand_feature_view(
+
+    )
+
+    # Register Feature View
+    test_feature_store.apply([entity, fv1])
+
+    feature_views = test_feature_store.list_feature_views()
+
+    # List Feature Views
+    assert (
+            len(feature_views) == 1
+            and feature_views[0].name == "my_feature_view_1"
+            and feature_views[0].features[0].name == "fs1_my_feature_1"
+            and feature_views[0].features[0].dtype == Int64
+            and feature_views[0].features[1].name == "fs1_my_feature_2"
+            and feature_views[0].features[1].dtype == String
+            and feature_views[0].features[2].name == "fs1_my_feature_3"
+            and feature_views[0].features[2].dtype == Array(String)
+            and feature_views[0].features[3].name == "fs1_my_feature_4"
+            and feature_views[0].features[3].dtype == Array(Bytes)
+            and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
     test_feature_store.teardown()
