@@ -61,6 +61,7 @@
 
 * [Codebase Structure](reference/codebase-structure.md)
 * [Data sources](reference/data-sources/README.md)
+  * [Overview](reference/data-sources/overview.md)
   * [File](reference/data-sources/file.md)
   * [Snowflake](reference/data-sources/snowflake.md)
   * [BigQuery](reference/data-sources/bigquery.md)
