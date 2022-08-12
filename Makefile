@@ -317,7 +317,7 @@ install-feast-ci-locally:
 
 # Needs feast package to setup the feature store
 # CGO flag is due to this issue: https://github.com/golang/go/wiki/InvalidFlag
-test-go: compile-protos-go compile-go-lib install-feast-ci-locally
+test-go: compile-protos-python compile-protos-go compile-go-lib install-feast-ci-locally
 	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
 
 format-go:
