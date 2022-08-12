@@ -221,13 +221,6 @@ class SparkOfflineStore(OfflineStore):
                 f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
             )
 
-        # # NOT SURE ABOUT THESE 2 LINES
-        print(table.schema)
-        print("----------------------------------------")
-        print(pa_schema)
-        # if table.schema != pa_schema:
-        #     table = table.cast(pa_schema)
-
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
