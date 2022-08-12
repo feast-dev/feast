@@ -1,7 +1,12 @@
+import os
+import shutil
+import tempfile
 import uuid
 from typing import Dict, List
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
@@ -27,8 +32,9 @@ class SparkDataSourceCreator(DataSourceCreator):
         super().__init__(project_name)
         self.spark_conf = {
             "master": "local[*]",
-            "spark.ui.enabled": "false",
-            "spark.eventLog.enabled": "false",
+            # "spark.ui.enabled": "false",
+            # "spark.eventLog.enabled": "false",
+            "spark.sql.shuffle.partitions": 64,
             "spark.sql.parser.quotedRegexColumnNames": "true",
             "spark.sql.session.timeZone": "UTC",
         }
@@ -48,6 +54,8 @@ class SparkDataSourceCreator(DataSourceCreator):
 
     def teardown(self):
         self.spark_session.stop()
+        for table in self.tables:
+            shutil.rmtree(table)
 
     def create_offline_store_config(self):
         self.spark_offline_store_config = SparkOfflineStoreConfig()
@@ -86,11 +94,17 @@ class SparkDataSourceCreator(DataSourceCreator):
                 .appName("pytest-pyspark-local-testing")
                 .getOrCreate()
             )
-        self.spark_session.createDataFrame(df).createOrReplaceTempView(destination_name)
-        self.tables.append(destination_name)
 
+        temp_dir = tempfile.mkdtemp(prefix="spark_offline_store_test_data")
+
+        path = os.path.join(temp_dir, destination_name)
+        self.tables.append(path)
+
+        self.spark_session.createDataFrame(df).write.parquet(path)
         return SparkSource(
-            table=destination_name,
+            name=destination_name,
+            file_format="parquet",
+            path=path,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
