@@ -1,7 +1,7 @@
 import tempfile
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas
@@ -21,6 +21,7 @@ from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
+    SparkOptions,
     SparkSource,
 )
 from feast.infra.offline_stores.offline_store import (
@@ -190,6 +191,75 @@ class SparkOfflineStore(OfflineStore):
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
         )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        if not feature_view.batch_source:
+            raise ValueError(
+                "feature view does not have a batch source to persist offline data"
+            )
+        if not isinstance(config.offline_store, SparkOfflineStoreConfig):
+            raise ValueError(
+                f"offline store config is of type {type(config.offline_store)} when spark type required"
+            )
+        if not isinstance(feature_view.batch_source, SparkSource):
+            raise ValueError(
+                f"feature view batch source is {type(feature_view.batch_source)} not spark source"
+            )
+
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+            )
+
+        # # NOT SURE ABOUT THESE 2 LINES
+        print(table.schema)
+        print("----------------------------------------")
+        print(pa_schema)
+        # if table.schema != pa_schema:
+        #     table = table.cast(pa_schema)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+
+        if feature_view.batch_source.path:
+            # write data to disk so that it can be loaded into spark (for preserving column types)
+            with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
+                print(tmp_file.name)
+                pq.write_table(table, tmp_file.name)
+
+                # load data
+                df_batch = spark_session.read.parquet(tmp_file.name)
+
+                # load existing data to get spark table schema
+                df_existing = spark_session.read.format(
+                    feature_view.batch_source.file_format
+                ).load(feature_view.batch_source.path)
+
+                # cast columns if applicable
+                df_batch = _cast_data_frame(df_batch, df_existing)
+
+                df_batch.write.format(feature_view.batch_source.file_format).mode(
+                    "append"
+                ).save(feature_view.batch_source.path)
+        elif feature_view.batch_source.query:
+            raise NotImplementedError(
+                f"offline_write_batch not implemented for batch sources specified by query"
+            )
+        else:
+            raise NotImplementedError(
+                f"offline_write_batch not implemented for batch sources specified by a table"
+            )
 
     @staticmethod
     @log_exceptions_and_usage(offline_store="spark")
@@ -386,6 +456,24 @@ def _format_datetime(t: datetime) -> str:
         t = t.astimezone(tz=utc)
     dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
     return dt
+
+
+def _cast_data_frame(
+    df_new: pyspark.sql.DataFrame, df_existing: pyspark.sql.DataFrame
+) -> pyspark.sql.DataFrame:
+    """Convert new dataframe's columns to the same types as existing dataframe while preserving the order of columns"""
+    existing_dtypes = {k: v for k, v in df_existing.dtypes}
+    new_dtypes = {k: v for k, v in df_new.dtypes}
+
+    select_expression = []
+    for col, new_type in new_dtypes.items():
+        existing_type = existing_dtypes[col]
+        if new_type != existing_type:
+            select_expression.append(f"cast({col} as {existing_type}) as {col}")
+        else:
+            select_expression.append(col)
+
+    return df_new.selectExpr(*select_expression)
 
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
