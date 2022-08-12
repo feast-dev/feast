@@ -406,7 +406,37 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     ```
 
     If the integration tests fail, this indicates that there is a mistake in the implementation of this offline store!
-5. Remember to add your datasource to `repo_config.py` similar to how we added `spark`, `trino`, etc, to the dictionary `OFFLINE_STORE_CLASS_FOR_TYPE` and add the necessary configuration to `repo_configuration.py`. Namely, `AVAILABLE_OFFLINE_STORES` should load your repo configuration module.
+
+5. Remember to add your datasource to `repo_config.py` similar to how we added `spark`, `trino`, etc, to the dictionary `OFFLINE_STORE_CLASS_FOR_TYPE`. This will allow Feast to load your class from the `feature_store.yaml`.
+
+6. Finally, add a Makefile target to the Makefile to run your datastore specific tests by setting the `FULL_REPO_CONFIGS_MODULE` and `PYTEST_PLUGINS` environment variable. The `PYTEST_PLUGINS` environment variable allows pytest to load in the `DataSourceCreator` for your datasource. You can remove certain tests that are not relevant or still do not work for your datastore using the `-k` option.
+
+{% code title="Makefile" %}
+```Makefile
+test-python-universal-spark:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not test_historical_retrieval_fails_on_validation and \
+			not test_historical_retrieval_with_validation and \
+			not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
+			not test_universal_cli and \
+			not test_go_feature_server and \
+			not test_feature_logging and \
+			not test_reorder_columns and \
+			not test_logged_features_validation and \
+			not test_lambda_materialization_consistency and \
+			not test_offline_write and \
+			not test_push_features_to_offline_store.py and \
+			not gcs_registry and \
+			not s3_registry and \
+			not test_universal_types" \
+ 	 sdk/python/tests
+```
+{% endcode %}
 
 ### 7. Dependencies
 
