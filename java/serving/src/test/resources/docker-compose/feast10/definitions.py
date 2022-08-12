@@ -75,8 +75,9 @@ generated_data_source = FileSource(
 
 entity = Entity(name="entity")
 
-benchmark_feature_views = [
-    FeatureView(
+benchmark_feature_views = []
+for i in range(25):
+    fv = FeatureView(
         name=f"feature_view_{i}",
         entities=[entity],
         ttl=timedelta(seconds=86400),
@@ -84,8 +85,7 @@ benchmark_feature_views = [
         online=True,
         source=generated_data_source,
     )
-    for i in range(25)
-]
+    benchmark_feature_views.append(fv)
 
 benchmark_feature_service = FeatureService(
     name=f"benchmark_feature_service", features=benchmark_feature_views,

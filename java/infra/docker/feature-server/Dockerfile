@@ -24,7 +24,7 @@ COPY protos/feast datatypes/src/main/proto/feast
 
 ARG VERSION=dev
 RUN mvn --also-make --projects serving -Drevision=$VERSION \
-  -DskipUTs=true --batch-mode clean package
+  -DskipUTs=true -DskipITs=true --batch-mode clean package
 #
 # Download grpc_health_probe to run health check for Feast Serving
 # https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
