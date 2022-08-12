@@ -140,7 +140,7 @@ def test_exception_usage_off(dummy_exporter, enabling_toggle):
 def _reload_feast():
     """After changing environment need to reload modules and rerun usage decorators"""
     modules = (
-        "feast.infra.local",
+        "feast.infra.registry.file",
         "feast.infra.online_stores.sqlite",
         "feast.feature_store",
     )
