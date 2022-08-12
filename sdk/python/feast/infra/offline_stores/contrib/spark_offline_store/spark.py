@@ -21,7 +21,6 @@ from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
-    SparkOptions,
     SparkSource,
 )
 from feast.infra.offline_stores.offline_store import (
@@ -247,11 +246,11 @@ class SparkOfflineStore(OfflineStore):
                 ).save(feature_view.batch_source.path)
         elif feature_view.batch_source.query:
             raise NotImplementedError(
-                f"offline_write_batch not implemented for batch sources specified by query"
+                "offline_write_batch not implemented for batch sources specified by query"
             )
         else:
             raise NotImplementedError(
-                f"offline_write_batch not implemented for batch sources specified by a table"
+                "offline_write_batch not implemented for batch sources specified by a table"
             )
 
     @staticmethod
