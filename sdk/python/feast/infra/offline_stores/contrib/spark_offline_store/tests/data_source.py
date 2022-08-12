@@ -32,9 +32,8 @@ class SparkDataSourceCreator(DataSourceCreator):
         super().__init__(project_name)
         self.spark_conf = {
             "master": "local[*]",
-            # "spark.ui.enabled": "false",
-            # "spark.eventLog.enabled": "false",
-            "spark.sql.shuffle.partitions": 64,
+            "spark.ui.enabled": "false",
+            "spark.eventLog.enabled": "false",
             "spark.sql.parser.quotedRegexColumnNames": "true",
             "spark.sql.session.timeZone": "UTC",
         }
