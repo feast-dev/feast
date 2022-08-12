@@ -372,26 +372,18 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
 ```
 {% endcode %}
 
-3\. Add a Makefile target to the Makefile to run your datastore specific tests by setting the `FULL_REPO_CONFIGS_MODULE` and `PYTEST_PLUGINS` environment variables. You can remove certain tests that are not relevant or still do not work for your datastore using the `-k` option.
+3\. Add a Makefile target to the Makefile to run your datastore specific tests by setting the `FULL_REPO_CONFIGS_MODULE` environment variable. Add `PYTEST_PLUGINS` if pytest is having trouble loading your `DataSourceCreator`. You can remove certain tests that are not relevant or still do not work for your datastore using the `-k` option.
 
 {% code title="Makefile" %}
 ```Makefile
-test-python-universal-postgres:
+test-python-universal-cassandra:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
-		FEAST_USAGE=False \
-		IS_TEST=True \
-		python -m pytest -x --integration \
-			-k "not test_historical_retrieval_fails_on_validation and \
-				not test_historical_retrieval_with_validation and \
-				not test_historical_features_persisting and \
-				not test_historical_retrieval_fails_on_validation and \
-				not test_universal_cli and \
-				not test_go_feature_server and \
-				not test_feature_logging and \
-				not test_universal_types" \
-			sdk/python/tests
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
+	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store \
+	FEAST_USAGE=False \
+	IS_TEST=True \
+	python -m pytest -x --integration \
+	sdk/python/tests
 ```
 {% endcode %}
 
