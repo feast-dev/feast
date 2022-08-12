@@ -59,6 +59,7 @@
 
 ## Reference
 
+* [Codebase Structure](reference/codebase-structure.md)
 * [Data sources](reference/data-sources/README.md)
   * [File](reference/data-sources/file.md)
   * [Snowflake](reference/data-sources/snowflake.md)

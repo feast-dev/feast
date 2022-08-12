@@ -8,6 +8,8 @@ the main Feast repository:
 - [Feast Java Serving](#feast-java-serving)
 - [Feast Go Client](#feast-go-client)
 
+Please see [this page](https://docs.feast.dev/reference/codebase-structure) for more details on the structure of the entire codebase.
+
 ## Community
 See [Contribution process](https://docs.feast.dev/project/contributing) and [Community](https://docs.feast.dev/community) for details on how to get more involved in the community.
 
