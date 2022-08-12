@@ -74,7 +74,12 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
 
 class RedisOnlineStore(OnlineStore):
-    _client: Optional[Union[Redis, RedisCluster]] = None
+    """
+    Redis implementation of the online store interface.
+
+    Attributes:
+        _client: Redis connection.
+    """
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
