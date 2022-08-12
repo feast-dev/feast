@@ -103,7 +103,7 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
             "event_timestamp": [
                 pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1H", inclusive="left"
+                    start=start_date, end=end_date, freq="1H", closed="left"
                 )
             ]
             # include a fixed timestamp for get_historical_features in the quickstart
@@ -256,7 +256,7 @@ def create_global_daily_stats_df(start_date, end_date) -> pd.DataFrame:
             "event_timestamp": [
                 pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1D", inclusive="left"
+                    start=start_date, end=end_date, freq="1D", closed="left"
                 )
             ]
         }
