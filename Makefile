@@ -304,7 +304,7 @@ install-go-ci-dependencies:
 	python -m pip install pybindgen==0.22.0 protobuf==3.20.1
 
 install-protoc-dependencies:
-	pip install grpcio-tools==1.47.0 mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf grpcio-tools==1.47.0 mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
@@ -317,7 +317,7 @@ install-feast-ci-locally:
 
 # Needs feast package to setup the feature store
 # CGO flag is due to this issue: https://github.com/golang/go/wiki/InvalidFlag
-test-go: compile-protos-go compile-go-lib install-feast-ci-locally
+test-go: compile-protos-go compile-protos-python  compile-go-lib install-feast-ci-locally
 	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
 
 format-go:
