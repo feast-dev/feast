@@ -64,7 +64,7 @@ def main():
     print("Running setup_it.py")
 
     setup_data()
-    existing_repo_config = load_repo_config(Path("."))
+    existing_repo_config = load_repo_config(Path(".") / "feature_store.yaml", Path("."))
 
     # Update to default online store since otherwise, relies on Dockerized Redis service
     fs = FeatureStore(config=existing_repo_config.copy(update={"online_store": {}}))
