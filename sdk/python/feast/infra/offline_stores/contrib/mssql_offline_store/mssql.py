@@ -305,8 +305,8 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
-        return self._on_demand_feature_views
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+        return self._on_demand_feature_views or []
 
     def _to_df_internal(self) -> pandas.DataFrame:
         return pandas.read_sql(self.query, con=self.engine).fillna(value=np.nan)
