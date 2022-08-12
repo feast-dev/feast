@@ -294,6 +294,10 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
 
 
 def test_update_feature_services_with_inferred_features(simple_dataset_1):
+    """
+    Tests that a feature service that references feature views without specified features will
+    be updated with the correct projections after feature inference.
+    """
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity1 = Entity(name="test1", join_keys=["id_join_key"])
         feature_view_1 = FeatureView(
@@ -336,6 +340,62 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         assert len(feature_view_2.features) == 3
         assert len(feature_service.feature_view_projections[0].features) == 1
         assert len(feature_service.feature_view_projections[1].features) == 3
+
+
+def test_update_feature_services_with_specified_features(simple_dataset_1):
+    """
+    Tests that a feature service that references feature views with specified features will
+    have the correct projections both before and after feature inference.
+    """
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity1 = Entity(name="test1", join_keys=["id_join_key"])
+        feature_view_1 = FeatureView(
+            name="test1",
+            entities=[entity1],
+            schema=[
+                Field(name="float_col", dtype=Float32),
+                Field(name="id_join_key", dtype=Int64),
+            ],
+            source=file_source,
+        )
+        feature_view_2 = FeatureView(
+            name="test2",
+            entities=[entity1],
+            schema=[
+                Field(name="int64_col", dtype=Int64),
+                Field(name="id_join_key", dtype=Int64),
+            ],
+            source=file_source,
+        )
+
+        feature_service = FeatureService(
+            name="fs_1", features=[feature_view_1[["float_col"]], feature_view_2]
+        )
+        assert len(feature_service.feature_view_projections) == 2
+        assert len(feature_service.feature_view_projections[0].features) == 1
+        assert len(feature_service.feature_view_projections[0].desired_features) == 0
+        assert len(feature_service.feature_view_projections[1].features) == 1
+        assert len(feature_service.feature_view_projections[1].desired_features) == 0
+
+        update_feature_views_with_inferred_features_and_entities(
+            [feature_view_1, feature_view_2],
+            [entity1],
+            RepoConfig(
+                provider="local", project="test", entity_key_serialization_version=2
+            ),
+        )
+        assert len(feature_view_1.features) == 1
+        assert len(feature_view_2.features) == 1
+
+        feature_service.infer_features(
+            fvs_to_update={
+                feature_view_1.name: feature_view_1,
+                feature_view_2.name: feature_view_2,
+            }
+        )
+
+        assert len(feature_service.feature_view_projections[0].features) == 1
+        assert len(feature_service.feature_view_projections[1].features) == 1
 
 
 # TODO(felixwang9817): Add tests that interact with field mapping.
