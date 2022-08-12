@@ -5,8 +5,6 @@ import uuid
 from typing import Dict, List
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
