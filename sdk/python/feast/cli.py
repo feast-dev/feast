@@ -74,7 +74,6 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--feature-store-yaml",
-    "-f",
     help="Override the directory where the CLI should look for the feature_store.yaml file.",
 )
 @click.pass_context
@@ -160,7 +159,7 @@ def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     # Pass in the registry_dump method to get around a circular dependency
     store.serve_ui(
         host=host,
@@ -179,7 +178,7 @@ def endpoint(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     endpoint = store.get_feature_server_endpoint()
     if endpoint is not None:
         _logger.info(
@@ -207,7 +206,7 @@ def data_source_describe(ctx: click.Context, name: str):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     try:
         data_source = store.get_data_source(name)
@@ -236,7 +235,7 @@ def data_source_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     table = []
     for datasource in store.list_data_sources():
         table.append([datasource.name, datasource.__class__])
@@ -269,7 +268,7 @@ def entity_describe(ctx: click.Context, name: str):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     try:
         entity = store.get_entity(name)
@@ -293,7 +292,7 @@ def entity_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     table = []
     for entity in store.list_entities():
         table.append([entity.name, entity.description, entity.value_type])
@@ -321,7 +320,7 @@ def feature_service_describe(ctx: click.Context, name: str):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     try:
         feature_service = store.get_feature_service(name)
@@ -347,7 +346,7 @@ def feature_service_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     feature_services = []
     for feature_service in store.list_feature_services():
         feature_names = []
@@ -380,7 +379,7 @@ def feature_view_describe(ctx: click.Context, name: str):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     try:
         feature_view = store.get_feature_view(name)
@@ -403,8 +402,9 @@ def feature_view_list(ctx: click.Context):
     """
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     table = []
     for feature_view in [
         *store.list_feature_views(),
@@ -448,7 +448,7 @@ def on_demand_feature_view_describe(ctx: click.Context, name: str):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     try:
         on_demand_feature_view = store.get_on_demand_feature_view(name)
@@ -474,7 +474,7 @@ def on_demand_feature_view_list(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     table = []
     for on_demand_feature_view in store.list_on_demand_feature_views():
         table.append([on_demand_feature_view.name])
@@ -579,7 +579,7 @@ def materialize_command(
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     store.materialize(
         feature_views=None if not views else views,
         start_date=utils.make_tzaware(parser.parse(start_ts)),
@@ -608,7 +608,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
     store.materialize_incremental(
         feature_views=None if not views else views,
         end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
@@ -699,7 +699,7 @@ def serve_command(
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     if go:
         # Turn on Go feature retrieval.
@@ -722,7 +722,7 @@ def serve_transformations_command(ctx: click.Context, port: int):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     store.serve_transformations(port)
 
@@ -762,7 +762,7 @@ def validate(
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo))
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     feature_service = store.get_feature_service(name=feature_service)
     reference = store.get_validation_reference(reference)
