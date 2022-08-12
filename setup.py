@@ -57,8 +57,8 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<3",
-    "pandas>=1.4.3,<2",
+    "numpy<1.22,<3",
+    "pandas<1.4.3,<2",
     "pandavro==1.5.*", # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "protobuf>3.20,<4",
     "proto-plus>=1.20.0,<2",
@@ -184,6 +184,40 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
 )
 
+AFFIRM_REQUIRED = [
+    "google-api-core~=2.8.2",
+    "googleapis-common-protos~=1.56.4",
+    "grpcio-reflection~=1.48.0",
+    "numpy<1.22,<2",
+    "pandas>=1,<2",
+    "protobuf~=3.13.0",
+    "proto-plus~=1.20.6",
+    "PyYAML~=5.1.1",
+    "uvicorn[standard]>=0.14.0,<1",
+    "tensorflow-metadata~=1.9.0",
+    "dask~=2022.1.1",
+
+    "click>=7.0.0,<9.0.0",
+    "colorama>=0.3.9,<1",
+    "dill==0.3.*",
+    "fastavro>=1.1.0,<2",
+    "grpcio>=1.47.0,<2",
+    "Jinja2>=2,<4",
+    "jsonschema",
+    "mmh3",
+    "pandavro==1.5.*",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "pyarrow>=4,<9",
+    "pydantic>=1,<2",
+    "pygments>=2.12.0,<3",
+    "SQLAlchemy[mypy]>1,<2",
+    "tabulate>=0.8.0,<1",
+    "tenacity>=7,<9",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
+    "typeguard",
+    "fastapi>=0.68.0,<1",
+    "bowler",  # Needed for automatic repo upgrades
+]
 
 # rtd builds fail because of mysql not being installed in their environment.
 # We can add mysql there, but it's not strictly needed. This will be faster for builds.
@@ -498,7 +532,7 @@ setup(
         where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")
     ),
     package_dir={"": PYTHON_CODE_PREFIX},
-    install_requires=REQUIRED,
+    install_requires=AFFIRM_REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
