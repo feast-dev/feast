@@ -358,10 +358,11 @@ def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
 def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
     # need to create dataframe with corrupted data first
     df = pd.DataFrame()
-    df["current_balance"] = [-100]
+    df["current_balance"] = [-99]
     df["avg_passenger_count"] = [0]
 
     other_ds = PandasDataset(df)
+    # note this will be the corrupted test case
     other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
     other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
 
