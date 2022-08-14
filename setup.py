@@ -185,17 +185,17 @@ CI_REQUIRED = (
 )
 
 AFFIRM_REQUIRED = [
-    "google-api-core~=2.8.2",
-    "googleapis-common-protos~=1.56.4",
-    "grpcio-reflection~=1.48.0",
+    "google-api-core",
+    "googleapis-common-protos",
+    "grpcio-reflection",
     "numpy<1.22,<2",
     "pandas>=1,<2",
-    "protobuf~=3.13.0",
-    "proto-plus~=1.20.6",
-    "PyYAML~=5.1.1",
-    "uvicorn[standard]>=0.14.0,<1",
-    "tensorflow-metadata~=1.9.0",
-    "dask~=2022.1.1",
+    "protobuf",
+    "proto-plus",
+    "PyYAML",
+    "uvicorn[standard]",
+    "tensorflow-metadata",
+    "dask",
 
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
