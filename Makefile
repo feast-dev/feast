@@ -139,6 +139,21 @@ test-python-universal-trino:
 			not test_universal_types" \
  	 sdk/python/tests
 
+
+# Note: to use this, you'll need to have Microsoft ODBC 17 installed.
+# See https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver15#17
+test-python-universal-mssql:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not gcs_registry and \
+			not s3_registry and \
+			not test_lambda_materialization" \
+ 	 sdk/python/tests
+
+
 #To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
 #Modify environment variables ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_S3_BUCKET_NAME if you want to change the data source, database, and bucket name of S3 to use.
 #If tests fail with the pytest -n 8 option, change the number to 1.

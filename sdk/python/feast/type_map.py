@@ -558,6 +558,48 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     return type_map[mssql_type_as_str.lower()]
 
 
+def pa_to_mssql_type(pa_type: pyarrow.DataType) -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # MS Sql types: https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        if "tz=" in pa_type_as_str:
+            return "datetimeoffset"
+        else:
+            return "datetime"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "None",
+        "bool": "bit",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "smallint",
+        "uint32": "int",
+        "uint64": "bigint",
+        "float": "float",
+        "double": "real",
+        "binary": "binary",
+        "string": "varchar",
+    }
+
+    if pa_type_as_str.lower() not in type_map:
+        raise ValueError(f"MS SQL Server type not supported by feast {pa_type_as_str}")
+
+    return type_map[pa_type_as_str]
+
+
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     # Type names from https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
     type_map = {

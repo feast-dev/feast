@@ -2,7 +2,8 @@
 # Licensed under the MIT license.
 import warnings
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas
@@ -17,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from feast import FileSource, errors
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
@@ -33,7 +35,7 @@ from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
 
-# Make sure spark warning doesn't raise more than once.
+# Make sure warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
 
 EntitySchema = Dict[str, np.dtype]
@@ -55,6 +57,13 @@ def make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
 
 
 class MsSqlServerOfflineStore(OfflineStore):
+    """
+    Microsoft SQL Server based offline store, supporting Azure Synapse or Azure SQL.
+
+    Note: to use this, you'll need to have Microsoft ODBC 17 installed.
+    See https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver15#17
+    """
+
     @staticmethod
     @log_exceptions_and_usage(offline_store="mssql")
     def pull_latest_from_table_or_query(
@@ -216,6 +225,25 @@ class MsSqlServerOfflineStore(OfflineStore):
             on_demand_feature_views=registry.list_on_demand_feature_views(project),
         )
         return job
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: BaseRegistry,
+    ):
+        raise NotImplementedError()
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        raise NotImplementedError()
 
 
 def _assert_expected_columns_in_dataframe(
