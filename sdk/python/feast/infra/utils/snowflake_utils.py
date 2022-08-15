@@ -88,6 +88,8 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
             **kwargs,
         )
 
+        conn.cursor().execute("ALTER SESSION SET TIMEZONE = 'UTC'", _is_internal=True)
+
         return conn
     except KeyError as e:
         raise SnowflakeIncompleteConfig(e)
