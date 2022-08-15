@@ -30,10 +30,11 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 try:
     import boto3
+    from botocore.config import Config
     from botocore.exceptions import ClientError
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -330,7 +331,12 @@ class DynamoDBOnlineStore(OnlineStore):
 
 
 def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None):
-    return boto3.client("dynamodb", region_name=region, endpoint_url=endpoint_url)
+    return boto3.client(
+        "dynamodb",
+        region_name=region,
+        endpoint_url=endpoint_url,
+        config=Config(user_agent=get_user_agent()),
+    )
 
 
 def _initialize_dynamodb_resource(region: str, endpoint_url: Optional[str] = None):
