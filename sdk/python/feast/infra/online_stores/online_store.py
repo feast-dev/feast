@@ -116,6 +116,7 @@ class OnlineStore(ABC):
             config: The config for the current feature store.
             desired_registry_proto: The desired registry, in proto form.
         """
+        return []
 
     @abstractmethod
     def teardown(
