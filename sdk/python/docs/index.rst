@@ -310,6 +310,14 @@ Local Engine
 (Alpha) Lambda Based Engine
 ---------------------------
 
-.. autoclass:: feast.infra.materialization.lambda.lambda_engine
+.. automodule:: feast.infra.materialization.lambda.lambda_engine
+    :members:
+    :noindex:
+
+
+Bytewax Engine
+---------------------------
+
+.. automodule:: feast.infra.materialization.contrib.bytewax
     :members:
     :noindex:
