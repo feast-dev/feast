@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from pyspark import SparkConf
@@ -96,7 +96,9 @@ class SparkDataSourceCreator(DataSourceCreator):
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
-    def create_saved_dataset_destination(self) -> SavedDatasetSparkStorage:
+    def create_saved_dataset_destination(
+        self, data_source: Optional[DataSource] = None
+    ) -> SavedDatasetSparkStorage:
         table = f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         return SavedDatasetSparkStorage(
             table=table, query=None, path=None, file_format=None

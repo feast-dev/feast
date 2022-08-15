@@ -119,7 +119,9 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
             "password": POSTGRES_PASSWORD,
         }
 
-    def create_saved_dataset_destination(self):
+    def create_saved_dataset_destination(
+        self, data_source: Optional[DataSource] = None
+    ):
         # FIXME: ...
         return None
 

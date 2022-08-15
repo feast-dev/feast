@@ -204,6 +204,11 @@ class SpecifiedFeaturesNotPresentError(Exception):
         )
 
 
+class SavedDatasetLocationAlreadyExists(Exception):
+    def __init__(self, location: str):
+        super().__init__(f"Saved dataset location {location} already exists.")
+
+
 class FeastOfflineStoreInvalidName(Exception):
     def __init__(self, offline_store_class_name: str):
         super().__init__(

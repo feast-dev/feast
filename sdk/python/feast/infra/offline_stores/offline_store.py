@@ -174,7 +174,13 @@ class RetrievalJob(ABC):
 
     @abstractmethod
     def persist(self, storage: SavedDatasetStorage):
-        """Synchronously executes the underlying query and persists the result in the same offline store."""
+        """
+        Synchronously executes the underlying query and persists the result in the same offline store
+        at the specified destination.
+
+        Currently does not prevent overwriting a pre-existing location in the offline store, although
+        individual implementations may do so. Eventually all implementations should prevent overwriting.
+        """
         pass
 
     @property
