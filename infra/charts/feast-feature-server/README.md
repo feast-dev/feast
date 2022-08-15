@@ -1,6 +1,6 @@
 # feast-feature-server
 
-![Version: 0.22.3](https://img.shields.io/badge/Version-0.22.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 0.22.4](https://img.shields.io/badge/Version-0.22.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 Feast Feature Server in Go or Python
 
