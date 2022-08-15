@@ -137,6 +137,8 @@ class FeatureStore:
         else:
             self.repo_path = Path(os.getcwd())
 
+        # If config is specified, or fs_yaml_file is specified, those take precedence over
+        # the default feature_store.yaml location under repo_path.
         if config is not None:
             self.config = config
         elif fs_yaml_file is not None:
