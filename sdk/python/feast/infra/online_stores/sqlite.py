@@ -50,7 +50,7 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
 class SqliteOnlineStore(OnlineStore):
     """
-    SQLite implementation of the online store interface.
+    SQLite implementation of the online store interface. Not recommended for production usage.
 
     Attributes:
         _conn: SQLite connection.
