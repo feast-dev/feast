@@ -120,13 +120,14 @@ class FeatureStore:
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-    _go_server: "EmbeddedOnlineFeatureServer"
+    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     @log_exceptions
     def __init__(
         self,
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
+        fs_yaml_file: Optional[Path] = None,
     ):
         """
         Creates a FeatureStore object.
@@ -134,16 +135,26 @@ class FeatureStore:
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
         """
-        if repo_path is not None and config is not None:
-            raise ValueError("You cannot specify both repo_path and config.")
-        if config is not None:
-            self.repo_path = Path(os.getcwd())
-            self.config = config
-        elif repo_path is not None:
+        if fs_yaml_file is not None and config is not None:
+            raise ValueError("You cannot specify both fs_yaml_dir and config.")
+
+        if repo_path:
             self.repo_path = Path(repo_path)
-            self.config = load_repo_config(Path(repo_path))
         else:
-            raise ValueError("Please specify one of repo_path or config.")
+            self.repo_path = Path(os.getcwd())
+
+        # If config is specified, or fs_yaml_file is specified, those take precedence over
+        # the default feature_store.yaml location under repo_path.
+        if config is not None:
+            self.config = config
+        elif fs_yaml_file is not None:
+            self.config = load_repo_config(self.repo_path, fs_yaml_file)
+        elif repo_path:
+            self.config = load_repo_config(
+                self.repo_path, Path(repo_path) / "feature_store.yaml"
+            )
+        else:
+            raise ValueError("Please specify one of fs_yaml_dir or config.")
 
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
@@ -152,7 +163,8 @@ class FeatureStore:
             r = Registry(registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
             self._registry = r
-        self._provider = get_provider(self.config, self.repo_path)
+
+        self._provider = get_provider(self.config)
         self._go_server = None
 
     @log_exceptions
@@ -1587,7 +1599,7 @@ class FeatureStore:
         }
 
         # If the embedded Go code is enabled, send request to it instead of going through regular Python logic.
-        if self.config.go_feature_retrieval:
+        if self.config.go_feature_retrieval and self._go_server:
             self._lazy_init_go_server()
 
             entity_native_values: Dict[str, List[Any]]
@@ -2239,7 +2251,7 @@ class FeatureStore:
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_serving:
+        if self.config.go_feature_serving and self._go_server:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
             enable_logging = (
