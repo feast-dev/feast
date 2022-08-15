@@ -60,7 +60,6 @@ class CliRunner:
         )
 
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
-
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 
@@ -85,11 +84,17 @@ class CliRunner:
             repo_example.write_text(example_repo_py)
 
             result = self.run(["apply"], cwd=repo_path)
-            print(f"Apply: stdout: {str(result.stdout)}\n stderr: {str(result.stderr)}")
+            stdout = result.stdout.decode("utf-8")
+            stderr = result.stderr.decode("utf-8")
+            print(f"Apply stdout:\n{stdout}")
+            print(f"Apply stderr:\n{stderr}")
             assert result.returncode == 0
 
             yield FeatureStore(repo_path=str(repo_path), config=None)
 
             result = self.run(["teardown"], cwd=repo_path)
-            print(f"Apply: stdout: {str(result.stdout)}\n stderr: {str(result.stderr)}")
+            stdout = result.stdout.decode("utf-8")
+            stderr = result.stderr.decode("utf-8")
+            print(f"Apply stdout:\n{stdout}")
+            print(f"Apply stderr:\n{stderr}")
             assert result.returncode == 0

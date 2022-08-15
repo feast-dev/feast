@@ -43,7 +43,13 @@ from tqdm import tqdm
 from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource, PushMode
+from feast.data_source import (
+    DataSource,
+    KafkaSource,
+    KinesisSource,
+    PushMode,
+    PushSource,
+)
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
@@ -826,6 +832,18 @@ class FeatureStore:
         validation_references_to_update = [
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
+
+        batch_sources_to_add: List[DataSource] = []
+        for data_source in data_sources_set_to_update:
+            if (
+                isinstance(data_source, PushSource)
+                or isinstance(data_source, KafkaSource)
+                or isinstance(data_source, KinesisSource)
+            ):
+                assert data_source.batch_source
+                batch_sources_to_add.append(data_source.batch_source)
+        for batch_source in batch_sources_to_add:
+            data_sources_set_to_update.add(batch_source)
 
         for fv in itertools.chain(views_to_update, sfvs_to_update):
             data_sources_set_to_update.add(fv.batch_source)

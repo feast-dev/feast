@@ -14,7 +14,7 @@ from click.exceptions import BadParameter
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource, KafkaSource
+from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -114,17 +114,30 @@ def parse_repo(repo_root: Path) -> RepoContents:
         request_feature_views=[],
     )
 
-    data_sources_set = set()
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file)
         module = importlib.import_module(module_path)
+
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
+
             if isinstance(obj, DataSource) and not any(
                 (obj is ds) for ds in res.data_sources
             ):
                 res.data_sources.append(obj)
-                data_sources_set.add(obj)
+
+                # Handle batch sources defined within stream sources.
+                if (
+                    isinstance(obj, PushSource)
+                    or isinstance(obj, KafkaSource)
+                    or isinstance(obj, KinesisSource)
+                ):
+                    batch_source = obj.batch_source
+
+                    if batch_source and not any(
+                        (batch_source is ds) for ds in res.data_sources
+                    ):
+                        res.data_sources.append(batch_source)
             if (
                 isinstance(obj, FeatureView)
                 and not any((obj is fv) for fv in res.feature_views)
@@ -132,26 +145,33 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 and not isinstance(obj, BatchFeatureView)
             ):
                 res.feature_views.append(obj)
-                if isinstance(obj.stream_source, PushSource) and not any(
-                    (obj is ds) for ds in res.data_sources
-                ):
-                    push_source_dep = obj.stream_source.batch_source
-                    # Don't add if the push source's batch source is a duplicate of an existing batch source
-                    if push_source_dep not in data_sources_set:
-                        res.data_sources.append(push_source_dep)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                assert batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                if obj.stream_source:
+                    stream_source = obj.stream_source
+                    if not any((stream_source is ds) for ds in res.data_sources):
+                        res.data_sources.append(stream_source)
             elif isinstance(obj, StreamFeatureView) and not any(
                 (obj is sfv) for sfv in res.stream_feature_views
             ):
                 res.stream_feature_views.append(obj)
-                if (
-                    isinstance(obj.stream_source, PushSource)
-                    or isinstance(obj.stream_source, KafkaSource)
-                    and not any((obj is ds) for ds in res.data_sources)
-                ):
-                    batch_source_dep = obj.stream_source.batch_source
-                    # Don't add if the push source's batch source is a duplicate of an existing batch source
-                    if batch_source_dep and batch_source_dep not in data_sources_set:
-                        res.data_sources.append(batch_source_dep)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                stream_source = obj.stream_source
+                assert stream_source
+                if not any((stream_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(stream_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -168,6 +188,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is rfv) for rfv in res.request_feature_views
             ):
                 res.request_feature_views.append(obj)
+
     res.entities.append(DUMMY_ENTITY)
     return res
 
@@ -300,7 +321,6 @@ def log_infra_changes(
 
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
-
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
     apply_total_with_repo_instance(

@@ -4,15 +4,19 @@ from tempfile import mkstemp
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast.aggregation import Aggregation
+from feast.data_format import AvroFormat, ParquetFormat
+from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
-from feast.types import Array, Bytes, Int64, String
+from feast.stream_feature_view import stream_feature_view
+from feast.types import Array, Bytes, Float32, Int64, String
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
 
@@ -20,7 +24,7 @@ from tests.utils.data_source_test_creator import prep_file_source
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
 )
-def test_apply_entity_success(test_feature_store):
+def test_apply_entity(test_feature_store):
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",
@@ -48,7 +52,7 @@ def test_apply_entity_success(test_feature_store):
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
 )
-def test_apply_feature_view_success(test_feature_store):
+def test_apply_feature_view(test_feature_store):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -101,7 +105,97 @@ def test_apply_feature_view_success(test_feature_store):
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
 )
-def test_apply_object_and_read(test_feature_store):
+def test_apply_feature_view_with_inline_batch_source(
+    test_feature_store, simple_dataset_1
+) -> None:
+    """Test that a feature view and an inline batch source are both correctly applied."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="driver_entity", join_keys=["test_key"])
+        driver_fv = FeatureView(
+            name="driver_fv",
+            entities=[entity],
+            source=file_source,
+        )
+
+        test_feature_store.apply([entity, driver_fv])
+
+        fvs = test_feature_store.list_feature_views()
+        assert len(fvs) == 1
+        assert fvs[0] == driver_fv
+
+        ds = test_feature_store.list_data_sources()
+        assert len(ds) == 1
+        assert ds[0] == file_source
+
+
+def test_apply_feature_view_with_inline_batch_source_from_repo() -> None:
+    """Test that a feature view and an inline batch source are both correctly applied."""
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_with_inline_batch_source.py"), "file"
+    ) as store:
+        ds = store.list_data_sources()
+        assert len(ds) == 1
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_feature_view_with_inline_stream_source(
+    test_feature_store, simple_dataset_1
+) -> None:
+    """Test that a feature view and an inline stream source are both correctly applied."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+        stream_source = KafkaSource(
+            name="kafka",
+            timestamp_field="event_timestamp",
+            kafka_bootstrap_servers="",
+            message_format=AvroFormat(""),
+            topic="topic",
+            batch_source=file_source,
+            watermark_delay_threshold=timedelta(days=1),
+        )
+
+        driver_fv = FeatureView(
+            name="driver_fv",
+            entities=[entity],
+            source=stream_source,
+        )
+
+        test_feature_store.apply([entity, driver_fv])
+
+        fvs = test_feature_store.list_feature_views()
+        assert len(fvs) == 1
+        assert fvs[0] == driver_fv
+
+        ds = test_feature_store.list_data_sources()
+        assert len(ds) == 2
+        if isinstance(ds[0], FileSource):
+            assert ds[0] == file_source
+            assert ds[1] == stream_source
+        else:
+            assert ds[0] == stream_source
+            assert ds[1] == file_source
+
+
+def test_apply_feature_view_with_inline_stream_source_from_repo() -> None:
+    """Test that a feature view and an inline stream source are both correctly applied."""
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_with_inline_stream_source.py"), "file"
+    ) as store:
+        ds = store.list_data_sources()
+        assert len(ds) == 2
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_entities_and_feature_views(test_feature_store):
     assert isinstance(test_feature_store, FeatureStore)
     # Create Feature Views
     batch_source = FileSource(
@@ -163,9 +257,8 @@ def test_apply_object_and_read(test_feature_store):
     [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_reapply_feature_view_success(test_feature_store, dataframe_source):
+def test_reapply_feature_view(test_feature_store, dataframe_source):
     with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
-
         e = Entity(name="id", join_keys=["id_join_key"])
 
         # Create Feature View
@@ -215,7 +308,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         test_feature_store.teardown()
 
 
-def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
+def test_apply_conflicting_feature_view_names(feature_store_with_local_registry):
     """Test applying feature views with non-case-insensitively unique names"""
     driver = Entity(name="driver", join_keys=["driver_id"])
     customer = Entity(name="customer", join_keys=["customer_id"])
@@ -249,6 +342,191 @@ def test_apply_conflicting_featureview_names(feature_store_with_local_registry):
     )
 
     feature_store_with_local_registry.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_stream_feature_view(test_feature_store, simple_dataset_1) -> None:
+    """Test that a stream feature view is correctly applied."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+        stream_source = KafkaSource(
+            name="kafka",
+            timestamp_field="event_timestamp",
+            kafka_bootstrap_servers="",
+            message_format=AvroFormat(""),
+            topic="topic",
+            batch_source=file_source,
+            watermark_delay_threshold=timedelta(days=1),
+        )
+
+        @stream_feature_view(
+            entities=[entity],
+            ttl=timedelta(days=30),
+            owner="test@example.com",
+            online=True,
+            schema=[Field(name="dummy_field", dtype=Float32)],
+            description="desc",
+            aggregations=[
+                Aggregation(
+                    column="dummy_field",
+                    function="max",
+                    time_window=timedelta(days=1),
+                ),
+                Aggregation(
+                    column="dummy_field2",
+                    function="count",
+                    time_window=timedelta(days=24),
+                ),
+            ],
+            timestamp_field="event_timestamp",
+            mode="spark",
+            source=stream_source,
+            tags={},
+        )
+        def simple_sfv(df):
+            return df
+
+        test_feature_store.apply([entity, simple_sfv])
+
+        stream_feature_views = test_feature_store.list_stream_feature_views()
+        assert len(stream_feature_views) == 1
+        assert stream_feature_views[0] == simple_sfv
+
+        features = test_feature_store.get_online_features(
+            features=["simple_sfv:dummy_field"],
+            entity_rows=[{"test_key": 1001}],
+        ).to_dict(include_event_timestamps=True)
+
+        assert "test_key" in features
+        assert features["test_key"] == [1001]
+        assert "dummy_field" in features
+        assert features["dummy_field"] == [None]
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> None:
+    """Test that a stream feature view with a udf is correctly applied."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+        stream_source = KafkaSource(
+            name="kafka",
+            timestamp_field="event_timestamp",
+            kafka_bootstrap_servers="",
+            message_format=AvroFormat(""),
+            topic="topic",
+            batch_source=file_source,
+            watermark_delay_threshold=timedelta(days=1),
+        )
+
+        @stream_feature_view(
+            entities=[entity],
+            ttl=timedelta(days=30),
+            owner="test@example.com",
+            online=True,
+            schema=[Field(name="dummy_field", dtype=Float32)],
+            description="desc",
+            aggregations=[
+                Aggregation(
+                    column="dummy_field",
+                    function="max",
+                    time_window=timedelta(days=1),
+                ),
+                Aggregation(
+                    column="dummy_field2",
+                    function="count",
+                    time_window=timedelta(days=24),
+                ),
+            ],
+            timestamp_field="event_timestamp",
+            mode="spark",
+            source=stream_source,
+            tags={},
+        )
+        def pandas_view(pandas_df):
+            import pandas as pd
+
+            assert type(pandas_df) == pd.DataFrame
+            df = pandas_df.transform(lambda x: x + 10, axis=1)
+            df.insert(2, "C", [20.2, 230.0, 34.0], True)
+            return df
+
+        import pandas as pd
+
+        test_feature_store.apply([entity, pandas_view])
+
+        stream_feature_views = test_feature_store.list_stream_feature_views()
+        assert len(stream_feature_views) == 1
+        assert stream_feature_views[0] == pandas_view
+
+        sfv = stream_feature_views[0]
+
+        df = pd.DataFrame({"A": [1, 2, 3], "B": [10, 20, 30]})
+        new_df = sfv.udf(df)
+        expected_df = pd.DataFrame(
+            {"A": [11, 12, 13], "B": [20, 30, 40], "C": [20.2, 230.0, 34.0]}
+        )
+        assert new_df.equals(expected_df)
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_batch_source(test_feature_store, simple_dataset_1) -> None:
+    """Test that a batch source is applied correctly."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        test_feature_store.apply([file_source])
+
+        ds = test_feature_store.list_data_sources()
+        assert len(ds) == 1
+        assert ds[0] == file_source
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_stream_source(test_feature_store, simple_dataset_1) -> None:
+    """Test that a stream source is applied correctly."""
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        stream_source = KafkaSource(
+            name="kafka",
+            timestamp_field="event_timestamp",
+            kafka_bootstrap_servers="",
+            message_format=AvroFormat(""),
+            topic="topic",
+            batch_source=file_source,
+            watermark_delay_threshold=timedelta(days=1),
+        )
+
+        test_feature_store.apply([stream_source])
+
+        ds = test_feature_store.list_data_sources()
+        assert len(ds) == 2
+        if isinstance(ds[0], FileSource):
+            assert ds[0] == file_source
+            assert ds[1] == stream_source
+        else:
+            assert ds[0] == stream_source
+            assert ds[1] == file_source
+
+
+def test_apply_stream_source_from_repo() -> None:
+    """Test that a stream source is applied correctly."""
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_with_stream_source.py"), "file"
+    ) as store:
+        ds = store.list_data_sources()
+        assert len(ds) == 2
 
 
 @pytest.fixture
