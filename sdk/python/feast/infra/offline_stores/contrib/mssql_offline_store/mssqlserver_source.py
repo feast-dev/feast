@@ -16,7 +16,7 @@ from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
-# Make sure spark warning doesn't raise more than once.
+# Make sure azure warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
 
 
@@ -115,7 +115,7 @@ class MsSqlServerSource(DataSource):
         owner: Optional[str] = None,
     ):
         warnings.warn(
-            "The synapse/mssql data source is an experimental feature in alpha development. "
+            "The Azure Synapse + Azure SQL data source is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )

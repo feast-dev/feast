@@ -297,7 +297,6 @@ class DataSource(ABC):
             raise ValueError("Could not identify the source type being added.")
 
         if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
-            data_source.data_source_class_type = "feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source.MsSqlServerSource"
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
 

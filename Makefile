@@ -147,6 +147,7 @@ test-python-universal-mssql:
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
  	FEAST_USAGE=False IS_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not gcs_registry and \
 			not s3_registry and \

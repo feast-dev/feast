@@ -77,7 +77,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         warnings.warn(
-            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
@@ -128,7 +128,7 @@ class MsSqlServerOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         assert type(data_source).__name__ == "MsSqlServerSource"
         warnings.warn(
-            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
@@ -166,7 +166,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         warnings.warn(
-            "The synapse/mssql offline store is an experimental feature in alpha development. "
+            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
