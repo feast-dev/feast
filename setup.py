@@ -206,17 +206,17 @@ AFFIRM_REQUIRED = [
     "fastapi>=0.68.0,<1",
     "bowler",  # Needed for automatic repo upgrades
     # below are required for dev while were conflict with affirm environment.
-    "google-api-core",
-    "googleapis-common-protos",
+    "google-api-core>=1.23.0,<2.7",
+    "googleapis-common-protos>=1.52.*,<1.54",
     "grpcio-reflection",
     "numpy<1.22,<2",
     "pandas>=1,<2",
     "protobuf",
     "proto-plus",
-    "PyYAML",
+    "PyYAML~=5.1.1",
     "uvicorn[standard]",
     "tensorflow-metadata",
-    "dask",
+    "dask>=2021.*,<2022.01.0",
 ]
 
 # rtd builds fail because of mysql not being installed in their environment.
@@ -522,6 +522,7 @@ class build_ext(_build_ext):
 
 setup(
     name=NAME,
+    version="0.23.1-affirm-0.2",
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
@@ -563,7 +564,6 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
         "grpcio>=1.47.0",
