@@ -235,6 +235,10 @@ class OnDemandFeatureView(BaseFeatureView):
                     odfv_source.name
                 ] = odfv_source.projection
 
+        if _udf is None:
+            raise ValueError("The `udf` parameter must be specified.")
+        assert _udf
+
         self.udf = udf  # type: ignore
         self.udf_string = udf_string
 
