@@ -45,7 +45,6 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
 from ...usage import get_user_agent, log_exceptions_and_usage
-from ...version import get_version
 from .bigquery_source import (
     BigQueryLoggingDestination,
     BigQuerySource,
