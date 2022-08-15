@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.23.1-affirm-0.2"
+VERSION = "0.23-affirm-0.1"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -566,7 +566,6 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     setup_requires=[
-        "setuptools_scm",
         "grpcio>=1.47.0",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
