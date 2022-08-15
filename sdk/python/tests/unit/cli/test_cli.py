@@ -77,10 +77,11 @@ def test_3rd_party_registry_store_with_fs_yaml_override() -> None:
 
     fs_yaml_file = "test_fs.yaml"
     with setup_third_party_registry_store_repo(
-            "foo.registry_store.FooRegistryStore",
-            fs_yaml_file_name=fs_yaml_file
+        "foo.registry_store.FooRegistryStore", fs_yaml_file_name=fs_yaml_file
     ) as repo_path:
-        return_code, output = runner.run_with_output(["--feature-store-yaml", fs_yaml_file, "apply"], cwd=repo_path)
+        return_code, output = runner.run_with_output(
+            ["--feature-store-yaml", fs_yaml_file, "apply"], cwd=repo_path
+        )
         assertpy.assert_that(return_code).is_equal_to(0)
 
 
@@ -118,8 +119,9 @@ def setup_third_party_provider_repo(provider_name: str):
 
 
 @contextmanager
-def setup_third_party_registry_store_repo(registry_store: str,
-                                          fs_yaml_file_name: str = "feature_store.yaml"):
+def setup_third_party_registry_store_repo(
+    registry_store: str, fs_yaml_file_name: str = "feature_store.yaml"
+):
     with tempfile.TemporaryDirectory() as repo_dir_name:
 
         # Construct an example repo in a temporary dir

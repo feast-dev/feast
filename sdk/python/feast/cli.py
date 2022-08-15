@@ -498,7 +498,7 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    repo_config = load_repo_config( repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
     try:
         plan(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
@@ -520,7 +520,7 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
 
-    repo_config = load_repo_config( repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
     try:
         apply_total(repo_config, repo, skip_source_validation)
     except FeastProviderLoginError as e:
@@ -536,7 +536,7 @@ def teardown_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
-    repo_config = load_repo_config( repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
 
     teardown(repo_config, repo)
 
