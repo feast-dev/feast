@@ -40,6 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
+VERSION = "0.23-affirm-0.1"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -522,7 +523,7 @@ class build_ext(_build_ext):
 
 setup(
     name=NAME,
-    version="0.23.1-affirm-0.2",
+    version=VERSION,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
