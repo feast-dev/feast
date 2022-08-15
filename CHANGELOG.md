@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.2](https://github.com/feast-dev/feast/compare/v0.23.1...v0.23.2) (2022-08-15)
+
+
+### Bug Fixes
+
+* Fix field mapping logic during feature inference ([#3067](https://github.com/feast-dev/feast/issues/3067)) ([eb885b1](https://github.com/feast-dev/feast/commit/eb885b176cf0d211987cab852e49ba4af93185b3))
+* Fix incorrect on demand feature view diffing and improve Java tests ([#3074](https://github.com/feast-dev/feast/issues/3074)) ([0ff0ec4](https://github.com/feast-dev/feast/commit/0ff0ec473a03e54fdf950b4476b9312b27629230))
+* Fix on demand feature view output in feast plan + Web UI crash ([#3057](https://github.com/feast-dev/feast/issues/3057)) ([a32d247](https://github.com/feast-dev/feast/commit/a32d2475b1d47f24f2698a15ff596407a2035f17))
+* Fix Spark offline store type conversion to arrow ([#3071](https://github.com/feast-dev/feast/issues/3071)) ([a49f70c](https://github.com/feast-dev/feast/commit/a49f70c1528acabf3429ee211212fce265454aea))
+
 ## [0.23.1](https://github.com/feast-dev/feast/compare/v0.23.0...v0.23.1) (2022-08-10)
 
 
