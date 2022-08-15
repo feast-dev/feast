@@ -83,6 +83,7 @@ class RedisOnlineStore(OnlineStore):
     Attributes:
         _client: Redis connection.
     """
+
     _client: Optional[Union[Redis, RedisCluster]] = None
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
