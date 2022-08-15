@@ -205,6 +205,18 @@ AFFIRM_REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "bowler",  # Needed for automatic repo upgrades
+    # below are required for dev while were conflict with affirm environment.
+    "google-api-core",
+    "googleapis-common-protos",
+    "grpcio-reflection",
+    "numpy<1.22,<2",
+    "pandas>=1,<2",
+    "protobuf",
+    "proto-plus",
+    "PyYAML",
+    "uvicorn[standard]",
+    "tensorflow-metadata",
+    "dask",
 ]
 
 # rtd builds fail because of mysql not being installed in their environment.
