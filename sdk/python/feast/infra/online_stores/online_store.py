@@ -27,7 +27,7 @@ from feast.repo_config import RepoConfig
 
 class OnlineStore(ABC):
     """
-    The interface that Feast uses to interact with the the storage system that handles online features.
+    The interface that Feast uses to interact with the storage system that handles online features.
     """
 
     @abstractmethod
