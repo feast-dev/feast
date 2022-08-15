@@ -54,6 +54,13 @@ _constant_attributes = {
     ).hexdigest(),
 }
 
+APPLICATION_NAME = "feast-dev/feast"
+USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+def get_user_agent():
+    return USER_AGENT
+
 
 def set_current_project_uuid(project_uuid: str):
     _constant_attributes["project_id"] = project_uuid

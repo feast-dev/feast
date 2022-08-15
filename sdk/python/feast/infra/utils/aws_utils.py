@@ -22,6 +22,7 @@ from feast.errors import (
     RedshiftTableNameTooLong,
 )
 from feast.type_map import pa_to_athena_value_type, pa_to_redshift_value_type
+from feast.usage import get_user_agent
 
 try:
     import boto3
@@ -39,7 +40,10 @@ def get_redshift_data_client(aws_region: str):
     """
     Get the Redshift Data API Service client for the given AWS region.
     """
-    return boto3.client("redshift-data", config=Config(region_name=aws_region))
+    return boto3.client(
+        "redshift-data",
+        config=Config(region_name=aws_region, user_agent=get_user_agent()),
+    )
 
 
 def get_s3_resource(aws_region: str):
@@ -680,7 +684,9 @@ def get_athena_data_client(aws_region: str):
     """
     Get the athena Data API Service client for the given AWS region.
     """
-    return boto3.client("athena", config=Config(region_name=aws_region))
+    return boto3.client(
+        "athena", config=Config(region_name=aws_region, user_agent=get_user_agent())
+    )
 
 
 @retry(

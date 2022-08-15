@@ -44,7 +44,7 @@ from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
-from ...usage import log_exceptions_and_usage
+from ...usage import get_user_agent, log_exceptions_and_usage
 from ...version import get_version
 from .bigquery_source import (
     BigQueryLoggingDestination,
@@ -67,12 +67,8 @@ except ImportError as e:
     raise FeastExtrasDependencyImportError("gcp", str(e))
 
 
-APPLICATION_NAME = "feast-dev/feast"
-USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
-
-
 def get_http_client_info():
-    return http_client_info.ClientInfo(user_agent=USER_AGENT)
+    return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
