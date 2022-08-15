@@ -140,10 +140,10 @@ class FeatureStore:
         if config is not None:
             self.config = config
         elif fs_yaml_file is not None:
-            self.config = load_repo_config(fs_yaml_file, self.repo_path)
+            self.config = load_repo_config(self.repo_path, fs_yaml_file)
         elif repo_path:
             self.config = load_repo_config(
-                Path(repo_path) / "feature_store.yaml", self.repo_path
+                self.repo_path, Path(repo_path) / "feature_store.yaml"
             )
         else:
             raise ValueError("Please specify one of fs_yaml_dir or config.")
