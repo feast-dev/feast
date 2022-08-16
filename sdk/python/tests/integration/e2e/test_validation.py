@@ -4,6 +4,7 @@ import shutil
 import pandas as pd
 import pyarrow as pa
 import pytest
+import json
 from great_expectations.core import ExpectationSuite
 from great_expectations.dataset import PandasDataset
 
@@ -93,9 +94,17 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
 
     store.create_saved_dataset(
         from_=reference_job,
-        name="my_other_dataset",
+        name="my_reference_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
     )
+
+    ds = store.get_saved_dataset("my_reference_dataset")
+    expectations = json.loads(
+        ds.get_profile(profiler=profiler_with_unrealistic_expectations).to_proto().expectation_suite
+    )
+    n_expectations = len(expectations)
+    print(expectations)
+    assert n_expectations == 6
 
     job = store.get_historical_features(
         entity_df=entity_df,
@@ -105,7 +114,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     with pytest.raises(ValidationFailed) as exc_info:
         job.to_df(
             validation_reference=store.get_saved_dataset(
-                "my_other_dataset"
+                "my_reference_dataset"
             ).as_reference(name="ref", profiler=profiler_with_unrealistic_expectations)
         )
 
@@ -356,17 +365,12 @@ def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
 
 @ge_profiler
 def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
-    # need to create dataframe with corrupted data first
-    df = pd.DataFrame()
-    df["current_balance"] = [-99]
-    df["avg_passenger_count"] = [0]
-
-    other_ds = PandasDataset(df)
-    # note this is the corrupted test case
-    other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
-    other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
+    # note that there are 6 expectations here because max/min have 2 thresholds each
+    dataset.expect_column_to_exist("you shall not pass")
+    dataset.expect_column_max_to_be_between("current_balance", -100, -100)
+    dataset.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
 
     # this should pass
-    other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
+    dataset.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
 
-    return other_ds.get_expectation_suite()
+    return dataset.get_expectation_suite()
