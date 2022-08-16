@@ -88,7 +88,9 @@ class CliRunner:
             stderr = result.stderr.decode("utf-8")
             print(f"Apply stdout:\n{stdout}")
             print(f"Apply stderr:\n{stderr}")
-            assert result.returncode == 0
+            assert (
+                result.returncode == 0
+            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"
 
             yield FeatureStore(repo_path=str(repo_path), config=None)
 
@@ -97,4 +99,6 @@ class CliRunner:
             stderr = result.stderr.decode("utf-8")
             print(f"Apply stdout:\n{stdout}")
             print(f"Apply stderr:\n{stderr}")
-            assert result.returncode == 0
+            assert (
+                result.returncode == 0
+            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"

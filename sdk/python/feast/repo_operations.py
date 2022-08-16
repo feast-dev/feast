@@ -172,6 +172,15 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 assert stream_source
                 if not any((stream_source is ds) for ds in res.data_sources):
                     res.data_sources.append(stream_source)
+            elif isinstance(obj, BatchFeatureView) and not any(
+                (obj is bfv) for bfv in res.feature_views
+            ):
+                res.feature_views.append(obj)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
