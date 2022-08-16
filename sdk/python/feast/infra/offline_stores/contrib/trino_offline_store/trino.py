@@ -25,8 +25,8 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.registry import Registry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage

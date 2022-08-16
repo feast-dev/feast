@@ -77,7 +77,9 @@ from feast.inference import (
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
-from feast.infra.registry_stores.sql import SqlRegistry
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
+from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -86,7 +88,6 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import BaseRegistry, Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView

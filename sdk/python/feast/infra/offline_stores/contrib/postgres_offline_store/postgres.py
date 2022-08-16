@@ -34,6 +34,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.registry import Registry
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
     df_to_postgres_table,
@@ -41,7 +42,6 @@ from feast.infra.utils.postgres.connection_utils import (
 )
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow

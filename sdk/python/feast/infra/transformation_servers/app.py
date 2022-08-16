@@ -13,8 +13,8 @@ from feast.constants import (
     FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME,
     REGISTRY_ENV_NAME,
 )
-from feast.infra.local import LocalRegistryStore
-from feast.registry import get_registry_store_class_from_scheme
+from feast.infra.registry.file import FileRegistryStore
+from feast.infra.registry.registry import get_registry_store_class_from_scheme
 
 # Load RepoConfig
 config_base64 = os.environ[FEATURE_STORE_YAML_ENV_NAME]
@@ -32,7 +32,7 @@ raw_config = yaml.safe_load(config_string)
 registry = raw_config["registry"]
 registry_path = registry["path"] if isinstance(registry, dict) else registry
 registry_store_class = get_registry_store_class_from_scheme(registry_path)
-if registry_store_class == LocalRegistryStore and not os.path.exists(registry_path):
+if registry_store_class == FileRegistryStore and not os.path.exists(registry_path):
     registry_base64 = os.environ[REGISTRY_ENV_NAME]
     registry_bytes = base64.b64decode(registry_base64)
     registry_dir = os.path.dirname(registry_path)

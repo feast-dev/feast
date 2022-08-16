@@ -16,8 +16,8 @@ var REGISTRY_SCHEMA_VERSION string = "1"
 var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 	"gs":   "GCSRegistryStore",
 	"s3":   "S3RegistryStore",
-	"file": "LocalRegistryStore",
-	"":     "LocalRegistryStore",
+	"file": "FileRegistryStore",
+	"":     "FileRegistryStore",
 }
 
 /*
@@ -335,8 +335,8 @@ func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryCon
 
 func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
 	switch registryStoreType {
-	case "LocalRegistryStore":
-		return NewLocalRegistryStore(registryConfig, repoPath), nil
+	case "FileRegistryStore":
+		return NewFileRegistryStore(registryConfig, repoPath), nil
 	}
-	return nil, errors.New("only LocalRegistryStore as a RegistryStore is supported at this moment")
+	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
 }

@@ -70,10 +70,10 @@ def test_usage_on(dummy_exporter, enabling_toggle):
 
         assert len(dummy_exporter) == 3
         assert {
-            "entrypoint": "feast.infra.local.LocalRegistryStore.get_registry_proto"
+            "entrypoint": "feast.infra.registry.file.FileRegistryStore.get_registry_proto"
         }.items() <= dummy_exporter[0].items()
         assert {
-            "entrypoint": "feast.infra.local.LocalRegistryStore.update_registry_proto"
+            "entrypoint": "feast.infra.registry.file.FileRegistryStore.update_registry_proto"
         }.items() <= dummy_exporter[1].items()
         assert {
             "entrypoint": "feast.feature_store.FeatureStore.apply"
@@ -140,7 +140,7 @@ def test_exception_usage_off(dummy_exporter, enabling_toggle):
 def _reload_feast():
     """After changing environment need to reload modules and rerun usage decorators"""
     modules = (
-        "feast.infra.local",
+        "feast.infra.registry.file",
         "feast.infra.online_stores.sqlite",
         "feast.feature_store",
     )

@@ -34,6 +34,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -57,7 +58,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import BaseRegistry
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
