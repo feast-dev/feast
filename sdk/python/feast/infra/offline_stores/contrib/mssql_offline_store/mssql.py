@@ -14,6 +14,7 @@ from pydantic.typing import Literal
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.mssql import DATETIME2
 
 from feast import FileSource, errors
 from feast.data_source import DataSource
@@ -185,6 +186,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         entity_df_event_timestamp_col = (
             offline_utils.infer_event_timestamp_from_entity_df(table_schema)
         )
+        
         _assert_expected_columns_in_sqlserver(
             expected_join_keys,
             entity_df_event_timestamp_col,
@@ -407,7 +409,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
         raise ValueError(
             f"The entity dataframe you have provided must be a SQL Server SQL query,"
             f" or a Pandas dataframe. But we found: {type(entity_df)} "
-        )
+    )
 
     return entity_schema
 
@@ -601,21 +603,16 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT entity_dataframe.*
-{% for featureview in featureviews %}
-    {% for feature in featureview.features %}
-            ,{% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}
-    {% endfor %}
-{% endfor %}
+SELECT {{ final_output_feature_names | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
     SELECT
         {{featureview.name}}__entity_row_unique_id
         {% for feature in featureview.features %}
-            ,{% if full_feature_names %}{{ featureview.name }}__{{feature}}{% else %}{{ feature }}{% endif %}
+            ,{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}
         {% endfor %}
-    FROM {{ featureview.name }}__cleaned
+    FROM "{{ featureview.name }}__cleaned"
 ) {{ featureview.name }}__cleaned
 ON
 {{ featureview.name }}__cleaned.{{ featureview.name }}__entity_row_unique_id = entity_dataframe.{{ featureview.name }}__entity_row_unique_id

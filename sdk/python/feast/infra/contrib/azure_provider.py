@@ -37,7 +37,7 @@ DEFAULT_BATCH_SIZE = 10_000
 class AzureProvider(Provider):
     def __init__(self, config: RepoConfig):
         warnings.warn(
-            "The azure provider  is an experimental feature in alpha development. "
+            "The azure provider is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
