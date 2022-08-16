@@ -42,7 +42,7 @@ class MaterializationJobStatus(enum.Enum):
 
 class MaterializationJob(ABC):
     """
-    MaterializationJob represents an ongoing or executed process that materializes data as per the
+    A MaterializationJob represents an ongoing or executed process that materializes data as per the
     definition of a materialization task.
     """
 
@@ -70,6 +70,10 @@ class MaterializationJob(ABC):
 
 
 class BatchMaterializationEngine(ABC):
+    """
+    The interface that Feast uses to control the compute system that handles batch materialization.
+    """
+
     def __init__(
         self,
         *,
@@ -95,8 +99,19 @@ class BatchMaterializationEngine(ABC):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        """This method ensures that any necessary infrastructure or resources needed by the
-        engine are set up ahead of materialization."""
+        """
+        Prepares cloud resources required for batch materialization for the specified set of Feast objects.
+
+        Args:
+            project: Feast project to which the objects belong.
+            views_to_delete: Feature views whose corresponding infrastructure should be deleted.
+            views_to_keep: Feature views whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+            entities_to_delete: Entities whose corresponding infrastructure should be deleted.
+            entities_to_keep: Entities whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+        """
+        pass
 
     @abstractmethod
     def materialize(
@@ -104,13 +119,15 @@ class BatchMaterializationEngine(ABC):
     ) -> List[MaterializationJob]:
         """
         Materialize data from the offline store to the online store for this feature repo.
+
         Args:
-            registry: The feast registry containing the applied feature views.
+            registry: The registry for the current feature store.
             tasks: A list of individual materialization tasks.
+
         Returns:
             A list of materialization jobs representing each task.
         """
-        ...
+        pass
 
     @abstractmethod
     def teardown_infra(
@@ -119,4 +136,12 @@ class BatchMaterializationEngine(ABC):
         fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         entities: Sequence[Entity],
     ):
-        """This method ensures that any infrastructure or resources set up by ``update()``are torn down."""
+        """
+        Tears down all cloud resources used by the materialization engine for the specified set of Feast objects.
+
+        Args:
+            project: Feast project to which the objects belong.
+            fvs: Feature views whose corresponding infrastructure should be deleted.
+            entities: Entities whose corresponding infrastructure should be deleted.
+        """
+        pass
