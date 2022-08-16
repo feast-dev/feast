@@ -111,10 +111,12 @@ class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
 
-    Args:
-        repo_path (optional): Path to a `feature_store.yaml` used to configure the
-            feature store.
-        config (optional): Configuration object used to configure the feature store.
+    Attributes:
+        config: The config for the feature store.
+        repo_path: The path to the feature repo.
+        _registry: The registry for the feature store.
+        _provider: The provider for the feature store.
+        _go_server: The (optional) Go feature server for the feature store.
     """
 
     config: RepoConfig
@@ -133,11 +135,17 @@ class FeatureStore:
         """
         Creates a FeatureStore object.
 
+        Args:
+            repo_path (optional): Path to the feature repo. Defaults to the current working directory.
+            config (optional): Configuration object used to configure the feature store.
+            fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
+                At most one of 'fs_yaml_file' and 'config' can be set.
+
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
         """
         if fs_yaml_file is not None and config is not None:
-            raise ValueError("You cannot specify both fs_yaml_dir and config.")
+            raise ValueError("You cannot specify both fs_yaml_file and config.")
 
         if repo_path:
             self.repo_path = Path(repo_path)
@@ -150,12 +158,10 @@ class FeatureStore:
             self.config = config
         elif fs_yaml_file is not None:
             self.config = load_repo_config(self.repo_path, fs_yaml_file)
-        elif repo_path:
-            self.config = load_repo_config(
-                self.repo_path, Path(repo_path) / "feature_store.yaml"
-            )
         else:
-            raise ValueError("Please specify one of fs_yaml_dir or config.")
+            self.config = load_repo_config(
+                self.repo_path, Path(self.repo_path) / "feature_store.yaml"
+            )
 
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
@@ -1447,7 +1453,12 @@ class FeatureStore:
         allow_registry_cache: bool = True,
     ):
         """
-        ingests data directly into the Online store
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
