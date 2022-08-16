@@ -86,14 +86,21 @@ class FeatureService:
                 self.feature_view_projections.append(feature_grouping.projection)
 
     def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
+        """
+        Infers the features for the projections of this feature service, and updates this feature
+        service in place.
+
+        This method is necessary since feature services may rely on feature views which require
+        feature inference.
+        """
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
-                # For feature services that depend on an unspecified feature view, apply inferred schema
+                projection = feature_grouping.projection
+
                 if fvs_to_update and feature_grouping.name in fvs_to_update:
-                    if feature_grouping.projection.desired_features:
-                        desired_features = set(
-                            feature_grouping.projection.desired_features
-                        )
+                    if projection.desired_features:
+                        # Select the specific desired features.
+                        desired_features = set(projection.desired_features)
                         actual_features = set(
                             [
                                 f.name
@@ -101,14 +108,16 @@ class FeatureService:
                             ]
                         )
                         assert desired_features.issubset(actual_features)
+
                         # We need to set the features for the projection at this point so we ensure we're starting with
                         # an empty list.
-                        feature_grouping.projection.features = []
+                        projection.features = []
                         for f in fvs_to_update[feature_grouping.name].features:
                             if f.name in desired_features:
-                                feature_grouping.projection.features.append(f)
-                    else:
-                        feature_grouping.projection.features = fvs_to_update[
+                                projection.features.append(f)
+                    elif not projection.features:
+                        # No features have been specifically selected, so all features will be added to the projection.
+                        projection.features = fvs_to_update[
                             feature_grouping.name
                         ].features
             else:

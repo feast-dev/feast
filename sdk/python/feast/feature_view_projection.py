@@ -21,6 +21,10 @@ class FeatureViewProjection:
         name: The unique name of the feature view from which this projection is created.
         name_alias: An optional alias for the name.
         features: The list of features represented by the feature view projection.
+        desired_features: The list of features that this feature view projection intends to select.
+            If empty, the projection intends to select all features. This attribute is only used
+            for feature service inference. It should only be set if the underlying feature view
+            is not ready to be projected, i.e. still needs to go through feature inference.
         join_key_map: A map to modify join key columns during retrieval of this feature
             view projection.
     """
