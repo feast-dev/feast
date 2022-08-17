@@ -38,7 +38,7 @@ offline_store:
 
 However, there are inherent limitations with a file-based registry, since changing a single field in the registry 
 requires re-writing the whole registry file. With multiple concurrent writers, this presents a risk of data loss, or 
-bottlenecks writes to the registry since all changes have to be serialized (e.g. when running materialization for  
+bottlenecks writes to the registry since all changes have to be serialized (e.g. when running materialization for 
 multiple feature views or time ranges concurrently).
 
 #### SQL Registry
