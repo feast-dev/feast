@@ -370,6 +370,11 @@ class MsSqlServerRetrievalJob(RetrievalJob):
             pyarrow.parquet.write_to_dataset(
                 self.to_arrow(), root_path=path, filesystem=filesystem
             )
+    def supports_remote_storage_export(self) -> bool:
+        return False
+    
+    def to_remote_storage(self) -> List[str]:
+        raise NotImplementedError()
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:

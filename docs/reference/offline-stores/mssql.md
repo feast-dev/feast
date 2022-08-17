@@ -1,14 +1,14 @@
-# MsSQl offline store (contrib)
+# MsSQL/Synapse offline store (contrib)
 
 ## Description
 
-The MsSql offline store provides support for reading [MsSQL Sources](../data-sources/mssql.md).
+The MsSQL offline store provides support for reading [MsSQL Sources](../data-sources/mssql.md). Specifically, it is developed to read from [Synapse SQL](https://docs.microsoft.com/en-us/azure/synapse-analytics/sql/overview-features) on Microsoft Azure
 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe.
 
 ## Disclaimer
 
-The MsSql offline store does not achieve full test coverage.
+The MsSQL offline store does not achieve full test coverage.
 Please do not assume complete stability.
 
 ## Example

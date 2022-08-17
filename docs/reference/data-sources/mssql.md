@@ -1,18 +1,18 @@
-# MsSql source (contrib)
+# MsSQL source (contrib)
 
 ## Description
 
-MsSql data sources are Microsoft sql table sources.
+MsSQL data sources are Microsoft sql table sources.
 These can be specified either by a table reference or a SQL query.
 
 ## Disclaimer
 
-The MsSql data source does not achieve full test coverage.
+The MsSQL data source does not achieve full test coverage.
 Please do not assume complete stability.
 
 ## Examples
 
-Defining a MsSql source:
+Defining a MsSQL source:
 
 ```python
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (

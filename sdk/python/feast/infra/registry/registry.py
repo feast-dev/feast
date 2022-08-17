@@ -323,6 +323,9 @@ class Registry(BaseRegistry):
             f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
         )
         data_source_proto.project = project
+        data_source_proto.data_source_class_type = (
+            f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
+        )
         registry.data_sources.append(data_source_proto)
         if commit:
             self.commit()

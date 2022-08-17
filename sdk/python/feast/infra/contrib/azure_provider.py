@@ -29,6 +29,7 @@ class AzureProvider(PassthroughProvider):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
+        # TODO(kevjumba): untested
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))

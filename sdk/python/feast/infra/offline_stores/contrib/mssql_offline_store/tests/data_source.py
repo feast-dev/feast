@@ -51,9 +51,7 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         super().__init__(project_name)
         self.tables_created: List[str] = []
         self.container = SqlServerContainer(user=MSSQL_USER, password=MSSQL_PASSWORD)
-        # self.container = fixture_request.getfixturevalue("mssql_container")
         self.container.start()
-        # self.exposed_port = self.container.get_exposed_port("1433")
         if not self.container:
             raise RuntimeError(
                 "In order to use this data source "
@@ -75,11 +73,11 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
+        # Make sure the field mapping is correct and convert the datetime datasources.
         if timestamp_field in df:
             df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True).fillna(
                 pd.Timestamp.now()
             )
-            # Make sure the field mapping is correct and convert the datetime datasources.
         if created_timestamp_column in df:
             df[created_timestamp_column] = pd.to_datetime(
                 df[created_timestamp_column], utc=True
@@ -87,12 +85,13 @@ class MsSqlDataSourceCreator(DataSourceCreator):
 
         connection_string = self.create_offline_store_config().connection_string
         engine = create_engine(connection_string)
-        # Create table
-
         destination_name = self.get_prefixed_table_name(destination_name)
+        # Create table
         engine.execute(_df_to_create_table_sql(df, destination_name))
+
         # Upload dataframe to azure table
         df.to_sql(destination_name, engine, index=False, if_exists="append")
+
         self.tables.append(destination_name)
         return MsSqlServerSource(
             name="ci_mssql_source",
@@ -110,4 +109,4 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
-        pass
+        container.stop()

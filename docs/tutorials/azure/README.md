@@ -3,16 +3,16 @@
 The objective of this tutorial is to build a model that predicts if a driver will complete a trip based on a number of features ingested into Feast. During this tutorial you will:
 
 1. Deploy the infrastructure for a feature store (using an ARM template)
-1. Register features into a central feature registry hosted on Blob Storage
-1. Consume features from the feature store for training and inference
+2. Register features into a central feature registry hosted on Blob Storage
+3. Consume features from the feature store for training and inference
 
 ## Prerequisites
 
 For this tutorial you will require:
 
 1. An Azure subscription.
-1. Working knowledge of Python and ML concepts.
-1. Basic understanding of Azure Machine Learning - using notebooks, etc.
+2. Working knowledge of Python and ML concepts.
+3. Basic understanding of Azure Machine Learning - using notebooks, etc.
 
 ## 1. Deploy Infrastructure
 

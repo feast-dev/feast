@@ -22,7 +22,7 @@ warnings.simplefilter("once", RuntimeWarning)
 
 class MsSqlServerOptions:
     """
-    DataSource MsSqlServer options used to source features from MsSqlServer query
+    DataSource MsSQLServer options used to source features from MsSQLServer query
     """
 
     def __init__(
@@ -66,11 +66,11 @@ class MsSqlServerOptions:
         cls, sqlserver_options_proto: DataSourceProto.CustomSourceOptions
     ) -> "MsSqlServerOptions":
         """
-        Creates an MsSqlServerOptions from a protobuf representation of a SqlServer option
+        Creates an MsSQLServerOptions from a protobuf representation of a SqlServer option
         Args:
             sqlserver_options_proto: A protobuf representation of a DataSource
         Returns:
-            Returns a SqlServerOptions object based on the sqlserver_options protobuf
+            Returns a SQLServerOptions object based on the sqlserver_options protobuf
         """
         options = json.loads(sqlserver_options_proto.configuration)
 
@@ -83,7 +83,7 @@ class MsSqlServerOptions:
 
     def to_proto(self) -> DataSourceProto.CustomSourceOptions:
         """
-        Converts a MsSqlServerOptions object to a protobuf representation.
+        Converts a MsSQLServerOptions object to a protobuf representation.
         Returns:
             CustomSourceOptions protobuf
         """

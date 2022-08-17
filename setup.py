@@ -131,8 +131,6 @@ GO_REQUIRED = [
 
 AZURE_REQUIRED = (
     [
-     "redis==4.2.2",
-     "hiredis>=2.0.0,<3",
      "azure-storage-blob>=0.37.0",
      "azure-identity>=1.6.1",
      "SQLAlchemy>=1.4.19",
