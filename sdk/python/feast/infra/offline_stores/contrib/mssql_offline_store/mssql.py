@@ -172,6 +172,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
+
         expected_join_keys = _get_join_keys(project, feature_views, registry)
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
         engine = make_engine(config.offline_store)
@@ -183,7 +184,6 @@ class MsSqlServerOfflineStore(OfflineStore):
         ) = _upload_entity_df_into_sqlserver_and_get_entity_schema(
             engine, config, entity_df, full_feature_names=full_feature_names
         )
-
         entity_df_event_timestamp_col = (
             offline_utils.infer_event_timestamp_from_entity_df(table_schema)
         )
@@ -209,7 +209,6 @@ class MsSqlServerOfflineStore(OfflineStore):
             entity_df_timestamp_range=entity_df_event_timestamp_range,
         )
 
-        # TODO: Infer min_timestamp and max_timestamp from entity_df
         # Generate the SQL query from the query context
         query = build_point_in_time_query(
             query_context,
@@ -327,7 +326,7 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         self.engine = engine
         self._config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._drop_columns = drop_columns
         self._metadata = metadata
 
@@ -337,8 +336,8 @@ class MsSqlServerRetrievalJob(RetrievalJob):
 
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
-        return self._on_demand_feature_views or []
-
+        return self._on_demand_feature_views
+    
     def _to_df_internal(self) -> pandas.DataFrame:
         return pandas.read_sql(self.query, con=self.engine).fillna(value=np.nan)
 
