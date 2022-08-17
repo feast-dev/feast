@@ -12,7 +12,7 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena_source impor
 def test_end_to_end():
 
     try:
-        fs = FeatureStore("feature_repo/")
+        fs = FeatureStore(".")
 
         driver_hourly_stats = AthenaSource(
             timestamp_field="event_timestamp",
@@ -59,8 +59,8 @@ def test_end_to_end():
             fs.get_historical_features(
                 features=["driver_hourly_stats:conv_rate"], entity_df=entity_df
             )
-            .to_df()
-            .to_dict()
+                .to_df()
+                .to_dict()
         )
         conv_rate = feature_vector["conv_rate"][0]
         print(conv_rate)
