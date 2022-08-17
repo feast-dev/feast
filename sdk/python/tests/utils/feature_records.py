@@ -314,7 +314,7 @@ def assert_feature_service_correctness(
     validate_dataframes(
         expected_df,
         actual_df_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
         event_timestamp_column=event_timestamp,
         timestamp_imprecision=timedelta(milliseconds=1),
     )
@@ -361,7 +361,7 @@ def assert_feature_service_entity_mapping_correctness(
         validate_dataframes(
             expected_df,
             actual_df_from_df_entities,
-            keys=[
+            sort_by=[
                 event_timestamp,
                 "order_id",
                 "driver_id",
@@ -381,32 +381,39 @@ def assert_feature_service_entity_mapping_correctness(
                 full_feature_names=full_feature_names,
             )
 
+
 # Specify timestamp_imprecision to relax timestamp equality constraints
-def validate_dataframes(expected_df, actual_df, keys, event_timestamp_column, timestamp_imprecision=0):
+def validate_dataframes(
+    expected_df,
+    actual_df,
+    sort_by,
+    event_timestamp_column=None,
+    timestamp_imprecision=0,
+):
     expected_df: pd.DataFrame = (
-        expected_df.sort_values(by=keys).drop_duplicates().reset_index(drop=True)
+        expected_df.sort_values(by=sort_by).drop_duplicates().reset_index(drop=True)
     )
 
     actual_df = (
         actual_df[expected_df.columns]
-        .sort_values(by=keys)
+        .sort_values(by=sort_by)
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    expected_timestamp_col = expected_df[event_timestamp_column].to_frame()
-    actual_timestamp_col = expected_df[event_timestamp_column].to_frame()
-    expected_df = expected_df.drop(event_timestamp_column, axis=1)
-    actual_df = actual_df.drop(event_timestamp_column, axis = 1)
-    if event_timestamp_column in keys:
-        keys = keys.remove(event_timestamp_column)
+    if event_timestamp_column:
+        expected_timestamp_col = expected_df[event_timestamp_column].to_frame()
+        actual_timestamp_col = expected_df[event_timestamp_column].to_frame()
+        expected_df = expected_df.drop(event_timestamp_column, axis=1)
+        actual_df = actual_df.drop(event_timestamp_column, axis=1)
+        if event_timestamp_column in sort_by:
+            sort_by = sort_by.remove(event_timestamp_column)
+        for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
+            assert abs(t1 - t2) <= timestamp_imprecision
     pd_assert_frame_equal(
         expected_df,
         actual_df,
         check_dtype=False,
     )
-
-    for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
-        assert abs(t1 - t2) < timestamp_imprecision
 
 
 def _get_feature_view_ttl(

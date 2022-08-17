@@ -57,11 +57,11 @@ from feast.stream_feature_view import StreamFeatureView
 REGISTRY_SCHEMA_VERSION = "1"
 
 REGISTRY_STORE_CLASS_FOR_TYPE = {
-    "GCSRegistryStore": "feast.infra.gcp.GCSRegistryStore",
-    "S3RegistryStore": "feast.infra.aws.S3RegistryStore",
+    "GCSRegistryStore": "feast.infra.registry.gcs.GCSRegistryStore",
+    "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
     "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
-    "PostgreSQLRegistryStore": "feast.infra.registry_stores.contrib.postgres.registry_store.PostgreSQLRegistryStore",
-    "AzureRegistryStore": "feast.infra.registry_stores.contrib.azure.registry_store.AzBlobRegistryStore",
+    "PostgreSQLRegistryStore": "feast.infra.registry.contrib.postgres.postgres_registry_store.PostgreSQLRegistryStore",
+    "AzureRegistryStore": "feast.infra.registry.contrib.azure.azure_registry_store.AzBlobRegistryStore",
 }
 
 REGISTRY_STORE_CLASS_FOR_SCHEME = {
