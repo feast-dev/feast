@@ -285,8 +285,8 @@ import pandas as pd
 
 from feast import FeatureStore
 
-# Note: see https://docs.feast.dev/getting-started/concepts/feature-retrieval for more details on how to retrieve
-# for all entities in the offline store instead
+# Note: see https://docs.feast.dev/getting-started/concepts/feature-retrieval for 
+# more details on how to retrieve for all entities in the offline store instead
 entity_df = pd.DataFrame.from_dict(
     {
         # entity's join key -> entity values
