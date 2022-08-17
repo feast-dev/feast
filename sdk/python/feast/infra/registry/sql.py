@@ -695,7 +695,7 @@ class SqlRegistry(BaseRegistry):
     ):
         self._maybe_init_project_metadata(project)
 
-        name = name or obj.name if hasattr(obj, "name") else None
+        name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
         with self.engine.connect() as conn:
