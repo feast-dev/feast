@@ -147,7 +147,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         expected_df,
         actual_df_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
-        event_timestamp=event_timestamp,
     )
 
     assert_feature_service_correctness(
@@ -172,7 +171,6 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         expected_df,
         table_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
-        event_timestamp=event_timestamp,
     )
 
 
