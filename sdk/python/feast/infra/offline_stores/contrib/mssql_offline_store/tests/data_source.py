@@ -93,11 +93,11 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
         **kwargs,
     ) -> DataSource:
-        # if timestamp_field in df:
-        #     df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True).fillna(pd.Timestamp.now()) #.dt.tz_localize(None)
-        #     # Make sure the field mapping is correct and convert the datetime datasources.
-        # if created_timestamp_column in df:
-        #     df[created_timestamp_column] = pd.to_datetime(df[created_timestamp_column], utc=True).fillna(pd.Timestamp.now()) #.dt.tz_localize(None)
+        if timestamp_field in df:
+            df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True).fillna(pd.Timestamp.now())
+            # Make sure the field mapping is correct and convert the datetime datasources.
+        if created_timestamp_column in df:
+            df[created_timestamp_column] = pd.to_datetime(df[created_timestamp_column], utc=True).fillna(pd.Timestamp.now())
         
         connection_string = self.create_offline_store_config().connection_string
         engine = create_engine(connection_string)
@@ -108,7 +108,6 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         engine.execute(_df_to_create_table_sql(df, destination_name))
         # Upload dataframe to azure table
         df.to_sql(destination_name, engine, index=False, if_exists='append')
-        #, dtype={timestamp_field: DATETIME2(), created_timestamp_column: DATETIME2()}
         self.tables.append(destination_name)
         return MsSqlServerSource(
             name="ci_mssql_source",

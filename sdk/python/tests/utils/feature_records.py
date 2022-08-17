@@ -315,6 +315,7 @@ def assert_feature_service_correctness(
         expected_df,
         actual_df_from_df_entities,
         keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp=event_timestamp,
     )
 
 
@@ -367,6 +368,7 @@ def assert_feature_service_entity_mapping_correctness(
                 "origin_id",
                 "destination_id",
             ],
+            event_timestamp=event_timestamp,
         )
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
@@ -378,7 +380,7 @@ def assert_feature_service_entity_mapping_correctness(
             )
 
 
-def validate_dataframes(expected_df, actual_df, keys):
+def validate_dataframes(expected_df, actual_df, keys, event_timestamp=None):
     expected_df: pd.DataFrame = (
         expected_df.sort_values(by=keys).drop_duplicates().reset_index(drop=True)
     )
@@ -389,10 +391,14 @@ def validate_dataframes(expected_df, actual_df, keys):
         .drop_duplicates()
         .reset_index(drop=True)
     )
+    
+    new_df = expected_df.drop("event_timestamp", axis=1)
+    new_actual_df = actual_df.drop("event_timestamp", axis=1)
+    keys = keys.remove("event_timestamp")
 
     pd_assert_frame_equal(
-        expected_df,
-        actual_df,
+        new_df,
+        new_actual_df,
         check_dtype=False,
     )
 

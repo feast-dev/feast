@@ -564,7 +564,7 @@ def pa_to_mssql_type(pa_type: pyarrow.DataType) -> str:
     pa_type_as_str = str(pa_type).lower()
     if pa_type_as_str.startswith("timestamp"):
         if "tz=" in pa_type_as_str:
-            return "datetimeoffset"
+            return "DATETIME2"
         else:
             return "datetime"
 
