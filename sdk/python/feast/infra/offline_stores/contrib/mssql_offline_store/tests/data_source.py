@@ -64,10 +64,6 @@ class MsSqlDataSourceCreator(DataSourceCreator):
     def create_offline_store_config(self) -> MsSqlServerOfflineStoreConfig:
         return MsSqlServerOfflineStoreConfig(
             connection_string=self.container.get_connection_url(),
-            # connection_string=(
-            #     f"mssql+pyodbc://{MSSQL_USER}:{MSSQL_PASSWORD}@0.0.0.0:1433/master?"
-            #     "driver=ODBC+Driver+17+for+SQL+Server"
-            # )
         )
 
     def create_data_source(

@@ -194,6 +194,7 @@ class MsSqlServerSource(DataSource):
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.CUSTOM_SOURCE,
+            data_source_class_type="feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source.MsSqlServerSource",
             field_mapping=self.field_mapping,
             custom_options=self.mssqlserver_options.to_proto(),
         )
