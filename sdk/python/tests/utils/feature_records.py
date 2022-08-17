@@ -391,7 +391,7 @@ def validate_dataframes(expected_df, actual_df, keys, event_timestamp=None):
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    
+
     new_df = expected_df.drop("event_timestamp", axis=1)
     new_actual_df = actual_df.drop("event_timestamp", axis=1)
     keys = keys.remove("event_timestamp")

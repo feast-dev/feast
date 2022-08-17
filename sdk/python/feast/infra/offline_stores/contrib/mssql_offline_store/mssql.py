@@ -7,8 +7,8 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas
-import pyarrow as pa
 import pyarrow
+import pyarrow as pa
 import sqlalchemy
 from pydantic.types import StrictStr
 from pydantic.typing import Literal
@@ -29,14 +29,14 @@ from feast.infra.offline_stores.offline_utils import (
     build_point_in_time_query,
     get_feature_view_query_context,
 )
-from feast.type_map import pa_to_mssql_type
-
 from feast.infra.provider import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import pa_to_mssql_type
 from feast.usage import log_exceptions_and_usage
+
 # Make sure warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -176,7 +176,9 @@ class MsSqlServerOfflineStore(OfflineStore):
         expected_join_keys = _get_join_keys(project, feature_views, registry)
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
         engine = make_engine(config.offline_store)
-        entity_df["event_timestamp"] = pandas.to_datetime(entity_df["event_timestamp"], utc=True).fillna(pandas.Timestamp.now())
+        entity_df["event_timestamp"] = pandas.to_datetime(
+            entity_df["event_timestamp"], utc=True
+        ).fillna(pandas.Timestamp.now())
 
         (
             table_schema,
@@ -337,7 +339,7 @@ class MsSqlServerRetrievalJob(RetrievalJob):
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
-    
+
     def _to_df_internal(self) -> pandas.DataFrame:
         return pandas.read_sql(self.query, con=self.engine).fillna(value=np.nan)
 
@@ -405,16 +407,17 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we don't have unnecessary columns
         engine.execute(_df_to_create_table_sql(entity_df, table_id))
-        entity_df.to_sql(name=table_id, con=engine, index=False, if_exists='append')
+        entity_df.to_sql(name=table_id, con=engine, index=False, if_exists="append")
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes)), table_id
 
     else:
         raise ValueError(
             f"The entity dataframe you have provided must be a SQL Server SQL query,"
             f" or a Pandas dataframe. But we found: {type(entity_df)} "
-    )
+        )
 
     return entity_schema
+
 
 def _df_to_create_table_sql(df: pandas.DataFrame, table_name: str) -> str:
     pa_table = pa.Table.from_pandas(df)
@@ -426,6 +429,7 @@ def _df_to_create_table_sql(df: pandas.DataFrame, table_name: str) -> str:
             {", ".join(columns)}
         );
         """
+
 
 def _get_entity_df_event_timestamp_range(
     entity_df: Union[pandas.DataFrame, str],

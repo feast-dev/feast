@@ -21,6 +21,8 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
+from feast.infra.passthrough_provider import PassthroughProvider
+
 from feast.utils import (
     _convert_arrow_to_proto,
     _get_column_names,
@@ -28,7 +30,9 @@ from feast.utils import (
     make_tzaware,
 )
 
-# TODO: Refactor the provider code.
+DEFAULT_BATCH_SIZE = 10_000
+
+
 class AzureProvider(PassthroughProvider):
     def materialize_single_feature_view(
         self,
