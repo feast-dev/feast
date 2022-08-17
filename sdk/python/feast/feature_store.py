@@ -77,7 +77,9 @@ from feast.inference import (
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
-from feast.infra.registry_stores.sql import SqlRegistry
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
+from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -86,7 +88,6 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import BaseRegistry, Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -110,40 +111,57 @@ class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
 
-    Args:
-        repo_path (optional): Path to a `feature_store.yaml` used to configure the
-            feature store.
-        config (optional): Configuration object used to configure the feature store.
+    Attributes:
+        config: The config for the feature store.
+        repo_path: The path to the feature repo.
+        _registry: The registry for the feature store.
+        _provider: The provider for the feature store.
+        _go_server: The (optional) Go feature server for the feature store.
     """
 
     config: RepoConfig
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-    _go_server: "EmbeddedOnlineFeatureServer"
+    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     @log_exceptions
     def __init__(
         self,
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
+        fs_yaml_file: Optional[Path] = None,
     ):
         """
         Creates a FeatureStore object.
 
+        Args:
+            repo_path (optional): Path to the feature repo. Defaults to the current working directory.
+            config (optional): Configuration object used to configure the feature store.
+            fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
+                At most one of 'fs_yaml_file' and 'config' can be set.
+
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
         """
-        if repo_path is not None and config is not None:
-            raise ValueError("You cannot specify both repo_path and config.")
-        if config is not None:
-            self.repo_path = Path(os.getcwd())
-            self.config = config
-        elif repo_path is not None:
+        if fs_yaml_file is not None and config is not None:
+            raise ValueError("You cannot specify both fs_yaml_file and config.")
+
+        if repo_path:
             self.repo_path = Path(repo_path)
-            self.config = load_repo_config(Path(repo_path))
         else:
-            raise ValueError("Please specify one of repo_path or config.")
+            self.repo_path = Path(os.getcwd())
+
+        # If config is specified, or fs_yaml_file is specified, those take precedence over
+        # the default feature_store.yaml location under repo_path.
+        if config is not None:
+            self.config = config
+        elif fs_yaml_file is not None:
+            self.config = load_repo_config(self.repo_path, fs_yaml_file)
+        else:
+            self.config = load_repo_config(
+                self.repo_path, Path(self.repo_path) / "feature_store.yaml"
+            )
 
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
@@ -152,7 +170,8 @@ class FeatureStore:
             r = Registry(registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
             self._registry = r
-        self._provider = get_provider(self.config, self.repo_path)
+
+        self._provider = get_provider(self.config)
         self._go_server = None
 
     @log_exceptions
@@ -1434,7 +1453,12 @@ class FeatureStore:
         allow_registry_cache: bool = True,
     ):
         """
-        ingests data directly into the Online store
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
@@ -1587,7 +1611,7 @@ class FeatureStore:
         }
 
         # If the embedded Go code is enabled, send request to it instead of going through regular Python logic.
-        if self.config.go_feature_retrieval:
+        if self.config.go_feature_retrieval and self._go_server:
             self._lazy_init_go_server()
 
             entity_native_values: Dict[str, List[Any]]
@@ -2239,7 +2263,7 @@ class FeatureStore:
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_serving:
+        if self.config.go_feature_serving and self._go_server:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
             enable_logging = (

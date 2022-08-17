@@ -35,11 +35,12 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 LOGGER = logging.getLogger(__name__)
 
 try:
+    from google.api_core import client_info as http_client_info
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import datastore
     from google.cloud.datastore.client import Key
@@ -47,6 +48,10 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("gcp", str(e))
+
+
+def get_http_client_info():
+    return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
 ProtoBatch = Sequence[
@@ -331,8 +336,7 @@ def _initialize_client(
 ) -> datastore.Client:
     try:
         client = datastore.Client(
-            project=project_id,
-            namespace=namespace,
+            project=project_id, namespace=namespace, client_info=get_http_client_info()
         )
         return client
     except DefaultCredentialsError as e:

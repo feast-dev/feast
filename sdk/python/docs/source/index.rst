@@ -96,6 +96,12 @@ Entity
 Feature View
 ==================
 
+.. automodule:: feast.base_feature_view
+    :members:
+
+Feature View
+----------------------
+
 .. automodule:: feast.feature_view
     :members:
 
@@ -128,32 +134,59 @@ Feature Service
 Registry
 ==================
 
-.. automodule:: feast.registry
+.. automodule:: feast.infra.registry.base_registry
+    :inherited-members:
+    :members:
+
+Registry
+----------------------
+
+.. automodule:: feast.infra.registry.registry
+    :inherited-members:
+    :members:
+
+SQL Registry
+----------------------
+
+.. automodule:: feast.infra.registry.sql
     :inherited-members:
     :members:
 
 Registry Store
 ==================
 
-.. automodule:: feast.registry_store
+.. automodule:: feast.infra.registry.registry_store
     :inherited-members:
     :members:
     :exclude-members: NoopRegistryStore
 
-SQL Registry Store
+File Registry Store
 -----------------------
 
-.. automodule:: feast.infra.registry_stores.sql
+.. automodule:: feast.infra.registry.file
+    :members:
+    :noindex:
+
+GCS Registry Store
+-----------------------
+
+.. automodule:: feast.infra.registry.gcs
+    :members:
+    :noindex:
+
+S3 Registry Store
+-----------------------
+
+.. automodule:: feast.infra.registry.s3
     :members:
     :noindex:
 
 PostgreSQL Registry Store
 -----------------------
 
-.. automodule:: feast.infra.registry_stores.contrib.postgres.registry_store
+.. automodule:: feast.infra.registry.contrib.postgres.postgres_registry_store
     :members:
     :noindex:
-
 
 Provider
 ==================
@@ -173,21 +206,18 @@ Local Provider
 
 .. automodule:: feast.infra.local
     :members:
-    :exclude-members: LocalRegistryStore
 
 GCP Provider
 ------------------
 
 .. automodule:: feast.infra.gcp
     :members:
-    :exclude-members: GCSRegistryStore
 
 AWS Provider
 ------------------
 
 .. automodule:: feast.infra.aws
     :members:
-    :exclude-members: S3RegistryStore
 
 Offline Store
 ==================
@@ -311,5 +341,13 @@ Local Engine
 ---------------------------
 
 .. autoclass:: feast.infra.materialization.lambda.lambda_engine
+    :members:
+    :noindex:
+
+
+Bytewax Engine
+---------------------------
+
+.. automodule:: feast.infra.materialization.contrib.bytewax
     :members:
     :noindex:

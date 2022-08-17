@@ -14,7 +14,7 @@ from feast import FeatureStore, FeatureView, FileSource, RepoConfig
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
 from feast.field import Field
-from feast.registry import Registry
+from feast.infra.registry.registry import Registry
 from feast.types import Array, Bytes, Int64, String
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,

@@ -21,9 +21,9 @@ from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -172,6 +172,15 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 assert stream_source
                 if not any((stream_source is ds) for ds in res.data_sources):
                     res.data_sources.append(stream_source)
+            elif isinstance(obj, BatchFeatureView) and not any(
+                (obj is bfv) for bfv in res.feature_views
+            ):
+                res.feature_views.append(obj)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -345,13 +354,12 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 
-def cli_check_repo(repo_path: Path):
+def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
     sys.path.append(str(repo_path))
-    config_path = repo_path / "feature_store.yaml"
-    if not config_path.exists():
+    if not fs_yaml_file.exists():
         print(
-            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running feast from an initialized "
-            f"feast repository. "
+            f"Can't find feature repo configuration file at {fs_yaml_file}. "
+            "Make sure you're running feast from an initialized feast repository."
         )
         sys.exit(1)
 

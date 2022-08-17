@@ -8,6 +8,8 @@ from feast.entity import Entity
 from feast.feast_object import FeastObject, FeastObjectSpecProto
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -27,7 +29,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import FEAST_OBJECT_TYPES, BaseRegistry, FeastObjectType
 from feast.repo_contents import RepoContents
 
 

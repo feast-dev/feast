@@ -39,12 +39,12 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 from ...saved_dataset import SavedDatasetStorage
-from ...usage import log_exceptions_and_usage
+from ...usage import get_user_agent, log_exceptions_and_usage
 from .bigquery_source import (
     BigQueryLoggingDestination,
     BigQuerySource,
@@ -52,6 +52,7 @@ from .bigquery_source import (
 )
 
 try:
+    from google.api_core import client_info as http_client_info
     from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
@@ -63,6 +64,10 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("gcp", str(e))
+
+
+def get_http_client_info():
+    return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
@@ -688,7 +693,9 @@ def _get_bigquery_client(
     project: Optional[str] = None, location: Optional[str] = None
 ) -> bigquery.Client:
     try:
-        client = bigquery.Client(project=project, location=location)
+        client = bigquery.Client(
+            project=project, location=location, client_info=get_http_client_info()
+        )
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
             str(e)
