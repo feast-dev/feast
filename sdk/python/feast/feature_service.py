@@ -98,8 +98,15 @@ class FeatureService:
                 projection = feature_grouping.projection
 
                 if fvs_to_update and feature_grouping.name in fvs_to_update:
+                    # There are three situations to be handled. First, the projection specifies
+                    # desired features, in which case we should select those desired features.
+                    # Second, the projection does not specify any desired features but has
+                    # already selected features, in which case nothing needs to be done. And
+                    # third, the projection does not specify any desired features but has not 
+                    # yet selected features (since the original feature view did not yet have
+                    # features), in which case we should select all possible inferred features.
                     if projection.desired_features:
-                        # Select the specific desired features.
+                        # First case, so we select the specific desired features.
                         desired_features = set(projection.desired_features)
                         actual_features = set(
                             [
@@ -115,8 +122,11 @@ class FeatureService:
                         for f in fvs_to_update[feature_grouping.name].features:
                             if f.name in desired_features:
                                 projection.features.append(f)
-                    elif not projection.features:
-                        # No features have been specifically selected, so all features will be added to the projection.
+                    elif not projection.desired_features and projection.features:
+                        # Second cass, so nothing needs to be done.
+                        pass
+                    else:
+                        # Third case, so all inferred features will be selected.
                         projection.features = fvs_to_update[
                             feature_grouping.name
                         ].features
