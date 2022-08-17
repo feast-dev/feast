@@ -1,5 +1,6 @@
 from typing import Union
 
+from .batch_feature_view import BatchFeatureView
 from .data_source import DataSource
 from .entity import Entity
 from .feature_service import FeatureService
@@ -16,12 +17,15 @@ from .protos.feast.core.ValidationProfile_pb2 import (
 )
 from .request_feature_view import RequestFeatureView
 from .saved_dataset import ValidationReference
+from .stream_feature_view import StreamFeatureView
 
 # Convenience type representing all Feast objects
 FeastObject = Union[
     FeatureView,
     OnDemandFeatureView,
     RequestFeatureView,
+    BatchFeatureView,
+    StreamFeatureView,
     Entity,
     FeatureService,
     DataSource,
