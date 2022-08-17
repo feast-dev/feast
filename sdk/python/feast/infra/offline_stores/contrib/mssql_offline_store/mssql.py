@@ -181,18 +181,18 @@ class MsSqlServerOfflineStore(OfflineStore):
             table_schema,
             table_name,
         ) = _upload_entity_df_into_sqlserver_and_get_entity_schema(
-            engine, config, entity_df
+            engine, config, entity_df, full_feature_names=full_feature_names
         )
 
         entity_df_event_timestamp_col = (
             offline_utils.infer_event_timestamp_from_entity_df(table_schema)
         )
 
-        # _assert_expected_columns_in_sqlserver(
-        #     expected_join_keys,
-        #     entity_df_event_timestamp_col,
-        #     table_schema,
-        # )
+        _assert_expected_columns_in_sqlserver(
+            expected_join_keys,
+            entity_df_event_timestamp_col,
+            table_schema,
+        )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
             entity_df,
@@ -267,7 +267,6 @@ def _assert_expected_columns_in_sqlserver(
     join_keys: Set[str], entity_df_event_timestamp_col: str, table_schema: EntitySchema
 ):
     entity_columns = set(table_schema.keys())
-
     expected_columns = join_keys.copy()
     expected_columns.add(entity_df_event_timestamp_col)
 
@@ -376,6 +375,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
     engine: sqlalchemy.engine.Engine,
     config: RepoConfig,
     entity_df: Union[pandas.DataFrame, str],
+    full_feature_names: bool,
 ) -> Tuple[Dict[Any, Any], str]:
     """
     Uploads a Pandas entity dataframe into a SQL Server table and constructs the
@@ -394,7 +394,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
             f"SELECT TOP 1 * FROM {table_id}",
             engine,
             config.offline_store,
-            full_feature_names=False,
+            full_feature_names=full_feature_names,
             on_demand_feature_views=None,
         ).to_df()
 
