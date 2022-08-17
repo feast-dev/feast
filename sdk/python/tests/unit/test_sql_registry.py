@@ -569,6 +569,6 @@ def test_update_infra(sql_registry):
     project = "project"
     infra = sql_registry.get_infra(project=project)
 
-    # Should succuessfully run update infra
+    # Should run update infra successfully
     sql_registry.update_infra(infra, project)
     sql_registry.teardown()
