@@ -13,6 +13,8 @@ Each of these retrieval mechanisms accept:
 * some way of specifying entities (to fetch features for)
 * some way to specify the features to fetch (either via [feature services](feature-retrieval.md#feature-services), which group features needed for a model version, or [feature references](feature-retrieval.md#feature-references))
 
+Before beginning, you need to instantiate a local `FeatureStore` object that knows how to parse the registry (see [more details](https://docs.feast.dev/getting-started/concepts/registry))
+
 <details>
 
 <summary>How to: generate training data</summary>
