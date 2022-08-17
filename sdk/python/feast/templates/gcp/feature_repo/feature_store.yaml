@@ -8,12 +8,12 @@ online_store:
   type: sqlite
   path: data/online_store.db
 # See https://docs.feast.dev/reference/online-stores/datastore
-# online_store:
+#online_store:
 #   type: datastore
 #   project_id: my_gcp_project
 #   namespace: my_datastore_namespace
 # See https://docs.feast.dev/reference/online-stores/redis
-# online_store:
+#online_store:
 #   type: redis
 #   connection_string: "localhost:6379"
 entity_key_serialization_version: 2

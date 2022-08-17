@@ -12,6 +12,10 @@ online_store:
 #online_store:
 #    type: dynamodb
 #    region: %AWS_REGION%
+# See https://docs.feast.dev/reference/online-stores/redis
+#online_store:
+#   type: redis
+#   connection_string: "localhost:6379"
 offline_store:
     type: redshift
     cluster_id: %REDSHIFT_CLUSTER_ID%
