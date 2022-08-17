@@ -15,14 +15,13 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
+from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
-from feast.infra.passthrough_provider import PassthroughProvider
-
 from feast.utils import (
     _convert_arrow_to_proto,
     _get_column_names,

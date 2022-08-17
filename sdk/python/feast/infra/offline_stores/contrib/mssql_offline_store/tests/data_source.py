@@ -10,13 +10,12 @@ from testcontainers.mssql import SqlServerContainer
 
 from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerOfflineStoreConfig,
+    MsSqlServerOfflineStoreConfig, _df_to_create_table_sql
 )
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,
 )
 from feast.saved_dataset import SavedDatasetStorage
-from feast.type_map import pa_to_mssql_type
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -41,17 +40,6 @@ def mssql_container():
 
     yield container
     container.stop()
-
-
-def _df_to_create_table_sql(df: pd.DataFrame, table_name: str) -> str:
-    pa_table = pa.Table.from_pandas(df)
-
-    columns = [f""""{f.name}" {pa_to_mssql_type(f.type)}""" for f in pa_table.schema]
-    return f"""
-        CREATE TABLE "{table_name}" (
-            {", ".join(columns)}
-        );
-        """
 
 
 class MsSqlDataSourceCreator(DataSourceCreator):
@@ -106,7 +94,6 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         # Create table
 
         destination_name = self.get_prefixed_table_name(destination_name)
-        # _df_to_create_table_sql(df, destination_name)
         engine.execute(_df_to_create_table_sql(df, destination_name))
         # Upload dataframe to azure table
         df.to_sql(destination_name, engine, index=False, if_exists="append")

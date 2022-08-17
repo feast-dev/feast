@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from feast import FileSource, errors
+from feast import FileSource, entity, errors
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -176,18 +176,20 @@ class MsSqlServerOfflineStore(OfflineStore):
         expected_join_keys = _get_join_keys(project, feature_views, registry)
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
         engine = make_engine(config.offline_store)
-        entity_df["event_timestamp"] = pandas.to_datetime(
-            entity_df["event_timestamp"], utc=True
-        ).fillna(pandas.Timestamp.now())
+        if isinstance(entity_df, pandas.DataFrame):
+            entity_df_event_timestamp_col = (
+                offline_utils.infer_event_timestamp_from_entity_df(dict(zip(list(entity_df.columns), list(entity_df.dtypes))))
+            )
+            entity_df[entity_df_event_timestamp_col] = pandas.to_datetime(
+                entity_df[entity_df_event_timestamp_col], utc=True
+            ).fillna(pandas.Timestamp.now())
 
+        # TODO: figure out how to deal with entity dataframes that are strings
         (
             table_schema,
             table_name,
         ) = _upload_entity_df_into_sqlserver_and_get_entity_schema(
             engine, config, entity_df, full_feature_names=full_feature_names
-        )
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(table_schema)
         )
 
         _assert_expected_columns_in_sqlserver(
