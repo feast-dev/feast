@@ -123,8 +123,15 @@ class FeatureService:
                             if f.name in desired_features:
                                 projection.features.append(f)
                     elif not projection.desired_features and projection.features:
-                        # Second cass, so nothing needs to be done.
-                        pass
+                        # Second cass, so nothing needs to be done. In case something went wrong
+                        # during feature inference, we check that the selected features still exist.
+                        actual_features = set(
+                            [
+                                f.name
+                                for f in fvs_to_update[feature_grouping.name].features
+                            ]
+                        )
+                        assert projection.features.issubset(actual_features)
                     else:
                         # Third case, so all inferred features will be selected.
                         projection.features = fvs_to_update[
