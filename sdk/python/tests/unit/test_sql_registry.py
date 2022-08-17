@@ -552,6 +552,7 @@ def test_apply_data_source(sql_registry):
 
     sql_registry.teardown()
 
+
 @pytest.mark.skipif(
     sys.platform == "darwin" and "GITHUB_REF" in os.environ,
     reason="does not run on mac github actions",
