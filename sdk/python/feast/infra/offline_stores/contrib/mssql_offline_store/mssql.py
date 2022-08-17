@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from feast import FileSource, entity, errors
+from feast import FileSource, errors
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -31,7 +31,7 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.infra.provider import RetrievalJob
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import BaseRegistry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pa_to_mssql_type

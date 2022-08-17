@@ -6,7 +6,8 @@ import logging
 import json
 import joblib
 from feast import FeatureStore, RepoConfig
-from feast.registry import RegistryConfig
+from feast.infra.registry.registry import RegistryConfig
+
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import MsSqlServerOfflineStoreConfig
 from feast.infra.online_stores.redis import RedisOnlineStoreConfig, RedisOnlineStore
 
