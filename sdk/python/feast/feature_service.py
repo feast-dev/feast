@@ -100,35 +100,29 @@ class FeatureService:
         """
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
+                if feature_grouping.name not in fvs_to_update:
+                    raise FeatureViewMissingDuringFeatureServiceInference(
+                        feature_view_name=feature_grouping.name,
+                        feature_service_name=self.name,
+                    )
+
                 projection = feature_grouping.projection
-
-
-
                 if projection.desired_features:
                     # The projection wants to select a specific set of inferred features.
                     # Example: FeatureService(features=[fv[["inferred_feature"]]]), where
                     # 'fv' is a feature view that was defined without a schema.
-                    if feature_grouping.name in fvs_to_update:
-                        # Validate that the selected features have actually been inferred.
-                        desired_features = set(projection.desired_features)
-                        actual_features = set(
-                            [
-                                f.name
-                                for f in fvs_to_update[feature_grouping.name].features
-                            ]
-                        )
-                        assert desired_features.issubset(actual_features)
+                    # First we validate that the selected features have actually been inferred.
+                    desired_features = set(projection.desired_features)
+                    actual_features = set(
+                        [f.name for f in fvs_to_update[feature_grouping.name].features]
+                    )
+                    assert desired_features.issubset(actual_features)
 
-                        # Extract the selected features and add them to the projection.
-                        projection.features = []
-                        for f in fvs_to_update[feature_grouping.name].features:
-                            if f.name in desired_features:
-                                projection.features.append(f)
-                    else:
-                        raise FeatureViewMissingDuringFeatureServiceInference(
-                            feature_view_name=feature_grouping.name,
-                            feature_service_name=self.name,
-                        )
+                    # Then we extract the selected features and add them to the projection.
+                    projection.features = []
+                    for f in fvs_to_update[feature_grouping.name].features:
+                        if f.name in desired_features:
+                            projection.features.append(f)
 
                     continue
 
@@ -142,9 +136,7 @@ class FeatureService:
                 # The projection wants to select all possible inferred features.
                 # Example: FeatureService(features=[fv]), where 'fv' is a feature view that
                 # was defined without a schema.
-                projection.features = fvs_to_update[
-                    feature_grouping.name
-                ].features
+                projection.features = fvs_to_update[feature_grouping.name].features
             else:
                 raise ValueError(
                     f"The feature service {self.name} has been provided with an invalid type "
