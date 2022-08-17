@@ -135,7 +135,8 @@ AZURE_REQUIRED = (
      "azure-identity>=1.6.1",
      "SQLAlchemy>=1.4.19",
      "dill==0.3.4",
-     "pyodbc>=4.0.30"
+     "pyodbc>=4.0.30",
+     "pymssql",
     ]
 )
 
