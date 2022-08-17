@@ -551,3 +551,25 @@ def test_apply_data_source(sql_registry):
     assert registry_batch_source == batch_source
 
     sql_registry.teardown()
+
+
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+)
+@pytest.mark.parametrize(
+    "sql_registry",
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
+)
+def test_update_infra(sql_registry):
+    # Create infra object
+    project = "project"
+    infra = sql_registry.get_infra(project=project)
+
+    # Should run update infra successfully
+    sql_registry.update_infra(infra, project)
+    sql_registry.teardown()
