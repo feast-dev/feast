@@ -1,6 +1,7 @@
 import pytest
 
 from feast.errors import SavedDatasetLocationAlreadyExists
+from feast.saved_dataset import SavedDatasetStorage
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -40,11 +41,14 @@ def test_persist_does_not_overwrite(environment, universal_data_sources):
     )
 
     with pytest.raises(SavedDatasetLocationAlreadyExists):
+        # Copy data source destination to a saved dataset destination.
+        saved_dataset_destination = SavedDatasetStorage.from_data_source(
+            data_sources.customer
+        )
+
         # This should fail since persisting to a preexisting location is not allowed.
         store.create_saved_dataset(
             from_=job,
             name="my_training_dataset",
-            storage=environment.data_source_creator.create_saved_dataset_destination(
-                data_source=data_sources.customer
-            ),
+            storage=saved_dataset_destination,
         )

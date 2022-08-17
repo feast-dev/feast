@@ -8,6 +8,7 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
+from feast.importer import import_class
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -31,6 +32,16 @@ class _StorageRegistry(type):
         return kls
 
 
+_DATA_SOURCE_TO_SAVED_DATASET_STORAGE = {
+    "FileSource": "feast.infra.offline_stores.file_source.SavedDatasetFileStorage",
+}
+
+
+def get_saved_dataset_storage_class_from_path(saved_dataset_storage_path: str):
+    module_name, class_name = saved_dataset_storage_path.rsplit(".", 1)
+    return import_class(module_name, class_name, "SavedDatasetStorage")
+
+
 class SavedDatasetStorage(metaclass=_StorageRegistry):
     _proto_attr_name: str
 
@@ -43,11 +54,24 @@ class SavedDatasetStorage(metaclass=_StorageRegistry):
 
     @abstractmethod
     def to_proto(self) -> SavedDatasetStorageProto:
-        ...
+        pass
 
     @abstractmethod
     def to_data_source(self) -> DataSource:
-        ...
+        pass
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> "SavedDatasetStorage":
+        data_source_type = type(data_source).__name__
+        if data_source_type in _DATA_SOURCE_TO_SAVED_DATASET_STORAGE:
+            cls = get_saved_dataset_storage_class_from_path(
+                _DATA_SOURCE_TO_SAVED_DATASET_STORAGE[data_source_type]
+            )
+            return cls.from_data_source(data_source)
+        else:
+            raise ValueError(
+                f"This method currently does not support {data_source_type}."
+            )
 
 
 class SavedDataset:
