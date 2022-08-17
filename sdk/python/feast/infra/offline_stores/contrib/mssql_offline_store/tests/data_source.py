@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 import pandas as pd
-import pyarrow as pa
 import pytest
 from sqlalchemy import create_engine
 from testcontainers.core.container import DockerContainer
@@ -10,7 +9,8 @@ from testcontainers.mssql import SqlServerContainer
 
 from feast.data_source import DataSource
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerOfflineStoreConfig, _df_to_create_table_sql
+    MsSqlServerOfflineStoreConfig,
+    _df_to_create_table_sql,
 )
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,

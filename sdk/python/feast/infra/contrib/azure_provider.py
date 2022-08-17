@@ -1,32 +1,18 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-import warnings
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from datetime import datetime
+from typing import Callable
 
-import pandas
-import pyarrow as pa
 from tqdm import tqdm
 
-from feast import FeatureService
-from feast.entity import Entity
-from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.passthrough_provider import PassthroughProvider
-from feast.infra.provider import Provider
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
-from feast.saved_dataset import SavedDataset
 from feast.utils import (
     _convert_arrow_to_proto,
     _get_column_names,
     _run_pyarrow_field_mapping,
-    make_tzaware,
 )
 
 DEFAULT_BATCH_SIZE = 10_000

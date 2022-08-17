@@ -30,8 +30,8 @@ from feast.infra.offline_stores.offline_utils import (
     get_feature_view_query_context,
 )
 from feast.infra.provider import RetrievalJob
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pa_to_mssql_type
@@ -178,7 +178,9 @@ class MsSqlServerOfflineStore(OfflineStore):
         engine = make_engine(config.offline_store)
         if isinstance(entity_df, pandas.DataFrame):
             entity_df_event_timestamp_col = (
-                offline_utils.infer_event_timestamp_from_entity_df(dict(zip(list(entity_df.columns), list(entity_df.dtypes))))
+                offline_utils.infer_event_timestamp_from_entity_df(
+                    dict(zip(list(entity_df.columns), list(entity_df.dtypes)))
+                )
             )
             entity_df[entity_df_event_timestamp_col] = pandas.to_datetime(
                 entity_df[entity_df_event_timestamp_col], utc=True

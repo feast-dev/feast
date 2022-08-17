@@ -8,9 +8,9 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
 
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.infra.registry.registry import RegistryConfig
 from feast.infra.registry.registry_store import RegistryStore
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 
 REGISTRY_SCHEMA_VERSION = "1"
 
