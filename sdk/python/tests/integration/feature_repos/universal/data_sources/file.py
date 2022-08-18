@@ -154,9 +154,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
             s3_endpoint_override=f"http://{host}:{port}",
         )
 
-    def create_saved_dataset_destination(
-        self,
-    ) -> SavedDatasetFileStorage:
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
         port = self.minio.get_exposed_port("9000")
         host = self.minio.get_container_host_ip()
 

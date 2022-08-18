@@ -105,9 +105,7 @@ class TrinoSourceCreator(DataSourceCreator):
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
-    def create_saved_dataset_destination(
-        self,
-    ) -> SavedDatasetTrinoStorage:
+    def create_saved_dataset_destination(self) -> SavedDatasetTrinoStorage:
         table = self.get_prefixed_table_name(
             f"persisted_ds_{str(uuid.uuid4()).replace('-', '_')}"
         )
