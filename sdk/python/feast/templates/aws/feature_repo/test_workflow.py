@@ -24,6 +24,9 @@ def run_demo():
     print("\n--- Online features ---")
     fetch_online_features(store, use_feature_service=False)
 
+    print("\n--- Online features retrieved (instead) through a feature service---")
+    fetch_online_features(store, use_feature_service=True)
+
     print("\n--- Simulate a stream event ingestion of the hourly stats df ---")
     event_df = pd.DataFrame.from_dict(
         {
@@ -43,9 +46,6 @@ def run_demo():
     store.push("driver_stats_push_source", event_df, to=PushMode.ONLINE_AND_OFFLINE)
 
     print("\n--- Online features again with updated values from a stream push---")
-    fetch_online_features(store, use_feature_service=False)
-
-    print("\n--- Online features retrieved (instead) through a feature service---")
     fetch_online_features(store, use_feature_service=True)
 
     print("\n--- Run feast teardown ---")
