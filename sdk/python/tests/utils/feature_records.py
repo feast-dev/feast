@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import pytest
+import numpy as np
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from pytz import utc
 
@@ -408,12 +409,14 @@ def validate_dataframes(
         if event_timestamp_column in sort_by:
             sort_by.remove(event_timestamp_column)
 
-        for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
-            td = abs(t1-t2)
-            if isinstance(td, int):
-                assert td < timestamp_precision.seconds
+        diffs = expected_timestamp_col.to_numpy() - actual_timestamp_col.to_numpy()
+        for diff in diffs:
+            if isinstance(diff, np.ndarray):
+                diff = diff[0]
+            if isinstance(diff, np.timedelta64):
+                assert abs(diff) <= timestamp_precision.seconds
             else:
-                assert abs(t1 - t2) < timestamp_precision
+                assert abs(diff) < timestamp_precision
     pd_assert_frame_equal(
         expected_df,
         actual_df,
