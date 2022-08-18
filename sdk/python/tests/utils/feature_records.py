@@ -416,7 +416,7 @@ def validate_dataframes(
             if isinstance(diff, np.timedelta64):
                 assert abs(diff) <= timestamp_precision.seconds
             else:
-                assert abs(diff) < timestamp_precision
+                assert abs(diff) <= timestamp_precision
     pd_assert_frame_equal(
         expected_df,
         actual_df,
