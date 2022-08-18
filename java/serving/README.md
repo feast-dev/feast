@@ -3,14 +3,18 @@
 ### Overview
 This guide is targeted at developers looking to contribute to Feast Serving:
 - [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
+- [Unit / Integration Tests](#unit-/-integration-tests)
+- [Developing against Feast Helm charts](#developing-against-feast-helm-charts)
 
-### Pre-requisites:
+### Building and running Feast Serving locally:
+
+#### Pre-requisites
 
 - [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
 - A Feast feature repo (e.g. https://github.com/feast-dev/feast-demo)
 - A running Store instance e.g. local Redis instance with `redis-server`
 
-### Building and running Feast Serving locally: 
+#### Steps
 From the Feast GitHub root, run:
 
 1. `mvn -f java/pom.xml install -Dmaven.test.skip=true`
@@ -46,7 +50,7 @@ From the Feast GitHub root, run:
    ```
 5. Now you have a Feast Serving gRPC service running on port 6566 locally!
 
-### Running test queries
+#### Running test queries
 If you have [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) installed, you can check that Feast Serving is running
 ```
 grpc_cli ls localhost:6566
@@ -116,7 +120,7 @@ results {
 Rpc succeeded with OK status
 ```
 
-### Debugging Feast Serving
+#### Debugging Feast Serving
 You can debug this like any other Java executable. Swap the java command above with:
 ```
    java \
@@ -140,6 +144,6 @@ mvn verify -pl serving --also-make
 mvn -Dmaven.failsafe.debug verify -pl serving --also-make
 ```
 
-### Developing against Feast helm charts
+### Developing against Feast Helm charts
 Look at [java-demo](../../examples/java-demo) for steps on how to update the helm chart or java logic and test their
 interactions.
