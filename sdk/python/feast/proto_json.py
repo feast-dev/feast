@@ -115,6 +115,7 @@ def _patch_feast_value_json_encoding():
         parser: _Parser, value: JsonObject, message: ProtoMessage, path: str
     ):
         from_json_object(parser, value, message)
+
     # https://github.com/feast-dev/feast/issues/2484 Certain feast users need a higher version of protobuf but the
     # parameters of `from_json_object` changes in feast 3.20.1. This change gives users flexibility to use earlier versions.
     current_version = pkg_resources.get_distribution("protobuf").version
