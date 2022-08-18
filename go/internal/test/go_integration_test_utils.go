@@ -88,7 +88,7 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 }
 
 func SetupCleanFeatureRepo(basePath string) error {
-	cmd := exec.Command("feast", "init", "feature_repo")
+	cmd := exec.Command("feast", "init", "my_project")
 	path, err := filepath.Abs(basePath)
 	cmd.Env = os.Environ()
 
@@ -102,7 +102,7 @@ func SetupCleanFeatureRepo(basePath string) error {
 	}
 	applyCommand := exec.Command("feast", "apply")
 	applyCommand.Env = os.Environ()
-	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
+	featureRepoPath, err := filepath.Abs(filepath.Join(path, "my_project", "feature_repo"))
 	if err != nil {
 		return err
 	}
