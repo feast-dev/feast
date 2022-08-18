@@ -6,7 +6,7 @@ description: >-
 # Drivers stats on Snowflake
 
 In the steps below, we will set up a sample Feast project that leverages Snowflake
-as an offline store.
+as an offline store + materialization engine + online store.
 
 Starting with data in a Snowflake table, we will register that table to the feature store and define features associated with the columns in that table. From there, we will generate historical training data based on those feature definitions and then materialize the latest feature values into the online store. Lastly, we will retrieve the materialized feature values.
 
@@ -46,7 +46,7 @@ The following files will automatically be created in your project folder:
 
 #### Inspect `feature_store.yaml`
 
-Here you will see the information that you entered. This template will use Snowflake as an offline store and SQLite as the online store. The main thing to remember is by default, Snowflake objects have ALL CAPS names unless lower case was specified.
+Here you will see the information that you entered. This template will use Snowflake as the offline store, materialization engine, and the online store. The main thing to remember is by default, Snowflake objects have ALL CAPS names unless lower case was specified.
 
 {% code title="feature_store.yaml" %}
 ```yaml
@@ -55,6 +55,14 @@ registry: ...
 provider: local
 offline_store:
     type: snowflake.offline
+    account: SNOWFLAKE_DEPLOYMENT_URL #drop .snowflakecomputing.com
+    user: USERNAME
+    password: PASSWORD
+    role: ROLE_NAME #case sensitive
+    warehouse: WAREHOUSE_NAME #case sensitive
+    database: DATABASE_NAME #case cap sensitive
+batch_engine:
+    type: snowflake.engine
     account: SNOWFLAKE_DEPLOYMENT_URL #drop .snowflakecomputing.com
     user: USERNAME
     password: PASSWORD

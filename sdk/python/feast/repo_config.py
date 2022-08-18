@@ -36,6 +36,7 @@ _logger = logging.getLogger(__name__)
 # - first party and third party implementations can use the same class loading code path.
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.LocalMaterializationEngine",
+    "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
     "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
 }
@@ -190,6 +191,8 @@ class RepoConfig(FeastBaseModel):
             self._batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self._batch_engine_config = data["batch_engine_config"]
+        elif self._offline_config == "snowflake.offline":
+            self._batch_engine_config = "snowflake.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self._batch_engine_config = "local"

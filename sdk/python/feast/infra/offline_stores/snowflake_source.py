@@ -4,7 +4,7 @@ from typeguard import typechecked
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -59,6 +59,8 @@ class SnowflakeSource(DataSource):
         """
         if table is None and query is None:
             raise ValueError('No "table" or "query" argument provided.')
+        if table and query:
+            raise ValueError('Both "table" and "query" argument provided.')
 
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
@@ -195,7 +197,7 @@ class SnowflakeSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        return type_map.snowflake_python_type_to_feast_value_type
+        return type_map.snowflake_type_to_feast_value_type
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
@@ -208,7 +210,7 @@ class SnowflakeSource(DataSource):
         """
 
         from feast.infra.offline_stores.snowflake import SnowflakeOfflineStoreConfig
-        from feast.infra.utils.snowflake_utils import (
+        from feast.infra.utils.snowflake.snowflake_utils import (
             execute_snowflake_statement,
             get_snowflake_conn,
         )
@@ -217,20 +219,100 @@ class SnowflakeSource(DataSource):
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
-        if self.database and self.table:
-            query = f'SELECT * FROM "{self.database}"."{self.schema}"."{self.table}" LIMIT 1'
-        elif self.table:
-            query = f'SELECT * FROM "{self.table}" LIMIT 1'
-        else:
-            query = f"SELECT * FROM ({self.query}) LIMIT 1"
+        query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
 
-        result = execute_snowflake_statement(snowflake_conn, query).fetch_pandas_all()
+        result_cur = execute_snowflake_statement(snowflake_conn, query)
 
-        if not result.empty:
-            metadata = result.dtypes.apply(str)
-            return list(zip(metadata.index, metadata))
+        metadata = [
+            {
+                "column_name": column.name,
+                "type_code": column.type_code,
+                "precision": column.precision,
+                "scale": column.scale,
+                "is_nullable": column.is_nullable,
+                "snowflake_type": None,
+            }
+            for column in result_cur.description
+        ]
+
+        for row in metadata:
+            if row["type_code"] == 0:
+                if row["scale"] == 0:
+                    if row["precision"] <= 9:  # max precision size to ensure INT32
+                        row["snowflake_type"] = "NUMBER32"
+                    elif row["precision"] <= 18:  # max precision size to ensure INT64
+                        row["snowflake_type"] = "NUMBER64"
+                    else:
+                        column = row["column_name"]
+                        query = f'SELECT MAX("{column}") AS "{column}" FROM {self.get_table_query_string()}'
+
+                        result = execute_snowflake_statement(
+                            snowflake_conn, query
+                        ).fetch_pandas_all()
+
+                        if (
+                            result.dtypes[column].name
+                            in python_int_to_snowflake_type_map
+                        ):
+                            row["snowflake_type"] = python_int_to_snowflake_type_map[
+                                result.dtypes[column].name
+                            ]
+                        else:
+                            raise NotImplementedError(
+                                "Numbers larger than INT64 are not supported"
+                            )
+                else:
+                    raise NotImplementedError(
+                        "The following Snowflake Data Type is not supported: DECIMAL -- Convert to DOUBLE"
+                    )
+            elif row["type_code"] in [3, 5, 9, 10, 12]:
+                error = snowflake_unsupported_map[row["type_code"]]
+                raise NotImplementedError(
+                    f"The following Snowflake Data Type is not supported: {error}"
+                )
+            elif row["type_code"] in [1, 2, 4, 6, 7, 8, 11, 13]:
+                row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
+            else:
+                raise NotImplementedError(
+                    f"The following Snowflake Column is not supported: {row['column_name']} (type_code: {row['type_code']})"
+                )
+
+        if not result_cur.fetch_pandas_all().empty:
+            return [
+                (column["column_name"], column["snowflake_type"]) for column in metadata
+            ]
         else:
-            raise ValueError("The following source:\n" + query + "\n ... is empty")
+            raise DataSourceNotFoundException(
+                "The following source:\n" + query + "\n ... is empty"
+            )
+
+
+snowflake_type_code_map = {
+    0: "NUMBER",
+    1: "DOUBLE",
+    2: "VARCHAR",
+    4: "TIMESTAMP",
+    6: "TIMESTAMP_LTZ",
+    7: "TIMESTAMP_TZ",
+    8: "TIMESTAMP_NTZ",
+    11: "BINARY",
+    13: "BOOLEAN",
+}
+
+snowflake_unsupported_map = {
+    3: "DATE -- Convert to TIMESTAMP",
+    5: "VARIANT -- Try converting to VARCHAR",
+    9: "OBJECT -- Try converting to VARCHAR",
+    10: "ARRAY -- Try converting to VARCHAR",
+    12: "TIME -- Try converting to VARCHAR",
+}
+
+python_int_to_snowflake_type_map = {
+    "int64": "NUMBER64",
+    "int32": "NUMBER32",
+    "int16": "NUMBER32",
+    "int8": "NUMBER32",
+}
 
 
 class SnowflakeOptions:

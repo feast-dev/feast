@@ -12,7 +12,7 @@ from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
     SnowflakeLoggingDestination,
 )
-from feast.infra.utils.snowflake_utils import get_snowflake_conn, write_pandas
+from feast.infra.utils.snowflake.snowflake_utils import get_snowflake_conn, write_pandas
 from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
