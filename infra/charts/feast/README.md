@@ -1,7 +1,5 @@
 # Feast Helm Charts
 
-> :warning: **Disclaimer**: Since Feast 0.10 our vision is to manage all infrastructure for feature store from one place - Feast SDK. But while this new paradigm is still in development, we are planning to support the installation of some Feast components (like Java feature server) through Helm chart presented in this repository. However, we do not expect helm chart to become a long-term solution for deploying Feast components to production, and some frictions still might exist. For example, you will need to manually sync some configurations from [feature_store.yaml](https://docs.feast.dev/reference/feature-repository/feature-store-yaml) into the chart context (like path to the registry file or project name).
-
 This repo contains Helm charts for Feast components that are being installed on Kubernetes:
 * Feast (root chart): The complete Helm chart containing all Feast components and dependencies. Most users will use this chart, but can selectively enable/disable subcharts using the values.yaml file.
     * [Feature Server](charts/feature-server): High performant JVM-based implementation of feature server.
