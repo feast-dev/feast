@@ -25,7 +25,11 @@ MSSQL_PASSWORD = "yourStrong(!)Password"
 
 @pytest.fixture(scope="session")
 def mssql_container():
-    container = SqlServerContainer(user=MSSQL_USER, password=MSSQL_PASSWORD)
+    container = SqlServerContainer(
+        user=MSSQL_USER,
+        password=MSSQL_PASSWORD,
+        image="mcr.microsoft.com/azure-sql-edge:1.0.6",
+    )
     container.start()
     container.start()
     log_string_to_wait_for = "Service Broker manager has started"

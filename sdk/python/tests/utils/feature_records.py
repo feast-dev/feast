@@ -387,10 +387,10 @@ def validate_dataframes(
     expected_df: pd.DataFrame,
     actual_df: pd.DataFrame,
     sort_by: List[str],
-    event_timestamp_column: Optional[str]=None,
-    timestamp_precision: timedelta=timedelta(seconds=0),
+    event_timestamp_column: Optional[str] = None,
+    timestamp_precision: timedelta = timedelta(seconds=0),
 ):
-    expected_df: pd.DataFrame = (
+    expected_df = (
         expected_df.sort_values(by=sort_by).drop_duplicates().reset_index(drop=True)
     )
 
@@ -406,7 +406,7 @@ def validate_dataframes(
         expected_df = expected_df.drop(event_timestamp_column, axis=1)
         actual_df = actual_df.drop(event_timestamp_column, axis=1)
         if event_timestamp_column in sort_by:
-            sort_by = sort_by.remove(event_timestamp_column)
+            sort_by.remove(event_timestamp_column)
         for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
             assert abs(t1 - t2) <= timestamp_precision
     pd_assert_frame_equal(
