@@ -409,8 +409,9 @@ def validate_dataframes(
             sort_by.remove(event_timestamp_column)
 
         for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
-            if isinstance(t1, int):
-                assert abs(t1 - t2) < timestamp_precision.seconds
+            td = abs(t1-t2)
+            if isinstance(td, int):
+                assert td < timestamp_precision.seconds
             else:
                 assert abs(t1 - t2) < timestamp_precision
     pd_assert_frame_equal(
