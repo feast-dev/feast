@@ -160,7 +160,7 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
                 project,
                 test_nullable_online_store,
                 repo_path,
-                test_nullable_online_store.offline_store_creator,
+                test_nullable_online_store.offline_store_creator(project),
             )
 
             repo_config = repo_path / "feature_store.yaml"
