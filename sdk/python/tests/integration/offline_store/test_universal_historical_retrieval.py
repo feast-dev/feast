@@ -39,7 +39,7 @@ np.random.seed(0)
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores
+@pytest.mark.universal_offline_stores(only=["snowflake"])
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
 def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
@@ -176,6 +176,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         event_timestamp_column=event_timestamp,
         timestamp_precision=timedelta(milliseconds=1),
     )
+    assert(False)
 
 
 @pytest.mark.integration
@@ -217,7 +218,6 @@ def test_historical_features_with_shared_batch_source(
             ],
             full_feature_names=full_feature_names,
         ).to_df()
-
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
