@@ -15,7 +15,7 @@ def test_cli_chdir() -> None:
         # Make sure the path is absolute by resolving any symlinks
         temp_path = Path(temp_dir).resolve()
         result = runner.run(["init", "my_project"], cwd=temp_path)
-        repo_path = temp_path / "my_project"
+        repo_path = temp_path / "my_project" / "feature_repo"
         assert result.returncode == 0
 
         result = runner.run(["--chdir", repo_path, "apply"], cwd=temp_path)

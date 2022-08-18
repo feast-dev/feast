@@ -12,7 +12,7 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena_source impor
 def test_end_to_end():
 
     try:
-        fs = FeatureStore("feature_repo/")
+        fs = FeatureStore(".")
 
         driver_hourly_stats = AthenaSource(
             timestamp_field="event_timestamp",

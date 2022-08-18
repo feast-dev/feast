@@ -71,14 +71,14 @@ online_store:
 go_feature_serving: True
 feature_server:
   feature_logging:
-    enable: True
+    enabled: True
 ```
 
 Feature logging configuration in `feature_store.yaml` also allows to tweak some low-level parameters to achieve the best performance:
 ```yaml
 feature_server:
   feature_logging:
-    enable: True
+    enabled: True
     flush_interval_secs: 300
     write_to_disk_interval_secs: 30
     emit_timeout_micro_secs: 10000
