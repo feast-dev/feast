@@ -166,7 +166,7 @@ dill==0.3.5.1
     #   multiprocess
 distlib==0.3.5
     # via virtualenv
-docker==5.0.3
+docker==6.0.0
     # via
     #   feast (setup.py)
     #   testcontainers
@@ -426,6 +426,7 @@ packaging==21.3
     #   dask
     #   db-dtypes
     #   deprecation
+    #   docker
     #   google-cloud-bigquery
     #   great-expectations
     #   pytest
@@ -780,6 +781,7 @@ uritemplate==4.1.1
 urllib3==1.26.11
     # via
     #   botocore
+    #   docker
     #   feast (setup.py)
     #   great-expectations
     #   kubernetes
