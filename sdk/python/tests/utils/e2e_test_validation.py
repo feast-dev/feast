@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
+from urllib import response
 
 import pandas as pd
 import pytest
@@ -47,7 +48,7 @@ def validate_offline_online_store_consistency(
     end_date = split_dt
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
-    time.sleep(10)
+    time.sleep(15)
 
     # check result of materialize()
     _check_offline_and_online_features(
@@ -112,8 +113,18 @@ def _check_offline_and_online_features(
         full_feature_names=full_feature_names,
     ).to_dict()
 
-    if full_feature_names:
+    time.sleep(5)
 
+    if not response_dict[f"{fv.name}__value"][0]:
+        response_dict = fs.get_online_features(
+            [f"{fv.name}:value"],
+            [{"driver_id": driver_id}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
+
+    time.sleep(5)
+
+    if full_feature_names:
         if expected_value:
             assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
             assert (
