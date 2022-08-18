@@ -168,7 +168,7 @@ def make_feature_store_yaml(
     project,
     test_repo_config,
     repo_dir_name: Path,
-    fixture_request: Optional[pytest.FixtureRequest],
+    fixture_request: Optional[pytest.FixtureRequest]=None,
 ):
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(
         project, fixture_request=fixture_request

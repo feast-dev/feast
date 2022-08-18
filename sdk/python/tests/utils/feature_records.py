@@ -316,7 +316,7 @@ def assert_feature_service_correctness(
         actual_df_from_df_entities,
         sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
         event_timestamp_column=event_timestamp,
-        timestamp_imprecision=timedelta(milliseconds=1),
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -370,7 +370,7 @@ def assert_feature_service_entity_mapping_correctness(
                 "destination_id",
             ],
             event_timestamp_column=event_timestamp,
-            timestamp_imprecision=timedelta(milliseconds=1),
+            timestamp_precision=timedelta(milliseconds=1),
         )
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
@@ -382,13 +382,13 @@ def assert_feature_service_entity_mapping_correctness(
             )
 
 
-# Specify timestamp_imprecision to relax timestamp equality constraints
+# Specify timestamp_precision to relax timestamp equality constraints
 def validate_dataframes(
-    expected_df,
-    actual_df,
-    sort_by,
-    event_timestamp_column=None,
-    timestamp_imprecision=timedelta(seconds=0),
+    expected_df: pd.DataFrame,
+    actual_df: pd.DataFrame,
+    sort_by: List[str],
+    event_timestamp_column: Optional[str]=None,
+    timestamp_precision: timedelta=timedelta(seconds=0),
 ):
     expected_df: pd.DataFrame = (
         expected_df.sort_values(by=sort_by).drop_duplicates().reset_index(drop=True)
@@ -408,7 +408,7 @@ def validate_dataframes(
         if event_timestamp_column in sort_by:
             sort_by = sort_by.remove(event_timestamp_column)
         for t1, t2 in zip(expected_timestamp_col.values, actual_timestamp_col.values):
-            assert abs(t1 - t2) <= timestamp_imprecision
+            assert abs(t1 - t2) <= timestamp_precision
     pd_assert_frame_equal(
         expected_df,
         actual_df,
