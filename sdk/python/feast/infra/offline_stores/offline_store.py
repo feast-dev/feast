@@ -173,13 +173,15 @@ class RetrievalJob(ABC):
         pass
 
     @abstractmethod
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
         Synchronously executes the underlying query and persists the result in the same offline store
         at the specified destination.
 
-        Currently does not prevent overwriting a pre-existing location in the offline store, although
-        individual implementations may do so. Eventually all implementations should prevent overwriting.
+        Args:
+            storage: The saved dataset storage object specifying where the result should be persisted.
+            allow_overwrite: If True, a pre-existing location (e.g. table or file) can be overwritten.
+                Currently not all individual offline store implementations make use of this parameter.
         """
         pass
 

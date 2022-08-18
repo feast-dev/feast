@@ -381,6 +381,7 @@ def test_historical_features_persisting(
         name="saved_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
         tags={"env": "test"},
+        allow_overwrite=True,
     )
 
     event_timestamp = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL

@@ -1146,6 +1146,7 @@ class FeatureStore:
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
         feature_service: Optional[FeatureService] = None,
+        allow_overwrite: bool = False,
     ) -> SavedDataset:
         """
         Execute provided retrieval job and persist its outcome in given storage.
@@ -1153,6 +1154,14 @@ class FeatureStore:
         After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
         Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
         with the same name.
+
+        Args:
+            from_: The retrieval job whose result should be persisted.
+            name: The name of the saved dataset.
+            storage: The saved dataset storage object indicating where the result should be persisted.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            feature_service (optional): The feature service that should be associated with this saved dataset.
+            allow_overwrite (optional): If True, the persisted result can overwrite an existing table or file.
 
         Returns:
             SavedDataset object with attached RetrievalJob
@@ -1186,7 +1195,7 @@ class FeatureStore:
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
         dataset.max_event_timestamp = from_.metadata.max_event_timestamp
 
-        from_.persist(storage)
+        from_.persist(storage=storage, allow_overwrite=allow_overwrite)
 
         dataset = dataset.with_retrieval_job(
             self._get_provider().retrieve_saved_dataset(

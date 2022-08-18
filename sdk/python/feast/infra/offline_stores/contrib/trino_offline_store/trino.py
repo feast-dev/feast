@@ -126,7 +126,7 @@ class TrinoRetrievalJob(RetrievalJob):
         self._client.execute_query(query_text=query)
         return destination_table
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         """
