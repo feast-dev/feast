@@ -7,14 +7,17 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 import pytz
-from pydantic import Field
+from pydantic import Field, StrictStr
 from pydantic.schema import Literal
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.snowflake_utils import get_snowflake_conn, write_pandas_binary
+from feast.infra.utils.snowflake.snowflake_utils import (
+    get_snowflake_conn,
+    write_pandas_binary,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -47,14 +50,14 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
 
-    database: Optional[str] = None
+    authenticator: Optional[str] = None
+    """ Snowflake authenticator name """
+
+    database: StrictStr
     """ Snowflake database name """
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    authenticator: Optional[str] = None
-    """ Snowflake authenticator name """
 
     class Config:
         allow_population_by_field_name = True
@@ -91,20 +94,11 @@ class SnowflakeOnlineStore(OnlineStore):
             if created_ts is not None:
                 created_ts = _to_naive_utc(created_ts)
 
-            entity_key_serialization_version = (
-                config.entity_key_serialization_version
-                if config.entity_key_serialization_version
-                else 2
-            )
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version,
+                    entity_key, 2
                 ) + bytes(feature_name, encoding="utf-8")
-                df.loc[j, "entity_key"] = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version,
-                )
+                df.loc[j, "entity_key"] = serialize_entity_key(entity_key, 2)
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
                 df.loc[j, "event_ts"] = timestamp
@@ -118,7 +112,9 @@ class SnowflakeOnlineStore(OnlineStore):
             # This combines both the data upload plus the overwrite in the same transaction
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
                 write_pandas_binary(
-                    conn, agg_df, f"[online-transient] {config.project}_{table.name}"
+                    conn,
+                    agg_df,
+                    f"[online-transient] {config.project}_{table.name}",
                 )  # special function for writing binary to snowflake
 
                 query = f"""
@@ -159,18 +155,12 @@ class SnowflakeOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        entity_key_serialization_version = (
-            config.entity_key_serialization_version
-            if config.entity_key_serialization_version
-            else 2
-        )
-
         entity_fetch_str = ",".join(
             [
                 (
                     "TO_BINARY("
                     + hexlify(
-                        serialize_entity_key(combo[0], entity_key_serialization_version)
+                        serialize_entity_key(combo[0], 2)
                         + bytes(combo[1], encoding="utf-8")
                     ).__str__()[1:]
                     + ")"
@@ -197,10 +187,7 @@ class SnowflakeOnlineStore(OnlineStore):
             )
 
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version,
-            )
+            entity_key_bin = serialize_entity_key(entity_key, 2)
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():

@@ -1,6 +1,7 @@
 import configparser
 import os
 import random
+import shutil
 import string
 from logging import getLogger
 from pathlib import Path
@@ -18,7 +19,10 @@ from tenacity import (
     wait_exponential,
 )
 
+import feast
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
+from feast.feature_view import FeatureView
+from feast.repo_config import RepoConfig
 
 try:
     import snowflake.connector
@@ -36,6 +40,16 @@ getLogger("snowflake.connector.network").disabled = True
 logger = getLogger(__name__)
 
 
+def assert_snowflake_feature_names(feature_view: FeatureView) -> None:
+    for feature in feature_view.features:
+        assert feature.name not in [
+            "entity_key",
+            "feature_name",
+            "feature_value",
+        ], f"Feature Name: {feature.name} is a protected name to ensure query stability"
+    return None
+
+
 def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCursor:
     cursor = conn.cursor().execute(query)
     if cursor is None:
@@ -44,10 +58,12 @@ def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCu
 
 
 def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
-    assert config.type in ["snowflake.offline", "snowflake.online"]
+    assert config.type in ["snowflake.offline", "snowflake.engine", "snowflake.online"]
 
     if config.type == "snowflake.offline":
         config_header = "connections.feast_offline_store"
+    if config.type == "snowflake.engine":
+        config_header = "connections.feast_batch_engine"
     elif config.type == "snowflake.online":
         config_header = "connections.feast_online_store"
 
@@ -60,19 +76,13 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
     if config_reader.has_section(config_header):
         kwargs = dict(config_reader[config_header])
 
-    if "schema" in kwargs:
-        kwargs["schema_"] = kwargs.pop("schema")
-
     kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
 
     for k, v in kwargs.items():
         if k in ["role", "warehouse", "database", "schema_"]:
             kwargs[k] = f'"{v}"'
 
-    if "schema_" in kwargs:
-        kwargs["schema"] = kwargs.pop("schema_")
-    else:
-        kwargs["schema"] = '"PUBLIC"'
+    kwargs["schema"] = kwargs.pop("schema_")
 
     # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
     # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
@@ -93,6 +103,58 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         return conn
     except KeyError as e:
         raise SnowflakeIncompleteConfig(e)
+
+
+# Determine which set of credentials to use when using snowflake materialization engine
+# if snowflake.online -- this requires the online role to have access to source tables
+# if else -- this requires the offline role to have access to source tables
+def get_snowflake_materialization_config(repo_config: RepoConfig):
+    if repo_config.batch_engine.account:
+        conn_config = repo_config.batch_engine
+    elif repo_config.online_store.type == "snowflake.online":
+        conn_config = repo_config.online_store
+    else:
+        conn_config = repo_config.offline_store
+    return conn_config
+
+
+def package_snowpark_zip(project_name) -> Tuple[str, str]:
+    path = os.path.dirname(feast.__file__)
+    copy_path = path + f"/snowflake_feast_{project_name}"
+
+    if os.path.exists(copy_path):
+        shutil.rmtree(copy_path)
+
+    copy_files = [
+        "/infra/utils/snowflake/snowpark/snowflake_udfs.py",
+        "/infra/key_encoding_utils.py",
+        "/type_map.py",
+        "/value_type.py",
+        "/protos/feast/types/Value_pb2.py",
+        "/protos/feast/types/EntityKey_pb2.py",
+    ]
+
+    package_path = copy_path + "/feast"
+    for feast_file in copy_files:
+        idx = feast_file.rfind("/")
+        if idx > -1:
+            Path(package_path + feast_file[:idx]).mkdir(parents=True, exist_ok=True)
+            feast_file = shutil.copy(path + feast_file, package_path + feast_file[:idx])
+        else:
+            feast_file = shutil.copy(path + feast_file, package_path + feast_file)
+
+    zip_path = shutil.make_archive(package_path, "zip", copy_path)
+
+    return copy_path, zip_path
+
+
+def _run_snowflake_field_mapping(snowflake_job_sql: str, field_mapping: dict) -> str:
+    snowflake_mapped_sql = snowflake_job_sql
+    for key in field_mapping.keys():
+        snowflake_mapped_sql = snowflake_mapped_sql.replace(
+            f'"{key}"', f'"{key}" AS "{field_mapping[key]}"', 1
+        )
+    return snowflake_mapped_sql
 
 
 # TO DO -- sfc-gh-madkins

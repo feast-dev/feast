@@ -2,7 +2,7 @@ import click
 import snowflake.connector
 
 from feast.file_utils import replace_str_in_file
-from feast.infra.utils.snowflake_utils import write_pandas
+from feast.infra.utils.snowflake.snowflake_utils import write_pandas
 
 
 def bootstrap():
@@ -38,7 +38,7 @@ def bootstrap():
     snowflake_database = click.prompt("Snowflake Database Name (Case Sensitive):")
 
     config_file = repo_path / "feature_store.yaml"
-    for i in range(2):
+    for i in range(3):
         replace_str_in_file(
             config_file, "SNOWFLAKE_DEPLOYMENT_URL", snowflake_deployment_url
         )

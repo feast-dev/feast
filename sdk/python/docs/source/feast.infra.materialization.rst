@@ -28,6 +28,14 @@ feast.infra.materialization.local\_engine module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.materialization.snowflake\_engine module
+----------------------------------------------------
+
+.. automodule:: feast.infra.materialization.snowflake_engine
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

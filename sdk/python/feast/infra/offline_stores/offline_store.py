@@ -140,6 +140,12 @@ class RetrievalJob(ABC):
 
         return pyarrow.Table.from_pandas(features_df)
 
+    def to_sql(self) -> str:
+        """
+        Return RetrievalJob generated SQL statement if applicable.
+        """
+        pass
+
     @abstractmethod
     def _to_df_internal(self) -> pd.DataFrame:
         """
