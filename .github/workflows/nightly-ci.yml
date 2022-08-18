@@ -46,6 +46,8 @@ jobs:
           aws-region: us-west-2
       - name: Install boto3
         run: pip install boto3
+      - name: Install tqdm
+        run: pip install tqdm
       - name: Run DynamoDB cleanup script
         run: python infra/scripts/cleanup_dynamo_ci.py
   build-docker-image:
