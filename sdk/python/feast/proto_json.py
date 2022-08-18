@@ -1,21 +1,21 @@
 import uuid
 from typing import Any, Callable, Type
 
+import pkg_resources
 from google.protobuf.json_format import (  # type: ignore
     _WKTJSONMETHODS,
     ParseError,
     _Parser,
     _Printer,
 )
+from packaging import version
 
 from feast.protos.feast.serving.ServingService_pb2 import FeatureList
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 
-import pkg_resources
-from packaging import version
-
 ProtoMessage = Any
 JsonObject = Any
+
 
 def _patch_proto_json_encoding(
     proto_type: Type[ProtoMessage],
@@ -123,7 +123,6 @@ def _patch_feast_value_json_encoding():
         _patch_proto_json_encoding(Value, to_json_object, from_json_object_updated)
 
 
-
 def _patch_feast_repeated_value_json_encoding():
     """Patch Protobuf JSON Encoder / Decoder with a Feast RepeatedValue type.
 
@@ -167,9 +166,11 @@ def _patch_feast_repeated_value_json_encoding():
 
     current_version = pkg_resources.get_distribution("protobuf").version
     if version.parse(current_version) < version.parse("3.20"):
-        _patch_proto_json_encoding(Value, to_json_object, from_json_object)
+        _patch_proto_json_encoding(RepeatedValue, to_json_object, from_json_object)
     else:
-        _patch_proto_json_encoding(Value, to_json_object, from_json_object_updated)
+        _patch_proto_json_encoding(
+            RepeatedValue, to_json_object, from_json_object_updated
+        )
 
 
 def _patch_feast_feature_list_json_encoding():
@@ -216,9 +217,12 @@ def _patch_feast_feature_list_json_encoding():
 
     current_version = pkg_resources.get_distribution("protobuf").version
     if version.parse(current_version) < version.parse("3.20"):
-        _patch_proto_json_encoding(Value, to_json_object, from_json_object)
+        _patch_proto_json_encoding(FeatureList, to_json_object, from_json_object)
     else:
-        _patch_proto_json_encoding(Value, to_json_object, from_json_object_updated)
+        _patch_proto_json_encoding(
+            FeatureList, to_json_object, from_json_object_updated
+        )
+
 
 def patch():
     """Patch Protobuf JSON Encoder / Decoder with all desired Feast types."""
