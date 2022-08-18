@@ -212,7 +212,7 @@ def build_point_in_time_query(
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
     }
-    
+
     query = template.render(template_context)
     return query
 

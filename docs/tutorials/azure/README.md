@@ -82,7 +82,7 @@ In the Azure ML Studio, select *Notebooks* from the left-hand menu and then open
 ## 6. Running Feast Azure Tutorials locally without Azure workspace
 
 * If you are on a free tier instance, you will not be able to deploy the azure deployment because the azure workspace requires VCPUs and the free trial subscription does not have a quota.
-* The workaround is to remove the `Microsoft.MachineLearningServices/workspaces/computes` resource from `fs_snapse_azure_deploy.json` and setting up the environment locally.
+* The workaround is to remove the `Microsoft.MachineLearningServices/workspaces/computes` resource from `fs_synapse_azure_deploy.json` and setting up the environment locally.
     1. After deployment, find your `Azure SQL Pool` secrets by going to `Subscriptions-><Your Subscription>->Resource Group->Key Vault` and giving your account admin permissions to the keyvault. Retrieve the `FEAST-REGISTRY-PATH`, `FEAST-OFFLINE-STORE-CONN`, and `FEAST-ONLINE-STORE-CONN` secrets to use in your local environment.
     2. In your local environment, you will need to install the azure cli and login to the cli using `az login`.
     3. After everything is setup, you should be able to work through the first 2 tutorial notebooks without any errors (The 3rd notebook requires Azure workspace resources).

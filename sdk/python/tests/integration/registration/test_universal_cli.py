@@ -26,7 +26,10 @@ def test_universal_cli(environment: Environment):
         try:
             repo_path = Path(repo_dir_name)
             feature_store_yaml = make_feature_store_yaml(
-                project, environment.test_repo_config, repo_path
+                project,
+                environment.test_repo_config,
+                repo_path,
+                fixture_request=environment.fixture_request,
             )
 
             repo_config = repo_path / "feature_store.yaml"
@@ -120,7 +123,10 @@ def test_odfv_apply(environment) -> None:
         try:
             repo_path = Path(repo_dir_name)
             feature_store_yaml = make_feature_store_yaml(
-                project, environment.test_repo_config, repo_path
+                project,
+                environment.test_repo_config,
+                repo_path,
+                fixture_request=environment.fixture_request,
             )
 
             repo_config = repo_path / "feature_store.yaml"
@@ -151,7 +157,9 @@ def test_nullable_online_store(test_nullable_online_store) -> None:
         try:
             repo_path = Path(repo_dir_name)
             feature_store_yaml = make_feature_store_yaml(
-                project, test_nullable_online_store, repo_path
+                project,
+                test_nullable_online_store,
+                repo_path,
             )
 
             repo_config = repo_path / "feature_store.yaml"

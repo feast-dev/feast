@@ -186,7 +186,10 @@ class MsSqlServerOfflineStore(OfflineStore):
                 entity_df[entity_df_event_timestamp_col], utc=True
             ).fillna(pandas.Timestamp.now())
 
-        # TODO: figure out how to deal with entity dataframes that are strings
+        elif isinstance(entity_df, str):
+            raise ValueError(
+                "string entities are currently not supported in the MsSQL offline store."
+            )
         (
             table_schema,
             table_name,
@@ -370,9 +373,10 @@ class MsSqlServerRetrievalJob(RetrievalJob):
             pyarrow.parquet.write_to_dataset(
                 self.to_arrow(), root_path=path, filesystem=filesystem
             )
+
     def supports_remote_storage_export(self) -> bool:
         return False
-    
+
     def to_remote_storage(self) -> List[str]:
         raise NotImplementedError()
 

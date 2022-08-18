@@ -3,7 +3,6 @@ from typing import Dict, List
 import pandas as pd
 import pytest
 from sqlalchemy import create_engine
-from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.mssql import SqlServerContainer
 
@@ -24,16 +23,10 @@ MSSQL_USER = "SA"
 MSSQL_PASSWORD = "yourStrong(!)Password"
 
 
-# This is the sql container to use if your machine doesn't support the official msql docker container.
 @pytest.fixture(scope="session")
 def mssql_container():
-    container = (
-        DockerContainer("mcr.microsoft.com/azure-sql-edge:1.0.6")
-        .with_exposed_ports("1433")
-        .with_env("ACCEPT_EULA", "1")
-        .with_env("MSSQL_USER", MSSQL_USER)
-        .with_env("MSSQL_SA_PASSWORD", MSSQL_PASSWORD)
-    )
+    container = SqlServerContainer(user=MSSQL_USER, password=MSSQL_PASSWORD)
+    container.start()
     container.start()
     log_string_to_wait_for = "Service Broker manager has started"
     wait_for_logs(container=container, predicate=log_string_to_wait_for, timeout=30)
@@ -50,8 +43,8 @@ class MsSqlDataSourceCreator(DataSourceCreator):
     ):
         super().__init__(project_name)
         self.tables_created: List[str] = []
-        self.container = SqlServerContainer(user=MSSQL_USER, password=MSSQL_PASSWORD)
-        self.container.start()
+        self.container = fixture_request.getfixturevalue("mssql_container")
+
         if not self.container:
             raise RuntimeError(
                 "In order to use this data source "
@@ -109,4 +102,4 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
-        container.stop()
+        pass
