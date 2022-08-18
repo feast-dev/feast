@@ -3,6 +3,7 @@
 Current chart version is `{{ template "chart.version" . }}`
 
 ## Installation
+### Python feature server
 Docker repository and tag are required. Helm install example:
 ```
 helm install feast-feature-server . --set image.repository=REPO --set image.tag=TAG
@@ -22,9 +23,13 @@ RUN pip install feast
 COPY feature_store.yaml /feature_store.yaml
 ```
 
+### Go feature server
+> Warning: this is experimental, and only supports a local file registry + Redis
+
 Furthermore, if you wish to use the Go feature server, then you must install the Apache Arrow C++ libraries, and your `feature_store.yaml` should include `go_feature_server: True`.
- For more details, see the [docs](https://docs.feast.dev/reference/feature-servers/go-feature-server).
- The docker image might look like:
+For more details, see the [docs](https://docs.feast.dev/reference/feature-servers/go-feature-server).
+
+The docker image might look like:
 ```
  FROM python:3.8
 
