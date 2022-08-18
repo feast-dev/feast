@@ -95,7 +95,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
+        self,
     ) -> SavedDatasetAthenaStorage:
         table = self.get_prefixed_table_name(
             f"persisted_ds_{str(uuid.uuid4()).replace('-', '_')}"

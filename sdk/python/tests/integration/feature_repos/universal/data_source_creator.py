@@ -49,13 +49,7 @@ class DataSourceCreator(ABC):
         ...
 
     @abstractmethod
-    def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
-    ) -> SavedDatasetStorage:
-        """
-        Creates a saved dataset destination. If data_source is specified, uses the location of that
-        data source as the destination for the saved dataset.
-        """
+    def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         ...
 
     def create_logged_features_destination(self) -> LoggingDestination:

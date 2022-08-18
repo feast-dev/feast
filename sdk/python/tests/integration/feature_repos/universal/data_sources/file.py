@@ -59,17 +59,7 @@ class FileDataSourceCreator(DataSourceCreator):
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 
-    def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
-    ) -> SavedDatasetFileStorage:
-        if data_source:
-            assert isinstance(data_source, FileSource)
-            return SavedDatasetFileStorage(
-                path=data_source.path,
-                file_format=ParquetFormat(),
-                s3_endpoint_override=None,
-            )
-
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
         d = tempfile.mkdtemp(prefix=self.project_name)
         self.dirs.append(d)
         return SavedDatasetFileStorage(
@@ -165,7 +155,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
+        self,
     ) -> SavedDatasetFileStorage:
         port = self.minio.get_exposed_port("9000")
         host = self.minio.get_container_host_ip()

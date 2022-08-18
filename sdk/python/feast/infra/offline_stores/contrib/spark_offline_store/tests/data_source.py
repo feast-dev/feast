@@ -97,7 +97,7 @@ class SparkDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
+        self,
     ) -> SavedDatasetSparkStorage:
         table = f"persisted_{str(uuid.uuid4()).replace('-', '_')}"
         return SavedDatasetSparkStorage(

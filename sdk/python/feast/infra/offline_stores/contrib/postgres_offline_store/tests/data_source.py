@@ -120,7 +120,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
         }
 
     def create_saved_dataset_destination(
-        self, data_source: Optional[DataSource] = None
+        self,
     ):
         # FIXME: ...
         return None
