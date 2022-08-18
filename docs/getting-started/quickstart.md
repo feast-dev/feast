@@ -7,7 +7,7 @@ In this tutorial we will
 3. Ingest batch features ("materialization") and streaming features (via a Push API) into the online store.
 4. Read the latest features from the offline store for batch scoring
 5. Read the latest features from the online store for real-time inference.
-6. Play with the Feast UI
+6. Explore the (experimental) Feast UI
 
 ## Overview
 

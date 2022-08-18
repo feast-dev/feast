@@ -16,11 +16,11 @@ from feast import (
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
 
-# Define an entity for the driver. You can think of entity as a primary key used to
+# Define an entity for the driver. You can think of an entity as a primary key used to
 # fetch features.
 driver = Entity(name="driver", join_keys=["driver_id"])
 
-# Indicates a data source from which feature values can be retrieved. Sources are queried when building training
+# Defines a data source from which feature values can be retrieved. Sources are queried when building training
 # datasets or materializing features into an online store.
 driver_stats_source = RedshiftSource(
     # The Redshift table where features can be found

@@ -6,9 +6,8 @@ methods to apply, list, retrieve and delete these objects, and is an abstraction
 ### Options for registry implementations
 
 #### File-based registry
-By default, the registry Feast uses a file-based registry implementation, which stores the protobuf 
-representation of the registry as a serialized file. This registry file can be stored in a local file system, or in 
-cloud storage (in, say, S3 or GCS). 
+By default, Feast uses a file-based registry implementation, which stores the protobuf representation of the registry as 
+a serialized file. This registry file can be stored in a local file system, or in cloud storage (in, say, S3 or GCS). 
 
 The quickstart guides that use `feast init` will use a registry on a local file system. To allow Feast to configure 
 a remote file registry, you need to create a GCS / S3 bucket that Feast can understand:

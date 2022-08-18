@@ -40,9 +40,7 @@ def run_demo():
         }
     )
     print(event_df)
-    # You can normally push to offline too, but in this case, you don't have access (since it's a Feast owned
-    # BigQuery source)
-    store.push("driver_stats_push_source", event_df, to=PushMode.ONLINE)
+    store.push("driver_stats_push_source", event_df, to=PushMode.ONLINE_AND_OFFLINE)
 
     print("\n--- Online features again with updated values from a stream push---")
     fetch_online_features(store, use_feature_service=False)

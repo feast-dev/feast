@@ -1,6 +1,7 @@
 project: my_project
 # By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
 # On GCP/AWS, minimally you should create a GCS/S3 bucket for a remote file registry
+# See https://docs.feast.dev/getting-started/concepts/registry for details
 registry: data/registry.db
 provider: gcp
 offline_store:

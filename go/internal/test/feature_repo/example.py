@@ -16,7 +16,7 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-# Define an entity for the driver. You can think of entity as a primary key used to
+# Define an entity for the driver. You can think of an entity as a primary key used to
 # fetch features.
 driver = Entity(name="driver_id", description="driver id")
 
