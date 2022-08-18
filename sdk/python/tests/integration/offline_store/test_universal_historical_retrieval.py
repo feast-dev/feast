@@ -176,7 +176,7 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
         event_timestamp_column=event_timestamp,
         timestamp_precision=timedelta(milliseconds=1),
     )
-    assert(False)
+    assert False
 
 
 @pytest.mark.integration
@@ -218,6 +218,7 @@ def test_historical_features_with_shared_batch_source(
             ],
             full_feature_names=full_feature_names,
         ).to_df()
+
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
