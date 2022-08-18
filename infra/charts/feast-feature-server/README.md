@@ -1,13 +1,12 @@
 # Feast Python / Go Feature Server Helm Charts
 
-## Chart: Feast Feature Server in Go or Python
-
-Feast Feature Server in Go or Python Current chart version is `0.23.0`
+Feast Feature Server in Go or Python
+Current chart version is `0.23.0`
 
 ## Installation
 Docker repository and tag are required. Helm install example:
 ```
-helm install feast-python-server . --set image.repository=REPO --set image.tag=TAG
+helm install feast-feature-server . --set image.repository=REPO --set image.tag=TAG
 ```
 
 Deployment assumes that `feature_store.yaml` exists on docker image. Example docker image:
