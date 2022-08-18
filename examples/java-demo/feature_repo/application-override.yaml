@@ -9,19 +9,19 @@ feature-server:
               config:
                 host: my-redis-master
                 port: 6379
-                password: YTVWvjrQcK
+                password: [YOUR PASSWORD]
             entityKeySerializationVersion: 2
     # Uncomment below for dev
-    image:
-      tag: dev
+#    image:
+#      tag: dev
 
 # Uncomment below for dev
-transformation-service:
-  image:
-    tag: dev
+#transformation-service:
+#  image:
+#    tag: dev
 
 global:
   registry:
-    path: gs://danny-test-feast-bucket/demo-repo/registry.db
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
     cache_ttl_seconds: 60
   project: feast_java_demo
