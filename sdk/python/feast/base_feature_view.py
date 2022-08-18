@@ -117,10 +117,14 @@ class BaseFeatureView(ABC):
 
         cp = self.__copy__()
         if self.features:
+            feature_names = [feature.name for feature in self.features]
             referenced_features = []
-            for feature in self.features:
-                if feature.name in item:
-                    referenced_features.append(feature)
+            for feature in item:
+                if feature not in feature_names:
+                    raise ValueError(
+                        f"Feature {feature} does not exist in this feature view."
+                    )
+                referenced_features.append(feature)
             cp.projection.features = referenced_features
         else:
             cp.projection.desired_features = item

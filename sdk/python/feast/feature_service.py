@@ -135,6 +135,7 @@ class FeatureService:
                     # known schema, so no action needs to be taken.
                     # Example: FeatureService(features=[fv[["existing_feature"]]]), where
                     # 'existing_feature' was defined as part of the schema of 'fv'.
+                    # Example: FeatureService(features=[fv]), where 'fv' was defined with a schema.
                     continue
 
                 # The projection wants to select all possible inferred features.
