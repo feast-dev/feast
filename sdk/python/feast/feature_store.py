@@ -775,6 +775,7 @@ class FeatureStore:
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
+            BatchFeatureView,
             StreamFeatureView,
             FeatureService,
             ValidationReference,
@@ -834,9 +835,9 @@ class FeatureStore:
             ob
             for ob in objects
             if (
-                isinstance(ob, FeatureView)
+                # BFVs are not handled separately from FVs right now.
+                (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
-                and not isinstance(ob, BatchFeatureView)
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
@@ -919,13 +920,18 @@ class FeatureStore:
                 validation_references, project=self.project, commit=False
             )
 
+        entities_to_delete = []
+        views_to_delete = []
+        sfvs_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, Entity)
             ]
             views_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+                ob
+                for ob in objects_to_delete
+                if isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView)
             ]
             request_views_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
@@ -979,10 +985,13 @@ class FeatureStore:
                     validation_references.name, project=self.project, commit=False
                 )
 
+        tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
+
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=views_to_delete + sfvs_to_delete if not partial else [],
-            tables_to_keep=views_to_update + sfvs_to_update,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
             entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
             partial=partial,

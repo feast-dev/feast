@@ -4,6 +4,7 @@ from tempfile import mkstemp
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
+from feast import BatchFeatureView
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
@@ -78,14 +79,29 @@ def test_apply_feature_view(test_feature_store):
         ttl=timedelta(minutes=5),
     )
 
+    bfv = BatchFeatureView(
+        name="batch_feature_view",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="entity_id", dtype=Int64),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
     # Register Feature View
-    test_feature_store.apply([entity, fv1])
+    test_feature_store.apply([entity, fv1, bfv])
 
     feature_views = test_feature_store.list_feature_views()
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
+        len(feature_views) == 2
         and feature_views[0].name == "my_feature_view_1"
         and feature_views[0].features[0].name == "fs1_my_feature_1"
         and feature_views[0].features[0].dtype == Int64
