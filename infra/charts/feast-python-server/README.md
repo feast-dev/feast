@@ -1,7 +1,5 @@
 # Feast Python Feature Server Helm Charts
 
-Feast Feature Server in Python
-
 Current chart version is `0.23.0`
 
 ## Installation
