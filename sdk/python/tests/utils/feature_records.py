@@ -388,7 +388,7 @@ def validate_dataframes(
     actual_df,
     sort_by,
     event_timestamp_column=None,
-    timestamp_imprecision=0,
+    timestamp_imprecision=timedelta(seconds=0),
 ):
     expected_df: pd.DataFrame = (
         expected_df.sort_values(by=sort_by).drop_duplicates().reset_index(drop=True)
