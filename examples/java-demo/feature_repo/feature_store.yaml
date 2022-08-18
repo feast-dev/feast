@@ -1,9 +1,9 @@
-registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+registry: gs://danny-test-feast-bucket/demo-repo/registry.db
 project: feast_java_demo
 provider: gcp
 online_store:
   type: redis
-  connection_string: localhost:6379,password=[YOUR PASSWORD]
+  connection_string: localhost:6379,password=YTVWvjrQcK
 offline_store:
   type: file
 entity_key_serialization_version: 2

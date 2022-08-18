@@ -52,12 +52,12 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
     ```bash
    minikube addons enable gcp-auth
    ```
-3. Add Feast's Java feature server chart repo
+2. Add Feast's Java feature server chart repo
     ```bash
     helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
     helm repo update
     ```
-4. Modify the application-override.yaml file to have your credentials + bucket location:
+3. Modify the application-override.yaml file to have your credentials + bucket location:
     ```yaml
     feature-server:
       application-override.yaml:
@@ -77,16 +77,21 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
         cache_ttl_seconds: 60
       project: feast_java_demo
     ```
-5. Install the Feast helm chart: `helm install feast-release feast-charts/feast --values application-override.yaml`
-6. (Optional): check logs of the server to make sure it’s working
+4. Install the Feast helm chart: `helm install feast-release feast-charts/feast --values application-override.yaml`
+   > **Dev instructions**: if you're changing the java logic or chart, you can do 
+   >1. `eval $(minikube docker-env)`
+   >2. `make build-java-docker-dev` 
+   >3. In the `application-override.yaml`, uncomment the two `image: tag: dev` blocks 
+   >3. `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
+5. (Optional): check logs of the server to make sure it’s working
    ```bash
    kubectl logs svc/feast-release-feature-server
    ```
-7. Port forward to expose the grpc endpoint:
+6. Port forward to expose the grpc endpoint:
    ```bash
    kubectl port-forward svc/feast-release-feature-server 6566:6566
    ```
-8. Make a gRPC call:
+7. Make a gRPC call:
     - Python example
       ```bash
         python test.py

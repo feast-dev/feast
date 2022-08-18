@@ -139,3 +139,7 @@ mvn verify -pl serving --also-make
 # run integration tests with debugger
 mvn -Dmaven.failsafe.debug verify -pl serving --also-make
 ```
+
+### Developing against Feast helm charts
+Look at [java-demo](../../examples/java-demo) for steps on how to update the helm chart or java logic and test their
+interactions.
