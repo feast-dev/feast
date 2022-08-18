@@ -82,7 +82,7 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
    >1. `eval $(minikube docker-env)`
    >2. `make build-java-docker-dev` 
    >3. In the `application-override.yaml`, uncomment the two `image: tag: dev` blocks 
-   >3. `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
+   >4. `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
 5. (Optional): check logs of the server to make sure it’s working
    ```bash
    kubectl logs svc/feast-release-feature-server
