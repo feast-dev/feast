@@ -168,7 +168,7 @@ class FeatureStore:
             self._registry = SqlRegistry(registry_config, None)
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
-            r._initialize_registry(self.config.project)
+            r._initialize_registry(self.project)
             self._registry = r
 
         self._provider = get_provider(self.config)
@@ -210,7 +210,7 @@ class FeatureStore:
         """
         registry_config = self.config.get_registry_config()
         registry = Registry(registry_config, repo_path=self.repo_path)
-        registry.refresh(self.config.project)
+        registry.refresh(self.project)
 
         self._registry = registry
 
@@ -2335,7 +2335,7 @@ class FeatureStore:
             host=host,
             port=port,
             get_registry_dump=get_registry_dump,
-            project_id=self.config.project,
+            project_id=self.project,
             registry_ttl_sec=registry_ttl_sec,
         )
 
