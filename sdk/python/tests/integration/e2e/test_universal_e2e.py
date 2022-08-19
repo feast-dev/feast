@@ -8,7 +8,7 @@ from tests.utils.e2e_test_validation import validate_offline_online_store_consis
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores()
+@pytest.mark.universal_online_stores
 @pytest.mark.parametrize("infer_features", [True, False])
 def test_e2e_consistency(environment, e2e_data_sources, infer_features):
     fs = environment.feature_store
