@@ -15,7 +15,7 @@ def test_repo_init() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         result = runner.run(["init", "my_project"], cwd=temp_path)
-        repo_path = temp_path / "my_project"
+        repo_path = temp_path / "my_project" / "feature_repo"
         assert result.returncode == 0
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0

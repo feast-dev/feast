@@ -46,7 +46,7 @@ Below is a matrix indicating which functionality is supported by `SnowflakeRetri
 | export to dataframe                                   | yes |
 | export to arrow table                                 | yes |
 | export to arrow batches                               | no  |
-| export to SQL                                         | no  |
+| export to SQL                                         | yes  |
 | export to data lake (S3, GCS, etc.)                   | yes |
 | export to data warehouse                              | yes |
 | export as Spark dataframe                             | no  |

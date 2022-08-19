@@ -14,7 +14,7 @@ def bootstrap():
 
     from feast.driver_test_data import create_driver_hourly_stats_df
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     config_file = repo_path / "feature_store.yaml"
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)

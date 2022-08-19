@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -11,13 +12,16 @@ import pyarrow.parquet
 import pytz
 from pydantic.typing import Literal
 
-from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import FeastJoinKeysDuringMaterialization
+from feast.errors import (
+    FeastJoinKeysDuringMaterialization,
+    SavedDatasetLocationAlreadyExists,
+)
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
+    FileSource,
     SavedDatasetFileStorage,
 )
 from feast.infra.offline_stores.offline_store import (
@@ -30,6 +34,7 @@ from feast.infra.offline_stores.offline_utils import (
     get_pyarrow_schema_from_batch_source,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -83,8 +88,13 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function().compute()
         return pyarrow.Table.from_pandas(df)
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetFileStorage)
+
+        # Check if the specified location already exists.
+        if not allow_overwrite and os.path.exists(storage.file_options.uri):
+            raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
+
         filesystem, path = FileSource.create_filesystem_and_path(
             storage.file_options.uri,
             storage.file_options.s3_endpoint_override,
@@ -120,6 +130,10 @@ class FileOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, FileSource)
+
         if not isinstance(entity_df, pd.DataFrame) and not isinstance(
             entity_df, dd.DataFrame
         ):
@@ -288,6 +302,7 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -368,6 +383,9 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(data_source, FileSource)
+
         return FileOfflineStore.pull_latest_from_table_or_query(
             config=config,
             data_source=data_source,
@@ -388,6 +406,7 @@ class FileOfflineStore(OfflineStore):
         logging_config: LoggingConfig,
         registry: BaseRegistry,
     ):
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
 
@@ -418,18 +437,8 @@ class FileOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, FileOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when file type required"
-            )
-        if not isinstance(feature_view.batch_source, FileSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not file source"
-            )
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, FileSource)
 
         pa_schema, column_names = get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source

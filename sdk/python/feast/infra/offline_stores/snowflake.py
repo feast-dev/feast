@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow as pa
-from pydantic import Field
+from pydantic import Field, StrictStr
 from pydantic.typing import Literal
 from pytz import utc
 
@@ -41,7 +41,7 @@ from feast.infra.offline_stores.snowflake_source import (
     SnowflakeSource,
 )
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.infra.utils.snowflake_utils import (
+from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,
     write_pandas,
@@ -85,14 +85,14 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
 
-    database: Optional[str] = None
-    """ Snowflake database name """
-
-    schema_: Optional[str] = Field(None, alias="schema")
-    """ Snowflake schema name """
-
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
+
+    database: StrictStr
+    """ Snowflake database name """
+
+    schema_: Optional[str] = Field("PUBLIC", alias="schema")
+    """ Snowflake schema name """
 
     storage_integration_name: Optional[str] = None
     """ Storage integration name in snowflake """
@@ -117,12 +117,12 @@ class SnowflakeOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(data_source, SnowflakeSource)
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(data_source, SnowflakeSource)
 
-        from_expression = (
-            data_source.get_table_query_string()
-        )  # returns schema.table as a string
+        from_expression = data_source.get_table_query_string()
+        if not data_source.database and data_source.table:
+            from_expression = f'"{config.offline_store.database}"."{config.offline_store.schema_}".{from_expression}'
 
         if join_key_columns:
             partition_by_join_key_string = '"' + '", "'.join(join_key_columns) + '"'
@@ -148,6 +148,9 @@ class SnowflakeOfflineStore(OfflineStore):
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
+        start_date = start_date.astimezone(tz=utc)
+        end_date = end_date.astimezone(tz=utc)
+
         query = f"""
             SELECT
                 {field_string}
@@ -156,7 +159,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS "_feast_row"
                 FROM {from_expression}
-                WHERE "{timestamp_field}" BETWEEN TO_TIMESTAMP_NTZ({start_date.timestamp()}) AND TO_TIMESTAMP_NTZ({end_date.timestamp()})
+                WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
             )
             WHERE "_feast_row" = 1
             """
@@ -180,8 +183,12 @@ class SnowflakeOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         assert isinstance(data_source, SnowflakeSource)
+
         from_expression = data_source.get_table_query_string()
+        if not data_source.database and data_source.table:
+            from_expression = f'"{config.offline_store.database}"."{config.offline_store.schema_}".{from_expression}'
 
         field_string = (
             '"'
@@ -222,6 +229,8 @@ class SnowflakeOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, SnowflakeSource)
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
@@ -326,18 +335,8 @@ class SnowflakeOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, SnowflakeOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when snowflake type required"
-            )
-        if not isinstance(feature_view.batch_source, SnowflakeSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not snowflake source"
-            )
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, SnowflakeSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source
@@ -460,7 +459,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return arrow_batches
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
         self.to_snowflake(table_name=storage.snowflake_options.table)
 
@@ -533,6 +532,7 @@ def _upload_entity_df(
 
     if isinstance(entity_df, pd.DataFrame):
         # Write the data from the DataFrame to the table
+        # Known issues with following entity data types: BINARY
         write_pandas(
             snowflake_conn,
             entity_df,

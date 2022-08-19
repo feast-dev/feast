@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import yaml
 
-from feast import Entity, FeatureService, FeatureView, SnowflakeSource
+from feast import BatchFeatureView, Entity, FeatureService, SnowflakeSource
 
 # Define an entity for the driver. Entities can be thought of as primary keys used to
 # retrieve features. Entities are also used to join multiple tables/views during the
@@ -34,7 +34,7 @@ driver_stats_source = SnowflakeSource(
 
 # Feature views are a grouping based on how features are stored in either the
 # online or offline store.
-driver_stats_fv = FeatureView(
+driver_stats_fv = BatchFeatureView(
     # The unique name of this feature view. Two feature views in a single
     # project cannot have the same name
     name="driver_hourly_stats",
@@ -50,7 +50,7 @@ driver_stats_fv = FeatureView(
     # during retrieval
     ttl=timedelta(weeks=52),
     # Batch sources are used to find feature values. In the case of this feature
-    # view we will query a source table on Redshift for driver statistics
+    # view we will query a source table on Snowflake for driver statistics
     # features
     source=driver_stats_source,
 )

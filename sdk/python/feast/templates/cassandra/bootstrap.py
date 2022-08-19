@@ -225,7 +225,7 @@ def bootstrap():
     """
     from feast.driver_test_data import create_driver_hourly_stats_df
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     config_file = repo_path / "feature_store.yaml"
 
     data_path = repo_path / "data"
@@ -244,8 +244,8 @@ def bootstrap():
     driver_stats_path = data_path / "driver_stats.parquet"
     driver_df.to_parquet(path=str(driver_stats_path), allow_truncated_timestamps=True)
 
-    # example.py
-    example_py_file = repo_path / "example.py"
+    # example_repo.py
+    example_py_file = repo_path / "example_repo.py"
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
 
     # store config yaml, interact with user and then customize file:

@@ -11,8 +11,17 @@ feature-server:
                 port: 6379
                 password: [YOUR PASSWORD]
             entityKeySerializationVersion: 2
+    # Uncomment below for dev
+#    image:
+#      tag: dev
+
+# Uncomment below for dev
+#transformation-service:
+#  image:
+#    tag: dev
+
 global:
   registry:
-    path: gs://[YOUR BUCKET]/demo-repo/registry.db
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
     cache_ttl_seconds: 60
   project: feast_java_demo

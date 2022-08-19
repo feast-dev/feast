@@ -67,6 +67,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
@@ -117,6 +118,9 @@ class PostgreSQLOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, PostgreSQLSource)
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -206,6 +210,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
@@ -297,7 +302,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetPostgreSQLStorage)
 
         df_to_postgres_table(

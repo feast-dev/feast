@@ -40,10 +40,3 @@ grpc:
     # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
     # which defaults to port 6565
     port: 6566
-
-rest:
-  server:
-    # The port number on which the Tomcat webserver that serves REST API endpoints should listen
-    # It is set by default to 8081 so it does not conflict with Tomcat webserver on Feast Core
-    # if both Feast Core and Serving are running on the same machine
-    port: 8081

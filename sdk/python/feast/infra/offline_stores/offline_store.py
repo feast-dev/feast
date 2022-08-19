@@ -140,6 +140,12 @@ class RetrievalJob(ABC):
 
         return pyarrow.Table.from_pandas(features_df)
 
+    def to_sql(self) -> str:
+        """
+        Return RetrievalJob generated SQL statement if applicable.
+        """
+        pass
+
     @abstractmethod
     def _to_df_internal(self) -> pd.DataFrame:
         """
@@ -173,8 +179,16 @@ class RetrievalJob(ABC):
         pass
 
     @abstractmethod
-    def persist(self, storage: SavedDatasetStorage):
-        """Synchronously executes the underlying query and persists the result in the same offline store."""
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+        """
+        Synchronously executes the underlying query and persists the result in the same offline store
+        at the specified destination.
+
+        Args:
+            storage: The saved dataset storage object specifying where the result should be persisted.
+            allow_overwrite: If True, a pre-existing location (e.g. table or file) can be overwritten.
+                Currently not all individual offline store implementations make use of this parameter.
+        """
         pass
 
     @property
@@ -204,6 +218,9 @@ class OfflineStore(ABC):
     """
     An offline store defines the interface that Feast uses to interact with the storage and compute system that
     handles offline features.
+
+    Each offline store implementation is designed to work only with the corresponding data source. For example,
+    the SnowflakeOfflineStore can handle SnowflakeSources but not FileSources.
     """
 
     @staticmethod

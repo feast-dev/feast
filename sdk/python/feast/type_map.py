@@ -15,6 +15,7 @@
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
@@ -31,7 +32,6 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
@@ -45,6 +45,10 @@ from feast.protos.feast.types.Value_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
+
+if TYPE_CHECKING:
+    import pyarrow
+
 
 # null timestamps get converted to -9223372036854775808
 NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
@@ -226,6 +230,30 @@ def python_values_to_feast_value_type(
         )
 
     return inferred_dtype
+
+
+def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
+    type_map = {
+        "UNKNOWN": ValueType.UNKNOWN,
+        "BYTES": ValueType.BYTES,
+        "STRING": ValueType.STRING,
+        "INT32": ValueType.INT32,
+        "INT64": ValueType.INT64,
+        "DOUBLE": ValueType.DOUBLE,
+        "FLOAT": ValueType.FLOAT,
+        "BOOL": ValueType.BOOL,
+        "NULL": ValueType.NULL,
+        "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
+        "BYTES_LIST": ValueType.BYTES_LIST,
+        "STRING_LIST": ValueType.STRING_LIST,
+        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT64_LIST": ValueType.INT64_LIST,
+        "DOUBLE_LIST": ValueType.DOUBLE_LIST,
+        "FLOAT_LIST": ValueType.FLOAT_LIST,
+        "BOOL_LIST": ValueType.BOOL_LIST,
+        "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    return type_map[type_str]
 
 
 def _type_err(item, dtype):
@@ -525,30 +553,37 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     return type_map[redshift_type_as_str.lower()]
 
 
-def snowflake_python_type_to_feast_value_type(
-    snowflake_python_type_as_str: str,
-) -> ValueType:
-
+def snowflake_type_to_feast_value_type(snowflake_type: str) -> ValueType:
     type_map = {
-        "str": ValueType.STRING,
-        "float64": ValueType.DOUBLE,
-        "int64": ValueType.INT64,
-        "uint64": ValueType.INT64,
-        "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
-        "int16": ValueType.INT32,
-        "uint16": ValueType.INT32,
-        "uint8": ValueType.INT32,
-        "int8": ValueType.INT32,
-        "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "object": ValueType.STRING,
-        "bool": ValueType.BOOL,
+        "BINARY": ValueType.BYTES,
+        "VARCHAR": ValueType.STRING,
+        "NUMBER32": ValueType.INT32,
+        "NUMBER64": ValueType.INT64,
+        "DOUBLE": ValueType.DOUBLE,
+        "BOOLEAN": ValueType.BOOL,
+        "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_TZ": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_LTZ": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_NTZ": ValueType.UNIX_TIMESTAMP,
     }
+    return type_map[snowflake_type]
 
-    return type_map[snowflake_python_type_as_str.lower()]
+
+def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> str:
+    name_map = {
+        "BYTES": f"feast_{project_name}_snowflake_binary_to_bytes_proto",
+        "STRING": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "INT32": f"feast_{project_name}_snowflake_number_to_int32_proto",
+        "INT64": f"feast_{project_name}_snowflake_number_to_int64_proto",
+        "DOUBLE": f"feast_{project_name}_snowflake_float_to_double_proto",
+        "FLOAT": f"feast_{project_name}_snowflake_float_to_double_proto",
+        "BOOL": f"feast_{project_name}_snowflake_boolean_to_bool_proto",
+        "UNIX_TIMESTAMP": f"feast_{project_name}_snowflake_timestamp_to_unix_timestamp_proto",
+    }
+    return name_map[value_name].upper()
 
 
-def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
+def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
     # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
     # Redshift type: https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
     pa_type_as_str = str(pa_type).lower()
@@ -728,7 +763,9 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
     return value
 
 
-def feast_value_type_to_pa(feast_type: ValueType) -> pyarrow.DataType:
+def feast_value_type_to_pa(feast_type: ValueType) -> "pyarrow.DataType":
+    import pyarrow
+
     type_map = {
         ValueType.INT32: pyarrow.int32(),
         ValueType.INT64: pyarrow.int64(),
@@ -814,7 +851,7 @@ def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
     return type_map[athena_type_as_str.lower()]
 
 
-def pa_to_athena_value_type(pa_type: pyarrow.DataType) -> str:
+def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
     # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
     # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
     pa_type_as_str = str(pa_type).lower()
@@ -824,7 +861,7 @@ def pa_to_athena_value_type(pa_type: pyarrow.DataType) -> str:
     if pa_type_as_str.startswith("date"):
         return "date"
 
-    if pa_type_as_str.startswith("decimal"):
+    if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
 
     # We have to take into account how arrow types map to parquet types as well.

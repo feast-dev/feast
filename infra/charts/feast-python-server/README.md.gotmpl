@@ -1,0 +1,27 @@
+# Feast Python Feature Server Helm Charts
+
+Current chart version is `{{ template "chart.version" . }}`
+
+## Installation
+Docker repository and tag are required. Helm install example:
+```
+helm install feast-python-server . --set image.repository=REPO --set image.tag=TAG
+```
+
+Deployment assumes that `feature_store.yaml` exists on docker image. Example docker image:
+```
+FROM python:3.8
+
+RUN apt update && \
+    apt install -y jq
+
+RUN pip install pip --upgrade
+
+RUN pip install feast
+
+COPY feature_store.yaml /feature_store.yaml
+```
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}

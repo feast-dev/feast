@@ -692,10 +692,10 @@ class FeatureStore:
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     path="project/feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -806,10 +806,10 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     path="project/feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -1061,7 +1061,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> import pandas as pd
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> entity_df = pd.DataFrame.from_dict(
             ...     {
             ...         "driver_id": [1001, 1002],
@@ -1155,6 +1155,7 @@ class FeatureStore:
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
         feature_service: Optional[FeatureService] = None,
+        allow_overwrite: bool = False,
     ) -> SavedDataset:
         """
         Execute provided retrieval job and persist its outcome in given storage.
@@ -1162,6 +1163,14 @@ class FeatureStore:
         After data successfully persisted saved dataset object with dataset metadata is committed to the registry.
         Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
         with the same name.
+
+        Args:
+            from_: The retrieval job whose result should be persisted.
+            name: The name of the saved dataset.
+            storage: The saved dataset storage object indicating where the result should be persisted.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            feature_service (optional): The feature service that should be associated with this saved dataset.
+            allow_overwrite (optional): If True, the persisted result can overwrite an existing table or file.
 
         Returns:
             SavedDataset object with attached RetrievalJob
@@ -1195,7 +1204,7 @@ class FeatureStore:
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
         dataset.max_event_timestamp = from_.metadata.max_event_timestamp
 
-        from_.persist(storage)
+        from_.persist(storage=storage, allow_overwrite=allow_overwrite)
 
         dataset = dataset.with_retrieval_job(
             self._get_provider().retrieve_saved_dataset(
@@ -1266,7 +1275,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
@@ -1355,7 +1364,7 @@ class FeatureStore:
             from 3 hours ago to 10 minutes ago.
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize(
             ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             ... )
@@ -1422,13 +1431,6 @@ class FeatureStore:
             allow_registry_cache: Whether to allow cached versions of the registry.
             to: Whether to push to online or offline store. Defaults to online store only.
         """
-        if not flags_helper.is_test():
-            warnings.warn(
-                "Push source is an experimental feature. "
-                "This API is unstable and it could and might change in the future. "
-                "We do not guarantee that future changes will maintain backward compatibility.",
-                RuntimeWarning,
-            )
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
@@ -1566,7 +1568,7 @@ class FeatureStore:
             Retrieve online features from an online store.
 
             >>> from feast import FeatureStore, RepoConfig
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> online_response = fs.get_online_features(
             ...     features=[
             ...         "driver_hourly_stats:conv_rate",

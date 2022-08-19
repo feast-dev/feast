@@ -121,6 +121,9 @@ class SparkOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, SparkSource)
+
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
@@ -198,18 +201,8 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, SparkOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when spark type required"
-            )
-        if not isinstance(feature_view.batch_source, SparkSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not spark source"
-            )
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, SparkSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source
@@ -269,6 +262,7 @@ class SparkOfflineStore(OfflineStore):
         created_timestamp_column have all already been mapped to column names of the
         source table and those column names are the values passed into this function.
         """
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         assert isinstance(data_source, SparkSource)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -337,7 +331,7 @@ class SparkRetrievalJob(RetrievalJob):
             self.to_spark_df().write.parquet(temp_dir, mode="overwrite")
             return pq.read_table(temp_dir)
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         Please note the persisting is done only within the scope of the spark session.
