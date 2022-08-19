@@ -81,7 +81,8 @@ test-python-integration-local:
 		python -m pytest -n 8 --integration \
 			-k "not gcs_registry and \
  				not s3_registry and \
- 				not test_lambda_materialization" \
+				not test_lambda_materialization and \
+				not test_snowflake_materialization" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
