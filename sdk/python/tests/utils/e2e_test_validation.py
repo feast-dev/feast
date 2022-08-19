@@ -4,7 +4,6 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
-from urllib import response
 
 import pandas as pd
 import pytest
