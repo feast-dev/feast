@@ -842,8 +842,7 @@ class Registry(BaseRegistry):
         if self.cached_registry_proto:
             self._registry_store.update_registry_proto(self.cached_registry_proto)
 
-    def refresh(self, project: Optional[str]):
-        """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
+    def refresh(self, project: str):
         self._get_registry_proto(project=project, allow_cache=False)
 
     def teardown(self):
@@ -875,15 +874,15 @@ class Registry(BaseRegistry):
         return self.cached_registry_proto
 
     def _get_registry_proto(
-        self, project: Optional[str], allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> RegistryProto:
-        """Returns the cached or remote registry state
+        """
+        Returns the cached or remote registry state. Updates the cached_registry_proto attribute to
+        reflect the returned registry state. Also adds a project metadata field if it does not exist.
 
         Args:
-            project: Name of the Feast project (optional)
+            project: Name of the Feast project.
             allow_cache: Whether to allow the use of the registry cache when fetching the RegistryProto
-
-        Returns: Returns a RegistryProto object which represents the state of the registry
         """
         with self._refresh_lock:
             expired = (
@@ -901,35 +900,34 @@ class Registry(BaseRegistry):
                 )
             )
 
-            if project:
-                old_project_metadata = _get_project_metadata(
-                    registry_proto=self.cached_registry_proto, project=project
-                )
-
-                if allow_cache and not expired and old_project_metadata is not None:
-                    assert isinstance(self.cached_registry_proto, RegistryProto)
-                    return self.cached_registry_proto
-            elif allow_cache and not expired:
+            project_metadata = _get_project_metadata(
+                registry_proto=self.cached_registry_proto, project=project
+            )
+            if allow_cache and not expired and project_metadata is not None:
+                # The cached registry state is valid and already has project metadata attached, so
+                # it can be returned immediately.
+                usage.set_current_project_uuid(project_metadata.project_uuid)
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
-
-            registry_proto = self._registry_store.get_registry_proto()
-            self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.utcnow()
-
-            if not project:
-                return registry_proto
-
-            project_metadata = _get_project_metadata(
-                registry_proto=registry_proto, project=project
-            )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
             else:
-                _init_project_metadata(registry_proto, project)
-                self.commit()
+                # Either the cached registry state is invalid, or there is no project metadata
+                # attached. Either way, we first pull the remote registry state.
+                registry_proto = self._registry_store.get_registry_proto()
+                self.cached_registry_proto = registry_proto
+                self.cached_registry_proto_created = datetime.utcnow()
 
-            return registry_proto
+                project_metadata = _get_project_metadata(
+                    registry_proto=registry_proto, project=project
+                )
+                if project_metadata:
+                    # The fresh registry state has project metadata so we immediately return.
+                    usage.set_current_project_uuid(project_metadata.project_uuid)
+                    return registry_proto
+                else:
+                    # The fresh registry state does not have project metadata, so we add it.
+                    _init_project_metadata(registry_proto, project)
+                    self.commit()
+                    return registry_proto
 
     def _check_conflicting_feature_view_names(self, feature_view: BaseFeatureView):
         name_to_fv_protos = self._existing_feature_view_names_to_fvs()

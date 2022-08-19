@@ -199,7 +199,7 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self, project: Optional[str]):
+    def refresh(self, project: str):
         # This method is a no-op since we're always reading the latest values from the db.
         pass
 
