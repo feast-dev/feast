@@ -28,3 +28,8 @@ driver_stats_source = PostgreSQLSource(
 ```
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source.PostgreSQLSource).
+
+## Supported Types
+
+PostgreSQL data sources support all eight primitive types and their corresponding array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

@@ -30,3 +30,8 @@ BigQuerySource(
 ```
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/latest/index.html#feast.infra.offline_stores.bigquery_source.BigQuerySource).
+
+## Supported Types
+
+BigQuery data sources support all eight primitive types and their corresponding array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

@@ -8,7 +8,7 @@ Otherwise, the primary difference between batch data sources is the set of suppo
 Feast has an internal type system, and aims to support eight primitive types (`bytes`, `string`, `int32`, `int64`, `float32`, `float64`, `bool`, and `timestamp`) along with the corresponding array types.
 However, not every batch data source supports all of these types.
 
-The logic to map types from data sources to Feast's internal type system is contained in [`type_map.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/type_map.py), which is the ultimate source of truth on whether a specific data source supports a specific type.
+For more details on the Feast type system, see [here](../type-system.md).
 
 ## Functionality Matrix
 

@@ -30,3 +30,8 @@ my_redshift_source = RedshiftSource(
 ```
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.redshift_source.RedshiftSource).
+
+## Supported Types
+
+Redshift data sources support all eight primitive types, but currently do not support array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).
