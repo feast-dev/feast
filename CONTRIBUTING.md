@@ -23,6 +23,7 @@
   - [Integration Tests](#integration-tests)
     - [Local integration tests](#local-integration-tests)
     - [(Advanced) Full integration tests](#advanced-full-integration-tests)
+  - [Setup your GCP BigQuery Instance](#setup-your-gcp-bigquery-instance)
     - [(Advanced) Running specific provider tests or running your test against specific online or offline stores](#advanced-running-specific-provider-tests-or-running-your-test-against-specific-online-or-offline-stores)
     - [(Experimental) Run full integration tests against containerized services](#experimental-run-full-integration-tests-against-containerized-services)
   - [Contrib integration tests](#contrib-integration-tests)
@@ -39,6 +40,9 @@
   - [Code Style & Linting](#code-style--linting-1)
   - [Unit Tests](#unit-tests-1)
   - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
+- [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
+  - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
+  - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
 - [Issues](#issues)
 
 ## Overview
@@ -347,6 +351,35 @@ See [Feast contributing guide](ui/CONTRIBUTING.md)
 ## Feast Java Serving
 See [Java contributing guide](java/CONTRIBUTING.md)
 
+See also development instructions related to the helm chart below at [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
+
+## Developing the Feast Helm charts
+There are 3 helm charts:
+- Feast Java feature server
+- Feast Python / Go feature server
+- (deprecated) Feast Python feature server
+
+Generally, you can override the images in the helm charts with locally built Docker images, and install the local helm
+chart.
+
+All README's for helm charts are generated using [helm-docs](https://github.com/norwoodj/helm-docs). You can install it
+(e.g. with `brew install norwoodj/tap/helm-docs`) and then run `make build-helm-docs`.
+
+### Feast Java Feature Server Helm Chart
+See the Java demo example (it has development instructions too using minikube) [here](examples/java-demo/README.md)
+
+It will:
+- run `make build-java-docker-dev` to build local Java feature server binaries
+- configure the included `application-override.yaml` to override the image tag to use the locally built dev images.
+- install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
+
+### Feast Python / Go Feature Server Helm Chart
+See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
+
+It will:
+- run `make build-feature-server-dev` to build a local python feature server binary
+- install the local chart with `helm install feast-release ../../../infra/charts/feast-feature-server --set image.tag=dev --set feature_store_yaml_base64=$(base64 feature_store.yaml)`
+
 ## Feast Go Client
 ### Environment Setup
 Setting up your development environment for Feast Go SDK:
@@ -387,33 +420,6 @@ go test
 * Enable workflows by going to actions and clicking `Enable Workflows`.
     * Pushes will now run your edited workflow yaml file against your test code.
     * Unfortunately, in order to test any github workflow changes, you must push the code to the branch and see the output in the actions tab.
-
-## Developing the Feast Helm charts
-There are 3 helm charts:
-- Feast Java feature server
-- Feast Python / Go feature server
-- (deprecated) Feast Python feature server
-
-Generally, you can override the images in the helm charts with locally built Docker images, and install the local helm 
-chart. 
-
-All README's for helm charts are generated using [helm-docs](https://github.com/norwoodj/helm-docs). You can install it 
-(e.g. with `brew install norwoodj/tap/helm-docs`) and then run `make build-helm-docs`.
-
-### Feast Java Feature Server Helm Chart
-See the Java demo example (it has development instructions too using minikube) [here](examples/java-demo/README.md)
-
-It will:
-- run `make build-java-docker-dev` to build local Java feature server binaries
-- configure the included `application-override.yaml` to override the image tag to use the locally built dev images.
-- install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
-
-### Feast Python / Go Feature Server Helm Chart
-See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
-
-It will:
-- run `make build-feature-server-dev` to build a local python feature server binary
-- install the local chart with `helm install feast-release ../../../infra/charts/feast-feature-server --set image.tag=dev --set feature_store_yaml_base64=$(base64 feature_store.yaml)`
 
 ## Issues
 * pr-integration-tests workflow is skipped
