@@ -117,8 +117,8 @@ class SnowflakeOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(data_source, SnowflakeSource)
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(data_source, SnowflakeSource)
 
         from_expression = (
             data_source.get_table_query_string()
@@ -180,6 +180,7 @@ class SnowflakeOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         assert isinstance(data_source, SnowflakeSource)
         from_expression = data_source.get_table_query_string()
 
@@ -222,6 +223,8 @@ class SnowflakeOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, SnowflakeSource)
 
         snowflake_conn = get_snowflake_conn(config.offline_store)
 
@@ -326,18 +329,8 @@ class SnowflakeOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, SnowflakeOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when snowflake type required"
-            )
-        if not isinstance(feature_view.batch_source, SnowflakeSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not snowflake source"
-            )
+        assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, SnowflakeSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source

@@ -106,6 +106,7 @@ class BigQueryOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
@@ -156,6 +157,7 @@ class BigQueryOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
@@ -191,6 +193,8 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, BigQuerySource)
 
         client = _get_bigquery_client(
             project=config.offline_store.project_id,
@@ -333,18 +337,8 @@ class BigQueryOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, BigQueryOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when bigquery type required"
-            )
-        if not isinstance(feature_view.batch_source, BigQuerySource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not bigquery source"
-            )
+        assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, BigQuerySource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source

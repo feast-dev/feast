@@ -141,6 +141,7 @@ class RedshiftOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
         assert isinstance(data_source, RedshiftSource)
         from_expression = data_source.get_table_query_string()
 
@@ -182,6 +183,8 @@ class RedshiftOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, RedshiftSource)
 
         redshift_client = aws_utils.get_redshift_data_client(
             config.offline_store.region
@@ -308,18 +311,8 @@ class RedshiftOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, RedshiftOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when redshift type required"
-            )
-        if not isinstance(feature_view.batch_source, RedshiftSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not redshift source"
-            )
+        assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, RedshiftSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source

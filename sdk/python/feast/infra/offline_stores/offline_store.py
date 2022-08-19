@@ -204,6 +204,9 @@ class OfflineStore(ABC):
     """
     An offline store defines the interface that Feast uses to interact with the storage and compute system that
     handles offline features.
+
+    Each offline store implementation is designed to work only with the corresponding data source. For example,
+    the SnowflakeOfflineStore can handle SnowflakeSources but not FileSources.
     """
 
     @staticmethod

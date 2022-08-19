@@ -120,6 +120,10 @@ class FileOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, FileSource)
+
         if not isinstance(entity_df, pd.DataFrame) and not isinstance(
             entity_df, dd.DataFrame
         ):
@@ -288,6 +292,7 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -368,6 +373,9 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(data_source, FileSource)
+
         return FileOfflineStore.pull_latest_from_table_or_query(
             config=config,
             data_source=data_source,
@@ -388,6 +396,7 @@ class FileOfflineStore(OfflineStore):
         logging_config: LoggingConfig,
         registry: BaseRegistry,
     ):
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
 
@@ -418,18 +427,8 @@ class FileOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        if not feature_view.batch_source:
-            raise ValueError(
-                "feature view does not have a batch source to persist offline data"
-            )
-        if not isinstance(config.offline_store, FileOfflineStoreConfig):
-            raise ValueError(
-                f"offline store config is of type {type(config.offline_store)} when file type required"
-            )
-        if not isinstance(feature_view.batch_source, FileSource):
-            raise ValueError(
-                f"feature view batch source is {type(feature_view.batch_source)} not file source"
-            )
+        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, FileSource)
 
         pa_schema, column_names = get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source

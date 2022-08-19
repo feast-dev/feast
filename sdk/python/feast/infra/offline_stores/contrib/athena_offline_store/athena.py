@@ -77,8 +77,8 @@ class AthenaOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(data_source, AthenaSource)
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
+        assert isinstance(data_source, AthenaSource)
 
         from_expression = data_source.get_table_query_string(config)
 
@@ -136,6 +136,7 @@ class AthenaOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         assert isinstance(data_source, AthenaSource)
         from_expression = data_source.get_table_query_string(config)
 
@@ -175,6 +176,8 @@ class AthenaOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, AthenaSource)
 
         athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
