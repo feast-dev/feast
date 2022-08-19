@@ -44,8 +44,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
-      - name: Install boto3
-        run: pip install boto3
+      - name: Install Python dependencies
+        run: |
+          pip install boto3
+          pip install tqdm
       - name: Run DynamoDB cleanup script
         run: python infra/scripts/cleanup_dynamo_ci.py
   build-docker-image:
