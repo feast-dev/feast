@@ -363,6 +363,15 @@ build-feature-server-java-docker:
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
 
+build-java-docker-dev:
+	make build-java-no-tests REVISION=dev
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-transformation-server:dev \
+		-f sdk/python/feast/infra/transformation_servers/Dockerfile --load .
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server-java:dev \
+		-f java/infra/docker/feature-server/Dockerfile.dev --load .
+
 # Documentation
 
 install-dependencies-proto-docs:

@@ -5,8 +5,10 @@
 replicaCount: 1
 
 image:
+  # image.repository -- [required] The repository for the Docker image
   repository: ""
   pullPolicy: IfNotPresent
+  # image.tag -- [required] The Docker image tag
   tag: ""
 
 imagePullSecrets: []

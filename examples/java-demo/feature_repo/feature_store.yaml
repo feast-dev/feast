@@ -1,4 +1,4 @@
-registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+registry: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
 project: feast_java_demo
 provider: gcp
 online_store:
