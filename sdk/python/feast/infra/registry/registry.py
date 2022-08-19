@@ -237,8 +237,7 @@ class Registry(BaseRegistry):
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
-    def _initialize_registry(self, project: str):
-        """Explicitly initializes the registry with an empty proto if it doesn't exist."""
+    def initialize_registry(self, project: str):
         try:
             self._get_registry_proto(project=project)
         except FileNotFoundError:
@@ -852,13 +851,15 @@ class Registry(BaseRegistry):
     def proto(self) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
 
-    def _prepare_registry_for_changes(self, project: str):
-        """Prepares the Registry for changes by refreshing the cache if necessary."""
+    def _prepare_registry_for_changes(self, project: str) -> RegistryProto:
+        """
+        Prepares the registry for changes by refreshing the cache if necessary.
+
+        Returns:
+            The updated registry.
+        """
         try:
             self._get_registry_proto(project=project, allow_cache=True)
-            if _get_project_metadata(self.cached_registry_proto, project) is None:
-                # Project metadata not initialized yet. Try pulling without cache
-                self._get_registry_proto(project=project, allow_cache=False)
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION

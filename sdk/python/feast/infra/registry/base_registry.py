@@ -572,6 +572,10 @@ class BaseRegistry(ABC):
     def refresh(self, project: str):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
+    @abstractmethod
+    def initialize_registry(self, project: str):
+        """Explicitly initializes the registry state if it doesn't exist."""
+
     @staticmethod
     def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
         return json.loads(MessageToJson(message, sort_keys=True))

@@ -168,7 +168,6 @@ class FeatureStore:
             self._registry = SqlRegistry(registry_config, None)
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
-            r._initialize_registry(self.project)
             self._registry = r
 
         self._provider = get_provider(self.config)
@@ -714,6 +713,8 @@ class FeatureStore:
             ...     entities=[driver],
             ...     feature_services=list())) # register entity and feature view
         """
+        self._registry.initialize_registry(project=self.project)
+
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
             desired_repo_contents.feature_views,
@@ -821,6 +822,8 @@ class FeatureStore:
             ... )
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
+        self._registry.initialize_registry(project=self.project)
+
         # TODO: Add locking
         if not isinstance(objects, Iterable):
             objects = [objects]

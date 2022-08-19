@@ -203,6 +203,9 @@ class SqlRegistry(BaseRegistry):
         # This method is a no-op since we're always reading the latest values from the db.
         pass
 
+    def initialize_registry(self, project: str):
+        pass
+
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ):
