@@ -46,8 +46,7 @@ from feast.protos.feast.types.Value_pb2 import (
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
 
-if TYPE_CHECKING:
-    import pyarrow
+import pyarrow
 
 
 # null timestamps get converted to -9223372036854775808
