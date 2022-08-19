@@ -9,11 +9,11 @@ def run_demo_http():
         "features": [
             "driver_hourly_stats:conv_rate",
         ],
-        "entities":
-            {"driver_id": [1001, 1002]}
-
+        "entities": {"driver_id": [1001, 1002]},
     }
-    r = requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))
+    r = requests.post(
+        "http://localhost:6566/get-online-features", data=json.dumps(online_request)
+    )
     print(json.dumps(r.json(), indent=4, sort_keys=True))
 
 
@@ -31,7 +31,7 @@ def run_demo_sdk():
             },
             {
                 "driver_id": 1002,
-            }
+            },
         ],
     ).to_dict()
     for key, value in sorted(features.items()):
