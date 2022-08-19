@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.23-affirm-0.2"
+VERSION = "0.23+affirm3"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -144,7 +144,7 @@ CI_REQUIRED = (
         "moto",
         "mypy>=0.931",
         "mypy-protobuf==3.1",
-        "avro==1.10.0",
+        # "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
@@ -416,7 +416,7 @@ class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
-        self.run_command("build_python_protos")
+        # self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -429,8 +429,8 @@ class DevelopCommand(develop):
     """Custom develop command."""
 
     def run(self):
-        self.reinitialize_command("build_python_protos", inplace=1)
-        self.run_command("build_python_protos")
+        # self.reinitialize_command("build_python_protos", inplace=1)
+        # self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -577,7 +577,7 @@ setup(
         "sphinx!=4.0.0",
     ],
     cmdclass={
-        "build_python_protos": BuildPythonProtosCommand,
+        # "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,

@@ -164,7 +164,7 @@ def create_customer_daily_profile_df(customers, start_date, end_date) -> pd.Data
             "event_timestamp": [
                 pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1D", inclusive="left"
+                    start=start_date, end=end_date, freq="1D", closed="left"
                 )
             ]
         }
@@ -209,7 +209,7 @@ def create_location_stats_df(locations, start_date, end_date) -> pd.DataFrame:
             "event_timestamp": [
                 pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1H", inclusive="left"
+                    start=start_date, end=end_date, freq="1H", closed="left"
                 )
             ]
         }
