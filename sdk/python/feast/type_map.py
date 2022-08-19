@@ -15,7 +15,6 @@
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
@@ -32,6 +31,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
@@ -45,9 +45,6 @@ from feast.protos.feast.types.Value_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
-
-import pyarrow
-
 
 # null timestamps get converted to -9223372036854775808
 NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
