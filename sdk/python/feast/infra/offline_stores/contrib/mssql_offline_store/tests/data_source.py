@@ -31,7 +31,6 @@ def mssql_container():
         image="mcr.microsoft.com/azure-sql-edge:1.0.6",
     )
     container.start()
-    container.start()
     log_string_to_wait_for = "Service Broker manager has started"
     wait_for_logs(container=container, predicate=log_string_to_wait_for, timeout=30)
 

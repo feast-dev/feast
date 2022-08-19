@@ -81,7 +81,8 @@ test-python-integration-local:
 		python -m pytest -n 8 --integration \
 			-k "not gcs_registry and \
  				not s3_registry and \
- 				not test_lambda_materialization" \
+ 				not test_lambda_materialization and \
+ 				not test_snowflake" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
@@ -113,7 +114,8 @@ test-python-universal-spark:
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
-			not test_universal_types" \
+			not test_universal_types and \
+			not test_snowflake" \
  	 sdk/python/tests
 
 test-python-universal-trino:
@@ -136,7 +138,8 @@ test-python-universal-trino:
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
-			not test_universal_types" \
+			not test_universal_types and \
+            not test_snowflake" \
  	 sdk/python/tests
 
 
@@ -151,7 +154,8 @@ test-python-universal-mssql:
  	python -m pytest -n 8 --integration \
  	 	-k "not gcs_registry and \
 			not s3_registry and \
-			not test_lambda_materialization" \
+			not test_lambda_materialization and \
+			not test_snowflake" \
  	 sdk/python/tests
 
 
@@ -177,7 +181,8 @@ test-python-universal-athena:
 		    not test_historical_features_persisting and \
 		    not test_historical_retrieval_fails_on_validation and \
 			not gcs_registry and \
-			not s3_registry"  \
+			not s3_registry and \
+			not test_snowflake" \
 	sdk/python/tests
 
 test-python-universal-postgres-offline:
@@ -219,7 +224,8 @@ test-python-universal-postgres-online:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
- 				not test_universal_types" \
+ 				not test_universal_types and \
+				not test_snowflake" \
  			sdk/python/tests
 
 test-python-universal-cassandra:
@@ -246,7 +252,8 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_apply_data_source_integration          and \
 	  not test_nullable_online_store				  and \
 	  not gcs_registry 								  and \
-	  not s3_registry" \
+	  not s3_registry								  and \
+	  not test_snowflake" \
 	sdk/python/tests
 
 test-python-universal:
