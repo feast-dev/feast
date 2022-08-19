@@ -23,7 +23,6 @@
   - [Integration Tests](#integration-tests)
     - [Local integration tests](#local-integration-tests)
     - [(Advanced) Full integration tests](#advanced-full-integration-tests)
-  - [Setup your GCP BigQuery Instance](#setup-your-gcp-bigquery-instance)
     - [(Advanced) Running specific provider tests or running your test against specific online or offline stores](#advanced-running-specific-provider-tests-or-running-your-test-against-specific-online-or-offline-stores)
     - [(Experimental) Run full integration tests against containerized services](#experimental-run-full-integration-tests-against-containerized-services)
   - [Contrib integration tests](#contrib-integration-tests)
@@ -34,15 +33,15 @@
     - [(Contrib) Running tests for HBase online store](#contrib-running-tests-for-hbase-online-store)
 - [(Experimental) Feast UI](#experimental-feast-ui)
 - [Feast Java Serving](#feast-java-serving)
+- [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
+  - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
+  - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
 - [Feast Go Client](#feast-go-client)
   - [Environment Setup](#environment-setup-1)
   - [Building](#building)
   - [Code Style & Linting](#code-style--linting-1)
   - [Unit Tests](#unit-tests-1)
   - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
-- [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
-  - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
-  - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
 - [Issues](#issues)
 
 ## Overview
@@ -201,7 +200,6 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
 > and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**
-### Setup your GCP BigQuery Instance
 1. You can get free credits [here](https://cloud.google.com/free/docs/free-cloud-features#free-trial).
 2. You will need to setup a service account, enable the BigQuery API, and create a staging location for a bucket.
   * Setup your service account and project using steps 1-5 [here](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0).
