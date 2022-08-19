@@ -161,14 +161,8 @@ class TrinoOfflineStore(OfflineStore):
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
-        if not isinstance(data_source, TrinoSource):
-            raise ValueError(
-                f"The data_source object is not a TrinoSource but is instead '{type(data_source)}'"
-            )
-        if not isinstance(config.offline_store, TrinoOfflineStoreConfig):
-            raise ValueError(
-                f"The config.offline_store object is not a TrinoOfflineStoreConfig but is instead '{type(config.offline_store)}'"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        assert isinstance(data_source, TrinoSource)
 
         from_expression = data_source.get_table_query_string()
 
@@ -222,10 +216,9 @@ class TrinoOfflineStore(OfflineStore):
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
-        if not isinstance(config.offline_store, TrinoOfflineStoreConfig):
-            raise ValueError(
-                f"This function should be used with a TrinoOfflineStoreConfig object. Instead we have config.offline_store being '{type(config.offline_store)}'"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, TrinoSource)
 
         client = _get_trino_client(
             config=config, user=user, auth=auth, http_scheme=http_scheme
@@ -314,10 +307,8 @@ class TrinoOfflineStore(OfflineStore):
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> RetrievalJob:
-        if not isinstance(data_source, TrinoSource):
-            raise ValueError(
-                f"The data_source object is not a TrinoSource object but is instead a {type(data_source)}"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        assert isinstance(data_source, TrinoSource)
         from_expression = data_source.get_table_query_string()
 
         client = _get_trino_client(
