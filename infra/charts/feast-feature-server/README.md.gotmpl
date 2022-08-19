@@ -11,9 +11,3 @@ helm install feast-feature-server . --set feature_store_yaml_base64=$(base64 fea
 {{ template "chart.requirementsSection" . }}
 
 {{ template "chart.valuesSection" . }}
-
-## Development
-To build a local
-```
-helm install feast-python-server . --set image.repository=REPO --set image.tag=TAG
-```

@@ -33,9 +33,3 @@ helm install feast-feature-server . --set feature_store_yaml_base64=$(base64 fea
 | service.port | int | `80` |  |
 | service.type | string | `"ClusterIP"` |  |
 | tolerations | list | `[]` |  |
-
-## Development
-To build a local
-```
-helm install feast-python-server . --set image.repository=REPO --set image.tag=TAG
-```
