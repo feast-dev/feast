@@ -363,6 +363,13 @@ build-feature-server-java-docker:
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
 
+# Dev images
+
+build-feature-server-dev:
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server:dev \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
 build-java-docker-dev:
 	make build-java-no-tests REVISION=dev
 	docker buildx build --build-arg VERSION=dev \
@@ -401,6 +408,11 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+build-helm-docs:
+	cd ${ROOT_DIR}/infra/charts/feast; helm-docs
+	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
+	cd ${ROOT_DIR}/infra/charts/feast-python-server; helm-docs
 
 # Web UI
 

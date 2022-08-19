@@ -11,11 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import json
 import logging
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+import os
 
 import click
 import pkg_resources
@@ -25,7 +28,7 @@ from dateutil import parser
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT, FEATURE_STORE_YAML_ENV_NAME
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
@@ -685,9 +688,21 @@ def serve_command(
 ):
     """Start a feature server locally on a given port."""
     repo = ctx.obj["CHDIR"]
-    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
-    cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
+
+    # If we received a base64 encoded version of feature_store.yaml, use that
+    config_base64 = os.getenv(FEATURE_STORE_YAML_ENV_NAME)
+    if config_base64:
+        print("Received base64 encoded feature_store.yaml")
+        config_bytes = base64.b64decode(config_base64)
+        # Create a new unique directory for writing feature_store.yaml
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "wb") as f:
+            f.write(config_bytes)
+        store = FeatureStore(repo_path=str(repo_path.resolve()))
+    else:
+        fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+        cli_check_repo(repo, fs_yaml_file)
+        store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
     if go:
         # Turn on Go feature retrieval.
