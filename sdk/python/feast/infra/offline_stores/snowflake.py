@@ -19,7 +19,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-import pyarrow as pa
 from pydantic import Field, StrictStr
 from pydantic.typing import Literal
 from pytz import utc
@@ -410,7 +409,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return df
 
-    def _to_arrow_internal(self) -> pa.Table:
+    def _to_arrow_internal(self) -> pyarrow.Table:
         with self._query_generator() as query:
 
             pa_table = execute_snowflake_statement(
@@ -423,7 +422,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
             else:
                 empty_result = execute_snowflake_statement(self.snowflake_conn, query)
 
-                return pa.Table.from_pandas(
+                return pyarrow.Table.from_pandas(
                     pd.DataFrame(columns=[md.name for md in empty_result.description])
                 )
 

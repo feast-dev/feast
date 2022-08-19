@@ -564,9 +564,7 @@ class FeatureStore:
                 "This API is stable, but the functionality does not scale well for offline retrieval",
                 RuntimeWarning,
             )
-
         set_usage_attribute("odfv", bool(odfvs_to_update))
-
         _validate_feature_views(
             [
                 *views_to_update,

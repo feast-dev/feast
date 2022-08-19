@@ -61,6 +61,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
+    "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -174,6 +175,8 @@ class RepoConfig(FeastBaseModel):
                 self._offline_config = "bigquery"
             elif data["provider"] == "aws":
                 self._offline_config = "redshift"
+            elif data["provider"] == "azure":
+                self._offline_config = "mssql"
 
         self._online_store = None
         if "online_store" in data:
@@ -334,6 +337,8 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
                 values["offline_store"]["type"] = "redshift"
+            if values["provider"] == "azure":
+                values["offline_store"]["type"] = "mssql"
 
         offline_store_type = values["offline_store"]["type"]
 

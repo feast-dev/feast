@@ -81,7 +81,8 @@ test-python-integration-local:
 		python -m pytest -n 8 --integration \
 			-k "not gcs_registry and \
  				not s3_registry and \
- 				not test_lambda_materialization" \
+ 				not test_lambda_materialization and \
+ 				not test_snowflake" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
@@ -113,7 +114,8 @@ test-python-universal-spark:
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
-			not test_universal_types" \
+			not test_universal_types and \
+			not test_snowflake" \
  	 sdk/python/tests
 
 test-python-universal-trino:
@@ -136,8 +138,26 @@ test-python-universal-trino:
 			not test_push_features_to_offline_store.py and \
 			not gcs_registry and \
 			not s3_registry and \
-			not test_universal_types" \
+			not test_universal_types and \
+            not test_snowflake" \
  	 sdk/python/tests
+
+
+# Note: to use this, you'll need to have Microsoft ODBC 17 installed.
+# See https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver15#17
+test-python-universal-mssql:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not gcs_registry and \
+			not s3_registry and \
+			not test_lambda_materialization and \
+			not test_snowflake" \
+ 	 sdk/python/tests
+
 
 #To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
 #Modify environment variables ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_S3_BUCKET_NAME if you want to change the data source, database, and bucket name of S3 to use.
@@ -161,7 +181,8 @@ test-python-universal-athena:
 		    not test_historical_features_persisting and \
 		    not test_historical_retrieval_fails_on_validation and \
 			not gcs_registry and \
-			not s3_registry"  \
+			not s3_registry and \
+			not test_snowflake" \
 	sdk/python/tests
 
 test-python-universal-postgres-offline:
@@ -203,7 +224,8 @@ test-python-universal-postgres-online:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
- 				not test_universal_types" \
+ 				not test_universal_types and \
+				not test_snowflake" \
  			sdk/python/tests
 
 test-python-universal-cassandra:
@@ -230,7 +252,8 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_apply_data_source_integration          and \
 	  not test_nullable_online_store				  and \
 	  not gcs_registry 								  and \
-	  not s3_registry" \
+	  not s3_registry								  and \
+	  not test_snowflake" \
 	sdk/python/tests
 
 test-python-universal:

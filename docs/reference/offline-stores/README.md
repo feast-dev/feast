@@ -35,3 +35,7 @@ Please see [Offline Store](../../getting-started/architecture-and-components/off
 {% content-ref url="trino.md" %}
 [trino.md](trino.md)
 {% endcontent-ref %}
+
+{% content-ref url="mssql.md" %}
+[mssql.md](mssql.md)
+{% endcontent-ref %}

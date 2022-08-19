@@ -241,7 +241,8 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     validate_dataframes(
         expected_df,
         table_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp = event_timestamp,
     )
     # ... more test code
 ```

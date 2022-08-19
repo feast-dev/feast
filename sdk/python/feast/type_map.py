@@ -49,7 +49,6 @@ from feast.value_type import ListType, ValueType
 if TYPE_CHECKING:
     import pyarrow
 
-
 # null timestamps get converted to -9223372036854775808
 NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
 
@@ -531,6 +530,73 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         value_type = ValueType[value_type.name + "_LIST"]
 
     return value_type
+
+
+def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
+    type_map = {
+        "bigint": ValueType.FLOAT,
+        "binary": ValueType.BYTES,
+        "bit": ValueType.BOOL,
+        "char": ValueType.STRING,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "float": ValueType.FLOAT,
+        "nchar": ValueType.STRING,
+        "nvarchar": ValueType.STRING,
+        "nvarchar(max)": ValueType.STRING,
+        "real": ValueType.FLOAT,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
+        "varbinary": ValueType.BYTES,
+        "varchar": ValueType.STRING,
+        "None": ValueType.NULL,
+        # skip date, geometry, hllsketch, time, timetz
+    }
+    if mssql_type_as_str.lower() not in type_map:
+        raise ValueError(f"Mssql type not supported by feast {mssql_type_as_str}")
+    return type_map[mssql_type_as_str.lower()]
+
+
+def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # MS Sql types: https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        if "tz=" in pa_type_as_str:
+            return "datetime2"
+        else:
+            return "datetime"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "None",
+        "bool": "bit",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "smallint",
+        "uint32": "int",
+        "uint64": "bigint",
+        "float": "float",
+        "double": "real",
+        "binary": "binary",
+        "string": "varchar",
+    }
+
+    if pa_type_as_str.lower() not in type_map:
+        raise ValueError(f"MS SQL Server type not supported by feast {pa_type_as_str}")
+
+    return type_map[pa_type_as_str]
 
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:

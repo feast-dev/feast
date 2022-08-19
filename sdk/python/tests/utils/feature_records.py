@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
@@ -314,7 +315,9 @@ def assert_feature_service_correctness(
     validate_dataframes(
         expected_df,
         actual_df_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -359,7 +362,7 @@ def assert_feature_service_entity_mapping_correctness(
         validate_dataframes(
             expected_df,
             actual_df_from_df_entities,
-            keys=[
+            sort_by=[
                 event_timestamp,
                 "order_id",
                 "driver_id",
@@ -367,6 +370,8 @@ def assert_feature_service_entity_mapping_correctness(
                 "origin_id",
                 "destination_id",
             ],
+            event_timestamp_column=event_timestamp,
+            timestamp_precision=timedelta(milliseconds=1),
         )
     else:
         # using 2 of the same FeatureView without full_feature_names=True will result in collision
@@ -378,18 +383,40 @@ def assert_feature_service_entity_mapping_correctness(
             )
 
 
-def validate_dataframes(expected_df, actual_df, keys):
-    expected_df: pd.DataFrame = (
-        expected_df.sort_values(by=keys).drop_duplicates().reset_index(drop=True)
+# Specify timestamp_precision to relax timestamp equality constraints
+def validate_dataframes(
+    expected_df: pd.DataFrame,
+    actual_df: pd.DataFrame,
+    sort_by: List[str],
+    event_timestamp_column: Optional[str] = None,
+    timestamp_precision: timedelta = timedelta(seconds=0),
+):
+    expected_df = (
+        expected_df.sort_values(by=sort_by).drop_duplicates().reset_index(drop=True)
     )
 
     actual_df = (
         actual_df[expected_df.columns]
-        .sort_values(by=keys)
+        .sort_values(by=sort_by)
         .drop_duplicates()
         .reset_index(drop=True)
     )
+    if event_timestamp_column:
+        expected_timestamp_col = expected_df[event_timestamp_column].to_frame()
+        actual_timestamp_col = expected_df[event_timestamp_column].to_frame()
+        expected_df = expected_df.drop(event_timestamp_column, axis=1)
+        actual_df = actual_df.drop(event_timestamp_column, axis=1)
+        if event_timestamp_column in sort_by:
+            sort_by.remove(event_timestamp_column)
 
+        diffs = expected_timestamp_col.to_numpy() - actual_timestamp_col.to_numpy()
+        for diff in diffs:
+            if isinstance(diff, np.ndarray):
+                diff = diff[0]
+            if isinstance(diff, np.timedelta64):
+                assert abs(diff) <= timestamp_precision.seconds
+            else:
+                assert abs(diff) <= timestamp_precision
     pd_assert_frame_equal(
         expected_df,
         actual_df,

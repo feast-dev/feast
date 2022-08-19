@@ -38,7 +38,7 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.5.1
     # via feast (setup.py)
-fastapi==0.79.0
+fastapi==0.79.1
     # via feast (setup.py)
 fastavro==1.6.0
     # via
@@ -57,6 +57,8 @@ googleapis-common-protos==1.56.4
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
+greenlet==1.1.2
+    # via sqlalchemy
 grpcio==1.47.0
     # via
     #   feast (setup.py)
@@ -75,7 +77,7 @@ importlib-resources==5.9.0
     # via jsonschema
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.12.1
+jsonschema==4.13.0
     # via feast (setup.py)
 locket==1.0.0
     # via partd

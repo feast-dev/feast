@@ -1,4 +1,4 @@
-# Cassandra / Astra DB online store
+# Cassandra + Astra DB online store (contrib)
 
 ## Description
 

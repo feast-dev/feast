@@ -129,6 +129,16 @@ GO_REQUIRED = [
     "cffi==1.15.*,<2",
 ]
 
+AZURE_REQUIRED = (
+    [
+     "azure-storage-blob>=0.37.0",
+     "azure-identity>=1.6.1",
+     "SQLAlchemy>=1.4.19",
+     "pyodbc>=4.0.30",
+     "pymssql",
+    ]
+)
+
 CI_REQUIRED = (
     [
         "build",
@@ -185,6 +195,7 @@ CI_REQUIRED = (
     + GE_REQUIRED
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
+    + AZURE_REQUIRED
 )
 
 
@@ -515,6 +526,7 @@ setup(
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
+        "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,

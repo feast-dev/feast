@@ -349,6 +349,7 @@ class Environment:
     python_feature_server: bool
     worker_id: str
     online_store_creator: Optional[OnlineStoreCreator] = None
+    fixture_request: Optional[pytest.FixtureRequest] = None
 
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -457,6 +458,7 @@ def construct_test_environment(
         python_feature_server=test_repo_config.python_feature_server,
         worker_id=worker_id,
         online_store_creator=online_creator,
+        fixture_request=fixture_request,
     )
 
     return environment
