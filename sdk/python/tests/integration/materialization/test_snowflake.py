@@ -81,6 +81,7 @@ def test_snowflake_materialization_consistency_internal():
         validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
     finally:
         fs.teardown()
+        snowflake_environment.data_source_creator.teardown()
 
 
 @pytest.mark.integration
@@ -123,3 +124,4 @@ def test_snowflake_materialization_consistency_external():
         validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
     finally:
         fs.teardown()
+        snowflake_environment.data_source_creator.teardown()
