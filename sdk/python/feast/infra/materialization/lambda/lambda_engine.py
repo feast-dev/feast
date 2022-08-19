@@ -4,7 +4,13 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
+
+# backward compatibility with python 3.7
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import boto3
 from pydantic import StrictStr
