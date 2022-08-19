@@ -14,11 +14,11 @@
 import base64
 import json
 import logging
+import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-import os
 
 import click
 import pkg_resources
@@ -28,7 +28,10 @@ from dateutil import parser
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT, FEATURE_STORE_YAML_ENV_NAME
+from feast.constants import (
+    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    FEATURE_STORE_YAML_ENV_NAME,
+)
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
