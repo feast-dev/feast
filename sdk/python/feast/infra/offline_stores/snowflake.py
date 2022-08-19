@@ -466,7 +466,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return arrow_batches
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
         self.to_snowflake(table_name=storage.snowflake_options.table)
 

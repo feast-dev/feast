@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -11,13 +12,16 @@ import pyarrow.parquet
 import pytz
 from pydantic.typing import Literal
 
-from feast import FileSource, OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import FeastJoinKeysDuringMaterialization
+from feast.errors import (
+    FeastJoinKeysDuringMaterialization,
+    SavedDatasetLocationAlreadyExists,
+)
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
+    FileSource,
     SavedDatasetFileStorage,
 )
 from feast.infra.offline_stores.offline_store import (
@@ -30,6 +34,7 @@ from feast.infra.offline_stores.offline_utils import (
     get_pyarrow_schema_from_batch_source,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
@@ -83,8 +88,13 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function().compute()
         return pyarrow.Table.from_pandas(df)
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetFileStorage)
+
+        # Check if the specified location already exists.
+        if not allow_overwrite and os.path.exists(storage.file_options.uri):
+            raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
+
         filesystem, path = FileSource.create_filesystem_and_path(
             storage.file_options.uri,
             storage.file_options.s3_endpoint_override,

@@ -402,7 +402,7 @@ class AthenaRetrievalJob(RetrievalJob):
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetAthenaStorage)
         self.to_athena(table_name=storage.athena_options.table)
 

@@ -96,11 +96,19 @@ class FileSource(DataSource):
         )
 
     @property
-    def path(self):
-        """
-        Returns the path of this file data source.
-        """
+    def path(self) -> str:
+        """Returns the path of this file data source."""
         return self.file_options.uri
+
+    @property
+    def file_format(self) -> Optional[FileFormat]:
+        """Returns the file format of this file data source."""
+        return self.file_options.file_format
+
+    @property
+    def s3_endpoint_override(self) -> Optional[str]:
+        """Returns the s3 endpoint override of this file data source."""
+        return self.file_options.s3_endpoint_override
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -177,24 +185,33 @@ class FileSource(DataSource):
 class FileOptions:
     """
     Configuration options for a file data source.
+
+    Attributes:
+        uri: File source url, e.g. s3:// or local file.
+        s3_endpoint_override: Custom s3 endpoint (used only with s3 uri).
+        file_format: File source format, e.g. parquet.
     """
+
+    uri: str
+    file_format: Optional[FileFormat]
+    s3_endpoint_override: str
 
     def __init__(
         self,
+        uri: str,
         file_format: Optional[FileFormat],
         s3_endpoint_override: Optional[str],
-        uri: Optional[str],
     ):
         """
         Initializes a FileOptions object.
 
         Args:
+            uri: File source url, e.g. s3:// or local file.
             file_format (optional): File source format, e.g. parquet.
             s3_endpoint_override (optional): Custom s3 endpoint (used only with s3 uri).
-            uri (optional): File source url, e.g. s3:// or local file.
         """
+        self.uri = uri
         self.file_format = file_format
-        self.uri = uri or ""
         self.s3_endpoint_override = s3_endpoint_override or ""
 
     @classmethod
@@ -267,6 +284,17 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             path=self.file_options.uri,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
+        )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> "SavedDatasetStorage":
+        assert isinstance(data_source, FileSource)
+        return SavedDatasetFileStorage(
+            path=data_source.path,
+            file_format=data_source.file_format
+            if data_source.file_format
+            else ParquetFormat(),
+            s3_endpoint_override=data_source.s3_endpoint_override,
         )
 
 

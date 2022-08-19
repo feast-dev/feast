@@ -337,7 +337,7 @@ class SparkRetrievalJob(RetrievalJob):
             self.to_spark_df().write.parquet(temp_dir, mode="overwrite")
             return pq.read_table(temp_dir)
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         Please note the persisting is done only within the scope of the spark session.

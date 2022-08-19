@@ -65,6 +65,7 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
         from_=reference_job,
         name="my_training_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
     saved_dataset = store.get_saved_dataset("my_training_dataset")
 
@@ -95,6 +96,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         from_=reference_job,
         name="my_other_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
 
     job = store.get_historical_features(
@@ -172,6 +174,7 @@ def test_logged_features_validation(environment, universal_data_sources):
         ),
         name="reference_for_validating_logged_features",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
 
     log_source_df = store.get_historical_features(
@@ -245,6 +248,7 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         from_=retrieval_job,
         name="reference_for_validating_logged_features",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
     reference = saved_dataset.as_reference(
         name="test_reference", profiler=configurable_profiler
