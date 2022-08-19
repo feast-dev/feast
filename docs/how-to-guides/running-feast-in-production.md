@@ -34,70 +34,10 @@ We recommend typically setting up CI/CD to automatically run `feast plan` and `f
 
 ### Setting up multiple environments
 
-Most teams will need to have a feature store deployed to more than one environment. There are two common ways teams approach this
+A common scenario when using Feast in production is to want to test changes to Feast object definitions. For this, we recommend setting up a _staging_ environment for your offline and online stores, which mirrors _production_ (with potentially a smaller data set).
+Having this separate environment allows users to test changes by first applying them to staging, and then promoting the changes to production after verifying the changes on staging.
 
-1. Have separate GitHub branches for each environment
-2. Have separate `feature_store.yaml` files that correspond to each environment
-
-For the second approach, we have created an example repository ([Feast Repository Example](https://github.com/feast-dev/feast-ci-repo-example)) which contains two Feast projects, one per environment.
-
-The contents of this repository are shown below:
-
-```bash
-├── .github
-│   └── workflows
-│       ├── production.yml
-│       └── staging.yml
-│
-├── staging
-│   ├── driver_repo.py
-│   └── feature_store.yaml
-│
-└── production
-    ├── driver_repo.py
-    └── feature_store.yaml
-```
-
-The repository contains three sub-folders:
-
-* `staging/`: This folder contains the staging `feature_store.yaml` and Feast objects. Users that want to make changes to the Feast deployment in the staging environment will commit changes to this directory.
-* `production/`: This folder contains the production `feature_store.yaml` and Feast objects. Typically users would first test changes in staging before copying the feature definitions into the production folder, before committing the changes.
-* `.github`: This folder is an example of a CI system that applies the changes in either the `staging` or `production` repositories using `feast apply`. This operation saves your feature definitions to a shared registry (for example, on GCS) and configures your infrastructure for serving features.
-
-The `feature_store.yaml` contains the following:
-
-```
-project: staging
-registry: gs://feast-ci-demo-registry/staging/registry.db
-provider: gcp
-```
-
-Notice how the registry has been configured to use a Google Cloud Storage bucket. All changes made to infrastructure using `feast apply` are tracked in the `registry.db`. This registry will be accessed later by the Feast SDK in your training pipelines or model serving services in order to read features.
-
-{% hint style="success" %}
-It is important to note that the CI system above must have access to create, modify, or remove infrastructure in your production environment. This is unlike clients of the feature store, who will only have read access.
-{% endhint %}
-
-If your organization consists of many independent data science teams or a single group is working on several projects that could benefit from sharing features, entities, sources, and transformations, then we encourage you to utilize Python packages inside each environment:
-
-```
-└── production
-    ├── common
-    │    ├── __init__.py
-    │    ├── sources.py
-    │    └── entities.py
-    ├── ranking
-    │    ├── __init__.py
-    │    ├── views.py
-    │    └── transformations.py
-    ├── segmentation
-    │    ├── __init__.py
-    │    ├── views.py
-    │    └── transformations.py
-    └── feature_store.yaml
-```
-
-In summary, once you have set up a Git based repository with CI that runs `feast apply` on changes, your infrastructure (offline store, online store, and cloud environment) will automatically be updated to support the loading of data into the feature store or retrieval of data.
+Different options are presented in the [how-to guide](structuring-repos.md).
 
 ## 2. How to load data into your online store and keep it up to date
 
@@ -273,6 +213,8 @@ Recently Feast added functionality for [stream ingestion](../reference/data-sour
 The default option to write features from a stream is to add the Python SDK into your existing PySpark / Beam pipeline. Feast SDK provides writer implementation that can be called from `foreachBatch` stream writer in PySpark like this:
 
 ```python
+from feast import FeatureStore
+
 store = FeatureStore(...)
 
 def feast_writer(spark_df):
