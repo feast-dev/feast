@@ -55,5 +55,20 @@ batch_engine:
 
 The `namespace` configuration directive specifies which Kubernetes [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) jobs, services and configuration maps will be created in.
 
-The `image` parameter specifies which container image to use when running the materialization job. To create a custom image based on this container, please see the [GitHub repository](https://github.com/bytewax/bytewax-feast) for this image.
+#### Building a custom Bytewax Docker image
+
+The `image` configuration directive specifies which container image to use when running the materialization job. To create a custom image based on this container, run the following command:
+
+``` shell
+DOCKER_BUILDKIT=1 docker build . -f ./sdk/python/feast/infra/materialization/contrib/bytewax/Dockerfile -t <image tag>
+```
+
+Once that image is built and pushed to a registry, it can be specified as a part of the batch engine configuration:
+
+``` shell
+batch_engine:
+  type: bytewax
+  namespace: bytewax
+  image: <image tag>
+```
 
