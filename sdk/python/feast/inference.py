@@ -156,7 +156,11 @@ def update_feature_views_with_inferred_features_and_entities(
                 )
 
         # Infer a dummy entity column for entityless feature views.
-        if len(fv.entities) == 1 and fv.entities[0] == DUMMY_ENTITY_NAME:
+        if (
+            len(fv.entities) == 1
+            and fv.entities[0] == DUMMY_ENTITY_NAME
+            and not fv.entity_columns
+        ):
             fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
         # Run inference for entity columns if there are fewer entity fields than expected.
