@@ -485,17 +485,18 @@ class SnowflakeRetrievalJob(RetrievalJob):
         table = f"temporary_{uuid.uuid4().hex}"
         self.to_snowflake(table)
 
-        copy_into_query = f"""copy into '{self.config.offline_store.blob_export_location}/{table}' from "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
-          storage_integration = {self.config.offline_store.storage_integration_name}\n
-          file_format = (TYPE = PARQUET)\n
-          DETAILED_OUTPUT = TRUE\n
-          HEADER = TRUE;\n
+        query = f"""COPY INTO '{self.config.offline_store.blob_export_location}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
+          STORAGE_INTEGRATION = {self.config.offline_store.storage_integration_name}\n
+          FILE_FORMAT = (TYPE = PARQUET)
+          DETAILED_OUTPUT = TRUE
+          HEADER = TRUE
         """
+        with self.snowflake_conn as conn:
+            cursor = execute_snowflake_statement(conn, query)
+            all_rows = (
+                cursor.fetchall()
+            )  # This may be need pagination at some point in the future.
 
-        cursor = execute_snowflake_statement(self.snowflake_conn, copy_into_query)
-        all_rows = (
-            cursor.fetchall()
-        )  # This may be need pagination at some point in the future.
         file_name_column_index = [
             idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
         ][0]
