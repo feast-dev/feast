@@ -10,7 +10,7 @@ Since Feast is designed to be modular, it's possible to swap such components wit
 
 The default Feast [registry](../getting-started/concepts/registry.md) is a file-based registry. Any changes to the feature repo, or materializing data into the online store, results in a mutation to the registry.
 
-However, there's inherent limitations with a file-based registry, since changing a single field in the registry requires re-writing the whole registry file.
+However, there are inherent limitations with a file-based registry, since changing a single field in the registry requires re-writing the whole registry file.
 With multiple concurrent writers, this presents a risk of data loss, or bottlenecks writes to the registry since all changes have to be serialized (e.g. when running materialization for multiple feature views or time ranges concurrently).
 
 The recommended solution in this case is to use the [SQL based registry](../tutorials/using-scalable-registry.md), which allows concurrent, transactional, and fine-grained updates to the registry. This registry implementation requires access to an existing database (such as MySQL, Postgres, etc).
