@@ -48,7 +48,7 @@ training_df = store.get_historical_features(
 )
 ```
 
-For each row within the entity dataframe, Feast will query and join the selected features from the appropriate feature view data source. Feast will scan backward in time from the entity dataframe timestamp up to a maximum of the TTL time.
+For each row within the entity dataframe, Feast will query and join the selected features from the appropriate feature view data source. Feast will scan backward in time from the entity dataframe timestamp up to a maximum of the TTL time specified.
 
 ![](../../.gitbook/assets/image%20%2831%29.png)
 

@@ -91,7 +91,6 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
 
         if self.offline_store_config:
             df_to_postgres_table(self.offline_store_config, df, destination_name)
-
         return PostgreSQLSource(
             name=destination_name,
             query=f"SELECT * FROM {destination_name}",

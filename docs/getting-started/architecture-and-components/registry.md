@@ -2,11 +2,12 @@
 
 The Feast feature registry is a central catalog of all the feature definitions and their related metadata. It allows data scientists to search, discover, and collaborate on new features.
 
-Each Feast deployment has a single feature registry. Feast only supports file-based registries today, but supports three different backends
+Each Feast deployment has a single feature registry. Feast only supports file-based registries today, but supports four different backends.
 
 * `Local`: Used as a local backend for storing the registry during development
 * `S3`: Used as a centralized backend for storing the registry on AWS
 * `GCS`: Used as a centralized backend for storing the registry on GCP
+* `[Alpha] Azure`: Used as centralized backend for storing the registry on Azure Blob storage.
 
 The feature registry is updated during different operations when using Feast. More specifically, objects within the registry \(entities, feature views, feature services\) are updated when running `apply` from the Feast CLI, but metadata about objects can also be updated during operations like materialization.
 
