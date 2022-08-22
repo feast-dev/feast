@@ -5,7 +5,7 @@ Having this separate environment allows users to test changes by first applying 
 
 ## Setting up multiple environments
 
-There are two common ways teams approach having separate environments
+There are three common ways teams approach having separate environments
 
 1. Have separate git branches for each environment
 2. Have separate `feature_store.yaml`  files and separate Feast object definitions that correspond to each environment
