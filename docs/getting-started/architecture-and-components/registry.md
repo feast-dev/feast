@@ -7,6 +7,7 @@ Each Feast deployment has a single feature registry. Feast only supports file-ba
 * `Local`: Used as a local backend for storing the registry during development
 * `S3`: Used as a centralized backend for storing the registry on AWS
 * `GCS`: Used as a centralized backend for storing the registry on GCP
+* `[Alpha] Azure`:
 
 The feature registry is updated during different operations when using Feast. More specifically, objects within the registry \(entities, feature views, feature services\) are updated when running `apply` from the Feast CLI, but metadata about objects can also be updated during operations like materialization.
 
