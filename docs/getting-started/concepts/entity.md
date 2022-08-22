@@ -28,7 +28,7 @@ Feast will use the feature view concept to then define the schema of groups of f
 
 ### Use case #2: Retrieving features
 
-At _training time_, users control what entities they want to look up, for example corresponding to train / test / validatation splits. A user specifies a list of _entity keys + timestamps_ they want to fetch [point-in-time](./point-in-time-joins.md) correct features for to generate a training dataset.
+At _training time_, users control what entities they want to look up, for example corresponding to train / test / validation splits. A user specifies a list of _entity keys + timestamps_ they want to fetch [point-in-time](./point-in-time-joins.md) correct features for to generate a training dataset.
 
 At _serving time_, users specify _entity key(s)_ to fetch the latest feature values which can power real-time model prediction (e.g. a fraud detection model that needs to fetch the latest transaction user's features to make a prediction).
 
