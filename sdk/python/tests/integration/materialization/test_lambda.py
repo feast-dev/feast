@@ -24,11 +24,15 @@ from tests.utils.e2e_test_validation import validate_offline_online_store_consis
 def test_lambda_materialization_consistency():
     lambda_config = IntegrationTestRepoConfig(
         provider="aws",
-        online_store={"type": "dynamodb", "region": "us-west-2"},
+        online_store={
+            "type": "dynamodb",
+            "region": "us-west-2",
+            "consistent_reads": True,
+        },
         offline_store_creator=RedshiftDataSourceCreator,
         batch_engine={
             "type": "lambda",
-            "materialization_image": "402087665549.dkr.ecr.us-west-2.amazonaws.com/feast-lambda-consumer:v1",
+            "materialization_image": "402087665549.dkr.ecr.us-west-2.amazonaws.com/feast-lambda-consumer:v2",
             "lambda_role": "arn:aws:iam::402087665549:role/lambda_execution_role",
         },
         registry_location=RegistryLocation.S3,
