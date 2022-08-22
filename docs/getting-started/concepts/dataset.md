@@ -12,7 +12,7 @@ Dataset can be created from:
 
 ### Creating a saved dataset from historical retrieval
 
-To create a saved dataset from historical features for later retrieval or analysis, a user needs to call `get_historical_features` method first and then pass the returned retrieval job to `create_saved_dataset` method. `create_saved_dataset` will trigger provided retrieval job (by calling `.persist()` on it) to store the data using specified `storage`. Storage type must be the same as globally configured offline store (eg, it's impossible to persist data to Redshift with BigQuery source). `create_saved_dataset` will also create SavedDataset object with all related metadata and will write it to the registry.
+To create a saved dataset from historical features for later retrieval or analysis, a user needs to call `get_historical_features` method first and then pass the returned retrieval job to `create_saved_dataset` method. `create_saved_dataset` will trigger the provided retrieval job (by calling `.persist()` on it) to store the data using the specified `storage` behind the scenes. Storage type must be the same as the globally configured offline store (e.g it's impossible to persist data to a different offline source). `create_saved_dataset` will also create a `SavedDataset` object with all of the related metadata and will write this object to the registry.
 
 ```python
 from feast import FeatureStore
@@ -35,7 +35,7 @@ dataset = store.create_saved_dataset(
 dataset.to_df()
 ```
 
-Saved dataset can be later retrieved using `get_saved_dataset` method:
+Saved dataset can be retrieved later using the `get_saved_dataset` method in the feature store:
 
 ```python
 dataset = store.get_saved_dataset('my_training_dataset')
@@ -44,4 +44,4 @@ dataset.to_df()
 
 ***
 
-Check out our [tutorial on validating historical features](../../tutorials/validating-historical-features.md) to see how this concept can be applied in real-world use case.
+Check out our [tutorial on validating historical features](../../tutorials/validating-historical-features.md) to see how this concept can be applied in a real-world use case.

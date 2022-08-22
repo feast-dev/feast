@@ -3,7 +3,7 @@
 ## Feature views
 
 {% hint style="warning" %}
-**Note**: feature views do not work with non-timestamped data. A workaround is to insert dummy timestamps
+**Note**: Feature views do not work with non-timestamped data. A workaround is to insert dummy timestamps.
 {% endhint %}
 
 A feature view is an object that represents a logical group of time-series feature data as it is found in a [data source](data-ingestion.md). Depending on the kind of feature view, it may contain some lightweight (experimental) feature transformations (see [\[Alpha\] On demand feature views](feature-view.md#alpha-on-demand-feature-views)).
@@ -51,7 +51,7 @@ Feature views are used during
 
 ## Feature views without entities
 
-If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities (only event timestamps are needed for this feature view).
+If a feature view contains features that are not related to a specific entity, the feature view can be defined without entities (only timestamps are needed for this feature view).
 
 {% tabs %}
 {% tab title="global_stats.py" %}
@@ -75,7 +75,7 @@ global_stats_fv = FeatureView(
 
 ## Feature inferencing
 
-If the `features` parameter is not specified in the feature view creation, Feast will infer the features during `feast apply` by creating a feature for each column in the underlying data source except the columns corresponding to the entities of the feature view or the columns corresponding to the timestamp columns of the feature view's data source. The names and value types of the inferred features will use the names and data types of the columns from which the features were inferred.
+If the `schema` parameter is not specified in the creation of the feature view, Feast will infer the features during `feast apply` by creating a `Field` for each column in the underlying data source except the columns corresponding to the entities of the feature view or the columns corresponding to the timestamp columns of the feature view's data source. The names and value types of the inferred features will use the names and data types of the columns from which the features were inferred.
 
 ## Entity aliasing
 
@@ -130,11 +130,11 @@ temperatures_fs = FeatureService(
 {% endtab %}
 {% endtabs %}
 
-## Feature
+## Field
 
-A feature is an individual measurable property. It is typically a property observed on a specific entity, but does not have to be associated with an entity. For example, a feature of a `customer` entity could be the number of transactions they have made on an average month, while a feature that is not observed on a specific entity could be the total number of posts made by all users in the last month.
+A field or feature is an individual measurable property. It is typically a property observed on a specific entity, but does not have to be associated with an entity. For example, a feature of a `customer` entity could be the number of transactions they have made on an average month, while a feature that is not observed on a specific entity could be the total number of posts made by all users in the last month. Supported types for fields in Feast can be found in `sdk/python/feast/types.py`.
 
-Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
+Fields are defined as part of feature views. Since Feast does not transform data, a field is essentially a schema that only contains a name and a type:
 
 ```python
 from feast import Field
@@ -154,9 +154,9 @@ Each field can have additional metadata associated with it, specified as key-val
 
 ## \[Alpha] On demand feature views
 
-On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.
+On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both the historical retrieval and online retrieval paths.
 
-Currently, these transformations are executed locally. This is fine for online serving, but does not scale well offline.
+Currently, these transformations are executed locally. This is fine for online serving, but does not scale well to offline retrieval.
 
 ### Why use on demand feature views?
 
@@ -255,4 +255,4 @@ def driver_hourly_stats_stream(df: DataFrame):
     )
 ```
 
-See [here](https://github.com/feast-dev/streaming-tutorial) for a example of how to use stream feature views.
+See [here](https://github.com/feast-dev/streaming-tutorial) for a example of how to use stream feature views to register your own streaming data pipelines in Feast.
