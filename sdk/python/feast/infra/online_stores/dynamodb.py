@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from pydantic import StrictStr
+from pydantic import StrictBool, StrictStr
 from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
@@ -62,6 +62,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
 
     table_name_template: StrictStr = "{project}.{table_name}"
     """DynamoDB table name template"""
+
+    consistent_reads: StrictBool = False
+    """Whether to read from Dynamodb by forcing consistent reads"""
 
 
 class DynamoDBOnlineStore(OnlineStore):
@@ -237,12 +240,12 @@ class DynamoDBOnlineStore(OnlineStore):
             batch_entity_ids = {
                 table_instance.name: {
                     "Keys": [{"entity_id": entity_id} for entity_id in batch],
-                    "ConsistentRead": True,
+                    "ConsistentRead": online_config.consistent_reads,
                 }
             }
             with tracing_span(name="remote_call"):
                 response = dynamodb_resource.batch_get_item(
-                    RequestItems=batch_entity_ids
+                    RequestItems=batch_entity_ids,
                 )
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
