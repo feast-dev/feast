@@ -208,7 +208,6 @@ class SnowflakeSource(DataSource):
         Args:
             config: A RepoConfig describing the feature repo
         """
-
         from feast.infra.offline_stores.snowflake import SnowflakeOfflineStoreConfig
         from feast.infra.utils.snowflake.snowflake_utils import (
             execute_snowflake_statement,
@@ -217,23 +216,26 @@ class SnowflakeSource(DataSource):
 
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with get_snowflake_conn(config.offline_store) as conn:
+            query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
+            cursor = execute_snowflake_statement(conn, query)
 
-        query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
+            metadata = [
+                {
+                    "column_name": column.name,
+                    "type_code": column.type_code,
+                    "precision": column.precision,
+                    "scale": column.scale,
+                    "is_nullable": column.is_nullable,
+                    "snowflake_type": None,
+                }
+                for column in cursor.description
+            ]
 
-        result_cur = execute_snowflake_statement(snowflake_conn, query)
-
-        metadata = [
-            {
-                "column_name": column.name,
-                "type_code": column.type_code,
-                "precision": column.precision,
-                "scale": column.scale,
-                "is_nullable": column.is_nullable,
-                "snowflake_type": None,
-            }
-            for column in result_cur.description
-        ]
+            if cursor.fetch_pandas_all().empty:
+                raise DataSourceNotFoundException(
+                    "The following source:\n" + query + "\n ... is empty"
+                )
 
         for row in metadata:
             if row["type_code"] == 0:
@@ -244,12 +246,12 @@ class SnowflakeSource(DataSource):
                         row["snowflake_type"] = "NUMBER64"
                     else:
                         column = row["column_name"]
-                        query = f'SELECT MAX("{column}") AS "{column}" FROM {self.get_table_query_string()}'
 
-                        result = execute_snowflake_statement(
-                            snowflake_conn, query
-                        ).fetch_pandas_all()
-
+                        with get_snowflake_conn(config.offline_store) as conn:
+                            query = f'SELECT MAX("{column}") AS "{column}" FROM {self.get_table_query_string()}'
+                            result = execute_snowflake_statement(
+                                conn, query
+                            ).fetch_pandas_all()
                         if (
                             result.dtypes[column].name
                             in python_int_to_snowflake_type_map
@@ -277,14 +279,9 @@ class SnowflakeSource(DataSource):
                     f"The following Snowflake Column is not supported: {row['column_name']} (type_code: {row['type_code']})"
                 )
 
-        if not result_cur.fetch_pandas_all().empty:
-            return [
-                (column["column_name"], column["snowflake_type"]) for column in metadata
-            ]
-        else:
-            raise DataSourceNotFoundException(
-                "The following source:\n" + query + "\n ... is empty"
-            )
+        return [
+            (column["column_name"], column["snowflake_type"]) for column in metadata
+        ]
 
 
 snowflake_type_code_map = {

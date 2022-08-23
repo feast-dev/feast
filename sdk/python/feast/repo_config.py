@@ -194,8 +194,6 @@ class RepoConfig(FeastBaseModel):
             self._batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self._batch_engine_config = data["batch_engine_config"]
-        elif self._offline_config == "snowflake.offline":
-            self._batch_engine_config = "snowflake.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self._batch_engine_config = "local"
