@@ -353,7 +353,7 @@ lint-go: compile-protos-go compile-go-lib
 
 # Docker
 
-build-docker: build-ci-docker build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
+build-docker: build-ci-docker build-feature-server-python-docker build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
@@ -362,13 +362,21 @@ push-ci-docker:
 build-ci-docker:
 	docker buildx build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile --load .
 
+push-feature-server-python-docker:
+	docker push $(REGISTRY)/feature-server:$$VERSION
+
+build-feature-server-python-docker:
+	docker buildx build --build-arg VERSION=$$VERSION \
+		-t $(REGISTRY)/feature-server:$$VERSION \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
+
 push-feature-server-python-aws-docker:
-		docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
+	docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
 
 build-feature-server-python-aws-docker:
-		docker buildx build --build-arg VERSION=$$VERSION \
-			-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
-			-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile --load .
+	docker buildx build --build-arg VERSION=$$VERSION \
+		-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
+		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile --load .
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
@@ -385,6 +393,13 @@ build-feature-server-java-docker:
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
+
+# Dev images
+
+build-feature-server-dev:
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server:dev \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
 build-java-docker-dev:
 	make build-java-no-tests REVISION=dev
@@ -424,6 +439,11 @@ build-sphinx: compile-protos-python
 
 build-templates:
 	python infra/scripts/compile-templates.py
+
+build-helm-docs:
+	cd ${ROOT_DIR}/infra/charts/feast; helm-docs
+	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
+	cd ${ROOT_DIR}/infra/charts/feast-python-server; helm-docs
 
 # Web UI
 

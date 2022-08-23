@@ -1,5 +1,5 @@
 registry: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
-project: feast_java_demo
+project: feast_python_demo
 provider: gcp
 online_store:
   type: redis

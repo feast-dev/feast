@@ -6,7 +6,9 @@ Generally, Feast supports several patterns of feature retrieval:
 
 1. Training data generation (via `feature_store.get_historical_features(...)`)
 2. Offline feature retrieval for batch scoring (via `feature_store.get_historical_features(...)`)
-3. Online feature retrieval for real-time model predictions (via `feature_store.get_online_features(...)`)
+3. Online feature retrieval for real-time model predictions 
+   - via the SDK: `feature_store.get_online_features(...)`
+   - via deployed feature server endpoints: `requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))` 
 
 Each of these retrieval mechanisms accept:
 
@@ -100,7 +102,6 @@ batch_scoring_features = store.get_historical_features(
 
 ```python
 from feast import FeatureStore
-import pandas as pd
 
 store = FeatureStore(repo_path=".")
 
@@ -124,13 +125,23 @@ batch_scoring_features = store.get_historical_features(
 
 <details>
 
-<summary>How to: retrieve online features for real-time model inference</summary>
+<summary>How to: retrieve online features for real-time model inference (Python SDK)</summary>
 
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
 
 _Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
 
 ```python
+from feast import RepoConfig, FeatureStore
+from feast.repo_config import RegistryConfig
+
+repo_config = RepoConfig(
+    registry=RegistryConfig(path="gs://feast-test-gcs-bucket/registry.pb"),
+    project="feast_demo_gcp",
+    provider="gcp",
+)
+store = FeatureStore(config=repo_config)
+
 features = store.get_online_features(
     features=[
         "driver_hourly_stats:conv_rate",
@@ -143,6 +154,32 @@ features = store.get_online_features(
         }
     ],
 ).to_dict()
+```
+
+</details>
+
+<details>
+
+<summary>How to: retrieve online features for real-time model inference (Feature Server)</summary>
+
+Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
+
+_Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
+
+This approach requires you to deploy a feature server (see [Python feature server](../../reference/feature-servers/python-feature-server)).
+
+```python
+import requests
+import json
+
+online_request = {
+    "features": [
+        "driver_hourly_stats:conv_rate",
+    ],
+    "entities": {"driver_id": [1001, 1002]},
+}
+r = requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))
+print(json.dumps(r.json(), indent=4, sort_keys=True))
 ```
 
 </details>

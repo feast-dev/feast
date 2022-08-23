@@ -3,59 +3,31 @@
 Current chart version is `0.23.0`
 
 ## Installation
-### Python feature server
-Docker repository and tag are required. Helm install example:
+
+Run the following commands to add the repository
+
 ```
-helm install feast-feature-server . --set image.repository=REPO --set image.tag=TAG
-```
-
-Deployment assumes that `feature_store.yaml` exists on docker image. Example docker image:
-```
-FROM python:3.8
-
-RUN apt update && \
-    apt install -y jq
-
-RUN pip install pip --upgrade
-
-RUN pip install feast
-
-COPY feature_store.yaml /feature_store.yaml
+helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
+helm repo update
 ```
 
-### Go feature server
-> Warning: this is experimental, and only supports a local file registry + Redis
+Install Feast
 
-Furthermore, if you wish to use the Go feature server, then you must install the Apache Arrow C++ libraries, and your `feature_store.yaml` should include `go_feature_server: True`.
-For more details, see the [docs](https://docs.feast.dev/reference/feature-servers/go-feature-server).
-
-The docker image might look like:
+A base64 encoded version of the `feature_store.yaml` file is needed. Helm install example:
 ```
- FROM python:3.8
-
- RUN apt update && \
-     apt install -y jq
- RUN pip install pip --upgrade
- RUN pip install feast
- RUN apt update
- RUN apt install -y -V ca-certificates lsb-release wget
- RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
- RUN apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
- RUN apt update
- RUN apt -y install libarrow-dev
-
- COPY feature_store.yaml /feature_store.yaml
- ```
+helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 feature_store.yaml)
+```
 
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| feature_store_yaml_base64 | string | `""` | [required] a base64 encoded version of feature_store.yaml |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.repository | string | `""` | [required] The repository for the Docker image |
-| image.tag | string | `""` | [required] The Docker image tag |
+| image.repository | string | `"feastdev/feature-server"` | Docker image for Feature Server repository |
+| image.tag | string | `"0.23.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |
