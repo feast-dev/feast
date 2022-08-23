@@ -11,7 +11,6 @@ Subpackages
    feast.dqm
    feast.infra
    feast.loaders
-   feast.protos
    feast.ui
 
 Submodules
