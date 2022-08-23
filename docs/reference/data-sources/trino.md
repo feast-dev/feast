@@ -27,3 +27,8 @@ driver_hourly_stats = TrinoSource(
 ```
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#trino-source).
+
+## Supported Types
+
+Trino data sources support all eight primitive types, but currently do not support array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

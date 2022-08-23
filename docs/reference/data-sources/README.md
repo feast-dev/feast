@@ -1,6 +1,10 @@
 # Data sources
 
-Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for an explanation of data sources.
+Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a conceptual explanation of data sources.
+
+{% content-ref url="overview.md" %}
+[overview.md](overview.md)
+{% endcontent-ref %}
 
 {% content-ref url="file.md" %}
 [file.md](file.md)
