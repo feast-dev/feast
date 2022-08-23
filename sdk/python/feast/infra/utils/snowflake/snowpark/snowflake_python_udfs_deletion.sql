@@ -14,4 +14,4 @@ DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_timestamp_to_unix_timestamp
 
 DROP FUNCTION IF EXISTS feast_PROJECT_NAME_serialize_entity_keys(ARRAY, ARRAY, ARRAY);
 
-DROP FUNCTION IF EXISTS feast_PROJECT_NAME_entity_key_proto_to_string(ARRAY, ARRAY, ARRAY);
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_entity_key_proto_to_string(ARRAY, ARRAY, ARRAY)
