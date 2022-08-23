@@ -8,11 +8,11 @@ const FeastSavedDatasetSchema = z.object({
     storage: z.object({
       fileStorage: z.object({
         fileFormat: z.object({
-          parquestFormat: z.object({}).optional(),
-        }),
+          parquetFormat: z.object({}).optional(),
+        }).optional(),
         fileUrl: z.string(),
-      }),
-    }),
+      }).optional(),
+    }).optional(),
     featureService: z
       .object({
         spec: z.object({
@@ -21,7 +21,7 @@ const FeastSavedDatasetSchema = z.object({
       })
       .transform((obj) => {
         return obj.spec.name;
-      }),
+      }).optional(),
     profile: z.string().optional(),
   }),
   meta: z.object({
