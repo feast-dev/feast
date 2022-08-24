@@ -7,6 +7,8 @@ import unittest
 
 import feast
 
+FILES_TO_IGNORE = {"app"}
+
 
 def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
@@ -69,6 +71,9 @@ def test_docstrings():
 
         for package in current_packages:
             for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
+                if name in FILES_TO_IGNORE:
+                    continue
+
                 full_name = package.__name__ + "." + name
                 try:
                     temp_module = importlib.import_module(full_name)
