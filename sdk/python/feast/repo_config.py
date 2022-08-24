@@ -37,7 +37,7 @@ _logger = logging.getLogger(__name__)
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
-    "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
+    "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
     "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
 }
 

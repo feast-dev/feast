@@ -4,6 +4,10 @@ from .batch_materialization_engine import (
     MaterializationTask,
 )
 from .local_engine import LocalMaterializationEngine, LocalMaterializationJob
+from .snowflake_engine import (
+    SnowflakeMaterializationEngine,
+    SnowflakeMaterializationJob,
+)
 
 __all__ = [
     "MaterializationJob",
@@ -11,4 +15,6 @@ __all__ = [
     "BatchMaterializationEngine",
     "LocalMaterializationEngine",
     "LocalMaterializationJob",
+    "SnowflakeMaterializationEngine",
+    "SnowflakeMaterializationJob",
 ]

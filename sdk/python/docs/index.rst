@@ -340,7 +340,7 @@ Local Engine
 (Alpha) Lambda Based Engine
 ---------------------------
 
-.. automodule:: feast.infra.materialization.lambda.lambda_engine
+.. automodule:: feast.infra.materialization.aws_lambda.lambda_engine
     :members:
     :noindex:
 
