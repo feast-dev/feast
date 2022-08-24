@@ -12,12 +12,12 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
-
-from ...utils import (
+from feast.utils import (
     _convert_arrow_to_proto,
     _get_column_names,
     _run_pyarrow_field_mapping,
 )
+
 from .batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
