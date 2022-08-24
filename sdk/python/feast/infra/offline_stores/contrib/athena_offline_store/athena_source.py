@@ -47,13 +47,12 @@ class AthenaSource(DataSource):
                 source to column names in a feature table or view.
             date_partition_column : Timestamp column used for partitioning.
             query (optional): The query to be executed to obtain the features.
-            name (optional): Name for the source. Defaults to the table_ref if not specified.
+            name (optional): Name for the source. Defaults to the table if not specified, in which
+                case the table must be specified.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the athena source, typically the email of the primary
                 maintainer.
-
-
         """
 
         _database = "default" if table and not database else database

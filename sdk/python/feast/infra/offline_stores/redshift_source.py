@@ -43,7 +43,8 @@ class RedshiftSource(DataSource):
         Creates a RedshiftSource object.
 
         Args:
-            name (optional): Name for the source. Defaults to the table_ref if not specified.
+            name (optional): Name for the source. Defaults to the table if not specified, in which
+                case the table must be specified.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
             table (optional): Redshift table where the features are stored.
