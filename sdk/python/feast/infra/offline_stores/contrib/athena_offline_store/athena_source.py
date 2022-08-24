@@ -38,7 +38,8 @@ class AthenaSource(DataSource):
 
         Args:
             timestamp_field : event timestamp column.
-            table (optional): Athena table where the features are stored.
+            table (optional): Athena table where the features are stored. Exactly one of 'table'
+                and 'query' must be specified.
             database: Athena Database Name
             data_source (optional): Athena data source
             created_timestamp_column (optional): Timestamp column indicating when the
@@ -46,16 +47,15 @@ class AthenaSource(DataSource):
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
             date_partition_column : Timestamp column used for partitioning.
-            query (optional): The query to be executed to obtain the features.
-            name (optional): Name for the source. Defaults to the table_ref if not specified.
+            query (optional): The query to be executed to obtain the features. Exactly one of 'table'
+                and 'query' must be specified.
+            name (optional): Name for the source. Defaults to the table if not specified, in which
+                case the table must be specified.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the athena source, typically the email of the primary
                 maintainer.
-
-
         """
-
         _database = "default" if table and not database else database
         self.athena_options = AthenaOptions(
             table=table, query=query, database=_database, data_source=data_source

@@ -40,14 +40,17 @@ class SnowflakeSource(DataSource):
         Creates a SnowflakeSource object.
 
         Args:
-            name (optional): Name for the source. Defaults to the table if not specified.
+            name (optional): Name for the source. Defaults to the table if not specified, in which
+                case the table must be specified.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
             database (optional): Snowflake database where the features are stored.
             warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
-            table (optional): Snowflake table where the features are stored.
-            query (optional): The query to be executed to obtain the features.
+            table (optional): Snowflake table where the features are stored. Exactly one of 'table'
+                and 'query' must be specified.
+            query (optional): The query to be executed to obtain the features. Exactly one of 'table'
+                and 'query' must be specified.
             created_timestamp_column (optional): Timestamp column indicating when the
                 row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
