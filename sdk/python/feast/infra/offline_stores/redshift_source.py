@@ -47,13 +47,15 @@ class RedshiftSource(DataSource):
                 case the table must be specified.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
-            table (optional): Redshift table where the features are stored.
+            table (optional): Redshift table where the features are stored. Exactly one of 'table'
+                and 'query' must be specified.
             schema (optional): Redshift schema in which the table is located.
             created_timestamp_column (optional): Timestamp column indicating when the
                 row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data
                 source to column names in a feature table or view.
-            query (optional): The query to be executed to obtain the features.
+            query (optional): The query to be executed to obtain the features. Exactly one of 'table'
+                and 'query' must be specified.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the redshift source, typically the email of the primary
