@@ -1,39 +1,28 @@
 project: my_project
-# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
-# On GCP/AWS, minimally you should create a GCS/S3 bucket for a remote file registry
-# See https://docs.feast.dev/getting-started/concepts/registry for details
-registry: data/registry.db
-provider: gcp
+registry: registry.db
+provider: local
 offline_store:
-  type: snowflake.offline
-  account: SNOWFLAKE_DEPLOYMENT_URL
-  user: SNOWFLAKE_USER
-  password: SNOWFLAKE_PASSWORD
-  role: SNOWFLAKE_ROLE
-  warehouse: SNOWFLAKE_WAREHOUSE
-  database: SNOWFLAKE_DATABASE
+    type: snowflake.offline
+    account: SNOWFLAKE_DEPLOYMENT_URL
+    user: SNOWFLAKE_USER
+    password: SNOWFLAKE_PASSWORD
+    role: SNOWFLAKE_ROLE
+    warehouse: SNOWFLAKE_WAREHOUSE
+    database: SNOWFLAKE_DATABASE
+batch_engine:
+    type: snowflake.engine
+    account: SNOWFLAKE_DEPLOYMENT_URL
+    user: SNOWFLAKE_USER
+    password: SNOWFLAKE_PASSWORD
+    role: SNOWFLAKE_ROLE
+    warehouse: SNOWFLAKE_WAREHOUSE
+    database: SNOWFLAKE_DATABASE
 online_store:
-  type: snowflake.online
-  account: SNOWFLAKE_DEPLOYMENT_URL
-  user: SNOWFLAKE_USER
-  password: SNOWFLAKE_PASSWORD
-  role: SNOWFLAKE_ROLE
-  warehouse: SNOWFLAKE_WAREHOUSE
-  database: SNOWFLAKE_DATABASE
-# Use GCP Datastore
-# See https://docs.feast.dev/reference/online-stores/datastore
-#online_store:
-#   type: datastore
-#   project_id: my_gcp_project
-#   namespace: my_datastore_namespace
-# Use AWS DynamoDB
-# See https://docs.feast.dev/reference/online-stores/dynamodb
-#online_store:
-#    type: dynamodb
-#    region: %AWS_REGION%
-# Use Redis
-# See https://docs.feast.dev/reference/online-stores/redis
-#online_store:
-#   type: redis
-#   connection_string: "localhost:6379"
+    type: snowflake.online
+    account: SNOWFLAKE_DEPLOYMENT_URL
+    user: SNOWFLAKE_USER
+    password: SNOWFLAKE_PASSWORD
+    role: SNOWFLAKE_ROLE
+    warehouse: SNOWFLAKE_WAREHOUSE
+    database: SNOWFLAKE_DATABASE
 entity_key_serialization_version: 2

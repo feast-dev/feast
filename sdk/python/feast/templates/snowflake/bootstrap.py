@@ -75,6 +75,11 @@ def bootstrap():
             execute_snowflake_statement(
                 conn, f'DROP TABLE IF EXISTS "{project_name}_feast_driver_hourly_stats"'
             )
+            execute_snowflake_statement(
+                conn,
+                f'ALTER WAREHOUSE IF EXISTS "{snowflake_warehouse}" RESUME IF SUSPENDED',
+            )
+
             write_pandas(
                 conn,
                 driver_df,
