@@ -24,7 +24,7 @@ def test_create_batch_feature_view():
         source=batch_source,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         BatchFeatureView(
             name="test batch feature view", entities=[], ttl=timedelta(days=30)
         )
