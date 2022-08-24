@@ -328,12 +328,12 @@ Cassandra Online Store
 Batch Materialization Engine
 ============================
 
-.. automodule:: feast.infra.materialization
+.. automodule:: feast.infra.materialization.batch_materialization_engine
     :members: BatchMaterializationEngine, MaterializationJob, MaterializationTask
 
 Local Engine
 ------------
-.. autoclass:: feast.infra.materialization.LocalMaterializationEngine
+.. autoclass:: feast.infra.materialization.local_engine.LocalMaterializationEngine
     :members:
     :noindex:
 

@@ -13,7 +13,7 @@ from tqdm import tqdm
 from feast import FeatureView, RepoConfig
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
-from feast.infra.materialization import (
+from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
     MaterializationTask,
