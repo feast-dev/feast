@@ -4,7 +4,7 @@
 
 <h1>Maintainer's Guide</h1>
 
-> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers.
+> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers. Normal developers can also use this guide to setup their forks for localized integration tests.
 
 <h2>Table of Contents</h2>
 
@@ -122,7 +122,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 Setting up your development environment for Feast Python SDK / CLI:
 1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
    1. Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
-2. Ensure that you have `make`, Python (3.7 and above) with `pip`, installed.
+2. Ensure that you have `make`, Python (3.8 and above) with `pip`, installed.
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
 # create & activate a virtual environment
@@ -144,6 +144,8 @@ make build-ui
 ```sh
 pip install -e ".[dev]"
 ```
+
+This will allow the installed feast version to automatically reflect changes to your local development version of Feast without needing to reinstall everytime you make code changes.
 
 ### Code Style & Linting
 Feast Python SDK / CLI codebase:
@@ -335,10 +337,10 @@ Not all tests are passing yet
 You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
 
 #### (Contrib) Running tests for Postgres offline store
-TODO
+You can run `test-python-universal-postgres-offline` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
 
 #### (Contrib) Running tests for Postgres online store
-TODO
+You can run `test-python-universal-postgres-online` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
 
 #### (Contrib) Running tests for HBase online store
 TODO
@@ -387,7 +389,7 @@ Setting up your development environment for Feast Go SDK:
 ### Building
 Build the Feast Go Client with the `go` toolchain:
 ```sh
-make go build
+make compile-go-lib
 ```
 
 ### Code Style & Linting
@@ -410,19 +412,9 @@ go vet
 ### Unit Tests
 Unit tests for the Feast Go Client can be run as follows:
 ```sh
-go test
+make test-go
 ```
 
 ### Testing with Github Actions workflows
-* Update your current master on your forked branch and make a pull request against your own forked master.
-* Enable workflows by going to actions and clicking `Enable Workflows`.
-    * Pushes will now run your edited workflow yaml file against your test code.
-    * Unfortunately, in order to test any github workflow changes, you must push the code to the branch and see the output in the actions tab.
 
-## Issues
-* pr-integration-tests workflow is skipped
-    * Add `ok-to-test` github label.
-* pr-integration-tests errors out with `Error: fatal: invalid refspec '+refs/pull//merge:refs/remotes/pull//merge'`
-    * This is because github actions cannot pull the branch version for some reason so just find your PR number in your pull request header and hard code it into the `uses: actions/checkout@v2` section (i.e replace `refs/pull/${{ github.event.pull_request.number }}/merge` with `refs/pull/<pr number>/merge`)
-* AWS/GCP workflow
-    * Currently still cannot test GCP/AWS workflow without setting up secrets in a forked repository.
+Please refer to the maintainers [doc](./docs/project/maintainers.md) if you would like to locally test out the github actions workflow changes. This document will help you setup your fork to test the ci integration tests and other workflows without needing to make a pull request against feast-dev master.
