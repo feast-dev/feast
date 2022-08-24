@@ -15,4 +15,6 @@ __all__ = [
     "BatchMaterializationEngine",
     "LocalMaterializationEngine",
     "LocalMaterializationJob",
+    "SnowflakeMaterializationEngine",
+    "SnowflakeMaterializationJob",
 ]
