@@ -4,12 +4,12 @@
 
 <h1>Maintainer's Guide</h1>
 
-> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers. Normal developers can also use this guide to setup their forks for localized integrationt tests.
+> Please see [Maintainer's Guide](https://docs.feast.dev/project/maintainers) for instructions for maintainers. Normal developers can also use this guide to setup their forks for localized integration tests.
 
 <h2>Table of Contents</h2>
 
 - [Overview](#overview)
-- [Community](#community)a
+- [Community](#community)
 - [Making a pull request](#making-a-pull-request)
   - [Pull request checklist](#pull-request-checklist)
   - [Forking the repo](#forking-the-repo)
