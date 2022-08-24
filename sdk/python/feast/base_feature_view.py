@@ -35,8 +35,8 @@ class BaseFeatureView(ABC):
             maintainer.
         projection: The feature view projection storing modifications to be applied to
             this base feature view at retrieval time.
-        created_timestamp (optional): The time when the base feature view was created.
-        last_updated_timestamp (optional): The time when the base feature view was last
+        created_timestamp: The time when the base feature view was created.
+        last_updated_timestamp: The time when the base feature view was last
             updated.
     """
 
