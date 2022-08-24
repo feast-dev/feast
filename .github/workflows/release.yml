@@ -92,10 +92,10 @@ jobs:
       with:
         node-version: '16'
     - name: Release (Dry Run)
-      if: github.event.inputs.dry_run == 'true' && always() # Temporary fix to make sure the release runs
+      if: github.event.inputs.dry_run == 'true'
       run: |
         npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
     - name: Release
-      if: github.event.inputs.dry_run == 'false' &&
+      if: github.event.inputs.dry_run == 'false' &&  always() # Temporary fix to make sure the release runs
       run: |
         npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
