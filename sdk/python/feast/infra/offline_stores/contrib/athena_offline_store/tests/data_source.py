@@ -42,6 +42,11 @@ class AthenaDataSourceCreator(DataSourceCreator):
             if os.environ.get("ATHENA_DATABASE")
             else "default"
         )
+        workgroup = (
+            os.environ.get("ATHENA_WORKGROUP")
+            if os.environ.get("ATHENA_WORKGROUP")
+            else "primary"
+        )
         bucket_name = (
             os.environ.get("ATHENA_S3_BUCKET_NAME")
             if os.environ.get("ATHENA_S3_BUCKET_NAME")
@@ -54,6 +59,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
             data_source=data_source,
             region=region,
             database=database,
+            workgroup=workgroup,
             s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
 
@@ -83,6 +89,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
             self.client,
             self.offline_store_config.data_source,
             self.offline_store_config.database,
+            self.offline_store_config.workgroup,
             self.s3,
             s3_target,
             table_name,
@@ -132,5 +139,6 @@ class AthenaDataSourceCreator(DataSourceCreator):
                 self.client,
                 self.offline_store_config.data_source,
                 self.offline_store_config.database,
+                self.offline_store_config.workgroup,
                 f"DROP TABLE IF EXISTS {table}",
             )

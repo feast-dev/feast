@@ -225,6 +225,7 @@ class AthenaSource(DataSource):
                 client,
                 config.offline_store.data_source,
                 config.offline_store.database,
+                config.offline_store.workgroup,
                 f"SELECT * FROM ({self.query}) LIMIT 1",
             )
             columns = aws_utils.get_athena_query_result(client, statement_id)[

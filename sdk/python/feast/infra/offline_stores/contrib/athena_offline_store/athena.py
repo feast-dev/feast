@@ -59,6 +59,9 @@ class AthenaOfflineStoreConfig(FeastConfigBaseModel):
 
     database: StrictStr
     """ Athena database name """
+    
+    workgroup: StrictStr
+    """ Athena workgroup name """
 
     s3_staging_location: StrictStr
     """ S3 path for importing & exporting data to Athena """
@@ -243,6 +246,7 @@ class AthenaOfflineStore(OfflineStore):
                     athena_client,
                     config.offline_store.data_source,
                     config.offline_store.database,
+                    config.offline_store.workgroup,
                     f"DROP TABLE IF EXISTS {config.offline_store.database}.{table_name}",
                 )
 
@@ -293,6 +297,7 @@ class AthenaOfflineStore(OfflineStore):
             athena_client=athena_client,
             data_source=config.offline_store.data_source,
             database=config.offline_store.database,
+            workgroup=config.offline_store.workgroup,
             s3_resource=s3_resource,
             s3_path=s3_path,
             table_name=destination.table_name,
@@ -378,6 +383,7 @@ class AthenaRetrievalJob(RetrievalJob):
                 self._athena_client,
                 self._config.offline_store.data_source,
                 self._config.offline_store.database,
+                self._config.offline_store.workgroup,
                 self._s3_resource,
                 temp_external_location,
                 self.get_temp_table_dml_header(temp_table_name, temp_external_location)
@@ -394,6 +400,7 @@ class AthenaRetrievalJob(RetrievalJob):
                 self._athena_client,
                 self._config.offline_store.data_source,
                 self._config.offline_store.database,
+                self._config.offline_store.workgroup,
                 self._s3_resource,
                 temp_external_location,
                 self.get_temp_table_dml_header(temp_table_name, temp_external_location)
@@ -432,6 +439,7 @@ class AthenaRetrievalJob(RetrievalJob):
                 self._athena_client,
                 self._config.offline_store.data_source,
                 self._config.offline_store.database,
+                self._config.offline_store.workgroup,
                 query,
             )
 
@@ -449,6 +457,7 @@ def _upload_entity_df(
             athena_client,
             config.offline_store.data_source,
             config.offline_store.database,
+            config.offline_store.workgroup,
             s3_resource,
             f"{config.offline_store.s3_staging_location}/entity_df/{table_name}/{table_name}.parquet",
             table_name,
@@ -460,6 +469,7 @@ def _upload_entity_df(
             athena_client,
             config.offline_store.data_source,
             config.offline_store.database,
+            config.offline_store.workgroup,
             f"CREATE TABLE {table_name} AS ({entity_df})",
         )
     else:
@@ -514,6 +524,7 @@ def _get_entity_df_event_timestamp_range(
             athena_client,
             config.offline_store.data_source,
             config.offline_store.database,
+            config.offline_store.workgroup,
             f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max "
             f"FROM ({entity_df})",
         )
