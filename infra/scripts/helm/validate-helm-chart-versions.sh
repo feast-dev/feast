@@ -3,7 +3,7 @@
 set -e
 
 # Amount of file locations that need to be bumped in unison when versions increment
-UNIQUE_VERSIONS_COUNT=20
+UNIQUE_VERSIONS_COUNT=21 # Change in release 0.24.0
 
 if [ $# -ne 1 ]; then
     echo "Please provide a single semver version (without a \"v\" prefix) to test the repository against, e.g 0.99.0"
