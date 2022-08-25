@@ -16,8 +16,17 @@ jobs:
       release_version: ${{ steps.get_release_version.outputs.release_version }}
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+      current_version: ${{ steps.check_output.outputs.current_version }}
+      next_version: ${{ steps.check_output.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
       - name: Get release version
         id: get_release_version
         run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
@@ -38,6 +47,7 @@ jobs:
             echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
           fi
       - name: Check output
+        id: check_output
         env:
           RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
@@ -46,9 +56,37 @@ jobs:
           echo $RELEASE_VERSION
           echo $VERSION_WITHOUT_PREFIX
           echo $HIGHEST_SEMVER_TAG
+          CURRENT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep "associated with version " | sed -E 's/.* version//' | sed -E 's/ on.*//')
+          NEXT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/')
+          echo ::set-output name=current_version::$CURRENT_VERSION
+          echo ::set-output name=next_version::$NEXT_VERSION
+          echo "Current version is ${CURRENT_VERSION}"
+          echo "Next version is ${NEXT_VERSION}"
+
+  build-web-ui-npm:
+    needs: get-version
+    runs-on: ubuntu-latest
+    env:
+      CURRENT_VERSION: ${{ needs.get-version.outputs.current_version }}
+      NEXT_VERSION: ${{ needs.get-version.outputs.next_version }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Bump file versions (temporarily for Web UI publish)
+        run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
 
   build-python-wheel:
     name: Build wheels on ${{ matrix.os }}
+    needs: build-web-ui-npm
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
