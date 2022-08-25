@@ -759,7 +759,9 @@ def drop_temp_table(
     athena_data_client, data_source: str, database: str, workgroup: str, temp_table: str
 ):
     query = f"DROP TABLE `{database}.{temp_table}`"
-    execute_athena_query_async(athena_data_client, data_source, database, workgroup, query)
+    execute_athena_query_async(
+        athena_data_client, data_source, database, workgroup, query
+    )
 
 
 def execute_athena_query(
@@ -793,7 +795,9 @@ def execute_athena_query(
     )
     wait_for_athena_execution(athena_data_client, execution)
     if temp_table is not None:
-        drop_temp_table(athena_data_client, data_source, database, workgroup, temp_table)
+        drop_temp_table(
+            athena_data_client, data_source, database, workgroup, temp_table
+        )
 
     return execution["QueryExecutionId"]
 
@@ -889,13 +893,13 @@ def execute_athena_query_and_unload_to_s3(
     """
 
     execute_athena_query(
-        athena_data_client=athena_data_client, 
-        data_source=data_source, 
-        database=database, 
-        workgroup=workgroup, 
-        query=query, 
+        athena_data_client=athena_data_client,
+        data_source=data_source,
+        database=database,
+        workgroup=workgroup,
+        query=query,
         temp_table=temp_table,
-        )
+    )
 
 
 def upload_df_to_athena(

@@ -59,7 +59,7 @@ class AthenaOfflineStoreConfig(FeastConfigBaseModel):
 
     database: StrictStr
     """ Athena database name """
-    
+
     workgroup: StrictStr
     """ Athena workgroup name """
 

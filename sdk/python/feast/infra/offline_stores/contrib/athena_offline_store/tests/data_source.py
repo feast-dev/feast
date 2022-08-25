@@ -52,7 +52,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
             if os.environ.get("ATHENA_S3_BUCKET_NAME")
             else "feast-integration-tests"
         )
-        
+
         self.client = aws_utils.get_athena_data_client(region)
         self.s3 = aws_utils.get_s3_resource(region)
         self.offline_store_config = AthenaOfflineStoreConfig(
