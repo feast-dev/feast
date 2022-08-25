@@ -89,7 +89,7 @@ jobs:
             make install-go-ci-dependencies
             git status
             git restore go.mod go.sum
-            git restore sdk/
+            git restore sdk/python/feast/ui/yarn.lock
           CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
@@ -105,6 +105,7 @@ jobs:
           CIBW_BEFORE_BUILD: |
             git status
             git restore go.mod go.sum
+            git restore sdk/python/feast/ui/yarn.lock
             brew install apache-arrow
       - uses: actions/upload-artifact@v2
         with:
