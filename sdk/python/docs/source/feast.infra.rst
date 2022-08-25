@@ -7,10 +7,10 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   feast.infra.materialization
    feast.infra.offline_stores
    feast.infra.online_stores
    feast.infra.registry
+   feast.infra.transformation_servers
    feast.infra.utils
 
 Submodules
