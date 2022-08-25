@@ -138,6 +138,7 @@ jobs:
           make build-ui
           git status
           git restore go.mod go.sum
+          git restore sdk/python/feast/ui/yarn.lock
       - name: Build
         run: |
           python3 setup.py sdist
