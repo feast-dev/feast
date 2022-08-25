@@ -235,7 +235,7 @@ jobs:
       - name: Smoke test
         run: |
           feast init test_repo
-          cd test_repo/
+          cd test_repo/feature_repo
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
@@ -244,7 +244,7 @@ jobs:
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
         run: |
-          cd test_repo/
+          cd test_repo/feature_repo
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
           pip install cffi
