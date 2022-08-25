@@ -159,14 +159,16 @@ test-python-universal-mssql:
  	 sdk/python/tests
 
 
-#To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
-#Modify environment variables ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_S3_BUCKET_NAME if you want to change the data source, database, and bucket name of S3 to use.
-#If tests fail with the pytest -n 8 option, change the number to 1.
+# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
+# https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
+# Modify environment variables ATHENA_REGION, ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_S3_BUCKET_NAME 
+# according to your needs. If tests fail with the pytest -n 8 option, change the number to 1.
 test-python-universal-athena:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
  	FEAST_USAGE=False IS_TEST=True \
+	ATHENA_REGION=ap-northeast-2 \
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
 	ATHENA_S3_BUCKET_NAME=feast-integration-tests \

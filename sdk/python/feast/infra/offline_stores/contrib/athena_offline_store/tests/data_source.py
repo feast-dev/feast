@@ -27,8 +27,11 @@ class AthenaDataSourceCreator(DataSourceCreator):
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        self.client = aws_utils.get_athena_data_client("ap-northeast-2")
-        self.s3 = aws_utils.get_s3_resource("ap-northeast-2")
+        region = (
+            os.environ.get("ATHENA_REGION")
+            if os.environ.get("ATHENA_REGION")
+            else "ap-northeast-2"
+        )
         data_source = (
             os.environ.get("ATHENA_DATA_SOURCE")
             if os.environ.get("ATHENA_DATA_SOURCE")
@@ -44,10 +47,13 @@ class AthenaDataSourceCreator(DataSourceCreator):
             if os.environ.get("ATHENA_S3_BUCKET_NAME")
             else "feast-integration-tests"
         )
+        
+        self.client = aws_utils.get_athena_data_client(region)
+        self.s3 = aws_utils.get_s3_resource(region)
         self.offline_store_config = AthenaOfflineStoreConfig(
-            data_source=f"{data_source}",
-            region="ap-northeast-2",
-            database=f"{database}",
+            data_source=data_source,
+            region=region,
+            database=database,
             s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
 
