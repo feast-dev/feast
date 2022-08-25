@@ -27,31 +27,12 @@ class AthenaDataSourceCreator(DataSourceCreator):
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        region = (
-            os.environ.get("ATHENA_REGION")
-            if os.environ.get("ATHENA_REGION")
-            else "ap-northeast-2"
-        )
-        data_source = (
-            os.environ.get("ATHENA_DATA_SOURCE")
-            if os.environ.get("ATHENA_DATA_SOURCE")
-            else "AwsDataCatalog"
-        )
-        database = (
-            os.environ.get("ATHENA_DATABASE")
-            if os.environ.get("ATHENA_DATABASE")
-            else "default"
-        )
-        workgroup = (
-            os.environ.get("ATHENA_WORKGROUP")
-            if os.environ.get("ATHENA_WORKGROUP")
-            else "primary"
-        )
-        bucket_name = (
-            os.environ.get("ATHENA_S3_BUCKET_NAME")
-            if os.environ.get("ATHENA_S3_BUCKET_NAME")
-            else "feast-integration-tests"
-        )
+
+        region = os.getenv("ATHENA_REGION", "ap-northeast-2")
+        data_source = os.getenv("ATHENA_DATA_SOURCE", "AwsDataCatalog")
+        database = os.getenv("ATHENA_DATABASE", "default")
+        workgroup = os.getenv("ATHENA_WORKGROUP", "primary")
+        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-integration-tests")
 
         self.client = aws_utils.get_athena_data_client(region)
         self.s3 = aws_utils.get_s3_resource(region)
