@@ -125,8 +125,6 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-sdk/python/docs/source
-sdk/python/docs/html
 
 # PyBuilder
 target/
@@ -186,6 +184,7 @@ dmypy.json
 *.code-workspace
 
 # Protos
+sdk/python/docs/html
 sdk/python/feast/protos/
 sdk/go/protos/
 go/protos/
