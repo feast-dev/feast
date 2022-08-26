@@ -125,6 +125,11 @@ Within `go/`, the `internal/feast/` directory contains most of the core logic:
 Feast uses [protobuf](https://github.com/protocolbuffers/protobuf) to store serialized versions of the core Feast objects.
 The protobuf definitions are stored in `protos/feast`.
 
+The [registry](../getting-started/concepts/registry.md) consists of the serialized representations of the Feast objects.
+
+Typically, changes being made to the Feast objects require changes to their corresponding protobuf representations. 
+The usual best practices for making changes to protobufs should be followed ensure backwards and forwards compatibility.
+
 ## Web UI
 
 The `ui/` directory contains the Web UI.
