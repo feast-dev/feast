@@ -334,7 +334,11 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
             )
 
             if feature_value_type_name == "UNIX_TIMESTAMP":
-                feature_sql = f'{feature_sql}(DATE_PART(EPOCH_NANOSECOND, "{feature.name}")) AS "{feature.name}"'
+                feature_sql = f'{feature_sql}(DATE_PART(EPOCH_NANOSECOND, "{feature.name}"::TIMESTAMP_LTZ)) AS "{feature.name}"'
+            elif feature_value_type_name == "DOUBLE":
+                feature_sql = (
+                    f'{feature_sql}("{feature.name}"::DOUBLE) AS "{feature.name}"'
+                )
             else:
                 feature_sql = f'{feature_sql}("{feature.name}") AS "{feature.name}"'
 
