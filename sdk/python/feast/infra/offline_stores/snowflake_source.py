@@ -264,18 +264,17 @@ class SnowflakeSource(DataSource):
                             ]
                         else:
                             raise NotImplementedError(
-                                "Numbers larger than INT64 are not supported"
+                                "NaNs or Numbers larger than INT64 are not supported"
                             )
                 else:
-                    raise NotImplementedError(
-                        "The following Snowflake Data Type is not supported: DECIMAL -- Convert to DOUBLE"
-                    )
-            elif row["type_code"] in [3, 5, 9, 10, 12]:
+                    row["snowflake_type"] = "NUMBERwSCALE"
+
+            elif row["type_code"] in [5, 9, 10, 12]:
                 error = snowflake_unsupported_map[row["type_code"]]
                 raise NotImplementedError(
                     f"The following Snowflake Data Type is not supported: {error}"
                 )
-            elif row["type_code"] in [1, 2, 4, 6, 7, 8, 11, 13]:
+            elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 11, 13]:
                 row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
             else:
                 raise NotImplementedError(
@@ -291,6 +290,7 @@ snowflake_type_code_map = {
     0: "NUMBER",
     1: "DOUBLE",
     2: "VARCHAR",
+    3: "DATE",
     4: "TIMESTAMP",
     6: "TIMESTAMP_LTZ",
     7: "TIMESTAMP_TZ",
@@ -300,7 +300,6 @@ snowflake_type_code_map = {
 }
 
 snowflake_unsupported_map = {
-    3: "DATE -- Convert to TIMESTAMP",
     5: "VARIANT -- Try converting to VARCHAR",
     9: "OBJECT -- Try converting to VARCHAR",
     10: "ARRAY -- Try converting to VARCHAR",
