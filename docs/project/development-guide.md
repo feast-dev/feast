@@ -1,4 +1,4 @@
-# Development Guide: Main Feast Repository<
+# Development Guide: Main Feast Repository
 
 ## Table of Contents
 
@@ -45,14 +45,14 @@ the main Feast repository:
 - [Feast Java Serving](#feast-java-serving)
 - [Feast Go Client](#feast-go-client)
 
-Please see [this page](https://docs.feast.dev/reference/codebase-structure) for more details on the structure of the entire codebase.
+Please see [this page](../reference/codebase-structure.md) for more details on the structure of the entire codebase.
 
 ## Compatibility
 
-The Feast project 
+The compatibility policy for Feast can be found [here](compatibility.md), and should be followed for all changes proposed, by maintainers or contributors.
 
 ## Community
-See [Contribution process](https://docs.feast.dev/project/contributing) and [Community](https://docs.feast.dev/community) for details on how to get more involved in the community.
+See [Contribution process](./contributing.md) and [Community](../community.md) for details on how to get more involved in the community.
 
 A quick few highlights:
 - [RFCs](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA)
@@ -64,7 +64,9 @@ A quick few highlights:
 ## Making a pull request
 We use the convention that the assignee of a PR is the person with the next action.
 
-This means that often, the assignee may be empty (if no reviewer has been found yet), the reviewer, or the PR writer if there are comments to be addressed.
+If the assignee is empty it means that no reviewer has been found yet. 
+If a reviewer has been found, they should also be the assigned the PR. 
+Finally, if there are comments to be addressed, the PR author should be the one assigned the PR.
 
 ### Pull request checklist
 A quick list of things to keep in mind as you're making changes:
