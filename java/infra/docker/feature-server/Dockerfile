@@ -2,7 +2,7 @@
 # Build stage 1: Builder
 # ============================================================
 
-FROM maven:3.6-jdk-11 as builder
+FROM maven:3-jdk-11 as builder
 
 WORKDIR /build
 
