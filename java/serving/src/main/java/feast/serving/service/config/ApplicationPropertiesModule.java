@@ -16,6 +16,7 @@
  */
 package feast.serving.service.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -40,6 +41,7 @@ public class ApplicationPropertiesModule extends AbstractModule {
     ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     mapper.findAndRegisterModules();
     mapper.setDefaultMergeable(Boolean.TRUE);
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     ApplicationProperties properties = new ApplicationProperties();
     ObjectReader objectReader = mapper.readerForUpdating(properties);
