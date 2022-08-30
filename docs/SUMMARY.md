@@ -120,6 +120,7 @@
 
 * [Contribution process](project/contributing.md)
 * [Development guide](project/development-guide.md)
+* [Backwards Compatibility Policy](project/compatibility.md)
   * [Maintainer Docs](project/maintainers.md)
 * [Versioning policy](project/versioning-policy.md)
 * [Release process](project/release-process.md)
