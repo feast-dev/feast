@@ -160,8 +160,8 @@ class SparkSource(DataSource):
         )
         df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
         return (
-            (fields["name"], fields["type"])
-            for fields in df.schema.jsonValue()["fields"]
+            (field.name, field.dataType.simpleString())
+            for field in df.schema
         )
 
     def get_table_query_string(self) -> str:
