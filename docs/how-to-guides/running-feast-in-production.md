@@ -81,7 +81,7 @@ batch_engine:
 
 
 
-### 2.1. Manual materialization
+### 2.2 Manual materialization
 
 The simplest way to schedule materialization is to run an **incremental** materialization using the Feast CLI:
 
@@ -103,7 +103,7 @@ In the above example we are materializing the source data from the `driver_hourl
 
 The timestamps above should match the interval of data that has been computed by the data transformation system.
 
-### 2.2. Automate periodic materialization
+### 2.3 Automate periodic materialization
 
 It is up to you which orchestration/scheduler to use to periodically run `$ feast materialize`. Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron). Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently. However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory. In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers. Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
 
