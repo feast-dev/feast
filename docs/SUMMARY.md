@@ -1,7 +1,7 @@
 # Table of contents
 
 * [Introduction](README.md)
-* [Community & Getting Help](community.md)
+* [Community & getting help](community.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
