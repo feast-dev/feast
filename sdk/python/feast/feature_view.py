@@ -155,10 +155,10 @@ class FeatureView(BaseFeatureView):
         features: List[Field] = []
         self.entity_columns = []
 
-        join_keys = []
+        join_keys: List[str] = []
         if entities:
             for entity in entities:
-                join_keys += entity.join_keys
+                join_keys.append(entity.join_key)
 
         for field in self.schema:
             if field.name in join_keys:

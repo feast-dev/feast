@@ -115,15 +115,11 @@ def update_feature_views_with_inferred_features_and_entities(
         config: The config for the current feature store.
     """
     entity_name_to_entity_map = {e.name: e for e in entities}
-    entity_name_to_join_keys_map = {e.name: e.join_keys for e in entities}
+    entity_name_to_join_key_map = {e.name: e.join_key for e in entities}
 
     for fv in fvs:
         join_keys = set(
-            [
-                join_key
-                for entity_name in fv.entities
-                for join_key in entity_name_to_join_keys_map[entity_name]
-            ]
+            [entity_name_to_join_key_map[entity_name] for entity_name in fv.entities]
         )
 
         # Fields whose names match a join key are considered to be entity columns; all
@@ -164,13 +160,7 @@ def update_feature_views_with_inferred_features_and_entities(
             fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
         # Run inference for entity columns if there are fewer entity fields than expected.
-        num_expected_join_keys = sum(
-            [
-                len(entity_name_to_join_keys_map[entity_name])
-                for entity_name in fv.entities
-            ]
-        )
-        run_inference_for_entities = len(fv.entity_columns) < num_expected_join_keys
+        run_inference_for_entities = len(fv.entity_columns) < len(join_keys)
 
         # Run inference for feature columns if there are no feature fields.
         run_inference_for_features = len(fv.features) == 0
