@@ -33,9 +33,6 @@ class Entity:
     Attributes:
         name: The unique name of the entity.
         value_type: The type of the entity, such as string or float.
-        join_keys: A list of properties that uniquely identifies different entities within the
-            collection. This currently only supports a list of size one, but is intended to
-            eventually support multiple join keys.
         join_key: A property that uniquely identifies different entities within the
             collection. The join_key property is typically used for joining entities
             with their associated features. If not specified, defaults to the name.
@@ -48,7 +45,6 @@ class Entity:
 
     name: str
     value_type: ValueType
-    join_keys: List[str]
     join_key: str
     description: str
     tags: Dict[str, str]
@@ -84,21 +80,17 @@ class Entity:
         self.name = name
         self.value_type = ValueType.UNKNOWN
 
-        # For now, both the `join_key` and `join_keys` attributes are set correctly,
-        # so both are usable.
-        # TODO(felixwang9817): Fully remove the usage of `join_key` throughout the codebase,
-        # at which point the `join_key` attribute no longer needs to be set.
         if join_keys and len(join_keys) > 1:
+            # TODO(felixwang9817): When multiple join keys are supported, add a `join_keys` attribute
+            # and deprecate the `join_key` attribute.
             raise ValueError(
-                "An entity may only have single join key. "
+                "An entity may only have a single join key. "
                 "Multiple join keys will be supported in the future."
             )
         elif join_keys and len(join_keys) == 1:
-            self.join_keys = join_keys
             self.join_key = join_keys[0]
         else:
             self.join_key = self.name
-            self.join_keys = [self.join_key]
 
         self.description = description
         self.tags = tags if tags is not None else {}
