@@ -9,9 +9,13 @@ Overview of typical production configuration is given below:
 ![Overview](production-simple.png)
 
 {% hint style="success" %}
-**Important note:** Feast is highly customizable and modular. Most Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration.
+**Important note:** Feast is highly customizable and modular.
+
+Most Feast blocks are loosely connected and can be used independently. Hence, you are free to build your own production configuration.
 
 For example, you might not have a stream source and, thus, no need to write features in real-time to an online store. Or you might not need to retrieve online features. Feast also often provides multiple options to achieve the same goal. We discuss tradeoffs below.
+
+Additionally, please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
 In this guide we will show you how to:
@@ -24,15 +28,19 @@ In this guide we will show you how to:
 
 ## 1. Automatically deploying changes to your feature definitions
 
-### Setting up a feature repository
+### 1.1 Setting up a feature repository
 
 The first step to setting up a deployment of Feast is to create a Git repository that contains your feature definitions. The recommended way to version and track your feature definitions is by committing them to a repository and tracking changes through commits. If you recall, running `feast apply` commits feature definitions to a **registry**, which users can then read elsewhere.
 
-### Setting up CI/CD to automatically update the registry
+### 1.2 Setting up a database-backed registry
+
+Out of the box, Feast serializes all of its state into a file-based registry. When running Feast in production, we recommend using the more scalable SQL-based registry that is backed by a database. Details are available [here](./scaling-feast.md#scaling-feast-registry).
+
+### 1.3 Setting up CI/CD to automatically update the registry
 
 We recommend typically setting up CI/CD to automatically run `feast plan` and `feast apply` when pull requests are opened / merged.
 
-### Setting up multiple environments
+### 1.4 Setting up multiple environments
 
 A common scenario when using Feast in production is to want to test changes to Feast object definitions. For this, we recommend setting up a _staging_ environment for your offline and online stores, which mirrors _production_ (with potentially a smaller data set).
 Having this separate environment allows users to test changes by first applying them to staging, and then promoting the changes to production after verifying the changes on staging.
@@ -43,7 +51,37 @@ Different options are presented in the [how-to guide](structuring-repos.md).
 
 To keep your online store up to date, you need to run a job that loads feature data from your feature view sources into your online store. In Feast, this loading operation is called materialization.
 
-### 2.1. Manual materializations
+### 2.1 Scalable Materialization
+
+Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
+
+This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
+In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as the [Bytewax Materialization Engine](../reference/batch-materialization/bytewax.md), or the [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
+Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
+
+The Bytewax materialization engine can run materialization on existing kubernetes cluster. An example configuration of this in a `feature_store.yaml` is as follows:
+
+```yaml
+batch_engine:
+  type: bytewax
+  namespace: bytewax
+  image: bytewax/bytewax-feast:latest
+  env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: aws-credentials
+          key: aws-access-key-id
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: aws-credentials
+          key: aws-secret-access-key
+```
+
+
+
+### 2.2 Manual materialization
 
 The simplest way to schedule materialization is to run an **incremental** materialization using the Feast CLI:
 
@@ -53,7 +91,7 @@ feast materialize-incremental 2022-01-01T00:00:00
 
 The above command will load all feature values from all feature view sources into the online store up to the time `2022-01-01T00:00:00`.
 
-A timestamp is required to set the end date for materialization. If your source is fully up to date then the end date would be the current time. However, if you are querying a source where data is not yet available, then you do not want to set the timestamp to the current time. You would want to use a timestamp that ends at a date for which data is available. The next time `materialize-incremental` is run, Feast will load data that starts from the previous end date, so it is important to ensure that the materialization interval does not overlap with time periods for which data has not been made available. This is commonly the case when your source is an ETL pipeline that is scheduled on a daily basis.
+A timestamp is required to set the end date for materialization. If your source is fully up-to-date then the end date would be the current time. However, if you are querying a source where data is not yet available, then you do not want to set the timestamp to the current time. You would want to use a timestamp that ends at a date for which data is available. The next time `materialize-incremental` is run, Feast will load data that starts from the previous end date, so it is important to ensure that the materialization interval does not overlap with time periods for which data has not been made available. This is commonly the case when your source is an ETL pipeline that is scheduled on a daily basis.
 
 An alternative approach to incremental materialization (where Feast tracks the intervals of data that need to be ingested), is to call Feast directly from your scheduler like Airflow. In this case, Airflow is the system that tracks the intervals that have been ingested.
 
@@ -65,13 +103,15 @@ In the above example we are materializing the source data from the `driver_hourl
 
 The timestamps above should match the interval of data that has been computed by the data transformation system.
 
-### 2.2. Automate periodic materializations
+### 2.3 Automate periodic materialization
 
 It is up to you which orchestration/scheduler to use to periodically run `$ feast materialize`. Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron). Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently. However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory. In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers. Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
 
 If you are using Airflow as a scheduler, Feast can be invoked through the [BashOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
 
 ```python
+import datetime
+
 materialize = BashOperator(
     task_id='materialize',
     bash_command=f'feast materialize-incremental {datetime.datetime.now().replace(microsecond=0).isoformat()}',
@@ -82,6 +122,8 @@ materialize = BashOperator(
 Important note: Airflow worker must have read and write permissions to the registry file on GS / S3 since it pulls configuration and updates materialization history.
 {% endhint %}
 
+
+
 ## 3. How to use Feast for model training
 
 After we've defined our features and data sources in the repository, we can generate training datasets.
@@ -91,6 +133,8 @@ The first thing we need to do in our training code is to create a `FeatureStore`
 One way to ensure your production clients have access to the feature store is to provide a copy of the `feature_store.yaml` to those pipelines. This `feature_store.yaml` file will have a reference to the feature store registry, which allows clients to retrieve features from offline or online stores.
 
 ```python
+from feast import FeatureStore
+
 fs = FeatureStore(repo_path="production/")
 ```
 
@@ -114,11 +158,12 @@ model = ml.fit(training_df)
 The most common way to productionize ML models is by storing and versioning models in a "model store", and then deploying these models into production. When using Feast, it is recommended that the list of feature references also be saved alongside the model. This ensures that models and the features they are trained on are paired together when being shipped into production:
 
 ```python
+import json
 # Save model
 model.save('my_model.bin')
 
 # Save features
-open('feature_refs.json', 'w') as f:
+with open('feature_refs.json', 'w') as f:
     json.dump(feature_refs, f)
 ```
 
@@ -217,6 +262,10 @@ from feast import FeatureStore
 
 store = FeatureStore(...)
 
+spark = SparkSession.builder.getOrCreate()
+
+streamingDF = spark.readStream.format(...).load()
+
 def feast_writer(spark_df):
     pandas_df = spark_df.to_pandas()
     store.push("driver_hourly_stats", pandas_df)
@@ -230,15 +279,7 @@ Alternatively, if you want to ingest features directly from a broker (eg, Kafka 
 
 If you are using Kafka, [HTTP Sink](https://docs.confluent.io/kafka-connect-http/current/overview.html) could be utilized as a middleware. In this case, the "push service" can be deployed on Kubernetes or as a Serverless function.
 
-## 6. Monitoring
-
-Feast services can report their metrics to a StatsD-compatible collector. To activate this function, you'll need to provide a StatsD IP address and a port when deploying the helm chart (in future, this will be added to `feature_store.yaml`).
-
-We use an [InfluxDB-style extension](https://github.com/prometheus/statsd\_exporter#tagging-extensions) for StatsD format to be able to send tags along with metrics. Keep that in mind while selecting the collector ([telegraph](https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd) will work for sure).
-
-We chose StatsD since it's a de-facto standard with various implementations (eg, [1](https://github.com/prometheus/statsd\_exporter), [2](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/statsd/README.md)) and metrics can be easily exported to Prometheus, InfluxDB, AWS CloudWatch, etc.
-
-## 7. Using environment variables in your yaml configuration
+## 6. Using environment variables in your yaml configuration
 
 You might want to dynamically set parts of your configuration from your environment. For instance to deploy Feast to production and development with the same configuration, but a different server. Or to inject secrets without exposing them in your git repo. To do this, it is possible to use the `${ENV_VAR}` syntax in your `feature_store.yaml` file. For instance:
 
@@ -268,30 +309,16 @@ online_store:
 
 Summarizing it all together we want to show several options of architecture that will be most frequently used in production:
 
-### Option #1 (currently preferred)
+### Current Recommendation 
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from the feature repo to the Feast registry
 * Airflow manages materialization jobs to ingest data from DWH to the online store periodically
 * For the stream ingestion Feast Python SDK is used in the existing Spark / Beam pipeline
-* Online features are served via either a Python feature server or a high performance Go feature server
-  * The Go feature server can be deployed on a Kubernetes cluster (via Helm charts)
+* For Batch Materialization Engine:
+  * If your offline and online workloads are in Snowflake, the Snowflake Engine is likely the best option.
+  * If your offline and online workloads are not using Snowflake, but using Kubernetes is an option, the Bytewax engine is likely the best option.
+  * If none of these engines suite your needs, you may continue using the in-process engine, or write a custom engine.
+* Online features are served via the Python feature server over HTTP, or consumed using the Feast Python SDK.
 * Feast Python SDK is called locally to generate a training dataset
 
-![From Repository to Production: Feast Production Architecture](production-spark.png)
-
-### Option #2 _(still in development)_
-
-Same as Option #1, except:
-
-* Push service is deployed as AWS Lambda / Google Cloud Run and is configured as a sink for Kinesis or PubSub to ingest features directly from a stream broker. Lambda / Cloud Run is being managed by Feast SDK (from CI environment)
-* Materialization jobs are managed inside Kubernetes via Kubernetes Job (currently not managed by Helm)
-
-![With Push Service as Lambda](production-lambda.png)
-
-### Option #3 _(still in development)_
-
-Same as Option #2, except:
-
-* Push service is deployed on Kubernetes cluster and exposes an HTTP API that can be used as a sink for Kafka (via kafka-http connector) or accessed directly.
-
-![With Push Service in Kubernetes](production-kube.png)
+![From Repository to Production: Feast Production Architecture](production-spark-bytewax.png)
