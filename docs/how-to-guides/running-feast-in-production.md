@@ -1,4 +1,4 @@
-from pyspark.sql import SparkSession# Running Feast in production
+# Running Feast in production
 
 ## Overview
 
@@ -309,7 +309,7 @@ online_store:
 
 Summarizing it all together we want to show several options of architecture that will be most frequently used in production:
 
-### Current Suggestions 
+### Current Recommendation 
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from the feature repo to the Feast registry
 * Airflow manages materialization jobs to ingest data from DWH to the online store periodically
