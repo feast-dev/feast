@@ -59,12 +59,6 @@ driver_stats_fv = FeatureView(
     tags={"team": "driver_performance"},
 )
 
-# Defines a way to push data (to be available offline, online or both) into Feast.
-driver_stats_push_source = PushSource(
-    name="driver_stats_push_source",
-    batch_source=driver_stats_source,
-)
-
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
@@ -102,4 +96,27 @@ driver_activity_v1 = FeatureService(
 )
 driver_activity_v2 = FeatureService(
     name="driver_activity_v2", features=[driver_stats_fv, transformed_conv_rate]
+)
+
+# Defines a way to push data (to be available offline, online or both) into Feast.
+driver_stats_push_source = PushSource(
+    name="driver_stats_push_source",
+    batch_source=driver_stats_source,
+)
+
+# Defines a slightly modified version of the feature view from above, where the source
+# has been changed to the push source. This allows fresh features to be directly pushed
+# to the online store for this feature view.
+driver_stats_fresh_fv = FeatureView(
+    name="driver_hourly_stats_fresh",
+    entities=[driver],
+    ttl=timedelta(days=1),
+    schema=[
+        Field(name="conv_rate", dtype=Float32),
+        Field(name="acc_rate", dtype=Float32),
+        Field(name="avg_daily_trips", dtype=Int64),
+    ],
+    online=True,
+    source=driver_stats_push_source,  # Changed from above
+    tags={"team": "driver_performance"},
 )
