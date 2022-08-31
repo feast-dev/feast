@@ -1,25 +1,5 @@
 # Running Feast in production
 
-- [Running Feast in production](#running-feast-in-production)
-  - [Overview](#overview)
-  - [1. Automatically deploying changes to your feature definitions](#1-automatically-deploying-changes-to-your-feature-definitions)
-    - [1.1 Setting up a feature repository](#11-setting-up-a-feature-repository)
-    - [1.2 Setting up a database-backed registry](#12-setting-up-a-database-backed-registry)
-    - [1.3 Setting up CI/CD to automatically update the registry](#13-setting-up-cicd-to-automatically-update-the-registry)
-    - [1.4 Setting up multiple environments](#14-setting-up-multiple-environments)
-  - [2. How to load data into your online store and keep it up to date](#2-how-to-load-data-into-your-online-store-and-keep-it-up-to-date)
-    - [2.1 Scalable Materialization](#21-scalable-materialization)
-    - [2.2 Scheduled materialization](#22-scheduled-materialization)
-    - [2.3 Stream feature ingestion](#23-stream-feature-ingestion)
-  - [3. How to use Feast for model training](#3-how-to-use-feast-for-model-training)
-    - [3.1. Generating training data](#31-generating-training-data)
-    - [3.2 Versioning features that power ML models](#32-versioning-features-that-power-ml-models)
-  - [4. Retrieving online features for prediction](#4-retrieving-online-features-for-prediction)
-    - [4.1. Use the Python SDK within an existing Python service](#41-use-the-python-sdk-within-an-existing-python-service)
-    - [4.2. Deploy Feast feature servers on Kubernetes](#42-deploy-feast-feature-servers-on-kubernetes)
-  - [5. Using environment variables in your yaml configuration](#5-using-environment-variables-in-your-yaml-configuration)
-  - [Summary](#summary)
-
 ## Overview
 
 After learning about Feast concepts and playing with Feast locally, you're now ready to use Feast in production. This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise.
