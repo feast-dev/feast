@@ -24,7 +24,6 @@
   * [Online store](getting-started/architecture-and-components/online-store.md)
   * [Batch Materialization Engine](getting-started/architecture-and-components/batch-materialization-engine.md)
   * [Provider](getting-started/architecture-and-components/provider.md)
-* [Learning by example](getting-started/feast-workshop.md)
 * [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
