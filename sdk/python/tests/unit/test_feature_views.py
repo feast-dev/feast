@@ -15,6 +15,20 @@ from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
 
 
+def test_create_feature_view_with_conflicting_entities():
+    user1 = Entity(name="user1", join_keys=["user_id"])
+    user2 = Entity(name="user2", join_keys=["user_id"])
+    batch_source = FileSource(path="some path")
+
+    with pytest.raises(ValueError):
+        _ = FeatureView(
+            name="test",
+            entities=[user1, user2],
+            ttl=timedelta(days=30),
+            source=batch_source,
+        )
+
+
 def test_create_batch_feature_view():
     batch_source = FileSource(path="some path")
     BatchFeatureView(

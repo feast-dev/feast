@@ -135,8 +135,7 @@ def update_feature_views_with_inferred_features_and_entities(
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
 
-        # Since the `value_type` parameter has not yet been fully deprecated for
-        # entities, we respect the `value_type` attribute if it still exists.
+        # Respect the `value_type` attribute of the entity, if it is specified.
         for entity_name in fv.entities:
             entity = entity_name_to_entity_map[entity_name]
             if (
