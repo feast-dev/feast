@@ -353,6 +353,15 @@ Redis Online Store
 .. autoclass:: feast.infra.online_stores.redis.RedisOnlineStoreConfig
     :members:
 
+Snowflake Online Store
+------------------
+
+.. autoclass:: feast.infra.online_stores.snowflake.SnowflakeOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.snowflake.SnowflakeOnlineStoreConfig
+    :members:
+
 PostgreSQL Online Store
 -----------------------
 
