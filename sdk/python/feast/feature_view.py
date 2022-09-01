@@ -35,7 +35,9 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.types import from_value_type
 from feast.usage import log_exceptions
+from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -115,6 +117,7 @@ class FeatureView(BaseFeatureView):
                 If a stream source, the source should contain a batch_source for backfills & batch materialization.
             schema (optional): The schema of the feature view, including feature, timestamp,
                 and entity columns.
+            # TODO: clarify that schema is only useful here...
             entities (optional): The list of entities with which this group of features is associated.
             ttl (optional): The amount of time this group of features lives. A ttl of 0 indicates that
                 this group of features lives forever. Note that large ttl's or a ttl of 0
@@ -160,9 +163,29 @@ class FeatureView(BaseFeatureView):
             for entity in entities:
                 join_keys.append(entity.join_key)
 
+        # Ensure that entities have unique join keys.
+        if len(set(join_keys)) < len(join_keys):
+            raise ValueError(
+                "A feature view should not have entities that share a join key."
+            )
+
         for field in self.schema:
             if field.name in join_keys:
                 self.entity_columns.append(field)
+
+                # Confirm that the inferred type matches the specified entity type, if it exists.
+                matching_entities = (
+                    [e for e in entities if e.join_key == field.name]
+                    if entities
+                    else []
+                )
+                assert len(matching_entities) == 1
+                entity = matching_entities[0]
+                if entity.value_type != ValueType.UNKNOWN:
+                    if from_value_type(entity.value_type) != field.dtype:
+                        raise ValueError(
+                            f"Entity {entity.name} has type {entity.value_type}, which does not match the inferred type {field.dtype}."
+                        )
             else:
                 features.append(field)
 
