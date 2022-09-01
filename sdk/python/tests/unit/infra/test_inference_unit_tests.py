@@ -15,6 +15,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Float64, Int64, String, UnixTimestamp
+from feast.value_type import ValueType
 from tests.utils.data_source_test_creator import prep_file_source
 
 
@@ -214,6 +215,78 @@ def test_feature_view_inference_respects_basic_inference():
     assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
     assert len(feature_view_2.entity_columns) == 2
+
+
+def test_feature_view_inference_on_entity_value_types():
+    """
+    Tests that feature view inference correctly uses the entity `value_type` attribute.
+    """
+    entity1 = Entity(
+        name="test1", join_keys=["id_join_key"], value_type=ValueType.INT64
+    )
+    file_source = FileSource(path="some path")
+    feature_view_1 = FeatureView(
+        name="test1",
+        entities=[entity1],
+        schema=[Field(name="int64_col", dtype=Int64)],
+        source=file_source,
+    )
+
+    assert len(feature_view_1.schema) == 1
+    assert len(feature_view_1.features) == 1
+    assert len(feature_view_1.entity_columns) == 0
+
+    update_feature_views_with_inferred_features_and_entities(
+        [feature_view_1],
+        [entity1],
+        RepoConfig(
+            provider="local", project="test", entity_key_serialization_version=2
+        ),
+    )
+
+    # The schema is only used as a parameter, as is therefore not updated during inference.
+    assert len(feature_view_1.schema) == 1
+
+    # Since there is already a feature specified, additional features are not inferred.
+    assert len(feature_view_1.features) == 1
+
+    # The single entity column is inferred correctly and has the expected type.
+    assert len(feature_view_1.entity_columns) == 1
+    assert feature_view_1.entity_columns[0].dtype == Int64
+
+
+def test_conflicting_entity_value_types():
+    """
+    Tests that an error is thrown when the entity value types conflict.
+    """
+    entity1 = Entity(
+        name="test1", join_keys=["id_join_key"], value_type=ValueType.INT64
+    )
+    file_source = FileSource(path="some path")
+
+    with pytest.raises(ValueError):
+        _ = FeatureView(
+            name="test1",
+            entities=[entity1],
+            schema=[
+                Field(name="int64_col", dtype=Int64),
+                Field(
+                    name="id_join_key", dtype=Float64
+                ),  # Conflicts with the defined entity
+            ],
+            source=file_source,
+        )
+
+    # There should be no error here.
+    _ = FeatureView(
+        name="test1",
+        entities=[entity1],
+        schema=[
+            Field(name="int64_col", dtype=Int64),
+            Field(name="id_join_key", dtype=Int64),  # Conflicts with the defined entity
+        ],
+        source=file_source,
+    )
 
 
 def test_feature_view_inference_on_entity_columns(simple_dataset_1):

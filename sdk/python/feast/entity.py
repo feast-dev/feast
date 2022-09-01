@@ -62,6 +62,7 @@ class Entity:
         *,
         name: str,
         join_keys: Optional[List[str]] = None,
+        value_type: Optional[ValueType] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -74,6 +75,8 @@ class Entity:
             join_keys (optional): A list of properties that uniquely identifies different entities
                 within the collection. This currently only supports a list of size one, but is
                 intended to eventually support multiple join keys.
+            value_type (optional): The type of the entity, such as string or float. If not specified,
+                it will be inferred from the schema of the underlying data source.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the entity, typically the email of the primary maintainer.
@@ -82,7 +85,7 @@ class Entity:
             ValueError: Parameters are specified incorrectly.
         """
         self.name = name
-        self.value_type = ValueType.UNKNOWN
+        self.value_type = value_type or ValueType.UNKNOWN
 
         # For now, both the `join_key` and `join_keys` attributes are set correctly,
         # so both are usable.
