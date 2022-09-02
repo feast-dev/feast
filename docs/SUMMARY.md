@@ -86,6 +86,7 @@
   * [Trino (contrib)](reference/offline-stores/trino.md)
   * [Azure Synapse + Azure SQL (contrib)](reference/offline-stores/mssql.md)
 * [Online stores](reference/online-stores/README.md)
+  * [Overview](reference/online-stores/overview.md)
   * [SQLite](reference/online-stores/sqlite.md)
   * [Snowflake](reference/online-stores/snowflake.md)
   * [Redis](reference/online-stores/redis.md)
