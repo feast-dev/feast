@@ -11,7 +11,7 @@ helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
-Install Feast
+Install Feast Feature Server on Kubernetes
 
 A base64 encoded version of the `feature_store.yaml` file is needed. Helm install example:
 ```
