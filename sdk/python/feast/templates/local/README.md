@@ -3,13 +3,15 @@ If you haven't already, check out the quickstart guide on Feast's website (http:
 uses this repo. A quick view of what's in this repository's `feature_repo/` directory:
 
 * `data/` contains raw demo parquet data
-* `example_repo.py` contains demo feature definitions
-* `feature_store.yaml` contains a demo setup configuring where data sources are
-* `test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
+* `feature_repo/example_repo.py` contains demo feature definitions
+* `feature_repo/feature_store.yaml` contains a demo setup configuring where data sources are
+* `feature_repo/test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
 
 You can run the overall workflow with `python test_workflow.py`.
 
 ## To move from this into a more production ready workflow:
+> See more details in [Running Feast in production](https://docs.feast.dev/how-to-guides/running-feast-in-production)
+
 1. First: you should start with a different Feast template, which delegates to a more scalable offline store. 
    - For example, running `feast init -t gcp`
    or `feast init -t aws` or `feast init -t snowflake`. 

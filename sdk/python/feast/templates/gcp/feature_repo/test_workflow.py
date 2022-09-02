@@ -1,3 +1,4 @@
+import random
 import subprocess
 from datetime import datetime
 
@@ -22,24 +23,29 @@ def run_demo():
     store.materialize_incremental(end_date=datetime.now())
 
     print("\n--- Online features ---")
-    fetch_online_features(store, use_feature_service=False)
+    fetch_online_features(store)
 
     print("\n--- Online features retrieved (instead) through a feature service---")
-    fetch_online_features(store, use_feature_service=True)
+    fetch_online_features(store, source="feature_service")
+
+    print(
+        "\n--- Online features retrieved (using feature service v3, which uses a feature view with a push source---"
+    )
+    fetch_online_features(store, source="push")
 
     print("\n--- Simulate a stream event ingestion of the hourly stats df ---")
     event_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001],
             "event_timestamp": [
-                datetime(2021, 5, 13, 10, 59, 42),
+                datetime.now(),
             ],
             "created": [
-                datetime(2021, 5, 13, 10, 59, 42),
+                datetime.now(),
             ],
             "conv_rate": [1.0],
-            "acc_rate": [1.0],
-            "avg_daily_trips": [1000],
+            "acc_rate": [1.0 + random.random()],
+            "avg_daily_trips": [int(1000 * random.random())],
         }
     )
     print(event_df)
@@ -48,7 +54,7 @@ def run_demo():
     store.push("driver_stats_push_source", event_df, to=PushMode.ONLINE)
 
     print("\n--- Online features again with updated values from a stream push---")
-    fetch_online_features(store, use_feature_service=True)
+    fetch_online_features(store, source="push")
 
     print("\n--- Run feast teardown ---")
     subprocess.run(["feast", "teardown"])
@@ -91,7 +97,7 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
     print(training_df.head())
 
 
-def fetch_online_features(store, use_feature_service: bool):
+def fetch_online_features(store, source: str = ""):
     entity_rows = [
         # {join_key: entity_value}
         {
@@ -105,12 +111,13 @@ def fetch_online_features(store, use_feature_service: bool):
             "val_to_add_2": 2002,
         },
     ]
-    if use_feature_service:
+    if source == "feature_service":
         features_to_fetch = store.get_feature_service("driver_activity_v1")
+    elif source == "push":
+        features_to_fetch = store.get_feature_service("driver_activity_v3")
     else:
         features_to_fetch = [
             "driver_hourly_stats:acc_rate",
-            "driver_hourly_stats:avg_daily_trips",
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
         ]
