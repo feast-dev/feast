@@ -2,7 +2,7 @@
 
 ## Overview
 
-After learning about Feast concepts and playing with Feast locally, you're now ready to use Feast in production. This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise.
+After learning about Feast concepts and playing with Feast locally, you're now ready to use Feast in production. This guide aims to help with the transition from a sandbox project to production-grade deployment in the cloud or on-premise (e.g. on Kubernetes).
 
 A typical production architecture looks like:
 
@@ -58,7 +58,7 @@ This approach may not scale to large amounts of data, which users of Feast may b
 In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as the [Bytewax Materialization Engine](../reference/batch-materialization/bytewax.md), or the [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
 Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
 
-The Bytewax materialization engine can run materialization on existing kubernetes cluster. An example configuration of this in a `feature_store.yaml` is as follows:
+The Bytewax materialization engine can run materialization on an existing Kubernetes cluster. An example configuration of this in a `feature_store.yaml` is as follows:
 
 ```yaml
 batch_engine:
