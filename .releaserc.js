@@ -40,8 +40,8 @@ module.exports = {
             // Validate the type of release we are doing
             "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
 
-            // Bump all version files and build UI / update yarn.lock
-            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui"
+            // Bump all version files and build UI / update yarn.lock / helm charts
+            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui; make build-helm-docs"
         }],
 
         ["@semantic-release/release-notes-generator", {
