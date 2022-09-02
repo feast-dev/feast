@@ -112,8 +112,17 @@ def _check_offline_and_online_features(
         full_feature_names=full_feature_names,
     ).to_dict()
 
-    if full_feature_names:
+    # Wait for materialization to occur
+    if not response_dict[f"{fv.name}__value"][0]:
+        # Deal with flake with a retry
+        time.sleep(10)
+        response_dict = fs.get_online_features(
+            [f"{fv.name}:value"],
+            [{"driver_id": driver_id}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
 
+    if full_feature_names:
         if expected_value:
             assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
             assert (
