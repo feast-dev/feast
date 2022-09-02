@@ -1,4 +1,4 @@
-# Running Feast in production
+# Running Feast in production (e.g. on Kubernetes)
 
 ## Overview
 
