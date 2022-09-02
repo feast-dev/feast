@@ -49,7 +49,7 @@
   * [Read features from the online store](how-to-guides/feast-snowflake-gcp-aws/read-features-from-the-online-store.md)
   * [Scaling Feast](how-to-guides/scaling-feast.md)
   * [Structuring Feature Repos](how-to-guides/structuring-repos.md)
-* [Running Feast in production](how-to-guides/running-feast-in-production.md)
+* [Running Feast in production (e.g. on Kubernetes)](how-to-guides/running-feast-in-production.md)
 * [Upgrading for Feast 0.20+](how-to-guides/automated-feast-upgrade.md)
 * [Customizing Feast](how-to-guides/customizing-feast/README.md)
   * [Adding a custom batch materialization engine](how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md)
