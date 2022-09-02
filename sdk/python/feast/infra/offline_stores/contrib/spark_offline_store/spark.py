@@ -324,7 +324,7 @@ class SparkRetrievalJob(RetrievalJob):
         return self.to_spark_df().toPandas()
 
     def _to_arrow_internal(self) -> pyarrow.Table:
-        """Return dataset as pyarrow Table synchronously"""    
+        """Return dataset as pyarrow Table synchronously"""
         return pyarrow.Table.from_pandas(self._to_df_internal())
 
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
