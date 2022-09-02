@@ -218,9 +218,9 @@ feature_vector = fs.get_online_features(
 
 ### 4.2. Deploy Feast feature servers on Kubernetes
 
-To deploy a Feast feature server on Kubernetes, you can use the included helm chart.
+To deploy a Feast feature server on Kubernetes, you can use the included [helm chart + tutorial](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) (which also has detailed instructions and an example tutorial).
 
-See [helm chart](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) for configuration details.
+**Basic steps**
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
 2. Add the Feast Helm repository and download the latest charts:
 
@@ -229,14 +229,14 @@ helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
-1. Run Helm Install
+3. Run Helm Install
 
 ```
 helm install feast-release feast-charts/feast-feature-server \
     --set feature_store_yaml_base64=$(base64 feature_store.yaml)    
 ```
 
-This chart will deploy a single service. The service must have read access to the registry file on cloud storage. It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+This will deploy a single service. The service must have read access to the registry file on cloud storage. It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
 
 ## 5. Using environment variables in your yaml configuration
 
