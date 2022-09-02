@@ -2,6 +2,10 @@
 
 Please see [Online Store](../../getting-started/architecture-and-components/online-store.md) for an explanation of online stores.
 
+{% content-ref url="overview.md" %}
+[overview.md](overview.md)
+{% endcontent-ref %}
+
 {% content-ref url="sqlite.md" %}
 [sqlite.md](sqlite.md)
 {% endcontent-ref %}
