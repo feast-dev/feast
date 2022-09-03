@@ -114,17 +114,27 @@ class PostgreSQLOnlineStore(OnlineStore):
                     )
                 )
 
-            cur.execute(
-                sql.SQL(
-                    """
-                    SELECT entity_key, feature_name, value, event_ts
-                    FROM {} WHERE entity_key = ANY(%s);
-                    """
-                ).format(
-                    sql.Identifier(_table_id(project, table)),
-                ),
-                (keys,),
-            )
+            if not requested_features:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT entity_key, feature_name, value, event_ts
+                        FROM {} WHERE entity_key = ANY(%s);
+                        """
+                    ).format(sql.Identifier(_table_id(project, table)),),
+                    (keys,),
+                )
+            else:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT entity_key, feature_name, value, event_ts
+                        FROM {} WHERE entity_key = ANY(%s) and feature_name = ANY(%s);
+                        """
+                    ).format(sql.Identifier(_table_id(project, table)),),
+                    (keys, requested_features),
+                )
+
 
             rows = cur.fetchall()
 
