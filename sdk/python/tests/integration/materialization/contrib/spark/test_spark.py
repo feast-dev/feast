@@ -91,8 +91,3 @@ def test_spark_materialization_consistency():
         validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
     finally:
         fs.teardown()
-
-
-if __name__ == "__main__":
-    test_spark_materialization_consistency()
-    print()
