@@ -1,26 +1,23 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import (
+    SparkDataSourceCreator,
+)
 from feast.types import Float32
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
-    RegistryLocation,
 )
 from tests.integration.feature_repos.repo_configuration import (
     construct_test_environment,
 )
-
-from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import SparkDataSourceCreator
-
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
-import pandas as pd
-import numpy as np
 
 @pytest.mark.integration
 def test_spark_materialization_consistency():
@@ -31,39 +28,34 @@ def test_spark_materialization_consistency():
             # "path": "data/online_store.db"
         },
         offline_store_creator=SparkDataSourceCreator,
-        batch_engine={
-            "type": "spark",
-            "batch_size": 10
-        }
+        batch_engine={"type": "spark", "batch_size": 10},
     )
     spark_environment = construct_test_environment(
         spark_config, None, entity_key_serialization_version=1
     )
 
     df = create_basic_driver_dataset()
-    
-    
+
     # # generate a large data set
     # now = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
-    
+
     # ts = pd.Timestamp(now).round("ms")
-    
+
     # size = 10000
     # driver_id = np.array(list(range(size)))
     # value = np.array([round(np.random.uniform(size=1)[0],3) for x in list(range(size))])
     # ts_1 = [ts - timedelta(hours=4) for x in range(size)]
     # created_ts = np.repeat(ts,repeats=size)
-    
+
     # df = pd.DataFrame({
     #     "driver_id": driver_id,
     #     "value": value,
     #     "ts_1": ts_1,
     #     "created_ts": created_ts
-        
+
     # })
     # print(df)
-    
-    
+
     ds = spark_environment.data_source_creator.create_data_source(
         df,
         spark_environment.feature_store.project,
