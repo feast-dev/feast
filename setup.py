@@ -84,6 +84,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.*,<3",
     "google-cloud-storage>=1.34.*,<3",
+    "google-cloud-bigtable>=2.11.*,<3",
 ]
 
 REDIS_REQUIRED = [

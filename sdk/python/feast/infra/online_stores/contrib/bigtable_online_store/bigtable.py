@@ -4,15 +4,17 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import google
-from feast import Entity, FeatureView
-from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto, ValueType
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from google.cloud import bigtable
 from pydantic import StrictStr
 from pydantic.typing import Literal
+
+from feast import Entity, FeatureView
 from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import ValueType
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 logger = logging.getLogger(__name__)
@@ -53,7 +55,9 @@ class BigTableOnlineStore(OnlineStore):
         bt_table = bt_instance.table(bt_table_name)
         row_keys = [compute_entity_id(entity_key) for entity_key in entity_keys]
 
-        batch_result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        batch_result: List[
+            Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = []
 
         # TODO: read all the rows in a single call instead of reading them sequentially
         for row_key in row_keys:
@@ -64,7 +68,9 @@ class BigTableOnlineStore(OnlineStore):
             if row is None:
                 continue
 
-            for feature_name, feature_values in row.cells.get(column_family_id, {}).items():
+            for feature_name, feature_values in row.cells.get(
+                column_family_id, {}
+            ).items():
                 # We only want to retrieve the latest value for each feature
                 feature_value = feature_values[0]
                 val = ValueProto()
@@ -86,7 +92,9 @@ class BigTableOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         feature_view = table
@@ -104,7 +112,9 @@ class BigTableOnlineStore(OnlineStore):
         columns_per_row = len(feature_view.features) + 2  # extra for 2 timestamps
         rows_per_write = MUTATIONS_PER_OP // columns_per_row
 
-        with futures.ThreadPoolExecutor(max_workers=BIGTABLE_CLIENT_CONNECTION_POOL_SIZE) as executor:
+        with futures.ThreadPoolExecutor(
+            max_workers=BIGTABLE_CLIENT_CONNECTION_POOL_SIZE
+        ) as executor:
             fs = []
             while data:
                 rows_to_write, data = data[:rows_per_write], data[rows_per_write:]
@@ -126,7 +136,9 @@ class BigTableOnlineStore(OnlineStore):
             bt_row = bt_table.direct_row(compute_entity_id(entity_key))
 
             for feature_name, feature_value in features.items():
-                bt_row.set_cell(column_family_id, feature_name, feature_value.SerializeToString())
+                bt_row.set_cell(
+                    column_family_id, feature_name, feature_value.SerializeToString()
+                )
             # TODO: write timestamps during materialization as well
             rows.append(bt_row)
         bt_table.mutate_rows(rows)
@@ -151,20 +163,26 @@ class BigTableOnlineStore(OnlineStore):
         assert isinstance(online_config, BigTableOnlineStoreConfig)
         client = self._get_client(online_config, admin=True)
         bt_instance = client.instance(instance_id=online_config.instance)
-        max_versions_gc_rule = bigtable.column_family.MaxVersionsGCRule(online_config.max_versions)
+        max_versions_gc_rule = bigtable.column_family.MaxVersionsGCRule(
+            online_config.max_versions
+        )
 
         for feature_view in tables_to_keep:
             table_name = self._get_table_name(config=config, feature_view=feature_view)
             table = bt_instance.table(table_name)
             if not table.exists():
-                logger.info(f"Creating table `{table_name}` in BigTable for feature view `{feature_view.name}`")
+                logger.info(
+                    f"Creating table `{table_name}` in BigTable for feature view `{feature_view.name}`"
+                )
                 table.create()
             else:
                 logger.info(f"Table {table_name} already exists in BigTable")
 
             cfs = table.list_column_families()
             if feature_view.name not in cfs:
-                table.column_family(feature_view.name, gc_rule=max_versions_gc_rule).create()
+                table.column_family(
+                    feature_view.name, gc_rule=max_versions_gc_rule
+                ).create()
 
         for feature_view in tables_to_delete:
             table_name = self._get_table_name(config=config, feature_view=feature_view)
@@ -188,11 +206,18 @@ class BigTableOnlineStore(OnlineStore):
     def _get_table_name(config: RepoConfig, feature_view: FeatureView) -> str:
         return f"{config.project}.{'-'.join(sorted(feature_view.entities))}"
 
-    def teardown(self, config: RepoConfig, tables: Sequence[FeatureView], entities: Sequence[Entity]):
+    def teardown(
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
+    ):
         # Because of historical reasons, Feast calls them tables. We use this alias for readability.
         feature_views = tables
 
-        bt_tables = {self._get_table_name(config=config, feature_view=fv) for fv in feature_views}
+        bt_tables = {
+            self._get_table_name(config=config, feature_view=fv) for fv in feature_views
+        }
 
         online_config = config.online_store
         assert isinstance(online_config, BigTableOnlineStoreConfig)
@@ -203,10 +228,14 @@ class BigTableOnlineStore(OnlineStore):
                 logger.info(f"Deleting BigTable table `{table_name}`")
                 bt_instance.table(table_name).delete()
             except google.api_core.exceptions.NotFound:
-                logger.warning(f"Table `{table_name}` was not found. Skipping deletion.")
+                logger.warning(
+                    f"Table `{table_name}` was not found. Skipping deletion."
+                )
                 pass
 
-    def _get_client(self, online_config: BigTableOnlineStoreConfig, admin: bool = False):
+    def _get_client(
+        self, online_config: BigTableOnlineStoreConfig, admin: bool = False
+    ):
         if not self._client:
             self._client = bigtable.Client(project=online_config.project, admin=admin)
         return self._client
