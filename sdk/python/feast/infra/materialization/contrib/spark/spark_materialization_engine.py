@@ -178,7 +178,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             # split data into batches
             spark_df = offline_job.to_spark_df()
             batch_size = self.repo_config.batch_engine.batch_size
-            batched_spark_df, batch_column_alias = add_batch_column(
+            batched_spark_df, batch_column_alias = _add_batch_column(
                 spark_df,
                 join_key_columns=join_key_columns,
                 timestamp_field=timestamp_field,
@@ -209,7 +209,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
 
-def add_batch_column(
+def _add_batch_column(
     spark_df: DataFrame, join_key_columns, timestamp_field, batch_size
 ):
     """
