@@ -15,7 +15,7 @@ from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 from pytz import utc
-from sdk.python.feast.infra.utils import aws_utils
+from feast.infra.utils import aws_utils
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
