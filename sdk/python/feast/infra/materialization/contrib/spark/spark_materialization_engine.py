@@ -167,21 +167,15 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 )
             )
 
-            # serialize feature view using proto
-            feature_view_proto = feature_view.to_proto().SerializeToString()
-
-            # serialize repo_config to disk. Will be used to instantiate the online store
-            repo_config_file = tempfile.NamedTemporaryFile(delete=False).name
-            with open(repo_config_file, "wb") as f:
-                dill.dump(self.repo_config, f)
+            spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+                feature_view=feature_view, repo_config=self.repo_config
+            )
 
             # split data into batches
             spark_df = offline_job.to_spark_df()
             batch_size = self.repo_config.batch_engine.batch_size
             batched_spark_df, batch_column_alias = _add_batch_column(
                 spark_df,
-                join_key_columns=join_key_columns,
-                timestamp_field=timestamp_field,
                 batch_size=batch_size,
             )
 
@@ -191,11 +185,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             ]
             schema_ddl = ", ".join(schema)
             result = batched_spark_df.groupBy(batch_column_alias).applyInPandas(
-                lambda x: _process_by_pandas_batch(
-                    x,
-                    feature_view_proto=feature_view_proto,
-                    repo_config_file=repo_config_file,
-                ),
+                lambda x: _process_by_pandas_batch(x, spark_serialized_artifacts),
                 schema=schema_ddl,
             )
             result.collect()
@@ -209,9 +199,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
 
-def _add_batch_column(
-    spark_df: DataFrame, join_key_columns, timestamp_field, batch_size
-):
+def _add_batch_column(spark_df: DataFrame, batch_size):
     """
     Generates a batch column for a data frame
     """
@@ -244,19 +232,48 @@ def _add_batch_column(
     return batched_spark_df, batch_column_alias
 
 
-def _process_by_pandas_batch(pdf, feature_view_proto, repo_config_file):
+@dataclass
+class _SparkSerializedArtifacts:
+    """Class to assist with serializing unpicklable artifacts to the spark workers"""
 
-    # unserialize
-    proto = FeatureViewProto()
-    proto.ParseFromString(feature_view_proto)
-    feature_view = FeatureView.from_proto(proto)
+    feature_view_proto: str
+    repo_config_file: str
 
-    # load
-    with open(repo_config_file, "rb") as f:
-        repo_config = dill.load(f)
+    @classmethod
+    def serialize(cls, feature_view, repo_config):
 
-    provider = PassthroughProvider(repo_config)
-    online_store = provider.online_store
+        # serialize to proto
+        feature_view_proto = feature_view.to_proto().SerializeToString()
+
+        # serialize repo_config to disk. Will be used to instantiate the online store
+        repo_config_file = tempfile.NamedTemporaryFile(delete=False).name
+        with open(repo_config_file, "wb") as f:
+            dill.dump(repo_config, f)
+
+        return _SparkSerializedArtifacts(
+            feature_view_proto=feature_view_proto, repo_config_file=repo_config_file
+        )
+
+    def unserialize(self):
+        # unserialize
+        proto = FeatureViewProto()
+        proto.ParseFromString(self.feature_view_proto)
+        feature_view = FeatureView.from_proto(proto)
+
+        # load
+        with open(self.repo_config_file, "rb") as f:
+            repo_config = dill.load(f)
+
+        provider = PassthroughProvider(repo_config)
+        online_store = provider.online_store
+        return feature_view, online_store, repo_config
+
+
+def _process_by_pandas_batch(
+    pdf, spark_serialized_artifacts: _SparkSerializedArtifacts
+):
+    """Load pandas df to online store"""
+    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
 
     table = pyarrow.Table.from_pandas(pdf)
 
