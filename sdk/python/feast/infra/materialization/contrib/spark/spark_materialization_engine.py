@@ -1,12 +1,11 @@
 import tempfile
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union
 
 import dill
+import pandas as pd
 import pyarrow
-from pyspark.sql import DataFrame
 from tqdm import tqdm
 
 from feast.batch_feature_view import BatchFeatureView
@@ -171,24 +170,10 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 feature_view=feature_view, repo_config=self.repo_config
             )
 
-            # split data into batches
             spark_df = offline_job.to_spark_df()
-            batch_size = self.repo_config.batch_engine.batch_size
-            batched_spark_df, batch_column_alias = _add_batch_column(
-                spark_df,
-                batch_size=batch_size,
+            spark_df.foreachPartition(
+                lambda x: _process_by_partition(x, spark_serialized_artifacts)
             )
-
-            schema = [
-                f"{x} {y}"
-                for x, y in batched_spark_df.dtypes + [("success_flag", "string")]
-            ]
-            schema_ddl = ", ".join(schema)
-            result = batched_spark_df.groupBy(batch_column_alias).applyInPandas(
-                lambda x: _process_by_pandas_batch(x, spark_serialized_artifacts),
-                schema=schema_ddl,
-            )
-            result.collect()
 
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
@@ -197,39 +182,6 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.ERROR, error=e
             )
-
-
-def _add_batch_column(spark_df: DataFrame, batch_size):
-    """
-    Generates a batch column for a data frame
-    """
-    spark_session = spark_df.sparkSession
-
-    # generate a unique name for the view
-    view_name = f"{uuid.uuid4()}".replace("-", "")
-
-    row_number_index_alias = f"{view_name}_row_index"
-    batch_column_alias = f"{view_name}_batch"
-    original_columns_snippet = ", ".join(spark_df.columns)
-
-    # generate batch
-    spark_df.createOrReplaceTempView(view_name)
-    batched_spark_df = spark_session.sql(
-        f"""
-    with add_index as (
-        select
-            {original_columns_snippet},
-            monotonically_increasing_id() as {row_number_index_alias}
-        from {view_name}
-    )
-    select
-        {original_columns_snippet},
-        floor({(row_number_index_alias)}/{batch_size}) as {batch_column_alias}
-    from add_index
-    """
-    )
-
-    return batched_spark_df, batch_column_alias
 
 
 @dataclass
@@ -269,13 +221,23 @@ class _SparkSerializedArtifacts:
         return feature_view, online_store, repo_config
 
 
-def _process_by_pandas_batch(
-    pdf, spark_serialized_artifacts: _SparkSerializedArtifacts
-):
+def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArtifacts):
     """Load pandas df to online store"""
-    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
 
-    table = pyarrow.Table.from_pandas(pdf)
+    # convert to pyarrow table
+    dicts = []
+    for row in rows:
+        dicts.append(row.asDict())
+
+    df = pd.DataFrame.from_records(dicts)
+    if df.shape[0] == 0:
+        print("Skipping")
+        return
+
+    table = pyarrow.Table.from_pandas(df)
+
+    # unserialize artifacts
+    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
 
     if feature_view.batch_source.field_mapping is not None:
         table = _run_pyarrow_field_mapping(
@@ -294,6 +256,3 @@ def _process_by_pandas_batch(
         rows_to_write,
         lambda x: None,
     )
-    pdf["success_flag"] = "SUCCESS"
-
-    return pdf
