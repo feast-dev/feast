@@ -677,7 +677,7 @@ def list_s3_files(aws_region: str, path: str) -> List[str]:
     return files
 
 
-# Athena
+# Athena utils
 
 
 def get_athena_data_client(aws_region: str):
@@ -696,16 +696,17 @@ def get_athena_data_client(aws_region: str):
     reraise=True,
 )
 def execute_athena_query_async(
-    athena_data_client, data_source: str, database: str, query: str
+    athena_data_client, data_source: str, database: str, workgroup: str, query: str
 ) -> dict:
     """Execute Athena statement asynchronously. Does not wait for the query to finish.
 
     Raises AthenaCredentialsError if the statement couldn't be executed due to the validation error.
 
     Args:
-        athena_data_client: athena Data API Service client
-        data_source: athena Cluster Identifier
-        database: athena Database Name
+        athena_data_client: Athena Data API Service client
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
         query: The SQL query to execute
 
     Returns: JSON response
@@ -716,7 +717,7 @@ def execute_athena_query_async(
         return athena_data_client.start_query_execution(
             QueryString=query,
             QueryExecutionContext={"Database": database},
-            WorkGroup="primary",
+            WorkGroup=workgroup,
         )
 
     except ClientError as e:
@@ -755,16 +756,19 @@ def wait_for_athena_execution(athena_data_client, execution: dict) -> None:
 
 
 def drop_temp_table(
-    athena_data_client, data_source: str, database: str, temp_table: str
+    athena_data_client, data_source: str, database: str, workgroup: str, temp_table: str
 ):
     query = f"DROP TABLE `{database}.{temp_table}`"
-    execute_athena_query_async(athena_data_client, data_source, database, query)
+    execute_athena_query_async(
+        athena_data_client, data_source, database, workgroup, query
+    )
 
 
 def execute_athena_query(
     athena_data_client,
     data_source: str,
     database: str,
+    workgroup: str,
     query: str,
     temp_table: str = None,
 ) -> str:
@@ -775,22 +779,25 @@ def execute_athena_query(
 
 
     Args:
-        athena_data_client: athena Data API Service client
-        data_source: athena data source Name
-        database: athena Database Name
+        athena_data_client: Athena Data API Service client
+        data_source: Athena Data Source Name
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
         query: The SQL query to execute
-        temp_table: temp table name to be deleted after query execution.
+        temp_table: Temp table name to be deleted after query execution.
 
     Returns: Statement ID
 
     """
 
     execution = execute_athena_query_async(
-        athena_data_client, data_source, database, query
+        athena_data_client, data_source, database, workgroup, query
     )
     wait_for_athena_execution(athena_data_client, execution)
     if temp_table is not None:
-        drop_temp_table(athena_data_client, data_source, database, temp_table)
+        drop_temp_table(
+            athena_data_client, data_source, database, workgroup, temp_table
+        )
 
     return execution["QueryExecutionId"]
 
@@ -822,6 +829,7 @@ def unload_athena_query_to_pa(
     athena_data_client,
     data_source: str,
     database: str,
+    workgroup: str,
     s3_resource,
     s3_path: str,
     query: str,
@@ -831,7 +839,7 @@ def unload_athena_query_to_pa(
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_athena_query_and_unload_to_s3(
-        athena_data_client, data_source, database, query, temp_table
+        athena_data_client, data_source, database, workgroup, query, temp_table
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -844,6 +852,7 @@ def unload_athena_query_to_df(
     athena_data_client,
     data_source: str,
     database: str,
+    workgroup: str,
     s3_resource,
     s3_path: str,
     query: str,
@@ -854,6 +863,7 @@ def unload_athena_query_to_df(
         athena_data_client,
         data_source,
         database,
+        workgroup,
         s3_resource,
         s3_path,
         query,
@@ -866,6 +876,7 @@ def execute_athena_query_and_unload_to_s3(
     athena_data_client,
     data_source: str,
     database: str,
+    workgroup: str,
     query: str,
     temp_table: str,
 ) -> None:
@@ -873,20 +884,29 @@ def execute_athena_query_and_unload_to_s3(
 
     Args:
         athena_data_client: Athena Data API Service client
-        data_source: Athena data source
-        database: Redshift Database Name
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
         query: The SQL query to execute
         temp_table: temp table name to be deleted after query execution.
 
     """
 
-    execute_athena_query(athena_data_client, data_source, database, query, temp_table)
+    execute_athena_query(
+        athena_data_client=athena_data_client,
+        data_source=data_source,
+        database=database,
+        workgroup=workgroup,
+        query=query,
+        temp_table=temp_table,
+    )
 
 
 def upload_df_to_athena(
     athena_client,
     data_source: str,
     database: str,
+    workgroup: str,
     s3_resource,
     s3_path: str,
     table_name: str,
@@ -900,6 +920,7 @@ def upload_df_to_athena(
         athena_client: Athena API Service client
         data_source: Athena Data Source
         database: Athena Database Name
+        workgroup: Athena Workgroup Name
         s3_resource: S3 Resource object
         s3_path: S3 path where the Parquet file is temporarily uploaded
         table_name: The name of the new Data Catalog table where we copy the dataframe
@@ -924,6 +945,7 @@ def upload_df_to_athena(
         athena_client,
         data_source=data_source,
         database=database,
+        workgroup=workgroup,
         s3_resource=s3_resource,
         s3_path=s3_path,
         table_name=table_name,
@@ -935,6 +957,7 @@ def upload_arrow_table_to_athena(
     athena_client,
     data_source: str,
     database: str,
+    workgroup: str,
     s3_resource,
     s3_path: str,
     table_name: str,
@@ -952,8 +975,9 @@ def upload_arrow_table_to_athena(
     Args:
         table: The Arrow Table or Path to parquet dataset to upload
         athena_client: Athena API Service client
-        data_source: Athena data source
+        data_source: Athena Data Source
         database: Athena Database Name
+        workgroup: Athena Workgroup Name
         s3_resource: S3 Resource object
         s3_path: S3 path where the Parquet file is temporarily uploaded
         table_name: The name of the new Athena table where we copy the dataframe
@@ -986,7 +1010,7 @@ def upload_arrow_table_to_athena(
         s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
 
     create_query = (
-        f"CREATE EXTERNAL TABLE {database}.{table_name} "
+        f"CREATE EXTERNAL TABLE {database}.{table_name} {'IF NOT EXISTS' if not fail_if_exists else ''}"
         f"({column_query_list}) "
         f"STORED AS PARQUET "
         f"LOCATION '{s3_path[:s3_path.rfind('/')]}' "
@@ -995,10 +1019,11 @@ def upload_arrow_table_to_athena(
 
     try:
         execute_athena_query(
-            athena_client,
-            data_source,
-            database,
-            f"{create_query}",
+            athena_data_client=athena_client,
+            data_source=data_source,
+            database=database,
+            workgroup=workgroup,
+            query=f"{create_query}",
         )
     finally:
         pass

@@ -19,7 +19,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-import pyarrow as pa
 from pydantic import Field, StrictStr
 from pydantic.typing import Literal
 from pytz import utc
@@ -410,7 +409,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return df
 
-    def _to_arrow_internal(self) -> pa.Table:
+    def _to_arrow_internal(self) -> pyarrow.Table:
         with self._query_generator() as query:
 
             pa_table = execute_snowflake_statement(
@@ -423,7 +422,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
             else:
                 empty_result = execute_snowflake_statement(self.snowflake_conn, query)
 
-                return pa.Table.from_pandas(
+                return pyarrow.Table.from_pandas(
                     pd.DataFrame(columns=[md.name for md in empty_result.description])
                 )
 
@@ -486,21 +485,22 @@ class SnowflakeRetrievalJob(RetrievalJob):
         table = f"temporary_{uuid.uuid4().hex}"
         self.to_snowflake(table)
 
-        copy_into_query = f"""copy into '{self.config.offline_store.blob_export_location}/{table}' from "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
-          storage_integration = {self.config.offline_store.storage_integration_name}\n
-          file_format = (TYPE = PARQUET)\n
-          DETAILED_OUTPUT = TRUE\n
-          HEADER = TRUE;\n
+        query = f"""
+            COPY INTO '{self.config.offline_store.blob_export_location}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
+              STORAGE_INTEGRATION = {self.config.offline_store.storage_integration_name}\n
+              FILE_FORMAT = (TYPE = PARQUET)
+              DETAILED_OUTPUT = TRUE
+              HEADER = TRUE
         """
+        cursor = execute_snowflake_statement(self.snowflake_conn, query)
 
-        cursor = execute_snowflake_statement(self.snowflake_conn, copy_into_query)
-        all_rows = (
-            cursor.fetchall()
-        )  # This may be need pagination at some point in the future.
         file_name_column_index = [
             idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
         ][0]
-        return [f"{self.export_path}/{row[file_name_column_index]}" for row in all_rows]
+        return [
+            f"{self.export_path}/{row[file_name_column_index]}"
+            for row in cursor.fetchall()
+        ]
 
 
 def _get_entity_schema(

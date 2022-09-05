@@ -35,9 +35,9 @@ _logger = logging.getLogger(__name__)
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
 BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.LocalMaterializationEngine",
+    "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
-    "lambda": "feast.infra.materialization.lambda.lambda_engine.LambdaMaterializationEngine",
+    "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
     "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
 }
 
@@ -61,6 +61,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "trino": "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
+    "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -174,6 +175,8 @@ class RepoConfig(FeastBaseModel):
                 self._offline_config = "bigquery"
             elif data["provider"] == "aws":
                 self._offline_config = "redshift"
+            elif data["provider"] == "azure":
+                self._offline_config = "mssql"
 
         self._online_store = None
         if "online_store" in data:
@@ -191,8 +194,6 @@ class RepoConfig(FeastBaseModel):
             self._batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self._batch_engine_config = data["batch_engine_config"]
-        elif self._offline_config == "snowflake.offline":
-            self._batch_engine_config = "snowflake.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self._batch_engine_config = "local"
@@ -334,6 +335,8 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "bigquery"
             elif values["provider"] == "aws":
                 values["offline_store"]["type"] = "redshift"
+            if values["provider"] == "azure":
+                values["offline_store"]["type"] = "mssql"
 
         offline_store_type = values["offline_store"]["type"]
 

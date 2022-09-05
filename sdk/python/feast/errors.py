@@ -315,6 +315,13 @@ class EntityTimestampInferenceException(Exception):
         )
 
 
+class FeatureViewMissingDuringFeatureServiceInference(Exception):
+    def __init__(self, feature_view_name: str, feature_service_name: str):
+        super().__init__(
+            f"Missing {feature_view_name} feature view during inference for {feature_service_name} feature service."
+        )
+
+
 class InvalidEntityType(Exception):
     def __init__(self, entity_type: type):
         super().__init__(

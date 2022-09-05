@@ -2,7 +2,10 @@ import click
 import snowflake.connector
 
 from feast.file_utils import replace_str_in_file
-from feast.infra.utils.snowflake.snowflake_utils import write_pandas
+from feast.infra.utils.snowflake.snowflake_utils import (
+    execute_snowflake_statement,
+    write_pandas,
+)
 
 
 def bootstrap():
@@ -53,7 +56,7 @@ def bootstrap():
         default=True,
     ):
 
-        conn = snowflake.connector.connect(
+        snowflake_conn = snowflake.connector.connect(
             account=snowflake_deployment_url,
             user=snowflake_user,
             password=snowflake_password,
@@ -62,19 +65,27 @@ def bootstrap():
             application="feast",
         )
 
-        cur = conn.cursor()
-        cur.execute(f'CREATE DATABASE IF NOT EXISTS "{snowflake_database}"')
-        cur.execute(f'USE DATABASE "{snowflake_database}"')
-        cur.execute('CREATE SCHEMA IF NOT EXISTS "PUBLIC"')
-        cur.execute('USE SCHEMA "PUBLIC"')
-        cur.execute(f'DROP TABLE IF EXISTS "{project_name}_feast_driver_hourly_stats"')
-        write_pandas(
-            conn,
-            driver_df,
-            f"{project_name}_feast_driver_hourly_stats",
-            auto_create_table=True,
-        )
-        conn.close()
+        with snowflake_conn as conn:
+            execute_snowflake_statement(
+                conn, f'CREATE DATABASE IF NOT EXISTS "{snowflake_database}"'
+            )
+            execute_snowflake_statement(conn, f'USE DATABASE "{snowflake_database}"')
+            execute_snowflake_statement(conn, 'CREATE SCHEMA IF NOT EXISTS "PUBLIC"')
+            execute_snowflake_statement(conn, 'USE SCHEMA "PUBLIC"')
+            execute_snowflake_statement(
+                conn, f'DROP TABLE IF EXISTS "{project_name}_feast_driver_hourly_stats"'
+            )
+            execute_snowflake_statement(
+                conn,
+                f'ALTER WAREHOUSE IF EXISTS "{snowflake_warehouse}" RESUME IF SUSPENDED',
+            )
+
+            write_pandas(
+                conn,
+                driver_df,
+                f"{project_name}_feast_driver_hourly_stats",
+                auto_create_table=True,
+            )
 
 
 if __name__ == "__main__":

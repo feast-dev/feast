@@ -27,8 +27,7 @@ from feast.repo_config import RepoConfig
 
 class OnlineStore(ABC):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for online storage of
-    features.
+    The interface that Feast uses to interact with the storage system that handles online features.
     """
 
     @abstractmethod
@@ -42,21 +41,20 @@ class OnlineStore(ABC):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
-        Write a batch of feature rows to the online store. This is a low level interface, not
-        expected to be used by the users directly.
+        Writes a batch of feature rows to the online store.
 
-        If a tz-naive timestamp is passed to this method, it should be assumed to be UTC by implementors.
+        If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
 
         Args:
-            config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView
-            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
-            a dict containing feature values, an event timestamp for the row, and
-            the created timestamp for the row if it exists.
-            progress: Optional function to be called once every mini-batch of rows is written to
-            the online store. Can be used to display progress.
+            config: The config for the current feature store.
+            table: Feature view to which these feature rows correspond.
+            data: A list of quadruplets containing feature data. Each quadruplet contains an entity
+                key, a dict containing feature values, an event timestamp for the row, and the created
+                timestamp for the row if it exists.
+            progress: Function to be called once a batch of rows is written to the online store, used
+                to show progress.
         """
-        ...
+        pass
 
     @abstractmethod
     def online_read(
@@ -67,20 +65,20 @@ class OnlineStore(ABC):
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
-        Read feature values given an Entity Key. This is a low level interface, not
-        expected to be used by the users directly.
+        Reads features values for the given entity keys.
 
         Args:
-            config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView
-            entity_keys: a list of entity keys that should be read from the FeatureStore.
-            requested_features: (Optional) A subset of the features that should be read from the FeatureStore.
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            entity_keys: The list of entity keys for which feature values should be read.
+            requested_features: The list of features that should be read.
+
         Returns:
-            Data is returned as a list, one item per entity key in the original order as the entity_keys argument.
-            Each item in the list is a tuple of event_ts for the row, and the feature data as a dict from feature names
-            to values. Values are returned as Value proto message.
+            A list of the same length as entity_keys. Each item in the list is a tuple where the first
+            item is the event timestamp for the row, and the second item is a dict mapping feature names
+            to values, which are returned in proto format.
         """
-        ...
+        pass
 
     @abstractmethod
     def update(
@@ -92,7 +90,21 @@ class OnlineStore(ABC):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        ...
+        """
+        Reconciles cloud resources with the specified set of Feast objects.
+
+        Args:
+            config: The config for the current feature store.
+            tables_to_delete: Feature views whose corresponding infrastructure should be deleted.
+            tables_to_keep: Feature views whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+            entities_to_delete: Entities whose corresponding infrastructure should be deleted.
+            entities_to_keep: Entities whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+            partial: If true, tables_to_delete and tables_to_keep are not exhaustive lists, so
+                infrastructure corresponding to other feature views should be not be touched.
+        """
+        pass
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -101,7 +113,7 @@ class OnlineStore(ABC):
         Returns the set of InfraObjects required to support the desired registry.
 
         Args:
-            config: The RepoConfig for the current FeatureStore.
+            config: The config for the current feature store.
             desired_registry_proto: The desired registry, in proto form.
         """
         return []
@@ -113,4 +125,12 @@ class OnlineStore(ABC):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        ...
+        """
+        Tears down all cloud resources for the specified set of Feast objects.
+
+        Args:
+            config: The config for the current feature store.
+            tables: Feature views whose corresponding infrastructure should be deleted.
+            entities: Entities whose corresponding infrastructure should be deleted.
+        """
+        pass

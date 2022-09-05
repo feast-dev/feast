@@ -17,7 +17,10 @@ jobs:
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Get release version
         id: get_release_version
         run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
@@ -38,6 +41,7 @@ jobs:
             echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
           fi
       - name: Check output
+        id: check_output
         env:
           RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
@@ -89,6 +93,7 @@ jobs:
             make install-go-ci-dependencies
             git status
             git restore go.mod go.sum
+            git restore sdk/python/feast/ui/yarn.lock
           CIBW_BEFORE_TEST: "cd {project} && git status"
       # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
       - name: Build py310 specific wheels for macos
@@ -104,6 +109,7 @@ jobs:
           CIBW_BEFORE_BUILD: |
             git status
             git restore go.mod go.sum
+            git restore sdk/python/feast/ui/yarn.lock
             brew install apache-arrow
       - uses: actions/upload-artifact@v2
         with:
@@ -136,6 +142,7 @@ jobs:
           make build-ui
           git status
           git restore go.mod go.sum
+          git restore sdk/python/feast/ui/yarn.lock
       - name: Build
         run: |
           python3 setup.py sdist
@@ -232,7 +239,7 @@ jobs:
       - name: Smoke test
         run: |
           feast init test_repo
-          cd test_repo/
+          cd test_repo/feature_repo
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
@@ -241,7 +248,7 @@ jobs:
       - name: Smoke test with go
         if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
         run: |
-          cd test_repo/
+          cd test_repo/feature_repo
           feast apply
           echo "$TEST_SCRIPT" > run-and-wait.sh
           pip install cffi

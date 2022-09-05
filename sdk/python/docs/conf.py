@@ -25,6 +25,29 @@ sys.path.insert(0, os.path.abspath("../../feast"))
 sys.path.insert(0, os.path.abspath("../.."))
 
 
+# -- Build protos ---------------------------------------------------------
+
+# For an unknown reason, the Python protos stopped being built correctly.
+# See https://readthedocs.org/projects/feast/builds/17686555/ for an
+# example where the Python protos did not build, which subsequently broke
+# the RTD build. In order to fix this, we manually compile the protos.
+import subprocess
+
+from pathlib import Path
+
+# cwd will be feast/sdk/python/docs/source
+cwd = Path(os.getcwd())
+
+# Change to feast/
+os.chdir(cwd.parent.parent.parent.parent)
+
+# Compile Python protos
+result = subprocess.run(["python", "setup.py", "build_python_protos", "--inplace"], capture_output=True)
+stdout = result.stdout.decode("utf-8")
+stderr = result.stderr.decode("utf-8")
+print(f"Apply stdout:\n{stdout}")
+print(f"Apply stderr:\n{stderr}")
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.

@@ -1,3 +1,4 @@
+import sys
 from binascii import unhexlify
 
 import pandas
@@ -24,6 +25,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_binary_to_bytes_proto(df BINARY)
 # ValueType.BYTES = 1
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_binary_to_bytes_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -45,6 +48,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_varchar_to_string_proto(df VARCHAR)
 # ValueType.STRING = 2
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_varchar_to_string_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -66,6 +71,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_number_to_int32_proto(df NUMBER)
 # ValueType.INT32 = 3
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_number_to_int32_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -87,6 +94,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_number_to_int64_proto(df NUMBER)
 # ValueType.INT64 = 4
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_number_to_int64_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -110,6 +119,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_float_to_double_proto(df DOUBLE)
 # ValueType.FLOAT = 5 & ValueType.DOUBLE = 6
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_float_to_double_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -131,6 +142,8 @@ CREATE OR REPLACE FUNCTION feast_snowflake_boolean_to_bool_proto(df BOOLEAN)
 # ValueType.BOOL = 7
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_boolean_to_bool_boolean_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     df = list(
         map(
             ValueProto.SerializeToString,
@@ -152,6 +165,7 @@ CREATE OR REPLACE FUNCTION feast_snowflake_timestamp_to_unix_timestamp_proto(df 
 # ValueType.UNIX_TIMESTAMP = 8
 @vectorized(input=pandas.DataFrame)
 def feast_snowflake_timestamp_to_unix_timestamp_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
 
     df = list(
         map(
@@ -177,6 +191,8 @@ CREATE OR REPLACE FUNCTION feast_serialize_entity_keys(names ARRAY, data ARRAY, 
 # converts 1 to n many entity keys to a single binary for lookups
 @vectorized(input=pandas.DataFrame)
 def feast_serialize_entity_keys(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     join_keys = create_entity_dict(df[0].values[0], df[2].values[0])
 
     df = pandas.DataFrame.from_dict(
@@ -222,6 +238,8 @@ CREATE OR REPLACE FUNCTION feast_entity_key_proto_to_string(names ARRAY, data AR
 # converts 1 to n many entity keys to a single binary for lookups
 @vectorized(input=pandas.DataFrame)
 def feast_entity_key_proto_to_string(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
     join_keys = create_entity_dict(df[0].values[0], df[2].values[0])
 
     df = pandas.DataFrame.from_dict(

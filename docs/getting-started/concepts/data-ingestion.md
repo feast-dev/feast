@@ -2,11 +2,11 @@
 
 ## Data source
 
-The data source refers to raw underlying data (e.g. a table in BigQuery).
+A data source in Feast refers to raw underlying data that users own (e.g. in a table in BigQuery). Feast does not manage any of the raw underlying data but instead, is in charge of loading this data and performing different operations on the data to retrieve or serve features.
 
-Feast uses a time-series data model to represent data. This data model is used to interpret feature data in data sources in order to build training datasets or when materializing features into an online store.
+Feast uses a time-series data model to represent data. This data model is used to interpret feature data in data sources in order to build training datasets or materialize features into an online store.
 
-Below is an example data source with a single entity (`driver`) and two features (`trips_today`, and `rating`).
+Below is an example data source with a single entity column (`driver`) and two feature columns (`trips_today`, and `rating`).
 
 ![Ride-hailing data source](<../../.gitbook/assets/image (16).png>)
 
@@ -16,13 +16,13 @@ Feast supports primarily **time-stamped** tabular data as data sources. There ar
 * **Stream data sources**: Feast does **not** have native streaming integrations. It does however facilitate making streaming features available in different environments. There are two kinds of sources:
   * **Push sources** allow users to push features into Feast, and make it available for training / batch scoring ("offline"), for realtime feature serving ("online") or both.
   * **\[Alpha] Stream sources** allow users to register metadata from Kafka or Kinesis sources. The onus is on the user to ingest from these sources, though Feast provides some limited helper methods to ingest directly from Kafka / Kinesis topics.
-* **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into **on-demand feature views**, which allow light-weight feature engineering and combining features across sources.
+* **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into [**on-demand feature views**](../../../docs/reference/alpha-on-demand-feature-view.md), which allow light-weight feature engineering and combining features across sources.
 
 ## Batch data ingestion
 
 Ingesting from batch sources is only necessary to power real-time models. This is done through **materialization**. Under the hood, Feast manages an _offline store_ (to scalably generate training data from batch sources) and an _online store_ (to provide low-latency access to features for real-time models).
 
-A key command to use in Feast is the `materialize_incremental` command, which fetches the latest values for all entities in the batch source and ingests these values into the online store.
+A key command to use in Feast is the `materialize_incremental` command, which fetches the _latest_ values for all entities in the batch source and ingests these values into the online store.
 
 Materialization can be called programmatically or through the CLI:
 
@@ -63,7 +63,7 @@ materialize_python = PythonOperator(
 #### How to run this in the CLI
 
 ```bash
-CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S") 
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
 
@@ -81,9 +81,9 @@ materialize_bash = BashOperator(
 
 ### Batch data schema inference
 
-If the `schema` parameter is not specified when defining a data source, Feast attempts to infer the schema of the data source during `feast apply`. 
-The way it does this depends on the implementation of the offline store. For the offline stores that ship with Feast out of the box this inference is performed by inspecting the schema of the table in the cloud data warehouse, 
-or if a query is provided to the source, by running the query with a `LIMIT` clause and inspecting the result.   
+If the `schema` parameter is not specified when defining a data source, Feast attempts to infer the schema of the data source during `feast apply`.
+The way it does this depends on the implementation of the offline store. For the offline stores that ship with Feast out of the box this inference is performed by inspecting the schema of the table in the cloud data warehouse,
+or if a query is provided to the source, by running the query with a `LIMIT` clause and inspecting the result.
 
 
 ## Stream data ingestion

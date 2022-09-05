@@ -27,27 +27,20 @@ class AthenaDataSourceCreator(DataSourceCreator):
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        self.client = aws_utils.get_athena_data_client("ap-northeast-2")
-        self.s3 = aws_utils.get_s3_resource("ap-northeast-2")
-        data_source = (
-            os.environ.get("ATHENA_DATA_SOURCE")
-            if os.environ.get("ATHENA_DATA_SOURCE")
-            else "AwsDataCatalog"
-        )
-        database = (
-            os.environ.get("ATHENA_DATABASE")
-            if os.environ.get("ATHENA_DATABASE")
-            else "default"
-        )
-        bucket_name = (
-            os.environ.get("ATHENA_S3_BUCKET_NAME")
-            if os.environ.get("ATHENA_S3_BUCKET_NAME")
-            else "feast-integration-tests"
-        )
+
+        region = os.getenv("ATHENA_REGION", "ap-northeast-2")
+        data_source = os.getenv("ATHENA_DATA_SOURCE", "AwsDataCatalog")
+        database = os.getenv("ATHENA_DATABASE", "default")
+        workgroup = os.getenv("ATHENA_WORKGROUP", "primary")
+        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-integration-tests")
+
+        self.client = aws_utils.get_athena_data_client(region)
+        self.s3 = aws_utils.get_s3_resource(region)
         self.offline_store_config = AthenaOfflineStoreConfig(
-            data_source=f"{data_source}",
-            region="ap-northeast-2",
-            database=f"{database}",
+            data_source=data_source,
+            region=region,
+            database=database,
+            workgroup=workgroup,
             s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
 
@@ -77,6 +70,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
             self.client,
             self.offline_store_config.data_source,
             self.offline_store_config.database,
+            self.offline_store_config.workgroup,
             self.s3,
             s3_target,
             table_name,
@@ -126,5 +120,6 @@ class AthenaDataSourceCreator(DataSourceCreator):
                 self.client,
                 self.offline_store_config.data_source,
                 self.offline_store_config.database,
+                self.offline_store_config.workgroup,
                 f"DROP TABLE IF EXISTS {table}",
             )

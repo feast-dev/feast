@@ -33,8 +33,8 @@ SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 @typechecked
 class StreamFeatureView(FeatureView):
     """
-    NOTE: Stream Feature Views are not yet fully implemented and exist to allow users to register their stream sources and
-    schemas with Feast.
+    A stream feature view defines a logical group of features that has both a stream data source and
+    a batch data source.
 
     Attributes:
         name: The unique name of the stream feature view.
@@ -44,15 +44,14 @@ class StreamFeatureView(FeatureView):
             can result in extremely computationally intensive queries.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
-        source: DataSource. The stream source of data where this group of features is stored.
+        source: The stream source of data where this group of features is stored.
         aggregations: List of aggregations registered with the stream feature view.
         mode: The mode of execution.
         timestamp_field: Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
-        online: Defines whether this stream feature view is used in online feature retrieval.
+        online: A boolean indicating whether online retrieval is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
-        owner: The owner of the on demand feature view, typically the email of the primary
-            maintainer.
+        owner: The owner of the stream feature view, typically the email of the primary maintainer.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
     """
 
@@ -92,7 +91,7 @@ class StreamFeatureView(FeatureView):
     ):
         if not flags_helper.is_test():
             warnings.warn(
-                "Stream Feature Views are experimental features in alpha development. "
+                "Stream feature views are experimental features in alpha development. "
                 "Some functionality may still be unstable so functionality can change in the future.",
                 RuntimeWarning,
             )

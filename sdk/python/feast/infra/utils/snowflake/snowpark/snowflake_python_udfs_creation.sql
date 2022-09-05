@@ -68,4 +68,4 @@ CREATE FUNCTION IF NOT EXISTS feast_PROJECT_NAME_entity_key_proto_to_string(name
   RUNTIME_VERSION = '3.8'
   PACKAGES = ('protobuf', 'pandas')
   HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_entity_key_proto_to_string'
-  IMPORTS = ('@STAGE_HOLDER/feast.zip');
+  IMPORTS = ('@STAGE_HOLDER/feast.zip')

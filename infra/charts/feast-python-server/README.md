@@ -1,6 +1,8 @@
-# Feast Python Feature Server Helm Charts
+# Feast Python Feature Server Helm Charts (deprecated)
 
-Current chart version is `0.23.0`
+> Note: this helm chart is deprecated in favor of [feast-feature-server](../feast-feature-server/README.md)
+
+Current chart version is `0.24.0`
 
 ## Installation
 Docker repository and tag are required. Helm install example:
