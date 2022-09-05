@@ -28,11 +28,19 @@ BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
 
 
 class BigTableOnlineStoreConfig(FeastConfigBaseModel):
-    type: Literal["bigtable"] = "bigtable"
+    """Online store config for GCP BigTable"""
 
-    project: StrictStr
+    type: Literal["bigtable"] = "bigtable"
+    """Online store typee selector"""
+
+    project_id: Optional[StrictStr] = None
+    """(optional) GCP Project ID"""
+
     instance: StrictStr
+    """The BigTable instance's ID"""
+
     max_versions: int = 2
+    """The number of historical versions of data that will be kept around."""
 
 
 class BigTableOnlineStore(OnlineStore):
@@ -50,7 +58,7 @@ class BigTableOnlineStore(OnlineStore):
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
         column_family_id = feature_view.name
 
-        client = bigtable.Client(project=config.online_store.project)
+        client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
         bt_table = bt_instance.table(bt_table_name)
         row_keys = [compute_entity_id(entity_key) for entity_key in entity_keys]
@@ -101,7 +109,7 @@ class BigTableOnlineStore(OnlineStore):
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
         column_family_id = feature_view.name
 
-        client = bigtable.Client(project=config.online_store.project)
+        client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
         bt_table = bt_instance.table(bt_table_name)
 
@@ -237,5 +245,7 @@ class BigTableOnlineStore(OnlineStore):
         self, online_config: BigTableOnlineStoreConfig, admin: bool = False
     ):
         if not self._client:
-            self._client = bigtable.Client(project=online_config.project, admin=admin)
+            self._client = bigtable.Client(
+                project=online_config.project_id, admin=admin
+            )
         return self._client
