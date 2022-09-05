@@ -39,7 +39,6 @@ class SparkMaterializationEngineConfig(FeastConfigBaseModel):
 
     type: Literal["spark"] = "spark"
     """ Type selector"""
-    batch_size: int
 
 
 @dataclass
