@@ -61,7 +61,13 @@ class BigTableOnlineStore(OnlineStore):
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
         bt_table = bt_instance.table(bt_table_name)
-        row_keys = [compute_entity_id(entity_key) for entity_key in entity_keys]
+        row_keys = [
+            compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
 
         batch_result: List[
             Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -132,16 +138,29 @@ class BigTableOnlineStore(OnlineStore):
                         rows_to_write=rows_to_write,
                         bt_table=bt_table,
                         column_family_id=column_family_id,
+                        config=config,
                     )
                 )
             futures.wait(fs)
 
     @staticmethod
-    def _write_rows_to_bt(rows_to_write, bt_table, column_family_id):
+    def _write_rows_to_bt(
+        rows_to_write: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        bt_table: bigtable.table.Table,
+        column_family_id: str,
+        config: RepoConfig,
+    ):
         rows = []
         for row in rows_to_write:
             entity_key, features, timestamp, created_ts = row
-            bt_row = bt_table.direct_row(compute_entity_id(entity_key))
+            bt_row = bt_table.direct_row(
+                compute_entity_id(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+            )
 
             for feature_name, feature_value in features.items():
                 bt_row.set_cell(
@@ -239,7 +258,6 @@ class BigTableOnlineStore(OnlineStore):
                 logger.warning(
                     f"Table `{table_name}` was not found. Skipping deletion."
                 )
-                pass
 
     def _get_client(
         self, online_config: BigTableOnlineStoreConfig, admin: bool = False
