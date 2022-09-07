@@ -40,6 +40,9 @@ class SparkMaterializationEngineConfig(FeastConfigBaseModel):
     type: Literal["spark"] = "spark"
     """ Type selector"""
 
+    partitions: int = None
+    """Number of partitions to use when writing data to online store"""
+
 
 @dataclass
 class SparkMaterializationJob(MaterializationJob):
@@ -170,6 +173,11 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
             spark_df = offline_job.to_spark_df()
+            if self.repo_config.batch_engine.partitions:
+                spark_df = spark_df.repartition(
+                    self.repo_config.batch_engine.partitions
+                )
+
             spark_df.foreachPartition(
                 lambda x: _process_by_partition(x, spark_serialized_artifacts)
             )
