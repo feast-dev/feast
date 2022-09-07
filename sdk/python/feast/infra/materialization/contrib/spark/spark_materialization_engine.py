@@ -40,8 +40,8 @@ class SparkMaterializationEngineConfig(FeastConfigBaseModel):
     type: Literal["spark"] = "spark"
     """ Type selector"""
 
-    partitions: int = None
-    """Number of partitions to use when writing data to online store"""
+    partitions: int = 0
+    """Number of partitions to use when writing data to online store. If 0, no repartitioning is done"""
 
 
 @dataclass
@@ -173,7 +173,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
             spark_df = offline_job.to_spark_df()
-            if self.repo_config.batch_engine.partitions:
+            if self.repo_config.batch_engine.partitions != 0:
                 spark_df = spark_df.repartition(
                     self.repo_config.batch_engine.partitions
                 )
