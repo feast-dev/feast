@@ -1,6 +1,6 @@
-# Feast Helm Charts
+# Feast Java Helm Charts (alpha)
 
-This repo contains Helm charts for Feast components that are being installed on Kubernetes:
+This repo contains Helm charts for Feast Java components that are being installed on Kubernetes:
 * Feast (root chart): The complete Helm chart containing all Feast components and dependencies. Most users will use this chart, but can selectively enable/disable subcharts using the values.yaml file.
     * [Feature Server](charts/feature-server): High performant JVM-based implementation of feature server.
     * [Transformation Service](charts/transformation-service): Transformation server for calculating on-demand features
