@@ -37,7 +37,7 @@ from feast.utils import (
 class SparkMaterializationEngineConfig(FeastConfigBaseModel):
     """Batch Materialization Engine config for spark engine"""
 
-    type: Literal["spark"] = "spark"
+    type: Literal["spark.engine"] = "spark.engine"
     """ Type selector"""
 
     partitions: int = 0
