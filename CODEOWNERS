@@ -6,7 +6,7 @@
 /sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers @DvirDukhan
 /sdk/python/feast/infra/materialization_engine/batch_materialization_engine.py @feast-dev/maintainers @whoahbot @sfc-gh-madkins
 
-# ==== Offline stores ====
+# ==== Offline Stores ====
 # Core utils
 /sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers @chhabrakadabra @mavysavydav @sfc-gh-madkins
 
@@ -25,7 +25,7 @@
 # Spark (contrib)
 /sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/ @niklasvm @kevjumba
 
-# ==== Online stores ====
+# ==== Online Stores ====
 
 # Redis
 /sdk/python/feast/infra/online_stores/redis.py @DvirDukhan
