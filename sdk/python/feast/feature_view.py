@@ -409,6 +409,12 @@ class FeatureView(BaseFeatureView):
             for field_proto in feature_view_proto.spec.entity_columns
         ]
 
+        if len(feature_view.entities) != len(feature_view.entity_columns):
+            warnings.warn(
+                f"There are some mismatches in your feature view's registered entities. Please check if you have applied your entities correctly."
+                f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
+            )
+
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
         feature_view.projection = FeatureViewProjection.from_definition(feature_view)
