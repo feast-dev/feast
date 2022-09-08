@@ -76,6 +76,7 @@ jobs:
   release:
     name: release
     runs-on: ubuntu-latest
+    needs: publish-web-ui-npm
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
       GIT_AUTHOR_NAME: feast-ci-bot
