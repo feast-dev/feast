@@ -97,9 +97,13 @@ class SnowflakeOnlineStore(OnlineStore):
 
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key, entity_key_serialization_version=config.entity_key_serialization_version
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ) + bytes(feature_name, encoding="utf-8")
-                df.loc[j, "entity_key"] = serialize_entity_key(entity_key, entity_key_serialization_version=config.entity_key_serialization_version)
+                df.loc[j, "entity_key"] = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
                 df.loc[j, "event_ts"] = timestamp
@@ -165,7 +169,10 @@ class SnowflakeOnlineStore(OnlineStore):
                 (
                     "TO_BINARY("
                     + hexlify(
-                        serialize_entity_key(combo[0], entity_key_serialization_version=config.entity_key_serialization_version)
+                        serialize_entity_key(
+                            combo[0],
+                            entity_key_serialization_version=config.entity_key_serialization_version,
+                        )
                         + bytes(combo[1], encoding="utf-8")
                     ).__str__()[1:]
                     + ")"
@@ -187,7 +194,10 @@ class SnowflakeOnlineStore(OnlineStore):
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
 
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key, entity_key_serialization_version=config.entity_key_serialization_version)
+            entity_key_bin = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():
