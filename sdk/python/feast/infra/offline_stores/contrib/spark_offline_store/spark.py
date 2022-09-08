@@ -15,7 +15,6 @@ from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 from pytz import utc
-from feast.infra.utils import aws_utils
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
@@ -32,6 +31,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.registry import Registry
+from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
