@@ -3,6 +3,7 @@
 ## Links & Resources
 
 * [GitHub Repository](https://github.com/feast-dev/feast/): Find the complete Feast codebase on GitHub.
+  * [Community Governance Doc](https://github.com/feast-dev/feast/blob/master/community): See the governance model of Feast, including who the maintainers are and how decisions are made.
 * [Slack](https://slack.feast.dev): Feel free to ask questions or say hello! This is the main place where maintainers and contributors brainstorm and where users ask questions or discuss best practices.
   * Feast users should join `#feast-general` or `#feast-beginners` to ask questions
   * Feast developers / contributors should join `#feast-development` 
