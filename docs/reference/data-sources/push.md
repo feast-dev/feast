@@ -1,7 +1,5 @@
 # Push source
 
-**Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
-
 ## Description
 
 Push sources allow feature values to be pushed to the online store and offline store in real time. This allows fresh feature values to be made available to applications. Push sources supercede the

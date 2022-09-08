@@ -123,7 +123,6 @@ class Provider(ABC):
     def ingest_df(
         self,
         feature_view: FeatureView,
-        entities: List[Entity],
         df: pd.DataFrame,
     ):
         """
@@ -131,7 +130,6 @@ class Provider(ABC):
 
         Args:
             feature_view: The feature view to which the dataframe corresponds.
-            entities: The entities that are referenced by the dataframe.
             df: The dataframe to be persisted.
         """
         pass
