@@ -29,6 +29,7 @@
 
 # Redis
 /sdk/python/feast/infra/online_stores/redis.py @DvirDukhan
+/java/feast/serving/connectors/redis/ @DvirDukhan
 
 # Snowflake
 /sdk/python/feast/infra/online_stores/snowflake.py @sfc-gh-madkins
