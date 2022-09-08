@@ -39,7 +39,7 @@ warnings.simplefilter("once", RuntimeWarning)
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
-    type: StrictStr = "spark.offline"
+    type: StrictStr = "spark"
     """ Offline store type selector"""
 
     spark_conf: Optional[Dict[str, str]] = None
@@ -49,7 +49,7 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 class SparkOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark.offline")
+    @log_exceptions_and_usage(offline_store="spark")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -247,7 +247,7 @@ class SparkOfflineStore(OfflineStore):
             )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark.offline")
+    @log_exceptions_and_usage(offline_store="spark")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
