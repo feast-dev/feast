@@ -3,17 +3,22 @@
 ## Getting started
 After familiarizing yourself with the documentation, the simplest way to get started is to:
 1. Join the `#feast-development` [Slack channel](https://tectonfeast.slack.com/archives/C01NTDB88QK), where contributors discuss ideas and PRs
-2. Join our Google Groups in order to get access to RFC folders + get invites to community calls.
+2. Join our Google Groups in order to get access to RFC folders + get invites to community calls. See [community](../community.md) for more details.
 3. Setup your developer environment by following [development guide](development-guide.md). 
 4. Either create a [GitHub issue](https://github.com/feast-dev/feast/issues) or make a draft PR (following [development guide](development-guide.md)) to get the ball rolling!
 
+## Decision making process
+*See [governance](../../community/governance.md) for more details here*
+
 We follow a process of [lazy consensus](http://community.apache.org/committers/lazyConsensus.html). If you believe you know what the project needs then just start development. As long as there is no active opposition and the PR has been approved by maintainers or CODEOWNERS, contributions will be merged.
 
-## Decision making process
+We use our `#feast-development` [Slack channel](https://tectonfeast.slack.com/archives/C01NTDB88QK), [GitHub issues](https://github.com/feast-dev/feast/issues), and [GitHub pull requests](https://github.com/feast-dev/feast/pulls) to communicate development ideas.
 
-We use our `#feast-development` [Slack channel](https://tectonfeast.slack.com/archives/C01NTDB88QK),  [GitHub issues + PRs](https://github.com/feast-dev/feast/issues) to communicate development ideas. The simplest way to contribute to Feast is to leave comments in our [RFCs](https://drive.google.com/drive/u/0/folders/1msUsgmDbVBaysmhBlg9lklYLLTMk4bC3) in the [Feast Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA) or our GitHub issues. 
+The general decision making workflow is as follows:
 
-You will need to join our Google Groups in order to get access to the folders + get invites to community calls. See [community](../community.md) for more details.
+<img src="../../community/governance.png" width=600></img>
+
+> **Note**: There may not always a corresponding CODEOWNER for the affected code, in which case the responsibility falls on other maintainers or contributors with write access to review + merge the PR
 
 ## Pull requests
 
