@@ -214,18 +214,6 @@ def online_read(
 ```
 {% endcode %}
 
-### 1.3 Type Mapping
-
-Most online stores will have to perform some custom mapping of online store datatypes to feast value types.
-
-* The function to implement here are `source_datatype_to_feast_value_type` and `get_column_names_and_types` in your `DataSource` class.
-* `source_datatype_to_feast_value_type` is used to convert your DataSource's datatypes to feast value types.
-* `get_column_names_and_types` retrieves the column names and corresponding datasource types.
-
-Add any helper functions for type conversion to `sdk/python/feast/type_map.py`.
-
-* Be sure to implement correct type mapping so that Feast can process your feature columns without casting incorrectly that can potentially cause loss of information or incorrect data.
-
 ## 2. Defining an OnlineStoreConfig class
 
 Additional configuration may be needed to allow the OnlineStore to talk to the backing store. For example, MySQL may need configuration information like the host at which the MySQL instance is running, credentials for connecting to the database, etc.
