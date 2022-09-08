@@ -36,26 +36,6 @@ def test_spark_materialization_consistency():
 
     df = create_basic_driver_dataset()
 
-    # # generate a large data set
-    # now = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
-
-    # ts = pd.Timestamp(now).round("ms")
-
-    # size = 10000
-    # driver_id = np.array(list(range(size)))
-    # value = np.array([round(np.random.uniform(size=1)[0],3) for x in list(range(size))])
-    # ts_1 = [ts - timedelta(hours=4) for x in range(size)]
-    # created_ts = np.repeat(ts,repeats=size)
-
-    # df = pd.DataFrame({
-    #     "driver_id": driver_id,
-    #     "value": value,
-    #     "ts_1": ts_1,
-    #     "created_ts": created_ts
-
-    # })
-    # print(df)
-
     ds = spark_environment.data_source_creator.create_data_source(
         df,
         spark_environment.feature_store.project,
