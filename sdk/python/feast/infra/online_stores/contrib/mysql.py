@@ -84,30 +84,25 @@ class MySQLOnlineStore(OnlineStore):
     def write_to_table(created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val) -> None:
         cur.execute(
             f"""
-                        UPDATE {_table_id(project, table)}
-                        SET value = %s, event_ts = %s, created_ts = %s
-                        WHERE (entity_key = %s AND feature_name = %s)
-                    """,
+            INSERT INTO {_table_id(project, table)}
+            (entity_key, feature_name, value, event_ts, created_ts)
+            values (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            value = %s,
+            event_ts = %s,
+            created_ts = %s;
+            """,
             (
-                # SET
-                val.SerializeToString(),
-                timestamp,
-                created_ts,
-                # WHERE
-                entity_key_bin,
-                feature_name,
-            ),
-        )
-        cur.execute(
-            f"""INSERT INTO {_table_id(project, table)}
-                        (entity_key, feature_name, value, event_ts, created_ts)
-                        VALUES (%s, %s, %s, %s, %s)""",
-            (
+                # Insert
                 entity_key_bin,
                 feature_name,
                 val.SerializeToString(),
                 timestamp,
                 created_ts,
+                # Update on duplicate key
+                val.SerializeToString(),
+                timestamp,
+                created_ts
             ),
         )
 
