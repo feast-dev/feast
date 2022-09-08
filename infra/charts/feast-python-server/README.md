@@ -2,7 +2,7 @@
 
 > Note: this helm chart is deprecated in favor of [feast-feature-server](../feast-feature-server/README.md)
 
-Current chart version is `0.24.0`
+Current chart version is `0.24.1`
 
 ## Installation
 Docker repository and tag are required. Helm install example:

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.24.1](https://github.com/feast-dev/feast/compare/v0.24.0...v0.24.1) (2022-09-08)
+
+
+### Bug Fixes
+
+* Fix push API to respect feature view's already inferred entity types ([#3172](https://github.com/feast-dev/feast/issues/3172)) ([5dba4a3](https://github.com/feast-dev/feast/commit/5dba4a31c18d938d9d058bf162635c3bdc5781a0))
+* Fix release workflow ([#3144](https://github.com/feast-dev/feast/issues/3144)) ([c77a655](https://github.com/feast-dev/feast/commit/c77a655c03499443e253e4cb9c7d7651685c7de3))
+* Fix Shopify timestamp bug and add warnings to help with debugging entity registration ([#3191](https://github.com/feast-dev/feast/issues/3191)) ([95066ea](https://github.com/feast-dev/feast/commit/95066ea1be9831cfac923734f3a04fac88e194eb))
+* Handle complex Spark data types in SparkSource ([#3154](https://github.com/feast-dev/feast/issues/3154)) ([0e13573](https://github.com/feast-dev/feast/commit/0e135734e313b0b579d7335d008db67dfa14b551))
+
 # [0.24.0](https://github.com/feast-dev/feast/compare/v0.23.0...v0.24.0) (2022-08-25)
 
 
