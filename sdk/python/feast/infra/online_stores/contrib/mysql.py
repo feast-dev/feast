@@ -1,30 +1,19 @@
 from __future__ import absolute_import
 
 from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pymysql
 import pytz
-from feast import (
-    Entity,
-    FeatureView,
-    RepoConfig,
-)
+from pydantic import StrictStr
+from pymysql.connections import Connection
+
+from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from pydantic import StrictStr
-from pymysql.connections import Connection
 
 
 class MySQLOnlineStoreConfig(FeastConfigBaseModel):
@@ -39,6 +28,7 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     user: Optional[StrictStr] = None
     password: Optional[StrictStr] = None
     database: Optional[StrictStr] = None
+    port: Optional[int] = None
 
 
 class MySQLOnlineStore(OnlineStore):
@@ -47,7 +37,7 @@ class MySQLOnlineStore(OnlineStore):
     NOTE: The class *must* end with the `OnlineStore` suffix.
     """
 
-    _conn: Connection
+    _conn: Optional[Connection] = None
 
     def _get_conn(self, config: RepoConfig) -> Connection:
 
@@ -57,9 +47,10 @@ class MySQLOnlineStore(OnlineStore):
         if not self._conn:
             self._conn = pymysql.connect(
                 host=online_store_config.host or "127.0.0.1",
-                user=online_store_config.user or "root",
-                password=online_store_config.password,
+                user=online_store_config.user or "test",
+                password=online_store_config.password or "test",
                 database=online_store_config.database or "feast",
+                port=online_store_config.port or 3306,
                 autocommit=True,
             )
         return self._conn
@@ -85,7 +76,7 @@ class MySQLOnlineStore(OnlineStore):
 
             for feature_name, val in values.items():
                 self.write_to_table(created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val)
-            self._conn.commit()
+            conn.commit()
             if progress:
                 progress(1)
 
@@ -149,7 +140,7 @@ class MySQLOnlineStore(OnlineStore):
                     val = ValueProto()
                     val.ParseFromString(val_bin)
                     res[feature_name] = val
-                    res_ts = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                    res_ts = ts
 
             if not res:
                 result.append((None, None))
@@ -176,7 +167,7 @@ class MySQLOnlineStore(OnlineStore):
                 f"""CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key VARCHAR(512),
                 feature_name VARCHAR(256),
                 value BLOB,
-                event_ts,
+                event_ts timestamp NULL DEFAULT NULL,
                 created_ts timestamp NULL DEFAULT NULL,
                 PRIMARY KEY(entity_key, feature_name))"""
             )
