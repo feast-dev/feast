@@ -361,10 +361,10 @@ build-docker: build-feature-server-python-docker build-feature-server-python-aws
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
-push-feature-server-python-docker:
+push-feature-server-docker:
 	docker push $(REGISTRY)/feature-server:$$VERSION
 
-build-feature-server-python-docker:
+build-feature-server-docker:
 	docker buildx build --build-arg VERSION=$$VERSION \
 		-t $(REGISTRY)/feature-server:$$VERSION \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
