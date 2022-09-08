@@ -2,7 +2,6 @@ import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -31,9 +30,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["snowflake.online"] = "snowflake.online"
     """ Online store type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Can't use ~)"""
 
     account: Optional[str] = None

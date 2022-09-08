@@ -64,9 +64,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
