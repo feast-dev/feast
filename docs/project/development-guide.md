@@ -2,42 +2,45 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Community](#community)
-- [Making a pull request](#making-a-pull-request)
-  - [Pull request checklist](#pull-request-checklist)
-  - [Good Practices](#good-practices-to-keep-in-mind)
-  - [Forking the repo](#forking-the-repo)
-  - [Pre-commit Hooks](#pre-commit-hooks)
-  - [Signing off commits](#signing-off-commits)
-  - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
-- [Feast Python SDK / CLI](#feast-python-sdk--cli)
-  - [Environment Setup](#environment-setup)
-  - [Code Style & Linting](#code-style--linting)
-  - [Unit Tests](#unit-tests)
-  - [Integration Tests](#integration-tests)
-    - [Local integration tests](#local-integration-tests)
-    - [(Advanced) Full integration tests](#advanced-full-integration-tests)
-    - [(Advanced) Running specific provider tests or running your test against specific online or offline stores](#advanced-running-specific-provider-tests-or-running-your-test-against-specific-online-or-offline-stores)
-    - [(Experimental) Run full integration tests against containerized services](#experimental-run-full-integration-tests-against-containerized-services)
-  - [Contrib integration tests](#contrib-integration-tests)
-    - [(Contrib) Running tests for Spark offline store](#contrib-running-tests-for-spark-offline-store)
-    - [(Contrib) Running tests for Trino offline store](#contrib-running-tests-for-trino-offline-store)
-    - [(Contrib) Running tests for Postgres offline store](#contrib-running-tests-for-postgres-offline-store)
-    - [(Contrib) Running tests for Postgres online store](#contrib-running-tests-for-postgres-online-store)
-    - [(Contrib) Running tests for HBase online store](#contrib-running-tests-for-hbase-online-store)
-- [(Experimental) Feast UI](#experimental-feast-ui)
-- [Feast Java Serving](#feast-java-serving)
-- [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
-  - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
-  - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
-- [Feast Go Client](#feast-go-client)
-  - [Environment Setup](#go-environment-setup)
-  - [Building](#building-go)
-  - [Code Style & Linting](#go-code-style--linting)
-  - [Unit Tests](#go-unit-tests)
-  - [Testing with GitHub Actions workflows](#testing-with-github-actions-workflows)
-- [Data Storage Formats](#feast-data-storage-format)
+- [Development Guide: Main Feast Repository](#development-guide-main-feast-repository)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Compatibility](#compatibility)
+  - [Community](#community)
+  - [Making a pull request](#making-a-pull-request)
+    - [Pull request checklist](#pull-request-checklist)
+    - [Good practices to keep in mind](#good-practices-to-keep-in-mind)
+    - [Forking the repo](#forking-the-repo)
+    - [Pre-commit Hooks](#pre-commit-hooks)
+    - [Signing off commits](#signing-off-commits)
+    - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
+  - [Feast Python SDK / CLI](#feast-python-sdk--cli)
+    - [Environment Setup](#environment-setup)
+    - [Code Style & Linting](#code-style--linting)
+    - [Unit Tests](#unit-tests)
+    - [Integration Tests](#integration-tests)
+      - [Local integration tests](#local-integration-tests)
+      - [(Advanced) Full integration tests](#advanced-full-integration-tests)
+      - [(Advanced) Running specific provider tests or running your test against specific online or offline stores](#advanced-running-specific-provider-tests-or-running-your-test-against-specific-online-or-offline-stores)
+      - [(Experimental) Run full integration tests against containerized services](#experimental-run-full-integration-tests-against-containerized-services)
+    - [Contrib integration tests](#contrib-integration-tests)
+      - [(Contrib) Running tests for Spark offline store](#contrib-running-tests-for-spark-offline-store)
+      - [(Contrib) Running tests for Trino offline store](#contrib-running-tests-for-trino-offline-store)
+      - [(Contrib) Running tests for Postgres offline store](#contrib-running-tests-for-postgres-offline-store)
+      - [(Contrib) Running tests for Postgres online store](#contrib-running-tests-for-postgres-online-store)
+      - [(Contrib) Running tests for HBase online store](#contrib-running-tests-for-hbase-online-store)
+  - [(Experimental) Feast UI](#experimental-feast-ui)
+  - [Feast Java Serving](#feast-java-serving)
+  - [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
+    - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
+    - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
+  - [Feast Go Client](#feast-go-client)
+    - [Go Environment Setup](#go-environment-setup)
+    - [Building Go](#building-go)
+    - [Go Code Style & Linting](#go-code-style--linting)
+    - [Go Unit Tests](#go-unit-tests)
+    - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
+  - [Feast Data Storage Format](#feast-data-storage-format)
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
@@ -68,6 +71,8 @@ If the assignee is empty it means that no reviewer has been found yet.
 If a reviewer has been found, they should also be the assigned the PR. 
 Finally, if there are comments to be addressed, the PR author should be the one assigned the PR.
 
+PRs that are submitted by the general public need to be identified as `ok-to-test`. Once enabled, [Prow](https://github.com/kubernetes/test-infra/tree/master/prow) will run a range of tests to verify the submission, after which community members will help to review the pull request.
+
 ### Pull request checklist
 A quick list of things to keep in mind as you're making changes:
 - As you make changes
@@ -77,6 +82,7 @@ A quick list of things to keep in mind as you're making changes:
   - Install [pre-commit hooks](#pre-commit-hooks) to ensure all the default linters / formatters are run when you push.
 - When you make the PR
   - Make a pull request from the forked repo you made
+  - Ensure the title of the PR matches semantic release conventions (e.g. start with `feat:` or `fix:` or `ci:` or `chore:` or `docs:`). Keep in mind that any PR with `feat:` or `fix:` will directly make it into the change log of a release, so make sure they are understandable!
   - Ensure you add a GitHub **label** (i.e. a kind tag to the PR (e.g. `kind/bug` or `kind/housekeeping`)) or else checks will fail.
   - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes.
   - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
