@@ -4,8 +4,6 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.9-ci-requirements.txt
 #
---index-url https://registry.affirm-stage.com/artifactory/api/pypi/pypi/simple/
-
 absl-py==1.2.0
     # via tensorflow-metadata
 adal==1.2.7
