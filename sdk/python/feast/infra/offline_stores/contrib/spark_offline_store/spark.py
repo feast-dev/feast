@@ -368,7 +368,7 @@ class SparkRetrievalJob(RetrievalJob):
 
             sdf: pyspark.sql.DataFrame = self.to_spark_df()
 
-            if self._config.offline_store.staging_location.startswith("file://"):
+            if self._config.offline_store.staging_location.startswith("/"):
                 local_file_staging_location = os.path.abspath(
                     self._config.offline_store.staging_location
                 )
