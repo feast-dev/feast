@@ -233,7 +233,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
 
             logger.info(
                 f"Ingested task; request id {response['ResponseMetadata']['RequestId']}, "
-                f"rows written: {output['written_rows']}"
+                f"Output: {output}"
             )
 
         for f in not_done:

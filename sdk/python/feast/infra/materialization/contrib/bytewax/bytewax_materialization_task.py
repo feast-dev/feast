@@ -1,4 +1,4 @@
-from feast.infra.materialization import MaterializationTask
+from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
 class BytewaxMaterializationTask(MaterializationTask):

@@ -35,8 +35,8 @@ class BaseFeatureView(ABC):
             maintainer.
         projection: The feature view projection storing modifications to be applied to
             this base feature view at retrieval time.
-        created_timestamp (optional): The time when the base feature view was created.
-        last_updated_timestamp (optional): The time when the base feature view was last
+        created_timestamp: The time when the base feature view was created.
+        last_updated_timestamp: The time when the base feature view was last
             updated.
     """
 
@@ -117,10 +117,16 @@ class BaseFeatureView(ABC):
 
         cp = self.__copy__()
         if self.features:
+            feature_name_to_feature = {
+                feature.name: feature for feature in self.features
+            }
             referenced_features = []
-            for feature in self.features:
-                if feature.name in item:
-                    referenced_features.append(feature)
+            for feature in item:
+                if feature not in feature_name_to_feature:
+                    raise ValueError(
+                        f"Feature {feature} does not exist in this feature view."
+                    )
+                referenced_features.append(feature_name_to_feature[feature])
             cp.projection.features = referenced_features
         else:
             cp.projection.desired_features = item

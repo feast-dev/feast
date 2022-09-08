@@ -38,7 +38,6 @@ public class ApplicationProperties {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ApplicationProperties.class);
   private FeastProperties feast;
   private GrpcServer grpc;
-  private RestServer rest;
 
   public FeastProperties getFeast() {
     return feast;
@@ -320,18 +319,6 @@ public class ApplicationProperties {
   }
 
   public static class GrpcServer {
-    private Server server;
-
-    public Server getServer() {
-      return server;
-    }
-
-    public void setServer(Server server) {
-      this.server = server;
-    }
-  }
-
-  public static class RestServer {
     private Server server;
 
     public Server getServer() {

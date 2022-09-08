@@ -1,5 +1,48 @@
 # Changelog
 
+# [0.24.0](https://github.com/feast-dev/feast/compare/v0.23.0...v0.24.0) (2022-08-25)
+
+
+### Bug Fixes
+
+* Check if on_demand_feature_views is an empty list rather than None for snowflake provider ([#3046](https://github.com/feast-dev/feast/issues/3046)) ([9b05e65](https://github.com/feast-dev/feast/commit/9b05e651546d1526aa166854e425285c8ec3a6d5))
+* FeatureStore.apply applies BatchFeatureView correctly ([#3098](https://github.com/feast-dev/feast/issues/3098)) ([41be511](https://github.com/feast-dev/feast/commit/41be51170db1f9d9439ac801625458d471827cee))
+* Fix Feast Java inconsistency with int64 serialization vs python ([#3031](https://github.com/feast-dev/feast/issues/3031)) ([4bba787](https://github.com/feast-dev/feast/commit/4bba78709e4e5884ce9aad75e84f9b4449665b81))
+* Fix feature service inference logic ([#3089](https://github.com/feast-dev/feast/issues/3089)) ([4310ed7](https://github.com/feast-dev/feast/commit/4310ed7e687da0e80a18c6d8cb95cfb15bbd1eae))
+* Fix field mapping logic during feature inference ([#3067](https://github.com/feast-dev/feast/issues/3067)) ([cdfa761](https://github.com/feast-dev/feast/commit/cdfa761a16206afcdb64959c25ee3b5f2b312566))
+* Fix incorrect on demand feature view diffing and improve Java tests ([#3074](https://github.com/feast-dev/feast/issues/3074)) ([0702310](https://github.com/feast-dev/feast/commit/0702310366882a388af4f299a69467841c132259))
+* Fix Java helm charts to work with refactored logic. Fix FTS image ([#3105](https://github.com/feast-dev/feast/issues/3105)) ([2b493e0](https://github.com/feast-dev/feast/commit/2b493e0457cea19a9b3faa163f099d6b32fde30d))
+* Fix on demand feature view output in feast plan + Web UI crash ([#3057](https://github.com/feast-dev/feast/issues/3057)) ([bfae6ac](https://github.com/feast-dev/feast/commit/bfae6ac5a42fcdeebfaed2d1473c546da23c3bdc))
+* Fix release workflow to release 0.24.0 ([#3138](https://github.com/feast-dev/feast/issues/3138)) ([a69aaae](https://github.com/feast-dev/feast/commit/a69aaae4c5595e87501e0b5d58533360306fb831))
+* Fix Spark offline store type conversion to arrow ([#3071](https://github.com/feast-dev/feast/issues/3071)) ([b26566d](https://github.com/feast-dev/feast/commit/b26566d92573164d9968fb356fd68446725f70f5))
+* Fixing Web UI, which fails for the SQL registry ([#3028](https://github.com/feast-dev/feast/issues/3028)) ([64603b6](https://github.com/feast-dev/feast/commit/64603b677421b21f04bd72238e358dac43122b29))
+* Force Snowflake Session to Timezone UTC ([#3083](https://github.com/feast-dev/feast/issues/3083)) ([9f221e6](https://github.com/feast-dev/feast/commit/9f221e66eb2dd83b0e6beb528a694f4933953571))
+* Make infer dummy entity join key idempotent ([#3115](https://github.com/feast-dev/feast/issues/3115)) ([1f5b1e0](https://github.com/feast-dev/feast/commit/1f5b1e078b41729938ab6b4d9a35c2fcb2be39cd))
+* More explicit error messages ([#2708](https://github.com/feast-dev/feast/issues/2708)) ([e4d7afd](https://github.com/feast-dev/feast/commit/e4d7afdce8fc2596d1a27f2d85f259f2fa35bafa))
+* Parse inline data sources ([#3036](https://github.com/feast-dev/feast/issues/3036)) ([c7ba370](https://github.com/feast-dev/feast/commit/c7ba370aa14ef3216c84aaa8852fd519931840bf))
+* Prevent overwriting existing file during `persist` ([#3088](https://github.com/feast-dev/feast/issues/3088)) ([69af21f](https://github.com/feast-dev/feast/commit/69af21f4c487506417d7bbb3ad32f1be2246a654))
+* Register BatchFeatureView in feature repos correctly ([#3092](https://github.com/feast-dev/feast/issues/3092)) ([b8e39ea](https://github.com/feast-dev/feast/commit/b8e39ea4cd2d990f2422c60bf39d8d940ecc9522))
+* Return an empty infra object from sql registry when it doesn't exist ([#3022](https://github.com/feast-dev/feast/issues/3022)) ([8ba87d1](https://github.com/feast-dev/feast/commit/8ba87d1b550526c24bb5f6b3ce63c6435676a5cb))
+* Teardown tables for Snowflake Materialization testing ([#3106](https://github.com/feast-dev/feast/issues/3106)) ([0a0c974](https://github.com/feast-dev/feast/commit/0a0c974f38e7ef41ecf0af5c6a3eacac7369aa38))
+* UI error when saved dataset is present in registry. ([#3124](https://github.com/feast-dev/feast/issues/3124)) ([83cf753](https://github.com/feast-dev/feast/commit/83cf7533fa757af7eb3ab1c4f540aca8edd134af))
+* Update sql.py ([#3096](https://github.com/feast-dev/feast/issues/3096)) ([2646a86](https://github.com/feast-dev/feast/commit/2646a864b0031617b26577926ade2341f998557b))
+* Updated snowflake template ([#3130](https://github.com/feast-dev/feast/issues/3130)) ([f0594e1](https://github.com/feast-dev/feast/commit/f0594e160a1f11d896e884b40f7e1110d2df6aa9))
+
+
+### Features
+
+* Add authentication option for snowflake connector ([#3039](https://github.com/feast-dev/feast/issues/3039)) ([74c75f1](https://github.com/feast-dev/feast/commit/74c75f1f4c91f0097f9a1085a4e68a07c524037d))
+* Add Cassandra/AstraDB online store contribution ([#2873](https://github.com/feast-dev/feast/issues/2873)) ([feb6cb8](https://github.com/feast-dev/feast/commit/feb6cb8518889288d6ddd97e4482db2f6b86eabd))
+* Add Snowflake materialization engine ([#2948](https://github.com/feast-dev/feast/issues/2948)) ([f3b522b](https://github.com/feast-dev/feast/commit/f3b522b007cc5e5ccd32dbe04e47d30136810f6c))
+* Adding saved dataset capabilities for Postgres  ([#3070](https://github.com/feast-dev/feast/issues/3070)) ([d3253c3](https://github.com/feast-dev/feast/commit/d3253c362deb775a8f1f5cd325e44d3e598d0bdf))
+* Allow passing repo config path via flag ([#3077](https://github.com/feast-dev/feast/issues/3077)) ([0d2d951](https://github.com/feast-dev/feast/commit/0d2d951d565daac1a4f01fab988d44010b6856bb))
+* Contrib azure provider with synapse/mssql offline store and Azure registry store ([#3072](https://github.com/feast-dev/feast/issues/3072)) ([9f7e557](https://github.com/feast-dev/feast/commit/9f7e5573e764466590badab4250b69aef6f256b0))
+* Custom Docker image for Bytewax batch materialization ([#3099](https://github.com/feast-dev/feast/issues/3099)) ([cdd1b07](https://github.com/feast-dev/feast/commit/cdd1b0734fcb20c258cf6ee4c067f23d2fff81e0))
+* Feast AWS Athena offline store (again) ([#3044](https://github.com/feast-dev/feast/issues/3044)) ([989ce08](https://github.com/feast-dev/feast/commit/989ce085c0949564af61afb73401c27669cfdaba))
+* Implement spark offline store `offline_write_batch` method ([#3076](https://github.com/feast-dev/feast/issues/3076)) ([5b0cc87](https://github.com/feast-dev/feast/commit/5b0cc8798616455d955b543cb8012ad88927aea2))
+* Initial Bytewax materialization engine ([#2974](https://github.com/feast-dev/feast/issues/2974)) ([55c61f9](https://github.com/feast-dev/feast/commit/55c61f9c4584bf040a7dc1719200704402811d6d))
+* Refactor feature server helm charts to allow passing feature_store.yaml in environment variables ([#3113](https://github.com/feast-dev/feast/issues/3113)) ([85ee789](https://github.com/feast-dev/feast/commit/85ee78947bc9793b17348c08325844a2ee4ad0ff))
+
 # [0.23.0](https://github.com/feast-dev/feast/compare/v0.22.0...v0.23.0) (2022-08-02)
 
 

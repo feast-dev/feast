@@ -66,6 +66,7 @@ jobs:
         working-directory: ./ui
         run: yarn build:lib
       - name: Publish UI package
+        if: github.event.inputs.dry_run == 'false'
         working-directory: ./ui
         run: npm publish
         env:

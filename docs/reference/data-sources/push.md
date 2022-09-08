@@ -22,7 +22,7 @@ Streaming data sources are important sources of feature values. A typical setup 
 
 Feast allows users to push features previously registered in a feature view to the online store for fresher features. It also allows users to push batches of stream data to the offline store by specifying that the push be directed to the offline store. This will push the data to the offline store declared in the repository configuration used to initialize the feature store.
 
-## Example
+## Example (basic)
 ### Defining a push source
 Note that the push schema needs to also include the entity.
 
@@ -59,3 +59,24 @@ fs.push("push_source_name", feature_data_frame, to=PushMode.ONLINE_AND_OFFLINE)
 
 See also [Python feature server](../feature-servers/python-feature-server.md) for instructions on how to push data to a deployed feature server.
 
+## Example (Spark Streaming)
+
+The default option to write features from a stream is to add the Python SDK into your existing PySpark pipeline.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(...)
+
+spark = SparkSession.builder.getOrCreate()
+
+streamingDF = spark.readStream.format(...).load()
+
+def feast_writer(spark_df):
+    pandas_df = spark_df.to_pandas()
+    store.push("driver_hourly_stats", pandas_df)
+
+streamingDF.writeStream.foreachBatch(feast_writer).start()
+```
+
+This can also be used under the hood by a contrib stream processor (see [Tutorial: Building streaming features](../../tutorials/building-streaming-features.md))

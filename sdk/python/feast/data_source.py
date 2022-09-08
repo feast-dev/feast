@@ -299,7 +299,6 @@ class DataSource(ABC):
         if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
             return cls.from_proto(data_source)
-
         cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
         return cls.from_proto(data_source)
 

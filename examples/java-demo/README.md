@@ -30,18 +30,21 @@ For this tutorial, we setup Feast with Redis, using the Feast CLI to register an
 2. Make a bucket in GCS (or S3)
 3. The feature repo is already setup here, so you just need to swap in your GCS bucket and Redis credentials.
     We need to modify the `feature_store.yaml`, which has two fields for you to replace:
-     ```yaml
-    registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+    ```yaml
+    registry: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
     project: feast_java_demo
     provider: gcp
     online_store:
       type: redis
+      # Note: this would normally be using instance URL's to access Redis
       connection_string: localhost:6379,password=[YOUR PASSWORD]
     offline_store:
       type: file
+    entity_key_serialization_version: 2
     ```
 4. Run `feast apply` to apply your local features to the remote registry
-5. Materialize features to the online store:
+     - Note: you may need to authenticate to gcloud first with `gcloud auth login` 
+6. Materialize features to the online store:
     ```bash
     CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")                                    
     feast materialize-incremental $CURRENT_TIME

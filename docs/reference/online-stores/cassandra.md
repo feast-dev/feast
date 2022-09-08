@@ -1,4 +1,4 @@
-# Cassandra / Astra DB online store
+# Cassandra + Astra DB online store (contrib)
 
 ## Description
 
@@ -55,7 +55,34 @@ online_store:
 ```
 {% endcode %}
 
+The full set of configuration options is available in [CassandraOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig).
 For a full explanation of configuration options please look at file
 `sdk/python/feast/infra/online_stores/contrib/cassandra_online_store/README.md`.
 
 Storage specifications can be found at `docs/specs/online_store_format.md`.
+
+## Functionality Matrix
+
+The set of functionality supported by online stores is described in detail [here](overview.md#functionality).
+Below is a matrix indicating which functionality is supported by the Cassandra online store.
+
+| | Cassandra |
+| :-------------------------------------------------------- | :-- |
+| write feature values to the online store                  | yes |
+| read feature values from the online store                 | yes |
+| update infrastructure (e.g. tables) in the online store   | yes |
+| teardown infrastructure (e.g. tables) in the online store | yes |
+| generate a plan of infrastructure changes                 | yes |
+| support for on-demand transforms                          | yes |
+| readable by Python SDK                                    | yes |
+| readable by Java                                          | no  |
+| readable by Go                                            | no  |
+| support for entityless feature views                      | yes |
+| support for concurrent writing to the same key            | no  |
+| support for ttl (time to live) at retrieval               | no  |
+| support for deleting expired data                         | no  |
+| collocated by feature view                                | yes |
+| collocated by feature service                             | no  |
+| collocated by entity key                                  | no  |
+
+To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).

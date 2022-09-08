@@ -112,8 +112,17 @@ def _check_offline_and_online_features(
         full_feature_names=full_feature_names,
     ).to_dict()
 
-    if full_feature_names:
+    # Wait for materialization to occur
+    if not response_dict[f"{fv.name}__value"][0]:
+        # Deal with flake with a retry
+        time.sleep(10)
+        response_dict = fs.get_online_features(
+            [f"{fv.name}:value"],
+            [{"driver_id": driver_id}],
+            full_feature_names=full_feature_names,
+        ).to_dict()
 
+    if full_feature_names:
         if expected_value:
             assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
             assert (
@@ -164,8 +173,12 @@ def _check_offline_and_online_features(
                 )
 
 
-def make_feature_store_yaml(project, test_repo_config, repo_dir_name: Path):
-    offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(project)
+def make_feature_store_yaml(
+    project,
+    test_repo_config,
+    repo_dir_name: Path,
+    offline_creator: DataSourceCreator,
+):
 
     offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store

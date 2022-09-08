@@ -549,7 +549,7 @@ class FeatureStore:
         return self.config.provider == "local" and (
             self.config.online_store and (
                 self.config.online_store.type == "sqlite" or
-                self.config.online_store.type.endswith("MySQLOnlineStore")
+                self.config.online_store.type == "mysql"
             )
         )
 
@@ -567,9 +567,7 @@ class FeatureStore:
                 "This API is stable, but the functionality does not scale well for offline retrieval",
                 RuntimeWarning,
             )
-
         set_usage_attribute("odfv", bool(odfvs_to_update))
-
         _validate_feature_views(
             [
                 *views_to_update,

@@ -43,3 +43,8 @@ In particular, you can read more about quote identifiers [here](https://docs.sno
 {% endhint %}
 
 The full set of configuration options is available [here](https://rtd.feast.dev/en/latest/index.html#feast.infra.offline_stores.snowflake_source.SnowflakeSource).
+
+## Supported Types
+
+Snowflake data sources support all eight primitive types, but currently do not support array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

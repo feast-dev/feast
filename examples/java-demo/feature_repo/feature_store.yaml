@@ -3,6 +3,7 @@ project: feast_java_demo
 provider: gcp
 online_store:
   type: redis
+  # Note: this would normally be using instance URL's to access Redis
   connection_string: localhost:6379,password=[YOUR PASSWORD]
 offline_store:
   type: file

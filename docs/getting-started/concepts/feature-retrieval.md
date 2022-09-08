@@ -6,7 +6,9 @@ Generally, Feast supports several patterns of feature retrieval:
 
 1. Training data generation (via `feature_store.get_historical_features(...)`)
 2. Offline feature retrieval for batch scoring (via `feature_store.get_historical_features(...)`)
-3. Online feature retrieval for real-time model predictions (via `feature_store.get_online_features(...)`)
+3. Online feature retrieval for real-time model predictions 
+   - via the SDK: `feature_store.get_online_features(...)`
+   - via deployed feature server endpoints: `requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))` 
 
 Each of these retrieval mechanisms accept:
 
@@ -21,7 +23,7 @@ Before beginning, you need to instantiate a local `FeatureStore` object that kno
 
 Feast abstracts away point-in-time join complexities with the `get_historical_features` API.
 
-It expects an **entity dataframe (or SQL query)** and a **list of feature references (or feature service)**
+It expects an **entity dataframe (or SQL query to retrieve a list of entities)** and a **list of feature references (or a feature service)**
 
 #### **Option 1: using feature references (to pick individual features when exploring data)**
 
@@ -77,7 +79,7 @@ print(training_df.head())
 
 <summary>How to: retrieve offline features for batch scoring</summary>
 
-The main difference here from training data generation is how to handle timestamps in the  entity dataframe. You want to pass in the **current time** to get the latest feature values for all your entities.
+The main difference here compared to training data generation is how to handle timestamps in the entity dataframe. You want to pass in the **current time** to get the latest feature values for all your entities.
 
 #### Option 1: fetching features with entity dataframe
 
@@ -100,21 +102,20 @@ batch_scoring_features = store.get_historical_features(
 
 ```python
 from feast import FeatureStore
-import pandas as pd
 
 store = FeatureStore(repo_path=".")
 
 # Get the latest feature values for unique entities
 batch_scoring_features = store.get_historical_features(
     entity_df="""
-        SELECT 
-            user_id, 
-            CURRENT_TIME() as event_timestamp 
-        FROM entity_source_table 
+        SELECT
+            user_id,
+            CURRENT_TIME() as event_timestamp
+        FROM entity_source_table
         WHERE user_last_active_time BETWEEN '2019-01-01' and '2020-12-31'
         GROUP BY user_id
         """
-    , 
+    ,
     features=store.get_feature_service("model_v2"),
 ).to_df()
 # predictions = model.predict(batch_scoring_features)
@@ -124,13 +125,23 @@ batch_scoring_features = store.get_historical_features(
 
 <details>
 
-<summary>How to: retrieve online features for real-time model inference</summary>
+<summary>How to: retrieve online features for real-time model inference (Python SDK)</summary>
 
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
 
 _Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
 
 ```python
+from feast import RepoConfig, FeatureStore
+from feast.repo_config import RegistryConfig
+
+repo_config = RepoConfig(
+    registry=RegistryConfig(path="gs://feast-test-gcs-bucket/registry.pb"),
+    project="feast_demo_gcp",
+    provider="gcp",
+)
+store = FeatureStore(config=repo_config)
+
 features = store.get_online_features(
     features=[
         "driver_hourly_stats:conv_rate",
@@ -143,6 +154,32 @@ features = store.get_online_features(
         }
     ],
 ).to_dict()
+```
+
+</details>
+
+<details>
+
+<summary>How to: retrieve online features for real-time model inference (Feature Server)</summary>
+
+Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
+
+_Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
+
+This approach requires you to deploy a feature server (see [Python feature server](../../reference/feature-servers/python-feature-server)).
+
+```python
+import requests
+import json
+
+online_request = {
+    "features": [
+        "driver_hourly_stats:conv_rate",
+    ],
+    "entities": {"driver_id": [1001, 1002]},
+}
+r = requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))
+print(json.dumps(r.json(), indent=4, sort_keys=True))
 ```
 
 </details>
@@ -223,7 +260,7 @@ online_features = fs.get_online_features(
 It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
 
 {% hint style="info" %}
-Note, if you're using [Feature views without entities](feature-view.md#feature-views-without-entities), then those features can be added here without additional entity values in the `entity_rows`
+Note, if you're using [Feature views without entities](feature-view.md#feature-views-without-entities), then those features can be added here without additional entity values in the `entity_rows` parameter.
 {% endhint %}
 
 ## Event timestamp

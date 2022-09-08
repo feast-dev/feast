@@ -146,7 +146,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     validate_dataframes(
         expected_df,
         actual_df_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
     assert_feature_service_correctness(
@@ -170,7 +172,9 @@ def test_historical_features(environment, universal_data_sources, full_feature_n
     validate_dataframes(
         expected_df,
         table_from_df_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -329,7 +333,9 @@ def test_historical_features_with_entities_from_query(
     validate_dataframes(
         expected_df_query,
         actual_df_from_sql_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
     table_from_sql_entities = job_from_sql.to_arrow().to_pandas()
@@ -341,7 +347,9 @@ def test_historical_features_with_entities_from_query(
     validate_dataframes(
         expected_df_query,
         table_from_sql_entities,
-        keys=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "order_id", "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -415,13 +423,17 @@ def test_historical_features_persisting(
     validate_dataframes(
         expected_df,
         saved_dataset.to_df(),
-        keys=[event_timestamp, "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
     validate_dataframes(
         job.to_df(),
         saved_dataset.to_df(),
-        keys=[event_timestamp, "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -493,7 +505,9 @@ def test_historical_features_with_no_ttl(
     validate_dataframes(
         expected_df,
         job.to_df(),
-        keys=[event_timestamp, "driver_id", "customer_id"],
+        sort_by=[event_timestamp, "driver_id", "customer_id"],
+        event_timestamp_column=event_timestamp,
+        timestamp_precision=timedelta(milliseconds=1),
     )
 
 
@@ -590,4 +604,8 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df.columns)
-    validate_dataframes(expected_df, actual_df, keys=["driver_id"])
+    validate_dataframes(
+        expected_df,
+        actual_df,
+        sort_by=["driver_id"],
+    )

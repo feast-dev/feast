@@ -22,7 +22,6 @@ from tenacity import (
 import feast
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 from feast.feature_view import FeatureView
-from feast.repo_config import RepoConfig
 
 try:
     import snowflake.connector
@@ -103,19 +102,6 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         return conn
     except KeyError as e:
         raise SnowflakeIncompleteConfig(e)
-
-
-# Determine which set of credentials to use when using snowflake materialization engine
-# if snowflake.online -- this requires the online role to have access to source tables
-# if else -- this requires the offline role to have access to source tables
-def get_snowflake_materialization_config(repo_config: RepoConfig):
-    if repo_config.batch_engine.account:
-        conn_config = repo_config.batch_engine
-    elif repo_config.online_store.type == "snowflake.online":
-        conn_config = repo_config.online_store
-    else:
-        conn_config = repo_config.offline_store
-    return conn_config
 
 
 def package_snowpark_zip(project_name) -> Tuple[str, str]:
