@@ -43,10 +43,17 @@ feature-server:
               config:
                 host: localhost
                 port: 6379
+            entityKeySerializationVersion: 2
+
+global:
+  registry:
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
+    cache_ttl_seconds: 60
+  project: feast_java_demo
 
 ```
 
-For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast-java/blob/master/serving/src/main/resources/application.yml).
+For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml).
 
 For more details, please see: https://docs.feast.dev/how-to-guides/running-feast-in-production
 
