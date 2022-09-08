@@ -314,7 +314,7 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
-                entity_key, entity_key_serialization_version=2
+                entity_key, entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
             with tracing_span(name="remote_call"):
                 self._write_rows(
@@ -353,7 +353,7 @@ class CassandraOnlineStore(OnlineStore):
 
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
-                entity_key, entity_key_serialization_version=2
+                entity_key, entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
 
             with tracing_span(name="remote_call"):
