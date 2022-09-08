@@ -2,7 +2,6 @@ import os
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Callable, List, Literal, Optional, Sequence, Union
 
 import click
@@ -45,9 +44,7 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
     type: Literal["snowflake.engine"] = "snowflake.engine"
     """ Type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
