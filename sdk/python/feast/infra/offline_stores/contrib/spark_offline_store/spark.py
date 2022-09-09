@@ -342,11 +342,7 @@ class SparkRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-
-        # write to temp parquet and then load it as pyarrow table from disk
-        with tempfile.TemporaryDirectory() as temp_dir:
-            self.to_spark_df().write.parquet(temp_dir, mode="overwrite")
-            return pq.read_table(temp_dir)
+        return pyarrow.Table.from_pandas(self._to_df_internal())
 
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
