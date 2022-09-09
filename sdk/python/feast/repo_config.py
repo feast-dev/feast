@@ -50,7 +50,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
-    "mysql": "feast.infra.online_stores.contrib.mysql.MySQLOnlineStore",
+    "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
