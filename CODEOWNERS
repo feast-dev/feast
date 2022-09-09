@@ -20,7 +20,7 @@
 /sdk/python/feast/infra/offline_stores/contrib/athena_offline_store/ @toping4445
 
 # Azure SQL (contrib)
-/sdk/python/feast/infra/offline_stores/contrib/mssql_offline_store/ @samuel100 @kevjumba
+/sdk/python/feast/infra/offline_stores/contrib/mssql_offline_store/ @kevjumba
 
 # Spark (contrib)
 /sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/ @niklasvm @kevjumba
