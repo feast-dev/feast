@@ -59,7 +59,9 @@ class MySQLOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
 
@@ -75,13 +77,24 @@ class MySQLOnlineStore(OnlineStore):
                 created_ts = _to_naive_utc(created_ts)
 
             for feature_name, val in values.items():
-                self.write_to_table(created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val)
+                self.write_to_table(
+                    created_ts,
+                    cur,
+                    entity_key_bin,
+                    feature_name,
+                    project,
+                    table,
+                    timestamp,
+                    val,
+                )
             conn.commit()
             if progress:
                 progress(1)
 
     @staticmethod
-    def write_to_table(created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val) -> None:
+    def write_to_table(
+        created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val
+    ) -> None:
         cur.execute(
             f"""
             INSERT INTO {_table_id(project, table)}
@@ -102,7 +115,7 @@ class MySQLOnlineStore(OnlineStore):
                 # Update on duplicate key
                 val.SerializeToString(),
                 timestamp,
-                created_ts
+                created_ts,
             ),
         )
 
@@ -172,7 +185,9 @@ class MySQLOnlineStore(OnlineStore):
             )
 
         for table in tables_to_delete:
-            cur.execute(f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};")
+            cur.execute(
+                f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};"
+            )
             cur.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
     def teardown(
@@ -186,7 +201,9 @@ class MySQLOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            cur.execute(f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};")
+            cur.execute(
+                f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};"
+            )
             cur.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
 
