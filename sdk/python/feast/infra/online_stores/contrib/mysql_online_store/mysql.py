@@ -138,7 +138,7 @@ class MySQLOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version
+                entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
 
             cur.execute(
