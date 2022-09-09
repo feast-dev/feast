@@ -1,0 +1,54 @@
+# See https://help.github.com/articles/about-codeowners/
+# for more info about CODEOWNERS file
+
+# Core Interfaces
+/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @chhabrakadabra @mavysavydav @sfc-gh-madkins
+/sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers @DvirDukhan
+/sdk/python/feast/infra/materialization_engine/batch_materialization_engine.py @feast-dev/maintainers @whoahbot @sfc-gh-madkins
+
+# ==== Offline Stores ====
+# Core utils
+/sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers @chhabrakadabra @mavysavydav @sfc-gh-madkins
+
+# BigQuery
+/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @chhabrakadabra @mavysavydav
+
+# Snowflake
+/sdk/python/feast/infra/offline_stores/snowflake* @sfc-gh-madkins
+
+# Athena (contrib)
+/sdk/python/feast/infra/offline_stores/contrib/athena_offline_store/ @toping4445
+
+# Azure SQL (contrib)
+/sdk/python/feast/infra/offline_stores/contrib/mssql_offline_store/ @kevjumba
+
+# Spark (contrib)
+/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/ @niklasvm @kevjumba
+
+# ==== Online Stores ====
+
+# Redis
+/sdk/python/feast/infra/online_stores/redis.py @DvirDukhan
+/java/feast/serving/connectors/redis/ @DvirDukhan
+
+# Snowflake
+/sdk/python/feast/infra/online_stores/snowflake.py @sfc-gh-madkins
+
+# Cassandra (contrib)
+/sdk/python/feast/infra/online_stores/cassandra_online_store/ @hemidactylus
+
+# ==== Batch Materialization Engines ====
+
+# Snowflake
+/sdk/python/feast/infra/materialization/snowflake* @sfc-gh-madkins
+
+# Bytewax
+/sdk/python/feast/infra/materialization/contrib/bytewax/ @whoahbot
+
+# AWS Lambda
+/sdk/python/feast/infra/materialization/contrib/aws_lambda/ @achals
+
+# ==== Web UI ====
+/ui/ @adchia
+/sdk/python/feast/ui/ @adchia
+/sdk/python/feast/ui_server.py @adchia
