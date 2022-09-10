@@ -31,6 +31,7 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     port: Optional[int] = None
 
 
+
 class MySQLOnlineStore(OnlineStore):
     """
     An online store implementation that uses MySQL.
@@ -73,7 +74,7 @@ class MySQLOnlineStore(OnlineStore):
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
+                entity_key_serialization_version=2,
             ).hex()
             timestamp = _to_naive_utc(timestamp)
             if created_ts is not None:
@@ -138,7 +139,7 @@ class MySQLOnlineStore(OnlineStore):
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
+                entity_key_serialization_version=2,
             ).hex()
 
             cur.execute(
@@ -191,10 +192,7 @@ class MySQLOnlineStore(OnlineStore):
             )
 
         for table in tables_to_delete:
-            cur.execute(
-                f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};"
-            )
-            cur.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
+            _drop_table_and_index(cur, project, table)
 
     def teardown(
         self,
@@ -207,10 +205,15 @@ class MySQLOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            cur.execute(
-                f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};"
-            )
-            cur.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
+            _drop_table_and_index(cur, project, table)
+
+
+def _drop_table_and_index(cur, project: str, table: FeatureView) -> None:
+    table_name = _table_id(project, table)
+    cur.execute(
+        f"DROP INDEX {table_name}_ek ON {table_name};"
+    )
+    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
 def _table_id(project: str, table: FeatureView) -> str:
