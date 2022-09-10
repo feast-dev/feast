@@ -8,14 +8,13 @@ from google.cloud import bigtable
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
-from feast import Entity, FeatureView, feature_view, utils
+from feast import Entity, FeatureView, utils
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
+from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +83,7 @@ class BigTableOnlineStore(OnlineStore):
 
             if row is None:
                 batch_result.append((None, None))
+                continue
 
             row_values = row.cells[self.feature_column_family]
             # TODO: check if we need created_ts anywhere
@@ -142,7 +142,14 @@ class BigTableOnlineStore(OnlineStore):
                         progress=progress,
                     )
                 )
-            futures.wait(fs)
+            done_tasks, not_done_tasks = futures.wait(fs)
+            for task in done_tasks:
+                # If a task raised an exception, this will raise it here as well
+                task.result()
+            if not_done_tasks:
+                raise RuntimeError(
+                    f"Not all batches were written to BigTable: {not_done_tasks}"
+                )
 
     def _write_rows_to_bt(
         self,
@@ -180,7 +187,7 @@ class BigTableOnlineStore(OnlineStore):
                 b"created_ts",
                 utils.make_tzaware(created_ts).isoformat().encode()
                 if created_ts is not None
-                else None,
+                else b"",
             )
             rows.append(bt_row)
         bt_table.mutate_rows(rows)
@@ -294,8 +301,4 @@ class BigTableOnlineStore(OnlineStore):
     def _get_client(
         self, online_config: BigTableOnlineStoreConfig, admin: bool = False
     ):
-        if not self._client:
-            self._client = bigtable.Client(
-                project=online_config.project_id, admin=admin
-            )
-        return self._client
+        return bigtable.Client(project=online_config.project_id, admin=admin)
