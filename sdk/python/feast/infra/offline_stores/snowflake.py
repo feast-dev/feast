@@ -447,15 +447,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def to_arrow_chunks(self, arrow_options: Optional[Dict] = None) -> Optional[List]:
-        with self._query_generator() as query:
-
-            arrow_batches = execute_snowflake_statement(
-                self.snowflake_conn, query
-            ).get_result_batches()
-
-        return arrow_batches
-
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
         self.to_snowflake(table_name=storage.snowflake_options.table)
