@@ -7,6 +7,7 @@ import pymysql
 import pytz
 from pydantic import StrictStr
 from pymysql.connections import Connection
+from pymysql.cursors import Cursor
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -29,7 +30,6 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     password: Optional[StrictStr] = None
     database: Optional[StrictStr] = None
     port: Optional[int] = None
-
 
 
 class MySQLOnlineStore(OnlineStore):
@@ -208,11 +208,9 @@ class MySQLOnlineStore(OnlineStore):
             _drop_table_and_index(cur, project, table)
 
 
-def _drop_table_and_index(cur, project: str, table: FeatureView) -> None:
+def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
-    cur.execute(
-        f"DROP INDEX {table_name}_ek ON {table_name};"
-    )
+    cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
