@@ -35,7 +35,7 @@ online_store:
 
 ## Tags KWARGs Actions:
 
-"ONLINE_PATH": Adding the "ONLINE_PATH" key to a FeatureView tags parameter allows you to choose the online table path for the online serving table (ex. "{database}"."{schema}").
+"snowflake-online-store/online_path": Adding the "snowflake-online-store/online_path" key to a FeatureView tags parameter allows you to choose the online table path for the online serving table (ex. "{database}"."{schema}").
 
 {% code title="example_config.py" %}
 ```python
