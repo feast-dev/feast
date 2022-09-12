@@ -15,7 +15,6 @@ from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 from pytz import utc
-from sdk.python.feast.infra.utils import aws_utils
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
@@ -32,6 +31,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.registry import Registry
+from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -364,7 +364,7 @@ class SparkRetrievalJob(RetrievalJob):
 
             sdf: pyspark.sql.DataFrame = self.to_spark_df()
 
-            if self._config.offline_store.staging_location.startswith("file://"):
+            if self._config.offline_store.staging_location.startswith("/"):
                 local_file_staging_location = os.path.abspath(
                     self._config.offline_store.staging_location
                 )
