@@ -28,6 +28,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     assert_snowflake_feature_names,
     execute_snowflake_statement,
     get_snowflake_conn,
+    get_snowflake_online_store_path,
     package_snowpark_zip,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -370,8 +371,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
     ) -> None:
         assert_snowflake_feature_names(feature_view)
 
-        online_table = f"""{repo_config .online_store.database}"."{repo_config.online_store.schema_}"."[online-transient] {project}_{feature_view.name}"""
-
         feature_names_str = '", "'.join(
             [feature.name for feature in feature_view.features]
         )
@@ -381,8 +380,13 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         else:
             fv_created_str = None
 
+        online_path = get_snowflake_online_store_path(repo_config, feature_view)
+        online_table = (
+            f'{online_path}."[online-transient] {project}_{feature_view.name}"'
+        )
+
         query = f"""
-            MERGE INTO "{online_table}" online_table
+            MERGE INTO {online_table} online_table
               USING (
                 SELECT
                   "entity_key" || TO_BINARY("feature_name", 'UTF-8') AS "entity_feature_key",

@@ -15,6 +15,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,
+    get_snowflake_online_store_path,
     write_pandas_binary,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -112,9 +113,7 @@ class SnowflakeOnlineStore(OnlineStore):
             agg_df = pd.concat(dfs)
 
             # This combines both the data upload plus the overwrite in the same transaction
-            table_path = (
-                f'"{config.online_store.database}"."{config.online_store.schema_}"'
-            )
+            online_path = get_snowflake_online_store_path(config, table)
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
                 write_pandas_binary(
                     conn,
@@ -125,7 +124,7 @@ class SnowflakeOnlineStore(OnlineStore):
                 )  # special function for writing binary to snowflake
 
                 query = f"""
-                    INSERT OVERWRITE INTO {table_path}."[online-transient] {config.project}_{table.name}"
+                    INSERT OVERWRITE INTO {online_path}."[online-transient] {config.project}_{table.name}"
                         SELECT
                             "entity_feature_key",
                             "entity_key",
@@ -138,7 +137,7 @@ class SnowflakeOnlineStore(OnlineStore):
                               *,
                               ROW_NUMBER() OVER(PARTITION BY "entity_key","feature_name" ORDER BY "event_ts" DESC, "created_ts" DESC) AS "_feast_row"
                           FROM
-                              {table_path}."[online-transient] {config.project}_{table.name}")
+                              {online_path}."[online-transient] {config.project}_{table.name}")
                         WHERE
                             "_feast_row" = 1;
                 """
@@ -178,13 +177,13 @@ class SnowflakeOnlineStore(OnlineStore):
             ]
         )
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
+        online_path = get_snowflake_online_store_path(config, table)
         with get_snowflake_conn(config.online_store) as conn:
             query = f"""
                 SELECT
                     "entity_key", "feature_name", "value", "event_ts"
                 FROM
-                    {table_path}."[online-transient] {config.project}_{table.name}"
+                    {online_path}."[online-transient] {config.project}_{table.name}"
                 WHERE
                     "entity_feature_key" IN ({entity_fetch_str})
             """
@@ -221,11 +220,11 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
         with get_snowflake_conn(config.online_store) as conn:
             for table in tables_to_keep:
+                online_path = get_snowflake_online_store_path(config, table)
                 query = f"""
-                    CREATE TRANSIENT TABLE IF NOT EXISTS {table_path}."[online-transient] {config.project}_{table.name}" (
+                    CREATE TRANSIENT TABLE IF NOT EXISTS {online_path}."[online-transient] {config.project}_{table.name}" (
                         "entity_feature_key" BINARY,
                         "entity_key" BINARY,
                         "feature_name" VARCHAR,
@@ -237,7 +236,8 @@ class SnowflakeOnlineStore(OnlineStore):
                 execute_snowflake_statement(conn, query)
 
             for table in tables_to_delete:
-                query = f'DROP TABLE IF EXISTS {table_path}."[online-transient] {config.project}_{table.name}"'
+                online_path = get_snowflake_online_store_path(config, table)
+                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
                 execute_snowflake_statement(conn, query)
 
     def teardown(
@@ -248,8 +248,8 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
         with get_snowflake_conn(config.online_store) as conn:
             for table in tables:
-                query = f'DROP TABLE IF EXISTS {table_path}."[online-transient] {config.project}_{table.name}"'
+                online_path = get_snowflake_online_store_path(config, table)
+                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
                 execute_snowflake_statement(conn, query)

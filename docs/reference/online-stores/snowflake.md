@@ -17,7 +17,6 @@ The data model for using a Snowflake Transient Table as an online store follows 
  (This model may be subject to change when Snowflake Hybrid Tables are released)
 
 ## Example
-
 {% code title="feature_store.yaml" %}
 ```yaml
 project: my_feature_repo
@@ -34,6 +33,19 @@ online_store:
 ```
 {% endcode %}
 
+## Tags KWARGs Actions:
+
+"ONLINE_PATH": Adding the "ONLINE_PATH" key to a FeatureView tags parameter allows you to choose the online table path for the online serving table (ex. "{database}"."{schema}").
+
+{% code title="example_config.py" %}
+```python
+driver_stats_fv = FeatureView(
+    ...
+    tags={"snowflake-online-store/online_path": '"FEAST"."ONLINE"'},
+)
+```
+{% endcode %}
+
 The full set of configuration options is available in [SnowflakeOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.snowflake.SnowflakeOnlineStoreConfig).
 
 ## Functionality Matrix
@@ -41,7 +53,7 @@ The full set of configuration options is available in [SnowflakeOnlineStoreConfi
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).
 Below is a matrix indicating which functionality is supported by the Snowflake online store.
 
-| | Snowflake | 
+| | Snowflake |
 | :-------------------------------------------------------- | :-- |
 | write feature values to the online store                  | yes |
 | read feature values from the online store                 | yes |
