@@ -9,30 +9,11 @@ import {
   EuiSpacer,
   EuiTitle,
 } from "@elastic/eui";
+import { feast } from "../../protos";
+import { toDate } from "../../utils/timestamp";
 
 interface BatchSourcePropertiesViewProps {
-  batchSource: {
-    type?: string | undefined;
-    owner?: string | undefined;
-    description?: string | undefined;
-    dataSourceClassType?: string | undefined;
-    fileOptions?:
-      | {
-          uri?: string | undefined;
-        }
-      | undefined;
-    meta?:
-      | {
-          latestEventTimestamp?: Date | undefined;
-          earliestEventTimestamp?: Date | undefined;
-        }
-      | undefined;
-    bigqueryOptions?:
-      | {
-          dbtModelSerialized?: string | undefined;
-        }
-      | undefined;
-  };
+  batchSource: feast.core.IDataSource;
 }
 
 const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
@@ -87,7 +68,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
               <React.Fragment>
                 <EuiDescriptionListTitle>Latest Event</EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {batchSource.meta.latestEventTimestamp.toLocaleDateString(
+                  {toDate(batchSource.meta.latestEventTimestamp).toLocaleDateString(
                     "en-CA"
                   )}
                 </EuiDescriptionListDescription>
@@ -99,7 +80,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   Earliest Event
                 </EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {batchSource.meta.earliestEventTimestamp.toLocaleDateString(
+                  {toDate(batchSource.meta?.earliestEventTimestamp).toLocaleDateString(
                     "en-CA"
                   )}
                 </EuiDescriptionListDescription>

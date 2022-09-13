@@ -23,6 +23,7 @@ option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
@@ -89,6 +90,12 @@ message DataSource {
   // Optional batch source for streaming sources for historical features and materialization.
   DataSource batch_source = 26;
 
+  SourceMeta meta = 50;
+
+  message SourceMeta {
+    google.protobuf.Timestamp earliestEventTimestamp = 1;
+    google.protobuf.Timestamp latestEventTimestamp = 2;
+  }
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
@@ -112,6 +119,8 @@ message DataSource {
     // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
     // entity columns
     string query = 2;
+
+    string dbtModelSerialized = 3;
   }
 
   // Defines options for DataSource that sources features from a Trino Query

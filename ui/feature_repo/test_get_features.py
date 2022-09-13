@@ -16,7 +16,9 @@ DELTA = 0.1  # controlling allowed window in fraction of the value on scale [0, 
 def credit_profiler(ds: PandasDataset) -> ExpectationSuite:
     # simple checks on data consistency
     ds.expect_column_values_to_be_between(
-        "credit_card_due", min_value=0, mostly=0.99,  # allow some outliers
+        "credit_card_due",
+        min_value=0,
+        mostly=0.99,  # allow some outliers
     )
 
     ds.expect_column_values_to_be_between(
@@ -34,7 +36,10 @@ def generate_saved_dataset():
     entity_df = pd.read_parquet(path="data/loan_table.parquet")
 
     fs = store.get_feature_service("credit_score_v1")
-    job = store.get_historical_features(entity_df=entity_df, features=fs,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=fs,
+    )
     store.create_saved_dataset(
         from_=job,
         name="my_training_ds",

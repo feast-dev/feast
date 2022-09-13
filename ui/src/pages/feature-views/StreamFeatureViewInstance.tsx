@@ -9,16 +9,16 @@ import {
 
 import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
-import { FeastSFVType } from "../../parsers/feastSFVS";
 import StreamFeatureViewOverviewTab from "./StreamFeatureViewOverviewTab";
 
 import {
   useStreamFeatureViewCustomTabs,
   useStreamFeatureViewCustomTabRoutes,
 } from "../../custom-tabs/TabsRegistryContext";
+import { feast } from "../../protos";
 
 interface StreamFeatureInstanceProps {
-  data: FeastSFVType;
+  data: feast.core.IStreamFeatureView;
 }
 
 const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {

@@ -1,15 +1,13 @@
 import React from "react";
 import { EuiBasicTable, EuiPanel, EuiText, EuiTitle } from "@elastic/eui";
 
-import { FeatureViewProjectionType } from "../../../parsers/feastODFVS";
 import { useParams } from "react-router-dom";
 import EuiCustomLink from "../../../components/EuiCustomLink";
+import { feast } from "../../../protos";
 
-interface RequestDataDisplayPanelProps extends FeatureViewProjectionType {}
+interface RequestDataDisplayPanelProps extends feast.core.IFeatureViewProjection { }
 
-const FeatureViewProjectionDisplayPanel = ({
-  featureViewProjection,
-}: RequestDataDisplayPanelProps) => {
+const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDisplayPanelProps) => {
   const { projectName } = useParams();
 
   const columns = [
@@ -33,12 +31,12 @@ const FeatureViewProjectionDisplayPanel = ({
           href={`/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
           to={`/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
         >
-          {featureViewProjection.featureViewName}
+          {featureViewProjection?.featureViewName}
         </EuiCustomLink>
       </EuiTitle>
       <EuiBasicTable
         columns={columns}
-        items={featureViewProjection.featureColumns}
+        items={featureViewProjection?.featureColumns!}
       />
     </EuiPanel>
   );

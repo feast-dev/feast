@@ -1,10 +1,10 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
-import { FEAST_FEATURE_VALUE_TYPES } from "../../parsers/types";
+import { feast } from "../../protos";
 
 interface RequestDataSourceSchemaField {
   fieldName: string;
-  valueType: FEAST_FEATURE_VALUE_TYPES;
+  valueType: feast.types.ValueType.Enum;
 }
 
 interface RequestDataSourceSchema {

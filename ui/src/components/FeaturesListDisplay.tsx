@@ -1,15 +1,15 @@
 import React, { useContext } from "react";
 import { EuiBasicTable, EuiLoadingSpinner, EuiBadge } from "@elastic/eui";
-import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
 import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
 import SparklineHistogram from "./SparklineHistogram";
 import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
 import EuiCustomLink from "./EuiCustomLink";
+import { feast } from "../protos";
 
 interface FeaturesListProps {
   projectName: string;
   featureViewName: string;
-  features: FeastFeatureColumnType[];
+  features: feast.core.IFeatureSpecV2[];
   link: boolean;
 }
 
@@ -19,16 +19,16 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
     useLoadFeatureViewSummaryStatistics(featureViewName);
 
   let columns: { name: string; render?: any; field: any }[] = [
-    { 
+    {
       name: "Name",
       field: "name",
-      render: (item: string) => ( 
-        <EuiCustomLink 
+      render: (item: string) => (
+        <EuiCustomLink
           href={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
           to={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}>
           {item}
         </EuiCustomLink>
-      ) 
+      )
     },
     {
       name: "Value Type",
@@ -46,9 +46,9 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
         {
           name: "Sample",
           field: "",
-          render: (item: FeastFeatureColumnType) => {
+          render: (item: feast.core.IFeatureSpecV2) => {
             const statistics =
-              isSuccess && data && data.columnsSummaryStatistics[item.name];
+              isSuccess && data && data.columnsSummaryStatistics[item.name!];
 
             return (
               <React.Fragment>
@@ -64,9 +64,9 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
         {
           name: "Sparklines",
           field: "",
-          render: (item: FeastFeatureColumnType) => {
+          render: (item: feast.core.IFeatureSpecV2) => {
             const statistics =
-              isSuccess && data && data.columnsSummaryStatistics[item.name];
+              isSuccess && data && data.columnsSummaryStatistics[item?.name!];
 
             if (
               statistics &&
@@ -83,7 +83,7 @@ const FeaturesList = ({ projectName, featureViewName, features, link }: Features
     );
   }
 
-  const getRowProps = (item: FeastFeatureColumnType) => {
+  const getRowProps = (item: feast.core.IFeatureSpecV2) => {
     return {
       "data-test-subj": `row-${item.name}`,
     };

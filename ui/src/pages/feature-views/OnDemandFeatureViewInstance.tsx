@@ -9,16 +9,16 @@ import {
 
 import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
-import { FeastODFVType } from "../../parsers/feastODFVS";
 import OnDemandFeatureViewOverviewTab from "./OnDemandFeatureViewOverviewTab";
 
 import {
   useOnDemandFeatureViewCustomTabs,
   useOnDemandFeatureViewCustomTabRoutes,
 } from "../../custom-tabs/TabsRegistryContext";
+import { feast } from "../../protos";
 
 interface OnDemandFeatureInstanceProps {
-  data: FeastODFVType;
+  data: feast.core.IOnDemandFeatureView;
 }
 
 const OnDemandFeatureInstance = ({ data }: OnDemandFeatureInstanceProps) => {
