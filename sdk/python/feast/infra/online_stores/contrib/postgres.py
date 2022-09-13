@@ -121,7 +121,9 @@ class PostgreSQLOnlineStore(OnlineStore):
                         SELECT entity_key, feature_name, value, event_ts
                         FROM {} WHERE entity_key = ANY(%s);
                         """
-                    ).format(sql.Identifier(_table_id(project, table)),),
+                    ).format(
+                        sql.Identifier(_table_id(project, table)),
+                    ),
                     (keys,),
                 )
             else:
@@ -131,7 +133,9 @@ class PostgreSQLOnlineStore(OnlineStore):
                         SELECT entity_key, feature_name, value, event_ts
                         FROM {} WHERE entity_key = ANY(%s) and feature_name = ANY(%s);
                         """
-                    ).format(sql.Identifier(_table_id(project, table)),),
+                    ).format(
+                        sql.Identifier(_table_id(project, table)),
+                    ),
                     (keys, requested_features),
                 )
 
