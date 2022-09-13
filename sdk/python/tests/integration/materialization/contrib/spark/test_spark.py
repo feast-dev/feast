@@ -25,6 +25,7 @@ def test_spark_materialization_consistency():
         provider="local",
         online_store={
             "type": "redis",
+            "connection_string": "127.0.0.1:6379"
             # "path": "data/online_store.db"
         },
         offline_store_creator=SparkDataSourceCreator,
