@@ -28,7 +28,7 @@ def test_spark_materialization_consistency():
             # "path": "data/online_store.db"
         },
         offline_store_creator=SparkDataSourceCreator,
-        batch_engine={"type": "spark.engine", "partitions": 100},
+        batch_engine={"type": "spark.engine", "partitions": 0},
     )
     spark_environment = construct_test_environment(
         spark_config, None, entity_key_serialization_version=1
