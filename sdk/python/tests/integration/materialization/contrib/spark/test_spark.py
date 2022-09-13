@@ -16,6 +16,9 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 from tests.integration.feature_repos.repo_configuration import (
     construct_test_environment,
 )
+from tests.integration.feature_repos.universal.online_store.redis import (
+    RedisOnlineStoreCreator,
+)
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
 
 
@@ -23,13 +26,9 @@ from tests.utils.e2e_test_validation import validate_offline_online_store_consis
 def test_spark_materialization_consistency():
     spark_config = IntegrationTestRepoConfig(
         provider="local",
-        online_store={
-            "type": "redis",
-            "connection_string": "127.0.0.1:6379"
-            # "path": "data/online_store.db"
-        },
+        online_store_creator=RedisOnlineStoreCreator,
         offline_store_creator=SparkDataSourceCreator,
-        batch_engine={"type": "spark.engine", "partitions": 0},
+        batch_engine={"type": "spark.engine", "partitions": 10},
     )
     spark_environment = construct_test_environment(
         spark_config, None, entity_key_serialization_version=1
@@ -72,3 +71,7 @@ def test_spark_materialization_consistency():
         validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
     finally:
         fs.teardown()
+
+
+if __name__ == "__main__":
+    test_spark_materialization_consistency()
