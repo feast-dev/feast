@@ -396,5 +396,5 @@ class EntitySQLEmptyResults(Exception):
 class EntityDFNotDateTime(Exception):
     def __init__(self):
         super().__init__(
-            f"The entity dataframe specified does not have the timestamp field as a datetime."
+            "The entity dataframe specified does not have the timestamp field as a datetime."
         )

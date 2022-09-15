@@ -77,7 +77,7 @@ def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring)
     # For batch scoring, we want the latest timestamps
     if for_batch_scoring:
         print(
-            f"Generating a list of all unique entities in a time window for batch scoring"
+            "Generating a list of all unique entities in a time window for batch scoring"
         )
         # We use a group by since we want all distinct driver_ids.
         entity_sql = f"""
@@ -89,7 +89,7 @@ def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring)
             GROUP BY driver_id
         """
     else:
-        print(f"Generating training data for all entities in a time window")
+        print("Generating training data for all entities in a time window")
         # We don't need a group by if we want to generate training data
         entity_sql = f"""
             SELECT
