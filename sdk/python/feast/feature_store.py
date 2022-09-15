@@ -59,6 +59,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
@@ -1443,6 +1444,9 @@ class FeatureStore:
                 and fv.stream_source.name == push_source_name
             )
         }
+
+        if not fvs_with_push_sources:
+            raise PushSourceNotFoundException(push_source_name)
 
         for fv in fvs_with_push_sources:
             if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
