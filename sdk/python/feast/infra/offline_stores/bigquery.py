@@ -28,6 +28,8 @@ from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
     BigQueryJobStillRunning,
+    EntityDFNotDateTime,
+    EntitySQLEmptyResults,
     FeastProviderLoginError,
     InvalidEntityType,
 )
@@ -665,6 +667,13 @@ def _get_entity_df_event_timestamp_range(
             res.get("min"),
             res.get("max"),
         )
+        if (
+            entity_df_event_timestamp_range[0] is None
+            or entity_df_event_timestamp_range[1] is None
+        ):
+            raise EntitySQLEmptyResults(entity_df)
+        if type(entity_df_event_timestamp_range[0]) != datetime:
+            raise EntityDFNotDateTime()
     elif isinstance(entity_df, pd.DataFrame):
         entity_df_event_timestamp = entity_df.loc[
             :, entity_df_event_timestamp_col
