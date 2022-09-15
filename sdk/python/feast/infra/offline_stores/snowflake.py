@@ -25,7 +25,7 @@ from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import InvalidEntityType
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -574,6 +574,11 @@ def _get_entity_df_event_timestamp_range(
         results = execute_snowflake_statement(snowflake_conn, query).fetchall()
 
         entity_df_event_timestamp_range = cast(Tuple[datetime, datetime], results[0])
+        if (
+            entity_df_event_timestamp_range[0] is None
+            or entity_df_event_timestamp_range[1] is None
+        ):
+            raise EntitySQLEmptyResults(entity_df)
     else:
         raise InvalidEntityType(type(entity_df))
 

@@ -17,41 +17,16 @@ Each of these retrieval mechanisms accept:
 
 Before beginning, you need to instantiate a local `FeatureStore` object that knows how to parse the registry (see [more details](https://docs.feast.dev/getting-started/concepts/registry))
 
-<details>
+For code examples of how the below work, inspect the generated repository from `feast init -t [YOUR TEMPLATE]` (`gcp`, `snowflake`, and `aws` are the most fully fleshed).
 
-<summary>How to: generate training data</summary>
-
+## Retrieving historical features (for training data or batch scoring)
 Feast abstracts away point-in-time join complexities with the `get_historical_features` API.
 
-It expects an **entity dataframe (or SQL query to retrieve a list of entities)** and a **list of feature references (or a feature service)**
+We go through the major steps, and also show example code. Note that the quickstart templates generally have end-to-end working examples for all these cases.
 
-#### **Option 1: using feature references (to pick individual features when exploring data)**
+<details>
 
-```python
-entity_df = pd.DataFrame.from_dict(
-    {
-        "driver_id": [1001, 1002, 1003, 1004, 1001],
-        "event_timestamp": [
-            datetime(2021, 4, 12, 10, 59, 42),
-            datetime(2021, 4, 12, 8, 12, 10),
-            datetime(2021, 4, 12, 16, 40, 26),
-            datetime(2021, 4, 12, 15, 1, 12),
-            datetime.now()
-        ]
-    }
-)
-training_df = store.get_historical_features(
-    entity_df=entity_df,
-    features=[
-        "driver_hourly_stats:conv_rate",
-        "driver_hourly_stats:acc_rate",
-        "driver_daily_features:daily_miles_driven"
-    ],
-).to_df()
-print(training_df.head())
-```
-
-#### Option 2: using feature services (to version models)
+<summary>Full example: generate training data</summary>
 
 ```python
 entity_df = pd.DataFrame.from_dict(
@@ -77,45 +52,26 @@ print(training_df.head())
 
 <details>
 
-<summary>How to: retrieve offline features for batch scoring</summary>
+<summary>Full example: retrieve offline features for batch scoring</summary>
 
 The main difference here compared to training data generation is how to handle timestamps in the entity dataframe. You want to pass in the **current time** to get the latest feature values for all your entities.
 
-#### Option 1: fetching features with entity dataframe
-
-```python
-from feast import FeatureStore
-import pandas as pd
-
-store = FeatureStore(repo_path=".")
-
-# Get the latest feature values for unique entities
-entity_df = pd.DataFrame.from_dict({"driver_id": [1001, 1002, 1003, 1004, 1005],})
-entity_df["event_timestamp"] = pd.to_datetime("now", utc=True)
-batch_scoring_features = store.get_historical_features(
-    entity_df=entity_df, features=store.get_feature_service("model_v2"),
-).to_df()
-# predictions = model.predict(batch_scoring_features)
-```
-
-#### Option 2: fetching features using a SQL query to generate entities
-
 ```python
 from feast import FeatureStore
 
 store = FeatureStore(repo_path=".")
 
 # Get the latest feature values for unique entities
+entity_sql = f"""
+    SELECT
+        driver_id,
+        CURRENT_TIMESTAMP() as event_timestamp
+    FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+    WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+    GROUP BY driver_id
+"""
 batch_scoring_features = store.get_historical_features(
-    entity_df="""
-        SELECT
-            user_id,
-            CURRENT_TIME() as event_timestamp
-        FROM entity_source_table
-        WHERE user_last_active_time BETWEEN '2019-01-01' and '2020-12-31'
-        GROUP BY user_id
-        """
-    ,
+    entity_df=entity_sql,
     features=store.get_feature_service("model_v2"),
 ).to_df()
 # predictions = model.predict(batch_scoring_features)
@@ -123,13 +79,90 @@ batch_scoring_features = store.get_historical_features(
 
 </details>
 
-<details>
+### Step 1: Specifying Features
+Feast accepts either:
+- [feature services](feature-retrieval.md#feature-services), which group features needed for a model version
+- [feature references](feature-retrieval.md#feature-references)
 
-<summary>How to: retrieve online features for real-time model inference (Python SDK)</summary>
+### Example: querying a feature service (recommended)
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=store.get_feature_service("model_v1"),
+).to_df()
+```
 
+### Example: querying a list of feature references
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+### Step 2: Specifying Entities
+Feast accepts either a **Pandas dataframe** as the entity dataframe (including entity keys and timestamps) or a **SQL query** to generate the entities.
+
+Both approaches must specify the full **entity key** needed as well as the **timestamps**. Feast then joins features onto this dataframe.
+
+### Example: entity dataframe for generating training data
+```python
+entity_df = pd.DataFrame.from_dict(
+    {
+        "driver_id": [1001, 1002, 1003, 1004, 1001],
+        "event_timestamp": [
+            datetime(2021, 4, 12, 10, 59, 42),
+            datetime(2021, 4, 12, 8, 12, 10),
+            datetime(2021, 4, 12, 16, 40, 26),
+            datetime(2021, 4, 12, 15, 1, 12),
+            datetime.now()
+        ]
+    }
+)
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+
+### Example: entity SQL query for generating training data
+You can also pass a SQL string to generate the above dataframe. This is useful for getting all entities in a timeframe from some data source.
+
+```python
+entity_sql = f"""
+    SELECT
+        driver_id,
+        event_timestamp
+    FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+    WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+"""
+training_df = store.get_historical_features(
+    entity_df=entity_sql,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+
+## Retrieving online features (for model inference)
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
 
 _Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
+
+There are several options for retrieving online features: through the SDK, or through a feature server
+
+<details>
+
+<summary>Full example: retrieve online features for real-time model inference (Python SDK)</summary>
 
 ```python
 from feast import RepoConfig, FeatureStore
@@ -160,11 +193,7 @@ features = store.get_online_features(
 
 <details>
 
-<summary>How to: retrieve online features for real-time model inference (Feature Server)</summary>
-
-Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
-
-_Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
+<summary>Full example: retrieve online features for real-time model inference (Feature Server)</summary>
 
 This approach requires you to deploy a feature server (see [Python feature server](../../reference/feature-servers/python-feature-server)).
 
