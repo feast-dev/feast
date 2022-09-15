@@ -87,11 +87,19 @@ def test_push(python_fs_client):
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push_source_does_not_exist(python_fs_client):
+    initial_temp = _get_temperatures_from_feature_server(
+        python_fs_client, location_ids=[1]
+    )[0]
     response = python_fs_client.post(
         "/push",
         data={
             "push_source_name": "push_source_does_not_exist",
-            "df": {},
+            "df": {
+                "location_id": [1],
+                "temperature": [initial_temp * 100],
+                "event_timestamp": [str(datetime.utcnow())],
+                "created": [str(datetime.utcnow())],
+            },
         },
     )
     assert response.status_code == 422
