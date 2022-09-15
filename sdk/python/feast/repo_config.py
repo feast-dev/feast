@@ -112,6 +112,9 @@ class RegistryConfig(FeastBaseModel):
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
+    boto_extra_args: Optional[Dict[str, str]]
+    """ Dict[str, str]: Extra arguments to pass when writing the registry file to S3. """
+
 
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
