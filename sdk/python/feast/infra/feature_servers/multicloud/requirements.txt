@@ -1,0 +1,1 @@
+feast[aws,gcp,snowflake,redis,go,mysql]
