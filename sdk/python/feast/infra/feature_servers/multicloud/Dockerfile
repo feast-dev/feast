@@ -1,7 +1,12 @@
 FROM python:3.8
 
 RUN apt update && \
-        apt install -y jq
+        apt install -y \
+        jq \
+        python3-dev \
+        default-libmysqlclient-dev \
+        build-essential
+
 RUN pip install pip --upgrade
 COPY . .
 
