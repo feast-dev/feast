@@ -1,0 +1,2 @@
+mysqlclient
+feast[aws,gcp,snowflake,redis,go]

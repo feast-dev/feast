@@ -3,7 +3,9 @@ FROM python:3.8
 RUN apt update && \
         apt install -y jq
 RUN pip install pip --upgrade
-RUN pip install "feast[aws,gcp,snowflake,redis,go]"
+COPY . .
+
+RUN pip install -r requirements.txt
 RUN apt update
 RUN apt install -y -V ca-certificates lsb-release wget
 RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
