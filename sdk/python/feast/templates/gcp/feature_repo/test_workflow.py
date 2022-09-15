@@ -19,6 +19,16 @@ def run_demo():
     print("\n--- Historical features for batch scoring ---")
     fetch_historical_features_entity_df(store, for_batch_scoring=True)
 
+    print(
+        "\n--- Historical features for training (all entities in a window using SQL entity dataframe) ---"
+    )
+    fetch_historical_features_entity_sql(store, for_batch_scoring=False)
+
+    print(
+        "\n--- Historical features for batch scoring (all entities in a window using SQL entity dataframe) ---"
+    )
+    fetch_historical_features_entity_sql(store, for_batch_scoring=True)
+
     print("\n--- Load features into online store ---")
     store.materialize_incremental(end_date=datetime.now())
 
@@ -58,6 +68,43 @@ def run_demo():
 
     print("\n--- Run feast teardown ---")
     subprocess.run(["feast", "teardown"])
+
+
+def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring):
+    # For batch scoring, we want the latest timestamps
+    if for_batch_scoring:
+        print(
+            "Generating a list of all unique entities in a time window for batch scoring"
+        )
+        # We use a group by since we want all distinct driver_ids.
+        entity_sql = f"""
+            SELECT
+                driver_id,
+                CURRENT_TIMESTAMP() as event_timestamp
+            FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+            WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+            GROUP BY driver_id
+        """
+    else:
+        print("Generating training data for all entities in a time window")
+        # We don't need a group by if we want to generate training data
+        entity_sql = f"""
+            SELECT
+                driver_id,
+                event_timestamp
+            FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+            WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+        """
+
+    training_df = store.get_historical_features(
+        entity_df=entity_sql,
+        features=[
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:acc_rate",
+            "driver_hourly_stats:avg_daily_trips",
+        ],
+    ).to_df()
+    print(training_df.head())
 
 
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):
