@@ -1,1 +1,1 @@
-feast[mysql]
+feast[aws,gcp,snowflake,redis,go,mysql]
