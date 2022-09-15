@@ -160,9 +160,7 @@ class FileSource(DataSource):
         if filesystem is None:
             schema = ParquetDataset(path).schema.to_arrow_schema()
         else:
-            schema = ParquetDataset(
-                path, filesystem=filesystem
-            ).schema
+            schema = ParquetDataset(path, filesystem=filesystem).schema
 
         return zip(schema.names, map(str, schema.types))
 
