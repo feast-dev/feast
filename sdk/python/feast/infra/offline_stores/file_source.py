@@ -161,7 +161,7 @@ class FileSource(DataSource):
             schema = ParquetDataset(path).schema.to_arrow_schema()
         else:
             schema = ParquetDataset(
-                filesystem.open_input_file(path), filesystem=filesystem
+                path, filesystem=filesystem
             ).schema
 
         return zip(schema.names, map(str, schema.types))
