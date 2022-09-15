@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from feast import FileSource, errors
 from feast.data_source import DataSource
-from feast.errors import EntitySQLEmptyResults, InvalidEntityType
+from feast.errors import InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores import offline_utils
