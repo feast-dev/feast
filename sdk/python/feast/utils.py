@@ -1,6 +1,8 @@
+import os
 import typing
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -49,6 +51,14 @@ def maybe_local_tz(t: datetime) -> datetime:
         return t.replace(tzinfo=tzlocal())
     else:
         return t
+
+
+def get_default_yaml_file_path(repo_path: Path) -> Path:
+    if "FEAST_FS_YAML_FILE_PATH" in os.environ:
+        yaml_path = os.environ["FEAST_FS_YAML_FILE_PATH"]
+        return Path(yaml_path) / "feature_store.yaml"
+    else:
+        return repo_path / "feature_store.yaml"
 
 
 def _get_requested_feature_views_to_features_dict(
