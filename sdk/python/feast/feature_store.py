@@ -158,14 +158,9 @@ class FeatureStore:
             self.config = config
         elif fs_yaml_file is not None:
             self.config = load_repo_config(self.repo_path, fs_yaml_file)
-        elif "FEAST_FS_YAML_FILE_PATH" in os.environ:
-            yaml_path = os.environ["FEAST_FS_YAML_FILE_PATH"]
-            self.config = load_repo_config(
-                self.repo_path, Path(yaml_path) / "feature_store.yaml"
-            )
         else:
             self.config = load_repo_config(
-                self.repo_path, Path(self.repo_path) / "feature_store.yaml"
+                self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
             )
 
         registry_config = self.config.get_registry_config()
