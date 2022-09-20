@@ -25,6 +25,7 @@ class S3RegistryStore(RegistryStore):
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._key = self._uri.path.lstrip("/")
+        self._boto_extra_args = registry_config.s3_additional_kwargs or {}
 
         self.s3_client = boto3.resource(
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
@@ -77,4 +78,6 @@ class S3RegistryStore(RegistryStore):
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
-        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)
+        self.s3_client.Bucket(self._bucket).put_object(
+            Body=file_obj, Key=self._key, **self._boto_extra_args
+        )
