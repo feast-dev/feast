@@ -118,11 +118,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        click.echo(
-            f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
-        )
-        click.echo()
-
         stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
         stage_path = f'{stage_context}."feast_{project}"'
         with get_snowflake_conn(self.repo_config.batch_engine) as conn:
@@ -136,11 +131,12 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
             # if the stage already exists,
             # assumes that the materialization functions have been deployed
             if f"feast_{project}" in stage_list["name"].tolist():
-                click.echo(
-                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already exists"
-                )
-                click.echo()
                 return None
+
+            click.echo(
+                f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
+            )
+            click.echo()
 
             query = f"CREATE STAGE {stage_path}"
             execute_snowflake_statement(conn, query)
