@@ -3,16 +3,17 @@
 # More info at https://www.kubernetes.dev/docs/guide/owners/
 approvers:
   - woop
-  - tsotnet
   - achals
   - adchia
   - felixwang9817
   - mavysavydav
   - MattDelac
   - kevjumba
+  - chhabrakadabra
+  - sfc-gh-madkins
+  - zhilingc
 reviewers:
   - woop
-  - tsotnet
   - achals
   - tedhtchang
   - adchia
@@ -20,3 +21,6 @@ reviewers:
   - mavysavydav
   - MattDelac
   - kevjumba
+  - chhabrakadabra
+  - sfc-gh-madkins
+  - zhilingc
