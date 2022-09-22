@@ -180,7 +180,7 @@ Feast accepts either:
 - [feature services](feature-retrieval.md#feature-services), which group features needed for a model version
 - [feature references](feature-retrieval.md#feature-references)
 
-### Example: querying a feature service (recommended)
+#### Example: querying a feature service (recommended)
 ```python
 training_df = store.get_historical_features(
     entity_df=entity_df,
@@ -188,7 +188,7 @@ training_df = store.get_historical_features(
 ).to_df()
 ```
 
-### Example: querying a list of feature references
+#### Example: querying a list of feature references
 ```python
 training_df = store.get_historical_features(
     entity_df=entity_df,
@@ -204,7 +204,7 @@ Feast accepts either a **Pandas dataframe** as the entity dataframe (including e
 
 Both approaches must specify the full **entity key** needed as well as the **timestamps**. Feast then joins features onto this dataframe.
 
-### Example: entity dataframe for generating training data
+#### Example: entity dataframe for generating training data
 ```python
 entity_df = pd.DataFrame.from_dict(
     {
@@ -228,7 +228,7 @@ training_df = store.get_historical_features(
 ).to_df()
 ```
 
-### Example: entity SQL query for generating training data
+#### Example: entity SQL query for generating training data
 You can also pass a SQL string to generate the above dataframe. This is useful for getting all entities in a timeframe from some data source.
 
 ```python
