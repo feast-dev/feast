@@ -194,6 +194,10 @@ class Registry(BaseRegistry):
             from feast.infra.registry.sql import SqlRegistry
 
             return SqlRegistry(registry_config, repo_path)
+        elif registry_config and registry_config.registry_type == "snowflake.registry":
+            from feast.infra.registry.snowflake import SnowflakeRegistry
+
+            return SnowflakeRegistry(registry_config, repo_path)
         else:
             return super(Registry, cls).__new__(cls)
 

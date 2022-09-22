@@ -23,6 +23,7 @@ from feast.errors import (
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
     FeastProviderNotSetError,
+    FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
 from feast.usage import log_exceptions
@@ -34,6 +35,10 @@ _logger = logging.getLogger(__name__)
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
+REGISTRY_CLASS_FOR_TYPE = {
+    "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+}
+
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
@@ -99,13 +104,13 @@ class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     registry_type: StrictStr = "file"
-    """ str: Provider name or a class name that implements RegistryStore.
+    """ str: Provider name or a class name that implements Registry.
         If specified, registry_store_type should be redundant."""
 
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
 
-    path: StrictStr
+    path: StrictStr = ""
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     cache_ttl_seconds: StrictInt = 600
@@ -169,6 +174,11 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+
+        if data["registry"]["type"] == "snowflake.registry":
+            self.registry = get_registry_config_from_type(data["registry"]["type"])(
+                **data["registry"]
+            )
 
         self._offline_store = None
         if "offline_store" in data:
@@ -450,6 +460,16 @@ class FeastConfigError(Exception):
 def get_data_source_class_from_type(data_source_type: str):
     module_name, config_class_name = data_source_type.rsplit(".", 1)
     return import_class(module_name, config_class_name, "DataSource")
+
+
+def get_registry_config_from_type(registry_type: str):
+    # We do not support custom registry's right now
+    if registry_type not in REGISTRY_CLASS_FOR_TYPE:
+        raise FeastRegistryTypeInvalidError(registry_type)
+    registry_type = REGISTRY_CLASS_FOR_TYPE[registry_type]
+    module_name, registry_class_type = registry_type.rsplit(".", 1)
+    config_class_name = f"{registry_class_type}Config"
+    return import_class(module_name, config_class_name, config_class_name)
 
 
 def get_batch_engine_config_from_type(batch_engine_type: str):

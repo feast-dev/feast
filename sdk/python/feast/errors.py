@@ -66,6 +66,26 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"On demand feature view {name} does not exist")
 
 
+class RequestFeatureViewNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(
+                f"Request feature view {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"Request feature view {name} does not exist")
+
+
+class StreamFeatureViewNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(
+                f"Stream feature view {name} does not exist in project {project}"
+            )
+        else:
+            super().__init__(f"Stream feature view {name} does not exist")
+
+
 class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
     def __init__(self, feature_name, feature_view_name):
         super().__init__(
@@ -135,6 +155,13 @@ class FeastFeatureServerTypeInvalidError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
             f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
+
+
+class FeastRegistryTypeInvalidError(Exception):
+    def __init__(self, registry_type: str):
+        super().__init__(
+            f"Feature server type was set to {registry_type}, but this type is invalid"
         )
 
 

@@ -79,6 +79,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
+from feast.infra.registry.snowflake import SnowflakeRegistry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
@@ -166,6 +167,8 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, None)
+        elif registry_config.registry_type == "snowflake.registry":
+            self._registry = SnowflakeRegistry(registry_config, None)
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)

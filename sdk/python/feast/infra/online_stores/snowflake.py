@@ -29,13 +29,13 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Snowflake"""
 
     type: Literal["snowflake.online"] = "snowflake.online"
-    """ Online store type selector"""
+    """ Online store type selector """
 
     config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Can't use ~)"""
 
     account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com"""
+    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
 
     user: Optional[str] = None
     """ Snowflake user name """
@@ -44,7 +44,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     """ Snowflake password """
 
     role: Optional[str] = None
-    """ Snowflake role name"""
+    """ Snowflake role name """
 
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
