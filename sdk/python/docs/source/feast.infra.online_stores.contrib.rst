@@ -9,6 +9,7 @@ Subpackages
 
    feast.infra.online_stores.contrib.cassandra_online_store
    feast.infra.online_stores.contrib.hbase_online_store
+   feast.infra.online_stores.contrib.mysql_online_store
 
 Submodules
 ----------
@@ -25,6 +26,14 @@ feast.infra.online\_stores.contrib.hbase\_repo\_configuration module
 --------------------------------------------------------------------
 
 .. automodule:: feast.infra.online_stores.contrib.hbase_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.mysql\_repo\_configuration module
+--------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.mysql_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

@@ -113,6 +113,8 @@ POSTGRES_REQUIRED = [
 
 MYSQL_REQUIRED = [
     "mysqlclient",
+    "pymysql",
+    "types-PyMySQL"
 ]
 
 HBASE_REQUIRED = [
