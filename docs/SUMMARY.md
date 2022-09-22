@@ -94,6 +94,7 @@
   * [DynamoDB](reference/online-stores/dynamodb.md)
   * [PostgreSQL (contrib)](reference/online-stores/postgres.md)
   * [Cassandra + Astra DB (contrib)](reference/online-stores/cassandra.md) 
+  * [MySQL (contrib)](reference/online-stores/mysql.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
