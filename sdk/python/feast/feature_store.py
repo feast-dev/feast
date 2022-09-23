@@ -547,7 +547,10 @@ class FeatureStore:
         """Returns True if plan and _apply_diffs should be used, False otherwise."""
         # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
         return self.config.provider == "local" and (
-            self.config.online_store and self.config.online_store.type == "sqlite"
+            self.config.online_store and (
+                self.config.online_store.type == "sqlite" or
+                self.config.online_store.type == "mysql"
+            )
         )
 
     def _validate_all_feature_views(
