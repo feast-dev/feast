@@ -1,3 +1,4 @@
+import os
 import json
 import threading
 from typing import Callable, Optional
@@ -54,6 +55,10 @@ def get_app(
     async_refresh()
 
     ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
+    dirExists = os.path.exists(ui_dir)
+    if not dirExists:
+        os.makedirs(ui_dir)
+
     # Initialize with the projects-list.json file
     with open(ui_dir + "projects-list.json", mode="w") as f:
         projects_dict = {
