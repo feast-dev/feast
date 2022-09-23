@@ -92,6 +92,9 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '16'
+    - name: Setup Helm-docs
+      run: |
+        brew install norwoodj/tap/helm-docs
     - name: Release (Dry Run)
       if: github.event.inputs.dry_run == 'true'
       run: |

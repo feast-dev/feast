@@ -2,7 +2,6 @@ import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -16,6 +15,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_conn,
+    get_snowflake_online_store_path,
     write_pandas_binary,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -31,9 +31,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["snowflake.online"] = "snowflake.online"
     """ Online store type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Can't use ~)"""
 
     account: Optional[str] = None
@@ -97,9 +95,13 @@ class SnowflakeOnlineStore(OnlineStore):
 
             for j, (feature_name, val) in enumerate(values.items()):
                 df.loc[j, "entity_feature_key"] = serialize_entity_key(
-                    entity_key, 2
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
                 ) + bytes(feature_name, encoding="utf-8")
-                df.loc[j, "entity_key"] = serialize_entity_key(entity_key, 2)
+                df.loc[j, "entity_key"] = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 df.loc[j, "feature_name"] = feature_name
                 df.loc[j, "value"] = val.SerializeToString()
                 df.loc[j, "event_ts"] = timestamp
@@ -111,9 +113,7 @@ class SnowflakeOnlineStore(OnlineStore):
             agg_df = pd.concat(dfs)
 
             # This combines both the data upload plus the overwrite in the same transaction
-            table_path = (
-                f'"{config.online_store.database}"."{config.online_store.schema_}"'
-            )
+            online_path = get_snowflake_online_store_path(config, table)
             with get_snowflake_conn(config.online_store, autocommit=False) as conn:
                 write_pandas_binary(
                     conn,
@@ -124,7 +124,7 @@ class SnowflakeOnlineStore(OnlineStore):
                 )  # special function for writing binary to snowflake
 
                 query = f"""
-                    INSERT OVERWRITE INTO {table_path}."[online-transient] {config.project}_{table.name}"
+                    INSERT OVERWRITE INTO {online_path}."[online-transient] {config.project}_{table.name}"
                         SELECT
                             "entity_feature_key",
                             "entity_key",
@@ -137,7 +137,7 @@ class SnowflakeOnlineStore(OnlineStore):
                               *,
                               ROW_NUMBER() OVER(PARTITION BY "entity_key","feature_name" ORDER BY "event_ts" DESC, "created_ts" DESC) AS "_feast_row"
                           FROM
-                              {table_path}."[online-transient] {config.project}_{table.name}")
+                              {online_path}."[online-transient] {config.project}_{table.name}")
                         WHERE
                             "_feast_row" = 1;
                 """
@@ -165,7 +165,10 @@ class SnowflakeOnlineStore(OnlineStore):
                 (
                     "TO_BINARY("
                     + hexlify(
-                        serialize_entity_key(combo[0], 2)
+                        serialize_entity_key(
+                            combo[0],
+                            entity_key_serialization_version=config.entity_key_serialization_version,
+                        )
                         + bytes(combo[1], encoding="utf-8")
                     ).__str__()[1:]
                     + ")"
@@ -174,20 +177,23 @@ class SnowflakeOnlineStore(OnlineStore):
             ]
         )
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
+        online_path = get_snowflake_online_store_path(config, table)
         with get_snowflake_conn(config.online_store) as conn:
             query = f"""
                 SELECT
                     "entity_key", "feature_name", "value", "event_ts"
                 FROM
-                    {table_path}."[online-transient] {config.project}_{table.name}"
+                    {online_path}."[online-transient] {config.project}_{table.name}"
                 WHERE
                     "entity_feature_key" IN ({entity_fetch_str})
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
 
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key, 2)
+            entity_key_bin = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():
@@ -214,11 +220,11 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
         with get_snowflake_conn(config.online_store) as conn:
             for table in tables_to_keep:
+                online_path = get_snowflake_online_store_path(config, table)
                 query = f"""
-                    CREATE TRANSIENT TABLE IF NOT EXISTS {table_path}."[online-transient] {config.project}_{table.name}" (
+                    CREATE TRANSIENT TABLE IF NOT EXISTS {online_path}."[online-transient] {config.project}_{table.name}" (
                         "entity_feature_key" BINARY,
                         "entity_key" BINARY,
                         "feature_name" VARCHAR,
@@ -230,7 +236,8 @@ class SnowflakeOnlineStore(OnlineStore):
                 execute_snowflake_statement(conn, query)
 
             for table in tables_to_delete:
-                query = f'DROP TABLE IF EXISTS {table_path}."[online-transient] {config.project}_{table.name}"'
+                online_path = get_snowflake_online_store_path(config, table)
+                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
                 execute_snowflake_statement(conn, query)
 
     def teardown(
@@ -241,8 +248,8 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        table_path = f'"{config.online_store.database}"."{config.online_store.schema_}"'
         with get_snowflake_conn(config.online_store) as conn:
             for table in tables:
-                query = f'DROP TABLE IF EXISTS {table_path}."[online-transient] {config.project}_{table.name}"'
+                online_path = get_snowflake_online_store_path(config, table)
+                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
                 execute_snowflake_statement(conn, query)

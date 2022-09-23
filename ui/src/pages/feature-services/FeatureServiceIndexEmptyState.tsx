@@ -17,7 +17,7 @@ const FeatureServiceIndexEmptyState = () => {
         <EuiButton
           onClick={() => {
             window.open(
-              "https://docs.feast.dev/getting-started/concepts/feature-service",
+              "https://docs.feast.dev/getting-started/concepts/feature-retrieval#feature-services",
               "_blank"
             );
           }}

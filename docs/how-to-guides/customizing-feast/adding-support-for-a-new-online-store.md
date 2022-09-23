@@ -154,7 +154,10 @@ def online_write_batch(
     project = config.project
 
     for entity_key, values, timestamp, created_ts in data:
-        entity_key_bin = serialize_entity_key(entity_key).hex()
+        entity_key_bin = serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=config.entity_key_serialization_version,
+        ).hex()
         timestamp = _to_naive_utc(timestamp)
         if created_ts is not None:
             created_ts = _to_naive_utc(created_ts)
@@ -184,7 +187,10 @@ def online_read(
 
     project = config.project
     for entity_key in entity_keys:
-        entity_key_bin = serialize_entity_key(entity_key).hex()
+        entity_key_bin = serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=config.entity_key_serialization_version,
+        ).hex()
         print(f"entity_key_bin: {entity_key_bin}")
 
         cur.execute(
@@ -207,18 +213,6 @@ def online_read(
     return result
 ```
 {% endcode %}
-
-### 1.3 Type Mapping
-
-Most online stores will have to perform some custom mapping of online store datatypes to feast value types.
-
-* The function to implement here are `source_datatype_to_feast_value_type` and `get_column_names_and_types` in your `DataSource` class.
-* `source_datatype_to_feast_value_type` is used to convert your DataSource's datatypes to feast value types.
-* `get_column_names_and_types` retrieves the column names and corresponding datasource types.
-
-Add any helper functions for type conversion to `sdk/python/feast/type_map.py`.
-
-* Be sure to implement correct type mapping so that Feast can process your feature columns without casting incorrectly that can potentially cause loss of information or incorrect data.
 
 ## 2. Defining an OnlineStoreConfig class
 

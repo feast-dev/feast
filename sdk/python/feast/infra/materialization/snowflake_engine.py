@@ -2,7 +2,6 @@ import os
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Callable, List, Literal, Optional, Sequence, Union
 
 import click
@@ -29,6 +28,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     assert_snowflake_feature_names,
     execute_snowflake_statement,
     get_snowflake_conn,
+    get_snowflake_online_store_path,
     package_snowpark_zip,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -45,9 +45,7 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
     type: Literal["snowflake.engine"] = "snowflake.engine"
     """ Type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
@@ -120,11 +118,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        click.echo(
-            f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
-        )
-        click.echo()
-
         stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
         stage_path = f'{stage_context}."feast_{project}"'
         with get_snowflake_conn(self.repo_config.batch_engine) as conn:
@@ -138,11 +131,12 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
             # if the stage already exists,
             # assumes that the materialization functions have been deployed
             if f"feast_{project}" in stage_list["name"].tolist():
-                click.echo(
-                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already exists"
-                )
-                click.echo()
                 return None
+
+            click.echo(
+                f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
+            )
+            click.echo()
 
             query = f"CREATE STAGE {stage_path}"
             execute_snowflake_statement(conn, query)
@@ -373,8 +367,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
     ) -> None:
         assert_snowflake_feature_names(feature_view)
 
-        online_table = f"""{repo_config .online_store.database}"."{repo_config.online_store.schema_}"."[online-transient] {project}_{feature_view.name}"""
-
         feature_names_str = '", "'.join(
             [feature.name for feature in feature_view.features]
         )
@@ -384,8 +376,13 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         else:
             fv_created_str = None
 
+        online_path = get_snowflake_online_store_path(repo_config, feature_view)
+        online_table = (
+            f'{online_path}."[online-transient] {project}_{feature_view.name}"'
+        )
+
         query = f"""
-            MERGE INTO "{online_table}" online_table
+            MERGE INTO {online_table} online_table
               USING (
                 SELECT
                   "entity_key" || TO_BINARY("feature_name", 'UTF-8') AS "entity_feature_key",

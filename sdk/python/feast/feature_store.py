@@ -1481,13 +1481,8 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
-        entities = []
-        for entity_name in feature_view.entities:
-            entities.append(
-                self.get_entity(entity_name, allow_registry_cache=allow_registry_cache)
-            )
         provider = self._get_provider()
-        provider.ingest_df(feature_view, entities, df)
+        provider.ingest_df(feature_view, df)
 
     @log_exceptions_and_usage
     def write_to_offline_store(

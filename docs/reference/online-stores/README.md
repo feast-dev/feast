@@ -34,3 +34,7 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [cassandra.md](cassandra.md)
 {% endcontent-ref %}
 
+{% content-ref url="mysql.md" %}
+[mysql.md](mysql.md)
+{% endcontent-ref %}
+

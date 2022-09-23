@@ -320,6 +320,8 @@ def _python_datetime_to_int_timestamp(
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
             int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))
+        elif isinstance(value, type(np.nan)):
+            int_timestamps.append(NULL_TIMESTAMP_INT_VALUE)
         else:
             int_timestamps.append(int(value))
     return int_timestamps

@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
 from google.protobuf.json_format import MessageToDict, Parse
@@ -123,6 +123,10 @@ def get_app(store: "feast.FeatureStore"):
             logger.exception(traceback.format_exc())
             # Raise HTTPException to return the error message to the client
             raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/health")
+    def health():
+        return Response(status_code=status.HTTP_200_OK)
 
     return app
 

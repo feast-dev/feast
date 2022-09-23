@@ -132,6 +132,8 @@ This supports pushing feature values into Feast to both online or offline stores
 ## 3. How to use Feast for model training
 
 ### 3.1. Generating training data
+> For more details, see [feature retrieval](../getting-started/concepts/feature-retrieval.md#retrieving-historical-features-for-training-data-or-batch-scoring)
+
 After we've defined our features and data sources in the repository, we can generate training datasets. We highly recommend you use a `FeatureService` to version the features that go into a specific model version.
 
 1. The first thing we need to do in our training code is to create a `FeatureStore` object with a path to the registry.

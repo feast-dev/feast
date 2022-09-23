@@ -39,6 +39,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
     "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
+    "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -50,7 +51,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
-    "mysql": "feast.infra.online_stores.contrib.mysql.MySQLOnlineStore",
+    "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -112,6 +113,9 @@ class RegistryConfig(FeastBaseModel):
      the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
+
+    s3_additional_kwargs: Optional[Dict[str, str]]
+    """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
 
 class RepoConfig(FeastBaseModel):

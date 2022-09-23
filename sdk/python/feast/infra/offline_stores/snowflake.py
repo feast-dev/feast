@@ -25,7 +25,7 @@ from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import InvalidEntityType
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -64,9 +64,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector"""
 
-    config_path: Optional[str] = (
-        Path(os.environ["HOME"]) / ".snowsql/config"
-    ).__str__()
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
@@ -449,15 +447,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def to_arrow_chunks(self, arrow_options: Optional[Dict] = None) -> Optional[List]:
-        with self._query_generator() as query:
-
-            arrow_batches = execute_snowflake_statement(
-                self.snowflake_conn, query
-            ).get_result_batches()
-
-        return arrow_batches
-
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
         self.to_snowflake(table_name=storage.snowflake_options.table)
@@ -585,6 +574,11 @@ def _get_entity_df_event_timestamp_range(
         results = execute_snowflake_statement(snowflake_conn, query).fetchall()
 
         entity_df_event_timestamp_range = cast(Tuple[datetime, datetime], results[0])
+        if (
+            entity_df_event_timestamp_range[0] is None
+            or entity_df_event_timestamp_range[1] is None
+        ):
+            raise EntitySQLEmptyResults(entity_df)
     else:
         raise InvalidEntityType(type(entity_df))
 

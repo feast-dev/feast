@@ -22,6 +22,7 @@ from tenacity import (
 import feast
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 from feast.feature_view import FeatureView
+from feast.repo_config import RepoConfig
 
 try:
     import snowflake.connector
@@ -102,6 +103,21 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
         return conn
     except KeyError as e:
         raise SnowflakeIncompleteConfig(e)
+
+
+def get_snowflake_online_store_path(
+    config: RepoConfig,
+    feature_view: FeatureView,
+) -> str:
+    path_tag = "snowflake-online-store/online_path"
+    if path_tag in feature_view.tags:
+        online_path = feature_view.tags[path_tag]
+    else:
+        online_path = (
+            f'"{config.online_store.database}"."{config.online_store.schema_}"'
+        )
+
+    return online_path
 
 
 def package_snowpark_zip(project_name) -> Tuple[str, str]:
