@@ -548,8 +548,7 @@ class FeatureStore:
         # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
         return self.config.provider == "local" and (
             self.config.online_store and (
-                self.config.online_store.type == "sqlite" or
-                self.config.online_store.type == "mysql"
+                self.config.online_store and self.config.online_store.type == "sqlite"
             )
         )
 
