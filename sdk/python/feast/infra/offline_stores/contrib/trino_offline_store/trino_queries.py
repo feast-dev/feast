@@ -60,7 +60,11 @@ class Trino:
 
     def _get_cursor(self) -> Cursor:
         if self._cursor is None:
-            headers = {trino.constants.HEADER_EXTRA_CREDENTIAL: self.extra_credential} if self.extra_credential else {}
+            headers = (
+                {trino.constants.HEADER_EXTRA_CREDENTIAL: self.extra_credential}
+                if self.extra_credential
+                else {}
+            )
             self._cursor = trino.dbapi.connect(
                 host=self.host,
                 port=self.port,
