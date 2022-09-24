@@ -11,6 +11,7 @@ from dask import dataframe as dd
 from dateutil.tz import tzlocal
 from pytz import utc
 
+from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -54,9 +55,9 @@ def maybe_local_tz(t: datetime) -> datetime:
 
 
 def get_default_yaml_file_path(repo_path: Path) -> Path:
-    if "FEAST_FS_YAML_FILE_PATH" in os.environ:
-        yaml_path = os.environ["FEAST_FS_YAML_FILE_PATH"]
-        return Path(yaml_path) / "feature_store.yaml"
+    if FEAST_FS_YAML_FILE_PATH_ENV_NAME in os.environ:
+        yaml_path = os.environ[FEAST_FS_YAML_FILE_PATH_ENV_NAME]
+        return Path(yaml_path)
     else:
         return repo_path / "feature_store.yaml"
 
