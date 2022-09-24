@@ -111,7 +111,7 @@ pkgutil-resolve-name==1.3.10
     # via jsonschema
 proto-plus==1.22.0
     # via feast (setup.py)
-protobuf==3.20.1
+protobuf==3.20.2
     # via
     #   feast (setup.py)
     #   google-api-core
