@@ -226,7 +226,6 @@ class TrinoSource(DataSource):
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
         client = Trino(
-            user="user",
             catalog=config.offline_store.catalog,
             host=config.offline_store.host,
             port=config.offline_store.port,
