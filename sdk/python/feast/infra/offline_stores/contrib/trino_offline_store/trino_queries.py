@@ -36,6 +36,8 @@ class Trino:
         catalog: Optional[str] = None,
         auth: Optional[Any] = None,
         http_scheme: Optional[str] = None,
+        source: Optional[str] = None,
+        extra_credential: Optional[str] = None,
     ):
         self.host = host or os.getenv("TRINO_HOST")
         self.port = port or os.getenv("TRINO_PORT")
@@ -43,6 +45,8 @@ class Trino:
         self.catalog = catalog or os.getenv("TRINO_CATALOG")
         self.auth = auth or os.getenv("TRINO_AUTH")
         self.http_scheme = http_scheme or os.getenv("TRINO_HTTP_SCHEME")
+        self.source = source or os.getenv("TRINO_SOURCE")
+        self.extra_credential = extra_credential or os.getenv("TRINO_EXTRA_CREDENTIAL")
         self._cursor: Optional[Cursor] = None
 
         if self.host is None:
@@ -56,6 +60,7 @@ class Trino:
 
     def _get_cursor(self) -> Cursor:
         if self._cursor is None:
+            headers = {trino.constants.HEADER_EXTRA_CREDENTIAL: self.extra_credential} if self.extra_credential else {}
             self._cursor = trino.dbapi.connect(
                 host=self.host,
                 port=self.port,
@@ -63,6 +68,8 @@ class Trino:
                 catalog=self.catalog,
                 auth=self.auth,
                 http_scheme=self.http_scheme,
+                source=self.source,
+                http_headers=headers,
             ).cursor()
 
         return self._cursor
