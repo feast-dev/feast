@@ -1,6 +1,6 @@
 import pandas as pd
 
-from feast import Field
+from feast import Field, PushSource
 from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
@@ -117,4 +117,28 @@ def test_diff_odfv(simple_dataset_1):
         assert (
             feast_object_diffs.feast_object_property_diffs[2].property_name
             == "user_defined_function.body_text"
+        )
+
+
+def test_diff_registry_objects_batch_to_push_source(simple_dataset_1):
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="id", join_keys=["id"])
+        pre_changed = FeatureView(
+            name="fv2",
+            entities=[entity],
+            source=file_source,
+        )
+        post_changed = FeatureView(
+            name="fv2",
+            entities=[entity],
+            source=PushSource(name="push_source", batch_source=file_source),
+        )
+
+        feast_object_diffs = diff_registry_objects(
+            pre_changed, post_changed, "feature view"
+        )
+        assert len(feast_object_diffs.feast_object_property_diffs) == 1
+        assert (
+            feast_object_diffs.feast_object_property_diffs[0].property_name
+            == "stream_source"
         )
