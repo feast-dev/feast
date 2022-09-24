@@ -760,7 +760,7 @@ class PushSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, PushSource):
-            raise TypeError("Comparisons should only involve PushSource class objects.")
+            return False
 
         if not super().__eq__(other):
             return False
