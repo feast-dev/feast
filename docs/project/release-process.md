@@ -19,8 +19,9 @@ After this step, you will have all the changes you need in the branch.
 ### 2. Pre-release verification
 A lot of things can go wrong. One of the most common is getting the wheels to build correctly (and not accidentally 
 building dev wheels from improper tagging or local code changes during the release process).
+Another possible failure is that the Docker images might not build correctly.
 
-We verify the wheels building in **your fork** of Feast, not the main feast-dev/feast repo.
+We verify the building the wheels and Docker images in **your fork** of Feast, not the main feast-dev/feast repo.
 
 #### For minor releases (e.g. v0.22.0)
 1. Merge upstream master changes into your **fork**. Make sure you are running the workflow off of your fork!
@@ -30,7 +31,7 @@ We verify the wheels building in **your fork** of Feast, not the main feast-dev/
    > This is important. If you don't have a tag, then the wheels you build will be **dev wheels**, which we can't 
    > push. The release process will automatically produce a tag for you via Semantic Release.
 3. Access the `Actions` tab on your GitHub UI on your fork and click the `build_wheels` action. This workflow will 
-   build the python sdk wheels for Python 3.8-3.10 on MacOS 10.15 and Linux and verify that these wheels are correct.
+   build the python sdk wheels for Python 3.8-3.10 on MacOS 10.15 and Linux and verify that these wheels are correct. It will also build the Docker images.
    The publish workflow uses this action to publish the python wheels for a new release to PyPI.
 4. Look for the header `This workflow has a workflow_dispatch event trigger` and click `Run Workflow` on the right.
 5. Run the workflow off of the tag you just created(`v0.22.0` in this case, **not** the master branch) and verify that 
