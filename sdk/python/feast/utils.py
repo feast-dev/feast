@@ -1,6 +1,8 @@
+import os
 import typing
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -9,6 +11,7 @@ from dask import dataframe as dd
 from dateutil.tz import tzlocal
 from pytz import utc
 
+from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -49,6 +52,14 @@ def maybe_local_tz(t: datetime) -> datetime:
         return t.replace(tzinfo=tzlocal())
     else:
         return t
+
+
+def get_default_yaml_file_path(repo_path: Path) -> Path:
+    if FEAST_FS_YAML_FILE_PATH_ENV_NAME in os.environ:
+        yaml_path = os.environ[FEAST_FS_YAML_FILE_PATH_ENV_NAME]
+        return Path(yaml_path)
+    else:
+        return repo_path / "feature_store.yaml"
 
 
 def _get_requested_feature_views_to_features_dict(
