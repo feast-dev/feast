@@ -166,10 +166,8 @@ jobs:
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-      - name: Print env variables then build image
+      - name: Build image
         run: |
-          echo $VERSION_WITHOUT_PREFIX
-          echo $VERSION VERSION=${VERSION_WITHOUT_PREFIX}
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
         env:
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
