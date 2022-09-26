@@ -5,6 +5,11 @@
 * Offline Store: Uses the **Redshift** offline store by default. Also supports File as the offline store.
 * Online Store: Uses the **DynamoDB** online store by default. Also supports Sqlite as an online store.
 
+## Getting started
+In order to use this offline store, you'll need to run (Snowflake) `pip install 'feast[aws, snowflake]'` or (Redshift) `pip install 'feast[aws]'`. 
+
+You can get started by then running `feast init -t snowflake` or `feast init -t aws`.
+
 ## Example
 
 {% code title="feature_store.yaml" %}

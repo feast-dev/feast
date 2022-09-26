@@ -5,6 +5,9 @@
 * Offline Store: Uses the **BigQuery** offline store by default. Also supports File as the offline store.
 * Online Store: Uses the **Datastore** online store by default. Also supports Sqlite as an online store.
 
+## Getting started
+In order to use this offline store, you'll need to run `pip install 'feast[gcp]'`. You can get started by then running `feast init -t gcp`.
+
 ## Example
 
 {% code title="feature_store.yaml" %}
