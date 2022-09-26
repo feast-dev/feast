@@ -160,7 +160,7 @@ class FeatureStore:
             self.config = load_repo_config(self.repo_path, fs_yaml_file)
         else:
             self.config = load_repo_config(
-                self.repo_path, Path(self.repo_path) / "feature_store.yaml"
+                self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
             )
 
         registry_config = self.config.get_registry_config()

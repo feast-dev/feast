@@ -99,7 +99,7 @@ def cli(
     ctx.obj["FS_YAML_FILE"] = (
         Path(feature_store_yaml).absolute()
         if feature_store_yaml
-        else ctx.obj["CHDIR"] / "feature_store.yaml"
+        else utils.get_default_yaml_file_path(ctx.obj["CHDIR"])
     )
     try:
         level = getattr(logging, log_level.upper())

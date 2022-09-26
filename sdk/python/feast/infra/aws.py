@@ -8,6 +8,7 @@ from typing import Optional, Sequence
 
 from colorama import Fore, Style
 
+from feast import utils
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
@@ -113,7 +114,10 @@ class AwsProvider(PassthroughProvider):
 
         if not self.repo_config.repo_path:
             raise RepoConfigPathDoesNotExist()
-        with open(self.repo_config.repo_path / "feature_store.yaml", "rb") as f:
+
+        with open(
+            utils.get_default_yaml_file_path(self.repo_config.repo_path), "rb"
+        ) as f:
             config_bytes = f.read()
             config_base64 = base64.b64encode(config_bytes).decode()
 
