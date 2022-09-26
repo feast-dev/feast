@@ -7,6 +7,9 @@ The Redshift offline store provides support for reading [RedshiftSources](../dat
 * All joins happen within Redshift. 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be uploaded to Redshift temporarily in order to complete join operations.
 
+## Getting started
+In order to use this offline store, you'll need to run `pip install 'feast[aws]'`. You can get started by then running `feast init -t aws`.
+
 ## Example
 
 {% code title="feature_store.yaml" %}
@@ -32,30 +35,30 @@ The full set of configuration options is available in [RedshiftOfflineStoreConfi
 The set of functionality supported by offline stores is described in detail [here](overview.md#functionality).
 Below is a matrix indicating which functionality is supported by the Redshift offline store.
 
-| | Redshift |
-| :-------------------------------- | :-- |
-| `get_historical_features` (point-in-time correct join)             | yes |
-| `pull_latest_from_table_or_query` (retrieve latest feature values) | yes |
-| `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes |
-| `offline_write_batch` (persist dataframes to offline store)        | yes |
-| `write_logged_features` (persist logged features to offline store) | yes |
+|                                                                    | Redshift |
+| :----------------------------------------------------------------- | :------- |
+| `get_historical_features` (point-in-time correct join)             | yes      |
+| `pull_latest_from_table_or_query` (retrieve latest feature values) | yes      |
+| `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes      |
+| `offline_write_batch` (persist dataframes to offline store)        | yes      |
+| `write_logged_features` (persist logged features to offline store) | yes      |
 
 Below is a matrix indicating which functionality is supported by `RedshiftRetrievalJob`.
 
-| | Redshift |
-| --------------------------------- | --- |
-| export to dataframe                                   | yes |
-| export to arrow table                                 | yes |
-| export to arrow batches                               | yes |
-| export to SQL                                         | yes |
-| export to data lake (S3, GCS, etc.)                   | no  |
-| export to data warehouse                              | yes |
-| export as Spark dataframe                             | no  |
-| local execution of Python-based on-demand transforms  | yes |
-| remote execution of Python-based on-demand transforms | no  |
-| persist results in the offline store                  | yes |
-| preview the query plan before execution               | yes |
-| read partitioned data                                 | yes |
+|                                                       | Redshift |
+| ----------------------------------------------------- | -------- |
+| export to dataframe                                   | yes      |
+| export to arrow table                                 | yes      |
+| export to arrow batches                               | yes      |
+| export to SQL                                         | yes      |
+| export to data lake (S3, GCS, etc.)                   | no       |
+| export to data warehouse                              | yes      |
+| export as Spark dataframe                             | no       |
+| local execution of Python-based on-demand transforms  | yes      |
+| remote execution of Python-based on-demand transforms | no       |
+| persist results in the offline store                  | yes      |
+| preview the query plan before execution               | yes      |
+| read partitioned data                                 | yes      |
 
 To compare this set of functionality against other offline stores, please see the full [functionality matrix](overview.md#functionality-matrix).
 
