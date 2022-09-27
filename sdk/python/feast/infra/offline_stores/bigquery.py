@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow.parquet
-from pydantic import StrictStr
+from pydantic import StrictStr, validator
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
@@ -83,7 +83,8 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
     project_id: Optional[StrictStr] = None
     """ (optional) GCP project name used for the BigQuery offline store """
-
+    billing_project_id: Optional[StrictStr] = None
+    """ (optional) GCP project name used to run the bigquery jobs at """
     location: Optional[StrictStr] = None
     """ (optional) GCP location name used for the BigQuery offline store.
     Examples of location names include ``US``, ``EU``, ``us-central1``, ``us-west4``.
@@ -93,6 +94,14 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
     gcs_staging_location: Optional[str] = None
     """ (optional) GCS location used for offloading BigQuery results as parquet files."""
+
+    @validator("billing_project_id")
+    def project_id_exists(cls, v, values, **kwargs):
+        if v and not values["project_id"]:
+            raise ValueError(
+                "please specify project_id if billing_project_id is specified"
+            )
+        return v
 
 
 class BigQueryOfflineStore(OfflineStore):
@@ -122,10 +131,11 @@ class BigQueryOfflineStore(OfflineStore):
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
-
+        project_id = (
+            config.offline_store.billing_project_id or config.offline_store.project_id
+        )
         client = _get_bigquery_client(
-            project=config.offline_store.project_id,
-            location=config.offline_store.location,
+            project=project_id, location=config.offline_store.location,
         )
         query = f"""
             SELECT
@@ -142,10 +152,7 @@ class BigQueryOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return BigQueryRetrievalJob(
-            query=query,
-            client=client,
-            config=config,
-            full_feature_names=False,
+            query=query, client=client, config=config, full_feature_names=False,
         )
 
     @staticmethod
@@ -162,10 +169,11 @@ class BigQueryOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
-
+        project_id = (
+            config.offline_store.billing_project_id or config.offline_store.project_id
+        )
         client = _get_bigquery_client(
-            project=config.offline_store.project_id,
-            location=config.offline_store.location,
+            project=project_id, location=config.offline_store.location,
         )
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
@@ -176,10 +184,7 @@ class BigQueryOfflineStore(OfflineStore):
             WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         """
         return BigQueryRetrievalJob(
-            query=query,
-            client=client,
-            config=config,
-            full_feature_names=False,
+            query=query, client=client, config=config, full_feature_names=False,
         )
 
     @staticmethod
@@ -197,42 +202,39 @@ class BigQueryOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, BigQuerySource)
-
+        project_id = (
+            config.offline_store.billing_project_id or config.offline_store.project_id
+        )
         client = _get_bigquery_client(
-            project=config.offline_store.project_id,
-            location=config.offline_store.location,
+            project=project_id, location=config.offline_store.location,
         )
 
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
-
+        if config.offline_store.billing_project_id:
+            dataset_project = str(config.offline_store.project_id)
+        else:
+            dataset_project = client.project
         table_reference = _get_table_reference_for_new_entity(
             client,
-            client.project,
+            dataset_project,
             config.offline_store.dataset,
             config.offline_store.location,
         )
 
-        entity_schema = _get_entity_schema(
-            client=client,
-            entity_df=entity_df,
-        )
+        entity_schema = _get_entity_schema(client=client, entity_df=entity_df,)
 
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+            entity_schema
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            client,
+            entity_df, entity_df_event_timestamp_col, client,
         )
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
             _upload_entity_df(
-                client=client,
-                table_name=table_reference,
-                entity_df=entity_df,
+                client=client, table_name=table_reference, entity_df=entity_df,
             )
 
             expected_join_keys = offline_utils.get_expected_join_keys(
@@ -295,10 +297,11 @@ class BigQueryOfflineStore(OfflineStore):
     ):
         destination = logging_config.destination
         assert isinstance(destination, BigQueryLoggingDestination)
-
+        project_id = (
+            config.offline_store.billing_project_id or config.offline_store.project_id
+        )
         client = _get_bigquery_client(
-            project=config.offline_store.project_id,
-            location=config.offline_store.location,
+            project=project_id, location=config.offline_store.location,
         )
 
         job_config = bigquery.LoadJobConfig(
@@ -353,10 +356,11 @@ class BigQueryOfflineStore(OfflineStore):
 
         if table.schema != pa_schema:
             table = table.cast(pa_schema)
-
+        project_id = (
+            config.offline_store.billing_project_id or config.offline_store.project_id
+        )
         client = _get_bigquery_client(
-            project=config.offline_store.project_id,
-            location=config.offline_store.location,
+            project=project_id, location=config.offline_store.location,
         )
 
         job_config = bigquery.LoadJobConfig(
@@ -451,7 +455,10 @@ class BigQueryRetrievalJob(RetrievalJob):
         if not job_config:
             today = date.today().strftime("%Y%m%d")
             rand_id = str(uuid.uuid4())[:7]
-            path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+            if self.config.offline_store.billing_project_id:
+                path = f"{self.config.offline_store.project_id}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
+            else:
+                path = f"{self.client.project}.{self.config.offline_store.dataset}.historical_{today}_{rand_id}"
             job_config = bigquery.QueryJobConfig(destination=path)
 
         if not job_config.dry_run and self.on_demand_feature_views:
@@ -525,7 +532,10 @@ class BigQueryRetrievalJob(RetrievalJob):
 
         bucket: str
         prefix: str
-        storage_client = StorageClient(project=self.client.project)
+        if self.config.offline_store.billing_project_id:
+            storage_client = StorageClient(project=self.config.offline_store.project_id)
+        else:
+            storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
         prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
@@ -608,9 +618,7 @@ def _get_table_reference_for_new_entity(
 
 
 def _upload_entity_df(
-    client: Client,
-    table_name: str,
-    entity_df: Union[pd.DataFrame, str],
+    client: Client, table_name: str, entity_df: Union[pd.DataFrame, str],
 ) -> Table:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns the resulting table"""
     job: Union[bigquery.job.query.QueryJob, bigquery.job.load.LoadJob]
