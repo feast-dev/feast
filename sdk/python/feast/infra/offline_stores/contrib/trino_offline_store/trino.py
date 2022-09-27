@@ -374,7 +374,10 @@ def _upload_entity_df_and_get_entity_schema(
 
 
 def _get_trino_client(
-    config: RepoConfig, user: Optional[str], auth: Optional[Any], http_scheme: Optional[str]
+    config: RepoConfig,
+    user: Optional[str],
+    auth: Optional[Any],
+    http_scheme: Optional[str],
 ) -> Trino:
     client = Trino(
         user=user,
