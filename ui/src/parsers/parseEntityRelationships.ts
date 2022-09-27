@@ -88,6 +88,19 @@ const parseEntityRelationships = (objects: FeastRegistryType) => {
    });
  });
 
+  objects.streamFeatureViews?.forEach((fv) => {
+    links.push({
+      source: {
+         type: FEAST_FCO_TYPES["dataSource"],
+         name: fv.spec.streamSource.name,
+       },
+       target: {
+         type: FEAST_FCO_TYPES["featureView"],
+         name: fv.spec.name,
+       },
+     });
+ });
+
   return links;
 };
 
