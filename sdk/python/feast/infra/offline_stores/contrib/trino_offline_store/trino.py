@@ -157,7 +157,7 @@ class TrinoOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-        user: str = "user",
+        user: Optional[str] = None,
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
@@ -176,7 +176,6 @@ class TrinoOfflineStore(OfflineStore):
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
-
         client = _get_trino_client(
             config=config, user=user, auth=auth, http_scheme=http_scheme
         )
@@ -212,7 +211,7 @@ class TrinoOfflineStore(OfflineStore):
         registry: Registry,
         project: str,
         full_feature_names: bool = False,
-        user: str = "user",
+        user: Optional[str] = None,
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
@@ -303,7 +302,7 @@ class TrinoOfflineStore(OfflineStore):
         timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
-        user: str = "user",
+        user: Optional[str] = None,
         auth: Optional[Authentication] = None,
         http_scheme: Optional[str] = None,
     ) -> RetrievalJob:
@@ -375,7 +374,7 @@ def _upload_entity_df_and_get_entity_schema(
 
 
 def _get_trino_client(
-    config: RepoConfig, user: str, auth: Optional[Any], http_scheme: Optional[str]
+    config: RepoConfig, user: Optional[str], auth: Optional[Any], http_scheme: Optional[str]
 ) -> Trino:
     client = Trino(
         user=user,
