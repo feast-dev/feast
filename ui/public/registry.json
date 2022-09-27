@@ -637,58 +637,42 @@
         "lastUpdatedTimestamp": "2022-05-11T19:27:03.171556Z"
       },
       "spec": {
+        "batchSource": {
+          "createdTimestampColumn": "created_timestamp",
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "fileOptions": {
+            "uri": "data/zipcode_table.parquet"
+          },
+          "name": "zipcode",
+          "timestampField": "event_timestamp",
+          "type": "BATCH_FILE"
+        },
         "features": [
           {
             "name": "transaction_gt_last_credit_card_due",
             "valueType": "BOOL"
           }
         ],
-        "name": "transaction_gt_last_credit_card_due",
-        "sources": {
-          "credit_history": {
-            "featureViewProjection": {
-              "featureColumns": [
-                {
-                  "name": "credit_card_due",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "mortgage_due",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "student_loan_due",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "vehicle_loan_due",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "hard_pulls",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "missed_payments_2y",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "missed_payments_1y",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "missed_payments_6m",
-                  "valueType": "INT64"
-                },
-                {
-                  "name": "bankruptcies",
-                  "valueType": "INT64"
-                }
-              ],
-              "featureViewName": "credit_history"
-            }
+        "name": "transaction_stream_example",
+        "streamSource": {
+          "batchSource": {
+            "fileOptions": {
+              "uri": "data/zipcode_table.parquet"
+            },
+            "name": "user_stats",
+            "timestampField": "timestamp",
+            "type": "BATCH_FILE"
           },
+          "dataSourceClassType": "feast.data_source.KafkaSource",
+          "description": "The Kafka stream example",
+          "kafkaOptions": {"messageFormat": {"jsonFormat": {"schemaJson": "id string, timestamp timestamp"}},
+          "watermarkDelayThreshold": "300s"},
+          "name": "kafka_stream_example",
+          "owner": "test@gmail.com",
+          "timestampField": "timestamp",
+          "type": "STREAM_KAFKA"
         },
+        "ttl": "86400s",
         "userDefinedFunction": {
           "body": "@on_demand_feature_view(\n    sources=[credit_history, input_request],\n    schema=[\n        Field(name=\"transaction_gt_last_credit_card_due\", dtype=Bool),\n    ],\n)\ndef transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:\n    df = pd.DataFrame()\n    df[\"transaction_gt_last_credit_card_due\"] = (\n        inputs[\"transaction_amt\"] > inputs[\"credit_card_due\"]\n    )\n    return df\n",
           "name": "transaction_gt_last_credit_card_due"
