@@ -8,18 +8,8 @@ const FeatureViewProjectionSchema = z.object({
   }),
 });
 
-const RequestDataSourceSchema = z.object({
-  requestDataSource: z.object({
-    type: z.string(),
-    name: z.string(),
-    requestDataOptions: z.object({
-      schema: z.array(FeastFeatureColumnSchema),
-    }),
-  }),
-});
-
-const StreamDataSourceSchema = z.object({
-  streamDataSource: z.object({
+const StreamSourceSchema = z.object({
+  streamSource: z.object({
     type: z.string(),
     name: z.string(),
     streamDataOptions: z.object({
@@ -28,31 +18,10 @@ const StreamDataSourceSchema = z.object({
   }),
 });
 
-const ODFVInputsSchema = z.union([
-  FeatureViewProjectionSchema,
-  StreamDataSourceSchema,
-]);
-
 const SFVInputsSchema = z.union([
   FeatureViewProjectionSchema,
-  StreamDataSourceSchema,
+  StreamSourceSchema,
 ]);
-
-const FeastODFVSchema = z.object({
-  spec: z.object({
-    name: z.string(),
-    features: z.array(FeastFeatureColumnSchema),
-    sources: z.record(ODFVInputsSchema),
-    userDefinedFunction: z.object({
-      name: z.string(),
-      body: z.string(),
-    }),
-  }),
-  meta: z.object({
-    createdTimestamp: z.string().transform((val) => new Date(val)),
-    lastUpdatedTimestamp: z.string().transform((val) => new Date(val)),
-  }),
-});
 
 const FeastSFVSchema = z.object({
   spec: z.object({
@@ -71,7 +40,7 @@ const FeastSFVSchema = z.object({
 });
 
 type FeastSFVType = z.infer<typeof FeastSFVSchema>;
-type StreamDataSourceType = z.infer<typeof StreamDataSourceSchema>;
+type StreamSourceType = z.infer<typeof StreamSourceSchema>;
 
 export { FeastSFVSchema };
-export type { FeastSFVType, StreamDataSourceType};
+export type { FeastSFVType, StreamSourceType};
