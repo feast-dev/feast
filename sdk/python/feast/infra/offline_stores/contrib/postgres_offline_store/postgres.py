@@ -124,14 +124,12 @@ class PostgreSQLOfflineStore(OfflineStore):
 
         entity_schema = _get_entity_schema(entity_df, config)
 
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+            entity_schema
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            config,
+            entity_df, entity_df_event_timestamp_col, config,
         )
 
         @contextlib.contextmanager
@@ -403,8 +401,7 @@ def _upload_entity_df(
 
 
 def _get_entity_schema(
-    entity_df: Union[pd.DataFrame, str],
-    config: RepoConfig,
+    entity_df: Union[pd.DataFrame, str], config: RepoConfig,
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, pd.DataFrame):
         return dict(zip(entity_df.columns, entity_df.dtypes))

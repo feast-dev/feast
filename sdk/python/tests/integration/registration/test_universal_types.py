@@ -33,10 +33,7 @@ def test_entity_inference_types_match(environment, entity_type):
     fs = environment.feature_store
 
     # Don't specify value type in entity to force inference
-    df = create_basic_driver_dataset(
-        entity_type,
-        feature_dtype="int32",
-    )
+    df = create_basic_driver_dataset(entity_type, feature_dtype="int32",)
     data_source = environment.data_source_creator.create_data_source(
         df,
         destination_name=f"entity_type_{entity_type.name.lower()}",
@@ -107,8 +104,7 @@ def test_feature_get_historical_features_types_match(
     features = [f"{fv.name}:value"]
 
     historical_features = fs.get_historical_features(
-        entity_df=entity_df,
-        features=features,
+        entity_df=entity_df, features=features,
     )
     # Note: Pandas doesn't play well with nan values in ints. BQ will also coerce to floats if there are NaNs
     historical_features_df = historical_features.to_df()
@@ -157,8 +153,7 @@ def test_feature_get_online_features_types_match(
     )
 
     online_features = fs.get_online_features(
-        features=features,
-        entity_rows=[{"driver_id": 1}],
+        features=features, entity_rows=[{"driver_id": 1}],
     ).to_dict()
 
     feature_list_dtype_to_expected_online_response_value_type = {
@@ -263,10 +258,7 @@ def assert_feature_list_types(
             bool,
             np.bool_,
         ),  # Can be `np.bool_` if from `np.array` rather that `list`
-        "datetime": (
-            np.datetime64,
-            datetime,
-        ),  # datetime.datetime
+        "datetime": (np.datetime64, datetime,),  # datetime.datetime
     }
     expected_dtype = feature_list_dtype_to_expected_historical_feature_list_dtype[
         feature_dtype
@@ -346,8 +338,7 @@ ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=F
 
 
 @pytest.fixture(
-    params=OFFLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
+    params=OFFLINE_TYPE_TEST_CONFIGS, ids=[str(c) for c in OFFLINE_TYPE_TEST_CONFIGS],
 )
 def offline_types_test_fixtures(request, environment):
     config: TypeTestConfig = request.param
@@ -361,8 +352,7 @@ def offline_types_test_fixtures(request, environment):
 
 
 @pytest.fixture(
-    params=ONLINE_TYPE_TEST_CONFIGS,
-    ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
+    params=ONLINE_TYPE_TEST_CONFIGS, ids=[str(c) for c in ONLINE_TYPE_TEST_CONFIGS],
 )
 def online_types_test_fixtures(request, environment):
     return get_fixtures(request, environment)
@@ -371,22 +361,15 @@ def online_types_test_fixtures(request, environment):
 def get_fixtures(request, environment):
     config: TypeTestConfig = request.param
     # Lower case needed because Redshift lower-cases all table names
-    destination_name = (
-        f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
-            ".", ""
-        ).lower()
-    )
+    destination_name = f"feature_type_{config.feature_dtype}{config.feature_is_list}".replace(
+        ".", ""
+    ).lower()
     config = request.param
     df = create_basic_driver_dataset(
-        Int64,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
+        Int64, config.feature_dtype, config.feature_is_list, config.has_empty_list,
     )
     data_source = environment.data_source_creator.create_data_source(
-        df,
-        destination_name=destination_name,
-        field_mapping={"ts_1": "ts"},
+        df, destination_name=destination_name, field_mapping={"ts_1": "ts"},
     )
     fv = create_feature_view(
         destination_name,

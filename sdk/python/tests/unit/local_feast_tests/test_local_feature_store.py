@@ -22,14 +22,11 @@ from tests.utils.data_source_test_creator import prep_file_source
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_entity(test_feature_store):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -50,8 +47,7 @@ def test_apply_entity(test_feature_store):
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_feature_view(test_feature_store):
     # Create Feature Views
@@ -118,8 +114,7 @@ def test_apply_feature_view(test_feature_store):
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_feature_view_with_inline_batch_source(
     test_feature_store, simple_dataset_1
@@ -128,9 +123,7 @@ def test_apply_feature_view_with_inline_batch_source(
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity = Entity(name="driver_entity", join_keys=["test_key"])
         driver_fv = FeatureView(
-            name="driver_fv",
-            entities=[entity],
-            source=file_source,
+            name="driver_fv", entities=[entity], source=file_source,
         )
 
         test_feature_store.apply([entity, driver_fv])
@@ -155,8 +148,7 @@ def test_apply_feature_view_with_inline_batch_source_from_repo() -> None:
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_feature_view_with_inline_stream_source(
     test_feature_store, simple_dataset_1
@@ -176,9 +168,7 @@ def test_apply_feature_view_with_inline_stream_source(
         )
 
         driver_fv = FeatureView(
-            name="driver_fv",
-            entities=[entity],
-            source=stream_source,
+            name="driver_fv", entities=[entity], source=stream_source,
         )
 
         test_feature_store.apply([entity, driver_fv])
@@ -208,8 +198,7 @@ def test_apply_feature_view_with_inline_stream_source_from_repo() -> None:
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_entities_and_feature_views(test_feature_store):
     assert isinstance(test_feature_store, FeatureStore)
@@ -269,8 +258,7 @@ def test_apply_entities_and_feature_views(test_feature_store):
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_reapply_feature_view(test_feature_store, dataframe_source):
@@ -361,8 +349,7 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_stream_feature_view(test_feature_store, simple_dataset_1) -> None:
     """Test that a stream feature view is correctly applied."""
@@ -388,9 +375,7 @@ def test_apply_stream_feature_view(test_feature_store, simple_dataset_1) -> None
             description="desc",
             aggregations=[
                 Aggregation(
-                    column="dummy_field",
-                    function="max",
-                    time_window=timedelta(days=1),
+                    column="dummy_field", function="max", time_window=timedelta(days=1),
                 ),
                 Aggregation(
                     column="dummy_field2",
@@ -413,8 +398,7 @@ def test_apply_stream_feature_view(test_feature_store, simple_dataset_1) -> None
         assert stream_feature_views[0] == simple_sfv
 
         features = test_feature_store.get_online_features(
-            features=["simple_sfv:dummy_field"],
-            entity_rows=[{"test_key": 1001}],
+            features=["simple_sfv:dummy_field"], entity_rows=[{"test_key": 1001}],
         ).to_dict(include_event_timestamps=True)
 
         assert "test_key" in features
@@ -424,8 +408,7 @@ def test_apply_stream_feature_view(test_feature_store, simple_dataset_1) -> None
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> None:
     """Test that a stream feature view with a udf is correctly applied."""
@@ -451,9 +434,7 @@ def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> 
             description="desc",
             aggregations=[
                 Aggregation(
-                    column="dummy_field",
-                    function="max",
-                    time_window=timedelta(days=1),
+                    column="dummy_field", function="max", time_window=timedelta(days=1),
                 ),
                 Aggregation(
                     column="dummy_field2",
@@ -493,8 +474,7 @@ def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> 
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_batch_source(test_feature_store, simple_dataset_1) -> None:
     """Test that a batch source is applied correctly."""
@@ -507,8 +487,7 @@ def test_apply_batch_source(test_feature_store, simple_dataset_1) -> None:
 
 
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 def test_apply_stream_source(test_feature_store, simple_dataset_1) -> None:
     """Test that a stream source is applied correctly."""

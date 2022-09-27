@@ -268,25 +268,16 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                 )
 
             fv_to_proto_sql = self.generate_snowflake_materialization_query(
-                self.repo_config,
-                fv_latest_mapped_values_sql,
-                feature_view,
-                project,
+                self.repo_config, fv_latest_mapped_values_sql, feature_view, project,
             )
 
             if self.repo_config.online_store.type == "snowflake.online":
                 self.materialize_to_snowflake_online_store(
-                    self.repo_config,
-                    fv_to_proto_sql,
-                    feature_view,
-                    project,
+                    self.repo_config, fv_to_proto_sql, feature_view, project,
                 )
             else:
                 self.materialize_to_external_online_store(
-                    self.repo_config,
-                    fv_to_proto_sql,
-                    feature_view,
-                    tqdm_builder,
+                    self.repo_config, fv_to_proto_sql, feature_view, tqdm_builder,
                 )
 
             return SnowflakeMaterializationJob(
@@ -472,12 +463,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                     created_timestamps = [None] * df.shape[0]
 
                 rows_to_write = list(
-                    zip(
-                        entity_keys,
-                        features,
-                        event_timestamps,
-                        created_timestamps,
-                    )
+                    zip(entity_keys, features, event_timestamps, created_timestamps,)
                 )
 
                 with tqdm_builder(len(rows_to_write)) as pbar:

@@ -280,9 +280,7 @@ class FeatureStore:
         )
 
     def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
@@ -295,9 +293,7 @@ class FeatureStore:
         return feature_views
 
     def _list_stream_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
+        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
     ) -> List[StreamFeatureView]:
         stream_feature_views = []
         for sfv in self._registry.list_stream_feature_views(
@@ -511,9 +507,7 @@ class FeatureStore:
         return self._registry.delete_feature_service(name, self.project)
 
     def _get_features(
-        self,
-        features: Union[List[str], FeatureService],
-        allow_cache: bool = False,
+        self, features: Union[List[str], FeatureService], allow_cache: bool = False,
     ) -> List[str]:
         _features = features
 
@@ -621,8 +615,7 @@ class FeatureStore:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
     def _get_feature_views_to_materialize(
-        self,
-        feature_views: Optional[List[str]],
+        self, feature_views: Optional[List[str]],
     ) -> List[FeatureView]:
         """
         Returns the list of feature views that should be materialized.
@@ -1123,8 +1116,7 @@ class FeatureStore:
                 for feature_name in odfv_request_data_schema.keys():
                     if feature_name not in entity_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
-                            feature_name=feature_name,
-                            feature_view_name=odfv.name,
+                            feature_name=feature_name, feature_view_name=odfv.name,
                         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -1247,9 +1239,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def materialize_incremental(
-        self,
-        end_date: datetime,
-        feature_views: Optional[List[str]] = None,
+        self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1331,10 +1321,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage
@@ -1406,10 +1393,7 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
+                feature_view, self.project, start_date, end_date,
             )
 
     @log_exceptions_and_usage
@@ -1506,8 +1490,8 @@ class FeatureStore:
             )
 
         # Get columns of the batch source and the input dataframe.
-        column_names_and_types = (
-            feature_view.batch_source.get_table_column_names_and_types(self.config)
+        column_names_and_types = feature_view.batch_source.get_table_column_names_and_types(
+            self.config
         )
         source_columns = [column for column, _ in column_names_and_types]
         input_columns = df.columns.values.tolist()
@@ -1768,17 +1752,12 @@ class FeatureStore:
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
             table_entity_values, idxs = self._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
+                table, join_key_values, entity_name_to_join_key_map,
             )
 
             # Fetch feature data for the minimum set of Entities.
             feature_data = self._read_from_online_store(
-                table_entity_values,
-                provider,
-                requested_features,
-                table,
+                table_entity_values, provider, requested_features, table,
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -1947,9 +1926,7 @@ class FeatureStore:
         """
         # Get the correct set of entity values with the correct join keys.
         table_entity_values = self._get_table_entity_values(
-            table,
-            entity_name_to_join_key_map,
-            join_key_values,
+            table, entity_name_to_join_key_map, join_key_values,
         )
 
         # Convert back to rowise.
@@ -2134,8 +2111,7 @@ class FeatureStore:
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
+                initial_response_df, full_feature_names,
             )
             selected_subset = [
                 f for f in transformed_features_df.columns if f in _feature_refs

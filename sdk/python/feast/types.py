@@ -178,9 +178,7 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
 }
 
 
-def from_value_type(
-    value_type: ValueType,
-) -> FeastType:
+def from_value_type(value_type: ValueType,) -> FeastType:
     """
     Converts a ValueType enum to a Feast type.
 

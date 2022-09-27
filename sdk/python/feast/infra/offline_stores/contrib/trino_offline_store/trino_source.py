@@ -62,8 +62,7 @@ class TrinoOptions:
             Returns a TrinoOptions object based on the trino_options protobuf
         """
         trino_options = cls(
-            table=trino_options_proto.table,
-            query=trino_options_proto.query,
+            table=trino_options_proto.table, query=trino_options_proto.query,
         )
 
         return trino_options
@@ -76,8 +75,7 @@ class TrinoOptions:
         """
 
         trino_options_proto = DataSourceProto.TrinoOptions(
-            table=self.table,
-            query=self.query,
+            table=self.table, query=self.query,
         )
 
         return trino_options_proto

@@ -62,14 +62,11 @@ def s3_registry() -> Registry:
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_entity_integration(test_registry):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -105,8 +102,7 @@ def test_apply_entity_integration(test_registry):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_feature_view_integration(test_registry):
     # Create Feature Views
@@ -182,8 +178,7 @@ def test_apply_feature_view_integration(test_registry):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    "test_registry", [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
 )
 def test_apply_data_source_integration(test_registry: Registry):
     validate_registry_data_source_apply(test_registry)

@@ -7,8 +7,7 @@ from tests.integration.feature_repos.integration_test_repo_config import (
 
 FULL_REPO_CONFIGS = [
     IntegrationTestRepoConfig(
-        provider="aws",
-        offline_store_creator=AthenaDataSourceCreator,
+        provider="aws", offline_store_creator=AthenaDataSourceCreator,
     ),
 ]
 

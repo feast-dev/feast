@@ -553,10 +553,7 @@ def registry_dump_command(ctx: click.Context):
 @click.argument("start_ts")
 @click.argument("end_ts")
 @click.option(
-    "--views",
-    "-v",
-    help="Feature views to materialize",
-    multiple=True,
+    "--views", "-v", help="Feature views to materialize", multiple=True,
 )
 @click.pass_context
 def materialize_command(
@@ -584,10 +581,7 @@ def materialize_command(
 @cli.command("materialize-incremental")
 @click.argument("end_ts")
 @click.option(
-    "--views",
-    "-v",
-    help="Feature views to incrementally materialize",
-    multiple=True,
+    "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
 )
 @click.pass_context
 def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List[str]):
@@ -662,10 +656,7 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Specify a server type: 'http' or 'grpc'",
 )
 @click.option(
-    "--go",
-    is_flag=True,
-    show_default=True,
-    help="Use Go to serve",
+    "--go", is_flag=True, show_default=True, help="Use Go to serve",
 )
 @click.option(
     "--no-access-log",
@@ -735,19 +726,13 @@ def serve_transformations_command(ctx: click.Context, port: int):
 
 @cli.command("validate")
 @click.option(
-    "--feature-service",
-    "-f",
-    help="Specify a feature service name",
+    "--feature-service", "-f", help="Specify a feature service name",
 )
 @click.option(
-    "--reference",
-    "-r",
-    help="Specify a validation reference name",
+    "--reference", "-r", help="Specify a validation reference name",
 )
 @click.option(
-    "--no-profile-cache",
-    is_flag=True,
-    help="Do not store cached profile in registry",
+    "--no-profile-cache", is_flag=True, help="Do not store cached profile in registry",
 )
 @click.argument("start_ts")
 @click.argument("end_ts")

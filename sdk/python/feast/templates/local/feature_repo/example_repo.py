@@ -95,8 +95,7 @@ driver_activity_v2 = FeatureService(
 
 # Defines a way to push data (to be available offline, online or both) into Feast.
 driver_stats_push_source = PushSource(
-    name="driver_stats_push_source",
-    batch_source=driver_stats_source,
+    name="driver_stats_push_source", batch_source=driver_stats_source,
 )
 
 # Defines a slightly modified version of the feature view from above, where the source

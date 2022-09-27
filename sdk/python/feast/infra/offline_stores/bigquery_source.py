@@ -185,9 +185,7 @@ class BigQueryOptions:
     """
 
     def __init__(
-        self,
-        table: Optional[str],
-        query: Optional[str],
+        self, table: Optional[str], query: Optional[str],
     ):
         self.table = table or ""
         self.query = query or ""
@@ -204,8 +202,7 @@ class BigQueryOptions:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
         bigquery_options = cls(
-            table=bigquery_options_proto.table,
-            query=bigquery_options_proto.query,
+            table=bigquery_options_proto.table, query=bigquery_options_proto.query,
         )
 
         return bigquery_options
@@ -218,8 +215,7 @@ class BigQueryOptions:
             BigQueryOptionsProto protobuf
         """
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
-            table=self.table,
-            query=self.query,
+            table=self.table, query=self.query,
         )
 
         return bigquery_options_proto

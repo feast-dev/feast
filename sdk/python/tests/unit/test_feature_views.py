@@ -131,9 +131,7 @@ def test_stream_feature_view_serialization():
         description="desc",
         aggregations=[
             Aggregation(
-                column="dummy_field",
-                function="max",
-                time_window=timedelta(days=1),
+                column="dummy_field", function="max", time_window=timedelta(days=1),
             )
         ],
         timestamp_field="event_timestamp",
@@ -169,9 +167,7 @@ def test_stream_feature_view_udfs():
         description="desc",
         aggregations=[
             Aggregation(
-                column="dummy_field",
-                function="max",
-                time_window=timedelta(days=1),
+                column="dummy_field", function="max", time_window=timedelta(days=1),
             )
         ],
         timestamp_field="event_timestamp",

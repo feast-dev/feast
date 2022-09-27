@@ -80,8 +80,7 @@ class RetrievalJob(ABC):
             for odfv in self.on_demand_feature_views:
                 features_df = features_df.join(
                     odfv.get_transformed_features_df(
-                        features_df,
-                        self.full_feature_names,
+                        features_df, self.full_feature_names,
                     )
                 )
 
@@ -120,8 +119,7 @@ class RetrievalJob(ABC):
             for odfv in self.on_demand_feature_views:
                 features_df = features_df.join(
                     odfv.get_transformed_features_df(
-                        features_df,
-                        self.full_feature_names,
+                        features_df, self.full_feature_names,
                     )
                 )
 

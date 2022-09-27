@@ -15,10 +15,7 @@ driver_stats = FileSource(
     owner="test2@gmail.com",
 )
 
-driver = Entity(
-    name="driver_id",
-    description="driver id",
-)
+driver = Entity(name="driver_id", description="driver id",)
 
 driver_daily_features_view = FeatureView(
     name="driver_daily_features",

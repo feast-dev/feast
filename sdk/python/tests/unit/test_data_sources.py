@@ -18,8 +18,7 @@ from feast.types import Bool, Float32, Int64
 
 def test_push_with_batch():
     push_source = PushSource(
-        name="test",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
     assert push_source_proto.HasField("batch_source")
@@ -36,11 +35,7 @@ def test_request_source_primitive_type_to_proto():
         Field(name="f2", dtype=Bool),
     ]
     request_source = RequestSource(
-        name="source",
-        schema=schema,
-        description="desc",
-        tags={},
-        owner="feast",
+        name="source", schema=schema, description="desc", tags={}, owner="feast",
     )
     request_proto = request_source.to_proto()
     deserialized_request_source = RequestSource.from_proto(request_proto)
@@ -49,16 +44,13 @@ def test_request_source_primitive_type_to_proto():
 
 def test_hash():
     push_source_1 = PushSource(
-        name="test",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_2 = PushSource(
-        name="test",
-        batch_source=BigQuerySource(table="test.test"),
+        name="test", batch_source=BigQuerySource(table="test.test"),
     )
     push_source_3 = PushSource(
-        name="test",
-        batch_source=BigQuerySource(table="test.test2"),
+        name="test", batch_source=BigQuerySource(table="test.test2"),
     )
     push_source_4 = PushSource(
         name="test",

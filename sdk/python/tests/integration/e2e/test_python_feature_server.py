@@ -72,10 +72,7 @@ def test_push(python_fs_client):
             },
         }
     )
-    response = python_fs_client.post(
-        "/push",
-        data=json_data,
-    )
+    response = python_fs_client.post("/push", data=json_data,)
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200

@@ -75,13 +75,7 @@ class OnDemandFeatureView(BaseFeatureView):
         *,
         name: str,
         schema: List[Field],
-        sources: List[
-            Union[
-                FeatureView,
-                RequestSource,
-                FeatureViewProjection,
-            ]
-        ],
+        sources: List[Union[FeatureView, RequestSource, FeatureViewProjection,]],
         udf: FunctionType,
         udf_string: str = "",
         description: str = "",
@@ -107,11 +101,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 of the primary maintainer.
         """
         super().__init__(
-            name=name,
-            features=schema,
-            description=description,
-            tags=tags,
-            owner=owner,
+            name=name, features=schema, description=description, tags=tags, owner=owner,
         )
 
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
@@ -188,10 +178,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources[source_name] = OnDemandSource(
                 feature_view_projection=fv_projection.to_proto()
             )
-        for (
-            source_name,
-            request_sources,
-        ) in self.source_request_sources.items():
+        for (source_name, request_sources,) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
                 request_data_source=request_sources.to_proto()
             )
@@ -224,10 +211,7 @@ class OnDemandFeatureView(BaseFeatureView):
             A OnDemandFeatureView object based on the on-demand feature view protobuf.
         """
         sources = []
-        for (
-            _,
-            on_demand_source,
-        ) in on_demand_feature_view_proto.spec.sources.items():
+        for (_, on_demand_source,) in on_demand_feature_view_proto.spec.sources.items():
             if on_demand_source.WhichOneof("source") == "feature_view":
                 sources.append(
                     FeatureView.from_proto(on_demand_source.feature_view).projection
@@ -296,9 +280,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return schema
 
     def get_transformed_features_df(
-        self,
-        df_with_features: pd.DataFrame,
-        full_feature_names: bool = False,
+        self, df_with_features: pd.DataFrame, full_feature_names: bool = False,
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []
@@ -412,13 +394,7 @@ class OnDemandFeatureView(BaseFeatureView):
 def on_demand_feature_view(
     *,
     schema: List[Field],
-    sources: List[
-        Union[
-            FeatureView,
-            RequestSource,
-            FeatureViewProjection,
-        ]
-    ],
+    sources: List[Union[FeatureView, RequestSource, FeatureViewProjection,]],
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",

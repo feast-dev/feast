@@ -381,10 +381,7 @@ class BaseRegistry(ABC):
     # Saved dataset operations
     @abstractmethod
     def apply_saved_dataset(
-        self,
-        saved_dataset: SavedDataset,
-        project: str,
-        commit: bool = True,
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
         """
         Stores a saved dataset metadata with Feast

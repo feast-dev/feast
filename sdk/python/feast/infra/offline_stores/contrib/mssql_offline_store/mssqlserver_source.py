@@ -26,9 +26,7 @@ class MsSqlServerOptions:
     """
 
     def __init__(
-        self,
-        connection_str: Optional[str],
-        table_ref: Optional[str],
+        self, connection_str: Optional[str], table_ref: Optional[str],
     ):
         self._connection_str = connection_str
         self._table_ref = table_ref
@@ -75,8 +73,7 @@ class MsSqlServerOptions:
         options = json.loads(sqlserver_options_proto.configuration)
 
         sqlserver_options = cls(
-            table_ref=options["table_ref"],
-            connection_str=options["connection_str"],
+            table_ref=options["table_ref"], connection_str=options["connection_str"],
         )
 
         return sqlserver_options

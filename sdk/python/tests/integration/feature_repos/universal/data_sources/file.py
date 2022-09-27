@@ -124,9 +124,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
         if not client.bucket_exists(self.bucket):
             client.make_bucket(self.bucket)
         client.fput_object(
-            self.bucket,
-            file_name,
-            self.f.name,
+            self.bucket, file_name, self.f.name,
         )
 
     def create_data_source(

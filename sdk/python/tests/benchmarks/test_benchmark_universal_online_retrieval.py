@@ -10,7 +10,5 @@ def test_online_retrieval(feature_store_for_online_retrieval, benchmark):
     """
     fs, feature_refs, entity_rows = feature_store_for_online_retrieval
     benchmark(
-        fs.get_online_features,
-        features=feature_refs,
-        entity_rows=entity_rows,
+        fs.get_online_features, features=feature_refs, entity_rows=entity_rows,
     )

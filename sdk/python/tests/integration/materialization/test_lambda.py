@@ -44,16 +44,11 @@ def test_lambda_materialization_consistency():
 
     df = create_basic_driver_dataset()
     ds = lambda_environment.data_source_creator.create_data_source(
-        df,
-        lambda_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, lambda_environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     fs = lambda_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_keys=["driver_id"],
-    )
+    driver = Entity(name="driver_id", join_keys=["driver_id"],)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",

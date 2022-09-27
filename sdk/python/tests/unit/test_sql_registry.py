@@ -57,10 +57,7 @@ def pg_registry():
 
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
-        container=container,
-        predicate=log_string_to_wait_for,
-        timeout=30,
-        interval=10,
+        container=container, predicate=log_string_to_wait_for, timeout=30, interval=10,
     )
     logger.info("Waited for %s seconds until postgres container was up", waited)
     container_port = container.get_exposed_port(5432)
@@ -91,10 +88,7 @@ def mysql_registry():
     # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
     log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
     waited = wait_for_logs(
-        container=container,
-        predicate=log_string_to_wait_for,
-        timeout=60,
-        interval=10,
+        container=container, predicate=log_string_to_wait_for, timeout=60, interval=10,
     )
     logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
@@ -111,10 +105,7 @@ def mysql_registry():
 
 @pytest.fixture(scope="session")
 def sqlite_registry():
-    registry_config = RegistryConfig(
-        registry_type="sql",
-        path="sqlite://",
-    )
+    registry_config = RegistryConfig(registry_type="sql", path="sqlite://",)
 
     yield SqlRegistry(registry_config, None)
 
@@ -133,9 +124,7 @@ def sqlite_registry():
 )
 def test_apply_entity_success(sql_registry):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -379,8 +368,7 @@ def test_modify_feature_views_success(sql_registry):
     )
 
     request_source = RequestSource(
-        name="request_source",
-        schema=[Field(name="my_input_1", dtype=Int32)],
+        name="request_source", schema=[Field(name="my_input_1", dtype=Int32)],
     )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["test"])

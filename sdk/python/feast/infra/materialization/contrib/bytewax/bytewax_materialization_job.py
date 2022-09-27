@@ -10,10 +10,7 @@ from feast.infra.materialization.batch_materialization_engine import (
 
 class BytewaxMaterializationJob(MaterializationJob):
     def __init__(
-        self,
-        job_id,
-        namespace,
-        error: Optional[BaseException] = None,
+        self, job_id, namespace, error: Optional[BaseException] = None,
     ):
         super().__init__()
         self._job_id = job_id

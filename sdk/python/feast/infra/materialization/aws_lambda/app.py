@@ -71,10 +71,7 @@ def handler(event, context):
                 batch, feature_view, join_key_to_value_type
             )
             store._provider.online_write_batch(
-                store.config,
-                feature_view,
-                rows_to_write,
-                lambda x: None,
+                store.config, feature_view, rows_to_write, lambda x: None,
             )
             written_rows += len(rows_to_write)
         return {"written_rows": written_rows}

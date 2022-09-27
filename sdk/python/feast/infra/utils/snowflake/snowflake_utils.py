@@ -93,9 +93,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
 
     try:
         conn = snowflake.connector.connect(
-            application="feast",
-            autocommit=autocommit,
-            **kwargs,
+            application="feast", autocommit=autocommit, **kwargs,
         )
 
         conn.cursor().execute("ALTER SESSION SET TIMEZONE = 'UTC'", _is_internal=True)
@@ -106,8 +104,7 @@ def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
 
 
 def get_snowflake_online_store_path(
-    config: RepoConfig,
-    feature_view: FeatureView,
+    config: RepoConfig, feature_view: FeatureView,
 ) -> str:
     path_tag = "snowflake-online-store/online_path"
     if path_tag in feature_view.tags:
@@ -414,10 +411,7 @@ def upload_df(
 
 
 def upload_local_pq(
-    path: Path,
-    cursor: SnowflakeCursor,
-    stage_name: str,
-    parallel: int = 4,
+    path: Path, cursor: SnowflakeCursor, stage_name: str, parallel: int = 4,
 ):
     """
     Args:

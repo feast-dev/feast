@@ -79,10 +79,7 @@ class Provider(ABC):
 
     @abstractmethod
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
+        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ):
         """
         Tears down all cloud resources for the specified set of Feast objects.
@@ -121,9 +118,7 @@ class Provider(ABC):
         pass
 
     def ingest_df(
-        self,
-        feature_view: FeatureView,
-        df: pd.DataFrame,
+        self, feature_view: FeatureView, df: pd.DataFrame,
     ):
         """
         Persists a dataframe to the online store.
@@ -135,9 +130,7 @@ class Provider(ABC):
         pass
 
     def ingest_df_to_offline_store(
-        self,
-        feature_view: FeatureView,
-        df: pyarrow.Table,
+        self, feature_view: FeatureView, df: pyarrow.Table,
     ):
         """
         Persists a dataframe to the offline store.

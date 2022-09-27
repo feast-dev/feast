@@ -718,10 +718,7 @@ class Registry(BaseRegistry):
         raise EntityNotFoundException(name, project)
 
     def apply_saved_dataset(
-        self,
-        saved_dataset: SavedDataset,
-        project: str,
-        commit: bool = True,
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True,
     ):
         now = datetime.utcnow()
         if not saved_dataset.created_timestamp:

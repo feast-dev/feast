@@ -146,16 +146,13 @@ class SparkOfflineStore(OfflineStore):
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         entity_schema = _get_entity_schema(
-            spark_session=spark_session,
-            entity_df=entity_df,
+            spark_session=spark_session, entity_df=entity_df,
         )
         event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
             entity_schema=entity_schema,
         )
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            event_timestamp_col,
-            spark_session,
+            entity_df, event_timestamp_col, spark_session,
         )
         _upload_entity_df(
             spark_session=spark_session,
@@ -378,10 +375,8 @@ class SparkRetrievalJob(RetrievalJob):
                 return _list_files_in_folder(output_uri)
             elif self._config.offline_store.staging_location.startswith("s3://"):
 
-                spark_compatible_s3_staging_location = (
-                    self._config.offline_store.staging_location.replace(
-                        "s3://", "s3a://"
-                    )
+                spark_compatible_s3_staging_location = self._config.offline_store.staging_location.replace(
+                    "s3://", "s3a://"
                 )
 
                 # write to staging location

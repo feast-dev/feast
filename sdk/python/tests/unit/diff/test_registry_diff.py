@@ -16,32 +16,16 @@ def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity = Entity(name="id", join_keys=["id"])
         to_delete = FeatureView(
-            name="to_delete",
-            entities=[entity],
-            source=file_source,
+            name="to_delete", entities=[entity], source=file_source,
         )
-        unchanged_fv = FeatureView(
-            name="fv1",
-            entities=[entity],
-            source=file_source,
-        )
+        unchanged_fv = FeatureView(name="fv1", entities=[entity], source=file_source,)
         pre_changed = FeatureView(
-            name="fv2",
-            entities=[entity],
-            source=file_source,
-            tags={"when": "before"},
+            name="fv2", entities=[entity], source=file_source, tags={"when": "before"},
         )
         post_changed = FeatureView(
-            name="fv2",
-            entities=[entity],
-            source=file_source,
-            tags={"when": "after"},
+            name="fv2", entities=[entity], source=file_source, tags={"when": "after"},
         )
-        to_add = FeatureView(
-            name="to_add",
-            entities=[entity],
-            source=file_source,
-        )
+        to_add = FeatureView(name="to_add", entities=[entity], source=file_source,)
 
         keep, delete, update, add = tag_objects_for_keep_delete_update_add(
             [unchanged_fv, pre_changed, to_delete], [unchanged_fv, post_changed, to_add]
@@ -65,16 +49,10 @@ def test_diff_registry_objects_feature_views(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity = Entity(name="id", join_keys=["id"])
         pre_changed = FeatureView(
-            name="fv2",
-            entities=[entity],
-            source=file_source,
-            tags={"when": "before"},
+            name="fv2", entities=[entity], source=file_source, tags={"when": "before"},
         )
         post_changed = FeatureView(
-            name="fv2",
-            entities=[entity],
-            source=file_source,
-            tags={"when": "after"},
+            name="fv2", entities=[entity], source=file_source, tags={"when": "after"},
         )
 
         feast_object_diffs = diff_registry_objects(
@@ -100,15 +78,11 @@ def test_diff_odfv(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity = Entity(name="id", join_keys=["id"])
         fv = FeatureView(
-            name="fv2",
-            entities=[entity],
-            source=file_source,
-            tags={"when": "before"},
+            name="fv2", entities=[entity], source=file_source, tags={"when": "before"},
         )
 
         @on_demand_feature_view(
-            sources=[fv],
-            schema=[Field(name="first_char", dtype=String)],
+            sources=[fv], schema=[Field(name="first_char", dtype=String)],
         )
         def pre_changed(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
@@ -116,8 +90,7 @@ def test_diff_odfv(simple_dataset_1):
             return df
 
         @on_demand_feature_view(
-            sources=[fv],
-            schema=[Field(name="first_char", dtype=String)],
+            sources=[fv], schema=[Field(name="first_char", dtype=String)],
         )
         def post_changed(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()

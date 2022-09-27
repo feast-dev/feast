@@ -101,9 +101,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         pass
 
     def materialize(
-        self,
-        registry: BaseRegistry,
-        tasks: List[MaterializationTask],
+        self, registry: BaseRegistry, tasks: List[MaterializationTask],
     ) -> List[MaterializationJob]:
         return [
             self._materialize_one(
@@ -177,10 +175,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
 
         feature_store_configuration = yaml.dump(
             yaml.safe_load(
-                self.repo_config.json(
-                    exclude={"repo_path"},
-                    exclude_unset=True,
-                )
+                self.repo_config.json(exclude={"repo_path"}, exclude_unset=True,)
             )
         )
 
@@ -191,17 +186,14 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         configmap_manifest = {
             "kind": "ConfigMap",
             "apiVersion": "v1",
-            "metadata": {
-                "name": f"feast-{job_id}",
-            },
+            "metadata": {"name": f"feast-{job_id}",},
             "data": {
                 "feature_store.yaml": feature_store_configuration,
                 "bytewax_materialization_config.yaml": materialization_config,
             },
         }
         self.v1.create_namespaced_config_map(
-            namespace=namespace,
-            body=configmap_manifest,
+            namespace=namespace, body=configmap_manifest,
         )
 
     def _create_service_definition(self, job_id, namespace):
@@ -213,10 +205,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         service_definition = {
             "apiVersion": "v1",
             "kind": "Service",
-            "metadata": {
-                "name": f"dataflow-{job_id}",
-                "namespace": namespace,
-            },
+            "metadata": {"name": f"dataflow-{job_id}", "namespace": namespace,},
             "spec": {
                 "clusterIP": "None",
                 "clusterIPs": ["None"],
@@ -243,15 +232,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         """Create a kubernetes job definition."""
         job_env = [
             {"name": "RUST_BACKTRACE", "value": "full"},
-            {
-                "name": "BYTEWAX_PYTHON_FILE_PATH",
-                "value": "/bytewax/dataflow.py",
-            },
+            {"name": "BYTEWAX_PYTHON_FILE_PATH", "value": "/bytewax/dataflow.py",},
             {"name": "BYTEWAX_WORKDIR", "value": "/bytewax"},
-            {
-                "name": "BYTEWAX_WORKERS_PER_PROCESS",
-                "value": "1",
-            },
+            {"name": "BYTEWAX_WORKERS_PER_PROCESS", "value": "1",},
             {
                 "name": "BYTEWAX_POD_NAME",
                 "valueFrom": {
@@ -261,22 +244,10 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                     }
                 },
             },
-            {
-                "name": "BYTEWAX_REPLICAS",
-                "value": f"{pods}",
-            },
-            {
-                "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
-                "value": "false",
-            },
-            {
-                "name": "BYTEWAX_HOSTFILE_PATH",
-                "value": "/etc/bytewax/hostfile.txt",
-            },
-            {
-                "name": "BYTEWAX_STATEFULSET_NAME",
-                "value": f"dataflow-{job_id}",
-            },
+            {"name": "BYTEWAX_REPLICAS", "value": f"{pods}",},
+            {"name": "BYTEWAX_KEEP_CONTAINER_ALIVE", "value": "false",},
+            {"name": "BYTEWAX_HOSTFILE_PATH", "value": "/etc/bytewax/hostfile.txt",},
+            {"name": "BYTEWAX_STATEFULSET_NAME", "value": f"dataflow-{job_id}",},
         ]
         # Add any Feast configured environment variables
         job_env.extend(env)
@@ -284,10 +255,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
-            "metadata": {
-                "name": f"dataflow-{job_id}",
-                "namespace": namespace,
-            },
+            "metadata": {"name": f"dataflow-{job_id}", "namespace": namespace,},
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
                 "completions": pods,
@@ -305,10 +273,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                     f'set -ex\n# Generate hostfile.txt.\necho "dataflow-{job_id}-0.dataflow-{job_id}.{namespace}.svc.cluster.local:9999" > /etc/bytewax/hostfile.txt\nreplicas=$(($BYTEWAX_REPLICAS-1))\nx=1\nwhile [ $x -le $replicas ]\ndo\n  echo "dataflow-{job_id}-$x.dataflow-{job_id}.{namespace}.svc.cluster.local:9999" >> /etc/bytewax/hostfile.txt\n  x=$(( $x + 1 ))\ndone',
                                 ],
                                 "env": [
-                                    {
-                                        "name": "BYTEWAX_REPLICAS",
-                                        "value": f"{pods}",
-                                    }
+                                    {"name": "BYTEWAX_REPLICAS", "value": f"{pods}",}
                                 ],
                                 "image": "busybox",
                                 "imagePullPolicy": "Always",

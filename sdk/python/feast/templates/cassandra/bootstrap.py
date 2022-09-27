@@ -50,8 +50,7 @@ def collect_cassandra_store_settings():
         c_port = None
         c_username = click.prompt("Enter the Client ID from your Astra DB token")
         c_password = click.prompt(
-            "Enter the Client Secret from your Astra DB token",
-            hide_input=True,
+            "Enter the Client Secret from your Astra DB token", hide_input=True,
         )
     else:
         # it's regular Cassandra
@@ -73,10 +72,7 @@ def collect_cassandra_store_settings():
             c_port = click.prompt("Port to use", default=9042, type=int)
         else:
             c_port = None
-        use_auth = click.confirm(
-            "Do you need username/password?",
-            default=False,
-        )
+        use_auth = click.confirm("Do you need username/password?", default=False,)
         if use_auth:
             c_username = click.prompt("Database username")
             c_password = click.prompt("Database password", hide_input=True)
@@ -84,20 +80,14 @@ def collect_cassandra_store_settings():
             c_username = None
             c_password = None
 
-    c_keyspace = click.prompt(
-        "Specify the keyspace to use",
-        default="feast_keyspace",
-    )
+    c_keyspace = click.prompt("Specify the keyspace to use", default="feast_keyspace",)
 
     specify_protocol_version = click.confirm(
-        "Specify protocol version?",
-        default=False,
+        "Specify protocol version?", default=False,
     )
     if specify_protocol_version:
         c_protocol_version = click.prompt(
-            "Protocol version",
-            default={"A": 4, "C": 5}.get(db_type, 5),
-            type=int,
+            "Protocol version", default={"A": 4, "C": 5}.get(db_type, 5), type=int,
         )
     else:
         c_protocol_version = None
@@ -168,30 +158,19 @@ def apply_cassandra_store_settings(config_file, settings):
         remove_lines_from_file(config_file, "- 127.0.0.1")
     #
     write_setting_or_remove(
-        config_file,
-        settings["c_port"],
-        "port",
-        "9042",
+        config_file, settings["c_port"], "port", "9042",
     )
     #
     write_setting_or_remove(
-        config_file,
-        settings["c_username"],
-        "username",
-        "c_username",
+        config_file, settings["c_username"], "username", "c_username",
     )
     #
     write_setting_or_remove(
-        config_file,
-        settings["c_password"],
-        "password",
-        "c_password",
+        config_file, settings["c_password"], "password", "c_password",
     )
     #
     replace_str_in_file(
-        config_file,
-        "feast_keyspace",
-        settings["c_keyspace"],
+        config_file, "feast_keyspace", settings["c_keyspace"],
     )
     #
     write_setting_or_remove(
@@ -203,14 +182,10 @@ def apply_cassandra_store_settings(config_file, settings):
     # it is assumed that if there's local_dc also there's l.b.p.
     if settings["c_local_dc"] is not None:
         replace_str_in_file(
-            config_file,
-            "c_local_dc",
-            settings["c_local_dc"],
+            config_file, "c_local_dc", settings["c_local_dc"],
         )
         replace_str_in_file(
-            config_file,
-            "c_load_balancing_policy",
-            settings["c_load_balancing_policy"],
+            config_file, "c_load_balancing_policy", settings["c_load_balancing_policy"],
         )
     else:
         remove_lines_from_file(config_file, "load_balancing:")
@@ -235,11 +210,7 @@ def bootstrap():
     start_date = end_date - timedelta(days=15)
     #
     driver_entities = [1001, 1002, 1003, 1004, 1005]
-    driver_df = create_driver_hourly_stats_df(
-        driver_entities,
-        start_date,
-        end_date,
-    )
+    driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date,)
     #
     driver_stats_path = data_path / "driver_stats.parquet"
     driver_df.to_parquet(path=str(driver_stats_path), allow_truncated_timestamps=True)

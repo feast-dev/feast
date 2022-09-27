@@ -24,26 +24,18 @@ def test_bytewax_materialization():
         provider="aws",
         online_store={"type": "dynamodb", "region": "us-west-2"},
         offline_store_creator=RedshiftDataSourceCreator,
-        batch_engine={
-            "type": "bytewax",
-        },
+        batch_engine={"type": "bytewax",},
         registry_location=RegistryLocation.S3,
     )
     bytewax_environment = construct_test_environment(bytewax_config, None)
 
     df = create_basic_driver_dataset()
     ds = bytewax_environment.data_source_creator.create_data_source(
-        df,
-        bytewax_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, bytewax_environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     fs = bytewax_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_key="driver_id",
-        value_type=ValueType.INT64,
-    )
+    driver = Entity(name="driver_id", join_key="driver_id", value_type=ValueType.INT64,)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",

@@ -43,14 +43,11 @@ def local_registry() -> Registry:
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_apply_entity_success(test_registry):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -89,8 +86,7 @@ def test_apply_entity_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_apply_feature_view_success(test_registry):
     # Create Feature Views
@@ -165,8 +161,7 @@ def test_apply_feature_view_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_apply_on_demand_feature_view_success(test_registry):
     # Create Feature Views
@@ -240,8 +235,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_apply_stream_feature_view_success(test_registry):
     # Create Feature Views
@@ -270,14 +264,10 @@ def test_apply_stream_feature_view_success(test_registry):
         description="desc",
         aggregations=[
             Aggregation(
-                column="dummy_field",
-                function="max",
-                time_window=timedelta(days=1),
+                column="dummy_field", function="max", time_window=timedelta(days=1),
             ),
             Aggregation(
-                column="dummy_field2",
-                function="count",
-                time_window=timedelta(days=24),
+                column="dummy_field2", function="count", time_window=timedelta(days=24),
             ),
         ],
         timestamp_field="event_timestamp",
@@ -310,8 +300,7 @@ def test_apply_stream_feature_view_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
@@ -323,8 +312,7 @@ def test_modify_feature_views_success(test_registry):
     )
 
     request_source = RequestSource(
-        name="request_source",
-        schema=[Field(name="my_input_1", dtype=Int32)],
+        name="request_source", schema=[Field(name="my_input_1", dtype=Int32)],
     )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
@@ -433,8 +421,7 @@ def test_modify_feature_views_success(test_registry):
 
 
 @pytest.mark.parametrize(
-    "test_registry",
-    [lazy_fixture("local_registry")],
+    "test_registry", [lazy_fixture("local_registry")],
 )
 def test_apply_data_source(test_registry: Registry):
     validate_registry_data_source_apply(test_registry)
@@ -446,9 +433,7 @@ def test_commit():
     test_registry = Registry(registry_config, None)
 
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     project = "project"

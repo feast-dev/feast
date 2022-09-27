@@ -20,13 +20,11 @@ customer_profile_source = FileSource(
 )
 
 customer_driver_combined_source = FileSource(
-    path="data/customer_driver_combined.parquet",
-    timestamp_field="event_timestamp",
+    path="data/customer_driver_combined.parquet", timestamp_field="event_timestamp",
 )
 
 driver_locations_push_source = PushSource(
-    name="driver_locations_push",
-    batch_source=driver_locations_source,
+    name="driver_locations_push", batch_source=driver_locations_source,
 )
 
 driver = Entity(

@@ -37,16 +37,11 @@ def test_spark_materialization_consistency():
     df = create_basic_driver_dataset()
 
     ds = spark_environment.data_source_creator.create_data_source(
-        df,
-        spark_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, spark_environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     fs = spark_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_keys=["driver_id"],
-    )
+    driver = Entity(name="driver_id", join_keys=["driver_id"],)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",

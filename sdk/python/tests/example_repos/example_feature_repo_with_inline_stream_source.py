@@ -4,10 +4,7 @@ from feast import Entity, FeatureView, Field, FileSource, KafkaSource
 from feast.data_format import AvroFormat
 from feast.types import Float32, Int32, Int64
 
-driver = Entity(
-    name="driver_id",
-    description="driver id",
-)
+driver = Entity(name="driver_id", description="driver id",)
 
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",

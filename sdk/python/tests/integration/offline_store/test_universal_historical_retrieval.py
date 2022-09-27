@@ -605,7 +605,5 @@ def test_historical_features_from_bigquery_sources_containing_backfills(environm
 
     assert sorted(expected_df.columns) == sorted(actual_df.columns)
     validate_dataframes(
-        expected_df,
-        actual_df,
-        sort_by=["driver_id"],
+        expected_df, actual_df, sort_by=["driver_id"],
     )

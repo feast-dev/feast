@@ -258,8 +258,5 @@ def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArti
 
     rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
     online_store.online_write_batch(
-        repo_config,
-        feature_view,
-        rows_to_write,
-        lambda x: None,
+        repo_config, feature_view, rows_to_write, lambda x: None,
     )

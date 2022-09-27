@@ -51,16 +51,11 @@ def test_snowflake_materialization_consistency_internal():
 
     df = create_basic_driver_dataset()
     ds = snowflake_environment.data_source_creator.create_data_source(
-        df,
-        snowflake_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, snowflake_environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     fs = snowflake_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_keys=["driver_id"],
-    )
+    driver = Entity(name="driver_id", join_keys=["driver_id"],)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",
@@ -94,16 +89,11 @@ def test_snowflake_materialization_consistency_external():
 
     df = create_basic_driver_dataset()
     ds = snowflake_environment.data_source_creator.create_data_source(
-        df,
-        snowflake_environment.feature_store.project,
-        field_mapping={"ts_1": "ts"},
+        df, snowflake_environment.feature_store.project, field_mapping={"ts_1": "ts"},
     )
 
     fs = snowflake_environment.feature_store
-    driver = Entity(
-        name="driver_id",
-        join_keys=["driver_id"],
-    )
+    driver = Entity(name="driver_id", join_keys=["driver_id"],)
 
     driver_stats_fv = FeatureView(
         name="driver_hourly_stats",

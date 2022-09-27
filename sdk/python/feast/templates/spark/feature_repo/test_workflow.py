@@ -31,12 +31,8 @@ def run_demo():
     event_df = pd.DataFrame.from_dict(
         {
             "driver_id": [1001],
-            "event_timestamp": [
-                datetime(2021, 5, 13, 10, 59, 42),
-            ],
-            "created": [
-                datetime(2021, 5, 13, 10, 59, 42),
-            ],
+            "event_timestamp": [datetime(2021, 5, 13, 10, 59, 42),],
+            "created": [datetime(2021, 5, 13, 10, 59, 42),],
             "conv_rate": [1.0],
             "acc_rate": [1.0],
             "avg_daily_trips": [1000],
@@ -92,16 +88,8 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
 def fetch_online_features(store, use_feature_service: bool):
     entity_rows = [
         # {join_key: entity_value}
-        {
-            "driver_id": 1001,
-            "val_to_add": 1000,
-            "val_to_add_2": 2000,
-        },
-        {
-            "driver_id": 1002,
-            "val_to_add": 1001,
-            "val_to_add_2": 2002,
-        },
+        {"driver_id": 1001, "val_to_add": 1000, "val_to_add_2": 2000,},
+        {"driver_id": 1002, "val_to_add": 1001, "val_to_add_2": 2002,},
     ]
     if use_feature_service:
         features_to_fetch = store.get_feature_service("driver_activity_v1")
@@ -113,8 +101,7 @@ def fetch_online_features(store, use_feature_service: bool):
             "transformed_conv_rate:conv_rate_plus_val2",
         ]
     returned_features = store.get_online_features(
-        features=features_to_fetch,
-        entity_rows=entity_rows,
+        features=features_to_fetch, entity_rows=entity_rows,
     ).to_dict()
     for key, value in sorted(returned_features.items()):
         print(key, " : ", value)

@@ -92,10 +92,7 @@ def execute_redshift_statement_async(
     """
     try:
         return redshift_data_client.execute_statement(
-            ClusterIdentifier=cluster_id,
-            Database=database,
-            DbUser=user,
-            Sql=query,
+            ClusterIdentifier=cluster_id, Database=database, DbUser=user, Sql=query,
         )
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationException":
@@ -163,11 +160,7 @@ def get_redshift_statement_result(redshift_data_client, statement_id: str) -> di
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
-def upload_df_to_s3(
-    s3_resource,
-    s3_path: str,
-    df: pd.DataFrame,
-) -> None:
+def upload_df_to_s3(s3_resource, s3_path: str, df: pd.DataFrame,) -> None:
     """Uploads a Pandas DataFrame to S3 as a parquet file
 
     Args:
@@ -246,19 +239,11 @@ def upload_df_to_redshift(
 
 
 def delete_redshift_table(
-    redshift_data_client,
-    cluster_id: str,
-    database: str,
-    user: str,
-    table_name: str,
+    redshift_data_client, cluster_id: str, database: str, user: str, table_name: str,
 ):
     drop_query = f"DROP {table_name} IF EXISTS"
     execute_redshift_statement(
-        redshift_data_client,
-        cluster_id,
-        database,
-        user,
-        drop_query,
+        redshift_data_client, cluster_id, database, user, drop_query,
     )
 
 
@@ -394,11 +379,7 @@ def temporarily_upload_df_to_redshift(
 
     # Clean up the uploaded Redshift table
     execute_redshift_statement(
-        redshift_data_client,
-        cluster_id,
-        database,
-        user,
-        f"DROP TABLE {table_name}",
+        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
     )
 
 
@@ -445,11 +426,7 @@ def temporarily_upload_arrow_table_to_redshift(
 
     # Clean up the uploaded Redshift table
     execute_redshift_statement(
-        redshift_data_client,
-        cluster_id,
-        database,
-        user,
-        f"DROP TABLE {table_name}",
+        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
     )
 
 
@@ -517,13 +494,7 @@ def unload_redshift_query_to_pa(
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_redshift_query_and_unload_to_s3(
-        redshift_data_client,
-        cluster_id,
-        database,
-        user,
-        s3_path,
-        iam_role,
-        query,
+        redshift_data_client, cluster_id, database, user, s3_path, iam_role, query,
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:

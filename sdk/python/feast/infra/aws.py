@@ -198,10 +198,7 @@ class AwsProvider(PassthroughProvider):
 
     @log_exceptions_and_usage(provider="AwsProvider")
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
+        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
     ) -> None:
         super(AwsProvider, self).teardown_infra(project, tables, entities)
 

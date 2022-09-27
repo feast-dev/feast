@@ -179,9 +179,7 @@ def _server_port(environment, server_type: str):
     fs = environment.feature_store
 
     embedded = EmbeddedOnlineFeatureServer(
-        repo_path=str(fs.repo_path.absolute()),
-        repo_config=fs.config,
-        feature_store=fs,
+        repo_path=str(fs.repo_path.absolute()), repo_config=fs.config, feature_store=fs,
     )
     port = free_port()
     if server_type == "grpc":

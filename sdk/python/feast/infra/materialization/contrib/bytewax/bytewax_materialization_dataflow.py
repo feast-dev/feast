@@ -14,10 +14,7 @@ from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
 
 class BytewaxMaterializationDataflow:
     def __init__(
-        self,
-        config: RepoConfig,
-        feature_view: FeatureView,
-        paths: List[str],
+        self, config: RepoConfig, feature_view: FeatureView, paths: List[str],
     ):
         self.config = config
         self.feature_store = FeatureStore(config=config)

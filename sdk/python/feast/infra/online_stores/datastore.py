@@ -211,12 +211,7 @@ class DatastoreOnlineStore(OnlineStore):
             )
 
             key = client.key(
-                "Project",
-                project,
-                "Table",
-                table.name,
-                "Row",
-                document_id,
+                "Project", project, "Table", table.name, "Row", document_id,
             )
 
             entity = datastore.Entity(
@@ -418,8 +413,7 @@ class DatastoreTable(InfraObject):
     @staticmethod
     def from_proto(datastore_table_proto: DatastoreTableProto) -> Any:
         datastore_table = DatastoreTable(
-            project=datastore_table_proto.project,
-            name=datastore_table_proto.name,
+            project=datastore_table_proto.project, name=datastore_table_proto.name,
         )
 
         # Distinguish between null and empty string, since project_id and namespace are StringValues.

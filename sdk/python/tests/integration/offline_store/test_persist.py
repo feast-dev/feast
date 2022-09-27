@@ -35,10 +35,7 @@ def test_persist_does_not_overwrite(environment, universal_data_sources):
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
     )
-    job = store.get_historical_features(
-        entity_df=entity_df,
-        features=features,
-    )
+    job = store.get_historical_features(entity_df=entity_df, features=features,)
 
     with pytest.raises(SavedDatasetLocationAlreadyExists):
         # Copy data source destination to a saved dataset destination.
@@ -48,7 +45,5 @@ def test_persist_does_not_overwrite(environment, universal_data_sources):
 
         # This should fail since persisting to a preexisting location is not allowed.
         store.create_saved_dataset(
-            from_=job,
-            name="my_training_dataset",
-            storage=saved_dataset_destination,
+            from_=job, name="my_training_dataset", storage=saved_dataset_destination,
         )

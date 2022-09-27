@@ -3,10 +3,7 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import Float32, Int32, Int64
 
-driver = Entity(
-    name="driver_id",
-    description="driver id",
-)
+driver = Entity(name="driver_id", description="driver id",)
 
 driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",

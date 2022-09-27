@@ -379,11 +379,7 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     def __init__(self, table_ref: str):
         self.snowflake_options = SnowflakeOptions(
-            database=None,
-            schema=None,
-            table=table_ref,
-            query=None,
-            warehouse=None,
+            database=None, schema=None, table=table_ref, query=None, warehouse=None,
         )
 
     @staticmethod
@@ -424,6 +420,4 @@ class SnowflakeLoggingDestination(LoggingDestination):
         )
 
     def to_data_source(self) -> DataSource:
-        return SnowflakeSource(
-            table=self.table_name,
-        )
+        return SnowflakeSource(table=self.table_name,)

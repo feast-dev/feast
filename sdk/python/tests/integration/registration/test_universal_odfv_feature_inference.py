@@ -31,8 +31,7 @@ def test_infer_odfv_features(environment, universal_data_sources, infer_features
     )
     request_source = create_conv_rate_request_source()
     driver_odfv = conv_rate_plus_100_feature_view(
-        [driver_hourly_stats, request_source],
-        infer_features=infer_features,
+        [driver_hourly_stats, request_source], infer_features=infer_features,
     )
 
     feast_objects = [driver_hourly_stats, driver_odfv, driver(), customer()]
@@ -84,8 +83,7 @@ def test_infer_odfv_features_with_error(environment, universal_data_sources):
     )
     request_source = create_conv_rate_request_source()
     driver_odfv = conv_rate_plus_100_feature_view(
-        [driver_hourly_stats, request_source],
-        features=features,
+        [driver_hourly_stats, request_source], features=features,
     )
 
     feast_objects = [driver_hourly_stats, driver_odfv, driver(), customer()]

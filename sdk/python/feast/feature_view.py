@@ -45,10 +45,7 @@ warnings.simplefilter("once", DeprecationWarning)
 DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
-DUMMY_ENTITY = Entity(
-    name=DUMMY_ENTITY_NAME,
-    join_keys=[DUMMY_ENTITY_ID],
-)
+DUMMY_ENTITY = Entity(name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID],)
 
 
 @typechecked

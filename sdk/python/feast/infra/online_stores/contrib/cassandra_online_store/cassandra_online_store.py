@@ -215,8 +215,7 @@ class CassandraOnlineStore(OnlineStore):
 
             if username is not None:
                 auth_provider = PlainTextAuthProvider(
-                    username=username,
-                    password=password,
+                    username=username, password=password,
                 )
             else:
                 auth_provider = None
@@ -469,8 +468,7 @@ class CassandraOnlineStore(OnlineStore):
                 timestamp,
             )
             session.execute(
-                insert_cql,
-                params,
+                insert_cql, params,
             )
 
     def _read_rows_by_entity_key(
@@ -489,18 +487,12 @@ class CassandraOnlineStore(OnlineStore):
         fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
         projection_columns = "*" if columns is None else ", ".join(columns)
         select_cql = self._get_cql_statement(
-            config,
-            "select",
-            fqtable=fqtable,
-            columns=projection_columns,
+            config, "select", fqtable=fqtable, columns=projection_columns,
         )
         return session.execute(select_cql, [entity_key_bin])
 
     def _drop_table(
-        self,
-        config: RepoConfig,
-        project: str,
-        table: FeatureView,
+        self, config: RepoConfig, project: str, table: FeatureView,
     ):
         """Handle the CQL (low-level) deletion of a table."""
         session: Session = self._get_session(config)
@@ -534,10 +526,7 @@ class CassandraOnlineStore(OnlineStore):
         """
         session: Session = self._get_session(config)
         template, prepare = CQL_TEMPLATE_MAP[op_name]
-        statement = template.format(
-            fqtable=fqtable,
-            **kwargs,
-        )
+        statement = template.format(fqtable=fqtable, **kwargs,)
         if prepare:
             # using the statement itself as key (no problem with that)
             cache_key = statement

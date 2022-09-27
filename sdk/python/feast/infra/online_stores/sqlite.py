@@ -294,10 +294,7 @@ class SqliteTable(InfraObject):
 
     @staticmethod
     def from_proto(sqlite_table_proto: SqliteTableProto) -> Any:
-        return SqliteTable(
-            path=sqlite_table_proto.path,
-            name=sqlite_table_proto.name,
-        )
+        return SqliteTable(path=sqlite_table_proto.path, name=sqlite_table_proto.name,)
 
     def update(self):
         self.conn.execute(

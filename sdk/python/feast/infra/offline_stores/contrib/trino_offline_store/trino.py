@@ -196,10 +196,7 @@ class TrinoOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return TrinoRetrievalJob(
-            query=query,
-            client=client,
-            config=config,
-            full_feature_names=False,
+            query=query, client=client, config=config, full_feature_names=False,
         )
 
     @staticmethod
@@ -236,10 +233,8 @@ class TrinoOfflineStore(OfflineStore):
             connector=config.offline_store.connector,
         )
 
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(
-                entity_schema=entity_schema
-            )
+        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+            entity_schema=entity_schema
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
@@ -323,17 +318,11 @@ class TrinoOfflineStore(OfflineStore):
             WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}'  AND TIMESTAMP '{end_date}'
         """
         return TrinoRetrievalJob(
-            query=query,
-            client=client,
-            config=config,
-            full_feature_names=False,
+            query=query, client=client, config=config, full_feature_names=False,
         )
 
 
-def _get_table_reference_for_new_entity(
-    catalog: str,
-    dataset_name: str,
-) -> str:
+def _get_table_reference_for_new_entity(catalog: str, dataset_name: str,) -> str:
     """Gets the table_id for the new entity to be uploaded."""
     table_name = offline_utils.get_temp_entity_table_name()
     return f"{catalog}.{dataset_name}.{table_name}"

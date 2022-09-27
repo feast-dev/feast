@@ -54,8 +54,7 @@ def test_infer_datasource_names_dwh():
 def test_on_demand_features_type_inference():
     # Create Feature Views
     date_request = RequestSource(
-        name="date_request",
-        schema=[Field(name="some_date", dtype=UnixTimestamp)],
+        name="date_request", schema=[Field(name="some_date", dtype=UnixTimestamp)],
     )
 
     @on_demand_feature_view(
@@ -108,8 +107,7 @@ def test_on_demand_features_type_inference():
 def test_datasource_inference():
     # Create Feature Views
     date_request = RequestSource(
-        name="date_request",
-        schema=[Field(name="some_date", dtype=UnixTimestamp)],
+        name="date_request", schema=[Field(name="some_date", dtype=UnixTimestamp)],
     )
 
     @on_demand_feature_view(
@@ -374,14 +372,10 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
     with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
         entity1 = Entity(name="test1", join_keys=["id_join_key"])
         feature_view_1 = FeatureView(
-            name="test1",
-            entities=[entity1],
-            source=file_source,
+            name="test1", entities=[entity1], source=file_source,
         )
         feature_view_2 = FeatureView(
-            name="test2",
-            entities=[entity1],
-            source=file_source,
+            name="test2", entities=[entity1], source=file_source,
         )
 
         feature_service = FeatureService(

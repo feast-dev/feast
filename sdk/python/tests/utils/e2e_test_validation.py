@@ -174,10 +174,7 @@ def _check_offline_and_online_features(
 
 
 def make_feature_store_yaml(
-    project,
-    test_repo_config,
-    repo_dir_name: Path,
-    offline_creator: DataSourceCreator,
+    project, test_repo_config, repo_dir_name: Path, offline_creator: DataSourceCreator,
 ):
 
     offline_store_config = offline_creator.create_offline_store_config()

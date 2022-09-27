@@ -71,10 +71,7 @@ class SparkSource(DataSource):
             )
 
         self.spark_options = SparkOptions(
-            table=table,
-            query=query,
-            path=path,
-            file_format=file_format,
+            table=table, query=query, path=path, file_format=file_format,
         )
 
     @property
@@ -296,10 +293,7 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
         file_format: Optional[str] = None,
     ):
         self.spark_options = SparkOptions(
-            table=table,
-            query=query,
-            path=path,
-            file_format=file_format,
+            table=table, query=query, path=path, file_format=file_format,
         )
 
     @staticmethod

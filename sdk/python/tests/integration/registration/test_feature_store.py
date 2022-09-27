@@ -43,9 +43,7 @@ from tests.utils.data_source_test_creator import prep_file_source
 )
 def test_apply_entity_integration(test_feature_store):
     entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        tags={"team": "matchmaking"},
+        name="driver_car_id", description="Car driver id", tags={"team": "matchmaking"},
     )
 
     # Register Entity
@@ -75,8 +73,7 @@ def test_apply_entity_integration(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_feature_view_inference_success(test_feature_store, dataframe_source):

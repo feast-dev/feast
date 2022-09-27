@@ -780,8 +780,7 @@ def test_online_retrieval_success(feature_store_for_online_retrieval):
     """
     fs, feature_refs, entity_rows = feature_store_for_online_retrieval
     fs.get_online_features(
-        features=feature_refs,
-        entity_rows=entity_rows,
+        features=feature_refs, entity_rows=entity_rows,
     )
 
 
@@ -818,10 +817,7 @@ def get_latest_feature_values_from_dataframes(
         entity_row, customer_df, "customer_id", "customer_id"
     )
     latest_location_row = get_latest_row(
-        entity_row,
-        location_df,
-        "location_id",
-        "location_id",
+        entity_row, location_df, "location_id", "location_id",
     )
 
     # Since the event timestamp columns may contain timestamps of different timezones,

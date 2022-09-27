@@ -64,8 +64,5 @@ def get_query_schema(config: PostgreSQLConfig, sql_query: str) -> Dict[str, np.d
     """
     with _get_conn(config) as conn:
         conn.set_session(readonly=True)
-        df = pd.read_sql(
-            f"SELECT * FROM {sql_query} LIMIT 0",
-            conn,
-        )
+        df = pd.read_sql(f"SELECT * FROM {sql_query} LIMIT 0", conn,)
         return dict(zip(df.columns, df.dtypes))

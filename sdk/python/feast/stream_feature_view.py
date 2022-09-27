@@ -169,8 +169,7 @@ class StreamFeatureView(FeatureView):
         udf_proto = None
         if self.udf:
             udf_proto = UserDefinedFunctionProto(
-                name=self.udf.__name__,
-                body=dill.dumps(self.udf, recurse=True),
+                name=self.udf.__name__, body=dill.dumps(self.udf, recurse=True),
             )
         spec = StreamFeatureViewSpecProto(
             name=self.name,

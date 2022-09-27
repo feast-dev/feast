@@ -128,10 +128,7 @@ class PostgreSQLSource(DataSource):
 
 class PostgreSQLOptions:
     def __init__(
-        self,
-        name: Optional[str],
-        query: Optional[str],
-        table: Optional[str],
+        self, name: Optional[str], query: Optional[str], table: Optional[str],
     ):
         self._name = name or ""
         self._query = query or ""

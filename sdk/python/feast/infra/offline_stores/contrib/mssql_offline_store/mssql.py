@@ -177,10 +177,8 @@ class MsSqlServerOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
         engine = make_engine(config.offline_store)
         if isinstance(entity_df, pandas.DataFrame):
-            entity_df_event_timestamp_col = (
-                offline_utils.infer_event_timestamp_from_entity_df(
-                    dict(zip(list(entity_df.columns), list(entity_df.dtypes)))
-                )
+            entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+                dict(zip(list(entity_df.columns), list(entity_df.dtypes)))
             )
             entity_df[entity_df_event_timestamp_col] = pandas.to_datetime(
                 entity_df[entity_df_event_timestamp_col], utc=True
@@ -198,15 +196,11 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
         _assert_expected_columns_in_sqlserver(
-            expected_join_keys,
-            entity_df_event_timestamp_col,
-            table_schema,
+            expected_join_keys, entity_df_event_timestamp_col, table_schema,
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            engine,
+            entity_df, entity_df_event_timestamp_col, engine,
         )
 
         # Build a query context containing all information required to template the SQL query
@@ -360,8 +354,7 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetFileStorage)
 
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.uri,
-            storage.file_options.s3_endpoint_override,
+            storage.file_options.uri, storage.file_options.s3_endpoint_override,
         )
 
         if path.endswith(".parquet"):

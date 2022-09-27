@@ -113,8 +113,7 @@ def similarity_feature_view(
 
 def create_conv_rate_request_source():
     return RequestSource(
-        name="conv_rate_input",
-        schema=[Field(name="val_to_add", dtype=Int32)],
+        name="conv_rate_input", schema=[Field(name="val_to_add", dtype=Int32)],
     )
 
 
@@ -278,8 +277,7 @@ def create_field_mapping_feature_view(source):
 
 def create_pushable_feature_view(batch_source: DataSource):
     push_source = PushSource(
-        name="location_stats_push_source",
-        batch_source=batch_source,
+        name="location_stats_push_source", batch_source=batch_source,
     )
     return StreamFeatureView(
         name="pushable_location_stats",

@@ -20,10 +20,7 @@ def setup_feature_store():
 
     init_repo("project", "local")
     fs = FeatureStore(repo_path="project/feature_repo")
-    driver = Entity(
-        name="driver_id",
-        description="driver id",
-    )
+    driver = Entity(name="driver_id", description="driver id",)
     driver_hourly_stats = FileSource(
         path="project/feature_repo/data/driver_stats.parquet",
         timestamp_field="event_timestamp",
@@ -96,8 +93,7 @@ def test_docstrings():
                         setup_function()
 
                     test_suite = doctest.DocTestSuite(
-                        temp_module,
-                        optionflags=doctest.ELLIPSIS,
+                        temp_module, optionflags=doctest.ELLIPSIS,
                     )
                     if test_suite.countTestCases() > 0:
                         result = unittest.TextTestRunner(sys.stdout).run(test_suite)
