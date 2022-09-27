@@ -411,10 +411,10 @@ class SqlRegistry(BaseRegistry):
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
-            stmt = delete(data_sources).where(
+            stmt = delete(data_sources).where(and_(
                 data_sources.c.data_source_name == name,
-                data_sources.c.project_id == project,
-            )
+                data_sources.c.project_id == project
+            ))
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise DataSourceObjectNotFoundException(name, project)
@@ -598,10 +598,10 @@ class SqlRegistry(BaseRegistry):
                 }
                 update_stmt = (
                     update(table)
-                    .where(
+                    .where(and_(
                         getattr(table.c, "feature_view_name") == name,
                         table.c.project_id == project,
-                    )
+                    ))
                     .values(
                         values,
                     )
@@ -778,9 +778,9 @@ class SqlRegistry(BaseRegistry):
         not_found_exception: Optional[Callable],
     ):
         with self.engine.connect() as conn:
-            stmt = delete(table).where(
+            stmt = delete(table).where(and_(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
-            )
+            ))
             rows = conn.execute(stmt)
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
