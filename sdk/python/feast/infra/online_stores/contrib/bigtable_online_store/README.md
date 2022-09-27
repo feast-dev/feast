@@ -1,1 +1,0 @@
-# BigTable Online Store
