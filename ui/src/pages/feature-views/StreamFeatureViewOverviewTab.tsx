@@ -12,13 +12,11 @@ import React from "react";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import {
   FeastSFVType,
-  FeatureViewProjectionType,
 } from "../../parsers/feastSFVS";
 import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
-import FeatureViewProjectionDisplayPanel from "./components/FeatureViewProjectionDisplayPanel";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
 import EuiCustomLink from "../../components/EuiCustomLink";
 
