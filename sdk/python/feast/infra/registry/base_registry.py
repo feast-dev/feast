@@ -634,6 +634,13 @@ class BaseRegistry(ABC):
             registry_dict["requestFeatureViews"].append(
                 self._message_to_sorted_dict(request_feature_view.to_proto())
             )
+        for stream_feature_view in sorted(
+            self.list_stream_feature_views(project=project),
+            key=lambda stream_feature_view: stream_feature_view.name,
+        ):
+            registry_dict["streamFeatureViews"].append(
+                self._message_to_sorted_dict(stream_feature_view.to_proto())
+            )
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
