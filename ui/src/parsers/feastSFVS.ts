@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FeastFeatureColumnSchema } from "./feastFeatureViews";
+import {FeastDatasourceSchema} from "./feastDatasources";
 
 const FeatureViewProjectionSchema = z.object({
   featureViewProjection: z.object({
@@ -9,25 +10,18 @@ const FeatureViewProjectionSchema = z.object({
 });
 
 const StreamSourceSchema = z.object({
-  streamSource: z.object({
     type: z.string(),
     name: z.string(),
-    streamDataOptions: z.object({
-      schema: z.array(FeastFeatureColumnSchema),
-    }),
-  }),
+    owner: z.string().optional(),
+    description: z.string().optional(),
 });
-
-const SFVInputsSchema = z.union([
-  FeatureViewProjectionSchema,
-  StreamSourceSchema,
-]);
 
 const FeastSFVSchema = z.object({
   spec: z.object({
     name: z.string(),
     features: z.array(FeastFeatureColumnSchema),
-    sources: z.record(SFVInputsSchema),
+    batchSource: FeastDatasourceSchema,
+    streamSource: StreamSourceSchema,
     userDefinedFunction: z.object({
       name: z.string(),
       body: z.string(),
@@ -41,6 +35,7 @@ const FeastSFVSchema = z.object({
 
 type FeastSFVType = z.infer<typeof FeastSFVSchema>;
 type StreamSourceType = z.infer<typeof StreamSourceSchema>;
+type FeatureViewProjectionType = z.infer<typeof FeatureViewProjectionSchema>;
 
 export { FeastSFVSchema };
-export type { FeastSFVType, StreamSourceType};
+export type { FeastSFVType, StreamSourceType, FeatureViewProjectionType};

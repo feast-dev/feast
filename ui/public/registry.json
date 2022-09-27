@@ -29,6 +29,24 @@
       "name": "zipcode",
       "timestampField": "event_timestamp",
       "type": "BATCH_FILE"
+    },
+    {
+      "batchSource": {
+        "fileOptions": {
+          "uri": "data/zipcode_table.parquet"
+        },
+        "name": "user_stats",
+        "timestampField": "timestamp",
+        "type": "BATCH_FILE"
+      },
+      "dataSourceClassType": "feast.data_source.KafkaSource",
+      "description": "The Kafka stream example",
+      "kafkaOptions": {"messageFormat": {"jsonFormat": {"schemaJson": "id string, timestamp timestamp"}},
+      "watermarkDelayThreshold": "300s"},
+      "name": "driver_stats_stream",
+      "owner": "test@gmail.com",
+      "timestampField": "timestamp",
+      "type": "STREAM_KAFKA"
     }
   ],
   "entities": [
@@ -649,8 +667,12 @@
         },
         "features": [
           {
-            "name": "transaction_gt_last_credit_card_due",
-            "valueType": "BOOL"
+            "name": "conv_percentage",
+            "valueType": "FLOAT"
+          },
+          {
+            "name": "acc_percentage",
+            "valueType": "FLOAT"
           }
         ],
         "name": "transaction_stream_example",
@@ -667,15 +689,15 @@
           "description": "The Kafka stream example",
           "kafkaOptions": {"messageFormat": {"jsonFormat": {"schemaJson": "id string, timestamp timestamp"}},
           "watermarkDelayThreshold": "300s"},
-          "name": "kafka_stream_example",
+          "name": "driver_stats_stream",
           "owner": "test@gmail.com",
           "timestampField": "timestamp",
           "type": "STREAM_KAFKA"
         },
         "ttl": "86400s",
         "userDefinedFunction": {
-          "body": "@on_demand_feature_view(\n    sources=[credit_history, input_request],\n    schema=[\n        Field(name=\"transaction_gt_last_credit_card_due\", dtype=Bool),\n    ],\n)\ndef transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:\n    df = pd.DataFrame()\n    df[\"transaction_gt_last_credit_card_due\"] = (\n        inputs[\"transaction_amt\"] > inputs[\"credit_card_due\"]\n    )\n    return df\n",
-          "name": "transaction_gt_last_credit_card_due"
+          "body": "@stream_feature_view(\n    sources=[driver_stats_stream_source],\n    mode=\"spark\",\n    schema=[\n        Field(name=\"conv_percentage\", dtype=Float32),\n        Field(name=\"acc_percentage\", dtype=Float32),\n    ],\n    timestamp_field=\"event_timestamp\",\n    online=True,\n    source=driver_stats_stream_source,\n    tags={},\n)\ndef driver_hourly_stats_stream(df: DataFrame) -> DataFrame:\n    from pyspark.sql.functions import col\n    return (\n        df.withColumn(\"conv_percentage\", col(\"conv_rate\") * 100.0)\n        .withColumn(\"acc_percentage\", col(\"acc_rate\") * 100.0)\n        .drop(\"conv_rate\", \"acc_rate\")\n    )\n",
+          "name": "driver_hourly_stats_stream"
         }
       }
     }

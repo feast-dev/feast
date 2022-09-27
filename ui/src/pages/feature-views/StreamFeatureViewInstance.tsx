@@ -9,7 +9,7 @@ import {
 
 import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
-import { FeastODFVType } from "../../parsers/feastODFVS";
+import { FeastSFVType } from "../../parsers/feastSFVS";
 import StreamFeatureViewOverviewTab from "./StreamFeatureViewOverviewTab";
 
 import {
@@ -18,7 +18,7 @@ import {
 } from "../../custom-tabs/TabsRegistryContext";
 
 interface StreamFeatureInstanceProps {
-  data: FeastODFVType;
+  data: FeastSFVType;
 }
 
 const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {

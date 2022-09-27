@@ -11,18 +11,19 @@ import {
 import React from "react";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import {
-  FeastODFVType,
+  FeastSFVType,
   FeatureViewProjectionType,
-} from "../../parsers/feastODFVS";
+} from "../../parsers/feastSFVS";
 import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import FeatureViewProjectionDisplayPanel from "./components/FeatureViewProjectionDisplayPanel";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
+import EuiCustomLink from "../../components/EuiCustomLink";
 
 interface StreamFeatureViewOverviewTabProps {
-  data: FeastODFVType;
+  data: FeastSFVType;
 }
 
 const whereFSconsumesThisFv = (fvName: string) => {
@@ -37,7 +38,7 @@ const whereFSconsumesThisFv = (fvName: string) => {
 const StreamFeatureViewOverviewTab = ({
   data,
 }: StreamFeatureViewOverviewTabProps) => {
-  const inputs = Object.entries(data.spec.sources);
+  const inputs = Object.entries([data.spec.streamSource]);
   const { projectName } = useParams();
 
   const relationshipQuery = useLoadRelationshipData();
@@ -92,22 +93,25 @@ const StreamFeatureViewOverviewTab = ({
             <EuiFlexGroup direction="column">
               {inputs.map(([key, inputGroup]) => {
 
-                if (inputGroup as FeatureViewProjectionType) {
-                  return (
-                    <EuiFlexItem key={key}>
-                      <FeatureViewProjectionDisplayPanel
-                        {...(inputGroup as FeatureViewProjectionType)}
-                      />
-                    </EuiFlexItem>
-                  );
-                }
-
                 return (
-                  <EuiFlexItem key={key}>
-                    <EuiCodeBlock language="json" fontSize="m" paddingSize="m">
-                      {JSON.stringify(inputGroup, null, 2)}
-                    </EuiCodeBlock>
-                  </EuiFlexItem>
+                  <EuiPanel hasBorder={true}>
+                    <EuiText size="xs">
+                      <span>Stream Source</span>
+                    </EuiText>
+                    <EuiTitle size="s">
+                      <EuiCustomLink
+                        href={`/p/${projectName}/data-source/${inputGroup.name}`}
+                        to={`/p/${projectName}/data-source/${inputGroup.name}`}
+                      >
+                        {inputGroup.name}
+                      </EuiCustomLink>
+                    </EuiTitle>
+                    <EuiFlexItem key={key}>
+                      <EuiCodeBlock language="json" fontSize="m" paddingSize="m">
+                        {JSON.stringify(inputGroup, null, 2)}
+                      </EuiCodeBlock>
+                    </EuiFlexItem>
+                  </EuiPanel>
                 );
               })}
             </EuiFlexGroup>
