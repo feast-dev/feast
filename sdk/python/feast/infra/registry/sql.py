@@ -678,7 +678,7 @@ class SqlRegistry(BaseRegistry):
             if last_updated_metadata is not None:
                 last_updated_timestamps.append(self._get_last_updated_metadata(project))
 
-        if last_updated_timestamps and last_updated_timestamps:
+        if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
 
         return r
