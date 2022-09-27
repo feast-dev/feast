@@ -18,6 +18,7 @@ import FeastUI from "./FeastUI";
 import DataTab from "./custom-tabs/data-tab/DataTab";
 import RFVDemoCustomTab from "./custom-tabs/reguar-fv-demo-tab/DemoCustomTab";
 import ODFVDemoCustomTab from "./custom-tabs/ondemand-fv-demo-tab/DemoCustomTab";
+import SFVDemoCustomTab from "./custom-tabs/stream-fv-demo-tab/DemoCustomTab";
 import FSDemoCustomTab from "./custom-tabs/feature-service-demo-tab/DemoCustomTab";
 import DSDemoCustomTab from "./custom-tabs/data-source-demo-tab/DemoCustomTab";
 import EntDemoCustomTab from "./custom-tabs/entity-demo-tab/DemoCustomTab";
@@ -44,6 +45,13 @@ const tabsRegistry = {
       label: "Custom Tab Demo",
       path: "demo-tab",
       Component: ODFVDemoCustomTab,
+    },
+  ],
+  StreamFeatureViewCustomTabs: [
+    {
+      label: "Custom Tab Demo",
+      path: "demo-tab",
+      Component: SFVDemoCustomTab,
     },
   ],
   FeatureServiceCustomTabs: [

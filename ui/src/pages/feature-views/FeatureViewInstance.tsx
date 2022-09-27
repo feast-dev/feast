@@ -7,8 +7,11 @@ import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import RegularFeatureInstance from "./RegularFeatureViewInstance";
 import { FEAST_FV_TYPES } from "../../parsers/mergedFVTypes";
 import { FeastODFVType } from "../../parsers/feastODFVS";
+import { FeastSFVType } from "../../parsers/feastSFVS";
 import useLoadFeatureView from "./useLoadFeatureView";
 import OnDemandFeatureInstance from "./OnDemandFeatureViewInstance";
+import StreamFeatureInstance from "./StreamFeatureViewInstance";
+
 
 const FeatureViewInstance = () => {
   const { featureViewName } = useParams();
@@ -44,6 +47,11 @@ const FeatureViewInstance = () => {
       const odfv: FeastODFVType = data.object;
 
       return <OnDemandFeatureInstance data={odfv} />;
+    }
+    if (data.type === FEAST_FV_TYPES.stream) {
+      const sfv: FeastSFVType = data.object;
+
+      return <StreamFeatureInstance data={sfv} />;
     }
   }
 

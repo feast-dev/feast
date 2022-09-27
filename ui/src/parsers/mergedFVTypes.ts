@@ -3,11 +3,13 @@ import {
   FeastFeatureViewType,
 } from "./feastFeatureViews";
 import { FeastODFVType } from "./feastODFVS";
+import { FeastSFVType } from "./feastSFVS";
 import { FeastRegistryType } from "./feastRegistry";
 
 enum FEAST_FV_TYPES {
   regular = "regular",
   ondemand = "ondemand",
+  stream = "stream"
 }
 
 interface regularFVInterface {
@@ -24,7 +26,14 @@ interface ODFVInterface {
   object: FeastODFVType;
 }
 
-type genericFVType = regularFVInterface | ODFVInterface;
+interface SFVInterface {
+  name: string;
+  type: FEAST_FV_TYPES.stream;
+  features: FeastFeatureColumnType[];
+  object: FeastSFVType;
+}
+
+type genericFVType = regularFVInterface | ODFVInterface | SFVInterface;
 
 const mergedFVTypes = (objects: FeastRegistryType) => {
   const mergedFVMap: Record<string, genericFVType> = {};
@@ -55,9 +64,21 @@ const mergedFVTypes = (objects: FeastRegistryType) => {
     mergedFVList.push(obj);
   });
 
+  objects.streamFeatureViews?.forEach((sfv) => {
+    const obj: genericFVType = {
+      name: sfv.spec.name,
+      type: FEAST_FV_TYPES.stream,
+      features: sfv.spec.features,
+      object: sfv,
+    };
+
+    mergedFVMap[sfv.spec.name] = obj;
+    mergedFVList.push(obj);
+  });
+
   return { mergedFVMap, mergedFVList };
 };
 
 export default mergedFVTypes;
 export { FEAST_FV_TYPES };
-export type { genericFVType, regularFVInterface, ODFVInterface };
+export type { genericFVType, regularFVInterface, ODFVInterface, SFVInterface };

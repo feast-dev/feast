@@ -5,6 +5,7 @@ import { FeastFeatureServiceSchema } from "./feastFeatureServices";
 import { FeastFeatureViewSchema } from "./feastFeatureViews";
 import { FeastSavedDatasetSchema } from "./feastSavedDataset";
 import { FeastODFVSchema } from "./feastODFVS";
+import { FeastSFVSchema } from "./feastSFVS";
 
 const FeastRegistrySchema = z.object({
   project: z.string(),
@@ -12,6 +13,7 @@ const FeastRegistrySchema = z.object({
   entities: z.array(FeastEntitySchema).optional(),
   featureViews: z.array(FeastFeatureViewSchema).optional(),
   onDemandFeatureViews: z.array(FeastODFVSchema).optional(),
+  streamFeatureViews: z.array(FeastSFVSchema).optional(),
   featureServices: z.array(FeastFeatureServiceSchema).optional(),
   savedDatasets: z.array(FeastSavedDatasetSchema).optional(),
 });
