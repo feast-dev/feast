@@ -167,6 +167,9 @@ class RepoConfig(FeastBaseModel):
     feature values for entities that have already been written into the online store.
     """
 
+    coerce_tz_aware: Optional[bool] = True
+    """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
