@@ -9,6 +9,7 @@ from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, utils
+from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -269,7 +270,12 @@ class BigTableOnlineStore(OnlineStore):
 
     @staticmethod
     def _get_table_name(config: RepoConfig, feature_view: FeatureView) -> str:
-        return f"{config.project}.{'-'.join(sorted(feature_view.entities))}"
+        entities_part = (
+            "-".join(sorted(feature_view.entities))
+            if feature_view.entities
+            else DUMMY_ENTITY_NAME
+        )
+        return f"{config.project}.{entities_part}"
 
     def teardown(
         self,
