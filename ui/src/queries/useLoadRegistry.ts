@@ -32,7 +32,6 @@ const useLoadRegistry = (url: string) => {
           return res.json();
         })
         .then<FeatureStoreAllData>((json) => {
-          console.log(json)
           const objects = FeastRegistrySchema.parse(json);
 
           const { mergedFVMap, mergedFVList } = mergedFVTypes(objects);
