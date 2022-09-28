@@ -386,6 +386,20 @@ class InvalidFeaturesParameterType(Exception):
         )
 
 
+class EntitySQLEmptyResults(Exception):
+    def __init__(self, entity_sql: str):
+        super().__init__(
+            f"No entity values found from the specified SQL query to generate the entity dataframe: {entity_sql}."
+        )
+
+
+class EntityDFNotDateTime(Exception):
+    def __init__(self):
+        super().__init__(
+            "The entity dataframe specified does not have the timestamp field as a datetime."
+        )
+
+
 class PushSourceNotFoundException(Exception):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")

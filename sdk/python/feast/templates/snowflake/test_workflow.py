@@ -1,7 +1,9 @@
+import random
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
+from pytz import utc
 
 from feast import FeatureStore
 from feast.data_source import PushMode
@@ -18,6 +20,16 @@ def run_demo():
 
     print("\n--- Historical features for batch scoring ---")
     fetch_historical_features_entity_df(store, for_batch_scoring=True)
+
+    print(
+        "\n--- Historical features for training (all entities in a window using SQL entity dataframe) ---"
+    )
+    fetch_historical_features_entity_sql(store, for_batch_scoring=False)
+
+    print(
+        "\n--- Historical features for batch scoring (all entities in a window using SQL entity dataframe) ---"
+    )
+    fetch_historical_features_entity_sql(store, for_batch_scoring=True)
 
     print("\n--- Load features into online store ---")
     store.materialize_incremental(end_date=datetime.now())
@@ -44,8 +56,8 @@ def run_demo():
                 datetime.now(),
             ],
             "conv_rate": [1.0],
-            "acc_rate": [1.0],
-            "avg_daily_trips": [1000],
+            "acc_rate": [1.0 + random.random()],
+            "avg_daily_trips": [int(1000 * random.random())],
         }
     )
     print(event_df)
@@ -57,6 +69,47 @@ def run_demo():
     print("\n--- Run feast teardown ---")
     command = "cd feature_repo; feast teardown"
     subprocess.run(command, shell=True)
+
+
+def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring):
+    end_date = (
+        datetime.now().replace(microsecond=0, second=0, minute=0).astimezone(tz=utc)
+    )
+    start_date = (end_date - timedelta(days=60)).astimezone(tz=utc)
+    # For batch scoring, we want the latest timestamps
+    if for_batch_scoring:
+        print(
+            "Generating a list of all unique entities in a time window for batch scoring"
+        )
+        # We use a group by since we want all distinct driver_ids.
+        entity_sql = f"""
+            SELECT
+                "driver_id",
+                CURRENT_TIMESTAMP() as "event_timestamp"
+            FROM {store.list_data_sources()[-1].get_table_query_string()}
+            WHERE "event_timestamp" BETWEEN '{start_date}' AND '{end_date}'
+            GROUP BY "driver_id"
+        """
+    else:
+        print("Generating training data for all entities in a time window")
+        # We don't need a group by if we want to generate training data
+        entity_sql = f"""
+            SELECT
+                "driver_id",
+                "event_timestamp"
+            FROM {store.list_data_sources()[-1].get_table_query_string()}
+            WHERE "event_timestamp" BETWEEN '{start_date}' AND '{end_date}'
+        """
+
+    training_df = store.get_historical_features(
+        entity_df=entity_sql,
+        features=[
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:acc_rate",
+            "driver_hourly_stats:avg_daily_trips",
+        ],
+    ).to_df()
+    print(training_df.head())
 
 
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):
