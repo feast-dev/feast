@@ -92,15 +92,17 @@ def test_push_source_does_not_exist(python_fs_client):
     )[0]
     response = python_fs_client.post(
         "/push",
-        data={
-            "push_source_name": "push_source_does_not_exist",
-            "df": {
-                "location_id": [1],
-                "temperature": [initial_temp * 100],
-                "event_timestamp": [str(datetime.utcnow())],
-                "created": [str(datetime.utcnow())],
-            },
-        },
+        data=json.dumps(
+            {
+                "push_source_name": "push_source_does_not_exist",
+                "df": {
+                    "location_id": [1],
+                    "temperature": [initial_temp * 100],
+                    "event_timestamp": [str(datetime.utcnow())],
+                    "created": [str(datetime.utcnow())],
+                },
+            }
+        ),
     )
     assert response.status_code == 422
 
