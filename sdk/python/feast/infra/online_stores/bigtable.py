@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import google
 from google.cloud import bigtable
+from google.cloud.bigtable import row_filters
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
@@ -57,6 +58,8 @@ class BigTableOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        # Potential performance improvement opportunity described in
+        # https://github.com/feast-dev/feast/issues/3259
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
@@ -72,36 +75,40 @@ class BigTableOnlineStore(OnlineStore):
             for entity_key in entity_keys
         ]
 
-        batch_result: List[
-            Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
-        ] = []
-
-        # TODO: read all the rows in a single call instead of reading them sequentially
+        row_set = bigtable.row_set.RowSet()
         for row_key in row_keys:
-            res = {}
-            # TODO: use filters to reduce the amount of data transfered and skip
-            # unnecessary columns.
-            row = bt_table.read_row(row_key)
+            row_set.add_row_key(row_key)
+        rows = bt_table.read_rows(
+            row_set=row_set,
+            filter_=(
+                row_filters.ColumnQualifierRegexFilter(
+                    f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                )
+                if requested_features
+                else None
+            ),
+        )
 
-            if row is None:
-                batch_result.append((None, None))
-                continue
+        return [self._process_bt_row(row) for row in rows]
 
-            row_values = row.cells[self.feature_column_family]
-            # TODO: check if we need created_ts anywhere
-            row_values.pop(b"created_ts")
-            event_ts = datetime.fromisoformat(
-                row_values.pop(b"event_ts")[0].value.decode()
-            )
-            for feature_name, feature_values in row_values.items():
-                # We only want to retrieve the latest value for each feature
-                feature_value = feature_values[0]
-                val = ValueProto()
-                val.ParseFromString(feature_value.value)
-                res[feature_name.decode()] = val
+    def _process_bt_row(
+        self, row: bigtable.row.PartialRowData
+    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
+        res = {}
 
-            batch_result.append((event_ts, res))
-        return batch_result
+        if row is None:
+            return (None, None)
+
+        row_values = row.cells[self.feature_column_family]
+        event_ts = datetime.fromisoformat(row_values.pop(b"event_ts")[0].value.decode())
+        for feature_name, feature_values in row_values.items():
+            # We only want to retrieve the latest value for each feature
+            feature_value = feature_values[0]
+            val = ValueProto()
+            val.ParseFromString(feature_value.value)
+            res[feature_name.decode()] = val
+
+        return (event_ts, res)
 
     @log_exceptions_and_usage(online_store="bigtable")
     def online_write_batch(
@@ -277,7 +284,7 @@ class BigTableOnlineStore(OnlineStore):
             else DUMMY_ENTITY_NAME
         )
         BIGTABLE_TABLE_MAX_LENGTH = 50
-        ENTITIES_PART_MAX_LENGTH = 25
+        ENTITIES_PART_MAX_LENGTH = 24
         # Bigtable limits table names to 50 characters. We'll limit the max size of of
         # the `entities_part` and if that's not enough, we'll just hash the
         # entities_part. The remaining length is dedicated to the project name. This
