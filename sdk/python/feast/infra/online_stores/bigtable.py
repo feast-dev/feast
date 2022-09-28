@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from concurrent import futures
 from datetime import datetime
@@ -275,7 +276,30 @@ class BigTableOnlineStore(OnlineStore):
             if feature_view.entities
             else DUMMY_ENTITY_NAME
         )
-        return f"{config.project}.{entities_part}"
+        BIGTABLE_TABLE_MAX_LENGTH = 50
+        ENTITIES_PART_MAX_LENGTH = 25
+        # Bigtable limits table names to 50 characters. We'll limit the max size of of
+        # the `entities_part` and if that's not enough, we'll just hash the
+        # entities_part. The remaining length is dedicated to the project name. This
+        # allows multiple projects to coexist in the same bigtable instance. This also
+        # allows multiple integration test executions to run simultaneously without
+        # conflicts.
+        if len(entities_part) > ENTITIES_PART_MAX_LENGTH:
+            entities_part = hashlib.md5(entities_part.encode()).hexdigest()[
+                :ENTITIES_PART_MAX_LENGTH
+            ]
+        remaining_length = BIGTABLE_TABLE_MAX_LENGTH - len(entities_part)
+        if len(config.project) > remaining_length:
+            HUMAN_READABLE_PART_LENGTH = 10
+            HASH_PART_LENGTH = remaining_length - HUMAN_READABLE_PART_LENGTH - 1
+            project_part = (
+                config.project[:HUMAN_READABLE_PART_LENGTH]
+                + "_"
+                + hashlib.md5(config.project.encode()).hexdigest()[:HASH_PART_LENGTH]
+            )
+        else:
+            project_part = config.project
+        return f"{project_part}.{entities_part}"
 
     def teardown(
         self,
