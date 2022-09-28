@@ -87,6 +87,12 @@ SNOWFLAKE_CONFIG = {
     "schema": "ONLINE",
 }
 
+BIGTABLE_CONFIG = {
+    "type": "bigtable",
+    "project_id": os.getenv("GCLOUD_PROJECT", "kf-feast"),
+    "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
+}
+
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -118,7 +124,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["bigtable"] = ("bigtable", None)
+    AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
