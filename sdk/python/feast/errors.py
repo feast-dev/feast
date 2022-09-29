@@ -398,3 +398,8 @@ class EntityDFNotDateTime(Exception):
         super().__init__(
             "The entity dataframe specified does not have the timestamp field as a datetime."
         )
+
+
+class PushSourceNotFoundException(Exception):
+    def __init__(self, push_source_name: str):
+        super().__init__(f"Unable to find push source '{push_source_name}'.")
