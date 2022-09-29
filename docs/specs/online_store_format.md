@@ -92,6 +92,29 @@ Other types of entity keys are not supported in this version of the specificatio
 
 ![Datastore Online Example](datastore_online_example.png)
 
+## Google Bigtable Online Store Format
+
+[Bigtable storage model](https://cloud.google.com/bigtable/docs/overview#storage-model)
+consists of massively scalable tables, with each row keyed by a "row key". The rows in a
+table are stored lexicographically sorted by this row key.
+
+We use the following structure to store feature data in Bigtable:
+
+* All feature data for an entity or a specific group of entities is stored in the same
+  table. The table name is derived by concatenating the lexicographically sorted names
+  of entities.
+* This implementation only uses one column family per table, named `features`.
+* Each row key is created by concatenating a hash derived from the specific entity keys
+  and the name of the feature view. Each row only stores feature values for a specific
+  feature view. This arrangement also means that feature values for a given group of
+  entities are colocated.
+* The columns used in each row are named after the features in the feature view.
+  Bigtable is perfectly content being sparsely populated.
+* By default, we store 1 historical value of each feature value. This can be configured
+  using the `max_versions` setting in `BigtableOnlineStoreConfig`. This implementation
+  of the online store does not have the ability to revert any given value to its old
+  self. To use the historical version, you'll have to use custom code.
+
 ## Cassandra/Astra DB Online Store Format
 
 ### Overview
