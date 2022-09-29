@@ -52,7 +52,7 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_pushable_feature_view,
 )
 from tests.integration.feature_repos.universal.online_store.bigtable import (
-    BigTableOnlineStoreCreator,
+    BigtableOnlineStoreCreator,
 )
 from tests.integration.feature_repos.universal.online_store.datastore import (
     DatastoreOnlineStoreCreator,
@@ -171,7 +171,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
-        "bigtable": ("bigtable", BigTableOnlineStoreCreator),
+        "bigtable": ("bigtable", BigtableOnlineStoreCreator),
     }
 
     for key, replacement in replacements.items():

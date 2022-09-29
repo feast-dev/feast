@@ -21,7 +21,7 @@ from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
-# Number of mutations per BigTable write operation we're aiming for. The official max is
+# Number of mutations per Bigtable write operation we're aiming for. The official max is
 # 100K; we're being conservative.
 MUTATIONS_PER_OP = 50_000
 # The Bigtable client library limits the connection pool size to 10. This imposes a
@@ -29,8 +29,8 @@ MUTATIONS_PER_OP = 50_000
 BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
 
 
-class BigTableOnlineStoreConfig(FeastConfigBaseModel):
-    """Online store config for GCP BigTable"""
+class BigtableOnlineStoreConfig(FeastConfigBaseModel):
+    """Online store config for GCP Bigtable"""
 
     type: Literal["bigtable"] = "bigtable"
     """Online store typee selector"""
@@ -39,13 +39,13 @@ class BigTableOnlineStoreConfig(FeastConfigBaseModel):
     """(optional) GCP Project ID"""
 
     instance: StrictStr
-    """The BigTable instance's ID"""
+    """The Bigtable instance's ID"""
 
     max_versions: int = 2
     """The number of historical versions of data that will be kept around."""
 
 
-class BigTableOnlineStore(OnlineStore):
+class BigtableOnlineStore(OnlineStore):
     _client: Optional[bigtable.Client] = None
 
     feature_column_family: str = "features"
@@ -157,7 +157,7 @@ class BigTableOnlineStore(OnlineStore):
                 task.result()
             if not_done_tasks:
                 raise RuntimeError(
-                    f"Not all batches were written to BigTable: {not_done_tasks}"
+                    f"Not all batches were written to Bigtable: {not_done_tasks}"
                 )
 
     def _write_rows_to_bt(
@@ -227,14 +227,14 @@ class BigTableOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        """Creates the appropriate tables and column family in BigTable.
+        """Creates the appropriate tables and column family in Bigtable.
 
         We use a dedicated table for each entity combination. For example, if a
         FeatureView uses the entities `shop` and `customer`, the resulting table would
         be called `customer-shop` (entities are sorted lexicographically first).
         """
         online_config = config.online_store
-        assert isinstance(online_config, BigTableOnlineStoreConfig)
+        assert isinstance(online_config, BigtableOnlineStoreConfig)
         client = self._get_client(online_config, admin=True)
         bt_instance = client.instance(instance_id=online_config.instance)
         max_versions_gc_rule = bigtable.column_family.MaxVersionsGCRule(
@@ -247,7 +247,7 @@ class BigTableOnlineStore(OnlineStore):
         feature_views_to_delete = tables_to_delete
         # Multiple feature views can share the same tables. So just because a feature
         # view has been deleted does not mean that we can just delete the table. We map
-        # feature views to BigTable table names and figure out which ones to create
+        # feature views to Bigtable table names and figure out which ones to create
         # and/or delete.
         bt_tables_to_keep: Set[str] = {
             self._get_table_name(config=config, feature_view=feature_view)
@@ -261,10 +261,10 @@ class BigTableOnlineStore(OnlineStore):
         for bt_table_name in bt_tables_to_keep:
             bt_table = bt_instance.table(bt_table_name)
             if not bt_table.exists():
-                logger.info(f"Creating table `{bt_table_name}` in BigTable")
+                logger.info(f"Creating table `{bt_table_name}` in Bigtable")
                 bt_table.create()
             else:
-                logger.info(f"Table {bt_table_name} already exists in BigTable")
+                logger.info(f"Table {bt_table_name} already exists in Bigtable")
 
             if self.feature_column_family not in bt_table.list_column_families():
                 bt_table.column_family(
@@ -273,7 +273,7 @@ class BigTableOnlineStore(OnlineStore):
 
         for bt_table_name in bt_tables_to_delete:
             bt_table = bt_instance.table(bt_table_name)
-            logger.info(f"Deleting table {bt_table_name} in BigTable")
+            logger.info(f"Deleting table {bt_table_name} in Bigtable")
             bt_table.delete()
 
     @staticmethod
@@ -295,7 +295,7 @@ class BigTableOnlineStore(OnlineStore):
             entities_part = hashlib.md5(entities_part.encode()).hexdigest()[
                 :ENTITIES_PART_MAX_LENGTH
             ]
-        remaining_length = BIGTABLE_TABLE_MAX_LENGTH - len(entities_part)
+        remaining_length = BIGTABLE_TABLE_MAX_LENGTH - len(entities_part) - 1
         if len(config.project) > remaining_length:
             HUMAN_READABLE_PART_LENGTH = 10
             HASH_PART_LENGTH = remaining_length - HUMAN_READABLE_PART_LENGTH - 1
@@ -323,12 +323,12 @@ class BigTableOnlineStore(OnlineStore):
         }
 
         online_config = config.online_store
-        assert isinstance(online_config, BigTableOnlineStoreConfig)
+        assert isinstance(online_config, BigtableOnlineStoreConfig)
         client = self._get_client(online_config, admin=True)
         bt_instance = client.instance(instance_id=online_config.instance)
         for table_name in bt_tables:
             try:
-                logger.info(f"Deleting BigTable table `{table_name}`")
+                logger.info(f"Deleting Bigtable table `{table_name}`")
                 bt_instance.table(table_name).delete()
             except google.api_core.exceptions.NotFound:
                 logger.warning(
@@ -336,6 +336,6 @@ class BigTableOnlineStore(OnlineStore):
                 )
 
     def _get_client(
-        self, online_config: BigTableOnlineStoreConfig, admin: bool = False
+        self, online_config: BigtableOnlineStoreConfig, admin: bool = False
     ):
         return bigtable.Client(project=online_config.project_id, admin=admin)

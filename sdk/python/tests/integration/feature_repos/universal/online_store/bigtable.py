@@ -10,7 +10,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 
-class BigTableOnlineStoreCreator(OnlineStoreCreator):
+class BigtableOnlineStoreCreator(OnlineStoreCreator):
     gcp_project = "test-project"
     host = "0.0.0.0"
     port = "8086"
