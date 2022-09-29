@@ -92,7 +92,7 @@ const StreamFeatureViewOverviewTab = ({
               {inputs.map(([key, inputGroup]) => {
 
                 return (
-                  <EuiPanel hasBorder={true}>
+                  <EuiPanel hasBorder={true} key={key}>
                     <EuiText size="xs">
                       <span>Stream Source</span>
                     </EuiText>
