@@ -89,7 +89,14 @@ class BigtableOnlineStore(OnlineStore):
             ),
         )
 
-        return [self._process_bt_row(row) for row in rows]
+        # The BigTable client library only returns rows for keys that are found. This
+        # means that it's our responsibility to match the returned rows to the original
+        # `row_keys` and make sure that we're returning a list of the same length as
+        # `entity_keys`.
+        bt_rows_dict: Dict[str, bigtable.row.PartialRowData] = {
+            row.row_key: row for row in rows
+        }
+        return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
 
     def _process_bt_row(
         self, row: bigtable.row.PartialRowData
@@ -206,7 +213,7 @@ class BigtableOnlineStore(OnlineStore):
 
     def _compute_row_key(
         self, entity_key: EntityKeyProto, feature_view_name: str, config: RepoConfig
-    ) -> str:
+    ) -> bytes:
         entity_id = compute_entity_id(
             entity_key,
             entity_key_serialization_version=config.entity_key_serialization_version,
@@ -216,7 +223,7 @@ class BigtableOnlineStore(OnlineStore):
         # the row for a feature_view, we suffix the name of the feature_view itself.
         # This also ensures that features for entities from various feature_views are
         # colocated.
-        return f"{entity_id}#{feature_view_name}"
+        return f"{entity_id}#{feature_view_name}".encode()
 
     def update(
         self,
