@@ -93,13 +93,13 @@ class BigtableOnlineStore(OnlineStore):
         # means that it's our responsibility to match the returned rows to the original
         # `row_keys` and make sure that we're returning a list of the same length as
         # `entity_keys`.
-        bt_rows_dict: Dict[str, bigtable.row.PartialRowData] = {
+        bt_rows_dict: Dict[bytes, bigtable.row.PartialRowData] = {
             row.row_key: row for row in rows
         }
         return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
 
     def _process_bt_row(
-        self, row: bigtable.row.PartialRowData
+        self, row: Optional[bigtable.row.PartialRowData]
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res = {}
 
