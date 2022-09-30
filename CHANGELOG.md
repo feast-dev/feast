@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.25.1](https://github.com/feast-dev/feast/compare/v0.25.0...v0.25.1) (2022-09-30)
+
+
+### Bug Fixes
+
+* Add `X-Trino-Extra-Credential` header and remove user override ([#3246](https://github.com/feast-dev/feast/issues/3246)) ([f38506c](https://github.com/feast-dev/feast/commit/f38506cf14a770496f622bf8103d52ff0b18ad12))
+* Add postgres to the feature server Dockerfile to fix helm chart flow ([#3261](https://github.com/feast-dev/feast/issues/3261)) ([a2cb995](https://github.com/feast-dev/feast/commit/a2cb995c8c854f721a06bc6404e69883334c9658))
+* Add stream feature view in the Web UI ([#3257](https://github.com/feast-dev/feast/issues/3257)) ([47d4c93](https://github.com/feast-dev/feast/commit/47d4c93f079e23ebcbb4143c3084213e5c87e57e))
+* Build dockerfile correctly ([#3239](https://github.com/feast-dev/feast/issues/3239)) ([a2dc0d0](https://github.com/feast-dev/feast/commit/a2dc0d0410eb297afddfb1dd4f1f899ab70fa14f))
+* Configuration to stop coercion of tz for entity_df ([#3255](https://github.com/feast-dev/feast/issues/3255)) ([fdc8d67](https://github.com/feast-dev/feast/commit/fdc8d67a0f16dd05b49cbd0d7ef24b197785e1b8))
+* Enable users to upgrade a batch source into a push source ([#3213](https://github.com/feast-dev/feast/issues/3213)) ([8f2fb58](https://github.com/feast-dev/feast/commit/8f2fb587c59a661b121b168f191dbe2c95aaf1ee))
+* Return 422 on bad push source name ([#3214](https://github.com/feast-dev/feast/issues/3214)) ([8abbcd9](https://github.com/feast-dev/feast/commit/8abbcd9960bbd0d5db9f14cc3c2456bae497b58b))
+* Stream feature view not shown in the UI ([#3251](https://github.com/feast-dev/feast/issues/3251)) ([55e28e2](https://github.com/feast-dev/feast/commit/55e28e2f831dfe1129a02fe595d58e4b9b94f0da))
+* Update snowflake materialization messages ([#3230](https://github.com/feast-dev/feast/issues/3230)) ([a63d440](https://github.com/feast-dev/feast/commit/a63d440e4207c1e360630423bcda2c329673fddd))
+* Use configured user in env var instead of "user" for Trino ([#3254](https://github.com/feast-dev/feast/issues/3254)) ([e7ed3d5](https://github.com/feast-dev/feast/commit/e7ed3d5b9a4d27d6352bbaf1cc24d975886752b3))
+
 # [0.25.0](https://github.com/feast-dev/feast/compare/v0.24.0...v0.25.0) (2022-09-20)
 
 
