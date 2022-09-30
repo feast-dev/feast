@@ -35,7 +35,7 @@ const FeatureViewListingTable = ({
             href={`/p/${projectName}/feature-view/${name}`}
             to={`/p/${projectName}/feature-view/${name}`}
           >
-            {name} {item.type === "ondemand" && <EuiBadge>ondemand</EuiBadge>}
+            {name} {(item.type === "ondemand" && <EuiBadge>ondemand</EuiBadge>) || (item.type === "stream" && <EuiBadge>stream</EuiBadge>)}
           </EuiCustomLink>
         );
       },

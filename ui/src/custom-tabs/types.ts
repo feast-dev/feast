@@ -1,5 +1,6 @@
 import {
   useLoadOnDemandFeatureView,
+  useLoadStreamFeatureView,
   useLoadRegularFeatureView,
 } from "../pages/feature-views/useLoadFeatureView";
 import useLoadFeature from "../pages/features/useLoadFeature";
@@ -46,6 +47,23 @@ interface OnDemandFeatureViewCustomTabRegistrationInterface
     feastObjectQuery,
     ...args
   }: OnDemandFeatureViewCustomTabProps) => JSX.Element;
+}
+
+// Type for Stream Feature View Custom Tabs
+type StreamFeatureViewQueryReturnType = ReturnType<
+  typeof useLoadStreamFeatureView
+>;
+interface StreamFeatureViewCustomTabProps {
+  id: string | undefined;
+  feastObjectQuery: StreamFeatureViewQueryReturnType;
+}
+interface StreamFeatureViewCustomTabRegistrationInterface
+  extends CustomTabRegistrationInterface {
+  Component: ({
+    id,
+    feastObjectQuery,
+    ...args
+  }: StreamFeatureViewCustomTabProps) => JSX.Element;
 }
 
 // Type for Entity Custom Tabs
@@ -127,6 +145,9 @@ export type {
   OnDemandFeatureViewQueryReturnType,
   OnDemandFeatureViewCustomTabProps,
   OnDemandFeatureViewCustomTabRegistrationInterface,
+  StreamFeatureViewQueryReturnType,
+  StreamFeatureViewCustomTabProps,
+  StreamFeatureViewCustomTabRegistrationInterface,
   FeatureServiceCustomTabRegistrationInterface,
   FeatureServiceCustomTabProps,
   DataSourceCustomTabRegistrationInterface,
