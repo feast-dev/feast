@@ -51,5 +51,22 @@ const useLoadOnDemandFeatureView = (featureViewName: string) => {
   };
 };
 
+const useLoadStreamFeatureView = (featureViewName: string) => {
+  const registryUrl = useContext(RegistryPathContext);
+  const registryQuery = useLoadRegistry(registryUrl);
+
+  const data =
+    registryQuery.data === undefined
+      ? undefined
+      : registryQuery.data.objects.streamFeatureViews?.find((fv) => {
+          return fv.spec.name === featureViewName;
+        });
+
+  return {
+    ...registryQuery,
+    data,
+  };
+};
+
 export default useLoadFeatureView;
-export { useLoadRegularFeatureView, useLoadOnDemandFeatureView };
+export { useLoadRegularFeatureView, useLoadOnDemandFeatureView, useLoadStreamFeatureView };
