@@ -4,8 +4,6 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.10-requirements.txt
 #
-absl-py==1.2.0
-    # via tensorflow-metadata
 anyio==3.6.1
     # via
     #   starlette
@@ -56,12 +54,11 @@ googleapis-common-protos==1.56.4
     # via
     #   feast (setup.py)
     #   google-api-core
-    #   tensorflow-metadata
 grpcio==1.49.1
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.48.2
+grpcio-reflection==1.49.1
     # via feast (setup.py)
 h11==0.14.0
     # via uvicorn
@@ -105,14 +102,13 @@ partd==1.3.0
     # via dask
 proto-plus==1.22.1
     # via feast (setup.py)
-protobuf==3.20.3
+protobuf==4.21.7
     # via
     #   feast (setup.py)
     #   google-api-core
     #   googleapis-common-protos
     #   grpcio-reflection
     #   proto-plus
-    #   tensorflow-metadata
 pyarrow==8.0.0
     # via feast (setup.py)
 pyasn1==0.4.8
@@ -163,8 +159,6 @@ starlette==0.20.4
 tabulate==0.8.10
     # via feast (setup.py)
 tenacity==8.1.0
-    # via feast (setup.py)
-tensorflow-metadata==1.10.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)

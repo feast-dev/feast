@@ -53,7 +53,7 @@ REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.*,<2",
     "grpcio>=1.47.0,<2",
-    "grpcio-reflection>=1.47.0,<1.49",
+    "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -74,7 +74,6 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "tensorflow-metadata>=1.0.0,<2.0.0",
     "dask>=2021.*,<2022.02.0",
     "bowler",  # Needed for automatic repo upgrades
 ]
@@ -85,7 +84,6 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.1.*,<3",
     "google-cloud-storage>=1.34.*,<3",
     "google-cloud-bigtable>=2.11.*,<3",
-    "grpcio-status<1.49",
 ]
 
 REDIS_REQUIRED = [
@@ -148,8 +146,8 @@ CI_REQUIRED = (
         "flake8",
         "black>=22.6.0,<23",
         "isort>=5,<6",
-        "grpcio-tools>=1.47.0,<1.49",
-        "grpcio-testing>=1.47.0,<1.49",
+        "grpcio-tools>=1.47.0",
+        "grpcio-testing>=1.47.0",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<4",

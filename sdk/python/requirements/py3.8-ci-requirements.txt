@@ -4,8 +4,6 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.8-ci-requirements.txt
 #
-absl-py==1.2.0
-    # via tensorflow-metadata
 adal==1.2.7
     # via
     #   azure-datalake-store
@@ -285,7 +283,6 @@ googleapis-common-protos[grpc]==1.56.4
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-    #   tensorflow-metadata
 great-expectations==0.14.13
     # via feast (setup.py)
 grpc-google-iam-v1==0.12.4
@@ -301,15 +298,13 @@ grpcio==1.49.1
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
-grpcio-reflection==1.48.2
+grpcio-reflection==1.49.1
     # via feast (setup.py)
-grpcio-status==1.48.2
-    # via
-    #   feast (setup.py)
-    #   google-api-core
-grpcio-testing==1.48.2
+grpcio-status==1.49.1
+    # via google-api-core
+grpcio-testing==1.49.1
     # via feast (setup.py)
-grpcio-tools==1.48.2
+grpcio-tools==1.49.1
     # via feast (setup.py)
 h11==0.14.0
     # via uvicorn
@@ -507,7 +502,7 @@ proto-plus==1.22.1
     #   google-cloud-bigtable
     #   google-cloud-datastore
     #   google-cloud-firestore
-protobuf==3.20.3
+protobuf==4.21.7
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -523,7 +518,6 @@ protobuf==3.20.3
     #   grpcio-tools
     #   mypy-protobuf
     #   proto-plus
-    #   tensorflow-metadata
 psutil==5.9.0
     # via feast (setup.py)
 psycopg2-binary==2.9.3
@@ -744,8 +738,6 @@ starlette==0.20.4
 tabulate==0.8.10
     # via feast (setup.py)
 tenacity==8.1.0
-    # via feast (setup.py)
-tensorflow-metadata==1.10.0
     # via feast (setup.py)
 termcolor==2.0.1
     # via great-expectations
