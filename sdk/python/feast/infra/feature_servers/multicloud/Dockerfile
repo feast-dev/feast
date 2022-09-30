@@ -9,7 +9,7 @@ RUN apt update && \
 
 RUN pip install pip --upgrade
 COPY . .
-RUN pip install ".[aws,gcp,snowflake,redis,go,mysql]"
+RUN pip install ".[aws,gcp,snowflake,redis,go,mysql,postgres]"
 
 RUN apt update
 RUN apt install -y -V ca-certificates lsb-release wget
