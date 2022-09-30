@@ -7,6 +7,9 @@ The BigQuery offline store provides support for reading [BigQuerySources](../dat
 * All joins happen within BigQuery. 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be uploaded to BigQuery as a table (marked for expiration) in order to complete join operations.
 
+## Getting started
+In order to use this offline store, you'll need to run `pip install 'feast[gcp]'`. You can get started by then running `feast init -t gcp`.
+
 ## Example
 
 {% code title="feature_store.yaml" %}

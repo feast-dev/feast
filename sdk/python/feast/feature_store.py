@@ -59,6 +59,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
@@ -160,7 +161,7 @@ class FeatureStore:
             self.config = load_repo_config(self.repo_path, fs_yaml_file)
         else:
             self.config = load_repo_config(
-                self.repo_path, Path(self.repo_path) / "feature_store.yaml"
+                self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
             )
 
         registry_config = self.config.get_registry_config()
@@ -1111,7 +1112,8 @@ class FeatureStore:
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
-            entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
+            if self.config.coerce_tz_aware:
+                entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for fv in request_feature_views:
                 for feature in fv.features:
                     if feature.name not in entity_df.columns:
@@ -1443,6 +1445,9 @@ class FeatureStore:
                 and fv.stream_source.name == push_source_name
             )
         }
+
+        if not fvs_with_push_sources:
+            raise PushSourceNotFoundException(push_source_name)
 
         for fv in fvs_with_push_sources:
             if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:

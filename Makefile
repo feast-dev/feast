@@ -63,11 +63,9 @@ benchmark-python-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python:
-	@(docker info > /dev/null 2>&1 && \
-		FEAST_USAGE=False \
-		IS_TEST=True \
-		python -m pytest -n 8 sdk/python/tests \
-	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
+	FEAST_USAGE=False \
+	IS_TEST=True \
+	python -m pytest -n 8 sdk/python/tests \
 
 test-python-integration:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests

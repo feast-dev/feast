@@ -12,13 +12,19 @@ import React from "react";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import {
   FeastSFVType,
+<<<<<<< HEAD
   FeatureViewProjectionType,
+=======
+>>>>>>> master
 } from "../../parsers/feastSFVS";
 import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
+<<<<<<< HEAD
 import FeatureViewProjectionDisplayPanel from "./components/FeatureViewProjectionDisplayPanel";
+=======
+>>>>>>> master
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
 import EuiCustomLink from "../../components/EuiCustomLink";
 
@@ -94,7 +100,7 @@ const StreamFeatureViewOverviewTab = ({
               {inputs.map(([key, inputGroup]) => {
 
                 return (
-                  <EuiPanel hasBorder={true}>
+                  <EuiPanel hasBorder={true} key={key}>
                     <EuiText size="xs">
                       <span>Stream Source</span>
                     </EuiText>

@@ -31,7 +31,7 @@ const StreamFeatureViewCustomTabLoadingWrapper = ({
     feastObjectQuery.data.type !== FEAST_FV_TYPES.stream
   ) {
     throw new Error(
-      `This should not happen. Somehow a custom tab on a ODFV page received data that does not have the shape?`
+      `This should not happen. Somehow a custom tab on a SFV page received data that does not have the shape?`
     );
   }
 

@@ -3,13 +3,16 @@ import {
   EuiHorizontalRule,
   EuiLoadingSpinner,
   EuiTitle,
+  EuiSpacer,
   EuiPanel,
   EuiFlexItem,
+  EuiText,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import TagsDisplay from "../../components/TagsDisplay";
 import React from "react";
 import { useParams } from "react-router-dom";
 import useLoadFeature from "./useLoadFeature";
@@ -53,13 +56,27 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    <EuiCustomLink 
+                    <EuiCustomLink
                       href={`/p/${projectName}/feature-view/${FeatureViewName}`}
                       to={`/p/${projectName}/feature-view/${FeatureViewName}`}>
-                      {FeatureViewName} 
+                      {FeatureViewName}
                     </EuiCustomLink>
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
+              </EuiPanel>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder={true} grow={false}>
+                <EuiTitle size="xs">
+                  <h3>Tags</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                {featureData?.tags ? (
+                  <TagsDisplay
+                    tags={featureData.tags}
+                  />
+                ) : (
+                  <EuiText>No Tags specified on this field.</EuiText>
+                )}
               </EuiPanel>
             </EuiFlexItem>
           </EuiFlexGroup>

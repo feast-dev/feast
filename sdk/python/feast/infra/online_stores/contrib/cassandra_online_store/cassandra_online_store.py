@@ -32,7 +32,7 @@ from cassandra.cluster import (
 )
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
 from cassandra.query import PreparedStatement
-from pydantic import StrictInt, StrictStr
+from pydantic import StrictFloat, StrictInt, StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig
@@ -141,6 +141,9 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     protocol_version: Optional[StrictInt] = None
     """Explicit specification of the CQL protocol version used."""
 
+    request_timeout: Optional[StrictFloat] = None
+    """Request timeout in seconds."""
+
     class CassandraLoadBalancingPolicy(FeastConfigBaseModel):
         """
         Configuration block related to the Cluster's load-balancing policy.
@@ -240,7 +243,10 @@ class CassandraOnlineStore(OnlineStore):
                     raise CassandraInvalidConfig(E_CASSANDRA_UNKNOWN_LB_POLICY)
 
                 # wrap it up in a map of ex.profiles with a default
-                exe_profile = ExecutionProfile(load_balancing_policy=lb_policy)
+                exe_profile = ExecutionProfile(
+                    request_timeout=online_store_config.request_timeout,
+                    load_balancing_policy=lb_policy,
+                )
                 execution_profiles = {EXEC_PROFILE_DEFAULT: exe_profile}
             else:
                 execution_profiles = None

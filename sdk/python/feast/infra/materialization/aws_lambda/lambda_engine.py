@@ -16,6 +16,7 @@ import boto3
 from pydantic import StrictStr
 from tqdm import tqdm
 
+from feast import utils
 from feast.batch_feature_view import BatchFeatureView
 from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.entity import Entity
@@ -143,7 +144,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         )
         repo_path = self.repo_config.repo_path
         assert repo_path
-        feature_store_path = repo_path / "feature_store.yaml"
+        feature_store_path = utils.get_default_yaml_file_path(repo_path)
         self.feature_store_base64 = str(
             base64.b64encode(bytes(feature_store_path.read_text(), "UTF-8")), "UTF-8"
         )

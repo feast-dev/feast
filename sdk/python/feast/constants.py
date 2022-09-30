@@ -23,6 +23,9 @@ AWS_LAMBDA_FEATURE_SERVER_REPOSITORY = "feast-python-server"
 # feature_store.yaml environment variable name for remote feature server
 FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
 
+# feature_store.yaml path environment variable name
+FEAST_FS_YAML_FILE_PATH_ENV_NAME: str = "FEAST_FS_YAML_FILE_PATH"
+
 # Environment variable for registry
 REGISTRY_ENV_NAME: str = "REGISTRY_BASE64"
 
