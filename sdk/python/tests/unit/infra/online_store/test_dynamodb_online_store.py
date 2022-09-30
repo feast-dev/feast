@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import boto3
 import pytest
-from moto import mock_dynamodb
+from moto import mock_dynamodb2
 
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import (
@@ -159,7 +159,7 @@ def test_dynamodb_table_dynamodb_resource():
     assert dynamodb_resource.meta.client.meta.endpoint_url == endpoint_url
 
 
-@mock_dynamodb
+@mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
 def test_dynamodb_online_store_online_read(
     repo_config, dynamodb_online_store, n_samples
@@ -180,7 +180,7 @@ def test_dynamodb_online_store_online_read(
     assert [item[1] for item in returned_items] == list(features)
 
 
-@mock_dynamodb
+@mock_dynamodb2
 @pytest.mark.parametrize("n_samples", [5, 50, 100])
 def test_dynamodb_online_store_online_write_batch(
     repo_config, dynamodb_online_store, n_samples
@@ -207,7 +207,7 @@ def test_dynamodb_online_store_online_write_batch(
     assert [item[1] for item in stored_items] == list(features)
 
 
-@mock_dynamodb
+@mock_dynamodb2
 def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore update method."""
     # create dummy table to keep
@@ -236,7 +236,7 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     assert existing_tables[0] == f"test_aws.{db_table_keep_name}"
 
 
-@mock_dynamodb
+@mock_dynamodb2
 def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore teardown method."""
     db_table_delete_name_one = f"{TABLE_NAME}_delete_teardown_1"
@@ -262,7 +262,7 @@ def test_dynamodb_online_store_teardown(repo_config, dynamodb_online_store):
     assert len(existing_tables) == 0
 
 
-@mock_dynamodb
+@mock_dynamodb2
 def test_dynamodb_online_store_online_read_unknown_entity(
     repo_config, dynamodb_online_store
 ):
@@ -301,7 +301,7 @@ def test_dynamodb_online_store_online_read_unknown_entity(
         assert returned_items[pos] == (None, None)
 
 
-@mock_dynamodb
+@mock_dynamodb2
 def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     """Test DynamoDBOnline Store deduplicate write batch request items."""
     dynamodb_tbl = f"{TABLE_NAME}_batch_non_duplicates"
@@ -321,7 +321,7 @@ def test_write_batch_non_duplicates(repo_config, dynamodb_online_store):
     assert len(returned_items) == len(data)
 
 
-@mock_dynamodb
+@mock_dynamodb2
 def test_dynamodb_online_store_online_read_unknown_entity_end_of_batch(
     repo_config, dynamodb_online_store
 ):

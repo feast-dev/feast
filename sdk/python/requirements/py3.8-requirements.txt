@@ -20,7 +20,7 @@ bowler==0.9.0
     # via feast (setup.py)
 cachetools==5.2.0
     # via google-auth
-certifi==2022.6.15
+certifi==2022.9.24
     # via requests
 charset-normalizer==2.1.1
     # via requests
@@ -30,7 +30,7 @@ click==8.1.3
     #   feast (setup.py)
     #   moreorless
     #   uvicorn
-cloudpickle==2.1.0
+cloudpickle==2.2.0
     # via dask
 colorama==0.4.5
     # via feast (setup.py)
@@ -38,9 +38,9 @@ dask==2022.1.1
     # via feast (setup.py)
 dill==0.3.5.1
     # via feast (setup.py)
-fastapi==0.82.0
+fastapi==0.85.0
     # via feast (setup.py)
-fastavro==1.6.0
+fastavro==1.6.1
     # via
     #   feast (setup.py)
     #   pandavro
@@ -48,26 +48,26 @@ fissix==21.11.13
     # via bowler
 fsspec==2022.8.2
     # via dask
-google-api-core==2.10.0
+google-api-core==2.10.1
     # via feast (setup.py)
-google-auth==2.11.0
+google-auth==2.12.0
     # via google-api-core
 googleapis-common-protos==1.56.4
     # via
     #   feast (setup.py)
     #   google-api-core
     #   tensorflow-metadata
-grpcio==1.48.1
+grpcio==1.49.1
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.48.1
+grpcio-reflection==1.48.2
     # via feast (setup.py)
-h11==0.13.0
+h11==0.14.0
     # via uvicorn
-httptools==0.4.0
+httptools==0.5.0
     # via uvicorn
-idna==3.3
+idna==3.4
     # via
     #   anyio
     #   requests
@@ -75,7 +75,7 @@ importlib-resources==5.9.0
     # via jsonschema
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.15.0
+jsonschema==4.16.0
     # via feast (setup.py)
 locket==1.0.0
     # via partd
@@ -85,11 +85,11 @@ mmh3==3.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-mypy==0.971
+mypy==0.981
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy
-numpy==1.23.2
+numpy==1.23.3
     # via
     #   feast (setup.py)
     #   pandas
@@ -97,7 +97,7 @@ numpy==1.23.2
     #   pyarrow
 packaging==21.3
     # via dask
-pandas==1.4.4
+pandas==1.5.0
     # via
     #   feast (setup.py)
     #   pandavro
@@ -109,7 +109,7 @@ pkgutil-resolve-name==1.3.10
     # via jsonschema
 proto-plus==1.22.1
     # via feast (setup.py)
-protobuf==3.20.2
+protobuf==3.20.3
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -125,7 +125,7 @@ pyasn1==0.4.8
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
-pydantic==1.10.1
+pydantic==1.10.2
     # via
     #   fastapi
     #   feast (setup.py)
@@ -158,15 +158,15 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.3.0
     # via anyio
-sqlalchemy[mypy]==1.4.40
+sqlalchemy[mypy]==1.4.41
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a27
     # via sqlalchemy
-starlette==0.19.1
+starlette==0.20.4
     # via fastapi
 tabulate==0.8.10
     # via feast (setup.py)
-tenacity==8.0.1
+tenacity==8.1.0
     # via feast (setup.py)
 tensorflow-metadata==1.10.0
     # via feast (setup.py)
@@ -192,11 +192,11 @@ urllib3==1.26.12
     # via requests
 uvicorn[standard]==0.18.3
     # via feast (setup.py)
-uvloop==0.16.0
+uvloop==0.17.0
     # via uvicorn
 volatile==2.1.0
     # via bowler
-watchfiles==0.16.1
+watchfiles==0.17.0
     # via uvicorn
 websockets==10.3
     # via uvicorn
