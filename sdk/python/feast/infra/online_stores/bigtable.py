@@ -135,11 +135,8 @@ class BigtableOnlineStore(OnlineStore):
         bt_table = bt_instance.table(bt_table_name)
 
         # `columns_per_row` is used to calculate the number of rows we are allowed to
-        # mutate in one request. Since `MUTATIONS_PER_OP` is set much lower than the max
-        # allowed value, the calculation of `columns_per_row` doesn't need to be
-        # precise. Feature views can have 1 or 2 timestamp fields: event timestamp and
-        # created timestamp. We assume 2 conservatively.
-        columns_per_row = len(feature_view.features) + 2  # extra for 2 timestamps
+        # mutate in one request.
+        columns_per_row = len(feature_view.features) + 1  # extra for event timestamp
         rows_per_write = MUTATIONS_PER_OP // columns_per_row
 
         with futures.ThreadPoolExecutor(
@@ -197,13 +194,6 @@ class BigtableOnlineStore(OnlineStore):
                 self.feature_column_family,
                 b"event_ts",
                 utils.make_tzaware(timestamp).isoformat().encode(),
-            )
-            bt_row.set_cell(
-                self.feature_column_family,
-                b"created_ts",
-                utils.make_tzaware(created_ts).isoformat().encode()
-                if created_ts is not None
-                else b"",
             )
             rows.append(bt_row)
         bt_table.mutate_rows(rows)
