@@ -92,6 +92,9 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '16'
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@master
     - name: Setup Helm-docs
       run: |
         brew install norwoodj/tap/helm-docs
