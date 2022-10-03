@@ -154,6 +154,10 @@ class StreamFeatureView(FeatureView):
 
     def to_proto(self):
         meta = self.to_proto_meta()
+        if not self.created_timestamp:
+            meta.created_timestamp.FromDatetime(datetime.now())
+        if not self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(datetime.now())
         ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
