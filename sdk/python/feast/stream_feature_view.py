@@ -89,7 +89,7 @@ class StreamFeatureView(FeatureView):
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
-        udf_string: str = ""
+        udf_string: str = "",
     ):
         if not flags_helper.is_test():
             warnings.warn(
