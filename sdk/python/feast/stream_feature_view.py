@@ -71,6 +71,7 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
+    udf_string: Optional[str]
 
     def __init__(
         self,
@@ -88,6 +89,7 @@ class StreamFeatureView(FeatureView):
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
+        udf_string: Optional[str] = "",
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -114,6 +116,7 @@ class StreamFeatureView(FeatureView):
         self.mode = mode or ""
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
+        self.udf_string = udf_string
 
         super().__init__(
             name=name,
@@ -143,6 +146,7 @@ class StreamFeatureView(FeatureView):
             self.mode != other.mode
             or self.timestamp_field != other.timestamp_field
             or self.udf.__code__.co_code != other.udf.__code__.co_code
+            or self.udf_string != other.udf_string
             or self.aggregations != other.aggregations
         ):
             return False
@@ -171,6 +175,7 @@ class StreamFeatureView(FeatureView):
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
+                body_text=self.udf_string,
             )
         spec = StreamFeatureViewSpecProto(
             name=self.name,
@@ -209,6 +214,11 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
+        udf_string = (
+            sfv_proto.spec.user_defined_function.body_text
+            if sfv_proto.spec.HasField("user_defined_function")
+            else None
+        )
         stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -226,6 +236,7 @@ class StreamFeatureView(FeatureView):
             source=stream_source,
             mode=sfv_proto.spec.mode,
             udf=udf,
+            udf_string=udf_string,
             aggregations=[
                 Aggregation.from_proto(agg_proto)
                 for agg_proto in sfv_proto.spec.aggregations
@@ -315,6 +326,7 @@ def stream_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+        udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         stream_feature_view_obj = StreamFeatureView(
             name=user_function.__name__,
@@ -323,6 +335,7 @@ def stream_feature_view(
             source=source,
             schema=schema,
             udf=user_function,
+            udf_string=udf_string,
             description=description,
             tags=tags,
             online=online,
