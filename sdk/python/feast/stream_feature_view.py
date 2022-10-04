@@ -71,7 +71,7 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
-    udf_string: str
+    udf_string: Optional[str]
 
     def __init__(
         self,
