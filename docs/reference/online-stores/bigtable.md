@@ -46,7 +46,7 @@ Below is a matrix indicating which functionality is supported by the Bigtable on
 | readable by Java                                          | no       |
 | readable by Go                                            | no       |
 | support for entityless feature views                      | yes      |
-| support for concurrent writing to the same key            | no       |
+| support for concurrent writing to the same key            | yes      |
 | support for ttl (time to live) at retrieval               | no       |
 | support for deleting expired data                         | no       |
 | collocated by feature view                                | yes      |
