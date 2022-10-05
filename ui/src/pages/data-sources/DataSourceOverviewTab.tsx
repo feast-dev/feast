@@ -19,6 +19,7 @@ import BatchSourcePropertiesView from "./BatchSourcePropertiesView";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
+import { feast } from "../../protos";
 
 const DataSourceOverviewTab = () => {
   let { dataSourceName } = useParams();
@@ -57,7 +58,7 @@ const DataSourceOverviewTab = () => {
                             Source Type
                           </EuiDescriptionListTitle>
                           <EuiDescriptionListDescription>
-                            {data.type}
+                            {feast.core.DataSource.SourceType[data.type]}
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
@@ -77,12 +78,12 @@ const DataSourceOverviewTab = () => {
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={data.requestDataOptions.schema.map((obj) => {
+                        fields={data?.requestDataOptions?.schema!.map((obj) => {
                           return {
-                            fieldName: obj.name,
-                            valueType: obj.valueType,
+                            fieldName: obj.name!,
+                            valueType: obj.valueType!,
                           };
-                        })}
+                        })!}
                       />
                     </EuiPanel>
                   ) : (

@@ -1,18 +1,15 @@
 import { useQuery } from "react-query";
-import {
-  FeastRegistrySchema,
-  FeastRegistryType,
-} from "../parsers/feastRegistry";
 import mergedFVTypes, { genericFVType } from "../parsers/mergedFVTypes";
 import parseEntityRelationships, {
   EntityRelation,
 } from "../parsers/parseEntityRelationships";
 import parseIndirectRelationships from "../parsers/parseIndirectRelationships";
+import { feast } from "../protos";
 
 interface FeatureStoreAllData {
   project: string;
   description?: string;
-  objects: FeastRegistryType;
+  objects: feast.core.Registry;
   relationships: EntityRelation[];
   mergedFVMap: Record<string, genericFVType>;
   mergedFVList: genericFVType[];
@@ -29,10 +26,12 @@ const useLoadRegistry = (url: string) => {
         },
       })
         .then((res) => {
-          return res.json();
+          return res.arrayBuffer();
         })
-        .then<FeatureStoreAllData>((json) => {
-          const objects = FeastRegistrySchema.parse(json);
+        .then<FeatureStoreAllData>((arrayBuffer) => {
+
+          const objects = feast.core.Registry.decode(new Uint8Array(arrayBuffer));
+          // const objects = FeastRegistrySchema.parse(json);
 
           const { mergedFVMap, mergedFVList } = mergedFVTypes(objects);
 
@@ -53,7 +52,7 @@ const useLoadRegistry = (url: string) => {
           // });
 
           return {
-            project: objects.project,
+            project: objects.projectMetadata[0].project!,
             objects,
             mergedFVMap,
             mergedFVList,
