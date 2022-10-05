@@ -12,7 +12,6 @@ interface RequestDataSourceSchema {
 }
 
 const RequestDataSourceSchemaTable = ({ fields }: RequestDataSourceSchema) => {
-  console.log(fields);
   const columns = [
     {
       name: "Field",
@@ -21,6 +20,9 @@ const RequestDataSourceSchemaTable = ({ fields }: RequestDataSourceSchema) => {
     {
       name: "Value Type",
       field: "valueType",
+      render: (valueType: feast.types.ValueType.Enum) => {
+        return feast.types.ValueType.Enum[valueType];
+      },
     },
   ];
 

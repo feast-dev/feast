@@ -20,6 +20,7 @@ import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
 import { toDate } from "../../utils/timestamp";
+import { feast } from "../../protos";
 
 const EntityOverviewTab = () => {
   let { entityName } = useParams();
@@ -63,7 +64,7 @@ const EntityOverviewTab = () => {
 
                   <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.spec?.valueType}
+                    {feast.types.ValueType.Enum[data?.spec?.valueType!]}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>

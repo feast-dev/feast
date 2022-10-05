@@ -33,8 +33,8 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: string) => {
-        return valueType;
+      render: (valueType: feast.types.ValueType.Enum) => {
+        return feast.types.ValueType.Enum[valueType];
       },
     },
     {

@@ -31,6 +31,9 @@ const FeaturesList = ({
     {
       name: "Value Type",
       field: "valueType",
+      render: (valueType: feast.types.ValueType.Enum) => {
+        return feast.types.ValueType.Enum[valueType];
+      },
     },
   ];
 

@@ -13,11 +13,14 @@ const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDis
   const columns = [
     {
       name: "Column Name",
-      field: "name",
+      field: "name"
     },
     {
       name: "Type",
       field: "valueType",
+      render: (valueType: any) => {
+        return feast.types.ValueType.Enum[valueType];
+      },
     },
   ];
 

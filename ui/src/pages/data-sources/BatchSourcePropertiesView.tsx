@@ -27,7 +27,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   <EuiDescriptionListDescription>
                     {batchSource.dataSourceClassType.split(".").at(-1)}
                   </EuiDescriptionListDescription>
-                ) : batchSource.type ? (
+                ) : feast.core.DataSource.SourceType[batchSource.type!] ? (
                   <EuiDescriptionListDescription>
                     {batchSource.type}
                   </EuiDescriptionListDescription>
