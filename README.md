@@ -178,7 +178,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
   * [x] [Cassandra / AstraDB](https://docs.feast.dev/reference/online-stores/cassandra)
-  * [x] [Bigtable] (https://docs.feast.dev/reference/online-stores/bigtable)
+  * [x] [Bigtable](https://docs.feast.dev/reference/online-stores/bigtable)
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
   * [x] Streaming Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1UzEyETHUaGpn0ap4G82DHluiCj7zEbrQLkJJkKSv4e8/edit))
