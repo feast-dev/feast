@@ -1202,51 +1202,6 @@
     uuid "^8.3.0"
     vfile "^4.2.0"
 
-"@elastic/eui@^57.0.0":
-  version "57.0.0"
-  resolved "https://registry.yarnpkg.com/@elastic/eui/-/eui-57.0.0.tgz#86d43e27196f9997ef44d2a4c701d092ce99e132"
-  integrity sha512-VBgW6Pr0JJB3JhJ59MV8guxb2v4Gd3SJEmsMGKGyIY+KcvSMWbVEGa44Ep12VAJYynIA05Z3OXXc/ge5dMycpA==
-  dependencies:
-    "@types/chroma-js" "^2.0.0"
-    "@types/lodash" "^4.14.160"
-    "@types/numeral" "^0.0.28"
-    "@types/react-beautiful-dnd" "^13.1.2"
-    "@types/react-input-autosize" "^2.2.1"
-    "@types/react-virtualized-auto-sizer" "^1.0.1"
-    "@types/react-window" "^1.8.5"
-    "@types/refractor" "^3.0.0"
-    "@types/resize-observer-browser" "^0.1.5"
-    "@types/vfile-message" "^2.0.0"
-    chroma-js "^2.1.0"
-    classnames "^2.2.6"
-    lodash "^4.17.21"
-    mdast-util-to-hast "^10.0.0"
-    numeral "^2.0.6"
-    prop-types "^15.6.0"
-    react-beautiful-dnd "^13.1.0"
-    react-dropzone "^11.5.3"
-    react-element-to-jsx-string "^14.3.4"
-    react-focus-on "^3.5.4"
-    react-input-autosize "^3.0.0"
-    react-is "^17.0.2"
-    react-virtualized-auto-sizer "^1.0.6"
-    react-window "^1.8.6"
-    refractor "^3.5.0"
-    rehype-raw "^5.0.0"
-    rehype-react "^6.0.0"
-    rehype-stringify "^8.0.0"
-    remark-breaks "^2.0.2"
-    remark-emoji "^2.1.0"
-    remark-parse "^8.0.3"
-    remark-rehype "^8.0.0"
-    tabbable "^5.2.1"
-    text-diff "^1.0.1"
-    unified "^9.2.0"
-    unist-util-visit "^2.0.3"
-    url-parse "^1.5.10"
-    uuid "^8.3.0"
-    vfile "^4.2.0"
-
 "@emotion/babel-plugin@^11.7.1":
   version "11.9.2"
   resolved "https://registry.yarnpkg.com/@emotion/babel-plugin/-/babel-plugin-11.9.2.tgz#723b6d394c89fb2ef782229d92ba95a740576e95"
@@ -8403,13 +8358,14 @@ react-dev-utils@^12.0.1:
     strip-ansi "^6.0.1"
     text-table "^0.2.0"
 
-react-dom@^18.1.0:
-  version "18.1.0"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.1.0.tgz#7f6dd84b706408adde05e1df575b3a024d7e8a2f"
-  integrity sha512-fU1Txz7Budmvamp7bshe4Zi32d0ll7ect+ccxNu9FlObT605GOEB8BfO4tmRJ39R5Zj831VCpvQ05QPBW5yb+w==
+react-dom@^17.0.2:
+  version "17.0.2"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-17.0.2.tgz#ecffb6845e3ad8dbfcdc498f0d0a939736502c23"
+  integrity sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==
   dependencies:
     loose-envify "^1.1.0"
-    scheduler "^0.22.0"
+    object-assign "^4.1.1"
+    scheduler "^0.20.2"
 
 react-dropzone@^11.5.3:
   version "11.7.1"
@@ -8481,7 +8437,7 @@ react-is@^18.0.0:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.1.0.tgz#61aaed3096d30eacf2a2127118b5b41387d32a67"
   integrity sha512-Fl7FuabXsJnV5Q1qIOQwx/sagGF18kogb4gpfcG4gjLBWO0WDiiz1ko/ExayuxE7InyQkBLkxRFG5oxY6Uu3Kg==
 
-react-query@^3.34.12, react-query@^3.39.0:
+react-query@^3.34.12:
   version "3.39.0"
   resolved "https://registry.yarnpkg.com/react-query/-/react-query-3.39.0.tgz#0caca7b0da98e65008bbcd4df0d25618c2100050"
   integrity sha512-Od0IkSuS79WJOhzWBx/ys0x13+7wFqgnn64vBqqAAnZ9whocVhl/y1padD5uuZ6EIkXbFbInax0qvY7zGM0thA==
@@ -8526,7 +8482,7 @@ react-remove-scroll@^2.5.2:
     use-callback-ref "^1.3.0"
     use-sidecar "^1.1.2"
 
-react-router-dom@6, react-router-dom@^6.3.0:
+react-router-dom@6:
   version "6.3.0"
   resolved "https://registry.yarnpkg.com/react-router-dom/-/react-router-dom-6.3.0.tgz#a0216da813454e521905b5fa55e0e5176123f43d"
   integrity sha512-uaJj7LKytRxZNQV8+RbzJWnJ8K2nPsOOEuX7aQstlMZKQT0164C+X2w6bnkqU3sjtLvpd5ojrezAyfZ1+0sStw==
@@ -8541,7 +8497,7 @@ react-router@6.3.0:
   dependencies:
     history "^5.2.0"
 
-react-scripts@5.0.1, react-scripts@^5.0.0:
+react-scripts@^5.0.0:
   version "5.0.1"
   resolved "https://registry.yarnpkg.com/react-scripts/-/react-scripts-5.0.1.tgz#6285dbd65a8ba6e49ca8d651ce30645a6d980003"
   integrity sha512-8VAmEm/ZAwQzJ+GOMLbBsTdDKOpuZh7RPs0UymvBR2vRk4iZWCskjbFnxqjrzoIvlNNRZ3QJFx6/qDSi6zSnaQ==
@@ -8618,12 +8574,13 @@ react-window@^1.8.6:
     "@babel/runtime" "^7.0.0"
     memoize-one ">=3.1.1 <6"
 
-react@^18.1.0:
-  version "18.1.0"
-  resolved "https://registry.yarnpkg.com/react/-/react-18.1.0.tgz#6f8620382decb17fdc5cc223a115e2adbf104890"
-  integrity sha512-4oL8ivCz5ZEPyclFQXaNksK3adutVS8l2xzZU0cqEFrE9Sb7fC0EFK5uEk74wIreL1DERyjvsU915j1pcT2uEQ==
+react@^17.0.2:
+  version "17.0.2"
+  resolved "https://registry.yarnpkg.com/react/-/react-17.0.2.tgz#d0b5cc516d29eb3eee383f75b62864cfb6800037"
+  integrity sha512-gnhPt75i/dq/z3/6q/0asP78D0u592D5L1pd7M8P+dck6Fu/jJeL6iVVK23fptSUZj8Vjf++7wXA8UNclGQcbA==
   dependencies:
     loose-envify "^1.1.0"
+    object-assign "^4.1.1"
 
 readable-stream@^2.0.1:
   version "2.3.7"
@@ -9001,12 +8958,13 @@ saxes@^5.0.1:
   dependencies:
     xmlchars "^2.2.0"
 
-scheduler@^0.22.0:
-  version "0.22.0"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.22.0.tgz#83a5d63594edf074add9a7198b1bae76c3db01b8"
-  integrity sha512-6QAm1BgQI88NPYymgGQLCZgvep4FyePDWFpXVK+zNSUgHwlqpJy8VEh8Et0KxTACS4VWwMousBElAZOH9nkkoQ==
+scheduler@^0.20.2:
+  version "0.20.2"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.20.2.tgz#4baee39436e34aa93b4874bddcbf0fe8b8b50e91"
+  integrity sha512-2eWfGgAqqWFGqtdMmcL5zCMK1U8KlXv8SQFGglL3CEtd0aDVDWgeF/YoCmvln55m5zSk3J/20hTaSBeSObsQDQ==
   dependencies:
     loose-envify "^1.1.0"
+    object-assign "^4.1.1"
 
 schema-utils@2.7.0:
   version "2.7.0"

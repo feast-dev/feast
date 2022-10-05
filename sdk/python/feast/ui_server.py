@@ -30,14 +30,14 @@ def get_app(
     )
 
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_json = ""
+    registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
     def async_refresh():
         store.refresh_registry()
-        nonlocal registry_json
-        registry_json = get_registry_dump(store.config, store.repo_path)
+        nonlocal registry_proto
+        registry_proto = store.registry.proto()
         if shutting_down:
             return
         nonlocal active_timer
@@ -70,7 +70,10 @@ def get_app(
 
     @app.get("/registry")
     def read_registry():
-        return json.loads(registry_json)
+        return Response(
+            content=registry_proto.SerializeToString(),
+            media_type="application/octet-stream",
+        )
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])

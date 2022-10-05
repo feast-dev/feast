@@ -13,6 +13,7 @@ import EuiCustomLink from "../../components/EuiCustomLink";
 import React from "react";
 import { useParams } from "react-router-dom";
 import useLoadFeature from "./useLoadFeature";
+import { feast } from "../../protos";
 
 const FeatureOverviewTab = () => {
   let { projectName, FeatureViewName, FeatureName } = useParams();
@@ -48,7 +49,7 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {featureData?.valueType}
+                    {feast.types.ValueType.Enum[featureData?.valueType!]}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>

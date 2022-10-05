@@ -22,12 +22,12 @@ import {
   filterInputInterface,
   tagTokenGroupsType,
 } from "../../hooks/useSearchInputWithTags";
-import { FeastFeatureServiceType } from "../../parsers/feastFeatureServices";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureServiceIndexEmptyState from "./FeatureServiceIndexEmptyState";
 import TagSearch from "../../components/TagSearch";
 import { useFeatureServiceTagsAggregation } from "../../hooks/useTagsAggregation";
+import { feast } from "../../protos";
 
 const useLoadFeatureServices = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -45,11 +45,11 @@ const useLoadFeatureServices = () => {
 };
 
 const shouldIncludeFSsGivenTokenGroups = (
-  entry: FeastFeatureServiceType,
+  entry: feast.core.IFeatureService,
   tagTokenGroups: tagTokenGroupsType
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
-    const entryTagValue = entry.spec.tags ? entry.spec.tags[key] : undefined;
+    const entryTagValue = entry?.spec?.tags ? entry.spec.tags[key] : undefined;
 
     if (entryTagValue) {
       return values.every((value) => {
@@ -62,7 +62,7 @@ const shouldIncludeFSsGivenTokenGroups = (
 };
 
 const filterFn = (
-  data: FeastFeatureServiceType[],
+  data: feast.core.IFeatureService[],
   filterInput: filterInputInterface
 ) => {
   let filteredByTags = data;
@@ -79,7 +79,7 @@ const filterFn = (
   if (filterInput.searchTokens.length) {
     return filteredByTags.filter((entry) => {
       return filterInput.searchTokens.find((token) => {
-        return token.length >= 3 && entry.spec.name.indexOf(token) >= 0;
+        return token.length >= 3 && entry?.spec?.name?.indexOf(token)! >= 0;
       });
     });
   }
