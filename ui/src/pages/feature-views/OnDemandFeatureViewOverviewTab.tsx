@@ -41,10 +41,10 @@ const OnDemandFeatureViewOverviewTab = ({
   const relationshipQuery = useLoadRelationshipData();
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data
-      .filter(whereFSconsumesThisFv(data?.spec?.name!))
-      .map((fs) => {
-        return fs.target.name;
-      })
+        .filter(whereFSconsumesThisFv(data?.spec?.name!))
+        .map((fs) => {
+          return fs.target.name;
+        })
     : [];
 
   return (
@@ -57,7 +57,7 @@ const OnDemandFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <EuiCodeBlock language="py" fontSize="m" paddingSize="m">
-              {data?.spec?.userDefinedFunction?.body}
+              {data?.spec?.userDefinedFunction?.bodyText}
             </EuiCodeBlock>
           </EuiPanel>
         </EuiFlexItem>
@@ -89,7 +89,9 @@ const OnDemandFeatureViewOverviewTab = ({
             <EuiHorizontalRule margin="xs" />
             <EuiFlexGroup direction="column">
               {inputs.map(([key, inputGroup]) => {
-                if ((inputGroup as feast.core.IOnDemandSource).requestDataSource) {
+                if (
+                  (inputGroup as feast.core.IOnDemandSource).requestDataSource
+                ) {
                   return (
                     <EuiFlexItem key={key}>
                       <RequestDataDisplayPanel
@@ -99,7 +101,10 @@ const OnDemandFeatureViewOverviewTab = ({
                   );
                 }
 
-                if ((inputGroup as feast.core.IOnDemandSource).featureViewProjection) {
+                if (
+                  (inputGroup as feast.core.IOnDemandSource)
+                    .featureViewProjection
+                ) {
                   return (
                     <EuiFlexItem key={key}>
                       <FeatureViewProjectionDisplayPanel

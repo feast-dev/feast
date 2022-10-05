@@ -10,7 +10,6 @@ import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
-import FeatureViewSummaryStatisticsTab from "./FeatureViewSummaryStatisticsTab";
 
 import {
   useRegularFeatureViewCustomTabs,
@@ -73,10 +72,6 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
             <Route
               path="/"
               element={<RegularFeatureViewOverviewTab data={data} />}
-            />
-            <Route
-              path="/statistics"
-              element={<FeatureViewSummaryStatisticsTab />}
             />
             {TabRoutes}
           </Routes>

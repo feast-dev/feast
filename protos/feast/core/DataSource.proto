@@ -119,8 +119,6 @@ message DataSource {
     // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
     // entity columns
     string query = 2;
-
-    string dbtModelSerialized = 3;
   }
 
   // Defines options for DataSource that sources features from a Trino Query
