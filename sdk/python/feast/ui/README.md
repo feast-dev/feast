@@ -25,4 +25,17 @@ The `feast ui` command will generate the necessary `projects-list.json` file and
 **Note**: `yarn start` will not work on this because of the above dependency.
 
 ## Dev
-To test, do `yarn link` in ui/ and then come here to do `yarn link @feast-dev/feast`
+To test with a locally built Feast UI package, do:
+1. `yarn link` in ui/ 
+2. `yarn install` in ui/
+3. `yarn link` in ui/node_modules/react
+4. `yarn link` in ui/node_modules/react-dom
+5. and then come here to do:
+   ```bash
+   yarn link "@feast-dev/feast"
+   yarn link react
+   yarn link react-dom
+   yarn start
+   ```
+
+See also https://github.com/facebook/react/issues/14257.
