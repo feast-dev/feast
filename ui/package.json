@@ -48,11 +48,11 @@
     "use-query-params": "^1.2.3"
   },
   "scripts": {
-    "start": "npm run generate-protos && react-scripts start",
-    "build": "npm run generate-protos && react-scripts build",
-    "build:lib": "npm run generate-protos && rimraf ./dist && tsc && rollup -c",
-    "build:lib-dev": "npm run generate-protos && rimraf ./dist && tsc && rollup -c && yalc publish -f",
-    "test": "npm run generate-protos && react-scripts test",
+    "start": "yarn run generate-protos && react-scripts start",
+    "build": "yarn run generate-protos && react-scripts build",
+    "build:lib": "yarn run generate-protos && rimraf ./dist && tsc && rollup -c",
+    "build:lib-dev": "yarn run generate-protos && rimraf ./dist && tsc && rollup -c && yalc publish -f",
+    "test": "yarn run generate-protos && react-scripts test",
     "eject": "react-scripts eject",
     "generate-protos": "pbjs --no-encode -o src/protos.js -w commonjs -t static-module `find ../protos/feast/ -iname *.proto` && pbts -n protos -o src/protos.d.ts src/protos.js"
   },

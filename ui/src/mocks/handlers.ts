@@ -1,5 +1,8 @@
 import { rest } from "msw";
-import registry from "../../public/registry.json";
+
+import fs from 'fs';
+
+const registry = fs.readFileSync("./public/registry.db");
 
 const projectsListWithDefaultProject = rest.get(
   "/projects-list.json",
@@ -14,7 +17,7 @@ const projectsListWithDefaultProject = rest.get(
             description:
               "Project for credit scoring team and associated models.",
             id: "credit_score_project",
-            registryPath: "/registry.json",
+            registryPath: "/registry.db",
           },
         ],
       })
@@ -22,8 +25,8 @@ const projectsListWithDefaultProject = rest.get(
   }
 );
 
-const creditHistoryRegistry = rest.get("/registry.json", (req, res, ctx) => {
-  return res(ctx.status(200), ctx.json(registry));
+const creditHistoryRegistry = rest.get("/registry.db", (req, res, ctx) => {
+  return res(ctx.status(200), ctx.body(registry));
 });
 
 export { projectsListWithDefaultProject, creditHistoryRegistry };

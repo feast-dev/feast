@@ -15,7 +15,11 @@ import {
   creditHistoryRegistry,
 } from "./mocks/handlers";
 
-import registry from "../public/registry.json";
+import { feast } from "./protos";
+
+import fs from 'fs';
+
+const registry = feast.core.Registry.decode(fs.readFileSync("./public/registry.db"));
 
 // declare which API requests to mock
 const server = setupServer(
@@ -50,7 +54,7 @@ test("full app rendering", async () => {
   // Explore Panel Should Appear
   expect(screen.getByText(/Explore this Project/i)).toBeInTheDocument();
 
-  const projectNameRegExp = new RegExp(registry.project, "i");
+  const projectNameRegExp = new RegExp(registry.projectMetadata[0].project!, "i");
 
   // It should load the default project, which is credit_scoring_aws
   await waitFor(() => {
@@ -95,9 +99,10 @@ test("routes are reachable", async () => {
   }
 });
 
-
-const featureViewName = registry.featureViews[0].spec.name;
-const featureName = registry.featureViews[0].spec.features[0].name;
+const featureView: feast.core.IFeatureView = registry.featureViews[0];
+const featureViewName = featureView.spec?.name!;
+const feature: feast.core.IFeatureSpecV2 = featureView.spec?.features![0]!;
+const featureName = feature.name!;
 
 test("features are reachable", async () => {
   render(<FeastUISansProviders />);
