@@ -467,4 +467,4 @@ build-helm-docs:
 
 # Note: requires node and yarn to be installed
 build-ui:
-	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn install && npm run build --omit=dev
+	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
