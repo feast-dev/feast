@@ -112,10 +112,10 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
             format="parquet",
             existing_data_behavior="overwrite_or_ignore",
         )
-        self.files.append(dataset_path)
+        self.files.append(dataset_path.name)
         return FileSource(
             file_format=ParquetFormat(),
-            path=str(dataset_path),
+            path=dataset_path.name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
