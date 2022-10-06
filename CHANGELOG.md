@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.25.2](https://github.com/feast-dev/feast/compare/v0.25.1...v0.25.2) (2022-10-06)
+
+
+### Bug Fixes
+
+* Fix docker image for feature-server ([#3272](https://github.com/feast-dev/feast/issues/3272)) ([4ce366a](https://github.com/feast-dev/feast/commit/4ce366a6d3320b7f7862d69fc1d44fde46566a55))
+* Fix Feast UI release process to update the feast-ui package  ([#3267](https://github.com/feast-dev/feast/issues/3267)) ([d118fe4](https://github.com/feast-dev/feast/commit/d118fe43756e16fbe912a31ed121be7c8e15b9da))
+* Stream feature view meta undefined created_timestamp issue ([#3266](https://github.com/feast-dev/feast/issues/3266)) ([efbd4b0](https://github.com/feast-dev/feast/commit/efbd4b040deb96eef86eb45cd420bfe5b64ffa96))
+* Udf in stream feature view UI shows pickled data ([#3268](https://github.com/feast-dev/feast/issues/3268)) ([f4a83a7](https://github.com/feast-dev/feast/commit/f4a83a7762ac0105b75b20e19822304cce97181c))
+* Updated quickstart notebook to patch an incorrect reference to an outdated featureview name ([#3271](https://github.com/feast-dev/feast/issues/3271)) ([7fa4bbf](https://github.com/feast-dev/feast/commit/7fa4bbf2be98847fa2b795fe0d7dc77d5e45b2fb))
+
 ## [0.25.1](https://github.com/feast-dev/feast/compare/v0.25.0...v0.25.1) (2022-09-30)
 
 
