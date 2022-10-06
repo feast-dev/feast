@@ -105,7 +105,13 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
             prefix=f"{self.project_name}_{destination_name}"
         )
         table = pa.Table.from_pandas(df)
-        pq.write_to_dataset(table, dataset_path.name, compression="snappy")
+        pq.write_to_dataset(
+            table,
+            base_dir=dataset_path.name,
+            compression="snappy",
+            format="parquet",
+            existing_data_behavior="overwrite_or_ignore",
+        )
         self.files.append(dataset_path)
         return FileSource(
             file_format=ParquetFormat(),
