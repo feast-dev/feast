@@ -125,6 +125,6 @@ jobs:
       - name: Build yarn rollup
         working-directory: ./ui
         run: yarn build:lib
-      - name: Build yarn rollup
+      - name: Run yarn tests
         working-directory: ./ui
         run: yarn test --watchAll=false
