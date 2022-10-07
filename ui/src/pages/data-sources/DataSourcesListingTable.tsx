@@ -33,8 +33,8 @@ const DatasourcesListingTable = ({
       name: "Type",
       field: "type",
       sortable: true,
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: feast.core.DataSource.SourceType) => {
+        return feast.core.DataSource.SourceType[valueType];
       },
     },
   ];
