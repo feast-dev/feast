@@ -35,7 +35,8 @@ See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.c
 We register `RequestSource` inputs and the transform in `on_demand_feature_view`:
 
 ```python
-from feast import Field, RequestSource, on_demand_feature_view
+from feast import Field, RequestSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float64, Int64
 import pandas as pd
 
