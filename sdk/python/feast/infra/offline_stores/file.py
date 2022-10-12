@@ -662,14 +662,33 @@ def _drop_duplicates(
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
-    if created_timestamp_column:
-        df_to_join = df_to_join.sort_values(
-            by=created_timestamp_column, na_position="first"
-        )
+    column_order = df_to_join.columns
+
+    # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+    # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
+    try:
+        if created_timestamp_column:
+            df_to_join = df_to_join.sort_values(
+                by=created_timestamp_column, na_position="first"
+            )
+            df_to_join = df_to_join.persist()
+
+        df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
         df_to_join = df_to_join.persist()
 
-    df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
-    df_to_join = df_to_join.persist()
+    except ZeroDivisionError:
+        # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+        # try to divide by zero.
+        if created_timestamp_column:
+            df_to_join = df_to_join[column_order].sort_values(
+                by=created_timestamp_column, na_position="first", npartitions=1
+            )
+            df_to_join = df_to_join.persist()
+
+        df_to_join = df_to_join[column_order].sort_values(
+            by=timestamp_field, na_position="first", npartitions=1
+        )
+        df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
         all_join_keys + [entity_df_event_timestamp_col],
