@@ -44,7 +44,7 @@ VERSION = "0.25+affirm2"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.7.0"
+REQUIRES_PYTHON = ">=3.8.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
@@ -58,9 +58,15 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
+<<<<<<< HEAD
     "numpy<1.22,<3",
     "pandas<1.4.3,<2",
     "pandavro==1.5.*", # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+=======
+    "numpy>=1.22,<3",
+    "pandas>=1.4.3,<2",
+    "pandavro==1.5.*",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+>>>>>>> master
     "protobuf<5,>3",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<9",
@@ -75,7 +81,6 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "tensorflow-metadata>=1.0.0,<2.0.0",
     "dask>=2021.*,<2022.02.0",
     "bowler",  # Needed for automatic repo upgrades
 ]
@@ -85,6 +90,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.*,<3",
     "google-cloud-storage>=1.34.*,<3",
+    "google-cloud-bigtable>=2.11.*,<3",
 ]
 
 REDIS_REQUIRED = [
@@ -98,6 +104,10 @@ BYTEWAX_REQUIRED = ["bytewax==0.10.0", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",
+    # `pyOpenSSL==22.1.0` requires `cryptography<39,>=38.0.0`, which is incompatible
+    # with `snowflake-connector-python[pandas]==2.8.0`, which depends on
+    # `cryptography<37.0.0,>=3.1.0`.
+    "pyOpenSSL<22.1.0",
 ]
 
 SPARK_REQUIRED = [
@@ -112,11 +122,7 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = [
-    "mysqlclient",
-    "pymysql",
-    "types-PyMySQL"
-]
+MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
@@ -132,15 +138,13 @@ GO_REQUIRED = [
     "cffi==1.15.*,<2",
 ]
 
-AZURE_REQUIRED = (
-    [
-     "azure-storage-blob>=0.37.0",
-     "azure-identity>=1.6.1",
-     "SQLAlchemy>=1.4.19",
-     "pyodbc>=4.0.30",
-     "pymssql",
-    ]
-)
+AZURE_REQUIRED = [
+    "azure-storage-blob>=0.37.0",
+    "azure-identity>=1.6.1",
+    "SQLAlchemy>=1.4.19",
+    "pyodbc>=4.0.30",
+    "pymssql",
+]
 
 CI_REQUIRED = (
     [
@@ -153,7 +157,7 @@ CI_REQUIRED = (
         "grpcio-testing>=1.47.0",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
+        "moto<4",
         "mypy>=0.931",
         "mypy-protobuf==3.1",
         # "avro==1.10.0",

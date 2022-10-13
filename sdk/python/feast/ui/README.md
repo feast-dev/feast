@@ -22,4 +22,20 @@ It is used by the `feast ui` command to scaffold a local UI server. The feast py
 The `feast ui` command will generate the necessary `projects-list.json` file and initialize it for the UI to read.
 
 
-**Note**: yarn start will not work on this because of the above dependency.
+**Note**: `yarn start` will not work on this because of the above dependency.
+
+## Dev
+To test with a locally built Feast UI package, do:
+1. `yarn link` in ui/ 
+2. `yarn install` in ui/
+3. `yarn link` in ui/node_modules/react
+4. `yarn link` in ui/node_modules/react-dom
+5. and then come here to do:
+   ```bash
+   yarn link "@feast-dev/feast"
+   yarn link react
+   yarn link react-dom
+   yarn start
+   ```
+
+See also https://github.com/facebook/react/issues/14257.
