@@ -1300,17 +1300,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-<<<<<<< HEAD
-"@feast-dev/feast-ui@^0.25.1":
-  version "0.25.1"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.25.1.tgz#c15e04dfdd4c616fcce254fc22f1474ba4c7b3fe"
-  integrity sha512-WKJEF2KwzJ9ydoDHlkaYDboHEud+Q/ij8ShGs9CxygNFMSXR00cc63QDdXPLNG4dCE0afSjlgqLtV4R3EJTBfg==
-=======
 "@feast-dev/feast-ui@0.26.0":
   version "0.26.0"
   resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.26.0.tgz#502e61652024a2db9bc5b9b5fcfe3f3dce04161b"
   integrity sha512-7TBL9zetO/7Kx+FECIaDYG+fCr7P4R6esWyZW08xJTEFEvds5VXdXvUTWCibA/sKH24dlNXwpiLpyujwqwpQgA==
->>>>>>> master
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^55.0.1"

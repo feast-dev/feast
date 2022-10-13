@@ -35,11 +35,7 @@
     </modules>
 
     <properties>
-<<<<<<< HEAD
-        <revision>0.25.1</revision>
-=======
         <revision>0.26.0</revision>
->>>>>>> master
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

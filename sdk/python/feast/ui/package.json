@@ -6,11 +6,7 @@
     "@elastic/datemath": "^5.0.3",
     "@elastic/eui": "^55.0.1",
     "@emotion/react": "^11.9.0",
-<<<<<<< HEAD
-    "@feast-dev/feast-ui": "^0.25.1",
-=======
     "@feast-dev/feast-ui": "0.26.0",
->>>>>>> master
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.2.0",
     "@testing-library/user-event": "^13.5.0",
