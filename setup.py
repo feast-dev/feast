@@ -77,6 +77,9 @@ REQUIRED = [
     "dask>=2021.*,<2022.02.0",
     "bowler",  # Needed for automatic repo upgrades
 ]
+DATADOG_REQUIRED = [
+    "ddtrace==1.5.0",
+]
 
 GCP_REQUIRED = [
     "google-cloud-bigquery[pandas]>=2,<4",
@@ -196,6 +199,7 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
+    + DATADOG_REQUIRED
 )
 
 
@@ -533,6 +537,7 @@ setup(
         "go": GO_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
+        "datadog": DATADOG_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
