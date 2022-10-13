@@ -44,7 +44,7 @@ pip install feast
 ### 2. Create a feature repository
 ```commandline
 feast init my_feature_repo
-cd my_feature_repo
+cd my_feature_repo/feature_repo
 ```
 
 ### 3. Register your feature definitions and set up your feature store
