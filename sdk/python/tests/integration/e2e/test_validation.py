@@ -104,12 +104,12 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
         features=_features,
     )
 
-    ds = store.get_saved_dataset('my_other_dataset')
+    ds = store.get_saved_dataset("my_other_dataset")
     profiler_expectation_suite = ds.get_profile(
         profiler=profiler_with_unrealistic_expectations
     )
 
-    assert len(profiler_expectation_suite.expectation_suite['expectations']) == 3
+    assert len(profiler_expectation_suite.expectation_suite["expectations"]) == 3
 
     with pytest.raises(ValidationFailed) as exc_info:
         job.to_df(
