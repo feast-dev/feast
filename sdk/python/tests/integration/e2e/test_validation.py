@@ -367,6 +367,7 @@ def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
 
 @ge_profiler
 def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
+    # note: there are 4 expectations here and only 3 are returned from the profiler
     # need to create dataframe with corrupted data first
     df = pd.DataFrame()
     df["current_balance"] = [-100]
@@ -378,5 +379,7 @@ def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> Expectatio
 
     # this should pass
     other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
+    # this should fail
+    other_ds.expect_column_to_exist("missing random column")
 
     return other_ds.get_expectation_suite()
