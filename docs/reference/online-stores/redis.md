@@ -45,6 +45,23 @@ online_store:
 ```
 {% endcode %}
 
+Additionally, the redis online store also supports automatically deleting data via a TTL mechanism.
+The TTL is applied at the entity level, so feature values from any associated feature views for an entity are removed together. 
+This TTL can be set in the `feature_store.yaml`, using the `key_ttl_seconds` field in the online store. For example:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  key_ttl_seconds: 604800
+  connection_string: "localhost:6379"
+```
+{% endcode %}
+
+
 The full set of configuration options is available in [RedisOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.redis.RedisOnlineStoreConfig).
 
 ## Functionality Matrix
