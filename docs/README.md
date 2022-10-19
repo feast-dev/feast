@@ -14,7 +14,7 @@ Feast allows ML platform teams to:
 **Note:** Feast today primarily addresses _timestamped structured data_.
 {% endhint %}
 
-![](assets/feast-marchitecture.png)
+![](assets/feast_marchitecture.png)
 
 ## Who is Feast for?
 
