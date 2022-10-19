@@ -16,6 +16,7 @@ from typing import (
     cast,
 )
 
+import click
 import numpy as np
 import pandas as pd
 import pyarrow
@@ -247,7 +248,7 @@ class SnowflakeOfflineStore(OfflineStore):
         def query_generator() -> Iterator[str]:
 
             table_name = offline_utils.get_temp_entity_table_name()
-
+            click.echo("Uploading entity dataframe")
             _upload_entity_df(entity_df, snowflake_conn, config, table_name)
 
             expected_join_keys = offline_utils.get_expected_join_keys(
@@ -399,8 +400,8 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def _to_df_internal(self) -> pd.DataFrame:
+        click.echo("Generating features")
         with self._query_generator() as query:
-
             df = execute_snowflake_statement(
                 self.snowflake_conn, query
             ).fetch_pandas_all()
@@ -408,14 +409,13 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return df
 
     def _to_arrow_internal(self) -> pyarrow.Table:
+        click.echo("Generating features")
         with self._query_generator() as query:
-
             pa_table = execute_snowflake_statement(
                 self.snowflake_conn, query
             ).fetch_arrow_all()
 
             if pa_table:
-
                 return pa_table
             else:
                 empty_result = execute_snowflake_statement(self.snowflake_conn, query)

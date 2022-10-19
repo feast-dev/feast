@@ -1,8 +1,0 @@
-root: ./docs/
-
-structure:
-  readme: README.md
-
-redirects:
-  reference/telemetry: ./reference/usage.md
-  quickstart: ./getting-started/quickstart.md

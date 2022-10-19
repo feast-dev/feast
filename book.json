@@ -1,0 +1,11 @@
+{
+  "root": "/docs",
+  "redirects": {
+    "reference/telemetry": "./reference/usage.md",
+    "quickstart": "./getting-started/quickstart.md"
+  },
+  "structure": {
+    "readme": "README.md"
+  },
+  "plugins": ["include-html"]
+}

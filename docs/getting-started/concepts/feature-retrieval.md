@@ -293,16 +293,22 @@ features = store.get_online_features(
 
 This approach requires you to deploy a feature server (see [Python feature server](../../reference/feature-servers/python-feature-server)).
 
+The feature server is parsing the input JSON into a protocol buffer request. See the protobuf [here at ServingService.proto](https://github.com/feast-dev/feast/blob/master/protos/feast/serving/ServingService.proto#L80)
+
 ```python
 import requests
 import json
 
 online_request = {
-    "features": [
-        "driver_hourly_stats:conv_rate",
-    ],
-    "entities": {"driver_id": [1001, 1002]},
+   "feature_service": "model_v1",
+   "entities": {"driver_id": [1001, 1002]},
 }
+# online_request = {
+#     "features": [
+#         "driver_hourly_stats:conv_rate",
+#     ],
+#     "entities": {"driver_id": [1001, 1002]},
+# }
 r = requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))
 print(json.dumps(r.json(), indent=4, sort_keys=True))
 ```

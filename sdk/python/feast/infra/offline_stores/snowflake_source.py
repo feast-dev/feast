@@ -263,9 +263,12 @@ class SnowflakeSource(DataSource):
                                 result.dtypes[column].name
                             ]
                         else:
-                            raise NotImplementedError(
-                                "NaNs or Numbers larger than INT64 are not supported"
-                            )
+                            print(result)
+                            print(result.dtypes[column].name)
+                            row["snowflake_type"] = "NUMBER"
+                            # raise NotImplementedError(
+                            #     "NaNs or Numbers larger than INT64 are not supported"
+                            # )
                 else:
                     row["snowflake_type"] = "NUMBERwSCALE"
 
