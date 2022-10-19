@@ -34,6 +34,8 @@ The first step to setting up a deployment of Feast is to create a Git repository
 
 Out of the box, Feast serializes all of its state into a file-based registry. When running Feast in production, we recommend using the more scalable SQL-based registry that is backed by a database. Details are available [here](./scaling-feast.md#scaling-feast-registry).
 
+> **Note:** A SQL-based registry primarily works with a Python feature server. The Java feature server does not understand this registry type yet.
+
 ### 1.3 Setting up CI/CD to automatically update the registry
 
 We recommend typically setting up CI/CD to automatically run `feast plan` and `feast apply` when pull requests are opened / merged.
@@ -78,7 +80,7 @@ batch_engine:
           key: aws-secret-access-key
 ```
 
-### 2.2 Scheduled materialization
+### 2.2 Scheduled materialization with Airflow
 
 > See also [data ingestion](../getting-started/concepts/data-ingestion.md#batch-data-ingestion) for code snippets
 
@@ -91,33 +93,33 @@ However, the amount of work can quickly outgrow the resources of a single machin
 If you are using Airflow as a scheduler, Feast can be invoked through a  [PythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
 
 ```python
-import datetime
-from airflow.operators.python_operator import PythonOperator
+from airflow.decorators import task
 from feast import RepoConfig, FeatureStore
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
 from feast.repo_config import RegistryConfig
 
 # Define Python callable
-def materialize():
+@task()
+def materialize(data_interval_start=None, data_interval_end=None):
   repo_config = RepoConfig(
     registry=RegistryConfig(path="s3://[YOUR BUCKET]/registry.pb"),
     project="feast_demo_aws",
     provider="aws",
     offline_store="file",
-    online_store=DynamoDBOnlineStoreConfig(region="us-west-2")
+    online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
+    entity_key_serialization_version=2
   )
   store = FeatureStore(config=repo_config)
   # Option 1: materialize just one feature view
   # store.materialize_incremental(datetime.datetime.now(), feature_views=["my_fv_name"])
   # Option 2: materialize all feature views incrementally
-  store.materialize_incremental(datetime.datetime.now())
-
-# Use Airflow PythonOperator
-materialize_python = PythonOperator(
-  task_id='materialize_python',
-  python_callable=materialize,
-)
+  # store.materialize_incremental(datetime.datetime.now())
+  # Option 3: Let Airflow manage materialization state
+  # Add 1 hr overlap to account for late data
+  store.materialize(data_interval_start.subtract(hours=1), data_interval_end)
 ```
+
+You can see more in an example at [Feast Workshop - Module 1](https://github.com/feast-dev/feast-workshop/blob/main/module_1/README.md#step-7-scaling-up-and-scheduling-materialization).
 
 {% hint style="success" %}
 Important note: Airflow worker must have read and write permissions to the registry file on GCS / S3 since it pulls configuration and updates materialization history.
@@ -128,6 +130,8 @@ See more details at [data ingestion](../getting-started/concepts/data-ingestion.
 
 This supports pushing feature values into Feast to both online or offline stores.
 
+### 2.4 Scheduled batch transformations with Airflow + dbt
+Feast does not orchestrate batch transformation DAGs. For this, you can rely on tools like Airflow + dbt. See [Feast Workshop - Module 3](https://github.com/feast-dev/feast-workshop/blob/main/module_3/) for an example and some tips.
 
 ## 3. How to use Feast for model training
 
@@ -238,7 +242,7 @@ helm install feast-release feast-charts/feast-feature-server \
     --set feature_store_yaml_base64=$(base64 feature_store.yaml)    
 ```
 
-This will deploy a single service. The service must have read access to the registry file on cloud storage. It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
 
 ## 5. Using environment variables in your yaml configuration
 
@@ -272,7 +276,7 @@ In summary, the overall architecture in production may look like:
 
 * Feast SDK is being triggered by CI (eg, Github Actions). It applies the latest changes from the feature repo to the Feast database-backed registry 
 * Data ingestion
-  * **Batch data**: Airflow manages materialization jobs to ingest batch data from DWH to the online store periodically. When working with large datasets to materialize, we recommend using a batch materialization engine 
+  * **Batch data**: Airflow manages batch transformation jobs + materialization jobs to ingest batch data from DWH to the online store periodically. When working with large datasets to materialize, we recommend using a batch materialization engine 
     * If your offline and online workloads are in Snowflake, the Snowflake materialization engine is likely the best option.
     * If your offline and online workloads are not using Snowflake, but using Kubernetes is an option, the Bytewax materialization engine is likely the best option.
     * If none of these engines suite your needs, you may continue using the in-process engine, or write a custom engine (e.g with Spark or Ray).
