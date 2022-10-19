@@ -263,6 +263,11 @@ class SnowflakeSource(DataSource):
                                 result.dtypes[column].name
                             ]
                         else:
+                            if len(result) > 0:
+                                max_value = result.iloc[0][0]
+                                if max_value is not None and len(str(max_value)) <= 18:
+                                    row["snowflake_type"] = "NUMBER"
+                                    continue
                             raise NotImplementedError(
                                 "NaNs or Numbers larger than INT64 are not supported"
                             )
