@@ -15,8 +15,7 @@ offline_store:
   type: snowflake.offline
 ...
 batch_engine:
-  type: lambda
-  lambda_role: [your iam role]
-  materialization_image: [your materialization image which runs `feast materialize`]
+  type: spark.engine
+  partitions: [optional num partitions to use to write to online store]
 ```
 {% endcode %}
