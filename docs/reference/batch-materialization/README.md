@@ -9,4 +9,3 @@ Please see [Batch Materialization Engine](../../getting-started/architecture-and
 {% page-ref page="lambda.md" %}
 
 {% page-ref page="spark.md" %}
-
