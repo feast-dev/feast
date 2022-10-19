@@ -10,7 +10,10 @@ from feast.types import Bool, Int64, String
 zipcode = Entity(
     name="zipcode",
     description="A zipcode",
-    tags={"owner": "danny@tecton.ai", "team": "hack week",},
+    tags={
+        "owner": "danny@tecton.ai",
+        "team": "hack week",
+    },
 )
 
 zipcode_source = FileSource(
@@ -85,7 +88,10 @@ zipcode_money_features = FeatureView(
 dob_ssn = Entity(
     name="dob_ssn",
     description="Date of birth and last four digits of social security number",
-    tags={"owner": "tony@tecton.ai", "team": "hack week",},
+    tags={
+        "owner": "tony@tecton.ai",
+        "team": "hack week",
+    },
 )
 
 credit_history_source = FileSource(
@@ -123,14 +129,19 @@ credit_history = FeatureView(
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
-    name="transaction", schema=[Field(name="transaction_amt", dtype=Int64),],
+    name="transaction",
+    schema=[
+        Field(name="transaction_amt", dtype=Int64),
+    ],
 )
 
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
 @on_demand_feature_view(
     sources=[credit_history, input_request],
-    schema=[Field(name="transaction_gt_last_credit_card_due", dtype=Bool),],
+    schema=[
+        Field(name="transaction_gt_last_credit_card_due", dtype=Bool),
+    ],
 )
 def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -173,14 +184,18 @@ model_v3 = FeatureService(
 
 zipcode_model = FeatureService(
     name="zipcode_model",
-    features=[zipcode_features,],
+    features=[
+        zipcode_features,
+    ],
     tags={"owner": "amanda@tecton.ai", "stage": "dev"},
     description="Location model",
 )
 
 zipcode_model_v2 = FeatureService(
     name="zipcode_model_v2",
-    features=[zipcode_money_features,],
+    features=[
+        zipcode_money_features,
+    ],
     tags={"owner": "amanda@tecton.ai", "stage": "dev"},
     description="Location model",
 )
