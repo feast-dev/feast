@@ -12,6 +12,14 @@ Subpackages
 Submodules
 ----------
 
+feast.infra.online\_stores.bigtable module
+------------------------------------------
+
+.. automodule:: feast.infra.online_stores.bigtable
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.online\_stores.datastore module
 -------------------------------------------
 
