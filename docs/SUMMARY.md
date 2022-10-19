@@ -104,6 +104,8 @@
 * [Batch Materialization Engines](reference/batch-materialization/README.md)
   * [Bytewax](reference/batch-materialization/bytewax.md)
   * [Snowflake](reference/batch-materialization/snowflake.md)
+  * [AWS Lambda (alpha)](reference/batch-materialization/lambda.md)
+  * [Spark (contrib)](reference/batch-materialization/spark.md)
 * [Feature repository](reference/feature-repository/README.md)
   * [feature\_store.yaml](reference/feature-repository/feature-store-yaml.md)
   * [.feastignore](reference/feature-repository/feast-ignore.md)
