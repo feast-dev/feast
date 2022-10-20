@@ -134,6 +134,8 @@ def format_pandas_row(df: pd.DataFrame) -> str:
 
         return f"({','.join(formated_values)})"
 
+    # todo added here:
+    df = df.convert_dtypes()
     results = df.apply(_format_value, args=(pyarrow_schema,), axis=1).tolist()
     return ",".join(results)
 
@@ -141,7 +143,10 @@ def format_pandas_row(df: pd.DataFrame) -> str:
 def format_datetime(t: datetime) -> str:
     if t.tzinfo:
         t = t.astimezone(tz=utc)
-    return t.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+    # TODO change here
+    # return t.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return t.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def upload_pandas_dataframe_to_trino(
@@ -149,7 +154,9 @@ def upload_pandas_dataframe_to_trino(
     df: pd.DataFrame,
     table: str,
     connector_args: Optional[Dict[str, str]] = None,
-    batch_size: int = 1000000,  # 1 million rows by default
+    # batch_size: int = 1000000,  # 1 million rows by default
+    # TODO changed to smaller size to avoid QUERY_TEXT_TOO_LARGE
+    batch_size: int = 10000,
 ) -> None:
     connector_args = connector_args or {}
     connector_name = connector_args["type"]
@@ -175,6 +182,7 @@ def upload_pandas_dataframe_to_trino(
             f"The connector {connector_name} is not part of the connectors listed in the Trino website: https://trino.io/docs/current/connector.html"
         )
 
+    # schema = trino_table_schema_from_dataframe(df=df)
     client.execute_query(
         CREATE_SCHEMA_QUERY_TEMPLATE.format(
             table=table,
@@ -185,6 +193,11 @@ def upload_pandas_dataframe_to_trino(
 
     # Upload batchs of 1M rows at a time
     for batch_df in pandas_dataframe_fix_batches(df=df, batch_size=batch_size):
+        # xx = INSERT_ROWS_QUERY_TEMPLATE.format(
+        #     table=table,
+        #     columns=",".join(batch_df.columns),
+        #     values=format_pandas_row(batch_df),
+        # )
         client.execute_query(
             INSERT_ROWS_QUERY_TEMPLATE.format(
                 table=table,

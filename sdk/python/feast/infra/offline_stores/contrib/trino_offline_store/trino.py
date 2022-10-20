@@ -88,13 +88,16 @@ class TrinoRetrievalJob(RetrievalJob):
     def _to_df_internal(self) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
         results = self._client.execute_query(query_text=self._query)
-        self.pyarrow_schema = results.pyarrow_schema
+        # self.pyarrow_schema = results.pyarrow_schema
         return results.to_dataframe()
 
     def _to_arrow_internal(self) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
-        return pyarrow.Table.from_pandas(
-            self._to_df_internal(), schema=self.pyarrow_schema
+        # return pyarrow.Table.from_pandas(
+        #     self._to_df_internal(), schema=self.pyarrow_schema
+        # )
+        raise NotImplementedError(
+            "offline_write_batch not implemented for batch sources specified by path"
         )
 
     def to_sql(self) -> str:
@@ -180,6 +183,10 @@ class TrinoOfflineStore(OfflineStore):
         client = _get_trino_client(
             config=config, user=user, auth=auth, http_scheme=http_scheme
         )
+
+        # TODO add here
+        start_date = start_date.strftime("%Y-%m-%d %H:%M:%S")
+        end_date = end_date.strftime("%Y-%m-%d %H:%M:%S")
 
         query = f"""
             SELECT
@@ -317,6 +324,11 @@ class TrinoOfflineStore(OfflineStore):
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
         )
+
+        # TODO add here
+        start_date = start_date.strftime("%Y-%m-%d %H:%M:%S")
+        end_date = end_date.strftime("%Y-%m-%d %H:%M:%S")
+
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
@@ -411,9 +423,13 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp = pd.to_datetime(
                 entity_df_event_timestamp, utc=True
             )
+
+        aa = entity_df_event_timestamp.min()
         entity_df_event_timestamp_range = (
             entity_df_event_timestamp.min().to_pydatetime(),
             entity_df_event_timestamp.max().to_pydatetime(),
+            # pd.to_datetime(entity_df_event_timestamp.min(), unit='ms'),
+            # pd.to_datetime(entity_df_event_timestamp.max(), unit='ms'),
         )
     else:
         raise InvalidEntityType(type(entity_df))
@@ -477,7 +493,7 @@ WITH entity_dataframe AS (
         {% for feature in featureview.features %}
             {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
-    FROM {{ featureview.table_subquery }}
+    FROM ({{ featureview.table_subquery }})
     WHERE {{ featureview.timestamp_field }} <= from_iso8601_timestamp('{{ featureview.max_event_timestamp }}')
     {% if featureview.ttl == 0 %}{% else %}
     AND {{ featureview.timestamp_field }} >= from_iso8601_timestamp('{{ featureview.min_event_timestamp }}')

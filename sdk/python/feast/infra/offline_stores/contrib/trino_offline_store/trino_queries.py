@@ -96,6 +96,8 @@ class Query(object):
             start_time = datetime.datetime.utcnow()
 
             self._cursor.execute(operation=self.query_text)
+            print("Query:")
+            print(self.query_text)
             rows = self._cursor.fetchall()
 
             end_time = datetime.datetime.utcnow()

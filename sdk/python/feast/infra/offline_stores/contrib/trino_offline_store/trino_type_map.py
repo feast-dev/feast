@@ -37,7 +37,9 @@ def pa_to_trino_value_type(pa_type_as_str: str) -> str:
 
     if pa_type_as_str.startswith("timestamp"):
         if "tz=" in pa_type_as_str:
-            return trino_type.format("timestamp with time zone")
+            # Todo added here.
+            # return trino_type.format("timestamp with time zone")
+            return trino_type.format("timestamp")
         else:
             return trino_type.format("timestamp")
 
@@ -74,6 +76,8 @@ _TRINO_TO_PA_TYPE_MAP = {
     "double": pa.float64(),
     "binary": pa.binary(),
     "char": pa.string(),
+    # TODO added real
+    "real": pa.float64(),
 }
 
 
