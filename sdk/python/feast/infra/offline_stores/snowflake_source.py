@@ -265,8 +265,13 @@ class SnowflakeSource(DataSource):
                         else:
                             if len(result) > 0:
                                 max_value = result.iloc[0][0]
-                                if max_value is not None and len(str(max_value)) <= 18:
-                                    row["snowflake_type"] = "NUMBER"
+                                if max_value is not None and len(str(max_value)) <= 9:
+                                    row["snowflake_type"] = "NUMBER32"
+                                    continue
+                                elif (
+                                    max_value is not None and len(str(max_value)) <= 18
+                                ):
+                                    row["snowflake_type"] = "NUMBER64"
                                     continue
                             raise NotImplementedError(
                                 "NaNs or Numbers larger than INT64 are not supported"
