@@ -42,13 +42,14 @@ jobs:
           echo "Current version is ${CURRENT_VERSION}"
           echo "Next version is ${NEXT_VERSION}"
 
-  publish-web-ui-npm:
+  validate_version_bumps:
     if: github.repository == 'feast-dev/feast'
     needs: get_dry_release_versions
     runs-on: ubuntu-latest
     env:
       # This publish is working using an NPM automation token to bypass 2FA
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HELM_VERSION: v3.8.0
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
@@ -57,7 +58,7 @@ jobs:
         with:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'
-      - name: Bump file versions (temporarily for Web UI publish)
+      - name: Bump file versions
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
         working-directory: ./ui
@@ -65,15 +66,27 @@ jobs:
       - name: Build yarn rollup
         working-directory: ./ui
         run: yarn build:lib
-      - name: Publish UI package
-        working-directory: ./ui
-        run: npm publish
-        env:
-          # This publish is working using an NPM automation token to bypass 2FA
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Bundle UI in SDK
+        run: make build-ui
+      - name: Remove previous Helm
+        run: sudo rm -rf $(which helm)
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Setup Helm-docs
+        run: |
+          brew install norwoodj/tap/helm-docs
+      - name: Generate helm chart READMEs
+        run: make build-helm-docs
+      - name: Install Helm
+        run: ./infra/scripts/helm/install-helm.sh
+      - name: Validate Helm chart prior to publishing
+        run: ./infra/scripts/helm/validate-helm-chart-publish.sh
+      - name: Validate all version consistency
+        run: ./infra/scripts/helm/validate-helm-chart-versions.sh $NEXT_VERSION
 
   release:
     name: release
+    needs: validate_version_bumps
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
@@ -90,6 +103,12 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '16'
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+    - name: Setup Helm-docs
+      run: |
+        brew install norwoodj/tap/helm-docs
     - name: Release (Dry Run)
       if: github.event.inputs.dry_run == 'true'
       run: |

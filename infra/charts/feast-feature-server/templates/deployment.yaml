@@ -30,6 +30,9 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: FEATURE_STORE_YAML_BASE64
+              value: {{ .Values.feature_store_yaml_base64 }}
           command: ["feast", "serve", "-h", "0.0.0.0"]
           ports:
             - name: http
