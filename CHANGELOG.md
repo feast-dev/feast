@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.5](https://github.com/feast-dev/feast/compare/v0.22.4...v0.22.5) (2022-10-28)
+
+
+### Bug Fixes
+
+* Fix numpy version specification ([#3241](https://github.com/feast-dev/feast/issues/3241)) ([298bdde](https://github.com/feast-dev/feast/commit/298bdde51f7cbb9c74d30e387a09e450bd74332c))
+
 ## [0.22.4](https://github.com/feast-dev/feast/compare/v0.22.3...v0.22.4) (2022-08-15)
 
 
