@@ -283,6 +283,10 @@ build-sphinx: compile-protos-python
 build-templates:
 	python infra/scripts/compile-templates.py
 
+build-helm-docs:
+	cd ${ROOT_DIR}/infra/charts/feast; helm-docs
+	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
+
 # Web UI
 
 # Note: requires node and yarn to be installed

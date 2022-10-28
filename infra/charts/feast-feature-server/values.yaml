@@ -5,13 +5,18 @@
 replicaCount: 1
 
 image:
-  repository: ""
+  # image.repository -- Docker image for Feature Server repository
+  repository: feastdev/feature-server
   pullPolicy: IfNotPresent
-  tag: ""
+  # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
+  tag: 0.22.4
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml
+feature_store_yaml_base64: ""
 
 podAnnotations: {}
 
