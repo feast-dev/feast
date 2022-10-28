@@ -1,4 +1,5 @@
 import json
+import os
 import traceback
 import warnings
 
@@ -9,20 +10,22 @@ from fastapi.logger import logger
 from fastapi.params import Depends
 from google.protobuf.json_format import MessageToDict, Parse
 from pydantic import BaseModel
-import os
+
 import feast
 from feast import proto_json
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
 
-if os.environ.get('ENABLE_DATADOG') == 'true':
+if os.environ.get("ENABLE_DATADOG") == "true":
     try:
         print("datadog_enabled")
         from ddtrace import patch
+
         patch(fastapi=True)
     except ImportError as e:
-        from feast.errors import FeastExtrasDependencyImportError 
+        from feast.errors import FeastExtrasDependencyImportError
+
         raise FeastExtrasDependencyImportError("datadog", str(e))
 
 # TODO: deprecate this in favor of push features
