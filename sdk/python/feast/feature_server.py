@@ -28,6 +28,7 @@ if os.environ.get("ENABLE_DATADOG") == "true":
 
         raise FeastExtrasDependencyImportError("datadog", str(e))
 
+
 # TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):
     feature_view_name: str
