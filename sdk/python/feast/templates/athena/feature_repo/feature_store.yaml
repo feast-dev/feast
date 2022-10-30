@@ -6,8 +6,9 @@ online_store:
     path: online_store.db
 offline_store:
     type: athena
-    region: ap-northeast-2
-    database: sampledb
+    region: {AWS region}
+    database: {The database in the data catalog to be used by Athena}
     data_source: AwsDataCatalog
-    s3_staging_location: s3://sagemaker-yelo-test
+    s3_staging_location: s3://{S3 bucket to be used by Feast}
+    workgroup: {Workgroup for Athena}
 entity_key_serialization_version: 2
