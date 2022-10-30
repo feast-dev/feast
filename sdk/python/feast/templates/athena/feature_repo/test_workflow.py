@@ -1,10 +1,13 @@
 import os
-import pandas as pd
 from datetime import datetime, timedelta
-from feast import FeatureStore, Entity,Field, FeatureView
-from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import AthenaSource
-from feast.types import Float64, Int64
 
+import pandas as pd
+
+from feast import Entity, FeatureStore, FeatureView, Field
+from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
+    AthenaSource,
+)
+from feast.types import Float64, Int64
 
 
 def test_end_to_end():
@@ -43,9 +46,9 @@ def test_end_to_end():
             entities=[driver],
             ttl=timedelta(days=500),
             schema=[
-                Field(name="conv_rate",dtype=Float64),
-                Field(name="acc_rate",dtype=Float64),
-                Field(name="avg_daily_trips",dtype=Int64),
+                Field(name="conv_rate", dtype=Float64),
+                Field(name="acc_rate", dtype=Float64),
+                Field(name="avg_daily_trips", dtype=Int64),
             ],
             online=True,
             source=driver_hourly_stats,
