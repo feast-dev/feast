@@ -157,20 +157,22 @@ curl -X POST \
 
 The Python feature server also exposes an endpoint for [push sources](../../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
 
-The request definition for pushmode is a string parameter `to` where the options are: \["online", "offline", "online\_and\_offline"]. Note that timestamps need to be strings.
+The request definition for `PushMode` is a string parameter `to` where the options are: \[`"online"`, `"offline"`, `"online_and_offline"`].
+
+**Note:** timestamps need to be strings, and might need to be timezone aware (matching the schema of the offline store)
 
 ```
 curl -X POST "http://localhost:6566/push" -d '{
-    "push_source_name": "driver_hourly_stats_push_source",
+    "push_source_name": "driver_stats_push_source",
     "df": {
             "driver_id": [1001],
-            "event_timestamp": ["2022-05-13 10:59:42"],
+            "event_timestamp": ["2022-05-13 10:59:42+00:00"],
             "created": ["2022-05-13 10:59:42"],
             "conv_rate": [1.0],
             "acc_rate": [1.0],
             "avg_daily_trips": [1000]
     },
-    "to": "online_and_offline",
+    "to": "online_and_offline"
   }' | jq
 ```
 
@@ -179,7 +181,6 @@ or equivalently from Python:
 ```python
 import json
 import requests
-import pandas as pd
 from datetime import datetime
 
 event_dict = {
