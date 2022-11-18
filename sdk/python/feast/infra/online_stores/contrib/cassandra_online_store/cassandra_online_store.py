@@ -30,6 +30,7 @@ from cassandra.cluster import (
     ResultSet,
     Session,
 )
+from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
 from cassandra.query import PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
@@ -164,6 +165,14 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """
     Details on the load-balancing policy: it will be
     wrapped into an execution profile if present.
+    """
+
+    read_concurrency: Optional[StrictInt] = 100
+    """
+    Value of the `concurrency` parameter internally passed to Cassandra driver's
+    `execute_concurrent_with_args ` call.
+    See https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent .
+    Default: 100.
     """
 
 
@@ -358,32 +367,36 @@ class CassandraOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(
+        entity_key_bins = [
+            serialize_entity_key(
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
+            for entity_key in entity_keys
+        ]
 
-            with tracing_span(name="remote_call"):
-                feature_rows = self._read_rows_by_entity_key(
-                    config,
-                    project,
-                    table,
-                    entity_key_bin,
-                    columns=["feature_name", "value", "event_ts"],
-                )
+        with tracing_span(name="remote_call"):
+            feature_rows_sequence = self._read_rows_by_entity_keys(
+                config,
+                project,
+                table,
+                entity_key_bins,
+                columns=["feature_name", "value", "event_ts"],
+            )
 
+        for entity_key_bin, feature_rows in zip(entity_key_bins, feature_rows_sequence):
             res = {}
             res_ts = None
-            for feature_row in feature_rows:
-                if (
-                    requested_features is None
-                    or feature_row.feature_name in requested_features
-                ):
-                    val = ValueProto()
-                    val.ParseFromString(feature_row.value)
-                    res[feature_row.feature_name] = val
-                    res_ts = feature_row.event_ts
+            if feature_rows:
+                for feature_row in feature_rows:
+                    if (
+                        requested_features is None
+                        or feature_row.feature_name in requested_features
+                    ):
+                        val = ValueProto()
+                        val.ParseFromString(feature_row.value)
+                        res[feature_row.feature_name] = val
+                        res_ts = feature_row.event_ts
             if not res:
                 result.append((None, None))
             else:
@@ -479,12 +492,12 @@ class CassandraOnlineStore(OnlineStore):
                 params,
             )
 
-    def _read_rows_by_entity_key(
+    def _read_rows_by_entity_keys(
         self,
         config: RepoConfig,
         project: str,
         table: FeatureView,
-        entity_key_bin: str,
+        entity_key_bins: List[str],
         columns: Optional[List[str]] = None,
     ) -> ResultSet:
         """
@@ -500,7 +513,25 @@ class CassandraOnlineStore(OnlineStore):
             fqtable=fqtable,
             columns=projection_columns,
         )
-        return session.execute(select_cql, [entity_key_bin])
+        retrieval_results = execute_concurrent_with_args(
+            session,
+            select_cql,
+            ((entity_key_bin,) for entity_key_bin in entity_key_bins),
+            concurrency=config.online_store.read_concurrency,
+        )
+        # execute_concurrent_with_args return a sequence
+        # of (success, result_or_exception) pairs:
+        returned_sequence = []
+        for success, result_or_exception in retrieval_results:
+            if success:
+                returned_sequence.append(result_or_exception)
+            else:
+                # an exception
+                logger.error(
+                    f"Cassandra online store exception during concurrent fetching: {str(result_or_exception)}"
+                )
+                returned_sequence.append(None)
+        return returned_sequence
 
     def _drop_table(
         self,
