@@ -56,7 +56,7 @@ class FileSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the file source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp foe;d used for point in time
+            timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
 
         Examples:
