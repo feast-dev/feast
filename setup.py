@@ -74,7 +74,7 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "dask>=2021.*,<2022.02.0",
+    "dask>=2021.*",
     "bowler",  # Needed for automatic repo upgrades
 ]
 
