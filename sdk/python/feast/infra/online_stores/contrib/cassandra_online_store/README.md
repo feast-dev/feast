@@ -59,6 +59,7 @@ online_store:
         local_dc: 'datacenter1'                                             # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
     read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 
 #### Astra DB setup:
@@ -86,6 +87,7 @@ online_store:
         local_dc: 'eu-central-1'                                            # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
     read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 
 #### Protocol version and load-balancing settings
@@ -113,13 +115,13 @@ The former parameter is a region name for Astra DB instances (as can be verified
 See the source code of the online store integration for the allowed values of
 the latter parameter.
 
-#### Read concurrency value
+#### Read/write concurrency value
 
-You can optionally specify the value of `read_concurrency`, which will be
-passed to the Cassandra driver function handling
-[concurrent reading of multiple entities](https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent).
-Consult the reference for guidance on this parameter (which in most cases can be left to its default value of 100).
-This is relevant only for retrieval of several entities at once.
+You can optionally specify the value of `read_concurrency` and `write_concurrency`,
+which will be passed to the Cassandra driver function handling
+[concurrent reading/writing of multiple entities](https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent).
+Consult the reference for guidance on this parameter (which in most cases can be left to its default value of).
+This is relevant only for retrieval of several entities at once and during bulk writes, such as in the materialization step.
 
 ### More info
 
