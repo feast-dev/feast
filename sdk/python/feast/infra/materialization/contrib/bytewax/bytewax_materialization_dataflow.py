@@ -82,8 +82,5 @@ class BytewaxMaterializationDataflow:
         flow.flat_map(self.process_path)
         flow.capture()
         cluster_main(
-            flow,
-            ManualInputConfig(self.input_builder),
-            self.output_builder,
-            **proc_env(),
+            flow, ManualInputConfig(self.input_builder), self.output_builder, [], 0
         )
