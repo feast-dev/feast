@@ -16,4 +16,5 @@ online_store:
     load_balancing:
         local_dc: c_local_dc
         load_balancing_policy: c_load_balancing_policy
+    read_concurrency: 100
 entity_key_serialization_version: 2

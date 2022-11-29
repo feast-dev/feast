@@ -70,7 +70,7 @@ def collect_cassandra_store_settings():
             sys.exit(1)
         needs_port = click.confirm("Need to specify port?", default=False)
         if needs_port:
-            c_port = click.prompt("Port to use", default=9042, type=int)
+            c_port = click.prompt("    Port to use", default=9042, type=int)
         else:
             c_port = None
         use_auth = click.confirm(
@@ -78,8 +78,8 @@ def collect_cassandra_store_settings():
             default=False,
         )
         if use_auth:
-            c_username = click.prompt("Database username")
-            c_password = click.prompt("Database password", hide_input=True)
+            c_username = click.prompt("    Database username")
+            c_password = click.prompt("    Database password", hide_input=True)
         else:
             c_username = None
             c_password = None
@@ -95,7 +95,7 @@ def collect_cassandra_store_settings():
     )
     if specify_protocol_version:
         c_protocol_version = click.prompt(
-            "Protocol version",
+            "    Protocol version",
             default={"A": 4, "C": 5}.get(db_type, 5),
             type=int,
         )
@@ -105,11 +105,11 @@ def collect_cassandra_store_settings():
     specify_lb = click.confirm("Specify load-balancing?", default=False)
     if specify_lb:
         c_local_dc = click.prompt(
-            "Local datacenter (for load-balancing)",
+            "    Local datacenter (for load-balancing)",
             default="datacenter1" if db_type == "C" else None,
         )
         c_load_balancing_policy = click.prompt(
-            "Load-balancing policy",
+            "    Load-balancing policy",
             type=click.Choice(
                 [
                     "TokenAwarePolicy(DCAwareRoundRobinPolicy)",
@@ -122,6 +122,12 @@ def collect_cassandra_store_settings():
         c_local_dc = None
         c_load_balancing_policy = None
 
+    needs_concurrency = click.confirm("Specify read concurrency level?", default=False)
+    if needs_concurrency:
+        c_concurrency = click.prompt("    Concurrency level?", default=100, type=int)
+    else:
+        c_concurrency = None
+
     return {
         "c_secure_bundle_path": c_secure_bundle_path,
         "c_hosts": c_hosts,
@@ -132,6 +138,7 @@ def collect_cassandra_store_settings():
         "c_protocol_version": c_protocol_version,
         "c_local_dc": c_local_dc,
         "c_load_balancing_policy": c_load_balancing_policy,
+        "c_concurrency": c_concurrency,
     }
 
 
@@ -149,6 +156,7 @@ def apply_cassandra_store_settings(config_file, settings):
         'c_protocol_version'
         'c_local_dc'
         'c_load_balancing_policy'
+        'c_concurrency'
     """
     write_setting_or_remove(
         config_file,
@@ -216,6 +224,13 @@ def apply_cassandra_store_settings(config_file, settings):
         remove_lines_from_file(config_file, "load_balancing:")
         remove_lines_from_file(config_file, "local_dc:")
         remove_lines_from_file(config_file, "load_balancing_policy:")
+    #
+    write_setting_or_remove(
+        config_file,
+        settings["c_concurrency"],
+        "read_concurrency",
+        "100",
+    )
 
 
 def bootstrap():
