@@ -3,12 +3,10 @@ from typing import List
 import pyarrow as pa
 import pyarrow.parquet as pq
 import s3fs
-
 from bytewax.dataflow import Dataflow  # type: ignore
 from bytewax.execution import cluster_main
 from bytewax.inputs import ManualInputConfig, distribute
 from bytewax.outputs import ManualOutputConfig
-
 from tqdm import tqdm
 
 from feast import FeatureStore, FeatureView, RepoConfig
