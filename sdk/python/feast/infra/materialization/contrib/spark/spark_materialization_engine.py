@@ -190,6 +190,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
 
+@dataclass
 class _SparkSerializedArtifacts:
     """Class to assist with serializing unpicklable artifacts to the spark workers"""
 
