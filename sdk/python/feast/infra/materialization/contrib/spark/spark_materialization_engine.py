@@ -1,4 +1,3 @@
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union
@@ -191,12 +190,11 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
 
-@dataclass
 class _SparkSerializedArtifacts:
     """Class to assist with serializing unpicklable artifacts to the spark workers"""
 
     feature_view_proto: str
-    repo_config_file: str
+    repo_config_byte: str
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
@@ -205,12 +203,10 @@ class _SparkSerializedArtifacts:
         feature_view_proto = feature_view.to_proto().SerializeToString()
 
         # serialize repo_config to disk. Will be used to instantiate the online store
-        repo_config_file = tempfile.NamedTemporaryFile(delete=False).name
-        with open(repo_config_file, "wb") as f:
-            dill.dump(repo_config, f)
+        repo_config_byte = dill.dumps(repo_config)
 
         return _SparkSerializedArtifacts(
-            feature_view_proto=feature_view_proto, repo_config_file=repo_config_file
+            feature_view_proto=feature_view_proto, repo_config_byte=repo_config_byte
         )
 
     def unserialize(self):
@@ -220,8 +216,7 @@ class _SparkSerializedArtifacts:
         feature_view = FeatureView.from_proto(proto)
 
         # load
-        with open(self.repo_config_file, "rb") as f:
-            repo_config = dill.load(f)
+        repo_config = dill.load(self.repo_config_byte)
 
         provider = PassthroughProvider(repo_config)
         online_store = provider.online_store
