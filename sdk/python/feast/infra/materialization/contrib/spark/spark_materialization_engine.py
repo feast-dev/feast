@@ -217,7 +217,7 @@ class _SparkSerializedArtifacts:
         feature_view = FeatureView.from_proto(proto)
 
         # load
-        repo_config = dill.load(self.repo_config_byte)
+        repo_config = dill.loads(self.repo_config_byte)
 
         provider = PassthroughProvider(repo_config)
         online_store = provider.online_store
