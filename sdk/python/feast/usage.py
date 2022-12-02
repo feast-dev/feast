@@ -78,7 +78,7 @@ class FnCall:
 
 
 class Sampler:
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         raise NotImplementedError
 
     @property
@@ -87,7 +87,7 @@ class Sampler:
 
 
 class AlwaysSampler(Sampler):
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         return True
 
 
@@ -100,7 +100,7 @@ class RatioSampler(Sampler):
         self.total_counter = 0
         self.sampled_counter = 0
 
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         self.total_counter += 1
         if self.total_counter == self.MAX_COUNTER:
             self.total_counter = 1
@@ -176,7 +176,7 @@ _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=30)
+    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=2)
 
 
 def _produce_event(ctx: UsageContext):
@@ -204,10 +204,6 @@ def _produce_event(ctx: UsageContext):
         **_constant_attributes,
     }
     event.update(ctx.attributes)
-
-    if ctx.sampler and not ctx.sampler.should_record(event):
-        return
-
     _export(event)
 
 
@@ -262,6 +258,13 @@ def log_exceptions_and_usage(*args, **attrs):
     """
     sampler = attrs.pop("sampler", AlwaysSampler())
 
+    def clear_context(ctx):
+        _context.set(UsageContext())  # reset context to default values
+        # TODO: Figure out why without this, new contexts.get aren't reset
+        ctx.call_stack = []
+        ctx.completed_calls = []
+        ctx.attributes = {}
+
     def decorator(func):
         if not _is_enabled:
             return func
@@ -295,17 +298,25 @@ def log_exceptions_and_usage(*args, **attrs):
 
                 raise exc
             finally:
-                last_call = ctx.call_stack.pop(-1)
-                last_call.end = datetime.utcnow()
-                ctx.completed_calls.append(last_call)
                 ctx.sampler = (
                     sampler if sampler.priority > ctx.sampler.priority else ctx.sampler
                 )
 
-                if not ctx.call_stack:
-                    # we reached the root of the stack
-                    _context.set(UsageContext())  # reset context to default values
-                    _produce_event(ctx)
+                if not ctx.sampler.should_record():
+                    clear_context(ctx)
+                else:
+                    last_call = ctx.call_stack.pop(-1)
+                    last_call.end = datetime.utcnow()
+                    ctx.completed_calls.append(last_call)
+                    if not ctx.call_stack or (
+                        len(ctx.call_stack) == 1
+                        and "feast.feature_store.FeatureStore.serve"
+                        in str(ctx.call_stack[0].fn_name)
+                    ):
+                        # When running `feast serve`, the serve method never exits so it gets
+                        # stuck otherwise
+                        _produce_event(ctx)
+                        clear_context(ctx)
 
         return wrapper
 
