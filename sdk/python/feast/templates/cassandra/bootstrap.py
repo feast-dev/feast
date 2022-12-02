@@ -122,11 +122,17 @@ def collect_cassandra_store_settings():
         c_local_dc = None
         c_load_balancing_policy = None
 
-    needs_concurrency = click.confirm("Specify read concurrency level?", default=False)
-    if needs_concurrency:
-        c_concurrency = click.prompt("    Concurrency level?", default=100, type=int)
+    specify_concurrency = click.confirm("Specify concurrency levels?", default=False)
+    if specify_concurrency:
+        c_r_concurrency = click.prompt(
+            "    Read-concurrency level?", default=100, type=int
+        )
+        c_w_concurrency = click.prompt(
+            "    Write-concurrency level?", default=100, type=int
+        )
     else:
-        c_concurrency = None
+        c_r_concurrency = None
+        c_w_concurrency = None
 
     return {
         "c_secure_bundle_path": c_secure_bundle_path,
@@ -138,7 +144,8 @@ def collect_cassandra_store_settings():
         "c_protocol_version": c_protocol_version,
         "c_local_dc": c_local_dc,
         "c_load_balancing_policy": c_load_balancing_policy,
-        "c_concurrency": c_concurrency,
+        "c_r_concurrency": c_r_concurrency,
+        "c_w_concurrency": c_w_concurrency,
     }
 
 
@@ -156,7 +163,8 @@ def apply_cassandra_store_settings(config_file, settings):
         'c_protocol_version'
         'c_local_dc'
         'c_load_balancing_policy'
-        'c_concurrency'
+        'c_r_concurrency'
+        'c_w_concurrency'
     """
     write_setting_or_remove(
         config_file,
@@ -224,12 +232,18 @@ def apply_cassandra_store_settings(config_file, settings):
         remove_lines_from_file(config_file, "load_balancing:")
         remove_lines_from_file(config_file, "local_dc:")
         remove_lines_from_file(config_file, "load_balancing_policy:")
-    #
+
     write_setting_or_remove(
         config_file,
-        settings["c_concurrency"],
+        settings["c_r_concurrency"],
         "read_concurrency",
-        "100",
+        "c_r_concurrency",
+    )
+    write_setting_or_remove(
+        config_file,
+        settings["c_w_concurrency"],
+        "write_concurrency",
+        "c_w_concurrency",
     )
 
 
