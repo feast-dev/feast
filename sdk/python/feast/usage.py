@@ -180,6 +180,8 @@ def _export(event: typing.Dict[str, typing.Any]):
 
 
 def _produce_event(ctx: UsageContext):
+    if ctx.sampler and not ctx.sampler.should_record():
+        return
     # Cannot check for unittest because typeguard pulls in unittest
     is_test = flags_helper.is_test() or bool({"pytest"} & sys.modules.keys())
     event = {
@@ -301,22 +303,19 @@ def log_exceptions_and_usage(*args, **attrs):
                 ctx.sampler = (
                     sampler if sampler.priority > ctx.sampler.priority else ctx.sampler
                 )
+                last_call = ctx.call_stack.pop(-1)
+                last_call.end = datetime.utcnow()
+                ctx.completed_calls.append(last_call)
 
-                if not ctx.sampler.should_record():
+                if not ctx.call_stack or (
+                    len(ctx.call_stack) == 1
+                    and "feast.feature_store.FeatureStore.serve"
+                    in str(ctx.call_stack[0].fn_name)
+                ):
+                    # When running `feast serve`, the serve method never exits so it gets
+                    # stuck otherwise
+                    _produce_event(ctx)
                     clear_context(ctx)
-                else:
-                    last_call = ctx.call_stack.pop(-1)
-                    last_call.end = datetime.utcnow()
-                    ctx.completed_calls.append(last_call)
-                    if not ctx.call_stack or (
-                        len(ctx.call_stack) == 1
-                        and "feast.feature_store.FeatureStore.serve"
-                        in str(ctx.call_stack[0].fn_name)
-                    ):
-                        # When running `feast serve`, the serve method never exits so it gets
-                        # stuck otherwise
-                        _produce_event(ctx)
-                        clear_context(ctx)
 
         return wrapper
 
