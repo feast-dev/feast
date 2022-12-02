@@ -3,9 +3,10 @@ from typing import List
 import pyarrow as pa
 import pyarrow.parquet as pq
 import s3fs
-from bytewax import Dataflow, cluster_main  # type: ignore
-from bytewax.inputs import AdvanceTo, Emit, ManualInputConfig, distribute
-from bytewax.parse import proc_env
+from bytewax.dataflow import Dataflow  # type: ignore
+from bytewax.execution import cluster_main
+from bytewax.inputs import ManualInputConfig, distribute
+from bytewax.outputs import ManualOutputConfig
 from tqdm import tqdm
 
 from feast import FeatureStore, FeatureView, RepoConfig
@@ -37,20 +38,15 @@ class BytewaxMaterializationDataflow:
 
         return batches
 
-    def input_builder(self, worker_index, worker_count, resume_epoch):
+    def input_builder(self, worker_index, worker_count, _state):
         worker_paths = distribute(self.paths, worker_index, worker_count)
-        epoch = 0
         for path in worker_paths:
-            yield AdvanceTo(epoch)
-            yield Emit(path)
-            epoch += 1
+            yield None, path
 
         return
 
     def output_builder(self, worker_index, worker_count):
-        def output_fn(epoch_batch):
-            _, batch = epoch_batch
-
+        def output_fn(batch):
             table = pa.Table.from_batches([batch])
 
             if self.feature_view.batch_source.field_mapping is not None:
@@ -79,11 +75,7 @@ class BytewaxMaterializationDataflow:
 
     def _run_dataflow(self):
         flow = Dataflow()
+        flow.input("inp", ManualInputConfig(self.input_builder))
         flow.flat_map(self.process_path)
-        flow.capture()
-        cluster_main(
-            flow,
-            ManualInputConfig(self.input_builder),
-            self.output_builder,
-            **proc_env(),
-        )
+        flow.capture(ManualOutputConfig(self.output_builder))
+        cluster_main(flow, [], 0)
