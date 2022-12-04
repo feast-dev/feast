@@ -12,18 +12,19 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 
-from .batch_feature_view import BatchFeatureView
+from .core import Entity, Feature
+from .core.feature_views import (
+    BatchFeatureView,
+    FeatureView,
+    OnDemandFeatureView,
+    RequestFeatureView,
+    StreamFeatureView,
+)
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
-from .entity import Entity
-from .feature import Feature
 from .feature_service import FeatureService
 from .feature_store import FeatureStore
-from .feature_view import FeatureView
 from .field import Field
-from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
-from .request_feature_view import RequestFeatureView
-from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
 
 try:
