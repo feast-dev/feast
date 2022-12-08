@@ -147,6 +147,7 @@ def python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
+        "boolean": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
