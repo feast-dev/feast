@@ -1,6 +1,7 @@
 from typing import Optional
 
 import psycopg2
+import psycopg2.errors
 from psycopg2 import sql
 
 from feast.infra.registry.registry_store import RegistryStore
@@ -11,12 +12,13 @@ from feast.repo_config import RegistryConfig
 
 
 class PostgresRegistryConfig(RegistryConfig):
+    scheme: Optional[str]
     host: str
     port: int
     database: str
     db_schema: str
     user: str
-    password: str
+    password: Optional[str]
     sslmode: Optional[str]
     sslkey_path: Optional[str]
     sslcert_path: Optional[str]
@@ -26,12 +28,13 @@ class PostgresRegistryConfig(RegistryConfig):
 class PostgreSQLRegistryStore(RegistryStore):
     def __init__(self, config: PostgresRegistryConfig, registry_path: str):
         self.db_config = PostgreSQLConfig(
+            scheme=getattr(config, "scheme", "postgresql"),
             host=config.host,
-            port=config.port,
+            port=getattr(config, "port", 5432),
             database=config.database,
-            db_schema=config.db_schema,
+            db_schema=getattr(config, "db_schema", "public"),
             user=config.user,
-            password=config.password,
+            password=getattr(config, "password", None),
             sslmode=getattr(config, "sslmode", None),
             sslkey_path=getattr(config, "sslkey_path", None),
             sslcert_path=getattr(config, "sslcert_path", None),

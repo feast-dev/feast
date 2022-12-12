@@ -6,12 +6,13 @@ from feast.repo_config import FeastConfigBaseModel
 
 
 class PostgreSQLConfig(FeastConfigBaseModel):
+    scheme: Optional[StrictStr] = None
     host: StrictStr
     port: int = 5432
     database: StrictStr
     db_schema: StrictStr = "public"
     user: StrictStr
-    password: StrictStr
+    password: Optional[StrictStr] = None
     sslmode: Optional[StrictStr] = None
     sslkey_path: Optional[StrictStr] = None
     sslcert_path: Optional[StrictStr] = None

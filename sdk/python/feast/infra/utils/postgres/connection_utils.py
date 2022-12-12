@@ -1,4 +1,5 @@
-from typing import Dict
+import urllib.parse
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,17 +12,58 @@ from feast.type_map import arrow_to_pg_type
 
 
 def _get_conn(config: PostgreSQLConfig):
+    scheme: str = getattr(config, "scheme", "postgresql")
+    dbname: str = config.database
+    host: str = config.host
+    port: int = int(getattr(config, "port", 5432))
+    user: str = config.user
+    password: Optional[str] = getattr(config, "password", None)
+    sslmode: Optional[str] = getattr(config, "sslmode", None)
+    sslkey: Optional[str] = getattr(config, "sslkey_path", None)
+    sslcert: Optional[str] = getattr(config, "sslcert_path", None)
+    sslrootcert: Optional[str] = getattr(config, "sslrootcert_path", None)
+    options: str = f"-c search_path={config.db_schema or config.user}"
+
+    kwargs: Dict[str, Any] = {}
+
+    if scheme is not None and scheme not in ["postgres", "postgresql"]:
+        dsn: List[str] = [scheme, "://", user]
+        if password is not None:
+            dsn.extend([":", password])
+        dsn.extend(["@", host])
+        dsn.extend([":", str(port)])
+        dsn.extend(["/", dbname])
+
+        params: Dict[str, Any] = {"options": options}
+
+        for key in ["sslmode", "sslkey", "sslcert", "sslrootcert"]:
+            val: Optional[str] = locals()[key]
+            if val is not None:
+                params[key] = val
+
+        if params:
+            dsn.extend(["?", urllib.parse.urlencode(params)])
+
+        kwargs["dsn"] = "".join(dsn)
+
+    else:
+        kwargs.update(
+            {
+                "dbname": dbname,
+                "host": host,
+                "port": port,
+                "user": user,
+                "password": password,
+                "sslmode": sslmode,
+                "sslkey": sslkey,
+                "sslcert": sslcert,
+                "sslrootcert": sslrootcert,
+                "options": options,
+            }
+        )
+
     conn = psycopg2.connect(
-        dbname=config.database,
-        host=config.host,
-        port=int(config.port),
-        user=config.user,
-        password=config.password,
-        sslmode=config.sslmode,
-        sslkey=config.sslkey_path,
-        sslcert=config.sslcert_path,
-        sslrootcert=config.sslrootcert_path,
-        options="-c search_path={}".format(config.db_schema or config.user),
+        **kwargs,
     )
     return conn
 

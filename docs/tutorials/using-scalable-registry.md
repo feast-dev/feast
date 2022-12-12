@@ -32,6 +32,38 @@ registry:
 
 Specifically, the registry_type needs to be set to sql in the registry config block. On doing so, the path should refer to the [Database URL](https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls) for the database to be used, as expected by SQLAlchemy. No other additional commands are currently needed to configure this registry.
 
+Should you choose to use a DSN scheme other than `postgres` or `postgresql`
+(e.g. - `cockroachdb`), then you may need to install additional Python modules.
+`SQLAlchemy`, used by the registry, expects one to set the dialect for
+`CockroachDB` to detect the version properly, whereas `Psycopg` does not. In
+other words the need to set the scheme only impacts the `SQL` registry and not
+the `postgres` offline or online stores.
+
+```shell
+pip install sqlalchemy-cockroachdb
+```
+
+To accomplish this in a custom container image, you could do something akin to
+the following:
+
+```shell
+cat <<'EOF' >Dockerfile
+ARG DOCKER_IO_FEASTDEV_FEATURE_SERVER
+FROM docker.io/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER}
+ARG PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB
+RUN pip install -I --no-cache-dir \
+      sqlalchemy-cockroachdb==${PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB}
+EOF
+
+export DOCKER_IO_FEASTDEV_FEATURE_SERVER=0.27.0
+export PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB=1.4.4
+
+docker build \
+  --build-arg DOCKER_IO_FEASTDEV_FEATURE_SERVER \
+  --build-arg PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB \
+  --tag ${my_registry}/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER} .
+```
+
 There are some things to note about how the SQL registry works:
 - Once instantiated, the Registry ensures the tables needed to store data exist, and creates them if they do not.
 - Upon tearing down the feast project, the registry ensures that the tables are dropped from the database.

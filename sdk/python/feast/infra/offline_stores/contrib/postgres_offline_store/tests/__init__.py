@@ -1,1 +1,1 @@
-from .data_source import postgres_container  # noqa
+from .data_source import cockroach_container, postgres_container  # noqa

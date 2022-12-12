@@ -182,6 +182,7 @@ CI_REQUIRED = (
         "types-requests",
         "types-setuptools",
         "types-tabulate",
+        "sqlalchemy-cockroachdb==1.4.4",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED

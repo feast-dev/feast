@@ -7,6 +7,7 @@ from typing import Any
 import yaml
 from pydantic import (
     BaseModel,
+    Extra,
     Field,
     StrictInt,
     StrictStr,
@@ -85,7 +86,7 @@ class FeastBaseModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
-        extra = "allow"
+        extra = Extra.allow
 
 
 class FeastConfigBaseModel(BaseModel):
@@ -93,7 +94,7 @@ class FeastConfigBaseModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
-        extra = "forbid"
+        extra = Extra.allow
 
 
 class RegistryConfig(FeastBaseModel):

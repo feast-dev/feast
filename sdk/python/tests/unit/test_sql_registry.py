@@ -14,10 +14,13 @@
 import logging
 import os
 import sys
+import time
 from datetime import timedelta
+from tempfile import mkdtemp
 
 import pandas as pd
 import pytest
+from docker.models.containers import ExecResult
 from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -38,6 +41,10 @@ from tests.integration.feature_repos.universal.entities import driver
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
 POSTGRES_DB = "test"
+
+COCKROACH_USER = "test"
+COCKROACH_DATABASE = "test"
+HOST_PATH = mkdtemp()
 
 
 logger = logging.getLogger(__name__)
@@ -68,6 +75,73 @@ def pg_registry():
     registry_config = RegistryConfig(
         registry_type="sql",
         path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+    )
+
+    yield SqlRegistry(registry_config, None)
+
+    container.stop()
+
+
+@pytest.fixture(scope="session")
+def cockroachdb_registry():
+    container = (
+        DockerContainer("docker.io/cockroachdb/cockroach:latest")
+        .with_command("start-single-node")
+        .with_exposed_ports(26257)
+        .with_env("COCKROACH_USER", COCKROACH_USER)
+        .with_env("COCKROACH_DATABASE", COCKROACH_DATABASE)
+        .with_env("HOST_PATH", HOST_PATH)
+        .with_volume_mapping(host=HOST_PATH, container="/cockroach/certs", mode="rw")
+    )
+
+    container.start()
+
+    log_string_to_wait_for = "initialized new cluster"
+    waited = wait_for_logs(
+        container=container,
+        predicate=log_string_to_wait_for,
+        timeout=30,
+        interval=10,
+    )
+    logger.info("Waited for %s seconds until postgres container was up", waited)
+
+    result: ExecResult = ExecResult(exit_code=1, output=None)  # type: ignore
+    timeout: float = time.time() + 60  # type: ignore
+
+    while result.exit_code != 0 and not time.time() > timeout:
+        result = container.exec(
+            [
+                "grep",
+                "-q",
+                "init_finished",
+                "init_success",
+            ]
+        )
+        time.sleep(1)
+
+    container.exec(
+        [
+            "chown",
+            f"{os.getuid()}:{os.getgid()}",
+            f"certs/client.{COCKROACH_USER}.key",
+        ]
+    )
+
+    container_port = container.get_exposed_port(26257)
+    sslmode = "verify-ca"
+    sslkey_path = (
+        f'{container.env["HOST_PATH"]}/client.{container.env["COCKROACH_USER"]}.key'
+    )
+    sslcert_path = (
+        f'{container.env["HOST_PATH"]}/client.{container.env["COCKROACH_USER"]}.crt'
+    )
+    sslrootcert_path = f'{container.env["HOST_PATH"]}/ca.crt'
+
+    params = f"sslmode={sslmode}&sslkey={sslkey_path}&sslcert={sslcert_path}&sslrootcert={sslrootcert_path}"
+
+    registry_config = RegistryConfig(
+        registry_type="sql",
+        path=f"cockroachdb://{COCKROACH_USER}@127.0.0.1:{container_port}/{COCKROACH_DATABASE}?{params}",
     )
 
     yield SqlRegistry(registry_config, None)
@@ -128,6 +202,7 @@ def sqlite_registry():
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -195,6 +270,7 @@ def assert_project_uuid(project, project_uuid, sql_registry):
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -278,6 +354,7 @@ def test_apply_feature_view_success(sql_registry):
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -366,6 +443,7 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -493,6 +571,7 @@ def test_modify_feature_views_success(sql_registry):
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
@@ -562,6 +641,7 @@ def test_apply_data_source(sql_registry):
     [
         lazy_fixture("mysql_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("cockroachdb_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )

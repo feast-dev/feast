@@ -78,9 +78,9 @@ test-python-integration-local:
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
 		python -m pytest -n 8 --integration \
 			-k "not gcs_registry and \
- 				not s3_registry and \
- 				not test_lambda_materialization and \
- 				not test_snowflake" \
+				not s3_registry and \
+				not test_lambda_materialization and \
+				not test_snowflake" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
@@ -96,9 +96,9 @@ test-python-universal-spark:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
- 	python -m pytest -n 8 --integration \
- 	 	-k "not test_historical_retrieval_fails_on_validation and \
+	FEAST_USAGE=False IS_TEST=True \
+	python -m pytest -n 8 --integration \
+		-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
@@ -114,15 +114,15 @@ test-python-universal-spark:
 			not s3_registry and \
 			not test_universal_types and \
 			not test_snowflake" \
- 	 sdk/python/tests
+	sdk/python/tests
 
 test-python-universal-trino:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
- 	python -m pytest -n 8 --integration \
- 	 	-k "not test_historical_retrieval_fails_on_validation and \
+	FEAST_USAGE=False IS_TEST=True \
+	python -m pytest -n 8 --integration \
+		-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
@@ -137,8 +137,8 @@ test-python-universal-trino:
 			not gcs_registry and \
 			not s3_registry and \
 			not test_universal_types and \
-            not test_snowflake" \
- 	 sdk/python/tests
+			not test_snowflake" \
+	sdk/python/tests
 
 
 # Note: to use this, you'll need to have Microsoft ODBC 17 installed.
@@ -147,14 +147,14 @@ test-python-universal-mssql:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
+	FEAST_USAGE=False IS_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
- 	python -m pytest -n 8 --integration \
- 	 	-k "not gcs_registry and \
+	python -m pytest -n 8 --integration \
+		-k "not gcs_registry and \
 			not s3_registry and \
 			not test_lambda_materialization and \
 			not test_snowflake" \
- 	 sdk/python/tests
+	sdk/python/tests
 
 
 # To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
@@ -165,22 +165,22 @@ test-python-universal-athena:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
+	FEAST_USAGE=False IS_TEST=True \
 	ATHENA_REGION=ap-northeast-2 \
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
 	ATHENA_WORKGROUP=primary \
 	ATHENA_S3_BUCKET_NAME=feast-integration-tests \
- 	python -m pytest -n 8 --integration \
- 	 	-k "not test_go_feature_server and \
-		    not test_logged_features_validation and \
-		    not test_lambda and \
-		    not test_feature_logging and \
-		    not test_offline_write and \
-		    not test_push_offline and \
-		    not test_historical_retrieval_with_validation and \
-		    not test_historical_features_persisting and \
-		    not test_historical_retrieval_fails_on_validation and \
+	python -m pytest -n 8 --integration \
+		-k "not test_go_feature_server and \
+			not test_logged_features_validation and \
+			not test_lambda and \
+			not test_feature_logging and \
+			not test_offline_write and \
+			not test_push_offline and \
+			not test_historical_retrieval_with_validation and \
+			not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
 			not gcs_registry and \
 			not s3_registry and \
 			not test_snowflake" \
@@ -193,11 +193,11 @@ test-python-universal-postgres-offline:
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -n 8 --integration \
- 			-k "not test_historical_retrieval_with_validation and \
+			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
- 				not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
 				not test_lambda_materialization_consistency and \
@@ -205,8 +205,8 @@ test-python-universal-postgres-offline:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
- 				not test_universal_types" \
- 			sdk/python/tests
+				not test_universal_types" \
+		sdk/python/tests
 
 test-python-universal-postgres-online:
 	PYTHONPATH='.' \
@@ -215,9 +215,9 @@ test-python-universal-postgres-online:
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -n 8 --integration \
- 			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
+			-k "not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
 				not test_lambda_materialization_consistency and \
@@ -225,20 +225,63 @@ test-python-universal-postgres-online:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
- 				not test_universal_types and \
+				not test_universal_types and \
 				not test_snowflake" \
- 			sdk/python/tests
+		sdk/python/tests
 
- test-python-universal-mysql-online:
+test-python-universal-postgres-offline-cockroachdb:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration_cockroachdb \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -n 8 --integration \
+			-k "not test_historical_retrieval_with_validation and \
+				not test_historical_features_persisting and \
+				not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_universal_types" \
+		sdk/python/tests
+
+test-python-universal-postgres-online-cockroachdb:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration_cockroachdb \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -n 8 --integration \
+			-k "not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_universal_types and \
+				not test_snowflake" \
+		sdk/python/tests
+
+test-python-universal-mysql-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
 		FEAST_USAGE=False \
 		IS_TEST=True \
 		python -m pytest -n 8 --integration \
- 			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
+			-k "not test_universal_cli and \
+				not test_go_feature_server and \
+				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
 				not test_lambda_materialization_consistency and \
@@ -246,9 +289,9 @@ test-python-universal-postgres-online:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
- 				not test_universal_types and \
+				not test_universal_types and \
 				not test_snowflake" \
- 			sdk/python/tests
+		sdk/python/tests
 
 test-python-universal-cassandra:
 	PYTHONPATH='.' \
@@ -266,16 +309,16 @@ test-python-universal-cassandra-no-cloud-providers:
 	FEAST_USAGE=False \
 	IS_TEST=True \
 	python -m pytest -x --integration \
-	-k "not test_lambda_materialization_consistency   and \
-	  not test_apply_entity_integration               and \
-	  not test_apply_feature_view_integration         and \
-	  not test_apply_entity_integration               and \
-	  not test_apply_feature_view_integration         and \
-	  not test_apply_data_source_integration          and \
-	  not test_nullable_online_store				  and \
-	  not gcs_registry 								  and \
-	  not s3_registry								  and \
-	  not test_snowflake" \
+		-k "not test_lambda_materialization_consistency and \
+	  		not test_apply_entity_integration and \
+	  		not test_apply_feature_view_integration and \
+	  		not test_apply_entity_integration and \
+	  		not test_apply_feature_view_integration and \
+	  		not test_apply_data_source_integration and \
+	  		not test_nullable_online_store and \
+	  		not gcs_registry and \
+	  		not s3_registry and \
+	  		not test_snowflake" \
 	sdk/python/tests
 
 test-python-universal:
@@ -448,12 +491,12 @@ install-dependencies-proto-docs:
 	mv protoc3/include/* $$HOME/include
 
 compile-protos-docs:
-	rm -rf 	$(ROOT_DIR)/dist/grpc
+	rm -rf $(ROOT_DIR)/dist/grpc
 	mkdir -p dist/grpc;
 	cd ${ROOT_DIR}/protos && protoc --docs_out=../dist/grpc feast/*/*.proto
 
 build-sphinx: compile-protos-python
-	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
+	cd $(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
 
 build-templates:
 	python infra/scripts/compile-templates.py
