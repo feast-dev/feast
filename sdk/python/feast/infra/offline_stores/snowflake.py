@@ -23,7 +23,6 @@ import pandas as pd
 import pyarrow
 from pydantic import Field, StrictStr
 from pydantic.typing import Literal
-
 from pytz import utc
 
 from feast import OnDemandFeatureView
