@@ -23,7 +23,6 @@ import pandas as pd
 import pyarrow
 from pydantic import Field, StrictStr
 from pydantic.typing import Literal
-from pyspark.sql import DataFrame, SparkSession
 from pytz import utc
 
 from feast import OnDemandFeatureView
@@ -63,6 +62,13 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
+
+try:
+    from pyspark.sql import DataFrame, SparkSession
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("spark", str(e))
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
