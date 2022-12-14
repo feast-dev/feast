@@ -198,7 +198,7 @@ class MySQLOnlineStore(OnlineStore):
 
             if not index_exists:
                 cur.execute(
-                    f"ALTER TABLE {_table_id(project, table)} ADD INDEX IF NOT EXISTS {_table_id(project, table)}_ek (entity_key);"
+                    f"ALTER TABLE {_table_id(project, table)} ADD INDEX {_table_id(project, table)}_ek (entity_key);"
                 )
 
         for table in tables_to_delete:
