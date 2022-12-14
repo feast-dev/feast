@@ -66,7 +66,7 @@ except ImportError as e:
 
 try:
     from pyspark.sql import DataFrame, SparkSession
-except ImportError:
+except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("spark", str(e))
