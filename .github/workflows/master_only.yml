@@ -203,11 +203,6 @@ jobs:
       - name: Use gcloud CLI
         run: gcloud info
       - run: gcloud auth configure-docker --quiet
-      - name: Get m2 cache
-        run: |
-          infra/scripts/download-maven-cache.sh \
-          --archive-uri ${MAVEN_CACHE} \
-          --output-dir .
       - name: Build image
         run: |
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
