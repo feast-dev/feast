@@ -42,7 +42,6 @@ Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[p
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-          version: '290.0.1'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
     ```
 

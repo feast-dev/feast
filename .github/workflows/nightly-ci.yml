@@ -151,7 +151,6 @@ jobs:
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-          version: '290.0.1'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Use gcloud CLI
         run: gcloud info
