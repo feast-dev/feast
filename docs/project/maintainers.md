@@ -35,12 +35,15 @@ Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[p
 2. If your offline store/online store needs special setup, add it to the job similar to how gcp is setup.
 
     ```yaml
-    - name: Set up gcloud SDK
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
+          version: '290.0.1'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
     ```
 
 3. Add any environment variables that you need to your github [secrets](https://github.com/Azure/actions-workflow-samples/blob/master/assets/create-secrets-for-GitHub-workflows.md).
