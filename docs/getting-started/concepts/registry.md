@@ -16,7 +16,9 @@ a remote file registry, you need to create a GCS / S3 bucket that Feast can unde
 ```yaml
 project: feast_demo_aws
 provider: aws
-registry: s3://[YOUR BUCKET YOU CREATED]/registry.pb
+registry: 
+  path: s3://[YOUR BUCKET YOU CREATED]/registry.pb
+  cache_ttl_seconds: 60
 online_store: null
 offline_store:
   type: file
@@ -27,7 +29,9 @@ offline_store:
 ```yaml
 project: feast_demo_gcp
 provider: gcp
-registry: gs://[YOUR BUCKET YOU CREATED]/registry.pb
+registry:
+  path: gs://[YOUR BUCKET YOU CREATED]/registry.pb
+  cache_ttl_seconds: 60
 online_store: null
 offline_store:
   type: file
@@ -42,6 +46,18 @@ multiple feature views or time ranges concurrently).
 
 #### SQL Registry
 Alternatively, a [SQL Registry](../../tutorials/using-scalable-registry.md) can be used for a more scalable registry.
+
+The configuration roughly looks like:
+```yaml
+project: <your project name>
+provider: <provider name>
+online_store: redis
+offline_store: file
+registry:
+    registry_type: sql
+    path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
+    cache_ttl_seconds: 60
+```
 
 This supports any SQLAlchemy compatible database as a backend. The exact schema can be seen in [sql.py](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/registry/sql.py)
 
