@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 from typing import Any, Callable, List, Optional, Set, Union
 
 from sqlalchemy import (  # type: ignore
@@ -34,6 +35,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
@@ -183,6 +185,14 @@ class SqlRegistry(BaseRegistry):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
         metadata.create_all(self.engine)
+        self.cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+        self._refresh_lock = Lock()
+        self.cached_registry_proto_ttl = timedelta(
+            seconds=registry_config.cache_ttl_seconds
+            if registry_config.cache_ttl_seconds is not None
+            else 0
+        )
 
     def teardown(self):
         for t in {
@@ -200,12 +210,37 @@ class SqlRegistry(BaseRegistry):
                 conn.execute(stmt)
 
     def refresh(self, project: Optional[str]):
-        # This method is a no-op since we're always reading the latest values from the db.
-        pass
+        self.cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+
+    def _refresh_cached_registry_if_necessary(self):
+        with self._refresh_lock:
+            expired = (
+                self.cached_registry_proto is None
+                or self.cached_registry_proto_created is None
+            ) or (
+                self.cached_registry_proto_ttl.total_seconds()
+                > 0  # 0 ttl means infinity
+                and (
+                    datetime.utcnow()
+                    > (
+                        self.cached_registry_proto_created
+                        + self.cached_registry_proto_ttl
+                    )
+                )
+            )
+
+            if expired:
+                self.refresh()
 
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ):
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_stream_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=stream_feature_views,
             name=name,
@@ -220,6 +255,11 @@ class SqlRegistry(BaseRegistry):
     def list_stream_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_stream_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             stream_feature_views,
             project,
@@ -238,6 +278,11 @@ class SqlRegistry(BaseRegistry):
         )
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_entity(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=entities,
             name=name,
@@ -252,6 +297,11 @@ class SqlRegistry(BaseRegistry):
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=feature_views,
             name=name,
@@ -266,6 +316,11 @@ class SqlRegistry(BaseRegistry):
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_on_demand_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=on_demand_feature_views,
             name=name,
@@ -277,7 +332,14 @@ class SqlRegistry(BaseRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
-    def get_request_feature_view(self, name: str, project: str):
+    def get_request_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_request_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=request_feature_views,
             name=name,
@@ -292,6 +354,11 @@ class SqlRegistry(BaseRegistry):
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_feature_service(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=feature_services,
             name=name,
@@ -306,6 +373,11 @@ class SqlRegistry(BaseRegistry):
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_saved_dataset(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=saved_datasets,
             name=name,
@@ -320,6 +392,11 @@ class SqlRegistry(BaseRegistry):
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_validation_reference(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=validation_references,
             name=name,
@@ -332,6 +409,11 @@ class SqlRegistry(BaseRegistry):
         )
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_entities(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             entities, project, EntityProto, Entity, "entity_proto"
         )
@@ -367,6 +449,11 @@ class SqlRegistry(BaseRegistry):
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_data_source(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             table=data_sources,
             name=name,
@@ -381,6 +468,11 @@ class SqlRegistry(BaseRegistry):
     def list_data_sources(
         self, project: str, allow_cache: bool = False
     ) -> List[DataSource]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_data_sources(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             data_sources, project, DataSourceProto, DataSource, "data_source_proto"
         )
@@ -425,6 +517,11 @@ class SqlRegistry(BaseRegistry):
     def list_feature_services(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_feature_services(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             feature_services,
             project,
@@ -436,6 +533,11 @@ class SqlRegistry(BaseRegistry):
     def list_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             feature_views, project, FeatureViewProto, FeatureView, "feature_view_proto"
         )
@@ -443,6 +545,11 @@ class SqlRegistry(BaseRegistry):
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_saved_datasets(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             saved_datasets,
             project,
@@ -454,6 +561,11 @@ class SqlRegistry(BaseRegistry):
     def list_request_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_request_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             request_feature_views,
             project,
@@ -465,6 +577,11 @@ class SqlRegistry(BaseRegistry):
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_on_demand_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             on_demand_feature_views,
             project,
@@ -476,6 +593,11 @@ class SqlRegistry(BaseRegistry):
     def list_project_metadata(
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_project_metadata(
+                self.cached_registry_proto, project
+            )
         with self.engine.connect() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.project_id == project,
