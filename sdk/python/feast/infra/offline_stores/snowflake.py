@@ -63,13 +63,6 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
 
-try:
-    from pyspark.sql import DataFrame, SparkSession
-except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-
-    raise FeastExtrasDependencyImportError("spark", str(e))
-
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -472,6 +465,13 @@ class SnowflakeRetrievalJob(RetrievalJob):
         Returns:
             spark_df: A pyspark dataframe.
         """
+
+        try:
+            from pyspark.sql import DataFrame, SparkSession
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("spark", str(e))
 
         if isinstance(spark_session, SparkSession):
             with self._query_generator() as query:
