@@ -207,14 +207,14 @@ class SqlRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ):
         return self._get_object(
-            stream_feature_views,
-            name,
-            project,
-            StreamFeatureViewProto,
-            StreamFeatureView,
-            "feature_view_name",
-            "feature_view_proto",
-            FeatureViewNotFoundException,
+            table=stream_feature_views,
+            name=name,
+            project=project,
+            proto_class=StreamFeatureViewProto,
+            python_class=StreamFeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
         )
 
     def list_stream_feature_views(
@@ -230,101 +230,105 @@ class SqlRegistry(BaseRegistry):
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         return self._apply_object(
-            entities, project, "entity_name", entity, "entity_proto"
+            table=entities,
+            project=project,
+            id_field_name="entity_name",
+            obj=entity,
+            proto_field_name="entity_proto",
         )
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         return self._get_object(
-            entities,
-            name,
-            project,
-            EntityProto,
-            Entity,
-            "entity_name",
-            "entity_proto",
-            EntityNotFoundException,
+            table=entities,
+            name=name,
+            project=project,
+            proto_class=EntityProto,
+            python_class=Entity,
+            id_field_name="entity_name",
+            proto_field_name="entity_proto",
+            not_found_exception=EntityNotFoundException,
         )
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
         return self._get_object(
-            feature_views,
-            name,
-            project,
-            FeatureViewProto,
-            FeatureView,
-            "feature_view_name",
-            "feature_view_proto",
-            FeatureViewNotFoundException,
+            table=feature_views,
+            name=name,
+            project=project,
+            proto_class=FeatureViewProto,
+            python_class=FeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
         )
 
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
         return self._get_object(
-            on_demand_feature_views,
-            name,
-            project,
-            OnDemandFeatureViewProto,
-            OnDemandFeatureView,
-            "feature_view_name",
-            "feature_view_proto",
-            FeatureViewNotFoundException,
+            table=on_demand_feature_views,
+            name=name,
+            project=project,
+            proto_class=OnDemandFeatureViewProto,
+            python_class=OnDemandFeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
         )
 
     def get_request_feature_view(self, name: str, project: str):
         return self._get_object(
-            request_feature_views,
-            name,
-            project,
-            RequestFeatureViewProto,
-            RequestFeatureView,
-            "feature_view_name",
-            "feature_view_proto",
-            FeatureViewNotFoundException,
+            table=request_feature_views,
+            name=name,
+            project=project,
+            proto_class=RequestFeatureViewProto,
+            python_class=RequestFeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
         )
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
         return self._get_object(
-            feature_services,
-            name,
-            project,
-            FeatureServiceProto,
-            FeatureService,
-            "feature_service_name",
-            "feature_service_proto",
-            FeatureServiceNotFoundException,
+            table=feature_services,
+            name=name,
+            project=project,
+            proto_class=FeatureServiceProto,
+            python_class=FeatureService,
+            id_field_name="feature_service_name",
+            proto_field_name="feature_service_proto",
+            not_found_exception=FeatureServiceNotFoundException,
         )
 
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
         return self._get_object(
-            saved_datasets,
-            name,
-            project,
-            SavedDatasetProto,
-            SavedDataset,
-            "saved_dataset_name",
-            "saved_dataset_proto",
-            SavedDatasetNotFound,
+            table=saved_datasets,
+            name=name,
+            project=project,
+            proto_class=SavedDatasetProto,
+            python_class=SavedDataset,
+            id_field_name="saved_dataset_name",
+            proto_field_name="saved_dataset_proto",
+            not_found_exception=SavedDatasetNotFound,
         )
 
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
         return self._get_object(
-            validation_references,
-            name,
-            project,
-            ValidationReferenceProto,
-            ValidationReference,
-            "validation_reference_name",
-            "validation_reference_proto",
-            ValidationReferenceNotFound,
+            table=validation_references,
+            name=name,
+            project=project,
+            proto_class=ValidationReferenceProto,
+            python_class=ValidationReference,
+            id_field_name="validation_reference_name",
+            proto_field_name="validation_reference_proto",
+            not_found_exception=ValidationReferenceNotFound,
         )
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
@@ -364,14 +368,14 @@ class SqlRegistry(BaseRegistry):
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
         return self._get_object(
-            data_sources,
-            name,
-            project,
-            DataSourceProto,
-            DataSource,
-            "data_source_name",
-            "data_source_proto",
-            DataSourceObjectNotFoundException,
+            table=data_sources,
+            name=name,
+            project=project,
+            proto_class=DataSourceProto,
+            python_class=DataSource,
+            id_field_name="data_source_name",
+            proto_field_name="data_source_proto",
+            not_found_exception=DataSourceObjectNotFoundException,
         )
 
     def list_data_sources(
@@ -556,22 +560,28 @@ class SqlRegistry(BaseRegistry):
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         self._apply_object(
-            managed_infra, project, "infra_name", infra, "infra_proto", name="infra_obj"
+            table=managed_infra,
+            project=project,
+            id_field_name="infra_name",
+            obj=infra,
+            proto_field_name="infra_proto",
+            name="infra_obj",
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         infra_object = self._get_object(
-            managed_infra,
-            "infra_obj",
-            project,
-            InfraProto,
-            Infra,
-            "infra_name",
-            "infra_proto",
-            None,
+            table=managed_infra,
+            name="infra_obj",
+            project=project,
+            proto_class=InfraProto,
+            python_class=Infra,
+            id_field_name="infra_name",
+            proto_field_name="infra_proto",
+            not_found_exception=None,
         )
-        infra_object = infra_object or InfraProto()
-        return Infra.from_proto(infra_object)
+        if infra_object:
+            return infra_object
+        return Infra()
 
     def apply_user_metadata(
         self,
