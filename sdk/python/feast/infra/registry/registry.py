@@ -30,12 +30,9 @@ from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
     DataSourceNotFoundException,
-    DataSourceObjectNotFoundException,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
-    OnDemandFeatureViewNotFoundException,
-    SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
