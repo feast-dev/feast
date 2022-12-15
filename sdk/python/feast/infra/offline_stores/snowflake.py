@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import reduce
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ContextManager,
@@ -62,6 +63,9 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
