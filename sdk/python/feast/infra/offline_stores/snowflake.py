@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import contextlib
 import os
 import uuid
@@ -461,7 +459,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def to_spark_df(self, spark_session: SparkSession) -> DataFrame:
+    def to_spark_df(self, spark_session: "SparkSession") -> "DataFrame":
         """
         Method to convert snowflake query results to pyspark data frame.
 
