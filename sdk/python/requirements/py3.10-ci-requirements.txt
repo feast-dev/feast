@@ -220,6 +220,8 @@ fsspec==2022.1.0
     #   s3fs
 gcsfs==2022.1.0
     # via feast (setup.py)
+geojson==2.5.0
+    # via rockset
 geomet==0.2.1.post1
     # via cassandra-driver
 google-api-core[grpc]==2.11.0
@@ -627,6 +629,7 @@ python-dateutil==2.8.2
     #   kubernetes
     #   moto
     #   pandas
+    #   rockset
 python-dotenv==0.21.1
     # via uvicorn
 pytz==2022.7.1
@@ -679,6 +682,8 @@ responses==0.22.0
     # via moto
 rfc3986[idna2008]==1.5.0
     # via httpx
+rockset==1.0.3
+    # via feast (setup.py)
 rsa==4.9
     # via google-auth
 ruamel-yaml==0.17.17
@@ -831,6 +836,7 @@ urllib3==1.26.14
     #   minio
     #   requests
     #   responses
+    #   rockset
     #   snowflake-connector-python
 uvicorn[standard]==0.20.0
     # via feast (setup.py)
