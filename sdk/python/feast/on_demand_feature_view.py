@@ -11,4 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from feast.core.feature_views import OnDemandFeatureView, on_demand_feature_view  # noqa: F401
+from feast.core.feature_views import (  # noqa: F401
+    OnDemandFeatureView,
+    on_demand_feature_view,
+)
