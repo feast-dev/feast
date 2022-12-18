@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from feast.core.feature_views import FeatureView
-from feast.core.feature_views.generic_fv import (
+from feast.core.feature_views import FeatureView  # noqa: F401
+from feast.core.feature_views.generic_fv import (  # noqa: F401
     DUMMY_ENTITY,
     DUMMY_ENTITY_ID,
     DUMMY_ENTITY_NAME,
