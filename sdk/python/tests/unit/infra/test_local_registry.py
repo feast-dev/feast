@@ -21,12 +21,12 @@ from pytest_lazyfixture import lazy_fixture
 from feast import FileSource
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
-from feast.data_source import KafkaSource
+from feast.data_source import KafkaSource, RequestSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.registry.registry import Registry
-from feast.on_demand_feature_view import RequestSource, on_demand_feature_view
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
