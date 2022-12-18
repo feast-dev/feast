@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import reduce
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ContextManager,
@@ -63,12 +64,8 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
 
-try:
+if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
-except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-
-    raise FeastExtrasDependencyImportError("spark", str(e))
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -462,7 +459,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def to_spark_df(self, spark_session: SparkSession) -> DataFrame:
+    def to_spark_df(self, spark_session: "SparkSession") -> "DataFrame":
         """
         Method to convert snowflake query results to pyspark data frame.
 
@@ -472,6 +469,13 @@ class SnowflakeRetrievalJob(RetrievalJob):
         Returns:
             spark_df: A pyspark dataframe.
         """
+
+        try:
+            from pyspark.sql import DataFrame, SparkSession
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("spark", str(e))
 
         if isinstance(spark_session, SparkSession):
             with self._query_generator() as query:
