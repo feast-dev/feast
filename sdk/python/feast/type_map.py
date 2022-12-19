@@ -402,7 +402,10 @@ def _python_value_to_proto_value(
             valid_scalar_types,
         ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
         if valid_scalar_types:
-            assert type(sample) in valid_scalar_types
+            if sample == 0 or sample == 0.0:
+                assert type(sample) in [np.int64, np.float64, float, int]
+            else:
+                assert type(sample) in valid_scalar_types
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
