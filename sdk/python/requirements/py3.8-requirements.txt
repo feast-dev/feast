@@ -18,7 +18,7 @@ bowler==0.9.0
     # via feast (setup.py)
 cachetools==5.2.0
     # via google-auth
-certifi==2022.9.24
+certifi==2022.12.7
     # via requests
 charset-normalizer==2.1.1
     # via requests
