@@ -403,7 +403,7 @@ def _python_value_to_proto_value(
         ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
         if valid_scalar_types:
             if sample == 0 or sample == 0.0:
-                # In the case of a value of 0, type validation cannot be performed with only one int or float type.
+                # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
                 assert type(sample) in [np.int64, np.float64, float, int]
             else:
                 assert type(sample) in valid_scalar_types
