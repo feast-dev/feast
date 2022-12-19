@@ -159,8 +159,6 @@ class SnowflakeOfflineStore(OfflineStore):
 
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
-        print(start_date, end_date)
-        # select system$last_change_commit_time('mytable');
 
         query = f"""
             SELECT
