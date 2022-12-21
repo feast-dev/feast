@@ -257,11 +257,9 @@ class FeatureView(BaseFeatureView):
         """Returns a list of all the join keys."""
         return [entity.name for entity in self.entity_columns]
 
-    
     @property
     def schema(self) -> List[Field]:
         return self.entity_columns + self.features
-
 
     def ensure_valid(self):
         """
