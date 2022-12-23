@@ -610,7 +610,7 @@ def _normalize_timestamp(
         or created_timestamp_column_type.tz != pytz.UTC
     ):
 
-        if df_to_join[created_timestamp_column].shape[1] > 1:
+        if len(df_to_join[created_timestamp_column].shape) > 1:
             df_to_join, dups = _df_column_uniquify(df_to_join)
             df_to_join = df_to_join.drop(columns=dups)
 
