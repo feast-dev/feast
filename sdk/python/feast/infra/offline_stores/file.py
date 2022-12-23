@@ -724,7 +724,7 @@ def _drop_columns(
     return entity_df_with_features
 
 
-def _df_column_uniquify(df: dd.DataFrame) -> [dd.DataFrame, List[str]]:
+def _df_column_uniquify(df: dd.DataFrame) -> Tuple[dd.DataFrame, List[str]]:
     df_columns = df.columns
     new_columns = []
     duplicate_cols = []
