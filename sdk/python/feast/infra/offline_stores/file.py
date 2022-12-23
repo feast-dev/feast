@@ -267,7 +267,7 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 entity_df_with_features = _drop_columns(
-                    df_to_join, timestamp_field, created_timestamp_column
+                    df_to_join, features, timestamp_field, created_timestamp_column
                 )
 
                 # Ensure that we delete dataframes to free up memory
@@ -609,6 +609,11 @@ def _normalize_timestamp(
         not hasattr(created_timestamp_column_type, "tz")
         or created_timestamp_column_type.tz != pytz.UTC
     ):
+        if len(df_to_join[created_timestamp_column].shape) > 1:
+            # if you are querying for the created timestamp field, we have to deduplicate
+            df_to_join, dups = _df_column_uniquify(df_to_join)
+            df_to_join = df_to_join.drop(columns=dups)
+
         df_to_join[created_timestamp_column] = df_to_join[
             created_timestamp_column
         ].apply(
@@ -701,14 +706,36 @@ def _drop_duplicates(
 
 def _drop_columns(
     df_to_join: dd.DataFrame,
+    features: List[str],
     timestamp_field: str,
     created_timestamp_column: str,
 ) -> dd.DataFrame:
-    entity_df_with_features = df_to_join.drop([timestamp_field], axis=1).persist()
-
-    if created_timestamp_column:
-        entity_df_with_features = entity_df_with_features.drop(
-            [created_timestamp_column], axis=1
-        ).persist()
+    entity_df_with_features = df_to_join
+    timestamp_columns = [
+        timestamp_field,
+        created_timestamp_column,
+    ]
+    for column in timestamp_columns:
+        if column and column not in features:
+            entity_df_with_features = entity_df_with_features.drop(
+                [column], axis=1
+            ).persist()
 
     return entity_df_with_features
+
+
+def _df_column_uniquify(df: dd.DataFrame) -> [dd.DataFrame, List[str]]:
+    df_columns = df.columns
+    new_columns = []
+    duplicate_cols = []
+    for item in df_columns:
+        counter = 0
+        newitem = item
+        while newitem in new_columns:
+            counter += 1
+            newitem = "{}_{}".format(item, counter)
+            if counter > 0:
+                duplicate_cols.append(newitem)
+        new_columns.append(newitem)
+    df.columns = new_columns
+    return df, duplicate_cols
