@@ -3,7 +3,15 @@
 import pandas as pd
 from datetime import datetime, timedelta
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource, RequestSource, PushSource
+from feast import (
+    Entity,
+    FeatureService,
+    FeatureView,
+    Field,
+    FileSource,
+    RequestSource,
+    PushSource,
+)
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64, UnixTimestamp
 
@@ -19,10 +27,7 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
-driver = Entity(
-    name="driver",
-    join_keys=["driver_id"]
-)
+driver = Entity(name="driver", join_keys=["driver_id"])
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
@@ -43,8 +48,7 @@ driver_hourly_stats_view = FeatureView(
 )
 
 driver_stats_fs = FeatureService(
-    name="driver_activity",
-    features=[driver_hourly_stats_view]
+    name="driver_activity", features=[driver_hourly_stats_view]
 )
 
 driver_hourly_stats_push_source = PushSource(
@@ -77,7 +81,8 @@ input_request = RequestSource(
     ],
 )
 
-@on_demand_feature_view(    # noqa
+
+@on_demand_feature_view(  # noqa
     sources=[
         driver_hourly_stats_view,
         input_request,
@@ -90,13 +95,16 @@ input_request = RequestSource(
 )
 def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
-    df['output'] = inputs['conv_rate'] + inputs['int_val']
-    datedelta = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True))
-    df['seconds_since_last_created_date'] = datedelta.dt.total_seconds()
-    df['days_since_last_created_date'] = datedelta.dt.days
+    df["output"] = inputs["conv_rate"] + inputs["int_val"]
+    datedelta = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["created"], utc=True
+    )
+    df["seconds_since_last_created_date"] = datedelta.dt.total_seconds()
+    df["days_since_last_created_date"] = datedelta.dt.days
     return df
 
-feature_service = FeatureService( # noqa
+
+feature_service = FeatureService(  # noqa
     name="output_service",
     features=[
         driver_hourly_stats_view,
@@ -104,7 +112,9 @@ feature_service = FeatureService( # noqa
     ],
     owner="fja",
 )
-@on_demand_feature_view(    # noqa
+
+
+@on_demand_feature_view(  # noqa
     sources=[
         driver_hourly_stats_stream_view,
         input_request,
@@ -117,13 +127,16 @@ feature_service = FeatureService( # noqa
 )
 def transformed_conv_rate_stream(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
-    df['output'] = inputs['conv_rate'] + inputs['int_val']
-    datedelta = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True))
-    df['seconds_since_last_created_date'] = datedelta.dt.total_seconds()
-    df['days_since_last_created_date'] = datedelta.dt.days
+    df["output"] = inputs["conv_rate"] + inputs["int_val"]
+    datedelta = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["created"], utc=True
+    )
+    df["seconds_since_last_created_date"] = datedelta.dt.total_seconds()
+    df["days_since_last_created_date"] = datedelta.dt.days
     return df
 
-feature_stream_service = FeatureService( # noqa
+
+feature_stream_service = FeatureService(  # noqa
     name="output_stream_service",
     features=[
         driver_hourly_stats_stream_view,
