@@ -9,7 +9,7 @@ def demo_batch_feature_view():
     entity_df = pd.DataFrame.from_dict({
         "driver_id": [1001],
         "event_timestamp": [datetime.utcnow() - timedelta(days=2)],
-        "input_value": [100],
+        "int_val": [100],
     })
 
     features = store.get_historical_features(
@@ -42,7 +42,7 @@ def demo_online_feature_view():
 
 
 def demo_stream_feature_view():
-    ts = datetime.utcnow() - timedelta(hours=1)
+    ts = datetime.utcnow() - timedelta(minutes=16)
     # This is simulating a push to the stream
     event_df = pd.DataFrame.from_dict(
         {

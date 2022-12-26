@@ -84,13 +84,16 @@ input_request = RequestSource(
     ],
     schema=[
         Field(name="output", dtype=Float64),
-        Field(name="seconds_since_last_created_date", dtype=Int64),
+        Field(name="seconds_since_last_created_date", dtype=Float64),
+        Field(name="days_since_last_created_date", dtype=Int64),
     ],
 )
 def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df['output'] = inputs['conv_rate'] + inputs['int_val']
-    df['seconds_since_last_created_date'] = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True)).dt.seconds
+    datedelta = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True))
+    df['seconds_since_last_created_date'] = datedelta.dt.total_seconds()
+    df['days_since_last_created_date'] = datedelta.dt.days
     return df
 
 feature_service = FeatureService( # noqa
@@ -108,13 +111,16 @@ feature_service = FeatureService( # noqa
     ],
     schema=[
         Field(name="output", dtype=Float64),
-        Field(name="seconds_since_last_created_date", dtype=Int64),
+        Field(name="seconds_since_last_created_date", dtype=Float64),
+        Field(name="days_since_last_created_date", dtype=Int64),
     ],
 )
 def transformed_conv_rate_stream(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df['output'] = inputs['conv_rate'] + inputs['int_val']
-    df['seconds_since_last_created_date'] = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True)).dt.seconds
+    datedelta = (pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(inputs['created'], utc=True))
+    df['seconds_since_last_created_date'] = datedelta.dt.total_seconds()
+    df['days_since_last_created_date'] = datedelta.dt.days
     return df
 
 feature_stream_service = FeatureService( # noqa
