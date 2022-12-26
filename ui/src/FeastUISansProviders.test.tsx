@@ -15,13 +15,17 @@ import {
   creditHistoryRegistry,
 } from "./mocks/handlers";
 
-import registry from "../public/registry.json";
+import { readFileSync } from "fs";
+import { feast } from "./protos";
+import path from "path";
 
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
   creditHistoryRegistry
 );
+const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
+const parsedRegistry = feast.core.Registry.decode(registry);
 
 // establish API mocking before all tests
 beforeAll(() => server.listen());
@@ -50,7 +54,10 @@ test("full app rendering", async () => {
   // Explore Panel Should Appear
   expect(screen.getByText(/Explore this Project/i)).toBeInTheDocument();
 
-  const projectNameRegExp = new RegExp(registry.project, "i");
+  const projectNameRegExp = new RegExp(
+    parsedRegistry.projectMetadata[0].project!,
+    "i"
+  );
 
   // It should load the default project, which is credit_scoring_aws
   await waitFor(() => {
@@ -95,9 +102,9 @@ test("routes are reachable", async () => {
   }
 });
 
-
-const featureViewName = registry.featureViews[0].spec.name;
-const featureName = registry.featureViews[0].spec.features[0].name;
+const spec = parsedRegistry.featureViews[0].spec!;
+const featureViewName = spec.name!;
+const featureName = spec.features![0]!.name!;
 
 test("features are reachable", async () => {
   render(<FeastUISansProviders />);
@@ -106,10 +113,7 @@ test("features are reachable", async () => {
   await screen.findByText(/Explore this Project/i);
   const routeRegExp = new RegExp("Feature Views", "i");
 
-  userEvent.click(
-    screen.getByRole("button", { name: routeRegExp }),
-    leftClick
-  );
+  userEvent.click(screen.getByRole("button", { name: routeRegExp }), leftClick);
 
   screen.getByRole("heading", {
     name: "Feature Views",
@@ -118,18 +122,12 @@ test("features are reachable", async () => {
   await screen.findAllByText(/Feature Views/i);
   const fvRegExp = new RegExp(featureViewName, "i");
 
-  userEvent.click(
-    screen.getByRole("link", { name: fvRegExp }),
-    leftClick
-  )
+  userEvent.click(screen.getByRole("link", { name: fvRegExp }), leftClick);
 
   await screen.findByText(featureName);
   const fRegExp = new RegExp(featureName, "i");
 
-  userEvent.click(
-    screen.getByRole("link", { name: fRegExp }),
-    leftClick
-  )
+  userEvent.click(screen.getByRole("link", { name: fRegExp }), leftClick);
   // Should land on a page with the heading
   // await screen.findByText("Feature: " + featureName);
   screen.getByRole("heading", {

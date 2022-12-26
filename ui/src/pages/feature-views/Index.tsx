@@ -48,7 +48,7 @@ const shouldIncludeFVsGivenTokenGroups = (
   tagTokenGroups: Record<string, string[]>
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
-    const entryTagValue = entry.object.spec.tags
+    const entryTagValue = entry?.object?.spec!.tags
       ? entry.object.spec.tags[key]
       : undefined;
 

@@ -10,18 +10,16 @@ import {
 } from "@elastic/eui";
 import React from "react";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
-import {
-  FeastSFVType,
-} from "../../parsers/feastSFVS";
 import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import { feast } from "../../protos";
 
 interface StreamFeatureViewOverviewTabProps {
-  data: FeastSFVType;
+  data: feast.core.IStreamFeatureView;
 }
 
 const whereFSconsumesThisFv = (fvName: string) => {
@@ -36,13 +34,13 @@ const whereFSconsumesThisFv = (fvName: string) => {
 const StreamFeatureViewOverviewTab = ({
   data,
 }: StreamFeatureViewOverviewTabProps) => {
-  const inputs = Object.entries([data.spec.streamSource]);
+  const inputs = Object.entries([data.spec?.streamSource]);
   const { projectName } = useParams();
 
   const relationshipQuery = useLoadRelationshipData();
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data
-        .filter(whereFSconsumesThisFv(data.spec.name))
+        .filter(whereFSconsumesThisFv(data.spec?.name!))
         .map((fs) => {
           return fs.target.name;
         })
@@ -58,7 +56,7 @@ const StreamFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <EuiCodeBlock language="py" fontSize="m" paddingSize="m">
-              {data.spec.userDefinedFunction.body}
+              {data.spec?.userDefinedFunction?.body}
             </EuiCodeBlock>
           </EuiPanel>
         </EuiFlexItem>
@@ -67,13 +65,13 @@ const StreamFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
             <EuiTitle size="xs">
-              <h3>Features ({data.spec.features.length})</h3>
+              <h3>Features ({data.spec?.features?.length})</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {projectName && data.spec.features ? (
+            {projectName && data.spec?.features ? (
               <FeaturesListDisplay
                 projectName={projectName}
-                featureViewName={data.spec.name}
+                featureViewName={data.spec.name!}
                 features={data.spec.features}
                 link={false}
               />
@@ -98,10 +96,10 @@ const StreamFeatureViewOverviewTab = ({
                     </EuiText>
                     <EuiTitle size="s">
                       <EuiCustomLink
-                        href={`/p/${projectName}/data-source/${inputGroup.name}`}
-                        to={`/p/${projectName}/data-source/${inputGroup.name}`}
+                        href={`/p/${projectName}/data-source/${inputGroup?.name}`}
+                        to={`/p/${projectName}/data-source/${inputGroup?.name}`}
                       >
-                        {inputGroup.name}
+                        {inputGroup?.name}
                       </EuiCustomLink>
                     </EuiTitle>
                     <EuiFlexItem key={key}>

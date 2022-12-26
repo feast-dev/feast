@@ -267,7 +267,7 @@ class FileOfflineStore(OfflineStore):
                 )
 
                 entity_df_with_features = _drop_columns(
-                    df_to_join, timestamp_field, created_timestamp_column
+                    df_to_join, features, timestamp_field, created_timestamp_column
                 )
 
                 # Ensure that we delete dataframes to free up memory
@@ -609,6 +609,11 @@ def _normalize_timestamp(
         not hasattr(created_timestamp_column_type, "tz")
         or created_timestamp_column_type.tz != pytz.UTC
     ):
+
+        if len(df_to_join[created_timestamp_column].shape) > 1:
+            df_to_join, dups = _df_column_uniquify(df_to_join)
+            df_to_join = df_to_join.drop(columns=dups)
+
         df_to_join[created_timestamp_column] = df_to_join[
             created_timestamp_column
         ].apply(
@@ -662,14 +667,33 @@ def _drop_duplicates(
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
-    if created_timestamp_column:
-        df_to_join = df_to_join.sort_values(
-            by=created_timestamp_column, na_position="first"
-        )
+    column_order = df_to_join.columns
+
+    # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+    # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
+    try:
+        if created_timestamp_column:
+            df_to_join = df_to_join.sort_values(
+                by=created_timestamp_column, na_position="first"
+            )
+            df_to_join = df_to_join.persist()
+
+        df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
         df_to_join = df_to_join.persist()
 
-    df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
-    df_to_join = df_to_join.persist()
+    except ZeroDivisionError:
+        # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+        # try to divide by zero.
+        if created_timestamp_column:
+            df_to_join = df_to_join[column_order].sort_values(
+                by=created_timestamp_column, na_position="first", npartitions=1
+            )
+            df_to_join = df_to_join.persist()
+
+        df_to_join = df_to_join[column_order].sort_values(
+            by=timestamp_field, na_position="first", npartitions=1
+        )
+        df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
         all_join_keys + [entity_df_event_timestamp_col],
@@ -682,14 +706,35 @@ def _drop_duplicates(
 
 def _drop_columns(
     df_to_join: dd.DataFrame,
+    features: List[str],
     timestamp_field: str,
     created_timestamp_column: str,
 ) -> dd.DataFrame:
-    entity_df_with_features = df_to_join.drop([timestamp_field], axis=1).persist()
-
-    if created_timestamp_column:
-        entity_df_with_features = entity_df_with_features.drop(
-            [created_timestamp_column], axis=1
-        ).persist()
+    entity_df_with_features = df_to_join
+    time_columns = [
+       timestamp_field,
+        created_timestamp_column,
+    ]
+    for column in time_columns:
+        if column and column not in features:
+            entity_df_with_features = entity_df_with_features.drop(
+                [column], axis=1
+            ).persist()
 
     return entity_df_with_features
+
+def _df_column_uniquify(df: dd.DataFrame) -> [dd.DataFrame, List[str]]:
+    df_columns = df.columns
+    new_columns = []
+    duplicate_cols = []
+    for item in df_columns:
+        counter = 0
+        newitem = item
+        while newitem in new_columns:
+            counter += 1
+            newitem = "{}_{}".format(item, counter)
+            if counter > 0:
+                duplicate_cols.append(newitem)
+        new_columns.append(newitem)
+    df.columns = new_columns
+    return df, duplicate_cols

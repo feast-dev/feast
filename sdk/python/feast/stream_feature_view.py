@@ -71,7 +71,7 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
-    udf_string: str
+    udf_string: Optional[str]
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class StreamFeatureView(FeatureView):
         mode: Optional[str] = "spark",
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
-        udf_string: str
+        udf_string: Optional[str] = "",
     ):
         if not flags_helper.is_test():
             warnings.warn(

@@ -190,6 +190,7 @@ class MySQLOnlineStore(OnlineStore):
             cur.execute(
                 f"SHOW INDEXES FROM {_table_id(project, table)};"
             )
+
             index_exists = False
             for index in cur.fetchall():
                 if index[2] == f"{_table_id(project, table)}_ek":

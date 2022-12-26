@@ -9,18 +9,17 @@ import {
 import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
-import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
-import FeatureViewSummaryStatisticsTab from "./FeatureViewSummaryStatisticsTab";
 
 import {
   useRegularFeatureViewCustomTabs,
   useRegularFeatureViewCustomTabRoutes,
 } from "../../custom-tabs/TabsRegistryContext";
 import FeatureFlagsContext from "../../contexts/FeatureFlagsContext";
+import { feast } from "../../protos";
 
 interface RegularFeatureInstanceProps {
-  data: FeastFeatureViewType;
+  data: feast.core.IFeatureView;
 }
 
 const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
@@ -58,7 +57,7 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
       <EuiPageHeader
         restrictWidth
         iconType={FeatureViewIcon32}
-        pageTitle={`${data.spec.name}`}
+        pageTitle={`${data?.spec?.name}`}
         tabs={tabs}
       />
       <EuiPageContent
@@ -73,10 +72,6 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
             <Route
               path="/"
               element={<RegularFeatureViewOverviewTab data={data} />}
-            />
-            <Route
-              path="/statistics"
-              element={<FeatureViewSummaryStatisticsTab />}
             />
             {TabRoutes}
           </Routes>
