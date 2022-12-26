@@ -37,3 +37,9 @@ stream features = {'driver_id': [1001], 'conv_rate': [1.0], 'avg_daily_trips': [
 ```
 
 Note, that the data was created on 08/24/2022 so for the on demand features, the `seconds` and `days` since last created features will be relative to that date.
+
+## Things to note
+
+1. The first get just queries Feast from the batch source and doesn't do any dynamic calculation
+2. The second query does a dynamic calculation relative to 8/24/2022
+3. The third query does a dynamic calculation that should be ~16 minutes (by construction) from the request time (this is simulating an event being consumed into the feature store 16 prior to the request being made)
