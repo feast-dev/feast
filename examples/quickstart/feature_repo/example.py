@@ -20,7 +20,7 @@ from feast.types import Float32, Float64, Int64, UnixTimestamp
 # for more info.
 driver_hourly_stats = FileSource(
     name="driver_hourly_stats_source",
-    path="/Users/francisco.arceo/github/feast/examples/quickstart/feature_repo/data/driver_stats.parquet",
+    path="./data/driver_stats.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
