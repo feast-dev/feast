@@ -4,7 +4,7 @@ This quickstart gives a simple overview of querying Feast's
 
 - Online Batch Feature View
 - On Demand Feature View (sourced from a batch file)
-- On Demand Featuer View (sourced from a stream)
+- On Demand Feature View (sourced from a stream)
 
 To get this to run properly set your working directory to 
 ```bash
@@ -12,11 +12,11 @@ cd examples/quickstart
 ```
 Then run `feast apply` and run the materialization
 ```bash
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast apply
 ...
-  [stuff will happen here]
+... [stuff will happen here]
 ...
-CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
 
