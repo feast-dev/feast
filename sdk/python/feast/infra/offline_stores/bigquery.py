@@ -44,9 +44,9 @@ from feast.infra.offline_stores.offline_store import (
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
+from feast.usage import get_user_agent, log_exceptions_and_usage
 
-from ...saved_dataset import SavedDatasetStorage
-from ...usage import get_user_agent, log_exceptions_and_usage
 from .bigquery_source import (
     BigQueryLoggingDestination,
     BigQuerySource,
