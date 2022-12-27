@@ -21,6 +21,7 @@ def demo_batch_feature_view():
             "driver_hourly_stats:conv_rate",
             "driver_hourly_stats:avg_daily_trips",
             "driver_hourly_stats:created",
+            "driver_hourly_stats:event_timestamp",
         ],
     )
     print("batch_features ", features.to_df().to_dict(), "\n")
