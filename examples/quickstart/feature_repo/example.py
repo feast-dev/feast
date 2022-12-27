@@ -37,10 +37,12 @@ driver_hourly_stats_view = FeatureView(
     entities=[driver],
     ttl=timedelta(days=300),
     schema=[
+        Field(name="driver_id", dtype=Int64),
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
         Field(name="created", dtype=UnixTimestamp),
+        Field(name="event_timestamp", dtype=UnixTimestamp),
     ],
     online=True,
     source=driver_hourly_stats,
@@ -66,6 +68,7 @@ driver_hourly_stats_stream_view = FeatureView(
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),
         Field(name="created", dtype=UnixTimestamp),
+        Field(name="event_timestamp", dtype=UnixTimestamp),
     ],
     online=True,
     source=driver_hourly_stats_push_source,
@@ -89,18 +92,25 @@ input_request = RequestSource(
     ],
     schema=[
         Field(name="output", dtype=Float64),
-        Field(name="seconds_since_last_created_date", dtype=Float64),
-        Field(name="days_since_last_created_date", dtype=Int64),
+        Field(name="seconds_since_last_created_time", dtype=Float64),
+        Field(name="days_since_last_created_time", dtype=Int64),
+        Field(name="seconds_since_last_event_time", dtype=Float64),
+        Field(name="days_since_last_event_time", dtype=Int64),
     ],
 )
 def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["output"] = inputs["conv_rate"] + inputs["int_val"]
-    datedelta = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+    datedelta_create = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
         inputs["created"], utc=True
     )
-    df["seconds_since_last_created_date"] = datedelta.dt.total_seconds()
-    df["days_since_last_created_date"] = datedelta.dt.days
+    datedelta_event = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["event_timestamp"], utc=True
+    )
+    df["seconds_since_last_created_time"] = datedelta_create.dt.total_seconds()
+    df["days_since_last_created_time"] = datedelta_create.dt.days
+    df["seconds_since_last_event_time"] = datedelta_event.dt.total_seconds()
+    df["days_since_last_event_time"] = datedelta_event.dt.days
     return df
 
 
@@ -121,18 +131,25 @@ feature_service = FeatureService(  # noqa
     ],
     schema=[
         Field(name="output", dtype=Float64),
-        Field(name="seconds_since_last_created_date", dtype=Float64),
-        Field(name="days_since_last_created_date", dtype=Int64),
+        Field(name="seconds_since_last_created_time", dtype=Float64),
+        Field(name="days_since_last_created_time", dtype=Int64),
+        Field(name="seconds_since_last_event_time", dtype=Float64),
+        Field(name="days_since_last_event_time", dtype=Int64),
     ],
 )
 def transformed_conv_rate_stream(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["output"] = inputs["conv_rate"] + inputs["int_val"]
-    datedelta = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+    datedelta_create = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
         inputs["created"], utc=True
     )
-    df["seconds_since_last_created_date"] = datedelta.dt.total_seconds()
-    df["days_since_last_created_date"] = datedelta.dt.days
+    datedelta_event = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["event_timestamp"], utc=True
+    )
+    df["seconds_since_last_created_time"] = datedelta_create.dt.total_seconds()
+    df["days_since_last_created_time"] = datedelta_create.dt.days
+    df["seconds_since_last_event_time"] = datedelta_event.dt.total_seconds()
+    df["days_since_last_event_time"] = datedelta_event.dt.days
     return df
 
 
