@@ -599,6 +599,11 @@ def _normalize_timestamp(
         created_timestamp_column_type = df_to_join_types[created_timestamp_column]
 
     if not hasattr(timestamp_field_type, "tz") or timestamp_field_type.tz != pytz.UTC:
+        # if you are querying for the event timestamp field, we have to deduplicate
+        if len(df_to_join[timestamp_field].shape) > 1:
+            df_to_join, dups = _df_column_uniquify(df_to_join)
+            df_to_join = df_to_join.drop(columns=dups)
+
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
         df_to_join[timestamp_field] = df_to_join[timestamp_field].apply(
             lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
