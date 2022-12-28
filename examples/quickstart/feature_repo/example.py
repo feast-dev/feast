@@ -61,7 +61,7 @@ driver_hourly_stats_push_source = PushSource(
 driver_hourly_stats_stream_view = FeatureView(
     name="driver_hourly_stats_stream",
     entities=[driver],
-    ttl=timedelta(seconds=8640000000),
+    ttl=timedelta(days=300),
     schema=[
         Field(name="driver_id", dtype=Int64),
         Field(name="conv_rate", dtype=Float32),

@@ -24,7 +24,7 @@ def demo_batch_feature_view():
             "driver_hourly_stats:event_timestamp",
         ],
     )
-    print("batch_features ", features.to_df().to_dict(), "\n")
+    print("batch_features =", features.to_df().to_dict('list'), "\n")
 
 
 def demo_online_feature_view():
@@ -37,7 +37,6 @@ def demo_online_feature_view():
         entity_rows=payload,
     ).to_dict()
 
-    features["created_ts"] = [_to_ts(j) for j in features["created"]]
     print("on demand features =", features, "\n")
 
 
