@@ -1,10 +1,10 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
-import { feast } from "../../protos";
+import { FEAST_FEATURE_VALUE_TYPES } from "../../parsers/types";
 
 interface RequestDataSourceSchemaField {
   fieldName: string;
-  valueType: feast.types.ValueType.Enum;
+  valueType: FEAST_FEATURE_VALUE_TYPES;
 }
 
 interface RequestDataSourceSchema {
@@ -12,6 +12,7 @@ interface RequestDataSourceSchema {
 }
 
 const RequestDataSourceSchemaTable = ({ fields }: RequestDataSourceSchema) => {
+  console.log(fields);
   const columns = [
     {
       name: "Field",
@@ -20,9 +21,6 @@ const RequestDataSourceSchemaTable = ({ fields }: RequestDataSourceSchema) => {
     {
       name: "Value Type",
       field: "valueType",
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
-      },
     },
   ];
 

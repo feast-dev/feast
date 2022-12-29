@@ -1,16 +1,38 @@
 import React from "react";
 import {
+  EuiCodeBlock,
   EuiDescriptionList,
   EuiDescriptionListDescription,
   EuiDescriptionListTitle,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiSpacer,
+  EuiTitle,
 } from "@elastic/eui";
-import { feast } from "../../protos";
-import { toDate } from "../../utils/timestamp";
 
 interface BatchSourcePropertiesViewProps {
-  batchSource: feast.core.IDataSource;
+  batchSource: {
+    type?: string | undefined;
+    owner?: string | undefined;
+    description?: string | undefined;
+    dataSourceClassType?: string | undefined;
+    fileOptions?:
+      | {
+          uri?: string | undefined;
+        }
+      | undefined;
+    meta?:
+      | {
+          latestEventTimestamp?: Date | undefined;
+          earliestEventTimestamp?: Date | undefined;
+        }
+      | undefined;
+    bigqueryOptions?:
+      | {
+          dbtModelSerialized?: string | undefined;
+        }
+      | undefined;
+  };
 }
 
 const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
@@ -27,7 +49,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   <EuiDescriptionListDescription>
                     {batchSource.dataSourceClassType.split(".").at(-1)}
                   </EuiDescriptionListDescription>
-                ) : feast.core.DataSource.SourceType[batchSource.type!] ? (
+                ) : batchSource.type ? (
                   <EuiDescriptionListDescription>
                     {batchSource.type}
                   </EuiDescriptionListDescription>
@@ -65,9 +87,9 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
               <React.Fragment>
                 <EuiDescriptionListTitle>Latest Event</EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {toDate(
-                    batchSource.meta.latestEventTimestamp
-                  ).toLocaleDateString("en-CA")}
+                  {batchSource.meta.latestEventTimestamp.toLocaleDateString(
+                    "en-CA"
+                  )}
                 </EuiDescriptionListDescription>
               </React.Fragment>
             )}
@@ -77,14 +99,35 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   Earliest Event
                 </EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {toDate(
-                    batchSource.meta?.earliestEventTimestamp
-                  ).toLocaleDateString("en-CA")}
+                  {batchSource.meta.earliestEventTimestamp.toLocaleDateString(
+                    "en-CA"
+                  )}
                 </EuiDescriptionListDescription>
               </React.Fragment>
             )}
           </EuiDescriptionList>
         </EuiFlexItem>
+
+        {batchSource.bigqueryOptions?.dbtModelSerialized && (
+          <EuiFlexItem grow={false}>
+            <EuiSpacer size="l" />
+          </EuiFlexItem>
+        )}
+        {batchSource.bigqueryOptions?.dbtModelSerialized && (
+          <EuiFlexItem>
+            <EuiTitle size="xs">
+              <h3>Dbt Transformation</h3>
+            </EuiTitle>
+            <EuiCodeBlock
+              language="sql"
+              fontSize="m"
+              paddingSize="m"
+              isCopyable
+            >
+              {batchSource.bigqueryOptions.dbtModelSerialized}
+            </EuiCodeBlock>
+          </EuiFlexItem>
+        )}
       </EuiFlexGroup>
     </React.Fragment>
   );

@@ -2,11 +2,10 @@ import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
-import { toDate } from "../../utils/timestamp";
+import { FeastSavedDatasetType } from "../../parsers/feastSavedDataset";
 
 interface DatasetsListingTableProps {
-  datasets: feast.core.ISavedDataset[];
+  datasets: FeastSavedDatasetType[];
 }
 
 const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
@@ -34,15 +33,15 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
     },
     {
       name: "Created",
-      render: (item: feast.core.ISavedDataset) => {
-        return toDate(item?.meta?.createdTimestamp!).toLocaleString("en-CA")!;
+      render: (item: FeastSavedDatasetType) => {
+        return item.meta.createdTimestamp.toLocaleDateString("en-CA");
       },
     },
   ];
 
-  const getRowProps = (item: feast.core.ISavedDataset) => {
+  const getRowProps = (item: FeastSavedDatasetType) => {
     return {
-      "data-test-subj": `row-${item.spec?.name}`,
+      "data-test-subj": `row-${item.spec.name}`,
     };
   };
 

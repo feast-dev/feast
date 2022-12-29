@@ -19,8 +19,6 @@ import TagsDisplay from "../../components/TagsDisplay";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
-import { toDate } from "../../utils/timestamp";
-import { feast } from "../../protos";
 
 const EntityOverviewTab = () => {
   let { entityName } = useParams();
@@ -54,17 +52,17 @@ const EntityOverviewTab = () => {
                 <EuiDescriptionList>
                   <EuiDescriptionListTitle>Join Key</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.spec?.joinKey}
+                    {data.spec.joinKey}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.spec?.description}
+                    {data.spec.description}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {feast.types.ValueType.Enum[data?.spec?.valueType!]}
+                    {data.spec.valueType}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>
@@ -73,8 +71,8 @@ const EntityOverviewTab = () => {
                 <EuiDescriptionList>
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.meta?.createdTimestamp ? (
-                      toDate(data.meta.createdTimestamp).toLocaleDateString("en-CA")
+                    {data.meta.createdTimestamp ? (
+                      data.meta.createdTimestamp.toLocaleDateString("en-CA")
                     ) : (
                       <EuiText>No createdTimestamp specified on this entity.</EuiText>
                     )}
@@ -82,8 +80,8 @@ const EntityOverviewTab = () => {
 
                   <EuiDescriptionListTitle>Updated</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.meta?.lastUpdatedTimestamp ? (
-                      toDate(data.meta.lastUpdatedTimestamp).toLocaleDateString("en-CA")
+                    {data.meta.lastUpdatedTimestamp ? (
+                      data.meta.lastUpdatedTimestamp.toLocaleDateString("en-CA")
                     ) : (
                       <EuiText>No lastUpdatedTimestamp specified on this entity.</EuiText>
                     )}
@@ -119,8 +117,8 @@ const EntityOverviewTab = () => {
                   <h3>Labels</h3>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
-                {data?.spec?.tags ? (
-                  <TagsDisplay tags={data.spec.tags} />
+                {data.spec.labels ? (
+                  <TagsDisplay tags={data.spec.labels} />
                 ) : (
                   <EuiText>No labels specified on this entity.</EuiText>
                 )}

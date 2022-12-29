@@ -5,18 +5,20 @@ import {
   EuiTableFieldDataColumnType,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import {
+  FeastFeatureInServiceType,
+  FeastFeatureServiceType,
+} from "../../parsers/feastFeatureServices";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
-import { toDate } from "../../utils/timestamp";
 
 interface FeatureServiceListingTableProps {
   tagKeysSet: Set<string>;
-  featureServices: feast.core.IFeatureService[];
+  featureServices: FeastFeatureServiceType[];
 }
 
 type FeatureServiceTypeColumn =
-  | EuiTableFieldDataColumnType<feast.core.IFeatureService>
-  | EuiTableComputedColumnType<feast.core.IFeatureService>;
+  | EuiTableFieldDataColumnType<FeastFeatureServiceType>
+  | EuiTableComputedColumnType<FeastFeatureServiceType>;
 
 const FeatureServiceListingTable = ({
   tagKeysSet,
@@ -42,10 +44,10 @@ const FeatureServiceListingTable = ({
     {
       name: "# of Features",
       field: "spec.features",
-      render: (featureViews: feast.core.IFeatureViewProjection[]) => {
+      render: (featureViews: FeastFeatureInServiceType[]) => {
         var numFeatures = 0;
         featureViews.forEach((featureView) => {
-          numFeatures += featureView.featureColumns!.length;
+          numFeatures += featureView.featureColumns.length;
         });
         return numFeatures;
       },
@@ -53,8 +55,8 @@ const FeatureServiceListingTable = ({
     {
       name: "Last updated",
       field: "meta.lastUpdatedTimestamp",
-      render: (date: any) => {
-        return date ? toDate(date).toLocaleDateString("en-CA") : "n/a";
+      render: (date: Date) => {
+        return date ? date.toLocaleDateString("en-CA") : "n/a";
       },
     },
   ];
@@ -62,10 +64,10 @@ const FeatureServiceListingTable = ({
   tagKeysSet.forEach((key) => {
     columns.push({
       name: key,
-      render: (item: feast.core.IFeatureService) => {
+      render: (item: FeastFeatureServiceType) => {
         let tag = <span>n/a</span>;
 
-        const value = item?.spec?.tags ? item.spec.tags[key] : undefined;
+        const value = item.spec.tags ? item.spec.tags[key] : undefined;
 
         if (value) {
           tag = <span>{value}</span>;
@@ -76,9 +78,9 @@ const FeatureServiceListingTable = ({
     });
   });
 
-  const getRowProps = (item: feast.core.IFeatureService) => {
+  const getRowProps = (item: FeastFeatureServiceType) => {
     return {
-      "data-test-subj": `row-${item?.spec?.name}`,
+      "data-test-subj": `row-${item.spec.name}`,
     };
   };
 

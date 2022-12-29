@@ -16,7 +16,6 @@ import TagsDisplay from "../../components/TagsDisplay";
 import React from "react";
 import { useParams } from "react-router-dom";
 import useLoadFeature from "./useLoadFeature";
-import { feast } from "../../protos";
 
 const FeatureOverviewTab = () => {
   let { projectName, FeatureViewName, FeatureName } = useParams();
@@ -52,7 +51,7 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {feast.types.ValueType.Enum[featureData?.valueType!]}
+                    {featureData?.valueType}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>

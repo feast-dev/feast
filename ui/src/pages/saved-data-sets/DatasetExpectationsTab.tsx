@@ -11,7 +11,7 @@ const DatasetExpectationsTab = () => {
   }
   const { isSuccess, data } = useLoadDataset(datasetName);
 
-  if (!data || !data.spec?.name) {
+  if (!data || !data.spec.profile) {
     return (
       <EuiPanel hasBorder={true} hasShadow={false}>
         No data so sad
@@ -21,9 +21,15 @@ const DatasetExpectationsTab = () => {
 
   let expectationsData;
 
-  return isSuccess ? (
+  try {
+    expectationsData = JSON.parse(data.spec.profile);
+  } catch (e) {
+    throw new Error(`Unable to parse Expectations Profile: ${e}`);
+  }
+
+  return isSuccess && expectationsData ? (
     <EuiPanel hasBorder={true} hasShadow={false}>
-      <pre>{JSON.stringify(data.spec, null, 2)}</pre>
+      <pre>{JSON.stringify(expectationsData, null, 2)}</pre>
     </EuiPanel>
   ) : (
     <EuiPanel hasBorder={true} hasShadow={false}>

@@ -26,10 +26,6 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [dynamodb.md](dynamodb.md)
 {% endcontent-ref %}
 
-{% content-ref url="bigtable.md" %}
-[bigtable.md](mysql.md)
-{% endcontent-ref %}
-
 {% content-ref url="postgres.md" %}
 [postgres.md](postgres.md)
 {% endcontent-ref %}

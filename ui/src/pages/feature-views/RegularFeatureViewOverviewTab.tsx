@@ -15,13 +15,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
+import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
-import { feast } from "../../protos";
-import { toDate } from "../../utils/timestamp";
 
 const whereFSconsumesThisFv = (fvName: string) => {
   return (r: EntityRelation) => {
@@ -33,7 +32,7 @@ const whereFSconsumesThisFv = (fvName: string) => {
 };
 
 interface RegularFeatureViewOverviewTabProps {
-  data: feast.core.IFeatureView;
+  data: FeastFeatureViewType;
 }
 
 const RegularFeatureViewOverviewTab = ({
@@ -50,8 +49,8 @@ const RegularFeatureViewOverviewTab = ({
 
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data.filter(whereFSconsumesThisFv(fvName)).map((fs) => {
-      return fs.target.name;
-    })
+        return fs.target.name;
+      })
     : [];
   const numOfFs = fsNames.length;
 
@@ -67,13 +66,13 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
             <EuiTitle size="xs">
-              <h3>Features ({data?.spec?.features?.length})</h3>
+              <h3>Features ({data.spec.features.length})</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {projectName && data?.spec?.features ? (
+            {projectName && data.spec.features ? (
               <FeaturesListDisplay
                 projectName={projectName}
-                featureViewName={data?.spec?.name!}
+                featureViewName={data.spec.name}
                 features={data.spec.features}
                 link={true}
               />
@@ -88,7 +87,7 @@ const RegularFeatureViewOverviewTab = ({
               <h3>Entities</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {data?.spec?.entities ? (
+            {data.spec.entities ? (
               <EuiFlexGroup wrap responsive={false} gutterSize="xs">
                 {data.spec.entities.map((entity) => {
                   return (
@@ -129,7 +128,7 @@ const RegularFeatureViewOverviewTab = ({
               <h3>Tags</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {data?.spec?.tags ? (
+            {data.spec.tags ? (
               <TagsDisplay
                 tags={data.spec.tags}
                 createLink={(key, value) => {
@@ -138,8 +137,8 @@ const RegularFeatureViewOverviewTab = ({
                     encodeSearchQueryString(`${key}:${value}`)
                   );
                 }}
-                owner={data?.spec?.owner!}
-                description={data?.spec?.description!}
+                owner={data.spec.owner}
+                description={data.spec.description}
               />
             ) : (
               <EuiText>No Tags specified on this feature view.</EuiText>
@@ -155,7 +154,7 @@ const RegularFeatureViewOverviewTab = ({
               <h3>Batch Source</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            <BatchSourcePropertiesView batchSource={data?.spec?.batchSource!} />
+            <BatchSourcePropertiesView batchSource={data.spec.batchSource} />
           </EuiPanel>
         </EuiFlexItem>
       </EuiFlexGroup>
@@ -165,11 +164,11 @@ const RegularFeatureViewOverviewTab = ({
           <h3>Materialization Intervals</h3>
         </EuiTitle>
         <React.Fragment>
-          {data?.meta?.materializationIntervals?.map((interval, i) => {
+          {data.meta.materializationIntervals?.map((interval, i) => {
             return (
               <p key={i}>
-                {toDate(interval.startTime!).toLocaleDateString("en-CA")} to{" "}
-                {toDate(interval.endTime!).toLocaleDateString("en-CA")}
+                {interval.startTime.toLocaleDateString("en-CA")} to{" "}
+                {interval.endTime.toLocaleDateString("en-CA")}
               </p>
             );
           })}

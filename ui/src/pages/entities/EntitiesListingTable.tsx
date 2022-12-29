@@ -1,12 +1,12 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import { FeastEntityType } from "../../parsers/feastEntities";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
 
 interface EntitiesListingTableProps {
-  entities: feast.core.IEntity[];
+  entities: FeastEntityType[];
 }
 
 const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
@@ -33,15 +33,15 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: string) => {
+        return valueType;
       },
     },
     {
       name: "# of FVs",
-      render: (item: feast.core.IEntity) => {
+      render: (item: FeastEntityType) => {
         if (isSuccess && data) {
-          return data[item?.spec?.name!] ? data[item?.spec?.name!].length : "0";
+          return data[item.spec.name] ? data[item.spec.name].length : "0";
         } else {
           return ".";
         }
@@ -49,9 +49,9 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
     },
   ];
 
-  const getRowProps = (item: feast.core.IEntity) => {
+  const getRowProps = (item: FeastEntityType) => {
     return {
-      "data-test-subj": `row-${item?.spec?.name}`,
+      "data-test-subj": `row-${item.spec.name}`,
     };
   };
 

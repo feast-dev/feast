@@ -108,23 +108,3 @@ jobs:
             sudo apt install -y -V libarrow-dev
       - name: Test
         run: make test-go
-
-  unit-test-ui:
-    runs-on: ubuntu-latest
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install yarn dependencies
-        working-directory: ./ui
-        run: yarn install
-      - name: Build yarn rollup
-        working-directory: ./ui
-        run: yarn build:lib
-      - name: Run yarn tests
-        working-directory: ./ui
-        run: yarn test --watchAll=false

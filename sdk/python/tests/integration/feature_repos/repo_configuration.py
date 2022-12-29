@@ -51,9 +51,6 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
-from tests.integration.feature_repos.universal.online_store.bigtable import (
-    BigtableOnlineStoreCreator,
-)
 from tests.integration.feature_repos.universal.online_store.datastore import (
     DatastoreOnlineStoreCreator,
 )
@@ -87,12 +84,6 @@ SNOWFLAKE_CONFIG = {
     "schema": "ONLINE",
 }
 
-BIGTABLE_CONFIG = {
-    "type": "bigtable",
-    "project_id": os.getenv("GCLOUD_PROJECT", "kf-feast"),
-    "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
-}
-
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -124,7 +115,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
-    AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
@@ -171,7 +161,6 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
-        "bigtable": ("bigtable", BigtableOnlineStoreCreator),
     }
 
     for key, replacement in replacements.items():
