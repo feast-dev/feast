@@ -1,6 +1,8 @@
 project: feature_repo
 provider: local
-registry: mysql
+registry:
+    registry_type: sql
+    path: mysql+pymysql://root:test@127.0.0.1/feast
 online_store:
     type: mysql
     host: 127.0.0.1
