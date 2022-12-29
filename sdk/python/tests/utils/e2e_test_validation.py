@@ -27,7 +27,6 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
-    FileParquetDatasetSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -210,11 +209,6 @@ NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
     IntegrationTestRepoConfig(
         provider="local",
         offline_store_creator=FileDataSourceCreator,
-        online_store=None,
-    ),
-    IntegrationTestRepoConfig(
-        provider="local",
-        offline_store_creator=FileParquetDatasetSourceCreator,
         online_store=None,
     ),
 ]

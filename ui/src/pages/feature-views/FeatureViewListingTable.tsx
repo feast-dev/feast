@@ -58,7 +58,7 @@ const FeatureViewListingTable = ({
         let tag = <span>n/a</span>;
 
         if (item.type === "regular") {
-          const value = item?.object?.spec!.tags
+          const value = item.object.spec.tags
             ? item.object.spec.tags[key]
             : undefined;
 

@@ -11,7 +11,7 @@ Don't see your offline store or online store of choice here? Check out our guide
 
 ## Integrations
 
-See [Functionality and Roadmap](../roadmap.md)
+See [Functionality and Roadmap](../../#-functionality-and-roadmap)
 
 ## Standards
 

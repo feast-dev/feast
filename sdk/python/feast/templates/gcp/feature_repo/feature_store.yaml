@@ -13,11 +13,6 @@ online_store:
 #   type: datastore
 #   project_id: my_gcp_project
 #   namespace: my_datastore_namespace
-# See https://docs.feast.dev/reference/online-stores/bigtable
-#online_store:
-#   type: bigtable
-#   project_id: my_gcp_project
-#   instance: my_bigtable_instance
 # See https://docs.feast.dev/reference/online-stores/redis
 #online_store:
 #   type: redis

@@ -8,8 +8,8 @@ RUN apt update && \
         build-essential
 
 RUN pip install pip --upgrade
-RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres]"
-
+COPY . .
+RUN pip install ".[aws,gcp,snowflake,redis,go,mysql,postgres]"
 
 RUN apt update
 RUN apt install -y -V ca-certificates lsb-release wget

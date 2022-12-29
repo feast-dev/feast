@@ -1,11 +1,11 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import { FeastDatasourceType } from "../../parsers/feastDatasources";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
 
 interface DatasourcesListingTableProps {
-  dataSources: feast.core.IDataSource[];
+  dataSources: FeastDatasourceType[];
 }
 
 const DatasourcesListingTable = ({
@@ -33,13 +33,10 @@ const DatasourcesListingTable = ({
       name: "Type",
       field: "type",
       sortable: true,
-      render: (valueType: feast.core.DataSource.SourceType) => {
-        return feast.core.DataSource.SourceType[valueType];
-      },
     },
   ];
 
-  const getRowProps = (item: feast.core.IDataSource) => {
+  const getRowProps = (item: FeastDatasourceType) => {
     return {
       "data-test-subj": `row-${item.name}`,
     };

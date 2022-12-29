@@ -67,7 +67,6 @@ module.exports = {
                     "java/pom.xml",
                     "infra/charts/**/*.*",
                     "ui/package.json",
-                    "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"

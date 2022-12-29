@@ -127,6 +127,7 @@ pydantic==1.10.2
     #   feast (setup.py)
 pygments==2.13.0
     # via feast (setup.py)
+pymysql==0.9.3
 pyparsing==3.0.9
     # via packaging
 pyrsistent==0.18.1
