@@ -1,5 +1,4 @@
 project: feature_repo
-registry: data/registry.db
 provider: local
 registry:
     registry_type: sql
