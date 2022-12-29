@@ -1,0 +1,13 @@
+project: feature_repo
+provider: local
+registry:
+    registry_type: sql
+    path: mysql+pymysql://root:test@127.0.0.1/feast
+online_store:
+    type: mysql
+    host: 127.0.0.1
+    port: 3306
+    database: feast
+    user: root
+    password: test
+entity_key_serialization_version: 2
