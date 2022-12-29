@@ -193,7 +193,7 @@ class MySQLOnlineStore(OnlineStore):
             
             index_exists = False
             for index in cur.fetchall():
-                if index[2] == f"{_table_id(project, table)}":
+                if index[2] == f"{_table_id(project, table)}_ek":
                     index_exists = True
                     break
 
