@@ -73,6 +73,16 @@ def demo_stream_feature_view():
     # features['created_ts'] = [_to_ts(j) for j in features['created']]
     print("stream features =", features, "\n")
 
+    payload2 = [
+        {"driver_id": 1001},
+    ]
+    fs = store.get_feature_service("output_stream_service_norequest")
+    features = store.get_online_features(
+        features=fs,
+        entity_rows=payload2,
+    ).to_dict()
+
+    print("stream features (no request) =", features, "\n")
 
 def _to_ts(t: int) -> datetime:
     return datetime.utcfromtimestamp(t / 1e9)

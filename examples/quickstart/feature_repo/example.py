@@ -161,3 +161,41 @@ feature_stream_service = FeatureService(  # noqa
     ],
     owner="fja",
 )
+
+
+@on_demand_feature_view(  # noqa
+    sources=[
+        driver_hourly_stats_stream_view,
+    ],
+    schema=[
+        Field(name="output", dtype=Float64),
+        Field(name="seconds_since_last_created_time", dtype=Float64),
+        Field(name="days_since_last_created_time", dtype=Int64),
+        Field(name="seconds_since_last_event_time", dtype=Float64),
+        Field(name="days_since_last_event_time", dtype=Int64),
+    ],
+)
+def transformed_conv_rate_norequest(inputs: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df["output"] = inputs["conv_rate"]
+    datedelta_create = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["created"], utc=True
+    )
+    datedelta_event = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
+        inputs["event_timestamp"], utc=True
+    )
+    df["seconds_since_last_created_time"] = datedelta_create.dt.total_seconds()
+    df["days_since_last_created_time"] = datedelta_create.dt.days
+    df["seconds_since_last_event_time"] = datedelta_event.dt.total_seconds()
+    df["days_since_last_event_time"] = datedelta_event.dt.days
+    return df
+
+
+feature_stream_service_norequest= FeatureService(  # noqa
+    name="output_stream_service_norequest",
+    features=[
+        driver_hourly_stats_stream_view,
+        transformed_conv_rate_norequest,
+    ],
+    owner="fja",
+)
