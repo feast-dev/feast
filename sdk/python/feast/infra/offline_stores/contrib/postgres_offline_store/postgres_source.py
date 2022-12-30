@@ -112,7 +112,7 @@ class PostgreSQLSource(DataSource):
     ) -> Iterable[Tuple[str, str]]:
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
             cur.execute(
-                f"SELECT * FROM ({self.get_table_query_string()}) AS sub LIMIT 0"
+                f"SELECT * FROM {self.get_table_query_string()} AS sub LIMIT 0"
             )
             return (
                 (c.name, pg_type_code_to_pg_type(c.type_code)) for c in cur.description
