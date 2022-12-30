@@ -64,7 +64,16 @@ class SnowflakeSource(DataSource):
             raise ValueError('No "table" or "query" argument provided.')
         if table and query:
             raise ValueError('Both "table" and "query" argument provided.')
+        if table and database is None:
+            error = """
+            'No "database" argument provided.
+            Feast requires you to provided a fully qualified table name:
+            ${database}.${schema}.${table}'
 
+            (schema = "PUBLIC" by default)
+
+            """
+            raise ValueError(error)
         # The default Snowflake schema is named "PUBLIC".
         _schema = "PUBLIC" if (database and table and not schema) else schema
 
@@ -193,8 +202,6 @@ class SnowflakeSource(DataSource):
         """Returns a string that can directly be used to reference this table in SQL."""
         if self.database and self.table:
             return f'"{self.database}"."{self.schema}"."{self.table}"'
-        elif self.table:
-            return f'"{self.table}"'
         else:
             return f"({self.query})"
 
