@@ -55,6 +55,11 @@ const FeatureOverviewTab = () => {
                     {feast.types.ValueType.Enum[featureData?.valueType!]}
                   </EuiDescriptionListDescription>
 
+                  <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    {featureData?.description}
+                  </EuiDescriptionListDescription>
+
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     <EuiCustomLink

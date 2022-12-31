@@ -33,6 +33,7 @@ class Feature:
         self,
         name: str,
         dtype: ValueType,
+        description: str = "",
         labels: Optional[Dict[str, str]] = None,
     ):
         """Creates a Feature object."""
@@ -42,6 +43,7 @@ class Feature:
         if dtype is ValueType.UNKNOWN:
             raise ValueError(f"dtype cannot be {dtype}")
         self._dtype = dtype
+        self._description = description
         if labels is None:
             self._labels = dict()
         else:
@@ -78,6 +80,13 @@ class Feature:
         return self._dtype
 
     @property
+    def description(self) -> str:
+        """
+        Gets the description of the feature
+        """
+        return self._description
+
+    @property
     def labels(self) -> Dict[str, str]:
         """
         Gets the labels of this feature.
@@ -96,6 +105,7 @@ class Feature:
         return FeatureSpecProto(
             name=self.name,
             value_type=value_type,
+            description=self.description,
             tags=self.labels,
         )
 
@@ -111,6 +121,7 @@ class Feature:
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
+            description=feature_proto.description,
             labels=dict(feature_proto.tags),
         )
 

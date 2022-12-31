@@ -30,7 +30,7 @@ class Field:
     Attributes:
         name: The name of the field.
         dtype: The type of the field, such as string or float.
-        tags: User-defined metadata in dictionary form.
+        tags (optional): User-defined metadata in dictionary form.
     """
 
     name: str
@@ -42,6 +42,7 @@ class Field:
         *,
         name: str,
         dtype: FeastType,
+        description: str = "",
         tags: Optional[Dict[str, str]] = None,
     ):
         """
@@ -54,6 +55,7 @@ class Field:
         """
         self.name = name
         self.dtype = dtype
+        self.description = description
         self.tags = tags or {}
 
     def __eq__(self, other):
@@ -83,7 +85,7 @@ class Field:
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
-        return FieldProto(name=self.name, value_type=value_type.value, tags=self.tags)
+        return FieldProto(name=self.name, value_type=value_type.value, description=self.description, tags=self.tags)
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -109,5 +111,5 @@ class Field:
             feature: Feature object to convert.
         """
         return cls(
-            name=feature.name, dtype=from_value_type(feature.dtype), tags=feature.labels
+            name=feature.name, dtype=from_value_type(feature.dtype), description=feature.description, tags=feature.labels
         )
