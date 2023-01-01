@@ -85,7 +85,12 @@ class Field:
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
-        return FieldProto(name=self.name, value_type=value_type.value, description=self.description, tags=self.tags)
+        return FieldProto(
+            name=self.name,
+            value_type=value_type.value,
+            description=self.description,
+            tags=self.tags,
+        )
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -111,5 +116,8 @@ class Field:
             feature: Feature object to convert.
         """
         return cls(
-            name=feature.name, dtype=from_value_type(feature.dtype), description=feature.description, tags=feature.labels
+            name=feature.name,
+            dtype=from_value_type(feature.dtype),
+            description=feature.description,
+            tags=feature.labels,
         )
