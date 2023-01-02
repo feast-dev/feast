@@ -167,7 +167,7 @@ def ui(
     host: str,
     port: int,
     registry_ttl_sec: int,
-    root_path: str = "",
+    root_path: Optional[str] = "",
 ):
     """
     Shows the Feast UI over the current directory
