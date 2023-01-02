@@ -168,7 +168,6 @@ feature_stream_service = FeatureService(  # noqa
         driver_hourly_stats_stream_view,
     ],
     schema=[
-        Field(name="output", dtype=Float64),
         Field(name="seconds_since_last_created_time", dtype=Float64),
         Field(name="days_since_last_created_time", dtype=Int64),
         Field(name="seconds_since_last_event_time", dtype=Float64),
@@ -177,7 +176,6 @@ feature_stream_service = FeatureService(  # noqa
 )
 def transformed_conv_rate_norequest(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
-    df["output"] = inputs["conv_rate"]
     datedelta_create = pd.to_datetime(datetime.utcnow(), utc=True) - pd.to_datetime(
         inputs["created"], utc=True
     )
