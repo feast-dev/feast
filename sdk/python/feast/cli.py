@@ -151,12 +151,24 @@ def version():
     "--registry_ttl_sec",
     "-r",
     help="Number of seconds after which the registry is refreshed",
-    type=int,
+    type=click.INT,
     default=5,
     show_default=True,
 )
+@click.option(
+    "--root_path",
+    help="Provide root path to make the UI working behind proxy",
+    type=click.STRING,
+    default="",
+)
 @click.pass_context
-def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
+def ui(
+    ctx: click.Context,
+    host: str,
+    port: int,
+    registry_ttl_sec: int,
+    root_path: str = "",
+):
     """
     Shows the Feast UI over the current directory
     """
@@ -170,6 +182,7 @@ def ui(ctx: click.Context, host: str, port: int, registry_ttl_sec: int):
         port=port,
         get_registry_dump=registry_dump,
         registry_ttl_sec=registry_ttl_sec,
+        root_path=root_path,
     )
 
 
