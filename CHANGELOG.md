@@ -1,5 +1,27 @@
 # Changelog
 
+# [0.28.0](https://github.com/feast-dev/feast/compare/v0.27.0...v0.28.0) (2023-01-03)
+
+
+### Bug Fixes
+
+* Apply billing project when infer schema ([#3417](https://github.com/feast-dev/feast/issues/3417)) ([4f9ad7e](https://github.com/feast-dev/feast/commit/4f9ad7e0bdc9d87e9fcd64d0268feee86e59d9c0))
+* Assertion condition when value is 0 ([#3401](https://github.com/feast-dev/feast/issues/3401)) ([98a24a3](https://github.com/feast-dev/feast/commit/98a24a34c4274464f43c49b33b2b0baa88221cbd))
+* Enable registry caching in SQL Registry ([#3395](https://github.com/feast-dev/feast/issues/3395)) ([2e57376](https://github.com/feast-dev/feast/commit/2e573769a24e2429233afe34424af0433b2dc7ec))
+* Fix bug where SQL registry was incorrectly writing infra config around online stores ([#3394](https://github.com/feast-dev/feast/issues/3394)) ([6bcf77c](https://github.com/feast-dev/feast/commit/6bcf77c19f84188586ee7dcc57920a43062ee3be))
+* Get all columns with describe table method from RedshiftData-api ([#3377](https://github.com/feast-dev/feast/issues/3377)) ([fd97254](https://github.com/feast-dev/feast/commit/fd97254b18605fff7414845d94725a606112b874))
+* ODFV able to handle boolean pandas type ([#3384](https://github.com/feast-dev/feast/issues/3384)) ([8f242e6](https://github.com/feast-dev/feast/commit/8f242e640881113f1c6c5137dece8bf01504c61d))
+* Remove PySpark dependency from Snowflake Offline Store ([#3388](https://github.com/feast-dev/feast/issues/3388)) ([7b160c7](https://github.com/feast-dev/feast/commit/7b160c74685848a10965d5ab82721eddfb8c3766))
+* Specifies timeout in exception polling ([#3398](https://github.com/feast-dev/feast/issues/3398)) ([c0ca7e4](https://github.com/feast-dev/feast/commit/c0ca7e4638d5bcbc9a40778eaf6da0b721da6a6c))
+* Update import logic to remove `pyspark` dependency from Snowflake Offline Store ([#3397](https://github.com/feast-dev/feast/issues/3397)) ([cf073e6](https://github.com/feast-dev/feast/commit/cf073e68b0b3953ad901523ef7200e399eb3adfb))
+
+
+### Features
+
+* Add template for Github Codespaces ([#3421](https://github.com/feast-dev/feast/issues/3421)) ([41c0537](https://github.com/feast-dev/feast/commit/41c0537b0335863f40207ba608348bd315c20148))
+* Adds description attribute for features/fields ([#3425](https://github.com/feast-dev/feast/issues/3425)) ([26f4881](https://github.com/feast-dev/feast/commit/26f4881b51d6027fcce24a75add496f90fc36c5d))
+* Snowflake skip materialization if no table change ([#3404](https://github.com/feast-dev/feast/issues/3404)) ([0ab3942](https://github.com/feast-dev/feast/commit/0ab3942e5fa0f731e226f8823f62d127a39b5f93))
+
 # [0.27.0](https://github.com/feast-dev/feast/compare/v0.26.0...v0.27.0) (2022-12-05)
 
 
