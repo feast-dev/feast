@@ -224,9 +224,6 @@ input_request_date = RequestSource(
 def transformed_conv_rate_with_request_datetime(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     datedelta_create = inputs['current_utcdatetime'] - inputs["created"]
-    datedelta_create = pd.to_datetime(inputs['current_utcdatetime'], utc=True) - pd.to_datetime(
-        inputs["created"], utc=True
-    )
     datedelta_event = inputs['current_utcdatetime'] - inputs["event_timestamp"]
     df["seconds_since_last_created_time"] = datedelta_create.dt.total_seconds().astype(int)
     df["days_since_last_created_time"] = datedelta_create.dt.days.astype(int)
