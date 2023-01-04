@@ -57,7 +57,7 @@ class KafkaOptions:
             kafka_options_proto: A protobuf representation of a DataSource
 
         Returns:
-            Returns a BigQueryOptions object based on the kafka_options protobuf
+            Returns a KafkaOptions object based on the kafka_options protobuf
         """
         watermark_delay_threshold = None
         if kafka_options_proto.HasField("watermark_delay_threshold"):
