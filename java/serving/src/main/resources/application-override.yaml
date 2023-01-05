@@ -1,0 +1,10 @@
+feast:
+  project: "ltr_lt"
+  registry: "java/serving/src/main/resources/registry.pb"
+  activeStore: online
+  stores:
+    - name: online
+      type: REDIS
+      config:
+        host: localhost
+        port: 6379

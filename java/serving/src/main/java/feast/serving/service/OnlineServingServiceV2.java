@@ -52,9 +52,10 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(OnlineServingServiceV2.class);
   private final Optional<Tracer> tracerOptional;
   private final OnlineRetriever retriever;
-  private final RegistryRepository registryRepository;
   private final OnlineTransformationService onlineTransformationService;
   private final String project;
+
+  private final RegistryRepository registryRepository;
 
   public static final String DUMMY_ENTITY_ID = "__dummy_id";
   public static final String DUMMY_ENTITY_VAL = "";

@@ -83,28 +83,6 @@
       </plugin>
 
       <!-- Call feast apply before running integration tests -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.6.0</version>
-        <executions>
-          <execution>
-            <configuration>
-              <executable>python</executable>
-              <workingDirectory>src/test/resources/docker-compose/feast10/</workingDirectory>
-              <arguments>
-                <argument>setup_it.py</argument>
-              </arguments>
-              <skip>${skipITs}</skip>
-            </configuration>
-            <id>feast_test_apply</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 

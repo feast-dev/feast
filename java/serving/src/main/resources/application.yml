@@ -1,6 +1,6 @@
 feast:
-  project: ""
-  registry: "prompt_dory/data/registry.db"
+  project: "feast_java_demo"
+  registry: "java/serving/src/main/resources/registry.pb"
   registryRefreshInterval: 0
 
   # Indicates the active store. Only a single store in the last can be active at one time. In the future this key

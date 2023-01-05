@@ -424,34 +424,6 @@
                 </executions>
             </plugin>
             <!-- maven-gpg-plugin is used to sign Maven components. This is required when releasing libraries to Maven Central -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                        <!--
-                        This configuration helps with performing GPG operations non-interactively.
-                        For example when releasing via continuous integration.
-                        It is assumed that the GPG command used is version 2.x.
-                        -->
-                        <configuration>
-                            <gpgArguments>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                            <!-- Setting to allow retrieval of GPG passphrase from ~/.m2/settings.xml, refer to https://maven.apache.org/plugins/maven-gpg-plugin/usage.html -->
-                            <!--suppress MavenModelInspection -->
-                            <passphrase>${gpg.passphrase}</passphrase>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
 
         <pluginManagement>
