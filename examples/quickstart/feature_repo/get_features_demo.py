@@ -73,6 +73,53 @@ def demo_stream_feature_view():
     # features['created_ts'] = [_to_ts(j) for j in features['created']]
     print("stream features =", features, "\n")
 
+    payload2 = [
+        {"driver_id": 1001},
+    ]
+    fs = store.get_feature_service("output_stream_service_norequest")
+    features = store.get_online_features(
+        features=fs,
+        entity_rows=payload2,
+    ).to_dict()
+
+    print("stream features (no request) =", features, "\n")
+
+def demo_stream_feature_view_with_request_datetime():
+    ts = datetime.utcnow() - timedelta(minutes=16)
+    tsnow = datetime.utcnow()
+    # This is simulating a push to the stream
+    event_df = pd.DataFrame.from_dict(
+        {
+            "driver_id": [1001],
+            "event_timestamp": [
+                ts,
+            ],
+            "created": [
+                ts,
+            ],
+            "conv_rate": [1.0],
+            "acc_rate": [1.0],
+            "avg_daily_trips": [1000],
+        }
+    )
+    event_df["created"] = pd.to_datetime(event_df["created"], utc=True)
+    event_df["event_timestamp"] = pd.to_datetime(event_df["event_timestamp"], utc=True)
+    store.push("driver_hourly_stats_push_source", event_df)
+
+    payload2 = [
+        {
+            "driver_id": 1001,
+            "current_utcdatetime": tsnow
+        },
+    ]
+    fs = store.get_feature_service("output_stream_service_with_request_datetime")
+    features = store.get_online_features(
+        features=fs,
+        entity_rows=payload2,
+    ).to_dict()
+
+    print("stream features with request =", features, "\n")
+
 
 def _to_ts(t: int) -> datetime:
     return datetime.utcfromtimestamp(t / 1e9)
@@ -83,6 +130,7 @@ def main():
     demo_batch_feature_view()
     demo_online_feature_view()
     demo_stream_feature_view()
+    demo_stream_feature_view_with_request_datetime()
     print("...end demo")
 
 
