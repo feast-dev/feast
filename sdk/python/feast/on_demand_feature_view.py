@@ -184,9 +184,9 @@ class OnDemandFeatureView(BaseFeatureView):
         else:
             meta.created_timestamp.FromDatetime(datetime.now())
         if self.last_updated_timestamp:
-            meta.last_updated_timestamp.FromDatetime(datetime.now())
-        else:
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        else:
+            meta.last_updated_timestamp.FromDatetime(datetime.now())
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
