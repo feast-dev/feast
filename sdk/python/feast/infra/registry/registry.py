@@ -741,14 +741,12 @@ class Registry(BaseRegistry):
         )
 
     def list_validation_references(
-            self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[ValidationReference]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_validation_references(
-            registry_proto
-        )
+        return proto_registry_utils.list_validation_references(registry_proto)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         registry_proto = self._prepare_registry_for_changes(project)

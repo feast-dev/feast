@@ -421,7 +421,7 @@ class SqlRegistry(BaseRegistry):
             project=project,
             proto_class=ValidationReferenceProto,
             python_class=ValidationReference,
-            proto_field_name="validation_reference_proto"
+            proto_field_name="validation_reference_proto",
         )
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
