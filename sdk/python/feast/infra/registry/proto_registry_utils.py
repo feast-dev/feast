@@ -115,6 +115,10 @@ def get_validation_reference(
             return ValidationReference.from_proto(validation_reference)
     raise ValidationReferenceNotFound(name, project=project)
 
+def list_validation_references(
+    registry_proto: RegistryProto
+):
+    return registry_proto.validation_references
 
 def list_feature_services(
     registry_proto: RegistryProto, project: str, allow_cache: bool = False
