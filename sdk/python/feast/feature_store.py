@@ -2319,7 +2319,12 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def serve_ui(
-        self, host: str, port: int, get_registry_dump: Callable, registry_ttl_sec: int
+        self,
+        host: str,
+        port: int,
+        get_registry_dump: Callable,
+        registry_ttl_sec: int,
+        root_path: Optional[str] = "",
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -2335,6 +2340,7 @@ class FeatureStore:
             get_registry_dump=get_registry_dump,
             project_id=self.config.project,
             registry_ttl_sec=registry_ttl_sec,
+            root_path=root_path,
         )
 
     @log_exceptions_and_usage
