@@ -408,6 +408,22 @@ class SqlRegistry(BaseRegistry):
             not_found_exception=ValidationReferenceNotFound,
         )
 
+    def list_validation_references(
+        self, project: str, allow_cache: bool = False
+    ) -> List[ValidationReference]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_validation_references(
+                self.cached_registry_proto
+            )
+        return self._list_objects(
+            table=validation_references,
+            project=project,
+            proto_class=ValidationReferenceProto,
+            python_class=ValidationReference,
+            proto_field_name="validation_reference_proto",
+        )
+
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
