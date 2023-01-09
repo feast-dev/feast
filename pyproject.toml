@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "feast"}]
 
 [tool.poetry.dependencies]
-python = "3.7.13"
+python = "3.7.9"
 anyio = "3.6.1"
 appdirs = "1.4.4"
 attrs = "22.1.0"
