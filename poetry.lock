@@ -597,14 +597,14 @@ files = [
 
 [[package]]
 name = "importlib-metadata"
-version = "5.2.0"
+version = "6.0.0"
 description = "Read metadata from Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "importlib_metadata-5.2.0-py3-none-any.whl", hash = "sha256:0eafa39ba42bf225fc00e67f701d71f85aead9f878569caf13c3724f704b970f"},
-    {file = "importlib_metadata-5.2.0.tar.gz", hash = "sha256:404d48d62bba0b7a77ff9d405efd91501bef2e67ff4ace0bed40a0cf28c3c7cd"},
+    {file = "importlib_metadata-6.0.0-py3-none-any.whl", hash = "sha256:7efb448ec9a5e313a57655d35aa54cd3e01b7e1fbcf72dce1bf06119420f5bad"},
+    {file = "importlib_metadata-6.0.0.tar.gz", hash = "sha256:e354bedeb60efa6affdcc8ae121b73544a7aa74156d047311948f6d711cd378d"},
 ]
 
 [package.dependencies]
@@ -1871,5 +1871,5 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 
 [metadata]
 lock-version = "2.0"
-python-versions = "3.7.13"
-content-hash = "c7ec579a0c4371c51156e7d771926636789b5348ef25b749a5acc348a5dcb802"
+python-versions = "3.7.9"
+content-hash = "7577748964a60201e427e4d588d532ae611f5b531e83374b97b0585c7a158df6"
