@@ -34,7 +34,9 @@ from feast.utils import (
 )
 
 DEFAULT_BATCH_SIZE = 10_000
-
+feature_row = List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ]
 
 class PassthroughProvider(Provider):
     """
@@ -160,6 +162,15 @@ class PassthroughProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
+    def online_write_batch_cooperative(self,
+                                       config: RepoConfig,
+                                       table: FeatureView,
+                                       data: feature_row,
+                                       progress: Optional[Callable[[int], Any]]) -> None:
+        set_usage_attribute("provider", self.__class__.__name__)
+        if self.online_store:
+            self.online_store.online_write_batch_cooperative(config, table, data, progress)
+
     def offline_write_batch(
         self,
         config: RepoConfig,
@@ -190,11 +201,9 @@ class PassthroughProvider(Provider):
             )
         return result
 
-    def ingest_df(
-        self,
-        feature_view: FeatureView,
-        df: pd.DataFrame,
-    ):
+    def _unpack_df(self,
+                   feature_view: FeatureView,
+                   df: pd.DataFrame):
         set_usage_attribute("provider", self.__class__.__name__)
         table = pa.Table.from_pandas(df)
 
@@ -207,10 +216,27 @@ class PassthroughProvider(Provider):
             entity.name: entity.dtype.to_value_type()
             for entity in feature_view.entity_columns
         }
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+        return _convert_arrow_to_proto(table, feature_view, join_keys)
 
+    def ingest_df(
+        self,
+        feature_view: FeatureView,
+        df: pd.DataFrame,
+    ):
+        rows_to_write = self._unpack_df(feature_view, df)
         self.online_write_batch(
             self.repo_config, feature_view, rows_to_write, progress=None
+        )
+
+    def ingest_dfs(self,
+                   feature_view: FeatureView,
+                   new_df: pd.DataFrame,
+                   old_df: Optional[pd.DataFrame]):
+        new_rows_to_write = self._unpack_df(feature_view, new_df)
+        if old_df:
+            old_rows_to_write = self._unpack_df(feature_view, old_df)
+        self.online_write_batch(
+
         )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):

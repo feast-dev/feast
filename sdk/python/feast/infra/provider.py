@@ -120,6 +120,37 @@ class Provider(ABC):
         """
         pass
 
+    @abstractmethod
+    def online_write_batch_cooperative(
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            old_data: Optional[
+                List[
+                    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+                ]
+            ],
+            progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """
+        Writes a batch of feature rows to the online store.
+
+        If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
+
+        Args:
+            config: The config for the current feature store.
+            table: Feature view to which these feature rows correspond.
+            data: A list of quadruplets containing feature data. Each quadruplet contains an entity
+                key, a dict containing feature values, an event timestamp for the row, and the created
+                timestamp for the row if it exists.
+            progress: Function to be called once a batch of rows is written to the online store, used
+                to show progress.
+        """
+        pass
+
     def ingest_df(
         self,
         feature_view: FeatureView,
