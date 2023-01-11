@@ -73,7 +73,7 @@ driver_hourly_stats_stream_view = FeatureView(
     online=True,
     source=driver_hourly_stats_push_source,
     tags={"production": "True"},
-    owner="test2@gmail.com",
+    owner="affirm",
 )
 
 
@@ -120,7 +120,7 @@ feature_service = FeatureService(  # noqa
         driver_hourly_stats_view,
         transformed_conv_rate,
     ],
-    owner="fja",
+    owner="affirm",
 )
 
 
@@ -159,7 +159,7 @@ feature_stream_service = FeatureService(  # noqa
         driver_hourly_stats_stream_view,
         transformed_conv_rate_stream,
     ],
-    owner="fja",
+    owner="affirm",
 )
 
 
@@ -195,7 +195,7 @@ feature_stream_service_norequest= FeatureService(  # noqa
         driver_hourly_stats_stream_view,
         transformed_conv_rate_norequest,
     ],
-    owner="fja",
+    owner="affirm",
 )
 
 
@@ -240,5 +240,5 @@ feature_stream_service_with_request_datetime = FeatureService(  # noqa
         driver_hourly_stats_stream_view,
         transformed_conv_rate_with_request_datetime,
     ],
-    owner="fja",
+    owner="affirm",
 )
