@@ -118,7 +118,7 @@ class MySQLOnlineStore(OnlineStore):
         old_data:  Optional[List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ]]
-    ) -> None:
+    ) -> bool:
         if old_data and len(data) != len(old_data):
             raise ValueError(f'More columns in new entry {len(data)} than old entry {len(old_data)}')
 
@@ -156,6 +156,9 @@ class MySQLOnlineStore(OnlineStore):
                                 old_created_ts
                             ),
                         )
+                        if cur.rowcount == 0:
+                            conn.rollback()
+                            return False
                     else:
                         cur.execute(
                             f"""
@@ -174,9 +177,10 @@ class MySQLOnlineStore(OnlineStore):
             except pymysql.IntegrityError as e:
                 if e.args[0] == ER.DUP_ENTRY:
                     conn.rollback()
+                    return False
                 raise
-            # RB: commit everything
             conn.commit()
+            return True
 
     @staticmethod
     def write_to_table(

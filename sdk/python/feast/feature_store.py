@@ -1487,6 +1487,33 @@ class FeatureStore:
         provider.ingest_df(feature_view, df)
 
     @log_exceptions_and_usage
+    def write_to_online_store_cooperative(
+            self,
+            feature_view_name: str,
+            df: pd.DataFrame,
+            old_df: Optional[pd.DataFrame],
+            allow_registry_cache: bool = True,
+    ):
+        """
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+        """
+        try:
+            feature_view = self.get_stream_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+        except FeatureViewNotFoundException:
+            feature_view = self.get_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+        provider = self._get_provider()
+        provider.ingest_dfs(feature_view, df, old_df)
+
+    @log_exceptions_and_usage
     def write_to_offline_store(
         self,
         feature_view_name: str,

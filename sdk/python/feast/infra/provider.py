@@ -134,21 +134,7 @@ class Provider(ABC):
                 ]
             ],
             progress: Optional[Callable[[int], Any]],
-    ) -> None:
-        """
-        Writes a batch of feature rows to the online store.
-
-        If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
-
-        Args:
-            config: The config for the current feature store.
-            table: Feature view to which these feature rows correspond.
-            data: A list of quadruplets containing feature data. Each quadruplet contains an entity
-                key, a dict containing feature values, an event timestamp for the row, and the created
-                timestamp for the row if it exists.
-            progress: Function to be called once a batch of rows is written to the online store, used
-                to show progress.
-        """
+    ) -> bool:
         pass
 
     def ingest_df(
@@ -163,6 +149,14 @@ class Provider(ABC):
             feature_view: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
         """
+        pass
+
+    def ingest_dfs(
+        self,
+        feature_store: FeatureView,
+        df: pd.DataFrame,
+        old_df: Optional[pd.DataFrame]
+    ) -> None:
         pass
 
     def ingest_df_to_offline_store(

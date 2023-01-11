@@ -67,9 +67,9 @@ class OnlineStore(ABC):
                 Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
             ]],
             progress: Optional[Callable[[int], Any]],
-    ) -> None:
+    ) -> bool:
         # RB: optional to implement
-        return None
+        return False
 
     @abstractmethod
     def online_read(
