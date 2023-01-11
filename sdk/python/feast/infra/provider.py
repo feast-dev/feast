@@ -120,6 +120,23 @@ class Provider(ABC):
         """
         pass
 
+    @abstractmethod
+    def online_write_batch_cooperative(
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            old_data: Optional[
+                List[
+                    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+                ]
+            ],
+            progress: Optional[Callable[[int], Any]],
+    ) -> bool:
+        pass
+
     def ingest_df(
         self,
         feature_view: FeatureView,
@@ -132,6 +149,14 @@ class Provider(ABC):
             feature_view: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
         """
+        pass
+
+    def ingest_dfs(
+        self,
+        feature_store: FeatureView,
+        df: pd.DataFrame,
+        old_df: Optional[pd.DataFrame]
+    ) -> None:
         pass
 
     def ingest_df_to_offline_store(
