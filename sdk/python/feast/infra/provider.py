@@ -156,7 +156,7 @@ class Provider(ABC):
         feature_store: FeatureView,
         df: pd.DataFrame,
         old_df: Optional[pd.DataFrame]
-    ) -> None:
+    ) -> bool:
         pass
 
     def ingest_df_to_offline_store(

@@ -1511,7 +1511,7 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         provider = self._get_provider()
-        provider.ingest_dfs(feature_view, df, old_df)
+        return provider.ingest_dfs(feature_view, df, old_df)
 
     @log_exceptions_and_usage
     def write_to_offline_store(
