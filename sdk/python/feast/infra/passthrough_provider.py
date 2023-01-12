@@ -240,11 +240,11 @@ class PassthroughProvider(Provider):
         feature_view: FeatureView,
         new_df: pd.DataFrame,
         old_df: Optional[pd.DataFrame]
-    ) -> None:
+    ) -> bool:
         new_rows_to_write = self._unpack_df(feature_view, new_df)
         if old_df:
             old_rows_to_write = self._unpack_df(feature_view, old_df)
-        self.online_write_batch_cooperative(
+        return self.online_write_batch_cooperative(
             self.repo_config, feature_view, new_rows_to_write, old_rows_to_write if old_df else None
         )
 
