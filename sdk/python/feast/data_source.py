@@ -57,7 +57,7 @@ class KafkaOptions:
             kafka_options_proto: A protobuf representation of a DataSource
 
         Returns:
-            Returns a BigQueryOptions object based on the kafka_options protobuf
+            Returns a KafkaOptions object based on the kafka_options protobuf
         """
         watermark_delay_threshold = None
         if kafka_options_proto.HasField("watermark_delay_threshold"):
@@ -182,8 +182,6 @@ class DataSource(ABC):
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
-        timestamp_field (optional): Event timestamp field used for point in time
-            joins of feature values.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
     """
 

@@ -30,6 +30,7 @@ from cassandra.cluster import (
     ResultSet,
     Session,
 )
+from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
 from cassandra.query import PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
@@ -164,6 +165,22 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """
     Details on the load-balancing policy: it will be
     wrapped into an execution profile if present.
+    """
+
+    read_concurrency: Optional[StrictInt] = 100
+    """
+    Value of the `concurrency` parameter internally passed to Cassandra driver's
+    `execute_concurrent_with_args` call when reading rows from tables.
+    See https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent .
+    Default: 100.
+    """
+
+    write_concurrency: Optional[StrictInt] = 100
+    """
+    Value of the `concurrency` parameter internally passed to Cassandra driver's
+    `execute_concurrent_with_args` call when writing rows to tables.
+    See https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent .
+    Default: 100.
     """
 
 
@@ -318,21 +335,37 @@ class CassandraOnlineStore(OnlineStore):
                       display progress.
         """
         project = config.project
-        for entity_key, values, timestamp, created_ts in data:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
-            with tracing_span(name="remote_call"):
-                self._write_rows(
-                    config,
-                    project,
-                    table,
-                    entity_key_bin,
-                    values.items(),
-                    timestamp,
-                    created_ts,
-                )
+
+        def unroll_insertion_tuples() -> Iterable[Tuple[str, bytes, str, datetime]]:
+            """
+            We craft an iterable over all rows to be inserted (entities->features),
+            but this way we can call `progress` after each entity is done.
+            """
+            for entity_key, values, timestamp, created_ts in data:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                ).hex()
+                for feature_name, val in values.items():
+                    params: Tuple[str, bytes, str, datetime] = (
+                        feature_name,
+                        val.SerializeToString(),
+                        entity_key_bin,
+                        timestamp,
+                    )
+                    yield params
+                # this happens N-1 times, will be corrected outside:
+                if progress:
+                    progress(1)
+
+        with tracing_span(name="remote_call"):
+            self._write_rows_concurrently(
+                config,
+                project,
+                table,
+                unroll_insertion_tuples(),
+            )
+            # correction for the last missing call to `progress`:
             if progress:
                 progress(1)
 
@@ -358,32 +391,36 @@ class CassandraOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(
+        entity_key_bins = [
+            serialize_entity_key(
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
+            for entity_key in entity_keys
+        ]
 
-            with tracing_span(name="remote_call"):
-                feature_rows = self._read_rows_by_entity_key(
-                    config,
-                    project,
-                    table,
-                    entity_key_bin,
-                    columns=["feature_name", "value", "event_ts"],
-                )
+        with tracing_span(name="remote_call"):
+            feature_rows_sequence = self._read_rows_by_entity_keys(
+                config,
+                project,
+                table,
+                entity_key_bins,
+                columns=["feature_name", "value", "event_ts"],
+            )
 
+        for entity_key_bin, feature_rows in zip(entity_key_bins, feature_rows_sequence):
             res = {}
             res_ts = None
-            for feature_row in feature_rows:
-                if (
-                    requested_features is None
-                    or feature_row.feature_name in requested_features
-                ):
-                    val = ValueProto()
-                    val.ParseFromString(feature_row.value)
-                    res[feature_row.feature_name] = val
-                    res_ts = feature_row.event_ts
+            if feature_rows:
+                for feature_row in feature_rows:
+                    if (
+                        requested_features is None
+                        or feature_row.feature_name in requested_features
+                    ):
+                        val = ValueProto()
+                        val.ParseFromString(feature_row.value)
+                        res[feature_row.feature_name] = val
+                        res_ts = feature_row.event_ts
             if not res:
                 result.append((None, None))
             else:
@@ -445,46 +482,31 @@ class CassandraOnlineStore(OnlineStore):
         """
         return f'"{keyspace}"."{project}_{table.name}"'
 
-    def _write_rows(
+    def _write_rows_concurrently(
         self,
         config: RepoConfig,
         project: str,
         table: FeatureView,
-        entity_key_bin: str,
-        features_vals: Iterable[Tuple[str, ValueProto]],
-        timestamp: datetime,
-        created_ts: Optional[datetime],
+        rows: Iterable[Tuple[str, bytes, str, datetime]],
     ):
-        """
-        Handle the CQL (low-level) insertion of feature values to a table.
-
-        Note: `created_ts` can be None: in that case we avoid explicitly
-        inserting it to prevent unnecessary tombstone creation on Cassandra.
-        Note: `created_ts` is being deprecated (July 2022) and the following
-        reflects this fact.
-        """
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
         fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
         insert_cql = self._get_cql_statement(config, "insert4", fqtable=fqtable)
-        for feature_name, val in features_vals:
-            params: Sequence[object] = (
-                feature_name,
-                val.SerializeToString(),
-                entity_key_bin,
-                timestamp,
-            )
-            session.execute(
-                insert_cql,
-                params,
-            )
+        #
+        execute_concurrent_with_args(
+            session,
+            insert_cql,
+            rows,
+            concurrency=config.online_store.write_concurrency,
+        )
 
-    def _read_rows_by_entity_key(
+    def _read_rows_by_entity_keys(
         self,
         config: RepoConfig,
         project: str,
         table: FeatureView,
-        entity_key_bin: str,
+        entity_key_bins: List[str],
         columns: Optional[List[str]] = None,
     ) -> ResultSet:
         """
@@ -500,7 +522,25 @@ class CassandraOnlineStore(OnlineStore):
             fqtable=fqtable,
             columns=projection_columns,
         )
-        return session.execute(select_cql, [entity_key_bin])
+        retrieval_results = execute_concurrent_with_args(
+            session,
+            select_cql,
+            ((entity_key_bin,) for entity_key_bin in entity_key_bins),
+            concurrency=config.online_store.read_concurrency,
+        )
+        # execute_concurrent_with_args return a sequence
+        # of (success, result_or_exception) pairs:
+        returned_sequence = []
+        for success, result_or_exception in retrieval_results:
+            if success:
+                returned_sequence.append(result_or_exception)
+            else:
+                # an exception
+                logger.error(
+                    f"Cassandra online store exception during concurrent fetching: {str(result_or_exception)}"
+                )
+                returned_sequence.append(None)
+        return returned_sequence
 
     def _drop_table(
         self,

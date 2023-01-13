@@ -28,6 +28,8 @@ from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.infra_object import Infra
+from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RegistryConfig
@@ -258,10 +260,20 @@ def test_apply_feature_view_success(sql_registry):
         and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
+    assert feature_view.ttl == timedelta(minutes=5)
 
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
     assert feature_view.created_timestamp == feature_view.last_updated_timestamp
 
+    # Modify the feature view and apply again to test if diffing the online store table works
+    fv1.ttl = timedelta(minutes=6)
+    sql_registry.apply_feature_view(fv1, project)
+    feature_views = sql_registry.list_feature_views(project)
+    assert len(feature_views) == 1
+    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    assert feature_view.ttl == timedelta(minutes=6)
+
+    # Delete feature view
     sql_registry.delete_feature_view("my_feature_view_1", project)
     feature_views = sql_registry.list_feature_views(project)
     assert len(feature_views) == 0
@@ -570,6 +582,22 @@ def test_update_infra(sql_registry):
     project = "project"
     infra = sql_registry.get_infra(project=project)
 
+    assert len(infra.infra_objects) == 0
+
     # Should run update infra successfully
     sql_registry.update_infra(infra, project)
+
+    # Should run update infra successfully when adding
+    new_infra = Infra()
+    new_infra.infra_objects.append(
+        SqliteTable(
+            path="/tmp/my_path.db",
+            name="my_table",
+        )
+    )
+    sql_registry.update_infra(new_infra, project)
+    infra = sql_registry.get_infra(project=project)
+    assert len(infra.infra_objects) == 1
+
+    # Try again since second time, infra should be not-empty
     sql_registry.teardown()

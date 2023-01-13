@@ -1,9 +1,12 @@
 import contextlib
 import os
 import uuid
+import warnings
 from datetime import datetime
+from functools import reduce
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ContextManager,
@@ -25,7 +28,11 @@ from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import EntitySQLEmptyResults, InvalidEntityType
+from feast.errors import (
+    EntitySQLEmptyResults,
+    InvalidEntityType,
+    InvalidSparkSessionException,
+)
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -56,6 +63,11 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
@@ -446,6 +458,48 @@ class SnowflakeRetrievalJob(RetrievalJob):
         """
         with self._query_generator() as query:
             return query
+
+    def to_spark_df(self, spark_session: "SparkSession") -> "DataFrame":
+        """
+        Method to convert snowflake query results to pyspark data frame.
+
+        Args:
+            spark_session: spark Session variable of current environment.
+
+        Returns:
+            spark_df: A pyspark dataframe.
+        """
+
+        try:
+            from pyspark.sql import DataFrame, SparkSession
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("spark", str(e))
+
+        if isinstance(spark_session, SparkSession):
+            with self._query_generator() as query:
+
+                arrow_batches = execute_snowflake_statement(
+                    self.snowflake_conn, query
+                ).fetch_arrow_batches()
+
+                if arrow_batches:
+                    spark_df = reduce(
+                        DataFrame.unionAll,
+                        [
+                            spark_session.createDataFrame(batch.to_pandas())
+                            for batch in arrow_batches
+                        ],
+                    )
+
+                    return spark_df
+
+                else:
+                    raise EntitySQLEmptyResults(query)
+
+        else:
+            raise InvalidSparkSessionException(spark_session)
 
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)

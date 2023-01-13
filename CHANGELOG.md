@@ -1,20 +1,81 @@
 # Changelog
 
-## [0.25.1](https://github.com/feast-dev/feast/compare/v0.25.0...v0.25.1) (2022-09-30)
+# [0.28.0](https://github.com/feast-dev/feast/compare/v0.27.0...v0.28.0) (2023-01-03)
 
 
 ### Bug Fixes
 
-* Add `X-Trino-Extra-Credential` header and remove user override ([#3246](https://github.com/feast-dev/feast/issues/3246)) ([f38506c](https://github.com/feast-dev/feast/commit/f38506cf14a770496f622bf8103d52ff0b18ad12))
-* Add postgres to the feature server Dockerfile to fix helm chart flow ([#3261](https://github.com/feast-dev/feast/issues/3261)) ([a2cb995](https://github.com/feast-dev/feast/commit/a2cb995c8c854f721a06bc6404e69883334c9658))
-* Add stream feature view in the Web UI ([#3257](https://github.com/feast-dev/feast/issues/3257)) ([47d4c93](https://github.com/feast-dev/feast/commit/47d4c93f079e23ebcbb4143c3084213e5c87e57e))
+* Apply billing project when infer schema ([#3417](https://github.com/feast-dev/feast/issues/3417)) ([4f9ad7e](https://github.com/feast-dev/feast/commit/4f9ad7e0bdc9d87e9fcd64d0268feee86e59d9c0))
+* Assertion condition when value is 0 ([#3401](https://github.com/feast-dev/feast/issues/3401)) ([98a24a3](https://github.com/feast-dev/feast/commit/98a24a34c4274464f43c49b33b2b0baa88221cbd))
+* Enable registry caching in SQL Registry ([#3395](https://github.com/feast-dev/feast/issues/3395)) ([2e57376](https://github.com/feast-dev/feast/commit/2e573769a24e2429233afe34424af0433b2dc7ec))
+* Fix bug where SQL registry was incorrectly writing infra config around online stores ([#3394](https://github.com/feast-dev/feast/issues/3394)) ([6bcf77c](https://github.com/feast-dev/feast/commit/6bcf77c19f84188586ee7dcc57920a43062ee3be))
+* Get all columns with describe table method from RedshiftData-api ([#3377](https://github.com/feast-dev/feast/issues/3377)) ([fd97254](https://github.com/feast-dev/feast/commit/fd97254b18605fff7414845d94725a606112b874))
+* ODFV able to handle boolean pandas type ([#3384](https://github.com/feast-dev/feast/issues/3384)) ([8f242e6](https://github.com/feast-dev/feast/commit/8f242e640881113f1c6c5137dece8bf01504c61d))
+* Remove PySpark dependency from Snowflake Offline Store ([#3388](https://github.com/feast-dev/feast/issues/3388)) ([7b160c7](https://github.com/feast-dev/feast/commit/7b160c74685848a10965d5ab82721eddfb8c3766))
+* Specifies timeout in exception polling ([#3398](https://github.com/feast-dev/feast/issues/3398)) ([c0ca7e4](https://github.com/feast-dev/feast/commit/c0ca7e4638d5bcbc9a40778eaf6da0b721da6a6c))
+* Update import logic to remove `pyspark` dependency from Snowflake Offline Store ([#3397](https://github.com/feast-dev/feast/issues/3397)) ([cf073e6](https://github.com/feast-dev/feast/commit/cf073e68b0b3953ad901523ef7200e399eb3adfb))
+
+
+### Features
+
+* Add template for Github Codespaces ([#3421](https://github.com/feast-dev/feast/issues/3421)) ([41c0537](https://github.com/feast-dev/feast/commit/41c0537b0335863f40207ba608348bd315c20148))
+* Adds description attribute for features/fields ([#3425](https://github.com/feast-dev/feast/issues/3425)) ([26f4881](https://github.com/feast-dev/feast/commit/26f4881b51d6027fcce24a75add496f90fc36c5d))
+* Snowflake skip materialization if no table change ([#3404](https://github.com/feast-dev/feast/issues/3404)) ([0ab3942](https://github.com/feast-dev/feast/commit/0ab3942e5fa0f731e226f8823f62d127a39b5f93))
+
+# [0.27.0](https://github.com/feast-dev/feast/compare/v0.26.0...v0.27.0) (2022-12-05)
+
+
+### Bug Fixes
+
+* Changing Snowflake template code to avoid query not implemented … ([#3319](https://github.com/feast-dev/feast/issues/3319)) ([1590d6b](https://github.com/feast-dev/feast/commit/1590d6be14b9a9cea6fbde60f2373cb3cd68acb9))
+* Dask zero division error if parquet dataset has only one partition ([#3236](https://github.com/feast-dev/feast/issues/3236)) ([69e4a7d](https://github.com/feast-dev/feast/commit/69e4a7d10d912cd89f1e0c2a024d07cf2f44211e))
+* Enable Spark materialization on Yarn ([#3370](https://github.com/feast-dev/feast/issues/3370)) ([0c20a4e](https://github.com/feast-dev/feast/commit/0c20a4e6ac95d7c28299a95d91024be4370ef7ed))
+* Ensure that Snowflake accounts for number columns that overspecify precision ([#3306](https://github.com/feast-dev/feast/issues/3306)) ([0ad0ace](https://github.com/feast-dev/feast/commit/0ad0ace893edbd0680ee100726ad38bec1436974))
+* Fix memory leak from usage.py not properly cleaning up call stack ([#3371](https://github.com/feast-dev/feast/issues/3371)) ([a0c6fde](https://github.com/feast-dev/feast/commit/a0c6fde93bc8088d2bb34d1dd366a44b5d2657ee))
+* Fix workflow to contain env vars ([#3379](https://github.com/feast-dev/feast/issues/3379)) ([548bed9](https://github.com/feast-dev/feast/commit/548bed988687dc94147f494d4dbb4147fa5bea8e))
+* Update bytewax materialization ([#3368](https://github.com/feast-dev/feast/issues/3368)) ([4ebe00f](https://github.com/feast-dev/feast/commit/4ebe00fefa337cbe96ad3c712f44b9c9d7a46ef2))
+* Update the version counts ([#3378](https://github.com/feast-dev/feast/issues/3378)) ([8112db5](https://github.com/feast-dev/feast/commit/8112db5b5a18123da567c310fe385ae907edb56d))
+* Updated AWS Athena template ([#3322](https://github.com/feast-dev/feast/issues/3322)) ([5956981](https://github.com/feast-dev/feast/commit/595698105637aaeb952fddc2957c83e501964d2a))
+* Wrong UI data source type display ([#3276](https://github.com/feast-dev/feast/issues/3276)) ([8f28062](https://github.com/feast-dev/feast/commit/8f280620bceb3a6e42ffffd0571eeb353b0feff2))
+
+
+### Features
+
+* Cassandra online store, concurrency in bulk write operations ([#3367](https://github.com/feast-dev/feast/issues/3367)) ([eaf354c](https://github.com/feast-dev/feast/commit/eaf354cde27c8f3a46ac256a71ad5ec06dfd70b3))
+* Cassandra online store, concurrent fetching for multiple entities ([#3356](https://github.com/feast-dev/feast/issues/3356)) ([00fa21f](https://github.com/feast-dev/feast/commit/00fa21f9ebef496a6801974cfd3a0a0b4861a11e))
+* Get Snowflake Query Output As Pyspark Dataframe ([#2504](https://github.com/feast-dev/feast/issues/2504)) ([#3358](https://github.com/feast-dev/feast/issues/3358)) ([2f18957](https://github.com/feast-dev/feast/commit/2f189572493cb498243bf7d6ec12d768f4b90ee7))
+
+# [0.26.0](https://github.com/feast-dev/feast/compare/v0.25.0...v0.26.0) (2022-10-06)
+
+
+### Bug Fixes
+
+* Add `X-Trino-Extra-Credential` header and remove user override ([#3246](https://github.com/feast-dev/feast/issues/3246)) ([164e666](https://github.com/feast-dev/feast/commit/164e666ee8c425150903819a0035d6f6e48bcdd0))
+* Add postgres to the feature server Dockerfile to fix helm chart flow ([#3261](https://github.com/feast-dev/feast/issues/3261)) ([6f6cbb7](https://github.com/feast-dev/feast/commit/6f6cbb76a216965666719e492c5ba854ada32605))
+* Add stream feature view in the Web UI ([#3257](https://github.com/feast-dev/feast/issues/3257)) ([1f70b3a](https://github.com/feast-dev/feast/commit/1f70b3a9be738ab54f0cb59046ed1e299f92e3a2))
 * Build dockerfile correctly ([#3239](https://github.com/feast-dev/feast/issues/3239)) ([a2dc0d0](https://github.com/feast-dev/feast/commit/a2dc0d0410eb297afddfb1dd4f1f899ab70fa14f))
-* Configuration to stop coercion of tz for entity_df ([#3255](https://github.com/feast-dev/feast/issues/3255)) ([fdc8d67](https://github.com/feast-dev/feast/commit/fdc8d67a0f16dd05b49cbd0d7ef24b197785e1b8))
-* Enable users to upgrade a batch source into a push source ([#3213](https://github.com/feast-dev/feast/issues/3213)) ([8f2fb58](https://github.com/feast-dev/feast/commit/8f2fb587c59a661b121b168f191dbe2c95aaf1ee))
-* Return 422 on bad push source name ([#3214](https://github.com/feast-dev/feast/issues/3214)) ([8abbcd9](https://github.com/feast-dev/feast/commit/8abbcd9960bbd0d5db9f14cc3c2456bae497b58b))
-* Stream feature view not shown in the UI ([#3251](https://github.com/feast-dev/feast/issues/3251)) ([55e28e2](https://github.com/feast-dev/feast/commit/55e28e2f831dfe1129a02fe595d58e4b9b94f0da))
+* Configuration to stop coercion of tz for entity_df ([#3255](https://github.com/feast-dev/feast/issues/3255)) ([97b7ab9](https://github.com/feast-dev/feast/commit/97b7ab906081d1afe034fc017a2ec61f20818771))
+* Enable users to upgrade a batch source into a push source ([#3213](https://github.com/feast-dev/feast/issues/3213)) ([1b312fb](https://github.com/feast-dev/feast/commit/1b312fbb96a0629c0bd465ee09a01a43130c99c7))
+* Fix docker image for feature-server ([#3272](https://github.com/feast-dev/feast/issues/3272)) ([eff01d1](https://github.com/feast-dev/feast/commit/eff01d1ed3a76ff539595455f69ff1c954ad46cd))
+* Fix Feast UI release process to update the feast-ui package  ([#3267](https://github.com/feast-dev/feast/issues/3267)) ([a9d48d0](https://github.com/feast-dev/feast/commit/a9d48d07f634deb0b992e36d2ae1577d9b627940))
+* Return 422 on bad push source name ([#3214](https://github.com/feast-dev/feast/issues/3214)) ([b851e01](https://github.com/feast-dev/feast/commit/b851e01ab4ae78e6714793c7efddb86b39d2a36e))
+* Stream feature view meta undefined created_timestamp issue ([#3266](https://github.com/feast-dev/feast/issues/3266)) ([12e1a8f](https://github.com/feast-dev/feast/commit/12e1a8f0e9f098cfc3ed66db6665cb5fa26240f4))
+* Stream feature view not shown in the UI ([#3251](https://github.com/feast-dev/feast/issues/3251)) ([e713dda](https://github.com/feast-dev/feast/commit/e713dda7c5a4433f5d13b4685d36978645e0cd02))
+* Udf in stream feature view UI shows pickled data ([#3268](https://github.com/feast-dev/feast/issues/3268)) ([0728117](https://github.com/feast-dev/feast/commit/07281178f8be78178b739366c90fd2074db0981b))
 * Update snowflake materialization messages ([#3230](https://github.com/feast-dev/feast/issues/3230)) ([a63d440](https://github.com/feast-dev/feast/commit/a63d440e4207c1e360630423bcda2c329673fddd))
-* Use configured user in env var instead of "user" for Trino ([#3254](https://github.com/feast-dev/feast/issues/3254)) ([e7ed3d5](https://github.com/feast-dev/feast/commit/e7ed3d5b9a4d27d6352bbaf1cc24d975886752b3))
+* Updated quickstart notebook to patch an incorrect reference to an outdated featureview name ([#3271](https://github.com/feast-dev/feast/issues/3271)) ([b9b9c54](https://github.com/feast-dev/feast/commit/b9b9c542bc0860cfb351be7d84d6461b70ad2c81))
+* Use configured user in env var instead of "user" for Trino ([#3254](https://github.com/feast-dev/feast/issues/3254)) ([532d8a1](https://github.com/feast-dev/feast/commit/532d8a1ec5dd50a959b512427fdbc3e5bb986eb4))
+
+
+### Features
+
+* Add mysql as online store ([#3190](https://github.com/feast-dev/feast/issues/3190)) ([cb8db84](https://github.com/feast-dev/feast/commit/cb8db84a1b200c7a716d23e17f150b013d5689ff))
+* Add possibility to define feature_store.yaml path with env variable ([#3231](https://github.com/feast-dev/feast/issues/3231)) ([95fdb19](https://github.com/feast-dev/feast/commit/95fdb19ed3f4b4af7fe1fb732a1fd63182cf1072))
+* Add request_timeout setting for cassandra online store adapter ([#3256](https://github.com/feast-dev/feast/issues/3256)) ([da20757](https://github.com/feast-dev/feast/commit/da20757aa1d5c5f898651295781ef61b52d7d712))
+* Add tag description in Field in the Feast UI ([#3258](https://github.com/feast-dev/feast/issues/3258)) ([086f279](https://github.com/feast-dev/feast/commit/086f2790236b776f5c2397365266d9d4f4959142))
+* Adding billing_project_id in BigQueryOfflineStoreConfig ([#3253](https://github.com/feast-dev/feast/issues/3253)) ([f80f05f](https://github.com/feast-dev/feast/commit/f80f05f5d2042c6fff533b0dc85612acda5a7417))
+* BigTable online store ([#3140](https://github.com/feast-dev/feast/issues/3140)) ([6bc91c2](https://github.com/feast-dev/feast/commit/6bc91c23545a6cf765c0e70887afb22eada2c8e1)), closes [/github.com/spulec/moto/blob/master/CHANGELOG.md#400](https://github.com//github.com/spulec/moto/blob/master/CHANGELOG.md/issues/400)
+* Filter subset features in postgres [#3174](https://github.com/feast-dev/feast/issues/3174) ([#3203](https://github.com/feast-dev/feast/issues/3203)) ([b48d36b](https://github.com/feast-dev/feast/commit/b48d36bee074788626ed5c2d5cf130bd2fc8bda5))
 
 # [0.25.0](https://github.com/feast-dev/feast/compare/v0.24.0...v0.25.0) (2022-09-20)
 

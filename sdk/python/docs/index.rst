@@ -448,3 +448,15 @@ Snowflake Engine
 
 .. autoclass:: feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationJob
     :members:
+
+(Alpha) Spark Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationJob
+    :members:
