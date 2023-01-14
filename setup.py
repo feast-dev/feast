@@ -157,6 +157,7 @@ CI_REQUIRED = (
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
+        "py>=1.11.0", # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
