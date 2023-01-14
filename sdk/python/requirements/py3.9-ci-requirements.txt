@@ -509,6 +509,8 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
     # via stack-data
+py==1.11.0
+    # via feast (setup.py)
 py-cpuinfo==9.0.0
     # via pytest-benchmark
 py4j==0.10.9.5
