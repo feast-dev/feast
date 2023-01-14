@@ -165,8 +165,6 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering==0.6.*",
         "pytest-mock==1.10.4",
-        "Sphinx!=4.0.0,<4.4.0",
-        "sphinx-rtd-theme",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
@@ -552,7 +550,6 @@ setup(
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "sphinx!=4.0.0",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
