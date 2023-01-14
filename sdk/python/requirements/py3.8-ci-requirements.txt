@@ -519,6 +519,7 @@ pure-eval==0.2.2
     # via stack-data
 py==1.11.0
     # via
+    #   feast (setup.py)
     #   pytest
     #   pytest-forked
 py-cpuinfo==8.0.0
