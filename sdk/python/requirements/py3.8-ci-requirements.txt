@@ -848,7 +848,7 @@ websockets==10.3
     # via uvicorn
 werkzeug==2.1.2
     # via moto
-wheel==0.37.1
+wheel==0.38.1
     # via pip-tools
 wrapt==1.14.1
     # via
