@@ -46,15 +46,12 @@ def test_entity_inference_types_match(environment, entity_type):
     fv = driver_feature_view(
         data_source=data_source,
         name=f"fv_entity_type_{entity_type.name.lower()}",
+        infer_entities=True,  # Forces entity inference by not including a field for the entity.
         dtype=_get_feast_type("int32", False),
         entity_type=entity_type,
     )
 
-    # TODO(felixwang9817): Refactor this by finding a better way to force type inference.
-    # Override the schema and entity_columns to force entity inference.
     entity = driver()
-    fv.schema = list(filter(lambda x: x.name != entity.join_key, fv.schema))
-    fv.entity_columns = []
     fs.apply([fv, entity])
 
     entity_type_to_expected_inferred_entity_type = {
