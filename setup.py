@@ -157,6 +157,7 @@ CI_REQUIRED = (
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
+        "py>=1.11.0", # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
@@ -165,8 +166,7 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering==0.6.*",
         "pytest-mock==1.10.4",
-        "Sphinx!=4.0.0,<4.4.0",
-        "sphinx-rtd-theme",
+        "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
@@ -552,7 +552,6 @@ setup(
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "sphinx!=4.0.0",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
