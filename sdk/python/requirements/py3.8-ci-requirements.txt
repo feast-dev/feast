@@ -22,6 +22,8 @@ aioitertools==0.11.0
     # via aiobotocore
 aiosignal==1.2.0
     # via aiohttp
+alabaster==0.7.13
+    # via sphinx
 altair==4.2.0
     # via great-expectations
 anyio==3.6.1
@@ -68,6 +70,8 @@ azure-storage-blob==12.13.1
     # via
     #   adlfs
     #   feast (setup.py)
+babel==2.11.0
+    # via sphinx
 backcall==0.2.0
     # via ipython
 backports-zoneinfo==0.2.1
@@ -174,6 +178,8 @@ docker==6.0.0
     # via
     #   feast (setup.py)
     #   testcontainers
+docutils==0.19
+    # via sphinx
 entrypoints==0.4
     # via altair
 execnet==1.9.0
@@ -321,8 +327,12 @@ idna==3.4
     #   requests
     #   snowflake-connector-python
     #   yarl
+imagesize==1.4.1
+    # via sphinx
 importlib-metadata==4.12.0
-    # via great-expectations
+    # via
+    #   great-expectations
+    #   sphinx
 importlib-resources==5.9.0
     # via jsonschema
 iniconfig==1.1.1
@@ -341,6 +351,7 @@ jinja2==3.0.3
     #   feast (setup.py)
     #   great-expectations
     #   moto
+    #   sphinx
 jmespath==0.10.0
     # via
     #   boto3
@@ -442,6 +453,7 @@ packaging==21.3
     #   great-expectations
     #   pytest
     #   redis
+    #   sphinx
 pandas==1.4.4
     # via
     #   altair
@@ -556,6 +568,7 @@ pygments==2.13.0
     # via
     #   feast (setup.py)
     #   ipython
+    #   sphinx
 pyjwt[crypto]==2.5.0
     # via
     #   adal
@@ -620,6 +633,7 @@ python-dotenv==0.21.0
     # via uvicorn
 pytz==2022.2.1
     # via
+    #   babel
     #   great-expectations
     #   moto
     #   pandas
@@ -656,6 +670,7 @@ requests==2.28.1
     #   requests-oauthlib
     #   responses
     #   snowflake-connector-python
+    #   sphinx
     #   trino
 requests-oauthlib==1.3.1
     # via
@@ -694,8 +709,24 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.3.0
     # via anyio
+snowballstemmer==2.2.0
+    # via sphinx
 snowflake-connector-python[pandas]==2.8.0
     # via feast (setup.py)
+sphinx==6.1.3
+    # via feast (setup.py)
+sphinxcontrib-applehelp==1.0.3
+    # via sphinx
+sphinxcontrib-devhelp==1.0.2
+    # via sphinx
+sphinxcontrib-htmlhelp==2.0.0
+    # via sphinx
+sphinxcontrib-jsmath==1.0.1
+    # via sphinx
+sphinxcontrib-qthelp==1.0.3
+    # via sphinx
+sphinxcontrib-serializinghtml==1.1.5
+    # via sphinx
 sqlalchemy[mypy]==1.4.41
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a27
