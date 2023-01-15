@@ -26,6 +26,7 @@ from tests.integration.feature_repos.universal.entities import (
 def driver_feature_view(
     data_source: DataSource,
     name="test_correctness",
+    infer_entities: bool = False,
     infer_features: bool = False,
     dtype: FeastType = Float32,
     entity_type: FeastType = Int64,
@@ -34,7 +35,7 @@ def driver_feature_view(
     return FeatureView(
         name=name,
         entities=[d],
-        schema=[Field(name=d.join_key, dtype=entity_type)]
+        schema=([] if infer_entities else [Field(name=d.join_key, dtype=entity_type)])
         + ([] if infer_features else [Field(name="value", dtype=dtype)]),
         ttl=timedelta(days=5),
         source=data_source,
