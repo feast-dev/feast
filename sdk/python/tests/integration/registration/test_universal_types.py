@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.types import (
     Array,
     Bool,
+    FeastType,
     Float32,
     Float64,
     Int32,
@@ -42,12 +43,10 @@ def test_entity_inference_types_match(environment, entity_type):
         destination_name=f"entity_type_{entity_type.name.lower()}",
         field_mapping={"ts_1": "ts"},
     )
-    fv = create_feature_view(
-        f"fv_entity_type_{entity_type.name.lower()}",
-        feature_dtype="int32",
-        feature_is_list=False,
-        has_empty_list=False,
+    fv = driver_feature_view(
         data_source=data_source,
+        name=f"fv_entity_type_{entity_type.name.lower()}",
+        dtype=_get_feast_type("int32", False),
         entity_type=entity_type,
     )
 
@@ -88,12 +87,10 @@ def test_feature_get_historical_features_types_match(
     config, data_source, fv = offline_types_test_fixtures
     fs = environment.feature_store
     entity = driver()
-    fv = create_feature_view(
-        "get_historical_features_types_match",
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-        data_source,
+    fv = driver_feature_view(
+        data_source=data_source,
+        name="get_historical_features_types_match",
+        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
     )
     fs.apply([fv, entity])
 
@@ -139,12 +136,10 @@ def test_feature_get_online_features_types_match(
 ):
     config, data_source, fv = online_types_test_fixtures
     entity = driver()
-    fv = create_feature_view(
-        "get_online_features_types_match",
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-        data_source,
+    fv = driver_feature_view(
+        data_source=data_source,
+        name="get_online_features_types_match",
+        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
     )
     fs = environment.feature_store
     features = [fv.name + ":value"]
@@ -188,14 +183,8 @@ def test_feature_get_online_features_types_match(
             assert isinstance(feature, expected_dtype)
 
 
-def create_feature_view(
-    name,
-    feature_dtype,
-    feature_is_list,
-    has_empty_list,
-    data_source,
-    entity_type=Int64,
-):
+def _get_feast_type(feature_dtype: str, feature_is_list: bool) -> FeastType:
+    dtype: Optional[FeastType] = None
     if feature_is_list is True:
         if feature_dtype == "int32":
             dtype = Array(Int32)
@@ -218,10 +207,8 @@ def create_feature_view(
             dtype = Bool
         elif feature_dtype == "datetime":
             dtype = UnixTimestamp
-
-    return driver_feature_view(
-        data_source, name=name, dtype=dtype, entity_type=entity_type
-    )
+    assert dtype
+    return dtype
 
 
 def assert_expected_historical_feature_types(
@@ -388,12 +375,10 @@ def get_fixtures(request, environment):
         destination_name=destination_name,
         field_mapping={"ts_1": "ts"},
     )
-    fv = create_feature_view(
-        destination_name,
-        config.feature_dtype,
-        config.feature_is_list,
-        config.has_empty_list,
-        data_source,
+    fv = driver_feature_view(
+        data_source=data_source,
+        name=destination_name,
+        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
     )
 
     return config, data_source, fv
