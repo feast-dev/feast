@@ -1562,6 +1562,7 @@ class FeatureStore:
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         full_feature_names: bool = False,
+        allow_registry_cache: bool = True,
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -1617,6 +1618,7 @@ class FeatureStore:
             entity_values=columnar,
             full_feature_names=full_feature_names,
             native_entity_values=True,
+            allow_registry_cache=allow_registry_cache,
         )
 
     def _lazy_init_go_server(self):
@@ -1639,6 +1641,7 @@ class FeatureStore:
         ],
         full_feature_names: bool = False,
         native_entity_values: bool = True,
+        allow_registry_cache: bool = True,
     ):
         # Extract Sequence from RepeatedValue Protobuf.
         entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
@@ -1675,13 +1678,13 @@ class FeatureStore:
                 full_feature_names=full_feature_names,
             )
 
-        _feature_refs = self._get_features(features, allow_cache=True)
+        _feature_refs = self._get_features(features, allow_cache=allow_registry_cache)
         (
             requested_feature_views,
             requested_request_feature_views,
             requested_on_demand_feature_views,
         ) = self._get_feature_views_to_use(
-            features=features, allow_cache=True, hide_dummy_entity=False
+            features=features, allow_cache=allow_registry_cache, hide_dummy_entity=False
         )
 
         if requested_request_feature_views:
@@ -1695,7 +1698,7 @@ class FeatureStore:
             entity_name_to_join_key_map,
             entity_type_map,
             join_keys_set,
-        ) = self._get_entity_maps(requested_feature_views)
+        ) = self._get_entity_maps(requested_feature_views, allow_registry_cache)
 
         entity_proto_values: Dict[str, List[Value]]
         if native_entity_values:
@@ -1857,7 +1860,7 @@ class FeatureStore:
         return cast(Dict[str, List[Any]], columnar)
 
     def _get_entity_maps(
-        self, feature_views
+        self, feature_views, allow_cache: bool = True
     ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
         # TODO(felixwang9817): Support entities that have different types for different feature views.
         entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
@@ -1868,7 +1871,7 @@ class FeatureStore:
         for feature_view in feature_views:
             for entity_name in feature_view.entities:
                 entity = self._registry.get_entity(
-                    entity_name, self.project, allow_cache=True
+                    entity_name, self.project, allow_cache=allow_cache
                 )
                 # User directly uses join_key as the entity reference in the entity_rows for the
                 # entity mapping case.
