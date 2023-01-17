@@ -228,7 +228,7 @@ class _SparkSerializedArtifacts:
 
     def unserialize(self):
         # unserialize
-        if self.feature_view_type == "stream":
+        if self.feature_view_type == "stream_feature_view":
             proto = StreamFeatureViewProto()
         else:
             proto = FeatureViewProto()
