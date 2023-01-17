@@ -21,7 +21,7 @@ def test_e2e_local() -> None:
     """
     Tests the end-to-end workflow of apply, materialize, and online retrieval.
 
-    This test runs against several different types of repos:
+    This test runs against several types of repos:
     1. A repo with a normal FV and an entity-less FV.
     2. A repo using the SDK from version 0.19.0.
     3. A repo with a FV with a ttl of 0.

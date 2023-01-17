@@ -102,7 +102,7 @@ cachetools==5.2.0
     # via google-auth
 cassandra-driver==3.25.0
     # via feast (setup.py)
-certifi==2022.6.15
+certifi==2022.12.7
     # via
     #   kubernetes
     #   minio

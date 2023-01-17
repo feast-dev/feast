@@ -70,16 +70,6 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test Python
         run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        if: github.repository == 'feast-dev/feast'
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: unittests
-          env_vars: OS,PYTHON
-          fail_ci_if_error: true
-          verbose: true
 
   unit-test-go:
     runs-on: ubuntu-latest

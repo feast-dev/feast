@@ -58,6 +58,8 @@ online_store:
     load_balancing:                                                         # optional
         local_dc: 'datacenter1'                                             # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
+    read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 
 #### Astra DB setup:
@@ -84,6 +86,8 @@ online_store:
     load_balancing:                                                         # optional
         local_dc: 'eu-central-1'                                            # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
+    read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 
 #### Protocol version and load-balancing settings
@@ -110,6 +114,14 @@ of the driver, according to the warnings issued in the logs, this will become ma
 The former parameter is a region name for Astra DB instances (as can be verified on the Astra DB UI).
 See the source code of the online store integration for the allowed values of
 the latter parameter.
+
+#### Read/write concurrency value
+
+You can optionally specify the value of `read_concurrency` and `write_concurrency`,
+which will be passed to the Cassandra driver function handling
+[concurrent reading/writing of multiple entities](https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent).
+Consult the reference for guidance on this parameter (which in most cases can be left to its default value of).
+This is relevant only for retrieval of several entities at once and during bulk writes, such as in the materialization step.
 
 ### More info
 

@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.25+affirm15"
+VERSION = "0.28+affirm5"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -75,8 +75,7 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "tensorflow-metadata>=1.0.0,<2.0.0",
-    "dask>=2021.*,<2022.02.0",
+    "dask>=2021.*",
     "bowler",  # Needed for automatic repo upgrades
 ]
 
@@ -94,7 +93,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.10.0", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",

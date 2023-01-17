@@ -555,6 +555,7 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 
 ## Next steps
 
+* Join the [email newsletter](https://feast.dev/) to get new updates on Feast / feature stores.
 * Read the [Concepts](concepts/) page to understand the Feast data model.
 * Read the [Architecture](architecture-and-components/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.

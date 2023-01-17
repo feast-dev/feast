@@ -3,6 +3,7 @@ import subprocess
 from datetime import datetime, timedelta
 
 import pandas as pd
+import yaml
 from pytz import utc
 
 from feast import FeatureStore
@@ -76,6 +77,10 @@ def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring)
         datetime.now().replace(microsecond=0, second=0, minute=0).astimezone(tz=utc)
     )
     start_date = (end_date - timedelta(days=60)).astimezone(tz=utc)
+
+    project_name = yaml.safe_load(open("feature_repo/feature_store.yaml"))["project"]
+    table_name = f"{project_name}_feast_driver_hourly_stats"
+
     # For batch scoring, we want the latest timestamps
     if for_batch_scoring:
         print(
@@ -86,7 +91,7 @@ def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring)
             SELECT
                 "driver_id",
                 CURRENT_TIMESTAMP() as "event_timestamp"
-            FROM {store.list_data_sources()[-1].get_table_query_string()}
+            FROM {store.get_data_source(table_name).get_table_query_string()}
             WHERE "event_timestamp" BETWEEN '{start_date}' AND '{end_date}'
             GROUP BY "driver_id"
         """
@@ -97,7 +102,7 @@ def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring)
             SELECT
                 "driver_id",
                 "event_timestamp"
-            FROM {store.list_data_sources()[-1].get_table_query_string()}
+            FROM {store.get_data_source(table_name).get_table_query_string()}
             WHERE "event_timestamp" BETWEEN '{start_date}' AND '{end_date}'
         """
 

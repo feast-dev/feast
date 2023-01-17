@@ -32,6 +32,8 @@ online_store:
     load_balancing:                                                         # optional
         local_dc: 'datacenter1'                                             # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
+    read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 {% endcode %}
 
@@ -52,7 +54,8 @@ online_store:
     load_balancing:                                                         # optional
         local_dc: 'eu-central-1'                                            # optional
         load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
-
+    read_concurrency: 100                                                   # optional
+    write_concurrency: 100                                                  # optional
 ```
 {% endcode %}
 

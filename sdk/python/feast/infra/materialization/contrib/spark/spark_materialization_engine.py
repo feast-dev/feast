@@ -1,7 +1,12 @@
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
+
+# backward compatibility with python 3.7
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import dill
 import pandas as pd
@@ -25,6 +30,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.StreamFeatureView_pb2 import StreamFeatureView as StreamFeatureViewProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
@@ -195,33 +201,42 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
 class _SparkSerializedArtifacts:
     """Class to assist with serializing unpicklable artifacts to the spark workers"""
 
+    feature_view_type: str
     feature_view_proto: str
-    repo_config_file: str
+    repo_config_byte: str
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
+
+        # get the feature view type
+        if isinstance(feature_view, StreamFeatureView):
+            feature_view_type = "stream_feature_view"
+        else:
+            feature_view_type = "feature_view"
 
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
 
         # serialize repo_config to disk. Will be used to instantiate the online store
-        repo_config_file = tempfile.NamedTemporaryFile(delete=False).name
-        with open(repo_config_file, "wb") as f:
-            dill.dump(repo_config, f)
+        repo_config_byte = dill.dumps(repo_config)
 
         return _SparkSerializedArtifacts(
-            feature_view_proto=feature_view_proto, repo_config_file=repo_config_file
+            feature_view_type=feature_view_type,
+            feature_view_proto=feature_view_proto,
+            repo_config_byte=repo_config_byte
         )
 
     def unserialize(self):
         # unserialize
-        proto = FeatureViewProto()
+        if self.feature_view_type == "stream":
+            proto = StreamFeatureViewProto()
+        else:
+            proto = FeatureViewProto()
         proto.ParseFromString(self.feature_view_proto)
         feature_view = FeatureView.from_proto(proto)
 
         # load
-        with open(self.repo_config_file, "rb") as f:
-            repo_config = dill.load(f)
+        repo_config = dill.loads(self.repo_config_byte)
 
         provider = PassthroughProvider(repo_config)
         online_store = provider.online_store

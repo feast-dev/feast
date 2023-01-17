@@ -27,10 +27,10 @@ Feast allows ML platform teams to:
 * **Avoid data leakage** by generating point-in-time correct feature sets so data scientists can focus on feature engineering rather than debugging error-prone dataset joining logic. This ensure that future feature values do not leak to models during training.
 * **Decouple ML from data infrastructure** by providing a single data access layer that abstracts feature storage from feature retrieval, ensuring models remain portable as you move from training models to serving models, from batch models to realtime models, and from one data infra system to another.
 
-Please see our [documentation](https://docs.feast.dev/) for more information about the project.
+Please see our [documentation](https://docs.feast.dev/) for more information about the project, or sign up for an [email newsletter](https://feast.dev/).
 
 ## 📐 Architecture
-![](docs/assets/feast-marchitecture.png)
+![](docs/assets/feast_marchitecture.png)
 
 The above architecture is the minimal Feast deployment. Want to run the full Feast on Snowflake/GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws).
 
@@ -44,7 +44,7 @@ pip install feast
 ### 2. Create a feature repository
 ```commandline
 feast init my_feature_repo
-cd my_feature_repo
+cd my_feature_repo/feature_repo
 ```
 
 ### 3. Register your feature definitions and set up your feature store
@@ -167,29 +167,29 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Trino (contrib plugin)](https://github.com/Shopify/feast-trino)
   * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/offline-stores/spark)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
-  * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/adding-a-new-offline-store)
+  * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-a-new-offline-store)
 * **Online Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/online-stores/snowflake)
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
+  * [x] [Bigtable](https://docs.feast.dev/reference/online-stores/bigtable)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
-  * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/adding-support-for-a-new-online-store)
-  * [x] [Cassandra / AstraDB](https://docs.feast.dev/reference/online-stores/cassandra)
-  * [ ] Bigtable (in progress)
+  * [x] [Cassandra / AstraDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/cassandra)
+  * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-support-for-a-new-online-store)
 * **Feature Engineering**
   * [x] On-demand Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
   * [x] Streaming Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1UzEyETHUaGpn0ap4G82DHluiCj7zEbrQLkJJkKSv4e8/edit))
   * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
 * **Streaming**
-  * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/creating-a-custom-provider)
+  * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/customizing-feast/creating-a-custom-provider)
   * [x] [Push based streaming data ingestion to online store](https://docs.feast.dev/reference/data-sources/push)
   * [x] [Push based streaming data ingestion to offline store](https://docs.feast.dev/reference/data-sources/push)
 * **Deployments**
   * [x] AWS Lambda (Alpha release. See [RFC](https://docs.google.com/document/d/1eZWKWzfBif66LDN32IajpaG-j82LSHCCOzY6R7Ax7MI/edit))
-  * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production#4.3.-java-based-feature-server-deployed-on-kubernetes))
+  * [x] Kubernetes (See [guide](https://docs.feast.dev/how-to-guides/running-feast-in-production))
 * **Feature Serving**
   * [x] Python Client
   * [x] [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server)

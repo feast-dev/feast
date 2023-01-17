@@ -599,6 +599,7 @@ def _normalize_timestamp(
         created_timestamp_column_type = df_to_join_types[created_timestamp_column]
 
     if not hasattr(timestamp_field_type, "tz") or timestamp_field_type.tz != pytz.UTC:
+        # if you are querying for the event timestamp field, we have to deduplicate
         if len(df_to_join[timestamp_field].shape) > 1:
             df_to_join, dups = _df_column_uniquify(df_to_join)
             df_to_join = df_to_join.drop(columns=dups)
@@ -613,8 +614,8 @@ def _normalize_timestamp(
         not hasattr(created_timestamp_column_type, "tz")
         or created_timestamp_column_type.tz != pytz.UTC
     ):
-
         if len(df_to_join[created_timestamp_column].shape) > 1:
+            # if you are querying for the created timestamp field, we have to deduplicate
             df_to_join, dups = _df_column_uniquify(df_to_join)
             df_to_join = df_to_join.drop(columns=dups)
 
@@ -696,11 +697,11 @@ def _drop_columns(
     created_timestamp_column: str,
 ) -> dd.DataFrame:
     entity_df_with_features = df_to_join
-    time_columns = [
-       timestamp_field,
+    timestamp_columns = [
+        timestamp_field,
         created_timestamp_column,
     ]
-    for column in time_columns:
+    for column in timestamp_columns:
         if column and column not in features:
             entity_df_with_features = entity_df_with_features.drop(
                 [column], axis=1
@@ -708,7 +709,8 @@ def _drop_columns(
 
     return entity_df_with_features
 
-def _df_column_uniquify(df: dd.DataFrame) -> [dd.DataFrame, List[str]]:
+
+def _df_column_uniquify(df: dd.DataFrame) -> Tuple[dd.DataFrame, List[str]]:
     df_columns = df.columns
     new_columns = []
     duplicate_cols = []
