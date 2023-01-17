@@ -30,6 +30,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.StreamFeatureView_pb2 import StreamFeatureView as StreamFeatureViewProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
@@ -200,11 +201,18 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
 class _SparkSerializedArtifacts:
     """Class to assist with serializing unpicklable artifacts to the spark workers"""
 
+    feature_view_type: str
     feature_view_proto: str
     repo_config_byte: str
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
+
+        # get the feature view type
+        if isinstance(feature_view, StreamFeatureView):
+            feature_view_type = "stream_feature_view"
+        else:
+            feature_view_type = "feature_view"
 
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
@@ -213,12 +221,17 @@ class _SparkSerializedArtifacts:
         repo_config_byte = dill.dumps(repo_config)
 
         return _SparkSerializedArtifacts(
-            feature_view_proto=feature_view_proto, repo_config_byte=repo_config_byte
+            feature_view_type=feature_view_type,
+            feature_view_proto=feature_view_proto,
+            repo_config_byte=repo_config_byte
         )
 
     def unserialize(self):
         # unserialize
-        proto = FeatureViewProto()
+        if self.feature_view_type == "stream":
+            proto = StreamFeatureViewProto()
+        else:
+            proto = FeatureViewProto()
         proto.ParseFromString(self.feature_view_proto)
         feature_view = FeatureView.from_proto(proto)
 
