@@ -230,10 +230,12 @@ class _SparkSerializedArtifacts:
         # unserialize
         if self.feature_view_type == "stream_feature_view":
             proto = StreamFeatureViewProto()
+            proto.ParseFromString(self.feature_view_proto)
+            feature_view = StreamFeatureView.from_proto(proto)
         else:
             proto = FeatureViewProto()
-        proto.ParseFromString(self.feature_view_proto)
-        feature_view = FeatureView.from_proto(proto)
+            proto.ParseFromString(self.feature_view_proto)
+            feature_view = FeatureView.from_proto(proto)
 
         # load
         repo_config = dill.loads(self.repo_config_byte)
