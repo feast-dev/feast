@@ -776,7 +776,7 @@ class Registry(BaseRegistry):
         if self.cached_registry_proto:
             self._registry_store.update_registry_proto(self.cached_registry_proto)
 
-    def refresh(self, project: Optional[str]):
+    def refresh(self, project: Optional[str] = None):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         self._get_registry_proto(project=project, allow_cache=False)
 

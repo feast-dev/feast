@@ -569,7 +569,7 @@ class BaseRegistry(ABC):
         """Commits the state of the registry cache to the remote registry store."""
 
     @abstractmethod
-    def refresh(self, project: Optional[str]):
+    def refresh(self, project: Optional[str] = None):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
     @staticmethod
