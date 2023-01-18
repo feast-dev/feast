@@ -1863,7 +1863,7 @@ class FeatureStore:
         self, feature_views, allow_cache: bool = True
     ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
         # TODO(felixwang9817): Support entities that have different types for different feature views.
-        entities = self._list_entities(allow_cache=True, hide_dummy_entity=False)
+        entities = self._list_entities(allow_cache=allow_cache, hide_dummy_entity=False)
         entity_name_to_join_key_map: Dict[str, str] = {}
         entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
