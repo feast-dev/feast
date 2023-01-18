@@ -209,7 +209,7 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self, project: Optional[str]):
+    def refresh(self, project: Optional[str] = None):
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = datetime.utcnow()
 
