@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm7"
+VERSION = "0.28+affirmtest10"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -538,6 +538,7 @@ class build_ext(_build_ext):
 
 setup(
     name=NAME,
+    version=VERSION,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
@@ -581,9 +582,8 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version=use_scm_version,
     setup_requires=[
-        "setuptools_scm",
+        # "setuptools_scm",
         "grpcio>=1.47.0",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
