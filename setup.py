@@ -40,10 +40,11 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
+VERSION = "0.28+affirm7"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
@@ -57,9 +58,9 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<3",
-    "pandas>=1.4.3,<2",
-    "pandavro==1.5.*",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "numpy<1.22,<3",
+    "pandas<1.4.3,<2",
+    "pandavro==1.5.*", # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "protobuf<5,>3",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<9",
@@ -197,6 +198,41 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
 )
+
+AFFIRM_REQUIRED = [
+    "click>=7.0.0,<9.0.0",
+    "colorama>=0.3.9,<1",
+    "dill==0.3.*",
+    "fastavro>=1.1.0,<2",
+    "grpcio>=1.47.0,<2",
+    "Jinja2>=2,<4",
+    "jsonschema",
+    "mmh3",
+    "pandavro==1.5.*",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "pyarrow>=4,<9",
+    "pydantic>=1,<2",
+    "pygments>=2.12.0,<3",
+    "SQLAlchemy[mypy]>1,<2",
+    "tabulate>=0.8.0,<1",
+    "tenacity>=7,<9",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
+    "typeguard",
+    "fastapi>=0.68.0,<1",
+    "bowler",  # Needed for automatic repo upgrades
+    # below are required for dev while were conflict with affirm environment.
+    "google-api-core>=1.23.0,<2.7",
+    "googleapis-common-protos>=1.52.*,<1.54",
+    "grpcio-reflection",
+    "numpy<1.22,<2",
+    "pandas>=1,<2",
+    "protobuf",
+    "proto-plus",
+    "PyYAML~=5.1.1",
+    "uvicorn[standard]",
+    "tensorflow-metadata",
+    "dask>=2021.*,<2022.01.0",
+]
 
 
 # rtd builds fail because of mysql not being installed in their environment.
@@ -392,7 +428,7 @@ class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
-        self.run_command("build_python_protos")
+        # self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -405,8 +441,8 @@ class DevelopCommand(develop):
     """Custom develop command."""
 
     def run(self):
-        self.reinitialize_command("build_python_protos", inplace=1)
-        self.run_command("build_python_protos")
+        # self.reinitialize_command("build_python_protos", inplace=1)
+        # self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -512,7 +548,7 @@ setup(
         where=PYTHON_CODE_PREFIX, exclude=("java", "infra", "sdk/python/tests", "ui")
     ),
     package_dir={"": PYTHON_CODE_PREFIX},
-    install_requires=REQUIRED,
+    install_requires=AFFIRM_REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
@@ -554,7 +590,7 @@ setup(
         "pybindgen==0.22.0",
     ],
     cmdclass={
-        "build_python_protos": BuildPythonProtosCommand,
+        # "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,

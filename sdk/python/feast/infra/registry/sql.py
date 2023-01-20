@@ -17,6 +17,7 @@ from sqlalchemy import (  # type: ignore
     insert,
     select,
     update,
+    and_
 )
 from sqlalchemy.engine import Engine
 
@@ -522,10 +523,10 @@ class SqlRegistry(BaseRegistry):
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
-            stmt = delete(data_sources).where(
+            stmt = delete(data_sources).where(and_(
                 data_sources.c.data_source_name == name,
                 data_sources.c.project_id == project,
-            )
+            ))
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise DataSourceObjectNotFoundException(name, project)
@@ -615,10 +616,10 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
+            stmt = select([feast_metadata]).where(
                 feast_metadata.c.project_id == project,
             )
-            rows = conn.execute(stmt).all()
+            rows = conn.execute(stmt).fetchall()
             if rows:
                 project_metadata = ProjectMetadata(project_name=project)
                 for row in rows:
@@ -731,10 +732,10 @@ class SqlRegistry(BaseRegistry):
 
         name = feature_view.name
         with self.engine.connect() as conn:
-            stmt = select(table).where(
+            stmt = select([table]).where(and_(
                 getattr(table.c, "feature_view_name") == name,
                 table.c.project_id == project,
-            )
+            ))
             row = conn.execute(stmt).first()
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
@@ -745,10 +746,10 @@ class SqlRegistry(BaseRegistry):
                 }
                 update_stmt = (
                     update(table)
-                    .where(
+                    .where(and_(
                         getattr(table.c, "feature_view_name") == name,
                         table.c.project_id == project,
-                    )
+                    ))
                     .values(
                         values,
                     )
@@ -790,7 +791,7 @@ class SqlRegistry(BaseRegistry):
 
         name = feature_view.name
         with self.engine.connect() as conn:
-            stmt = select(table).where(getattr(table.c, "feature_view_name") == name)
+            stmt = select([table]).where(getattr(table.c, "feature_view_name") == name)
             row = conn.execute(stmt).first()
             if row:
                 return row["user_metadata"]
@@ -821,7 +822,9 @@ class SqlRegistry(BaseRegistry):
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+            last_updated_metadata = self._get_last_updated_metadata(project)
+            if last_updated_metadata is not None:
+                last_updated_timestamps.append(self._get_last_updated_metadata(project))
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
@@ -849,9 +852,9 @@ class SqlRegistry(BaseRegistry):
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
-            stmt = select(table).where(
+            stmt = select([table]).where(and_(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
-            )
+            ))
             row = conn.execute(stmt).first()
             if hasattr(obj, "last_updated_timestamp"):
                 obj.last_updated_timestamp = update_datetime
@@ -895,10 +898,10 @@ class SqlRegistry(BaseRegistry):
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
-            stmt = select(feast_metadata).where(
+            stmt = select([feast_metadata]).where(and_(
                 feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value,
                 feast_metadata.c.project_id == project,
-            )
+            ))
             row = conn.execute(stmt).first()
             if row:
                 usage.set_current_project_uuid(row["metadata_value"])
@@ -923,9 +926,9 @@ class SqlRegistry(BaseRegistry):
         not_found_exception: Optional[Callable],
     ):
         with self.engine.connect() as conn:
-            stmt = delete(table).where(
+            stmt = delete(table).where(and_(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
-            )
+            ))
             rows = conn.execute(stmt)
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
@@ -947,9 +950,9 @@ class SqlRegistry(BaseRegistry):
         self._maybe_init_project_metadata(project)
 
         with self.engine.connect() as conn:
-            stmt = select(table).where(
+            stmt = select([table]).where(and_(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
-            )
+            ))
             row = conn.execute(stmt).first()
             if row:
                 _proto = proto_class.FromString(row[proto_field_name])
@@ -969,8 +972,8 @@ class SqlRegistry(BaseRegistry):
     ):
         self._maybe_init_project_metadata(project)
         with self.engine.connect() as conn:
-            stmt = select(table).where(table.c.project_id == project)
-            rows = conn.execute(stmt).all()
+            stmt = select([table]).where(table.c.project_id == project)
+            rows = conn.execute(stmt).fetchall()
             if rows:
                 return [
                     python_class.from_proto(
@@ -982,11 +985,11 @@ class SqlRegistry(BaseRegistry):
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
+            stmt = select([feast_metadata]).where(and_(
                 feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 feast_metadata.c.project_id == project,
-            )
+            ))
             row = conn.execute(stmt).first()
 
             update_time = int(last_updated.timestamp())
@@ -999,12 +1002,12 @@ class SqlRegistry(BaseRegistry):
             }
             if row:
                 update_stmt = (
-                    update(feast_metadata)
-                    .where(
+                    feast_metadata.update()
+                    .where(and_(
                         feast_metadata.c.metadata_key
                         == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                         feast_metadata.c.project_id == project,
-                    )
+                    ))
                     .values(values)
                 )
                 conn.execute(update_stmt)
@@ -1016,11 +1019,11 @@ class SqlRegistry(BaseRegistry):
 
     def _get_last_updated_metadata(self, project: str):
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
+            stmt = select([feast_metadata]).where(and_(
                 feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 feast_metadata.c.project_id == project,
-            )
+            ))
             row = conn.execute(stmt).first()
             if not row:
                 return None
@@ -1039,8 +1042,8 @@ class SqlRegistry(BaseRegistry):
                 on_demand_feature_views,
                 stream_feature_views,
             }:
-                stmt = select(table)
-                rows = conn.execute(stmt).all()
+                stmt = select([table])
+                rows = conn.execute(stmt).fetchall()
                 for row in rows:
                     projects.add(row["project_id"])
 
