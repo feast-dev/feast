@@ -266,6 +266,15 @@ class MySQLOnlineStore(OnlineStore):
         # We don't create any special state for the entities in this implementation.
         for table in tables_to_keep:
             cur.execute(
+                f"""CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key VARCHAR(512),
+                            feature_name VARCHAR(256),
+                            value BLOB,
+                            event_ts timestamp NULL DEFAULT NULL,
+                            created_ts timestamp NULL DEFAULT NULL,
+                            PRIMARY KEY(entity_key, feature_name))"""
+            )
+
+            cur.execute(
                 f"SHOW INDEXES FROM {_table_id(project, table)};"
             )
 
