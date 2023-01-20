@@ -259,7 +259,7 @@ class FeatureView(BaseFeatureView):
 
     @property
     def schema(self) -> List[Field]:
-        return self.entity_columns + self.features
+        return list(set(self.entity_columns + self.features))
 
     def ensure_valid(self):
         """
