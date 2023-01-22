@@ -30,11 +30,13 @@ class Field:
     Attributes:
         name: The name of the field.
         dtype: The type of the field, such as string or float.
-        tags (optional): User-defined metadata in dictionary form.
+        description: A human-readable description.
+        tags: User-defined metadata in dictionary form.
     """
 
     name: str
     dtype: FeastType
+    description: str
     tags: Dict[str, str]
 
     def __init__(
@@ -51,6 +53,7 @@ class Field:
         Args:
             name: The name of the field.
             dtype: The type of the field, such as string or float.
+            description (optional): A human-readable description.
             tags (optional): User-defined metadata in dictionary form.
         """
         self.name = name
@@ -65,6 +68,7 @@ class Field:
         if (
             self.name != other.name
             or self.dtype != other.dtype
+            or self.description != other.description
             or self.tags != other.tags
         ):
             return False
