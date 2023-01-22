@@ -410,6 +410,9 @@ class SparkRetrievalJob(RetrievalJob):
         """
         return self._metadata
 
+    def stop(self) -> None:
+        self.spark_session.stop()
+
 
 def get_spark_session_or_start_new_with_repoconfig(
     store_config: SparkOfflineStoreConfig,

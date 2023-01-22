@@ -188,6 +188,9 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 lambda x: _process_by_partition(x, spark_serialized_artifacts)
             )
 
+            print("Job is done, stop spark session now.")
+            offline_job.stop()
+
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
             )
