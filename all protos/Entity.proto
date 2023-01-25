@@ -1,0 +1,60 @@
+//
+// * Copyright 2020 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
+
+syntax = "proto3";
+
+package feast.core;
+option java_package = "feast.proto.core";
+option java_outer_classname = "EntityProto";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+
+import "feast/types/Value.proto";
+import "google/protobuf/timestamp.proto";
+
+message Entity {
+    // User-specified specifications of this entity.
+    EntitySpecV2 spec = 1;
+    // System-populated metadata for this entity.
+    EntityMeta meta = 2;
+}
+
+message EntitySpecV2 {
+    // Name of the entity.
+    string name = 1;
+
+    // Name of Feast project that this feature table belongs to.
+    string project = 9;
+
+    // Type of the entity.
+    feast.types.ValueType.Enum value_type = 2;
+
+    // Description of the entity.
+    string description = 3;
+
+    // Join key for the entity (i.e. name of the column the entity maps to).
+    string join_key = 4;
+
+    // User defined metadata
+    map<string,string> tags = 8;
+
+    // Owner of the entity.
+    string owner = 10;
+}
+
+message EntityMeta {
+    google.protobuf.Timestamp created_timestamp = 1;
+    google.protobuf.Timestamp last_updated_timestamp = 2;
+}

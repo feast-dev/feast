@@ -1,0 +1,25 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "FeatureReferenceProto";
+option java_package = "feast.proto.core";
+
+import "feast/core/Feature.proto";
+
+
+// A projection to be applied on top of a FeatureView. 
+// Contains the modifications to a FeatureView such as the features subset to use.
+message FeatureViewProjection {
+  // The feature view name
+  string feature_view_name = 1;
+
+  // Alias for feature view name
+  string feature_view_name_alias = 3;
+
+  // The features of the feature view that are a part of the feature reference.
+  repeated FeatureSpecV2 feature_columns = 2;
+
+  // Map for entity join_key overrides of feature data entity join_key to entity data join_key
+  map<string,string> join_key_map = 4;
+}

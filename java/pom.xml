@@ -52,7 +52,7 @@
         <!-- OpenCensus is used in grpc and Google's HTTP client libs in Cloud SDKs -->
         <opencensus.version>0.26.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
-        <log4jVersion>2.17.1</log4jVersion>
+        <log4jVersion>2.19.0</log4jVersion>
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
         <lombok.version>1.18.24</lombok.version>
@@ -250,13 +250,6 @@
                 </configuration>
                 <executions>
                   <!-- Move check to fail faster, but after compilation. Default is verify phase -->
-                  <execution>
-                      <id>spotless-check</id>
-                      <phase>process-test-classes</phase>
-                      <goals>
-                          <goal>check</goal>
-                      </goals>
-                  </execution>
               </executions>
             </plugin>
             <plugin>

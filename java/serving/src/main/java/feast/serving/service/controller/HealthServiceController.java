@@ -19,16 +19,19 @@ package feast.serving.service.controller;
 import com.google.inject.Inject;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.service.ServingServiceV2;
+import feast.serving.service.config.ServingServiceV2Module;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse;
 import io.grpc.health.v1.HealthProto.ServingStatus;
 import io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
 
 // Reference: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
 public class HealthServiceController extends HealthImplBase {
   private final ServingServiceV2 servingService;
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(HealthServiceController.class);
   @Inject
   public HealthServiceController(final ServingServiceV2 servingService) {
     this.servingService = servingService;
@@ -37,12 +40,13 @@ public class HealthServiceController extends HealthImplBase {
   @Override
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
-    // TODO: Implement proper logic to determine if ServingServiceV2 is healthy e.g.
+    // TODO: Implement proper logicp to determine if ServingServiceV2 is healthy e.g.
     // if it's online service check that it the service can retrieve dummy/random
     // feature table.
     // Implement similarly for batch service.
 
     try {
+      log.info("checking 1244");
       servingService.getFeastServingInfo(GetFeastServingInfoRequest.getDefaultInstance());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
