@@ -29,9 +29,6 @@ warnings.simplefilter("once", RuntimeWarning)
 
 SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
 
-# avoid dill to unpickle module class in udf
-dill.settings.unpickle_module_classes = False
-
 
 @typechecked
 class StreamFeatureView(FeatureView):
@@ -181,7 +178,7 @@ class StreamFeatureView(FeatureView):
         if self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
-                body=dill.dumps(self.udf, recurse=True),
+                body=dill.dumps(self.udf, byref=False, recurse=True),
                 body_text=self.udf_string,
             )
         spec = StreamFeatureViewSpecProto(
