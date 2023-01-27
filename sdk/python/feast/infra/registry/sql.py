@@ -975,12 +975,15 @@ class SqlRegistry(BaseRegistry):
             stmt = select([table]).where(table.c.project_id == project)
             rows = conn.execute(stmt).fetchall()
             if rows:
-                return [
-                    python_class.from_proto(
-                        proto_class.FromString(row[proto_field_name])
-                    )
-                    for row in rows
-                ]
+                res = []
+                for row in rows:
+                    proto = proto_class.FromString(row[proto_field_name])
+                    if python_class == StreamFeatureView:
+                        obj = python_class.from_proto(proto, True)
+                    else:
+                        obj = python_class.from_proto(proto)
+                    res.append(obj)
+                return res
         return []
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
