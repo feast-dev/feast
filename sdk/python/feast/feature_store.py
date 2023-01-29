@@ -930,7 +930,10 @@ class FeatureStore:
             views_to_delete = [
                 ob
                 for ob in objects_to_delete
-                if isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView)
+                if (
+                    (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
+                    and not isinstance(ob, StreamFeatureView)
+                )
             ]
             request_views_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
