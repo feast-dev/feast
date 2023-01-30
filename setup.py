@@ -51,7 +51,7 @@ REQUIRED = [
     "dill==0.3.*",
     "fastavro>=1.1.0,<2",
     "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos>=1.52.*,<2",
+    "googleapis-common-protos>=1.52.0,<2",
     "grpcio>=1.47.0,<2",
     "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
@@ -65,7 +65,7 @@ REQUIRED = [
     "pyarrow>=4,<9",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
-    "PyYAML>=5.4.*,<7",
+    "PyYAML>=5.4.0,<7",
     "SQLAlchemy[mypy]>1,<2",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
@@ -74,16 +74,16 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "dask>=2021.*",
+    "dask>=2021.0",
     "bowler",  # Needed for automatic repo upgrades
 ]
 
 GCP_REQUIRED = [
     "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore==2.1.*,<3",
-    "google-cloud-storage==1.34.*,<3",
-    "google-cloud-bigtable==2.11.*,<3",
+    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-storage>=1.34.0,<3",
+    "google-cloud-bigtable>=2.11.0,<3",
 ]
 
 REDIS_REQUIRED = [
