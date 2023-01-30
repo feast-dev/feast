@@ -73,9 +73,9 @@ GCP_REQUIRED = [
     "googleapis-common-protos>=1.52.0,<2",
     "google-cloud-bigquery[pandas]>=2,<3.13.0",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore>=2.1.0,<3",
-    "google-cloud-storage>=1.34.0,<3",
-    "google-cloud-bigtable>=2.11.0,<3",
+    "google-cloud-datastore==2.1.*,<3",
+    "google-cloud-storage==1.34.*,<3",
+    "google-cloud-bigtable==2.11.*,<3",
     "fsspec<=2024.1.0",
 ]
 
