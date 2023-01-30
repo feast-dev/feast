@@ -783,7 +783,7 @@ typeguard==2.13.3
     # via feast (setup.py)
 types-docutils==0.19.1.2
     # via types-setuptools
-types-protobuf==4.21.0.3
+types-protobuf==3.19.22
     # via
     #   feast (setup.py)
     #   mypy-protobuf
