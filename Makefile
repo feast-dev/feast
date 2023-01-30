@@ -289,7 +289,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
 
 	# Format
-	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py37 feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy
