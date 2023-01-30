@@ -184,6 +184,16 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                     self.repo_config.batch_engine.partitions
                 )
 
+            num_rows = spark_df.count()
+            if num_rows == 0:
+                return SparkMaterializationJob(
+                    job_id=job_id,
+                    status=MaterializationJobStatus.ERROR,
+                    error=ValueError("empty input data for materialization")
+                )
+            else:
+                print(f"start materializing {num_rows} rows to online store")
+
             spark_df.foreachPartition(
                 lambda x: _process_by_partition(x, spark_serialized_artifacts)
             )
