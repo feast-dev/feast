@@ -60,7 +60,6 @@ REQUIRED = [
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
-    "requests",
     "SQLAlchemy[mypy]>1,<2",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
@@ -72,6 +71,9 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.4.2",
     "bowler",
+    "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7",
+    "importlib_metadata>=6.8.0,<7"
 ]
 
 GCP_REQUIRED = [
@@ -79,9 +81,9 @@ GCP_REQUIRED = [
     "googleapis-common-protos>=1.52.0,<2",
     "google-cloud-bigquery[pandas]>=2,<3.13.0",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore==2.1.*,<3",
-    "google-cloud-storage==1.34.*,<3",
-    "google-cloud-bigtable==2.11.*,<3",
+    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-storage>=1.34.0,<3",
+    "google-cloud-bigtable>=2.11.0,<3",
     "fsspec<=2024.1.0",
 ]
 
