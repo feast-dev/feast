@@ -44,9 +44,9 @@ from feast.infra.offline_stores.offline_store import (
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
+from feast.usage import get_user_agent, log_exceptions_and_usage
 
-from ...saved_dataset import SavedDatasetStorage
-from ...usage import get_user_agent, log_exceptions_and_usage
 from .bigquery_source import (
     BigQueryLoggingDestination,
     BigQuerySource,
@@ -608,8 +608,11 @@ def block_until_done(
             client.cancel_job(bq_job.job_id)
             raise BigQueryJobCancelled(job_id=bq_job.job_id)
 
-        if bq_job.exception():
-            raise bq_job.exception()
+        # We explicitly set the timeout to None because `google-api-core` changed the default value and
+        # breaks downstream libraries.
+        # https://github.com/googleapis/python-api-core/issues/479
+        if bq_job.exception(timeout=None):
+            raise bq_job.exception(timeout=None)
 
 
 def _get_table_reference_for_new_entity(

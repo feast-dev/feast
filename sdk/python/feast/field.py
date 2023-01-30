@@ -30,11 +30,13 @@ class Field:
     Attributes:
         name: The name of the field.
         dtype: The type of the field, such as string or float.
+        description: A human-readable description.
         tags: User-defined metadata in dictionary form.
     """
 
     name: str
     dtype: FeastType
+    description: str
     tags: Dict[str, str]
 
     def __init__(
@@ -42,6 +44,7 @@ class Field:
         *,
         name: str,
         dtype: FeastType,
+        description: str = "",
         tags: Optional[Dict[str, str]] = None,
     ):
         """
@@ -50,10 +53,12 @@ class Field:
         Args:
             name: The name of the field.
             dtype: The type of the field, such as string or float.
+            description (optional): A human-readable description.
             tags (optional): User-defined metadata in dictionary form.
         """
         self.name = name
         self.dtype = dtype
+        self.description = description
         self.tags = tags or {}
 
     def __eq__(self, other):
@@ -63,6 +68,7 @@ class Field:
         if (
             self.name != other.name
             or self.dtype != other.dtype
+            or self.description != other.description
             or self.tags != other.tags
         ):
             return False
@@ -83,7 +89,12 @@ class Field:
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
-        return FieldProto(name=self.name, value_type=value_type.value, tags=self.tags)
+        return FieldProto(
+            name=self.name,
+            value_type=value_type.value,
+            description=self.description,
+            tags=self.tags,
+        )
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -109,5 +120,8 @@ class Field:
             feature: Feature object to convert.
         """
         return cls(
-            name=feature.name, dtype=from_value_type(feature.dtype), tags=feature.labels
+            name=feature.name,
+            dtype=from_value_type(feature.dtype),
+            description=feature.description,
+            tags=feature.labels,
         )

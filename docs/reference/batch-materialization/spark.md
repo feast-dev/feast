@@ -19,3 +19,37 @@ batch_engine:
   partitions: [optional num partitions to use to write to online store]
 ```
 {% endcode %}
+
+## Example in Python
+
+{% code title="feature_store.py" %}
+```python
+from feast import FeatureStore, RepoConfig
+from feast.repo_config import RegistryConfig
+from feast.infra.online_stores.dynamodb import DynamoDBOnlineStoreConfig
+from feast.infra.offline_stores.contrib.spark_offline_store.spark import SparkOfflineStoreConfig
+
+repo_config = RepoConfig(
+    registry="s3://[YOUR_BUCKET]/feast-registry.db",
+    project="feast_repo",
+    provider="aws",
+    offline_store=SparkOfflineStoreConfig(
+      spark_conf={
+        "spark.ui.enabled": "false",
+        "spark.eventLog.enabled": "false",
+        "spark.sql.catalogImplementation": "hive",
+        "spark.sql.parser.quotedRegexColumnNames": "true",
+        "spark.sql.session.timeZone": "UTC"
+      }
+    ),
+    batch_engine={
+      "type": "spark.engine",
+      "partitions": 10
+    },
+    online_store=DynamoDBOnlineStoreConfig(region="us-west-1"),
+    entity_key_serialization_version=2
+)
+
+store = FeatureStore(config=repo_config)
+```
+{% endcode %}

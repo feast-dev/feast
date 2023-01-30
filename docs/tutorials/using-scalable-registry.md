@@ -28,9 +28,59 @@ offline_store: file
 registry:
     registry_type: sql
     path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
+    cache_ttl_seconds: 60
 ```
 
 Specifically, the registry_type needs to be set to sql in the registry config block. On doing so, the path should refer to the [Database URL](https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls) for the database to be used, as expected by SQLAlchemy. No other additional commands are currently needed to configure this registry.
+
+Should you choose to use a database technology that is compatible with one of
+Feast's supported registry backends, but which speaks a different dialect (e.g.
+`cockroachdb`, which is compatible with `postgres`) then some further
+intervention may be required on your part.
+
+`SQLAlchemy`, used by the registry, may not be able to detect your database
+version without first updating your DSN scheme to the appropriate
+[DBAPI/dialect combination](https://docs.sqlalchemy.org/en/14/glossary.html#term-DBAPI).
+When this happens, your database is likely using what is referred to as an
+[external dialect](https://docs.sqlalchemy.org/en/14/dialects/#external-dialects)
+in `SQLAlchemy` terminology. See your database's documentation for examples on
+how to set its scheme in the Database URL.
+
+`Psycopg2`, which is the database library leveraged by the online and offline
+stores, is not impacted by the need to speak a particular dialect, and so the
+following only applies to the registry.
+
+If you are not running Feast in a container, to accomodate `SQLAlchemy`'s need
+to speak an external dialect, install additional Python modules like we do as
+follows using `cockroachdb` for example:
+
+```shell
+pip install sqlalchemy-cockroachdb
+```
+
+If you are running Feast in a container, you will need to create a custom image
+like we do as follows, again using `cockroachdb` as an example:
+
+```shell
+cat <<'EOF' >Dockerfile
+ARG DOCKER_IO_FEASTDEV_FEATURE_SERVER
+FROM docker.io/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER}
+ARG PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB
+RUN pip install -I --no-cache-dir \
+      sqlalchemy-cockroachdb==${PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB}
+EOF
+
+export DOCKER_IO_FEASTDEV_FEATURE_SERVER=0.27.1
+export PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB=1.4.4
+
+docker build \
+  --build-arg DOCKER_IO_FEASTDEV_FEATURE_SERVER \
+  --build-arg PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB \
+  --tag ${MY_REGISTRY}/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER} .
+```
+
+If you are running Feast in Kubernetes, set the `image.repository` and
+`imagePullSecrets` Helm values accordingly to utilize your custom image.
 
 There are some things to note about how the SQL registry works:
 - Once instantiated, the Registry ensures the tables needed to store data exist, and creates them if they do not.

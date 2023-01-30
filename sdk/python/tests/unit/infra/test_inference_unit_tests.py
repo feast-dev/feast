@@ -244,8 +244,8 @@ def test_feature_view_inference_on_entity_value_types():
         ),
     )
 
-    # The schema is only used as a parameter, as is therefore not updated during inference.
-    assert len(feature_view_1.schema) == 1
+    # The schema must be entity and features
+    assert len(feature_view_1.schema) == 2
 
     # Since there is already a feature specified, additional features are not inferred.
     assert len(feature_view_1.features) == 1
@@ -314,14 +314,14 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
             ),
         )
 
-        # The schema is only used as a parameter, as is therefore not updated during inference.
-        assert len(feature_view_1.schema) == 1
-
         # Since there is already a feature specified, additional features are not inferred.
         assert len(feature_view_1.features) == 1
 
         # The single entity column is inferred correctly.
         assert len(feature_view_1.entity_columns) == 1
+
+        # The schema is a property concatenating features and entity_columns
+        assert len(feature_view_1.schema) == 2
 
 
 def test_feature_view_inference_on_feature_columns(simple_dataset_1):
@@ -349,8 +349,8 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
             ),
         )
 
-        # The schema is only used as a parameter, as is therefore not updated during inference.
-        assert len(feature_view_1.schema) == 1
+        # The schema is a property concatenating features and entity_columns
+        assert len(feature_view_1.schema) == 4
 
         # All three feature columns are inferred correctly.
         assert len(feature_view_1.features) == 3
@@ -407,9 +407,9 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
             }
         )
 
-        assert len(feature_view_1.schema) == 0
+        assert len(feature_view_1.schema) == 4
         assert len(feature_view_1.features) == 3
-        assert len(feature_view_2.schema) == 0
+        assert len(feature_view_2.schema) == 4
         assert len(feature_view_2.features) == 3
         assert len(feature_service.feature_view_projections[0].features) == 1
         assert len(feature_service.feature_view_projections[1].features) == 3

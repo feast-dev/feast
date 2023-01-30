@@ -18,7 +18,7 @@ from pytz import utc
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import InvalidEntityType
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -449,7 +449,13 @@ def _get_entity_df_event_timestamp_range(
         # If the entity_df is a string (SQL query), determine range
         # from table
         df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
+
+        # Checks if executing entity sql resulted in any data
+        if df.rdd.isEmpty():
+            raise EntitySQLEmptyResults(entity_df)
+
         # TODO(kzhang132): need utc conversion here.
+
         entity_df_event_timestamp_range = (
             df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
             df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],

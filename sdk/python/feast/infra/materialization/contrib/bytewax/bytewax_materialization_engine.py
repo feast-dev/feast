@@ -23,7 +23,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _get_column_names
+from feast.utils import _get_column_names, get_default_yaml_file_path
 
 from .bytewax_materialization_job import BytewaxMaterializationJob
 
@@ -157,9 +157,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             # Create a k8s configmap with information needed by bytewax
             self._create_configuration_map(job_id, paths, feature_view, self.namespace)
 
-            # Create the k8s service definition, used for bytewax communication
-            self._create_service_definition(job_id, self.namespace)
-
             # Create the k8s job definition
             self._create_job_definition(
                 job_id,
@@ -175,14 +172,10 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def _create_configuration_map(self, job_id, paths, feature_view, namespace):
         """Create a Kubernetes configmap for this job"""
 
-        feature_store_configuration = yaml.dump(
-            yaml.safe_load(
-                self.repo_config.json(
-                    exclude={"repo_path"},
-                    exclude_unset=True,
-                )
-            )
-        )
+        repo_path = self.repo_config.repo_path
+        assert repo_path
+        feature_store_path = get_default_yaml_file_path(repo_path)
+        feature_store_configuration = feature_store_path.read_text()
 
         materialization_config = yaml.dump(
             {"paths": paths, "feature_view": feature_view.name}
@@ -203,41 +196,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             namespace=namespace,
             body=configmap_manifest,
         )
-
-    def _create_service_definition(self, job_id, namespace):
-        """Creates a kubernetes service definition.
-
-        This service definition is created to allow bytewax workers
-        to communicate with each other.
-        """
-        service_definition = {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {
-                "name": f"dataflow-{job_id}",
-                "namespace": namespace,
-            },
-            "spec": {
-                "clusterIP": "None",
-                "clusterIPs": ["None"],
-                "internalTrafficPolicy": "Cluster",
-                "ipFamilies": ["IPv4"],
-                "ipFamilyPolicy": "SingleStack",
-                "ports": [
-                    {
-                        "name": "worker",
-                        "port": 9999,
-                        "protocol": "TCP",
-                        "targetPort": 9999,
-                    }
-                ],
-                "selector": {"job-name": f"dataflow-{job_id}"},
-                "sessionAffinity": "None",
-                "type": "ClusterIP",
-            },
-        }
-
-        utils.create_from_dict(self.k8s_client, service_definition)
 
     def _create_job_definition(self, job_id, namespace, pods, env):
         """Create a kubernetes job definition."""
@@ -270,10 +228,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "value": "false",
             },
             {
-                "name": "BYTEWAX_HOSTFILE_PATH",
-                "value": "/etc/bytewax/hostfile.txt",
-            },
-            {
                 "name": "BYTEWAX_STATEFULSET_NAME",
                 "value": f"dataflow-{job_id}",
             },
@@ -299,11 +253,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                         "subdomain": f"dataflow-{job_id}",
                         "initContainers": [
                             {
-                                "command": [
-                                    "sh",
-                                    "-c",
-                                    f'set -ex\n# Generate hostfile.txt.\necho "dataflow-{job_id}-0.dataflow-{job_id}.{namespace}.svc.cluster.local:9999" > /etc/bytewax/hostfile.txt\nreplicas=$(($BYTEWAX_REPLICAS-1))\nx=1\nwhile [ $x -le $replicas ]\ndo\n  echo "dataflow-{job_id}-$x.dataflow-{job_id}.{namespace}.svc.cluster.local:9999" >> /etc/bytewax/hostfile.txt\n  x=$(( $x + 1 ))\ndone',
-                                ],
                                 "env": [
                                     {
                                         "name": "BYTEWAX_REPLICAS",
