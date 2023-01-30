@@ -8,6 +8,7 @@ import click
 import pandas as pd
 from colorama import Fore, Style
 from pydantic import Field, StrictStr
+from pytz import utc
 from tqdm import tqdm
 
 import feast
@@ -255,6 +256,18 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                 start_date=start_date,
                 end_date=end_date,
             )
+
+            # Lets check and see if we can skip this query, because the table hasnt changed
+            # since before the start date of this query
+            with get_snowflake_conn(self.repo_config.offline_store) as conn:
+                query = f"""SELECT SYSTEM$LAST_CHANGE_COMMIT_TIME('{feature_view.batch_source.get_table_query_string()}') AS last_commit_change_time"""
+                last_commit_change_time = (
+                    conn.cursor().execute(query).fetchall()[0][0] / 1_000_000_000
+                )
+            if last_commit_change_time < start_date.astimezone(tz=utc).timestamp():
+                return SnowflakeMaterializationJob(
+                    job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
+                )
 
             fv_latest_values_sql = offline_job.to_sql()
 

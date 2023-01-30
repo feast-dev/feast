@@ -162,7 +162,7 @@ This will allow the installed feast version to automatically reflect changes to 
 
 ### Code Style & Linting
 Feast Python SDK / CLI codebase:
-- Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style.html)
+- Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
 - Has type annotations as enforced by `mypy`
 - Has imports sorted by `isort`
 - Is lintable by `flake8`

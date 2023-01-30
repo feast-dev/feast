@@ -461,7 +461,6 @@ build-templates:
 build-helm-docs:
 	cd ${ROOT_DIR}/infra/charts/feast; helm-docs
 	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
-	cd ${ROOT_DIR}/infra/charts/feast-python-server; helm-docs
 
 # Web UI
 

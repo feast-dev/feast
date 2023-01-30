@@ -74,7 +74,7 @@ REQUIRED = [
     "typeguard",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
-    "dask>=2021.0,<2022.02.0",
+    "dask>=2021.0",
     "bowler",  # Needed for automatic repo upgrades
 ]
 
@@ -93,7 +93,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.10.0", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",
@@ -157,6 +157,7 @@ CI_REQUIRED = (
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
+        "py>=1.11.0", # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
@@ -165,8 +166,7 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering==0.6.*",
         "pytest-mock==1.10.4",
-        "Sphinx!=4.0.0,<4.4.0",
-        "sphinx-rtd-theme",
+        "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
@@ -552,7 +552,6 @@ setup(
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "sphinx!=4.0.0",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,

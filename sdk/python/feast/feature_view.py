@@ -85,7 +85,6 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
     online: bool
@@ -135,7 +134,7 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
-        self.schema = schema or []
+        schema = schema or []
 
         # Initialize data sources.
         if (
@@ -169,7 +168,7 @@ class FeatureView(BaseFeatureView):
                 "A feature view should not have entities that share a join key."
             )
 
-        for field in self.schema:
+        for field in schema:
             if field.name in join_keys:
                 self.entity_columns.append(field)
 
@@ -190,7 +189,7 @@ class FeatureView(BaseFeatureView):
                 features.append(field)
 
         # TODO(felixwang9817): Add more robust validation of features.
-        cols = [field.name for field in self.schema]
+        cols = [field.name for field in schema]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -257,6 +256,10 @@ class FeatureView(BaseFeatureView):
     def join_keys(self) -> List[str]:
         """Returns a list of all the join keys."""
         return [entity.name for entity in self.entity_columns]
+
+    @property
+    def schema(self) -> List[Field]:
+        return list(set(self.entity_columns + self.features))
 
     def ensure_valid(self):
         """

@@ -738,7 +738,7 @@ class FeatureStore:
 
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
-        self._registry.refresh(self.project)
+        self._registry.refresh(project=self.project)
         current_infra_proto = self._registry.proto().infra.__deepcopy__()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
@@ -930,7 +930,10 @@ class FeatureStore:
             views_to_delete = [
                 ob
                 for ob in objects_to_delete
-                if isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView)
+                if (
+                    (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
+                    and not isinstance(ob, StreamFeatureView)
+                )
             ]
             request_views_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
@@ -2319,7 +2322,12 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def serve_ui(
-        self, host: str, port: int, get_registry_dump: Callable, registry_ttl_sec: int
+        self,
+        host: str,
+        port: int,
+        get_registry_dump: Callable,
+        registry_ttl_sec: int,
+        root_path: Optional[str] = "",
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -2335,6 +2343,7 @@ class FeatureStore:
             get_registry_dump=get_registry_dump,
             project_id=self.config.project,
             registry_ttl_sec=registry_ttl_sec,
+            root_path=root_path,
         )
 
     @log_exceptions_and_usage

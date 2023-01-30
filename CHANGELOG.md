@@ -1,5 +1,50 @@
 # Changelog
 
+# [0.28.0](https://github.com/feast-dev/feast/compare/v0.27.0...v0.28.0) (2023-01-03)
+
+
+### Bug Fixes
+
+* Apply billing project when infer schema ([#3417](https://github.com/feast-dev/feast/issues/3417)) ([4f9ad7e](https://github.com/feast-dev/feast/commit/4f9ad7e0bdc9d87e9fcd64d0268feee86e59d9c0))
+* Assertion condition when value is 0 ([#3401](https://github.com/feast-dev/feast/issues/3401)) ([98a24a3](https://github.com/feast-dev/feast/commit/98a24a34c4274464f43c49b33b2b0baa88221cbd))
+* Enable registry caching in SQL Registry ([#3395](https://github.com/feast-dev/feast/issues/3395)) ([2e57376](https://github.com/feast-dev/feast/commit/2e573769a24e2429233afe34424af0433b2dc7ec))
+* Fix bug where SQL registry was incorrectly writing infra config around online stores ([#3394](https://github.com/feast-dev/feast/issues/3394)) ([6bcf77c](https://github.com/feast-dev/feast/commit/6bcf77c19f84188586ee7dcc57920a43062ee3be))
+* Get all columns with describe table method from RedshiftData-api ([#3377](https://github.com/feast-dev/feast/issues/3377)) ([fd97254](https://github.com/feast-dev/feast/commit/fd97254b18605fff7414845d94725a606112b874))
+* ODFV able to handle boolean pandas type ([#3384](https://github.com/feast-dev/feast/issues/3384)) ([8f242e6](https://github.com/feast-dev/feast/commit/8f242e640881113f1c6c5137dece8bf01504c61d))
+* Remove PySpark dependency from Snowflake Offline Store ([#3388](https://github.com/feast-dev/feast/issues/3388)) ([7b160c7](https://github.com/feast-dev/feast/commit/7b160c74685848a10965d5ab82721eddfb8c3766))
+* Specifies timeout in exception polling ([#3398](https://github.com/feast-dev/feast/issues/3398)) ([c0ca7e4](https://github.com/feast-dev/feast/commit/c0ca7e4638d5bcbc9a40778eaf6da0b721da6a6c))
+* Update import logic to remove `pyspark` dependency from Snowflake Offline Store ([#3397](https://github.com/feast-dev/feast/issues/3397)) ([cf073e6](https://github.com/feast-dev/feast/commit/cf073e68b0b3953ad901523ef7200e399eb3adfb))
+
+
+### Features
+
+* Add template for Github Codespaces ([#3421](https://github.com/feast-dev/feast/issues/3421)) ([41c0537](https://github.com/feast-dev/feast/commit/41c0537b0335863f40207ba608348bd315c20148))
+* Adds description attribute for features/fields ([#3425](https://github.com/feast-dev/feast/issues/3425)) ([26f4881](https://github.com/feast-dev/feast/commit/26f4881b51d6027fcce24a75add496f90fc36c5d))
+* Snowflake skip materialization if no table change ([#3404](https://github.com/feast-dev/feast/issues/3404)) ([0ab3942](https://github.com/feast-dev/feast/commit/0ab3942e5fa0f731e226f8823f62d127a39b5f93))
+
+# [0.27.0](https://github.com/feast-dev/feast/compare/v0.26.0...v0.27.0) (2022-12-05)
+
+
+### Bug Fixes
+
+* Changing Snowflake template code to avoid query not implemented … ([#3319](https://github.com/feast-dev/feast/issues/3319)) ([1590d6b](https://github.com/feast-dev/feast/commit/1590d6be14b9a9cea6fbde60f2373cb3cd68acb9))
+* Dask zero division error if parquet dataset has only one partition ([#3236](https://github.com/feast-dev/feast/issues/3236)) ([69e4a7d](https://github.com/feast-dev/feast/commit/69e4a7d10d912cd89f1e0c2a024d07cf2f44211e))
+* Enable Spark materialization on Yarn ([#3370](https://github.com/feast-dev/feast/issues/3370)) ([0c20a4e](https://github.com/feast-dev/feast/commit/0c20a4e6ac95d7c28299a95d91024be4370ef7ed))
+* Ensure that Snowflake accounts for number columns that overspecify precision ([#3306](https://github.com/feast-dev/feast/issues/3306)) ([0ad0ace](https://github.com/feast-dev/feast/commit/0ad0ace893edbd0680ee100726ad38bec1436974))
+* Fix memory leak from usage.py not properly cleaning up call stack ([#3371](https://github.com/feast-dev/feast/issues/3371)) ([a0c6fde](https://github.com/feast-dev/feast/commit/a0c6fde93bc8088d2bb34d1dd366a44b5d2657ee))
+* Fix workflow to contain env vars ([#3379](https://github.com/feast-dev/feast/issues/3379)) ([548bed9](https://github.com/feast-dev/feast/commit/548bed988687dc94147f494d4dbb4147fa5bea8e))
+* Update bytewax materialization ([#3368](https://github.com/feast-dev/feast/issues/3368)) ([4ebe00f](https://github.com/feast-dev/feast/commit/4ebe00fefa337cbe96ad3c712f44b9c9d7a46ef2))
+* Update the version counts ([#3378](https://github.com/feast-dev/feast/issues/3378)) ([8112db5](https://github.com/feast-dev/feast/commit/8112db5b5a18123da567c310fe385ae907edb56d))
+* Updated AWS Athena template ([#3322](https://github.com/feast-dev/feast/issues/3322)) ([5956981](https://github.com/feast-dev/feast/commit/595698105637aaeb952fddc2957c83e501964d2a))
+* Wrong UI data source type display ([#3276](https://github.com/feast-dev/feast/issues/3276)) ([8f28062](https://github.com/feast-dev/feast/commit/8f280620bceb3a6e42ffffd0571eeb353b0feff2))
+
+
+### Features
+
+* Cassandra online store, concurrency in bulk write operations ([#3367](https://github.com/feast-dev/feast/issues/3367)) ([eaf354c](https://github.com/feast-dev/feast/commit/eaf354cde27c8f3a46ac256a71ad5ec06dfd70b3))
+* Cassandra online store, concurrent fetching for multiple entities ([#3356](https://github.com/feast-dev/feast/issues/3356)) ([00fa21f](https://github.com/feast-dev/feast/commit/00fa21f9ebef496a6801974cfd3a0a0b4861a11e))
+* Get Snowflake Query Output As Pyspark Dataframe ([#2504](https://github.com/feast-dev/feast/issues/2504)) ([#3358](https://github.com/feast-dev/feast/issues/3358)) ([2f18957](https://github.com/feast-dev/feast/commit/2f189572493cb498243bf7d6ec12d768f4b90ee7))
+
 # [0.26.0](https://github.com/feast-dev/feast/compare/v0.25.0...v0.26.0) (2022-10-06)
 
 

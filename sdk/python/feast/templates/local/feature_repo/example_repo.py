@@ -45,7 +45,7 @@ driver_stats_fv = FeatureView(
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
-        Field(name="avg_daily_trips", dtype=Int64),
+        Field(name="avg_daily_trips", dtype=Int64, description="Average daily trips"),
     ],
     online=True,
     source=driver_stats_source,

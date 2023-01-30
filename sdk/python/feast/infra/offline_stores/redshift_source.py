@@ -206,7 +206,8 @@ class RedshiftSource(DataSource):
         client = aws_utils.get_redshift_data_client(config.offline_store.region)
         if self.table:
             try:
-                table = client.describe_table(
+                paginator = client.get_paginator("describe_table")
+                response_iterator = paginator.paginate(
                     ClusterIdentifier=config.offline_store.cluster_id,
                     Database=(
                         self.database
@@ -217,6 +218,7 @@ class RedshiftSource(DataSource):
                     Table=self.table,
                     Schema=self.schema,
                 )
+                table = response_iterator.build_full_result()
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ValidationException":
                     raise RedshiftCredentialsError() from e
