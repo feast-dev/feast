@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm15"
+VERSION = "0.28+affirm17"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -222,7 +222,7 @@ AFFIRM_REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     # below are required for dev while were conflict with affirm environment.
     "google-api-core>=1.23.0,<2.7",
-    "googleapis-common-protos>=1.52.*,<1.54",
+    "googleapis-common-protos==1.53.0",
     "grpcio-reflection",
     "numpy<1.22,<2",
     "pandas>=1,<2",
@@ -231,7 +231,7 @@ AFFIRM_REQUIRED = [
     "PyYAML~=5.1.1",
     "uvicorn[standard]",
     "tensorflow-metadata",
-    "dask>=2021.*,<2022.01.0",
+    "dask==2021.12.0",
 ]
 
 
@@ -552,25 +552,25 @@ setup(
     install_requires=AFFIRM_REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    extras_require={
-        "dev": DEV_REQUIRED,
-        "ci": CI_REQUIRED,
-        "gcp": GCP_REQUIRED,
-        "aws": AWS_REQUIRED,
-        "bytewax": BYTEWAX_REQUIRED,
-        "redis": REDIS_REQUIRED,
-        "snowflake": SNOWFLAKE_REQUIRED,
-        "spark": SPARK_REQUIRED,
-        "trino": TRINO_REQUIRED,
-        "postgres": POSTGRES_REQUIRED,
-        "azure": AZURE_REQUIRED,
-        "mysql": MYSQL_REQUIRED,
-        "ge": GE_REQUIRED,
-        "hbase": HBASE_REQUIRED,
-        "go": GO_REQUIRED,
-        "docs": DOCS_REQUIRED,
-        "cassandra": CASSANDRA_REQUIRED,
-    },
+    # extras_require={
+    #     "dev": DEV_REQUIRED,
+    #     "ci": CI_REQUIRED,
+    #     "gcp": GCP_REQUIRED,
+    #     "aws": AWS_REQUIRED,
+    #     "bytewax": BYTEWAX_REQUIRED,
+    #     "redis": REDIS_REQUIRED,
+    #     "snowflake": SNOWFLAKE_REQUIRED,
+    #     "spark": SPARK_REQUIRED,
+    #     "trino": TRINO_REQUIRED,
+    #     "postgres": POSTGRES_REQUIRED,
+    #     "azure": AZURE_REQUIRED,
+    #     "mysql": MYSQL_REQUIRED,
+    #     "ge": GE_REQUIRED,
+    #     "hbase": HBASE_REQUIRED,
+    #     "go": GO_REQUIRED,
+    #     "docs": DOCS_REQUIRED,
+    #     "cassandra": CASSANDRA_REQUIRED,
+    # },
     include_package_data=True,
     license="Apache",
     classifiers=[
