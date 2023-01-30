@@ -76,6 +76,7 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
+    "httpx>=0.23.3",  # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
 ]
 
 GCP_REQUIRED = [
