@@ -2327,7 +2327,7 @@ class FeatureStore:
         port: int,
         get_registry_dump: Callable,
         registry_ttl_sec: int,
-        root_path: Optional[str] = "",
+        root_path: str = "",
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
