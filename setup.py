@@ -151,7 +151,7 @@ CI_REQUIRED = (
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<4",
-        "mypy>=0.931",
+        "mypy~=0.981",
         "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",

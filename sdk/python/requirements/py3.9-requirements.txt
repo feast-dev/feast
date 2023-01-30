@@ -83,7 +83,7 @@ mmh3==3.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-mypy==0.991
+mypy==0.981
     # via sqlalchemy
 mypy-extensions==0.4.3
     # via mypy

@@ -407,7 +407,7 @@ multidict==6.0.4
     #   yarl
 multiprocess==0.70.14
     # via bytewax
-mypy==0.991
+mypy==0.981
     # via
     #   feast (setup.py)
     #   sqlalchemy
