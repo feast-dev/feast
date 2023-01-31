@@ -1,11 +1,11 @@
 import numpy as np
+import pytest
 
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
 )
 from feast.value_type import ValueType
-import pytest
 
 
 def test_null_unix_timestamp():
