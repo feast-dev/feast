@@ -5,6 +5,7 @@ from feast.type_map import (
     python_values_to_proto_values,
 )
 from feast.value_type import ValueType
+import pytest
 
 
 def test_null_unix_timestamp():
@@ -26,3 +27,24 @@ def test_null_unix_timestamp_list():
     converted = feast_value_type_to_python_type(protos[0])
 
     assert converted[0] is None
+
+
+@pytest.mark.parametrize(
+    "values",
+    (
+        np.array([True]),
+        np.array([False]),
+        np.array([0]),
+        np.array([1]),
+        [True],
+        [False],
+        [0],
+        [1],
+    ),
+)
+def test_python_values_to_proto_values_bool(values):
+
+    protos = python_values_to_proto_values(values, ValueType.BOOL)
+    converted = feast_value_type_to_python_type(protos[0])
+
+    assert converted is bool(values[0])
