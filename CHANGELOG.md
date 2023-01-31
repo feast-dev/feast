@@ -1,5 +1,25 @@
 # Changelog
 
+# [0.29.0](https://github.com/feast-dev/feast/compare/v0.28.0...v0.29.0) (2023-01-31)
+
+
+### Bug Fixes
+
+* Add check for bool type in addition to sample ([#3452](https://github.com/feast-dev/feast/issues/3452)) ([1c7c491](https://github.com/feast-dev/feast/commit/1c7c491378c9a5dc892ec58f2d81d4e95b800580))
+* Buggy SQL for postgres source ([#3424](https://github.com/feast-dev/feast/issues/3424)) ([1ea100e](https://github.com/feast-dev/feast/commit/1ea100ef472a7cc5b750d4b84992a254b4582de6))
+* Ensure no duplicates in `fv.schema` ([#3460](https://github.com/feast-dev/feast/issues/3460)) ([08ffa8d](https://github.com/feast-dev/feast/commit/08ffa8dff61acd7047d205083b78efa98e2dccb8))
+* Fix delete sfv twice issue ([#3466](https://github.com/feast-dev/feast/issues/3466)) ([dfd5eae](https://github.com/feast-dev/feast/commit/dfd5eaec6bab4961a7981e4f6a70b45e4d72bce4))
+* Stream feature view UI shows transformation issue ([#3464](https://github.com/feast-dev/feast/issues/3464)) ([1ef5137](https://github.com/feast-dev/feast/commit/1ef51376a67347c31ee2e7a037be844526ecc48d))
+* Update registry.refresh to have a default arg ([#3450](https://github.com/feast-dev/feast/issues/3450)) ([2f7c4ed](https://github.com/feast-dev/feast/commit/2f7c4ede8f9e66703714261f1152f78526d4bf43))
+* Updating the batch field so that you can query create and event date. ([#3411](https://github.com/feast-dev/feast/issues/3411)) ([01ab462](https://github.com/feast-dev/feast/commit/01ab462d49442d8c7f4de418132665e48552c22d)), closes [#3401](https://github.com/feast-dev/feast/issues/3401)
+
+
+### Features
+
+* Add data source search ([#3449](https://github.com/feast-dev/feast/issues/3449)) ([fbbb293](https://github.com/feast-dev/feast/commit/fbbb2935fd7c722dbe85f19a8ddf788765116360))
+* Adding list_validation_references for default and sql registry ([#3436](https://github.com/feast-dev/feast/issues/3436)) ([21dd253](https://github.com/feast-dev/feast/commit/21dd253adda26c18366cf4338512bdc2c00882cf))
+* Make UI accessible behind proxy ([#3428](https://github.com/feast-dev/feast/issues/3428)) ([753d8db](https://github.com/feast-dev/feast/commit/753d8dbb5e34c24cf065f599a2cd370b3723de9c))
+
 # [0.28.0](https://github.com/feast-dev/feast/compare/v0.27.0...v0.28.0) (2023-01-03)
 
 
