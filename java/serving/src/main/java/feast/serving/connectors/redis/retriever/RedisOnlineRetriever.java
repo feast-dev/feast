@@ -24,7 +24,10 @@ import feast.serving.connectors.Feature;
 import feast.serving.connectors.OnlineRetriever;
 import feast.serving.connectors.redis.common.RedisHashDecoder;
 import feast.serving.connectors.redis.common.RedisKeyGenerator;
+import feast.serving.service.config.ServingServiceV2Module;
 import io.lettuce.core.KeyValue;
+import org.slf4j.Logger;
+
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -32,6 +35,8 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 public class RedisOnlineRetriever implements OnlineRetriever {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisOnlineRetriever.class);
 
   private static final String timestampPrefix = "_ts";
   private final RedisClientAdapter redisClientAdapter;
@@ -98,6 +103,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     // Number of fields that controls whether to use hmget or hgetall was discovered empirically
     // Could be potentially tuned further
     if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
+      log.error("retrieveFields.size()  {},HGETALL_NUMBER_OF_FIELDS_THRESHOLD {}", retrieveFields.size(), HGETALL_NUMBER_OF_FIELDS_THRESHOLD);
       byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
 
       for (byte[] binaryRedisKey : binaryRedisKeys) {
