@@ -244,14 +244,18 @@ class _SparkSerializedArtifacts:
         if self.feature_view_type == "stream_feature_view":
             proto = StreamFeatureViewProto()
             proto.ParseFromString(self.feature_view_proto)
-            feature_view = StreamFeatureView.from_proto(proto)
+            feature_view = StreamFeatureView.from_proto(proto, skip_udf=True)
         else:
             proto = FeatureViewProto()
             proto.ParseFromString(self.feature_view_proto)
             feature_view = FeatureView.from_proto(proto)
 
+        print(f"got feature view: {feature_view}")
+
         # load
         repo_config = dill.loads(self.repo_config_byte)
+
+        print(f"got repo config {repo_config}")
 
         provider = PassthroughProvider(repo_config)
         online_store = provider.online_store
@@ -260,6 +264,7 @@ class _SparkSerializedArtifacts:
 
 def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArtifacts):
     """Load pandas df to online store"""
+    print("start process by partition")
 
     # convert to pyarrow table
     dicts = []
@@ -273,8 +278,12 @@ def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArti
 
     table = pyarrow.Table.from_pandas(df)
 
+    print("got table start unserialize.")
+
     # unserialize artifacts
     feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
+
+    print("deserialize successfully")
 
     if feature_view.batch_source.field_mapping is not None:
         table = _run_pyarrow_field_mapping(
@@ -286,7 +295,11 @@ def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArti
         for entity in feature_view.entity_columns
     }
 
+    print("start convert to proto")
+
     rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
+
+    print("got rows to write, start online write batch")
     online_store.online_write_batch(
         repo_config,
         feature_view,
