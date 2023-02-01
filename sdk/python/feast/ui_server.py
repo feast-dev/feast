@@ -101,7 +101,7 @@ def start_server(
     get_registry_dump: Callable,
     project_id: str,
     registry_ttl_sec: int,
-    root_path: Optional[str] = "",
+    root_path: str = "",
 ):
     app = get_app(
         store,
