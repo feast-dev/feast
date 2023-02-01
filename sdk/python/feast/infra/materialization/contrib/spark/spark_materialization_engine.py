@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from typing import Callable, List, Literal, Optional, Sequence, Union, cast
 
 import dill
 import pandas as pd
@@ -154,7 +154,8 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
         job_id = f"{feature_view.name}-{start_date}-{end_date}"
 
         try:
-            offline_job: SparkRetrievalJob = (
+            offline_job = cast(
+                SparkRetrievalJob,
                 self.offline_store.pull_latest_from_table_or_query(
                     config=self.repo_config,
                     data_source=feature_view.batch_source,
@@ -164,7 +165,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                     created_timestamp_column=created_timestamp_column,
                     start_date=start_date,
                     end_date=end_date,
-                )
+                ),
             )
 
             spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
