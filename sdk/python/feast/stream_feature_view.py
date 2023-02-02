@@ -59,6 +59,7 @@ class StreamFeatureView(FeatureView):
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
+    batch_source: DataSource
     schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
@@ -78,7 +79,7 @@ class StreamFeatureView(FeatureView):
         *,
         name: str,
         source: DataSource,
-        batch_source: DataSource,
+        batch_source: Optional[DataSource] = None,
         entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
