@@ -99,6 +99,7 @@ class FeatureView(BaseFeatureView):
         *,
         name: str,
         source: DataSource,
+        batch_source: Optional[DataSource] = None,
         schema: Optional[List[Field]] = None,
         entities: List[Entity] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
@@ -147,8 +148,10 @@ class FeatureView(BaseFeatureView):
                 raise ValueError(
                     f"A batch_source needs to be specified for stream source `{source.name}`"
                 )
-            else:
+            elif not batch_source:
                 self.batch_source = source.batch_source
+            else:
+                self.batch_source = batch_source
         else:
             self.stream_source = None
             self.batch_source = source

@@ -78,6 +78,7 @@ class StreamFeatureView(FeatureView):
         *,
         name: str,
         source: DataSource,
+        batch_source: DataSource,
         entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
@@ -128,6 +129,7 @@ class StreamFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
+            batch_source=batch_source
         )
 
     def __eq__(self, other):
