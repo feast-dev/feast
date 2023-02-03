@@ -27,3 +27,6 @@ def test_field_serialization_with_description():
 
     assert serialized_field.description == expected_description
     assert field_from_feature.description == expected_description
+
+    field = Field.from_proto(serialized_field)
+    assert field.description == expected_description
