@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import pymysql
 import pytz
 from pydantic import StrictStr
+from enum import Enum
 from pymysql.connections import Connection
 from pymysql.cursors import Cursor
 
@@ -15,6 +16,11 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+
+
+class ReleaseMode(Enum):
+    overwrite = 'overwrite'
+    update = 'update'
 
 
 class MySQLOnlineStoreConfig(FeastConfigBaseModel):
@@ -274,6 +280,12 @@ class MySQLOnlineStore(OnlineStore):
                 PRIMARY KEY(entity_key, feature_name))"""
             )
 
+            release_mode = ReleaseMode.update if 'release_mode' not in table.tags \
+                else ReleaseMode(table.tags['release_mode'])
+
+            if release_mode == ReleaseMode.overwrite:
+                cur.execute(f'DELETE FROM {_table_id(project, table)};')
+
             cur.execute(
                 f"SHOW INDEXES FROM {_table_id(project, table)};"
             )
@@ -281,7 +293,10 @@ class MySQLOnlineStore(OnlineStore):
             index_exists = False
             for index in cur.fetchall():
                 if index[2] == f"{_table_id(project, table)}_ek":
-                    index_exists = True
+                    if release_mode == ReleaseMode.overwrite:
+                        cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
+                    else:
+                        index_exists = True
                     break
 
             if not index_exists:
