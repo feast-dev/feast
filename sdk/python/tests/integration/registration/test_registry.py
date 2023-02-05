@@ -45,7 +45,7 @@ def gcs_registry() -> Registry:
     registry_config = RegistryConfig(
         path=f"gs://{bucket_name}/registry.db", cache_ttl_seconds=600
     )
-    return Registry(registry_config, None)
+    return Registry("project", registry_config, None)
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def s3_registry() -> Registry:
         path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,
     )
-    return Registry(registry_config, None)
+    return Registry("project", registry_config, None)
 
 
 @pytest.mark.integration
