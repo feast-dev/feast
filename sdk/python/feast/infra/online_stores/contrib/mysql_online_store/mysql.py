@@ -294,7 +294,7 @@ class MySQLOnlineStore(OnlineStore):
             for index in cur.fetchall():
                 if index[2] == f"{_table_id(project, table)}_ek":
                     if release_mode == ReleaseMode.overwrite:
-                        cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
+                        cur.execute(f"DROP INDEX {_table_id(project, table)}_ek ON {_table_id(project, table)};")
                     else:
                         index_exists = True
                     break
