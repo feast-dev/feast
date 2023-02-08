@@ -511,8 +511,7 @@ class FeatureStore:
         """
         return self._registry.delete_feature_service(name, self.project)
 
-    def delete_online_store_state(self, fv_name: str) -> None:
-        fv = self._registry.get_feature_view(fv_name, self.project)
+    def delete_online_store_state(self, fv: FeatureView) -> None:
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=[fv],
