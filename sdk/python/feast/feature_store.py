@@ -519,7 +519,7 @@ class FeatureStore:
             tables_to_keep=[],
             entities_to_delete=[],
             entities_to_keep=[],
-            partial=True,)
+            partial=True)
 
     def _get_features(
         self,
