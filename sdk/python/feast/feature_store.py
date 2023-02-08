@@ -511,6 +511,16 @@ class FeatureStore:
         """
         return self._registry.delete_feature_service(name, self.project)
 
+    def delete_online_store_state(self, fv_name: str) -> None:
+        fv = self._registry.get_feature_view(fv_name)
+        self._get_provider().update_infra(
+            project=self.project,
+            tables_to_delete=[fv],
+            tables_to_keep=[],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=partial,)
+
     def _get_features(
         self,
         features: Union[List[str], FeatureService],
@@ -681,7 +691,7 @@ class FeatureStore:
 
         Args:
             desired_repo_contents: The desired repo state.
-
+x
         Raises:
             ValueError: The 'objects' parameter could not be parsed properly.
 
