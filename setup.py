@@ -140,6 +140,10 @@ AZURE_REQUIRED = [
     "pymssql",
 ]
 
+ROCKSET_REQUIRED = [
+    "rockset>=1.0.3",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -197,6 +201,7 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
+    + ROCKSET_REQUIRED
 )
 
 

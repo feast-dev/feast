@@ -111,4 +111,5 @@ def start_server(
         host,
         port,
     )
+    assert root_path is not None
     uvicorn.run(app, host=host, port=port, root_path=root_path)

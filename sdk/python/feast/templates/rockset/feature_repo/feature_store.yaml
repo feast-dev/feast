@@ -1,0 +1,8 @@
+project: my_project
+registry: registry.db
+provider: local
+online_store:
+    type: rockset
+    api_key: ROCKSET_APIKEY
+    host: ROCKSET_APISERVER # (api.usw2a1.rockset.com, api.euc1a1.rockset.com, api.use1a1.rockset.com)
+entity_key_serialization_version: 2
