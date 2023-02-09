@@ -39,7 +39,7 @@ from tests.utils.e2e_test_validation import validate_registry_data_source_apply
 def local_registry() -> Registry:
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
-    return Registry(registry_config, None)
+    return Registry("project", registry_config, None)
 
 
 @pytest.mark.parametrize(
@@ -443,7 +443,7 @@ def test_apply_data_source(test_registry: Registry):
 def test_commit():
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
-    test_registry = Registry(registry_config, None)
+    test_registry = Registry("project", registry_config, None)
 
     entity = Entity(
         name="driver_car_id",
@@ -484,7 +484,7 @@ def test_commit():
     validate_project_uuid(project_uuid, test_registry)
 
     # Create new registry that points to the same store
-    registry_with_same_store = Registry(registry_config, None)
+    registry_with_same_store = Registry("project", registry_config, None)
 
     # Retrieving the entity should fail since the store is empty
     entities = registry_with_same_store.list_entities(project)
@@ -495,7 +495,7 @@ def test_commit():
     test_registry.commit()
 
     # Reconstruct the new registry in order to read the newly written store
-    registry_with_same_store = Registry(registry_config, None)
+    registry_with_same_store = Registry("project", registry_config, None)
 
     # Retrieving the entity should now succeed
     entities = registry_with_same_store.list_entities(project)

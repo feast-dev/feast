@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
-import uuid
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -44,7 +43,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
-from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
@@ -143,25 +141,6 @@ def get_registry_store_class_from_scheme(registry_path: str):
         return get_registry_store_class_from_type(registry_store_type)
 
 
-def _get_project_metadata(
-    registry_proto: Optional[RegistryProto], project: str
-) -> Optional[ProjectMetadataProto]:
-    if not registry_proto:
-        return None
-    for pm in registry_proto.project_metadata:
-        if pm.project == project:
-            return pm
-    return None
-
-
-def _init_project_metadata(cached_registry_proto: RegistryProto, project: str):
-    new_project_uuid = f"{uuid.uuid4()}"
-    usage.set_current_project_uuid(new_project_uuid)
-    cached_registry_proto.project_metadata.append(
-        ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
-    )
-
-
 class Registry(BaseRegistry):
     def apply_user_metadata(
         self,
@@ -184,19 +163,25 @@ class Registry(BaseRegistry):
     cached_registry_proto_ttl: timedelta
 
     def __new__(
-        cls, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+        cls,
+        project: str,
+        registry_config: Optional[RegistryConfig],
+        repo_path: Optional[Path],
     ):
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
         if registry_config and registry_config.registry_type == "sql":
             from feast.infra.registry.sql import SqlRegistry
 
-            return SqlRegistry(registry_config, repo_path)
+            return SqlRegistry(registry_config, project, repo_path)
         else:
             return super(Registry, cls).__new__(cls)
 
     def __init__(
-        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+        self,
+        project: str,
+        registry_config: Optional[RegistryConfig],
+        repo_path: Optional[Path],
     ):
         """
         Create the Registry object.
@@ -225,7 +210,7 @@ class Registry(BaseRegistry):
             )
 
     def clone(self) -> "Registry":
-        new_registry = Registry(None, None)
+        new_registry = Registry("project", None, None)
         new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
         new_registry.cached_registry_proto = (
             self.cached_registry_proto.__deepcopy__()
@@ -243,7 +228,7 @@ class Registry(BaseRegistry):
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-            _init_project_metadata(registry_proto, project)
+            proto_registry_utils.init_project_metadata(registry_proto, project)
             self._registry_store.update_registry_proto(registry_proto)
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
@@ -791,7 +776,12 @@ class Registry(BaseRegistry):
         """Prepares the Registry for changes by refreshing the cache if necessary."""
         try:
             self._get_registry_proto(project=project, allow_cache=True)
-            if _get_project_metadata(self.cached_registry_proto, project) is None:
+            if (
+                proto_registry_utils.get_project_metadata(
+                    self.cached_registry_proto, project
+                )
+                is None
+            ):
                 # Project metadata not initialized yet. Try pulling without cache
                 self._get_registry_proto(project=project, allow_cache=False)
         except FileNotFoundError:
@@ -802,8 +792,15 @@ class Registry(BaseRegistry):
 
         # Initialize project metadata if needed
         assert self.cached_registry_proto
-        if _get_project_metadata(self.cached_registry_proto, project) is None:
-            _init_project_metadata(self.cached_registry_proto, project)
+        if (
+            proto_registry_utils.get_project_metadata(
+                self.cached_registry_proto, project
+            )
+            is None
+        ):
+            proto_registry_utils.init_project_metadata(
+                self.cached_registry_proto, project
+            )
             self.commit()
 
         return self.cached_registry_proto
@@ -836,7 +833,7 @@ class Registry(BaseRegistry):
             )
 
             if project:
-                old_project_metadata = _get_project_metadata(
+                old_project_metadata = proto_registry_utils.get_project_metadata(
                     registry_proto=self.cached_registry_proto, project=project
                 )
 
@@ -854,13 +851,13 @@ class Registry(BaseRegistry):
             if not project:
                 return registry_proto
 
-            project_metadata = _get_project_metadata(
+            project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=registry_proto, project=project
             )
             if project_metadata:
                 usage.set_current_project_uuid(project_metadata.project_uuid)
             else:
-                _init_project_metadata(registry_proto, project)
+                proto_registry_utils.init_project_metadata(registry_proto, project)
                 self.commit()
 
             return registry_proto
