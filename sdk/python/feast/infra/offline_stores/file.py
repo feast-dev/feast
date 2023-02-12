@@ -453,7 +453,9 @@ class FileOfflineStore(OfflineStore):
         filesystem, path = FileSource.create_filesystem_and_path(
             file_options.uri, file_options.s3_endpoint_override
         )
-        prev_table = pyarrow.parquet.read_table(path, memory_map=True)
+        prev_table = pyarrow.parquet.read_table(
+            path, filesystem=filesystem, memory_map=True
+        )
         if table.schema != prev_table.schema:
             table = table.cast(prev_table.schema)
         new_table = pyarrow.concat_tables([table, prev_table])
