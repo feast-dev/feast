@@ -50,8 +50,6 @@ REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
-    "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos>=1.52.0,<2",
     "grpcio>=1.47.0,<2",
     "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
@@ -80,6 +78,8 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
+    "google-api-core>=1.23.0,<3",
+    "googleapis-common-protos>=1.52.0,<2",
     "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.0,<3",
