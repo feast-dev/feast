@@ -1,7 +1,7 @@
 feast:
   project: "usm_cc"
   registry: "/var/www/feast/java/serving/src/main/resources/registry.pb"
-  activeStore: online
+  activeStore: online_cluster
   stores:
     - name: online_cluster
       type: REDIS_CLUSTER
