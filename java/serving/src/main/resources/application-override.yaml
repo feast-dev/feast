@@ -6,7 +6,7 @@ feast:
     - name: online
       type: REDIS
       config:
-        host: localhost
+        host: marketplace-fs-cc.slkos6.clustercfg.aps1.cache.amazonaws.com
         port: 6379
 logging:
     # Audit logging provides a machine readable structured JSON log that can give better
