@@ -120,7 +120,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
                 .toCompletableFuture());
       }
       Long end=System.currentTimeMillis();
-      log.debug("total time {}",(end-starTime)/1000);
+      log.error("total time {}",(end-starTime)/1000);
 
 
     } else {
