@@ -103,6 +103,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     // Number of fields that controls whether to use hmget or hgetall was discovered empirically
     // Could be potentially tuned further
     if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
+      Long starTime=System.currentTimeMillis();
       log.error("retrieveFields.size()  {},HGETALL_NUMBER_OF_FIELDS_THRESHOLD {}", retrieveFields.size(), HGETALL_NUMBER_OF_FIELDS_THRESHOLD);
       byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
 
@@ -118,6 +119,9 @@ public class RedisOnlineRetriever implements OnlineRetriever {
                             .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)))
                 .toCompletableFuture());
       }
+      Long end=System.currentTimeMillis();
+      log.debug("total time {}",(end-starTime)/1000);
+
 
     } else {
       for (byte[] binaryRedisKey : binaryRedisKeys) {

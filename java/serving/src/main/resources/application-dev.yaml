@@ -1,16 +1,14 @@
 feast:
   project: "usm_cc"
-  registry: "/var/www/feast/java/serving/src/main/resources/registry.pb"
-  activeStore: online_cluster
+  registry: "java/serving/src/main/resources/registry.pb"
+  activeStore: online
   stores:
-    - name: online_cluster
-      type: REDIS_CLUSTER
-      config: # Store specific configuration.
-        # Connection string specifies the host:port of Redis instances in the redis cluster.
-        connection_string: "localhost:6379"
-        read_from: MASTER
-        # Redis operation timeout in ISO-8601 format
-        timeout: PT0.5S
+    # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
+    - name: online # Name of the store (referenced by active_store)
+      type: REDIS # Type of the store. REDIS, REDIS_CLUSTER are available options
+      config:  # Store specific configuration. See
+        host: localhost
+        port: 6379
 logging:
   # Audit logging provides a machine readable structured JSON log that can give better
   # insight into what is happening in Feast.
