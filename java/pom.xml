@@ -21,7 +21,6 @@
     <name>Feast</name>
     <description>Feature Store for Machine Learning</description>
     <url>${github.url}</url>
-
     <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>

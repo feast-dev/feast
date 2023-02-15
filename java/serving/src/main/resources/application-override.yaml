@@ -3,11 +3,14 @@ feast:
   registry: "/var/www/feast/java/serving/src/main/resources/registry.pb"
   activeStore: online
   stores:
-    - name: online
-      type: REDIS
-      config:
-        host: marketplace-fs-cc.slkos6.clustercfg.aps1.cache.amazonaws.com
-        port: 6379
+    - name: online_cluster
+      type: REDIS_CLUSTER
+      config:  # Store specific configuration.
+        # Connection string specifies the host:port of Redis instances in the redis cluster.
+        connection_string: "marketplace-fs-cc.slkos6.clustercfg.aps1.cache.amazonaws.com:6379"
+        read_from: MASTER
+        # Redis operation timeout in ISO-8601 format
+        timeout: PT0.5S
 logging:
     # Audit logging provides a machine readable structured JSON log that can give better
     # insight into what is happening in Feast.
