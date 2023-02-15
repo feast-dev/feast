@@ -7,7 +7,7 @@ feast:
       type: REDIS_CLUSTER
       config: # Store specific configuration.
         # Connection string specifies the host:port of Redis instances in the redis cluster.
-        connection_string: "marketplace-fs-0001-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0002-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0003-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0004-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0005-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0006-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0007-001.slkos6.0001.aps1.cache.amazonaws.com:6379,marketplace-fs-0008-001.slkos6.0001.aps1.cache.amazonaws.com:6379marketplace-fs-0009-001.slkos6.0001.aps1.cache.amazonaws.com:6379"
+        connection_string: "marketplace-fs.slkos6.clustercfg.aps1.cache.amazonaws.com:6379"
         read_from: MASTER
         # Redis operation timeout in ISO-8601 format
         timeout: PT0.5S
