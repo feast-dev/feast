@@ -45,6 +45,15 @@ pip install feast
 {% endtab %}
 {% endtabs %}
 
+Using Python3,
+{% tabs %}
+{% tab title="Bash" %}
+```bash
+python3 -m pip install feast
+```
+{% endtab %}
+{% endtabs %}
+
 ## Step 2: Create a feature repository
 
 Bootstrap a new feature repository using `feast init` from the command line.
