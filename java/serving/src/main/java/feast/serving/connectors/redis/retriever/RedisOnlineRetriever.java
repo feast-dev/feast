@@ -61,6 +61,8 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
     List<RedisProto.RedisKeyV2> redisKeys =
         RedisKeyGenerator.buildRedisKeys(this.project, entityRows);
+    log.error("getOnlineFeatures {}",this.project);
+    log.error("redis keys {}",redisKeys);
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
 
