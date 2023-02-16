@@ -61,8 +61,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
     List<RedisProto.RedisKeyV2> redisKeys =
         RedisKeyGenerator.buildRedisKeys(this.project, entityRows);
-    log.error("getOnlineFeatures {}",this.project);
-    log.error("redis keys {}",redisKeys);
+    log.error("project {},redis keys {}",this.project,Arrays.toString(redisKeys.toArray()));
     return getFeaturesFromRedis(redisKeys, featureReferences);
   }
 
@@ -106,7 +105,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     // Could be potentially tuned further
     if (retrieveFields.size() < HGETALL_NUMBER_OF_FIELDS_THRESHOLD) {
       Long starTime=System.currentTimeMillis();
-      log.error("retrieveFields.size()  {},HGETALL_NUMBER_OF_FIELDS_THRESHOLD {}", retrieveFields.size(), HGETALL_NUMBER_OF_FIELDS_THRESHOLD);
+      log.error("retrieveFields.size()  {}", retrieveFields.size());
       byte[][] retrieveFieldsByteArray = retrieveFields.toArray(new byte[0][]);
 
       for (byte[] binaryRedisKey : binaryRedisKeys) {

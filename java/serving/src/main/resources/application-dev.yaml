@@ -1,7 +1,7 @@
 feast:
   project: "usm_cc"
   registry: "java/serving/src/main/resources/registry.pb"
-  activeStore: online_cluster
+  activeStore: online
   stores:
     # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
     - name: online # Name of the store (referenced by active_store)
