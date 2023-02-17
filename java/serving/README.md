@@ -2,9 +2,14 @@
 
 ### Overview
 This guide is targeted at developers looking to contribute to Feast Serving:
-- [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
-- [Unit / Integration Tests](#unit-/-integration-tests)
-- [Developing against Feast Helm charts](#developing-against-feast-helm-charts)
+- [Getting Started Guide for Feast Serving Developers](#getting-started-guide-for-feast-serving-developers)
+  - [Overview](#overview)
+  - [Building and running Feast Serving locally:](#building-and-running-feast-serving-locally)
+    - [Pre-requisites](#pre-requisites)
+    - [Steps](#steps)
+    - [Debugging Feast Serving](#debugging-feast-serving)
+  - [Unit / Integration Tests](#unit--integration-tests)
+  - [Developing against Feast Helm charts](#developing-against-feast-helm-charts)
 
 ### Building and running Feast Serving locally:
 
@@ -25,12 +30,14 @@ From the Feast GitHub root, run:
     feast:
       project: feast_demo
       registry: /Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db
+      entityKeySerializationVersion: 2
     ```
    2. An example of if you're using Redis with a remote registry:
       ```yaml
       feast:
         project: feast_java_demo
         registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+        entityKeySerializationVersion: 2
         activeStore: online
         stores:
         - name: online
