@@ -131,7 +131,7 @@ class SparkKafkaProcessor(StreamProcessor):
             # Also add a 'created' column.
             rows = (
                 rows.sort_values(
-                    by=self.join_keys + [self.sfv.timestamp_field], ascending=True
+                    by=[*self.join_keys, self.sfv.timestamp_field], ascending=False
                 )
                 .groupby(self.join_keys)
                 .nth(0)
