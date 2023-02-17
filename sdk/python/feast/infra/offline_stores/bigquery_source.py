@@ -162,6 +162,7 @@ class BigQuerySource(DataSource):
             from google.api_core import client_info as http_client_info
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
+
             raise FeastExtrasDependencyImportError("gcp", str(e))
 
         from google.cloud import bigquery
