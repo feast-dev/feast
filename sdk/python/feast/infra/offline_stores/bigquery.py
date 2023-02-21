@@ -530,11 +530,17 @@ class BigQueryRetrievalJob(RetrievalJob):
         block_until_done(client=self.client, bq_job=bq_job, timeout=timeout or 1800)
         return bq_job
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: int = 1800,
+    ):
         assert isinstance(storage, SavedDatasetBigQueryStorage)
 
         self.to_bigquery(
-            bigquery.QueryJobConfig(destination=storage.bigquery_options.table)
+            bigquery.QueryJobConfig(destination=storage.bigquery_options.table),
+            timeout=timeout,
         )
 
     @property

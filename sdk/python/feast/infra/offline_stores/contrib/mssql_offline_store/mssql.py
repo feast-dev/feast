@@ -356,7 +356,12 @@ class MsSqlServerRetrievalJob(RetrievalJob):
 
     ## Implements persist in Feast 0.18 - This persists to filestorage
     ## ToDo: Persist to Azure Storage
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: int = 1800,
+    ):
         assert isinstance(storage, SavedDatasetFileStorage)
 
         filesystem, path = FileSource.create_filesystem_and_path(

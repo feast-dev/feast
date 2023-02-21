@@ -189,7 +189,12 @@ class RetrievalJob(ABC):
         pass
 
     @abstractmethod
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: int = 1800,
+    ):
         """
         Synchronously executes the underlying query and persists the result in the same offline store
         at the specified destination.

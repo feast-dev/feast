@@ -476,7 +476,12 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: int = 1800,
+    ):
         assert isinstance(storage, SavedDatasetRedshiftStorage)
         self.to_redshift(table_name=storage.redshift_options.table)
 

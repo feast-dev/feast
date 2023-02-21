@@ -501,7 +501,12 @@ class SnowflakeRetrievalJob(RetrievalJob):
         else:
             raise InvalidSparkSessionException(spark_session)
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: int = 1800,
+    ):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
         self.to_snowflake(table_name=storage.snowflake_options.table)
 
