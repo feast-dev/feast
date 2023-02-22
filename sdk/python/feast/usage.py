@@ -33,7 +33,7 @@ from feast import flags_helper
 from feast.constants import DEFAULT_FEAST_USAGE_VALUE, FEAST_USAGE
 from feast.version import get_version
 
-USAGE_ENDPOINT = "https://usage.feast.dev"
+USAGE_ENDPOINT = ""
 
 _logger = logging.getLogger(__name__)
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
@@ -159,11 +159,11 @@ def _set_installation_id():
 
             with open(usage_filepath, "w") as f:
                 f.write(installation_id)
-            print(
-                "Feast is an open source project that collects "
-                "anonymized error reporting and usage statistics. To opt out or learn"
-                " more see https://docs.feast.dev/reference/usage"
-            )
+            #print(
+            #    "Feast is an open source project that collects "
+            #    "anonymized error reporting and usage statistics. To opt out or learn"
+            #    " more see https://docs.feast.dev/reference/usage"
+            #)
     except OSError as e:
         _logger.debug(f"Unable to configure usage {e}")
         installation_id = "undefined"
@@ -171,8 +171,7 @@ def _set_installation_id():
     _constant_attributes["installation_id"] = installation_id
     _constant_attributes["installation_ts"] = installation_timestamp.isoformat()
 
-if _is_enabled:
-    _set_installation_id()
+_set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
