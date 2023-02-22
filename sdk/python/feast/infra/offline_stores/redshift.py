@@ -400,7 +400,7 @@ class RedshiftRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     @log_exceptions_and_usage
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
                 self._redshift_client,
@@ -414,7 +414,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
 
     @log_exceptions_and_usage
-    def _to_arrow_internal(self) -> pa.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
                 self._redshift_client,

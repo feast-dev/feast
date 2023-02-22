@@ -336,13 +336,13 @@ class SparkRetrievalJob(RetrievalJob):
         *_, last = map(self.spark_session.sql, statements)
         return last
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         return self.to_spark_df().toPandas()
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-        return pyarrow.Table.from_pandas(self._to_df_internal())
+        return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
         """
