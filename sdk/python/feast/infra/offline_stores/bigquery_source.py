@@ -18,13 +18,6 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import get_user_agent
 from feast.value_type import ValueType
 
-try:
-    from google.api_core import client_info as http_client_info
-except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-
-    raise FeastExtrasDependencyImportError("gcp", str(e))
-
 
 @typechecked
 class BigQuerySource(DataSource):
@@ -165,6 +158,13 @@ class BigQuerySource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
+        try:
+            from google.api_core import client_info as http_client_info
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("gcp", str(e))
+
         from google.cloud import bigquery
 
         project_id = (

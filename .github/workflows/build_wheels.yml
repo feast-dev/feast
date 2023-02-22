@@ -84,6 +84,7 @@ jobs:
             yum install -y --enablerepo=epel arrow-devel # For C++
           CIBW_BEFORE_ALL_MACOS: |
             brew install apache-arrow
+            brew install pkg-config
             curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
             sudo installer -pkg python.pkg -target /
           # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
@@ -111,6 +112,7 @@ jobs:
             git restore go.mod go.sum
             git restore sdk/python/feast/ui/yarn.lock
             brew install apache-arrow
+            brew install pkg-config
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
@@ -226,7 +228,9 @@ jobs:
             sudo apt install -y -V libarrow-dev
       - name: Install apache-arrow on macos
         if: ${{ matrix.from-source && matrix.os == 'macos-10.15' && matrix.python-version != '3.10' }}
-        run: brew install apache-arrow
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
       - name: Install dist with go
         if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
         env:

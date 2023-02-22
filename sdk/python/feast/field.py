@@ -109,6 +109,7 @@ class Field:
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
             tags=dict(field_proto.tags),
+            description=field_proto.description,
         )
 
     @classmethod

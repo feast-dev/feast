@@ -50,8 +50,6 @@ REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
-    "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos>=1.52.0,<2",
     "grpcio>=1.47.0,<2",
     "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
@@ -60,12 +58,13 @@ REQUIRED = [
     "numpy>=1.22,<3",
     "pandas>=1.4.3,<2",
     "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "protobuf<5,>3",
+    "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<9",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
+    "requests",
     "SQLAlchemy[mypy]>1,<2",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
@@ -80,6 +79,8 @@ REQUIRED = [
 ]
 
 GCP_REQUIRED = [
+    "google-api-core>=1.23.0,<3",
+    "googleapis-common-protos>=1.52.0,<2",
     "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.0,<3",
@@ -140,6 +141,10 @@ AZURE_REQUIRED = [
     "pymssql",
 ]
 
+ROCKSET_REQUIRED = [
+    "rockset>=1.0.3",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -197,6 +202,7 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
+    + ROCKSET_REQUIRED
 )
 
 

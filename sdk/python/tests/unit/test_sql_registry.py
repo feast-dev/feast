@@ -72,7 +72,7 @@ def pg_registry():
         path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
     )
 
-    yield SqlRegistry(registry_config, None)
+    yield SqlRegistry(registry_config, "project", None)
 
     container.stop()
 
@@ -106,7 +106,7 @@ def mysql_registry():
         path=f"mysql+mysqldb://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
     )
 
-    yield SqlRegistry(registry_config, None)
+    yield SqlRegistry(registry_config, "project", None)
 
     container.stop()
 
@@ -118,7 +118,7 @@ def sqlite_registry():
         path="sqlite://",
     )
 
-    yield SqlRegistry(registry_config, None)
+    yield SqlRegistry(registry_config, "project", None)
 
 
 @pytest.mark.skipif(
@@ -561,6 +561,76 @@ def test_apply_data_source(sql_registry):
     assert registry_feature_view.batch_source == batch_source
     registry_batch_source = sql_registry.list_data_sources(project)[0]
     assert registry_batch_source == batch_source
+
+    sql_registry.teardown()
+
+
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+)
+@pytest.mark.parametrize(
+    "sql_registry",
+    [
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("sqlite_registry"),
+    ],
+)
+def test_registry_cache(sql_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    sql_registry.apply_data_source(batch_source, project)
+    sql_registry.apply_feature_view(fv1, project)
+    registry_feature_views_cached = sql_registry.list_feature_views(
+        project, allow_cache=True
+    )
+    registry_data_sources_cached = sql_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    # Not refreshed cache, so cache miss
+    assert len(registry_feature_views_cached) == 0
+    assert len(registry_data_sources_cached) == 0
+    sql_registry.refresh(project)
+    # Now objects exist
+    registry_feature_views_cached = sql_registry.list_feature_views(
+        project, allow_cache=True
+    )
+    registry_data_sources_cached = sql_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+    registry_feature_view = registry_feature_views_cached[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources_cached[0]
+    assert registry_data_source == batch_source
 
     sql_registry.teardown()
 

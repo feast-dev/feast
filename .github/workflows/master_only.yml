@@ -142,7 +142,9 @@ jobs:
             sudo apt install -y -V libarrow-dev
       - name: Install apache-arrow on macos
         if: matrix.os == 'macOS-latest'
-        run: brew install apache-arrow
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Setup Redis Cluster

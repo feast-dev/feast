@@ -180,12 +180,16 @@ feast_metadata = Table(
 
 class SqlRegistry(BaseRegistry):
     def __init__(
-        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+        self,
+        registry_config: Optional[RegistryConfig],
+        project: str,
+        repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
         metadata.create_all(self.engine)
         self.cached_registry_proto = self.proto()
+        proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -193,6 +197,7 @@ class SqlRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
+        self.project = project
 
     def teardown(self):
         for t in {
@@ -210,6 +215,16 @@ class SqlRegistry(BaseRegistry):
                 conn.execute(stmt)
 
     def refresh(self, project: Optional[str] = None):
+        if project:
+            project_metadata = proto_registry_utils.get_project_metadata(
+                registry_proto=self.cached_registry_proto, project=project
+            )
+            if project_metadata:
+                usage.set_current_project_uuid(project_metadata.project_uuid)
+            else:
+                proto_registry_utils.init_project_metadata(
+                    self.cached_registry_proto, project
+                )
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = datetime.utcnow()
 
@@ -816,7 +831,13 @@ class SqlRegistry(BaseRegistry):
             ]:
                 objs: List[Any] = lister(project)  # type: ignore
                 if objs:
-                    registry_proto_field.extend([obj.to_proto() for obj in objs])
+                    obj_protos = [obj.to_proto() for obj in objs]
+                    for obj_proto in obj_protos:
+                        if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
+                            obj_proto.spec.project = project
+                        else:
+                            obj_proto.project = project
+                    registry_proto_field.extend(obj_protos)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
