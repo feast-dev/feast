@@ -51,11 +51,11 @@ fsspec==2023.1.0
     # via dask
 greenlet==2.0.2
     # via sqlalchemy
-grpcio==1.51.1
+grpcio==1.51.3
     # via
     #   feast (setup.py)
     #   grpcio-reflection
-grpcio-reflection==1.51.1
+grpcio-reflection==1.51.3
     # via feast (setup.py)
 h11==0.14.0
     # via
@@ -84,7 +84,7 @@ mmh3==3.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-mypy==1.0.0
+mypy==1.0.1
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
