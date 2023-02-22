@@ -81,7 +81,7 @@ entities = Table(
 data_sources = Table(
     "data_sources",
     metadata,
-    Column("data_source_name", String(100), primary_key=True),
+    Column("data_source_name", String(50), primary_key=True),
     Column("project_id", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("data_source_proto", LargeBinary, nullable=False),
