@@ -171,8 +171,8 @@ def _set_installation_id():
     _constant_attributes["installation_id"] = installation_id
     _constant_attributes["installation_ts"] = installation_timestamp.isoformat()
 
-
-_set_installation_id()
+if _is_enabled:
+    _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
