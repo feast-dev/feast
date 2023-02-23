@@ -17,6 +17,7 @@ SOURCES = {
     "SnowflakeSource",
     "KafkaSource",
     "KinesisSource",
+    "HazelcastSource",
 }
 
 

@@ -149,6 +149,52 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
+class HazelcastOptions:
+    """
+    DataSource Hazelcast options used to source features from Hazelcast entries
+    """
+
+    def __init__(
+        self,
+        imap_name: str,
+        websocket_url: str,
+        stream_format: StreamFormat,
+    ):
+        self.imap_name = imap_name
+        self.websocket_url = websocket_url
+        self.stream_format = stream_format
+
+
+    @classmethod
+    def from_proto(cls, hazelcast_options_proto: DataSourceProto.HazelcastOptions):
+        """
+        Creates a HazelcastOptions from a protobuf representation of a Hazelcast option
+        Args:
+            hazelcast_options_proto: A protobuf representation of a source options
+        Returns:
+            Returns a HazelcastOptions object based on the hazelcast_options protobuf
+        """
+        hazelcast_options = cls(
+            imap_name=hazelcast_options_proto.imap_name,
+            websocket_url=hazelcast_options_proto.websocket_url,
+            stream_format=hazelcast_options_proto.stream_format,
+        )
+        return hazelcast_options
+
+    def to_proto(self) -> DataSourceProto.HazelcastOptions:
+        """
+        Converts an HazelcastOptions object to its protobuf representation.
+        Returns:
+            HazelcastOptionsProto protobuf
+        """
+        hazelcast_options_proto = DataSourceProto.HazelcastOptions(
+            imap_name=self.imap_name,
+            websocket_url=self.websocket_url,
+            stream_format=self.stream_format,
+        )
+        return hazelcast_options_proto
+
+
 _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.file_source.FileSource",
     DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery_source.BigQuerySource",
@@ -161,6 +207,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
+    DataSourceProto.SourceType.STREAM_HAZELCAST: "feast.data_source.HazelcastSource",
 }
 
 
@@ -813,4 +860,106 @@ class PushSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        raise NotImplementedError
+
+
+@typechecked
+class HazelcastSource(DataSource):
+    def __init__(self,
+         *,
+         name: str,
+         timestamp_field: Optional[str] = None,
+         created_timestamp_column: Optional[str] = None,
+         field_mapping: Optional[Dict[str, str]] = None,
+         imap_name: Optional[str] = "",
+         websocket_url: Optional[str] = "",
+         stream_format: Optional[StreamFormat] = None,
+         description: Optional[str] = "",
+         tags: Optional[Dict[str, str]] = None,
+         owner: Optional[str] = "",
+         batch_source: Optional[DataSource] = None,
+         date_partition_column: Optional[str] = None
+    ):
+        """
+        Creates a HazelcastSource object.
+        """
+        super().__init__(
+            name=name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping,
+            description=description,
+            tags=tags,
+            owner=owner,
+            date_partition_column=date_partition_column
+        )
+        self.batch_source = batch_source
+        self.hazelcast_options = HazelcastOptions(
+            imap_name=imap_name,
+            websocket_url=websocket_url,
+            stream_format=stream_format,
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, HazelcastSource):
+            raise TypeError(
+                "Comparisons should only involve HazelcastSource class objects."
+            )
+        if not super().__eq__(other):
+            return False
+        if (
+                self.hazelcast_options.imap_name != other.hazelcast_options.imap_name
+                or self.hazelcast_options.websocket_url != other.hazelcast_options.websocket_url
+                or self.hazelcast_options.stream_format != other.hazelcast_options.stream_format
+        ):
+            return False
+        return True
+
+    def __hash__(self):
+        return super().__hash__()
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        return HazelcastSource(
+            name=data_source.name,
+            timestamp_field=data_source.timestamp_field,
+            field_mapping=dict(data_source.field_mapping),
+            imap_name=data_source.hazelcast_options.imap_name,
+            websocket_url=data_source.hazelcast_options.websocket_url,
+            stream_format=data_source.hazelcast_options.stream_format,
+            created_timestamp_column=data_source.created_timestamp_column,
+            description=data_source.description,
+            tags=dict(data_source.tags),
+            owner=data_source.owner,
+            batch_source=DataSource.from_proto(data_source.batch_source)
+            if data_source.batch_source
+            else None,
+        )
+
+    def to_proto(self) -> DataSourceProto:
+        data_source_proto = DataSourceProto(
+            name=self.name,
+            type=DataSourceProto.STREAM_HAZELCAST,
+            field_mapping=self.field_mapping,
+            hazelcast_options=self.hazelcast_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+        )
+
+        data_source_proto.timestamp_field = self.timestamp_field
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
+        if self.batch_source:
+            data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
+
+        return data_source_proto
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        pass
+
+    def get_table_column_names_and_types(self, config: RepoConfig) -> Iterable[Tuple[str, str]]:
+        pass
+
+    def get_table_query_string(self) -> str:
         raise NotImplementedError

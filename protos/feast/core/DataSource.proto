@@ -29,14 +29,14 @@ import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
 
 // Defines a Data Source that can be used source Feature data
-// Next available id: 28
+// Next available id: 29
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 12
+  // Next available id: 14
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -51,6 +51,7 @@ message DataSource {
     BATCH_TRINO = 10;
     BATCH_SPARK = 11;
     BATCH_ATHENA = 12;
+    STREAM_HAZELCAST = 13;
   }
 
   // Unique name of data source within the project
@@ -163,6 +164,17 @@ message DataSource {
     StreamFormat record_format = 3;
   }
 
+  message HazelcastOptions {
+    // Sink IMap name for StreamProcessor
+    string imap_name = 1;
+
+    // The address of websocket push server
+    string websocket_url = 2;
+
+    // Defines the data format encoding the feature data in Hazelcast.
+    StreamFormat stream_format = 3;
+  }
+
   // Defines options for DataSource that sources features from a Redshift Query
   message RedshiftOptions {
     // Redshift table name
@@ -267,5 +279,6 @@ message DataSource {
     SparkOptions spark_options = 27;
     TrinoOptions trino_options = 30;
     AthenaOptions athena_options = 35;
+    HazelcastOptions hazelcast_options = 28;
   }
 }

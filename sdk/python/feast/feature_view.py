@@ -21,7 +21,7 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
+from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource, HazelcastSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
@@ -141,6 +141,7 @@ class FeatureView(BaseFeatureView):
             isinstance(source, PushSource)
             or isinstance(source, KafkaSource)
             or isinstance(source, KinesisSource)
+            or isinstance(source, HazelcastSource)
         ):
             self.stream_source = source
             if not source.batch_source:

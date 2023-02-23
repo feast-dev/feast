@@ -14,7 +14,7 @@ from click.exceptions import BadParameter
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource, KafkaSource, KinesisSource
+from feast.data_source import DataSource, KafkaSource, KinesisSource, HazelcastSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -131,6 +131,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     isinstance(obj, PushSource)
                     or isinstance(obj, KafkaSource)
                     or isinstance(obj, KinesisSource)
+                    or isinstance(obj, HazelcastSource)
                 ):
                     batch_source = obj.batch_source
 

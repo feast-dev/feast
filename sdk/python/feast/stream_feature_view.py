@@ -27,7 +27,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 
 warnings.simplefilter("once", RuntimeWarning)
 
-SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource"}
+SUPPORTED_STREAM_SOURCES = {"KafkaSource", "PushSource", "HazelcastSource"}
 
 
 @typechecked
