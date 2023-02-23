@@ -1,12 +1,13 @@
 import pytest
 
-from feast.data_format import ProtoFormat
+from feast.data_format import ProtoFormat, JsonFormat
 from feast.data_source import (
     DataSource,
     KafkaSource,
     KinesisSource,
     PushSource,
     RequestSource,
+    HazelcastSource
 )
 from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
@@ -173,6 +174,20 @@ def test_proto_conversion():
         owner="test@gmail.com",
     )
 
+    hazelcast_source = HazelcastSource(
+        name="test_source",
+        imap_name="test_imap",
+        websocket_url="wss://www.test.com/example",
+        stream_format=JsonFormat("test: str"),
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
     assert DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
     assert DataSource.from_proto(file_source.to_proto()) == file_source
     assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
@@ -181,6 +196,7 @@ def test_proto_conversion():
     assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
     assert DataSource.from_proto(push_source.to_proto()) == push_source
     assert DataSource.from_proto(request_source.to_proto()) == request_source
+    assert DataSource.from_proto(hazelcast_source.to_proto()) == hazelcast_source
 
 
 def test_column_conflict():

@@ -177,7 +177,7 @@ class HazelcastOptions:
         hazelcast_options = cls(
             imap_name=hazelcast_options_proto.imap_name,
             websocket_url=hazelcast_options_proto.websocket_url,
-            stream_format=hazelcast_options_proto.stream_format,
+            stream_format=StreamFormat.from_proto(hazelcast_options_proto.stream_format),
         )
         return hazelcast_options
 
@@ -190,7 +190,7 @@ class HazelcastOptions:
         hazelcast_options_proto = DataSourceProto.HazelcastOptions(
             imap_name=self.imap_name,
             websocket_url=self.websocket_url,
-            stream_format=self.stream_format,
+            stream_format=self.stream_format.to_proto(),
         )
         return hazelcast_options_proto
 
@@ -865,6 +865,7 @@ class PushSource(DataSource):
 
 @typechecked
 class HazelcastSource(DataSource):
+
     def __init__(self,
          *,
          name: str,
@@ -918,15 +919,32 @@ class HazelcastSource(DataSource):
     def __hash__(self):
         return super().__hash__()
 
+    def validate(self, config: RepoConfig):
+        pass
+
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+        """
+        Converts data source config in protobuf spec to a DataSource class object.
+
+        Args:
+            data_source: A protobuf representation of a DataSource.
+
+        Returns:
+            A DataSource class object.
+
+        Raises:
+            ValueError: The type of DataSource could not be identified.
+        """
         return HazelcastSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
             field_mapping=dict(data_source.field_mapping),
             imap_name=data_source.hazelcast_options.imap_name,
             websocket_url=data_source.hazelcast_options.websocket_url,
-            stream_format=data_source.hazelcast_options.stream_format,
+            stream_format=StreamFormat.from_proto(
+                data_source.hazelcast_options.stream_format
+            ),
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
             tags=dict(data_source.tags),

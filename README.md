@@ -157,6 +157,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/data-sources/postgres)
   * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/data-sources/spark)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
+  * [x] [Hazelcast Source (contrib plugin)](https://docs.feast.dev/reference/data-sources/hazelcast)
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)

@@ -92,6 +92,12 @@ Kinesis Source
 .. autoclass:: feast.data_source.KinesisSource
     :members:
 
+Hazelcast Source
+------------------
+
+.. autoclass:: feast.data_source.HazelcastSource
+    :members:
+
 Entity
 ==================
 
