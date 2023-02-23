@@ -874,7 +874,7 @@ class HazelcastSource(DataSource):
          field_mapping: Optional[Dict[str, str]] = None,
          imap_name: Optional[str] = "",
          websocket_url: Optional[str] = "",
-         stream_format: Optional[StreamFormat] = None,
+         stream_format: StreamFormat = None,
          description: Optional[str] = "",
          tags: Optional[Dict[str, str]] = None,
          owner: Optional[str] = "",
@@ -884,6 +884,9 @@ class HazelcastSource(DataSource):
         """
         Creates a HazelcastSource object.
         """
+        if stream_format is None:
+            raise ValueError("Record format must be specified for kinesis source")
+
         super().__init__(
             name=name,
             timestamp_field=timestamp_field,
@@ -894,6 +897,8 @@ class HazelcastSource(DataSource):
             owner=owner,
             date_partition_column=date_partition_column
         )
+        imap_name = imap_name or ""
+        websocket_url = websocket_url or ""
         self.batch_source = batch_source
         self.hazelcast_options = HazelcastOptions(
             imap_name=imap_name,
