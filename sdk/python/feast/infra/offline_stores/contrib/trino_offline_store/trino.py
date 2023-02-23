@@ -129,8 +129,8 @@ class TrinoRetrievalJob(RetrievalJob):
     def persist(
         self,
         storage: SavedDatasetStorage,
-        allow_overwrite: bool = False,
-        timeout: int = 1800,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = 1800,
     ):
         """
         Run the retrieval and persist the results in the same offline store used for read.

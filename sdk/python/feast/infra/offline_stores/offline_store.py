@@ -192,8 +192,8 @@ class RetrievalJob(ABC):
     def persist(
         self,
         storage: SavedDatasetStorage,
-        allow_overwrite: bool = False,
-        timeout: int = 1800,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = 1800,
     ):
         """
         Synchronously executes the underlying query and persists the result in the same offline store

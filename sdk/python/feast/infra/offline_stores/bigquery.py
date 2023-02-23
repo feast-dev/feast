@@ -533,8 +533,8 @@ class BigQueryRetrievalJob(RetrievalJob):
     def persist(
         self,
         storage: SavedDatasetStorage,
-        allow_overwrite: bool = False,
-        timeout: int = 1800,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = 1800,
     ):
         assert isinstance(storage, SavedDatasetBigQueryStorage)
 

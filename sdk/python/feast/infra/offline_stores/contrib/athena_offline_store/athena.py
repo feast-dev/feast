@@ -415,8 +415,8 @@ class AthenaRetrievalJob(RetrievalJob):
     def persist(
         self,
         storage: SavedDatasetStorage,
-        allow_overwrite: bool = False,
-        timeout: int = 1800,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = 1800,
     ):
         assert isinstance(storage, SavedDatasetAthenaStorage)
         self.to_athena(table_name=storage.athena_options.table)
