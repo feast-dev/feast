@@ -456,8 +456,8 @@ class BigQueryRetrievalJob(RetrievalJob):
     def to_bigquery(
         self,
         job_config: Optional[bigquery.QueryJobConfig] = None,
-        timeout: int = 1800,
-        retry_cadence: int = 10,
+        timeout: Optional[int] = 1800,
+        retry_cadence: Optional[int] = 10,
     ) -> str:
         """
         Synchronously executes the underlying query and exports the result to a BigQuery table. The
