@@ -56,20 +56,6 @@ class OnlineStore(ABC):
         """
         pass
 
-    def online_write_batch_cooperative(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            old_date: Optional[List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ]],
-            progress: Optional[Callable[[int], Any]],
-    ) -> bool:
-        # RB: optional to implement
-        return False
 
     @abstractmethod
     def online_read(
