@@ -18,6 +18,11 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
 
+# RB: Power of two for better (theoretical) page alignment. Don't make this too large because we need to fulfill
+#     <5 second latency requirements for Aurora / RDS.
+INSERT_BATCH_SIZE = 1 << 8
+
+
 class ReleaseMode(Enum):
     overwrite = 'overwrite'
     update = 'update'
@@ -75,80 +80,6 @@ class MySQLOnlineStore(OnlineStore):
             created_ts = _to_naive_utc(created_ts)
         return entity_key_bin, values, ts, created_ts
 
-    def online_write_batch_cooperative(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        old_data:  Optional[List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ]]
-    ) -> bool:
-        if old_data and len(data) != len(old_data):
-            raise ValueError(f'More columns in new entry {len(data)} than old entry {len(old_data)}')
-
-        conn = self._get_conn(config)
-        cur = conn.cursor()
-
-        project = config.project
-        for i in range(len(data)):
-            entity_key, values, timestamp, created_ts = self.unpack_write_entity(**data[i])
-            if old_data:
-                old_entity_key, old_values, old_timestamp, old_created_ts = self.unpack_write_entity(**old_data[i])
-
-                # RB: this should be consistent between old and new
-                if entity_key != old_entity_key:
-                    raise ValueError(f'New entity key {entity_key} != old entity key {old_entity_key}')
-
-                if values.keys() != old_values.keys():
-                    raise ValueError(f'New features {values.keys()} != old features {old_values.keys()}')
-            try:
-                for feature_name, val in values.items():
-                    if old_data:
-                        old_val = old_values[feature_name]
-                        cur.execute(
-                            f"""
-                                    UPDATE {_table_id(project, table)}
-                                    SET value=%s, event_ts=%s, created_ts=%s
-                                    WHERE entity_key=%s and feature_name=%s and value=%s and event_ts=%s and created_ts=%s
-                                    """,
-                            (
-                                val.SerializeToString(),
-                                timestamp,
-                                created_ts,
-                                old_val.SerializeToString(),
-                                old_timestamp,
-                                old_created_ts
-                            ),
-                        )
-                        if cur.rowcount == 0:
-                            conn.rollback()
-                            return False
-                    else:
-                        cur.execute(
-                            f"""
-                                    INSERT INTO {_table_id(project, table)}
-                                    (entity_key, feature_name, value, event_ts, created_ts)
-                                    values (%s, %s, %s, %s, %s)
-                                    """,
-                            (
-                                entity_key,
-                                feature_name,
-                                val.SerializeToString(),
-                                timestamp,
-                                created_ts,
-                            ),
-                        )
-            except pymysql.IntegrityError as e:
-                if e.args[0] == "ER_DUP_ENTRY":
-                    conn.rollback()
-                    return False
-                raise
-            conn.commit()
-            return True
-
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -163,7 +94,7 @@ class MySQLOnlineStore(OnlineStore):
         cur = conn.cursor()
 
         project = config.project
-
+        insert_values = []
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
                 entity_key,
@@ -174,47 +105,36 @@ class MySQLOnlineStore(OnlineStore):
                 created_ts = _to_naive_utc(created_ts)
 
             for feature_name, val in values.items():
-                self.write_to_table(
-                    created_ts,
-                    cur,
-                    entity_key_bin,
-                    feature_name,
-                    project,
-                    table,
-                    timestamp,
-                    val,
-                )
-            conn.commit()
-            if progress:
-                progress(1)
+                insert_values.append(
+                    (
+                        entity_key_bin,
+                        feature_name,
+                        val.SerializeToString(),
+                        timestamp,
+                        created_ts,
 
-    @staticmethod
-    def write_to_table(
-        created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val
-    ) -> None:
-        cur.execute(
-            f"""
-            INSERT INTO {_table_id(project, table)}
-            (entity_key, feature_name, value, event_ts, created_ts)
-            values (%s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-            value = %s,
-            event_ts = %s,
-            created_ts = %s;
-            """,
-            (
-                # Insert
-                entity_key_bin,
-                feature_name,
-                val.SerializeToString(),
-                timestamp,
-                created_ts,
-                # Update on duplicate key
-                val.SerializeToString(),
-                timestamp,
-                created_ts,
-            ),
-        )
+                        # Update on duplicate key
+                        val.SerializeToString(),
+                        timestamp,
+                        created_ts,
+                    )
+                )
+
+        for i in range(0, len(insert_values), INSERT_BATCH_SIZE):
+            insertion_batch = insert_values[i: i + INSERT_BATCH_SIZE]
+            cur.executemany(
+                f"""
+                INSERT INTO {_table_id(project, table)}
+                (entity_key, feature_name, value, event_ts, created_ts)
+                values (%s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                value = %s,
+                event_ts = %s,
+                created_ts = %s;
+                """,
+                insertion_batch
+            )
+        conn.commit()
 
     def online_read(
         self,

@@ -160,24 +160,6 @@ class PassthroughProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
-    def online_write_batch_cooperative(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            old_data: Optional[
-                List[
-                    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-                ]
-            ]
-    ) -> bool:
-        set_usage_attribute("provider", self.__class__.__name__)
-        if self.online_store:
-            return self.online_store.online_write_batch_cooperative(config, table, data, old_data)
-        return False
-
     def offline_write_batch(
         self,
         config: RepoConfig,
@@ -234,29 +216,6 @@ class PassthroughProvider(Provider):
         self.online_write_batch(
             self.repo_config, feature_view, rows_to_write, progress=None
         )
-
-    def ingest_dfs(
-        self,
-        feature_view: FeatureView,
-        new_df: pd.DataFrame,
-        old_df: Optional[pd.DataFrame]
-    ) -> bool:
-        new_rows_to_write = self._unpack_df(feature_view, new_df)
-        if old_df:
-            old_rows_to_write = self._unpack_df(feature_view, old_df)
-        return self.online_write_batch_cooperative(
-            self.repo_config, feature_view, new_rows_to_write, old_rows_to_write if old_df else None
-        )
-
-    def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
-        set_usage_attribute("provider", self.__class__.__name__)
-
-        if feature_view.batch_source.field_mapping is not None:
-            table = _run_pyarrow_field_mapping(
-                table, feature_view.batch_source.field_mapping
-            )
-
-        self.offline_write_batch(self.repo_config, feature_view, table, None)
 
     def materialize_single_feature_view(
         self,
