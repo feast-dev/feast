@@ -51,7 +51,7 @@ class MySQLOnlineStore(OnlineStore):
 
     _conn: Optional[Connection] = None
 
-    def _get_conn(self, config: RepoConfig, autocommit: bool = False) -> Connection:
+    def _get_conn(self, config: RepoConfig) -> Connection:
 
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
