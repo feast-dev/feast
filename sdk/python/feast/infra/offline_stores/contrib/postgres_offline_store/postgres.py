@@ -241,7 +241,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         query: Union[str, Callable[[], ContextManager[str]]],
         config: RepoConfig,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         if not isinstance(query, str):
@@ -267,7 +267,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         # We use arrow format because it gives better control of the table schema
         return self._to_arrow_internal().to_pandas()
 
@@ -275,7 +275,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def _to_arrow_internal(self) -> pa.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             with _get_conn(self.config.offline_store) as conn, conn.cursor() as cur:
                 conn.set_session(readonly=True)

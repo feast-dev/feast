@@ -410,7 +410,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
 
             df = execute_snowflake_statement(
@@ -419,7 +419,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return df
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         with self._query_generator() as query:
 
             pa_table = execute_snowflake_statement(

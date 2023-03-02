@@ -441,9 +441,11 @@ class BigQueryRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
-            df = self._execute_query(query).to_dataframe(create_bqstorage_client=True)
+            df = self._execute_query(query=query, timeout=timeout).to_dataframe(
+                create_bqstorage_client=True
+            )
             return df
 
     def to_sql(self) -> str:
@@ -507,15 +509,15 @@ class BigQueryRetrievalJob(RetrievalJob):
             print(f"Done writing to '{dest}'.")
             return str(dest)
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         with self._query_generator() as query:
-            q = self._execute_query(query=query)
+            q = self._execute_query(query=query, timeout=timeout)
             assert q
             return q.to_arrow()
 
     @log_exceptions_and_usage
     def _execute_query(
-        self, query, job_config=None, timeout: int = 1800
+        self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:
         bq_job = self.client.query(query, job_config=job_config)
 
@@ -525,7 +527,7 @@ class BigQueryRetrievalJob(RetrievalJob):
             )
             return None
 
-        block_until_done(client=self.client, bq_job=bq_job, timeout=timeout)
+        block_until_done(client=self.client, bq_job=bq_job, timeout=timeout or 1800)
         return bq_job
 
     def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):

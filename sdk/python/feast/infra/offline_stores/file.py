@@ -76,14 +76,14 @@ class FileRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     @log_exceptions_and_usage
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
         df = df.reset_index(drop=True)
         return df
 
     @log_exceptions_and_usage
-    def _to_arrow_internal(self):
+    def _to_arrow_internal(self, timeout: Optional[int] = None):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
         return pyarrow.Table.from_pandas(df)

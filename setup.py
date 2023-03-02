@@ -110,7 +110,7 @@ SPARK_REQUIRED = [
 ]
 
 TRINO_REQUIRED = [
-    "trino>=0.305.0,<0.400.0",
+    "trino>=0.305.0,<0.400.0", "regex"
 ]
 
 POSTGRES_REQUIRED = [
