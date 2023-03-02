@@ -456,7 +456,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def to_bigquery(
         self,
         job_config: Optional[bigquery.QueryJobConfig] = None,
-        timeout: Optional[int] = 1800,
+        timeout: Optional[int] = None,
         retry_cadence: Optional[int] = 10,
     ) -> str:
         """
