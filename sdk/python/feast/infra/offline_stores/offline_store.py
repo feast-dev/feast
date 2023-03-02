@@ -192,7 +192,7 @@ class RetrievalJob(ABC):
     def persist(
         self,
         storage: SavedDatasetStorage,
-        allow_overwrite: Optional[bool] = False,
+        allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ):
         """
