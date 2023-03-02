@@ -193,7 +193,7 @@ class RetrievalJob(ABC):
         self,
         storage: SavedDatasetStorage,
         allow_overwrite: Optional[bool] = False,
-        timeout: Optional[int] = 1800,
+        timeout: Optional[int] = None,
     ):
         """
         Synchronously executes the underlying query and persists the result in the same offline store
