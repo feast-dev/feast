@@ -155,7 +155,7 @@ jobs:
           go-version: 1.18.0
       - name: Upgrade pip version
         run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
+          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
