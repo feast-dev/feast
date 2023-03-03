@@ -115,11 +115,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18.0
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
         with:

@@ -36,7 +36,7 @@ build: protos build-java build-docker
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
+install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 	COMPILE_GO=true python setup.py develop
 
