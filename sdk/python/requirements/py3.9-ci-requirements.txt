@@ -1049,7 +1049,7 @@ websocket-client==1.5.1
     #   kubernetes
 websockets==10.4
     # via uvicorn
-werkzeug==2.1.2
+werkzeug==2.2.3
     # via moto
 wheel==0.38.4
     # via pip-tools
