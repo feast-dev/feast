@@ -34,6 +34,10 @@ anyio==3.6.2
     #   watchfiles
 appdirs==1.4.4
     # via fissix
+appnope==0.1.3
+    # via
+    #   ipykernel
+    #   ipython
 argon2-cffi==21.3.0
     # via
     #   jupyter-server
@@ -456,8 +460,8 @@ makefun==1.15.1
 markupsafe==2.1.2
     # via
     #   jinja2
-    #   moto
     #   nbconvert
+    #   werkzeug
 marshmallow==3.19.0
     # via great-expectations
 matplotlib-inline==0.1.6
@@ -478,7 +482,7 @@ mock==2.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-moto==3.1.18
+moto==4.1.3
     # via feast (setup.py)
 msal==1.21.0
     # via
@@ -759,7 +763,6 @@ python-json-logger==2.0.7
 pytz==2022.7.1
     # via
     #   great-expectations
-    #   moto
     #   pandas
     #   snowflake-connector-python
     #   trino
@@ -1040,7 +1043,7 @@ websocket-client==1.5.1
     #   kubernetes
 websockets==10.4
     # via uvicorn
-werkzeug==2.1.2
+werkzeug==2.2.3
     # via moto
 wheel==0.38.4
     # via pip-tools
