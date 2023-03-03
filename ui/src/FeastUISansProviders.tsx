@@ -63,7 +63,7 @@ const FeastUISansProviders = ({
         }
       : { projectsListPromise: defaultProjectListPromise(), isCustom: false };
     
-  const BASE_URL = process.env.PUBLIC_URL
+  const BASE_URL = process.env.PUBLIC_URL || ""
 
   return (
     <EuiProvider colorMode="light">

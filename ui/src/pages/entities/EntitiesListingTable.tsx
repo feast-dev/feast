@@ -21,8 +21,8 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`${process.env.PUBLIC_URL}/p/${projectName}/entity/${name}`}
-            to={`${process.env.PUBLIC_URL}/p/${projectName}/entity/${name}`}
+            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${name}`}
+            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${name}`}
           >
             {name}
           </EuiCustomLink>
