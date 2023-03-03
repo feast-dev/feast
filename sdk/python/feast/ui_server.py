@@ -15,7 +15,7 @@ def get_app(
     store: "feast.FeatureStore",
     project_id: str,
     registry_ttl_secs: int,
-    root_path: str = ""
+    root_path: str = "",
 ):
     app = FastAPI()
 
