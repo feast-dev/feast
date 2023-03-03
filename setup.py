@@ -127,7 +127,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.14.0,<0.15.0"]
+GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
 
 GO_REQUIRED = [
     "cffi~=1.15.0",

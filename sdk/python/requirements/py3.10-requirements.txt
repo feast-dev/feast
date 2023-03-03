@@ -35,13 +35,13 @@ cloudpickle==2.2.1
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2023.2.0
+dask==2023.3.0
     # via feast (setup.py)
 dill==0.3.6
     # via feast (setup.py)
 fastapi==0.92.0
     # via feast (setup.py)
-fastavro==1.7.1
+fastavro==1.7.2
     # via
     #   feast (setup.py)
     #   pandavro
@@ -123,7 +123,7 @@ pyrsistent==0.19.3
     # via jsonschema
 python-dateutil==2.8.2
     # via pandas
-python-dotenv==0.21.1
+python-dotenv==1.0.0
     # via uvicorn
 pytz==2022.7.1
     # via pandas
@@ -153,7 +153,7 @@ starlette==0.25.0
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
-tenacity==8.2.1
+tenacity==8.2.2
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
