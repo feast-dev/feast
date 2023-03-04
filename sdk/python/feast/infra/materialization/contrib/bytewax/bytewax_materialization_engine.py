@@ -351,7 +351,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "name": f"feast-{job_id}",
                             },
                         ],
-                    }
+                    },
                 },
             },
         }
