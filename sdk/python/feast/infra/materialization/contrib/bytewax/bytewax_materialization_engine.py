@@ -58,6 +58,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     annotations: dict = {}
     """ (optional) Annotations to apply to the job container. Useful for linking the service account to IAM roles, operational metadata, etc  """
 
+
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
         self,
@@ -350,7 +351,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "name": f"feast-{job_id}",
                             },
                         ],
-                    }
+                    },
                 },
             },
         }
