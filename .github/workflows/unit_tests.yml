@@ -37,7 +37,7 @@ jobs:
           PATH=$PATH:/usr/local/mysql/bin
       - name: Upgrade pip version
         run: |
-          pip install --upgrade "pip>=22.1,<23"
+          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
