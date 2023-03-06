@@ -817,8 +817,15 @@ class SqlRegistry(BaseRegistry):
             ]:
                 objs: List[Any] = lister(project)  # type: ignore
                 if objs:
-                    registry_proto_field.extend([obj.to_proto() for obj in objs])
+                    registry_proto_field_data = []
+                    for obj in objs:
+                        object_proto = obj.to_proto()
+                        # Overriding project when missing, this is to handle failures when the registry is cached
+                        if getattr(object_proto, 'spec', None) and object_proto.spec.project == '':
+                            object_proto.spec.project = project
+                        registry_proto_field_data.append(object_proto)
 
+                    registry_proto_field.extend(registry_proto_field_data)
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
