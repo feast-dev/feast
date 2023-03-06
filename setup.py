@@ -40,8 +40,8 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm37"
-DESCRIPTION = "Python SDK for Feast"
+VERSION = "0.28+affirm38"
+DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
