@@ -20,7 +20,7 @@ from feast.repo_config import FeastConfigBaseModel
 
 # RB: Power of two for better (theoretical) page alignment. Don't make this too large because we need to fulfill
 #     <5 second latency requirements for Aurora / RDS.
-INSERT_BATCH_SIZE = 1 << 8
+INSERT_BATCH_SIZE = 1
 
 
 class ReleaseMode(Enum):
@@ -63,7 +63,9 @@ class MySQLOnlineStore(OnlineStore):
                 password=online_store_config.password or "test",
                 database=online_store_config.database or "feast",
                 port=online_store_config.port or 3306,
-                autocommit=True,
+                # RB: `wait/io/aurora_redo_log_flush` is killing aurora performance and it likely caused by
+                #      too many autocommits.
+                autocommit=False,
             )
         return self._conn
 
@@ -87,7 +89,7 @@ class MySQLOnlineStore(OnlineStore):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
-        progress: Optional[Callable[[int], Any]],
+        _: Optional[Callable[[int], Any]],
     ) -> None:
 
         conn = self._get_conn(config)
@@ -104,8 +106,9 @@ class MySQLOnlineStore(OnlineStore):
             if created_ts is not None:
                 created_ts = _to_naive_utc(created_ts)
 
+            mini_batch = []
             for feature_name, val in values.items():
-                insert_values.append(
+                mini_batch.append(
                     (
                         entity_key_bin,
                         feature_name,
@@ -120,8 +123,11 @@ class MySQLOnlineStore(OnlineStore):
                     )
                 )
 
-        for i in range(0, len(insert_values), INSERT_BATCH_SIZE):
-            insertion_batch = insert_values[i: i + INSERT_BATCH_SIZE]
+            if mini_batch:
+                insert_values.append(mini_batch)
+
+        for i in range(len(insert_values)):
+            insertion_batch = insert_values[i]
             cur.executemany(
                 f"""
                 INSERT INTO {_table_id(project, table)}
@@ -134,14 +140,14 @@ class MySQLOnlineStore(OnlineStore):
                 """,
                 insertion_batch
             )
-        conn.commit()
+            cur.commit()
 
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+        _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         conn = self._get_conn(config)
         cur = conn.cursor()
@@ -159,6 +165,7 @@ class MySQLOnlineStore(OnlineStore):
                 f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s",
                 (entity_key_bin,),
             )
+            cur.commit()
 
             res = {}
             res_ts: Optional[datetime] = None
@@ -223,6 +230,7 @@ class MySQLOnlineStore(OnlineStore):
                 cur.execute(
                     f"ALTER TABLE {_table_id(project, table)} ADD INDEX {_table_id(project, table)}_ek (entity_key);"
                 )
+            cur.commit()
 
         for table in tables_to_delete:
             _drop_table_and_index(cur, project, table)
@@ -239,13 +247,14 @@ class MySQLOnlineStore(OnlineStore):
 
         for table in tables:
             _drop_table_and_index(cur, project, table)
+            cur.commit()
 
 
 def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-
+    cur.commit()
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
