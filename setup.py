@@ -41,7 +41,7 @@ except ImportError:
 
 NAME = "feast"
 VERSION = "0.28+affirm38"
-DESCRIPTION = "Python SDK for Feast"
+DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
@@ -590,7 +590,7 @@ setup(
         "pybindgen==0.22.0",
     ],
     cmdclass={
-        # "build_python_protos": BuildPythonProtosCommand,
+        "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
