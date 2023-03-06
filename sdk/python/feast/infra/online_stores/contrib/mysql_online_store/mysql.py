@@ -18,11 +18,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
 
-# RB: Power of two for better (theoretical) page alignment. Don't make this too large because we need to fulfill
-#     <5 second latency requirements for Aurora / RDS.
-INSERT_BATCH_SIZE = 1
-
-
 class ReleaseMode(Enum):
     overwrite = 'overwrite'
     update = 'update'
@@ -63,9 +58,7 @@ class MySQLOnlineStore(OnlineStore):
                 password=online_store_config.password or "test",
                 database=online_store_config.database or "feast",
                 port=online_store_config.port or 3306,
-                # RB: `wait/io/aurora_redo_log_flush` is killing aurora performance and it likely caused by
-                #      too many autocommits.
-                autocommit=False,
+                autocommit=True,
             )
         return self._conn
 
@@ -82,6 +75,80 @@ class MySQLOnlineStore(OnlineStore):
             created_ts = _to_naive_utc(created_ts)
         return entity_key_bin, values, ts, created_ts
 
+    def online_write_batch_cooperative(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        old_data:  Optional[List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ]]
+    ) -> bool:
+        if old_data and len(data) != len(old_data):
+            raise ValueError(f'More columns in new entry {len(data)} than old entry {len(old_data)}')
+
+        conn = self._get_conn(config)
+        cur = conn.cursor()
+
+        project = config.project
+        for i in range(len(data)):
+            entity_key, values, timestamp, created_ts = self.unpack_write_entity(**data[i])
+            if old_data:
+                old_entity_key, old_values, old_timestamp, old_created_ts = self.unpack_write_entity(**old_data[i])
+
+                # RB: this should be consistent between old and new
+                if entity_key != old_entity_key:
+                    raise ValueError(f'New entity key {entity_key} != old entity key {old_entity_key}')
+
+                if values.keys() != old_values.keys():
+                    raise ValueError(f'New features {values.keys()} != old features {old_values.keys()}')
+            try:
+                for feature_name, val in values.items():
+                    if old_data:
+                        old_val = old_values[feature_name]
+                        cur.execute(
+                            f"""
+                                    UPDATE {_table_id(project, table)}
+                                    SET value=%s, event_ts=%s, created_ts=%s
+                                    WHERE entity_key=%s and feature_name=%s and value=%s and event_ts=%s and created_ts=%s
+                                    """,
+                            (
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                                old_val.SerializeToString(),
+                                old_timestamp,
+                                old_created_ts
+                            ),
+                        )
+                        if cur.rowcount == 0:
+                            conn.rollback()
+                            return False
+                    else:
+                        cur.execute(
+                            f"""
+                                    INSERT INTO {_table_id(project, table)}
+                                    (entity_key, feature_name, value, event_ts, created_ts)
+                                    values (%s, %s, %s, %s, %s)
+                                    """,
+                            (
+                                entity_key,
+                                feature_name,
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
+            except pymysql.IntegrityError as e:
+                if e.args[0] == "ER_DUP_ENTRY":
+                    conn.rollback()
+                    return False
+                raise
+            conn.commit()
+            return True
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -89,14 +156,14 @@ class MySQLOnlineStore(OnlineStore):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
-        _: Optional[Callable[[int], Any]],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
 
         conn = self._get_conn(config)
         cur = conn.cursor()
 
         project = config.project
-        insert_values = []
+
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
                 entity_key,
@@ -106,48 +173,55 @@ class MySQLOnlineStore(OnlineStore):
             if created_ts is not None:
                 created_ts = _to_naive_utc(created_ts)
 
-            mini_batch = []
             for feature_name, val in values.items():
-                mini_batch.append(
-                    (
-                        entity_key_bin,
-                        feature_name,
-                        val.SerializeToString(),
-                        timestamp,
-                        created_ts,
-
-                        # Update on duplicate key
-                        val.SerializeToString(),
-                        timestamp,
-                        created_ts,
-                    )
+                self.write_to_table(
+                    created_ts,
+                    cur,
+                    entity_key_bin,
+                    feature_name,
+                    project,
+                    table,
+                    timestamp,
+                    val,
                 )
+            conn.commit()
+            if progress:
+                progress(1)
 
-            if mini_batch:
-                insert_values.append(mini_batch)
-
-        for i in range(len(insert_values)):
-            insertion_batch = insert_values[i]
-            cur.executemany(
-                f"""
-                INSERT INTO {_table_id(project, table)}
-                (entity_key, feature_name, value, event_ts, created_ts)
-                values (%s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                value = %s,
-                event_ts = %s,
-                created_ts = %s;
-                """,
-                insertion_batch
-            )
-            cur.commit()
+    @staticmethod
+    def write_to_table(
+        created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val
+    ) -> None:
+        cur.execute(
+            f"""
+            INSERT INTO {_table_id(project, table)}
+            (entity_key, feature_name, value, event_ts, created_ts)
+            values (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            value = %s,
+            event_ts = %s,
+            created_ts = %s;
+            """,
+            (
+                # Insert
+                entity_key_bin,
+                feature_name,
+                val.SerializeToString(),
+                timestamp,
+                created_ts,
+                # Update on duplicate key
+                val.SerializeToString(),
+                timestamp,
+                created_ts,
+            ),
+        )
 
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        _: Optional[List[str]] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         conn = self._get_conn(config)
         cur = conn.cursor()
@@ -165,7 +239,6 @@ class MySQLOnlineStore(OnlineStore):
                 f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s",
                 (entity_key_bin,),
             )
-            cur.commit()
 
             res = {}
             res_ts: Optional[datetime] = None
@@ -230,7 +303,6 @@ class MySQLOnlineStore(OnlineStore):
                 cur.execute(
                     f"ALTER TABLE {_table_id(project, table)} ADD INDEX {_table_id(project, table)}_ek (entity_key);"
                 )
-            cur.commit()
 
         for table in tables_to_delete:
             _drop_table_and_index(cur, project, table)
@@ -247,14 +319,13 @@ class MySQLOnlineStore(OnlineStore):
 
         for table in tables:
             _drop_table_and_index(cur, project, table)
-            cur.commit()
 
 
 def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-    cur.commit()
+
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
