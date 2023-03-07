@@ -54,6 +54,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
     "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
+    "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
