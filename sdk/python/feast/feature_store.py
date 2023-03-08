@@ -454,12 +454,13 @@ class FeatureStore:
         return stream_feature_view
 
     @log_exceptions_and_usage
-    def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
+    def get_on_demand_feature_view(self, name: str, allow_registry_cache: bool = False) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
 
         Args:
             name: Name of feature view.
+            allow_cache: Toggle for using cached registry to get on-demand feature view
 
         Returns:
             The specified feature view.
@@ -467,7 +468,7 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.get_on_demand_feature_view(name, self.project)
+        return self._registry.get_on_demand_feature_view(name, self.project, allow_registry_cache)
 
     @log_exceptions_and_usage
     def get_data_source(self, name: str) -> DataSource:
