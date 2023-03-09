@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import threading
 
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -44,15 +45,15 @@ class MySQLOnlineStore(OnlineStore):
     NOTE: The class *must* end with the `OnlineStore` suffix.
     """
 
-    _conn: Optional[Connection] = None
+    _tls = threading.local()
 
     def _get_conn(self, config: RepoConfig) -> Connection:
 
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
-        if not self._conn:
-            self._conn = pymysql.connect(
+        if not hasattr(self.tls, 'conn') or not self.tls.conn.open:
+            self._tls.conn = pymysql.connect(
                 host=online_store_config.host or "127.0.0.1",
                 user=online_store_config.user or "test",
                 password=online_store_config.password or "test",
@@ -60,7 +61,7 @@ class MySQLOnlineStore(OnlineStore):
                 port=online_store_config.port or 3306,
                 autocommit=True,
             )
-        return self._conn
+        return self._tls_conn
 
     def unpack_write_entity(self, entity: EntityKeyProto,
                                   values: Dict[str, ValueProto],
