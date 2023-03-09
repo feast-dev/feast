@@ -52,7 +52,7 @@ class MySQLOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
-        if not hasattr(self.tls, 'conn') or not self.tls.conn.open:
+        if not hasattr(self._tls, 'conn') or not self._tls.conn.open:
             self._tls.conn = pymysql.connect(
                 host=online_store_config.host or "127.0.0.1",
                 user=online_store_config.user or "test",
