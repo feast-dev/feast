@@ -110,9 +110,9 @@ class MySQLOnlineStore(OnlineStore):
                         ),
                     )
                 try:
+                    conn.commit()
                     if progress:
                         progress(1)
-                    conn.commit()
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
@@ -128,8 +128,8 @@ class MySQLOnlineStore(OnlineStore):
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
-            try:
-                for entity_key in entity_keys:
+            for entity_key in entity_keys:
+                try:
                     entity_key_bin = serialize_entity_key(
                         entity_key,
                         entity_key_serialization_version=2,
@@ -155,9 +155,9 @@ class MySQLOnlineStore(OnlineStore):
                         result.append((None, None))
                     else:
                         result.append((res_ts, res))
-            except pymysql.Error as e:
-                conn.rollback()
-                logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                except pymysql.Error as e:
+                    conn.rollback()
+                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
         return result
 
     def update(
@@ -205,6 +205,7 @@ class MySQLOnlineStore(OnlineStore):
             for table in tables_to_delete:
                 try:
                     _drop_table_and_index(cur, project, table)
+                    conn.commit()
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
@@ -221,6 +222,7 @@ class MySQLOnlineStore(OnlineStore):
             for table in tables:
                 try:
                     _drop_table_and_index(cur, project, table)
+                    conn.commit()
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s"
