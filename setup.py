@@ -60,7 +60,7 @@ REQUIRED = [
     "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<9",
+    "pyarrow>=4,<12",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
