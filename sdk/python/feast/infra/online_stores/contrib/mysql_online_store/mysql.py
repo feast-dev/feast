@@ -266,6 +266,7 @@ class MySQLOnlineStore(OnlineStore):
     ) -> None:
         conn = self._get_conn(config)
         with conn.cursor() as cur:
+            project = config.project
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
                 cur.execute(
