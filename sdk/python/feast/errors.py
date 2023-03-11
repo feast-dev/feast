@@ -132,6 +132,11 @@ class FeastProviderNotSetError(Exception):
         super().__init__("Provider is not set, but is required")
 
 
+class FeastRegistryNotSetError(Exception):
+    def __init__(self):
+        super().__init__("Registry is not set, but is required")
+
+
 class FeastFeatureServerTypeSetError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
@@ -143,6 +148,13 @@ class FeastFeatureServerTypeInvalidError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
             f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
+
+
+class FeastRegistryTypeInvalidError(Exception):
+    def __init__(self, registry_type: str):
+        super().__init__(
+            f"Feature server type was set to {registry_type}, but this type is invalid"
         )
 
 

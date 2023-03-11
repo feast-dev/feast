@@ -15,7 +15,7 @@ from pydantic import (
     validator,
 )
 from pydantic.error_wrappers import ErrorWrapper
-from pydantic.typing import Dict, Optional, Union
+from pydantic.typing import Dict, Optional
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
@@ -23,6 +23,8 @@ from feast.errors import (
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
     FeastProviderNotSetError,
+    FeastRegistryNotSetError,
+    FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
 from feast.usage import log_exceptions
@@ -34,6 +36,12 @@ _logger = logging.getLogger(__name__)
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
+REGISTRY_CLASS_FOR_TYPE = {
+    "file": "feast.infra.registry.Registry",
+    "sql": "feast.infra.registry.SqlRegistry",
+    "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+}
+
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
@@ -101,13 +109,13 @@ class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     registry_type: StrictStr = "file"
-    """ str: Provider name or a class name that implements RegistryStore.
+    """ str: Provider name or a class name that implements Registry.
         If specified, registry_store_type should be redundant."""
 
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
 
-    path: StrictStr
+    path: StrictStr = ""
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     cache_ttl_seconds: StrictInt = 600
@@ -123,9 +131,6 @@ class RegistryConfig(FeastBaseModel):
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
-    registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
-
     project: StrictStr
     """ str: Feast project id. This can be any alphanumeric string up to 16 characters.
         You can have multiple independent feature repositories deployed to the same cloud
@@ -134,6 +139,9 @@ class RepoConfig(FeastBaseModel):
 
     provider: StrictStr
     """ str: local or gcp or aws """
+
+    _registry_config: Any = Field(alias="registry", default="data/registry.db")
+    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     _online_config: Any = Field(alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -174,6 +182,11 @@ class RepoConfig(FeastBaseModel):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
+
+        self._registry = None
+        if "registry" not in data:
+            raise FeastRegistryNotSetError()
+        self._registry_config = data["registry"]
 
         self._offline_store = None
         if "offline_store" in data:
@@ -223,11 +236,21 @@ class RepoConfig(FeastBaseModel):
                 RuntimeWarning,
             )
 
-    def get_registry_config(self):
-        if isinstance(self.registry, str):
-            return RegistryConfig(path=self.registry)
-        else:
-            return self.registry
+    @property
+    def registry(self):
+        if not self._registry:
+            if isinstance(self._registry_config, Dict):
+                self._registry = get_registry_config_from_type(
+                    self._registry_config["type"]
+                )(**self._registry_config)
+            elif isinstance(self._registry_config, str):
+                # User passed in just a path to file registry
+                self._registry = get_registry_config_from_type("file")(
+                    path=self._registry_config
+                )
+            elif self._registry_config:
+                self._registry = self._registry_config
+        return self._registry
 
     @property
     def offline_store(self):
@@ -455,6 +478,16 @@ class FeastConfigError(Exception):
 def get_data_source_class_from_type(data_source_type: str):
     module_name, config_class_name = data_source_type.rsplit(".", 1)
     return import_class(module_name, config_class_name, "DataSource")
+
+
+def get_registry_config_from_type(registry_type: str):
+    # We do not support custom registry's right now
+    if registry_type not in REGISTRY_CLASS_FOR_TYPE:
+        raise FeastRegistryTypeInvalidError(registry_type)
+    registry_type = REGISTRY_CLASS_FOR_TYPE[registry_type]
+    module_name, registry_class_type = registry_type.rsplit(".", 1)
+    config_class_name = f"{registry_class_type}Config"
+    return import_class(module_name, config_class_name, config_class_name)
 
 
 def get_batch_engine_config_from_type(batch_engine_type: str):

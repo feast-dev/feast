@@ -132,6 +132,10 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
             # if the stage already exists,
             # assumes that the materialization functions have been deployed
             if f"feast_{project}" in stage_list["name"].tolist():
+                click.echo(
+                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already detected."
+                )
+                click.echo()
                 return None
 
             click.echo(

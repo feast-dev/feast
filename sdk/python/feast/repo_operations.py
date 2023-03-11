@@ -347,7 +347,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
-    registry_config = repo_config.get_registry_config()
+    registry_config = repo_config.registry
     project = repo_config.project
     registry = Registry(project, registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)

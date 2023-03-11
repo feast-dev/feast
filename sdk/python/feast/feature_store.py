@@ -164,9 +164,15 @@ class FeatureStore:
                 self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
             )
 
-        registry_config = self.config.get_registry_config()
+        registry_config = self.config.registry
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, self.config.project, None)
+        elif registry_config.registry_type == "snowflake.registry":
+            from feast.infra.registry.snowflake import SnowflakeRegistry
+
+            self._registry = SnowflakeRegistry(
+                registry_config, self.config.project, None
+            )
         else:
             r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
