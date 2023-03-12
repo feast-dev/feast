@@ -58,9 +58,16 @@ def execute_snowflake_statement(conn: SnowflakeConnection, query) -> SnowflakeCu
 
 
 def get_snowflake_conn(config, autocommit=True) -> SnowflakeConnection:
-    assert config.type in ["snowflake.offline", "snowflake.engine", "snowflake.online"]
+    assert config.type in [
+        "snowflake.registry",
+        "snowflake.offline",
+        "snowflake.engine",
+        "snowflake.online",
+    ]
 
-    if config.type == "snowflake.offline":
+    if config.type == "snowflake.registry":
+        config_header = "connections.feast_registry"
+    elif config.type == "snowflake.offline":
         config_header = "connections.feast_offline_store"
     if config.type == "snowflake.engine":
         config_header = "connections.feast_batch_engine"

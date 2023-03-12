@@ -122,6 +122,7 @@ def setup_third_party_provider_repo(provider_name: str):
             type: sqlite
         offline_store:
             type: file
+        entity_key_serialization_version: 2
         """
             )
         )
@@ -159,6 +160,7 @@ def setup_third_party_registry_store_repo(
             type: sqlite
         offline_store:
             type: file
+        entity_key_serialization_version: 2
         """
             )
         )

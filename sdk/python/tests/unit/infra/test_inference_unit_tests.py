@@ -194,7 +194,10 @@ def test_feature_view_inference_respects_basic_inference():
         [feature_view_1],
         [entity1],
         RepoConfig(
-            provider="local", project="test", entity_key_serialization_version=2
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
         ),
     )
     assert len(feature_view_1.schema) == 2
@@ -209,7 +212,10 @@ def test_feature_view_inference_respects_basic_inference():
         [feature_view_2],
         [entity1, entity2],
         RepoConfig(
-            provider="local", project="test", entity_key_serialization_version=2
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
         ),
     )
     assert len(feature_view_2.schema) == 3
@@ -240,7 +246,10 @@ def test_feature_view_inference_on_entity_value_types():
         [feature_view_1],
         [entity1],
         RepoConfig(
-            provider="local", project="test", entity_key_serialization_version=2
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
         ),
     )
 
@@ -310,7 +319,10 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
             [feature_view_1],
             [entity1],
             RepoConfig(
-                provider="local", project="test", entity_key_serialization_version=2
+                provider="local",
+                project="test",
+                entity_key_serialization_version=2,
+                registry="dummy_registry.pb",
             ),
         )
 
@@ -345,7 +357,10 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
             [feature_view_1],
             [entity1],
             RepoConfig(
-                provider="local", project="test", entity_key_serialization_version=2
+                provider="local",
+                project="test",
+                entity_key_serialization_version=2,
+                registry="dummy_registry.pb",
             ),
         )
 
@@ -397,7 +412,10 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
             [feature_view_1, feature_view_2],
             [entity1],
             RepoConfig(
-                provider="local", project="test", entity_key_serialization_version=2
+                provider="local",
+                project="test",
+                entity_key_serialization_version=2,
+                registry="dummy_registry.pb",
             ),
         )
         feature_service.infer_features(
@@ -454,7 +472,10 @@ def test_update_feature_services_with_specified_features(simple_dataset_1):
             [feature_view_1, feature_view_2],
             [entity1],
             RepoConfig(
-                provider="local", project="test", entity_key_serialization_version=2
+                provider="local",
+                project="test",
+                entity_key_serialization_version=2,
+                registry="dummy_registry.pb",
             ),
         )
         assert len(feature_view_1.features) == 1
