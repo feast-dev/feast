@@ -68,9 +68,7 @@ class FeastMetadataKeys(Enum):
 class SnowflakeRegistryConfig(RegistryConfig):
     """Registry config for Snowflake"""
 
-    registry_type: Literal["snowflake.registry"] = Field(
-        "snowflake.registry", alias="type"
-    )
+    registry_type: Literal["snowflake.registry"] = "snowflake.registry"
     """ Registry type selector """
 
     type: Literal["snowflake.registry"] = "snowflake.registry"

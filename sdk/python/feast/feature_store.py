@@ -215,7 +215,7 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
-        registry_config = self.config.get_registry_config()
+        registry_config = self.config.registry
         registry = Registry(
             self.config.project, registry_config, repo_path=self.repo_path
         )

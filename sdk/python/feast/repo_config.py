@@ -37,8 +37,8 @@ _logger = logging.getLogger(__name__)
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
 REGISTRY_CLASS_FOR_TYPE = {
-    "file": "feast.infra.registry.Registry",
-    "sql": "feast.infra.registry.SqlRegistry",
+    "file": "feast.infra.registry.registry.Registry",
+    "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
 }
 
@@ -109,14 +109,15 @@ class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     registry_type: StrictStr = "file"
-    """ str: Provider name or a class name that implements Registry.
-        If specified, registry_store_type should be redundant."""
+    """ str: Provider name or a class name that implements Registry."""
 
     registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
 
     path: StrictStr = ""
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
+    """ str: Path to metadata store.
+        If registry_type is 'file', then an be a local path, or remote object storage path, e.g. a GCS URI
+        If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
 
     cache_ttl_seconds: StrictInt = 600
     """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
@@ -141,7 +142,12 @@ class RepoConfig(FeastBaseModel):
     """ str: local or gcp or aws """
 
     _registry_config: Any = Field(alias="registry", default="data/registry.db")
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
+    """ Configures the registry.
+        Can be:
+            1. str: a path to a file based registry (a local path, or remote object storage path, e.g. a GCS URI)
+            2. RegistryConfig: A fully specified file based registry or SQL based registry
+            3. SnowflakeRegistryConfig: Using a Snowflake table to store the registry
+    """
 
     _online_config: Any = Field(alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -240,9 +246,13 @@ class RepoConfig(FeastBaseModel):
     def registry(self):
         if not self._registry:
             if isinstance(self._registry_config, Dict):
-                self._registry = get_registry_config_from_type(
-                    self._registry_config["type"]
-                )(**self._registry_config)
+                if "registry_type" in self._registry_config:
+                    self._registry = get_registry_config_from_type(
+                        self._registry_config["registry_type"]
+                    )(**self._registry_config)
+                else:
+                    # This may be a custom registry store, which does not need a 'registry_type'
+                    self._registry = RegistryConfig(**self._registry_config)
             elif isinstance(self._registry_config, str):
                 # User passed in just a path to file registry
                 self._registry = get_registry_config_from_type("file")(
