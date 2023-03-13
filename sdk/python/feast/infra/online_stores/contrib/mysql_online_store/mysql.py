@@ -2,15 +2,17 @@ from __future__ import absolute_import
 import threading
 import logging
 
+from enum import Enum
+from importlib import import_module
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pymysql
 import pytz
 from pydantic import StrictStr
-from enum import Enum
 from pymysql.connections import Connection
 from pymysql.cursors import Cursor
+from sqlalchemy.ext.horizontal_shard import ShardedSession
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -18,6 +20,11 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+
+
+class ConnectionType(Enum):
+    RAW = 0
+    SESSION = 1
 
 
 class MySQLOnlineStoreConfig(FeastConfigBaseModel):
@@ -33,6 +40,7 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     password: Optional[StrictStr] = None
     database: Optional[StrictStr] = None
     port: Optional[int] = None
+    session_manager_module: Optional[StrictStr] = None
 
 
 class MySQLOnlineStore(OnlineStore):
@@ -45,10 +53,26 @@ class MySQLOnlineStore(OnlineStore):
     RB: Connections should not be shared between threads: https://stackoverflow.com/questions/45636492/can-mysqldb-connection-and-cursor-objects-be-safely-used-from-with-multiple-thre
     """
     _tls = threading.local()
+    dbsession: ShardedSession
 
-    def _get_conn(self, config: RepoConfig) -> Connection:
+    def _get_conn_session_manager(self, session_manager_module: str) -> Connection:
+        dbsession = self.dbsession
+        if dbsession is None:
+            mod = import_module(session_manager_module)
+            dbsession, cache_session = mod.generate_session()
+            if cache_session:
+                self.dbsession = dbsession
+        return dbsession.get_bind(0).contextual_connect(close_with_result=False)
+
+    def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
+
+        if online_store_config.session_manager_module is not None:
+            return (
+                    self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
+                    ConnectionType.SESSION
+            )
 
         if not hasattr(self._tls, 'conn') or not self._tls.conn.open:
             # RB: be careful, we\'re not using autocommit
@@ -61,7 +85,15 @@ class MySQLOnlineStore(OnlineStore):
                 autocommit=False,
             )
         assert self._tls.conn.get_autocommit() is False
-        return self._tls.conn
+        return self._tls.conn, ConnectionType.RAW
+
+    def _close_conn(self, conn: Connection, conn_type: ConnectionType) -> None:
+        if conn_type == ConnectionType.SESSION:
+            try:
+                conn.close()
+            except Exception as exc:
+                if str(exc) != 'Already closed':
+                    raise exc
 
     def online_write_batch(
         self,
@@ -72,7 +104,7 @@ class MySQLOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        conn = self._get_conn(config)
+        conn, conn_type = self._get_conn(config)
         with conn.cursor() as cur:
             project = config.project
 
@@ -116,6 +148,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+        self._close_conn(conn, conn_type)
 
     def online_read(
         self,
@@ -124,7 +157,7 @@ class MySQLOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        conn = self._get_conn(config)
+        conn, conn_type = self._get_conn(config)
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
@@ -158,6 +191,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+        self._close_conn(conn, conn_type)
         return result
 
     def update(
@@ -169,7 +203,7 @@ class MySQLOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ) -> None:
-        conn = self._get_conn(config)
+        conn, conn_type = self._get_conn(config)
         with conn.cursor() as cur:
             project = config.project
             # We don't create any special state for the entities in this implementation.
@@ -209,6 +243,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+        self._close_conn(conn, conn_type)
 
     def teardown(
         self,
@@ -216,7 +251,7 @@ class MySQLOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
-        conn = self._get_conn(config)
+        conn, conn_type = self._get_conn(config)
         with conn.cursor() as cur:
             project = config.project
             for table in tables:
@@ -227,6 +262,8 @@ class MySQLOnlineStore(OnlineStore):
                     conn.rollback()
                     logging.error("Error %d: %s"
                                   "" % (e.args[0], e.args[1]))
+        self._close_conn(conn, conn_type)
+
 def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
