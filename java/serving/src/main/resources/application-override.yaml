@@ -6,5 +6,5 @@ feast:
     - name: online
       type: REDIS
       config:
-        host: prod-dsp-redis.slkos6.clustercfg.aps1.cache.amazonaws.com
+        host: marketplace-fs-mo.slkos6.clustercfg.aps1.cache.amazonaws.com
         port: 6379
