@@ -25,10 +25,10 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     _run_snowflake_field_mapping,
     assert_snowflake_feature_names,
     execute_snowflake_statement,
-    get_snowflake_conn,
     get_snowflake_online_store_path,
     package_snowpark_zip,
 )
@@ -121,7 +121,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
     ):
         stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
         stage_path = f'{stage_context}."feast_{project}"'
-        with get_snowflake_conn(self.repo_config.batch_engine) as conn:
+        with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"SHOW STAGES IN {stage_context}"
             cursor = execute_snowflake_statement(conn, query)
             stage_list = pd.DataFrame(
@@ -173,7 +173,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
     ):
 
         stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
-        with get_snowflake_conn(self.repo_config.batch_engine) as conn:
+        with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"DROP STAGE IF EXISTS {stage_path}"
             execute_snowflake_statement(conn, query)
 
@@ -263,10 +263,11 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
             # Lets check and see if we can skip this query, because the table hasnt changed
             # since before the start date of this query
-            with get_snowflake_conn(self.repo_config.offline_store) as conn:
+            with GetSnowflakeConnection(self.repo_config.offline_store) as conn:
                 query = f"""SELECT SYSTEM$LAST_CHANGE_COMMIT_TIME('{feature_view.batch_source.get_table_query_string()}') AS last_commit_change_time"""
                 last_commit_change_time = (
-                    conn.cursor().execute(query).fetchall()[0][0] / 1_000_000_000
+                    execute_snowflake_statement(conn, query).fetchall()[0][0]
+                    / 1_000_000_000
                 )
             if last_commit_change_time < start_date.astimezone(tz=utc).timestamp():
                 return SnowflakeMaterializationJob(
@@ -432,7 +433,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                 )
         """
 
-        with get_snowflake_conn(repo_config.batch_engine) as conn:
+        with GetSnowflakeConnection(repo_config.batch_engine) as conn:
             query_id = execute_snowflake_statement(conn, query).sfqid
 
         click.echo(
@@ -450,7 +451,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
         feature_names = [feature.name for feature in feature_view.features]
 
-        with get_snowflake_conn(repo_config.batch_engine) as conn:
+        with GetSnowflakeConnection(repo_config.batch_engine) as conn:
             query = materialization_sql
             cursor = execute_snowflake_statement(conn, query)
             for i, df in enumerate(cursor.fetch_pandas_batches()):

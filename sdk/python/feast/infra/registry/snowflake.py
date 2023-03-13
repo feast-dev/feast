@@ -28,8 +28,8 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     execute_snowflake_statement,
-    get_snowflake_conn,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
@@ -121,7 +121,7 @@ class SnowflakeRegistry(BaseRegistry):
             f'"{self.registry_config.database}"."{self.registry_config.schema_}"'
         )
 
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_creation.sql"
             with open(sql_function_file, "r") as file:
                 sqlFile = file.read()
@@ -177,7 +177,7 @@ class SnowflakeRegistry(BaseRegistry):
                 self.refresh()
 
     def teardown(self):
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_deletion.sql"
             with open(sql_function_file, "r") as file:
                 sqlFile = file.read()
@@ -284,7 +284,7 @@ class SnowflakeRegistry(BaseRegistry):
         if hasattr(obj, "last_updated_timestamp"):
             obj.last_updated_timestamp = update_datetime
 
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     project_id
@@ -405,7 +405,7 @@ class SnowflakeRegistry(BaseRegistry):
         id_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 DELETE FROM {self.registry_path}."{table}"
                 WHERE
@@ -616,7 +616,7 @@ class SnowflakeRegistry(BaseRegistry):
         not_found_exception: Optional[Callable],
     ):
         self._maybe_init_project_metadata(project)
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     {proto_field_name}
@@ -776,7 +776,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
     ):
         self._maybe_init_project_metadata(project)
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     {proto_field_name}
@@ -839,7 +839,7 @@ class SnowflakeRegistry(BaseRegistry):
             return proto_registry_utils.list_project_metadata(
                 self.cached_registry_proto, project
             )
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     metadata_key,
@@ -869,7 +869,7 @@ class SnowflakeRegistry(BaseRegistry):
     ):
         fv_table_str = self._infer_fv_table(feature_view)
         fv_column_name = fv_table_str[:-1].lower()
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     project_id
@@ -905,7 +905,7 @@ class SnowflakeRegistry(BaseRegistry):
     ) -> Optional[bytes]:
         fv_table_str = self._infer_fv_table(feature_view)
         fv_column_name = fv_table_str[:-1].lower()
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     user_metadata
@@ -971,7 +971,7 @@ class SnowflakeRegistry(BaseRegistry):
             "STREAM_FEATURE_VIEWS",
         ]
 
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             for table in base_tables:
                 query = (
                     f'SELECT DISTINCT project_id FROM {self.registry_path}."{table}"'
@@ -984,7 +984,7 @@ class SnowflakeRegistry(BaseRegistry):
         return projects
 
     def _get_last_updated_metadata(self, project: str):
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     metadata_value
@@ -1029,7 +1029,7 @@ class SnowflakeRegistry(BaseRegistry):
         return table
 
     def _maybe_init_project_metadata(self, project):
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     metadata_value
@@ -1056,7 +1056,7 @@ class SnowflakeRegistry(BaseRegistry):
                 usage.set_current_project_uuid(new_project_uuid)
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
-        with get_snowflake_conn(self.registry_config) as conn:
+        with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
                     project_id

@@ -48,8 +48,8 @@ from feast.infra.offline_stores.snowflake_source import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     execute_snowflake_statement,
-    get_snowflake_conn,
     write_pandas,
     write_parquet,
 )
@@ -74,13 +74,13 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for Snowflake"""
 
     type: Literal["snowflake.offline"] = "snowflake.offline"
-    """ Offline store type selector"""
+    """ Offline store type selector """
 
     config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com"""
+    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
 
     user: Optional[str] = None
     """ Snowflake user name """
@@ -89,7 +89,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     """ Snowflake password """
 
     role: Optional[str] = None
-    """ Snowflake role name"""
+    """ Snowflake role name """
 
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
@@ -155,7 +155,8 @@ class SnowflakeOfflineStore(OfflineStore):
         if data_source.snowflake_options.warehouse:
             config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
@@ -208,7 +209,8 @@ class SnowflakeOfflineStore(OfflineStore):
         if data_source.snowflake_options.warehouse:
             config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
@@ -241,7 +243,8 @@ class SnowflakeOfflineStore(OfflineStore):
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         entity_schema = _get_entity_schema(entity_df, snowflake_conn, config)
 
@@ -319,7 +322,8 @@ class SnowflakeOfflineStore(OfflineStore):
     ):
         assert isinstance(logging_config.destination, SnowflakeLoggingDestination)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         if isinstance(data, Path):
             write_parquet(
@@ -359,7 +363,8 @@ class SnowflakeOfflineStore(OfflineStore):
         if table.schema != pa_schema:
             table = table.cast(pa_schema)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         write_pandas(
             snowflake_conn,
@@ -427,7 +432,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
             ).fetch_arrow_all()
 
             if pa_table:
-
                 return pa_table
             else:
                 empty_result = execute_snowflake_statement(self.snowflake_conn, query)

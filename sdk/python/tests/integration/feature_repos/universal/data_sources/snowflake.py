@@ -13,8 +13,8 @@ from feast.infra.offline_stores.snowflake_source import (
     SnowflakeLoggingDestination,
 )
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     execute_snowflake_statement,
-    get_snowflake_conn,
     write_pandas,
 )
 from feast.repo_config import FeastConfigBaseModel
@@ -54,11 +54,10 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         field_mapping: Dict[str, str] = None,
     ) -> DataSource:
 
-        snowflake_conn = get_snowflake_conn(self.offline_store_config)
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
-        write_pandas(snowflake_conn, df, destination_name, auto_create_table=True)
+        with GetSnowflakeConnection(self.offline_store_config) as conn:
+            write_pandas(conn, df, destination_name, auto_create_table=True)
 
         self.tables.append(destination_name)
 
@@ -93,7 +92,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}_{suffix}"
 
     def teardown(self):
-        with get_snowflake_conn(self.offline_store_config) as conn:
+        with GetSnowflakeConnection(self.offline_store_config) as conn:
             for table in self.tables:
                 query = f'DROP TABLE IF EXISTS "{table}"'
                 execute_snowflake_statement(conn, query)
