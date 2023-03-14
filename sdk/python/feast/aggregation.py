@@ -82,12 +82,9 @@ class Aggregation:
         if not isinstance(other, Aggregation):
             raise TypeError("Comparisons should only involve Aggregations.")
 
-        if (
-            self.column != other.column
-            or self.function != other.function
-            or self.time_window != other.time_window
-            or self.slide_interval != other.slide_interval
-        ):
-            return False
-
-        return True
+        return (
+            self.column == other.column and 
+            self.function == other.function and 
+            self.time_window == other.time_window and 
+            self.slide_interval == other.slide_interval
+        )
