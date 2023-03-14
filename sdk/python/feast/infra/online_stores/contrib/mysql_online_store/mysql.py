@@ -70,7 +70,7 @@ class MySQLOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
-        if online_store_config.session_manager_module:
+        if online_store_config.session_manager_module is not None:
             return (
                     self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
                     ConnectionType.SESSION
