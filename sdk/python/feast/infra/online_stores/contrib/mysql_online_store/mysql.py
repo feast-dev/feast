@@ -160,7 +160,7 @@ class MySQLOnlineStore(OnlineStore):
         _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config)
-        conn = raw_conn if conn_type == ConnectionType.SESSION else raw_conn
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
