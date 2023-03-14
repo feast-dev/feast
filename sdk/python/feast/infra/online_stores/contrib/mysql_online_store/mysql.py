@@ -64,13 +64,13 @@ class MySQLOnlineStore(OnlineStore):
             dbsession, cache_session = mod.generate_session()
             if cache_session:
                 self.dbsession = dbsession
-        return dbsession.get_bind(0).contextual_connect(close_with_result=False)
+        return dbsession.get_bind(0).contextual_connect(close_with_result=False).connection
 
     def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
-        if online_store_config.session_manager_module is not None:
+        if online_store_config.session_manager_module:
             return (
                     self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
                     ConnectionType.SESSION
