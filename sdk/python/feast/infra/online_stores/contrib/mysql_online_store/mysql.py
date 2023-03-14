@@ -12,7 +12,6 @@ import pytz
 from pydantic import StrictStr
 from pymysql.connections import Connection
 from pymysql.cursors import Cursor
-from sqlalchemy.ext.horizontal_shard import ShardedSession
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -64,7 +63,7 @@ class MySQLOnlineStore(OnlineStore):
             dbsession, cache_session = mod.generate_session()
             if cache_session:
                 self.dbsession = dbsession
-        return dbsession.get_bind(0).contextual_connect(close_with_result=False)
+        return dbsession.get_bind(0).connect(close_with_result=False)
 
     def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
@@ -106,8 +105,9 @@ class MySQLOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        conn, conn_type = self._get_conn(config)
-        with conn.connection.cursor() as cur:
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
+        with conn.cursor() as cur:
             project = config.project
 
             for entity_key, values, timestamp, created_ts in data:
@@ -150,7 +150,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
-        self._close_conn(conn, conn_type)
+        self._close_conn(raw_conn, conn_type)
 
     def online_read(
         self,
@@ -159,8 +159,9 @@ class MySQLOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        conn, conn_type = self._get_conn(config)
-        with conn.connection.cursor() as cur:
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
+        with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
             for entity_key in entity_keys:
@@ -193,7 +194,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
-        self._close_conn(conn, conn_type)
+        self._close_conn(raw_conn, conn_type)
         return result
 
     def update(
@@ -205,7 +206,8 @@ class MySQLOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ) -> None:
-        conn, conn_type = self._get_conn(config)
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
         with conn.connection.cursor() as cur:
             project = config.project
             # We don't create any special state for the entities in this implementation.
@@ -245,7 +247,7 @@ class MySQLOnlineStore(OnlineStore):
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
-        self._close_conn(conn, conn_type)
+        self._close_conn(raw_conn, conn_type)
 
     def teardown(
         self,
@@ -253,7 +255,8 @@ class MySQLOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
-        conn, conn_type = self._get_conn(config)
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
         with conn.connection.cursor() as cur:
             project = config.project
             for table in tables:
@@ -264,7 +267,7 @@ class MySQLOnlineStore(OnlineStore):
                     conn.rollback()
                     logging.error("Error %d: %s"
                                   "" % (e.args[0], e.args[1]))
-        self._close_conn(conn, conn_type)
+        self._close_conn(raw_conn, conn_type)
 
 def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
