@@ -82,7 +82,7 @@ class Aggregation:
         if not isinstance(other, Aggregation):
             raise TypeError("Comparisons should only involve Aggregations.")
         
-        # Optimised return logic here 
+        # Optimised return logic here
         return (
             self.column == other.column and 
             self.function == other.function and 
