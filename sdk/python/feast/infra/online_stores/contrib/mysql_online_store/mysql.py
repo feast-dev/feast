@@ -63,7 +63,7 @@ class MySQLOnlineStore(OnlineStore):
             dbsession, cache_session = mod.generate_session()
             if cache_session:
                 self.dbsession = dbsession
-        return dbsession.get_bind(0).connect(close_with_result=False)
+        return dbsession.get_bind(0).contextual_connect(close_with_result=False)
 
     def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
