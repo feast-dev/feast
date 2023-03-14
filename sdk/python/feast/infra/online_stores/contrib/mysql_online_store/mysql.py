@@ -53,7 +53,9 @@ class MySQLOnlineStore(OnlineStore):
     RB: Connections should not be shared between threads: https://stackoverflow.com/questions/45636492/can-mysqldb-connection-and-cursor-objects-be-safely-used-from-with-multiple-thre
     """
     _tls = threading.local()
-    dbsession: ShardedSession
+
+    def __init__(self) -> None:
+        self.dbsession = None
 
     def _get_conn_session_manager(self, session_manager_module: str) -> Connection:
         dbsession = self.dbsession
