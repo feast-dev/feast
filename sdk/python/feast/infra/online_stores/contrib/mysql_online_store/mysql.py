@@ -64,13 +64,13 @@ class MySQLOnlineStore(OnlineStore):
             dbsession, cache_session = mod.generate_session()
             if cache_session:
                 self.dbsession = dbsession
-        return dbsession.get_bind(0).contextual_connect(close_with_result=False).connection
+        return dbsession.get_bind(0).contextual_connect(close_with_result=False)
 
     def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
-        if online_store_config.session_manager_module is not None:
+        if online_store_config.session_manager_module:
             return (
                     self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
                     ConnectionType.SESSION
@@ -107,7 +107,7 @@ class MySQLOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         conn, conn_type = self._get_conn(config)
-        with conn.cursor() as cur:
+        with conn.connection.cursor() as cur:
             project = config.project
 
             for entity_key, values, timestamp, created_ts in data:
@@ -160,7 +160,7 @@ class MySQLOnlineStore(OnlineStore):
         _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         conn, conn_type = self._get_conn(config)
-        with conn.cursor() as cur:
+        with conn.connection.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
             for entity_key in entity_keys:
@@ -206,7 +206,7 @@ class MySQLOnlineStore(OnlineStore):
         partial: bool,
     ) -> None:
         conn, conn_type = self._get_conn(config)
-        with conn.cursor() as cur:
+        with conn.connection.cursor() as cur:
             project = config.project
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
@@ -254,7 +254,7 @@ class MySQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ) -> None:
         conn, conn_type = self._get_conn(config)
-        with conn.cursor() as cur:
+        with conn.connection.cursor() as cur:
             project = config.project
             for table in tables:
                 try:
