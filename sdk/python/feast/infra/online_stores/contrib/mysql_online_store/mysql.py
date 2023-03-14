@@ -106,7 +106,7 @@ class MySQLOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
-        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
         with conn.cursor() as cur:
             project = config.project
 
@@ -160,7 +160,7 @@ class MySQLOnlineStore(OnlineStore):
         _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config)
-        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
+        conn = raw_conn if conn_type == ConnectionType.SESSION else raw_conn
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
@@ -207,8 +207,8 @@ class MySQLOnlineStore(OnlineStore):
         partial: bool,
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
-        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
-        with conn.connection.cursor() as cur:
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        with conn.cursor() as cur:
             project = config.project
             # We don't create any special state for the entities in this implementation.
             for table in tables_to_keep:
@@ -256,8 +256,8 @@ class MySQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
-        conn = raw_conn.connection if hasattr(raw_conn, 'connection') else raw_conn
-        with conn.connection.cursor() as cur:
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        with conn.cursor() as cur:
             project = config.project
             for table in tables:
                 try:
