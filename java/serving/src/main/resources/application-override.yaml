@@ -1,10 +1,28 @@
 feast:
-  project: "ltr_mo"
+  project: "usm_cc"
   registry: "/var/www/feast/java/serving/src/main/resources/registry.pb"
-  activeStore: online
+  activeStore: online_cluster
   stores:
-    - name: online
-      type: REDIS
-      config:
-        host: marketplace-fs-mo.slkos6.clustercfg.aps1.cache.amazonaws.com
-        port: 6379
+    - name: online_cluster
+      type: REDIS_CLUSTER
+      config: # Store specific configuration.
+        # Connection string specifies the host:port of Redis instances in the redis cluster.
+        connection_string: "marketplace-fs-mo.slkos6.clustercfg.aps1.cache.amazonaws.com:6379"
+        read_from: MASTER
+        # Redis operation timeout in ISO-8601 format
+        timeout: PT0.5S
+logging:
+  # Audit logging provides a machine readable structured JSON log that can give better
+  # insight into what is happening in Feast.
+  audit:
+    # Whether audit logging is enabled.
+    enabled: true
+    # Whether to enable message level (ie request/response) audit logging
+    messageLogging:
+      enabled: false
+      # Logging forwarder currently provides a machine readable structured JSON log to an
+      # external fluentd service that can give better insight into what is happening in Feast.
+      # Accepts console / fluentd as destination
+      destination: console
+      fluentdHost: localhost
+      fluentdPort: 24224
