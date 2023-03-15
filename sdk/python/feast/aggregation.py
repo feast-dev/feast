@@ -89,3 +89,4 @@ class Aggregation:
             self.time_window == other.time_window and 
             self.slide_interval == other.slide_interval
         )
+    
