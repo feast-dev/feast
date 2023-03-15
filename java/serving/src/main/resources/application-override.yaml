@@ -1,5 +1,5 @@
 feast:
-  project: "ltr_lt"
+  project: "ltr_mo"
   registry: "/var/www/feast/java/serving/src/main/resources/registry.pb"
   activeStore: online
   stores:
