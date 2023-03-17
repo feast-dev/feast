@@ -32,8 +32,8 @@ const FeatureViewListingTable = ({
       render: (name: string, item: genericFVType) => {
         return (
           <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
+            href={`/p/${projectName}/feature-view/${name}`}
+            to={`/p/${projectName}/feature-view/${name}`}
           >
             {name} {(item.type === "ondemand" && <EuiBadge>ondemand</EuiBadge>) || (item.type === "stream" && <EuiBadge>stream</EuiBadge>)}
           </EuiCustomLink>

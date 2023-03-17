@@ -9,15 +9,16 @@ import FeastUISansProviders, { FeastUIConfigs } from "./FeastUISansProviders";
 interface FeastUIProps {
   reactQueryClient?: QueryClient;
   feastUIConfigs?: FeastUIConfigs;
+  basename?: string;
 }
 
 const defaultQueryClient = new QueryClient();
 
-const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
+const FeastUI = ({ reactQueryClient, feastUIConfigs, basename }: FeastUIProps) => {
   const queryClient = reactQueryClient || defaultQueryClient;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <QueryClientProvider client={queryClient}>
         <QueryParamProvider
           ReactRouterRoute={RouteAdapter as unknown as React.FunctionComponent}
