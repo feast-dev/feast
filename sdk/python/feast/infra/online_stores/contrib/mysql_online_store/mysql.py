@@ -119,30 +119,21 @@ class MySQLOnlineStore(OnlineStore):
                 if created_ts is not None:
                     created_ts = _to_naive_utc(created_ts)
 
-                for feature_name, val in values.items():
-                    cur.execute(
-                        f"""
-                                INSERT INTO {_table_id(project, table)}
-                                (entity_key, feature_name, value, event_ts, created_ts)
-                                values (%s, %s, %s, %s, %s)
-                                ON DUPLICATE KEY UPDATE
-                                value = %s,
-                                event_ts = %s,
-                                created_ts = %s;
-                                """,
-                        (
-                            # Insert
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                            # Update on duplicate key
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                        ),
-                    )
+                rows_to_insert = [(entity_key_bin, feature_name, val.SerializeToString(), timestamp, created_ts)
+                                    for feature_name, val in values.items()]
+                value_formatters = ', '.join(['(%s, %s, %s, %s, %s)'] * len(rows_to_insert))
+                cur.execute(
+                    f"""
+                        INSERT INTO {_table_id(project, table)}
+                        (entity_key, feature_name, value, event_ts, created_ts)
+                        VALUES {value_formatters}
+                        ON DUPLICATE KEY UPDATE 
+                        feature_value = VALUES(value)
+                        event_ts = VALUES(event_ts)
+                        created_ts = VALUES(created_ts)
+                    """,
+                    [item for row in rows_to_insert for item in row]
+                )
                 try:
                     conn.commit()
                     if progress:
