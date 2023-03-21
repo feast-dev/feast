@@ -128,7 +128,7 @@ class MySQLOnlineStore(OnlineStore):
                         (entity_key, feature_name, value, event_ts, created_ts)
                         VALUES {value_formatters}
                         ON DUPLICATE KEY UPDATE 
-                        feature_value = VALUES(value)
+                        value = VALUES(value)
                         event_ts = VALUES(event_ts)
                         created_ts = VALUES(created_ts)
                     """,
