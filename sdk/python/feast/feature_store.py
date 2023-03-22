@@ -2283,7 +2283,7 @@ class FeatureStore:
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_serving and self._go_server:
+        if self.config.go_feature_serving:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
             enable_logging = (
