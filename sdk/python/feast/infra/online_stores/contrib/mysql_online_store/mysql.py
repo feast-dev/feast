@@ -128,8 +128,8 @@ class MySQLOnlineStore(OnlineStore):
                         (entity_key, feature_name, value, event_ts, created_ts)
                         VALUES {value_formatters}
                         ON DUPLICATE KEY UPDATE 
-                        value = VALUES(value)
-                        event_ts = VALUES(event_ts)
+                        value = VALUES(value),
+                        event_ts = VALUES(event_ts),
                         created_ts = VALUES(created_ts)
                     """,
                     [item for row in rows_to_insert for item in row]
