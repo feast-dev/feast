@@ -19,18 +19,21 @@ from datetime import datetime, timedelta
 
 import click
 
-from feast.file_utils import replace_str_in_file, write_setting_or_remove
+from feast.file_utils import (
+    remove_lines_from_file,
+    replace_str_in_file,
+    write_setting_or_remove,
+)
 
 
 def collect_hazelcast_online_store_settings():
-    c_cluster_name = ""
+    c_cluster_name = None
     c_members = None
     c_ca_path = None
     c_cert_path = None
     c_key_path = None
-    c_ssl_password = None
     c_discovery_token = None
-    c_ttl_seconds = 0
+    c_ttl_seconds = None
 
     cluster_type = click.prompt(
         "Would you like to connect a [L]ocal cluster or [V]iridian cluster?",
@@ -46,23 +49,20 @@ def collect_hazelcast_online_store_settings():
         c_ca_path = click.prompt("CA file path: ")
         c_cert_path = click.prompt("CERT file path: ")
         c_key_path = click.prompt("Key file path: ")
-        c_ssl_password = click.prompt("SSL password: ")
     else:
         c_cluster_name = click.prompt(
-            "Cluster_name: ",
+            "Cluster name: ",
             default="dev",
         )
         c_members = click.prompt(
             "Cluster members:",
             default="localhost:5701",
         )
-
         needs_ssl = click.confirm("Use TLS/SSL?", default=False)
         if needs_ssl:
             c_ca_path = click.prompt("CA file path: ")
             c_cert_path = click.prompt("CERT file path: ")
             c_key_path = click.prompt("Key file path: ")
-            c_ssl_password = click.prompt("SSL password: ")
 
     c_ttl_seconds = click.prompt(
         "Key TTL seconds: ",
@@ -74,14 +74,12 @@ def collect_hazelcast_online_store_settings():
         "c_ca_path": c_ca_path,
         "c_cert_path": c_cert_path,
         "c_key_path": c_key_path,
-        "c_ssl_password": c_ssl_password,
         "c_discovery_token": c_discovery_token,
         "c_ttl_seconds": c_ttl_seconds,
     }
 
 
-def apply_cassandra_store_settings(config_file, settings):
-
+def apply_hazelcast_store_settings(config_file, settings):
     write_setting_or_remove(
         config_file,
         settings["c_cluster_name"],
@@ -91,16 +89,18 @@ def apply_cassandra_store_settings(config_file, settings):
     #
     write_setting_or_remove(
         config_file,
-        "[" + settings["c_members"] + "]",
-        "cluster_members",
-        "c_members",
-    )
-    #
-    write_setting_or_remove(
-        config_file,
         settings["c_discovery_token"],
         "discovery_token",
         "c_discovery_token",
+    )
+    #
+    if settings["c_members"] is not None:
+        settings["c_members"] = "[" + settings["c_members"] + "]"
+    write_setting_or_remove(
+        config_file,
+        settings["c_members"],
+        "cluster_members",
+        "c_members",
     )
     #
     write_setting_or_remove(
@@ -123,13 +123,12 @@ def apply_cassandra_store_settings(config_file, settings):
         "ssl_keyfile_path",
         "c_key_path",
     )
-    #
-    write_setting_or_remove(
-        config_file,
-        settings["c_ssl_password"],
-        "ssl_password",
-        "c_ssl_password",
-    )
+    if settings["c_ca_path"] is None:
+        remove_lines_from_file(
+            config_file,
+            "ssl_password: ${SSL_PASSWORD}",
+            True,
+        )
     #
     replace_str_in_file(
         config_file,
@@ -170,7 +169,7 @@ def bootstrap():
 
     # store config yaml, interact with user and then customize file:
     settings = collect_hazelcast_online_store_settings()
-    apply_cassandra_store_settings(config_file, settings)
+    apply_hazelcast_store_settings(config_file, settings)
 
 
 if __name__ == "__main__":

@@ -36,8 +36,8 @@ In order to use [Hazelcast](https://hazelcast.com) as online store, you need to 
 You can create a cluster using Hazelcast Viridian Serverless easily or deploy one on your local/remote machine. 
 See this [getting started](https://hazelcast.com/get-started/) page for more details.
 
-Hazelcast online store provides capability to connect TLS/SSL enabled cluster or Hazelcast Viridian Serverless cluster. 
-Following is an example to connect local cluster named "dev" running on port 5701 with SSL enabled.
+Hazelcast online store provides capability to connect local/remote or Hazelcast Viridian Serverless cluster.
+Following is an example to connect local cluster named "dev" running on port 5701 with TLS/SSL enabled.
 
 ```yaml
 [...]
@@ -48,7 +48,8 @@ online_store:
     ssl_cafile_path: /path/to/ca/file
     ssl_certfile_path: /path/to/cert/file
     ssl_keyfile_path: /path/to/key/file
-    ssl_password: <YOUR_SSL_PASSWORD>
+    ssl_password: ${SSL_PASSWORD} # The password will be read form the `SSL_PASSWORD` environment variable.
+    key_ttl_seconds: 86400 # The default is 0 and means infinite.
 ```
 
 If you want to connect your Hazelcast Viridian cluster instead of local/remote one, specify your configuration as follows:
@@ -57,12 +58,13 @@ If you want to connect your Hazelcast Viridian cluster instead of local/remote o
 [...]
 online_store:
     type: hazelcast
-    cluster_name: <YOUR_CLUSTER_ID>
-    discovery_token: <YOUR_DISCOVERY_TOKEN>
+    cluster_name: YOUR_CLUSTER_ID
+    discovery_token: YOUR_DISCOVERY_TOKEN
     ssl_cafile_path: /path/to/ca/file
     ssl_certfile_path: /path/to/cert/file
     ssl_keyfile_path: /path/to/key/file
-    ssl_password: <YOUR_SSL_PASSWORD>
+    ssl_password: ${SSL_PASSWORD} # The password will be read form the `SSL_PASSWORD` environment variable.
+    key_ttl_seconds: 86400 # The default is 0 and means infinite.
 ```
 
 #### TTL configuration
@@ -78,7 +80,7 @@ Its default value is 0, which means infinite.
 [...]
 online_store:
     [...]
-    key_ttl_seconds: 36000
+    key_ttl_seconds: 86400
 ```
 
 ### More info

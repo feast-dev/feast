@@ -25,6 +25,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 import pytz
 from hazelcast.client import HazelcastClient
 from hazelcast.core import HazelcastJsonValue
+from hazelcast.discovery import HazelcastCloudDiscovery
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
@@ -110,11 +111,14 @@ class HazelcastOnlineStore(OnlineStore):
             with self._lock:
                 if self._client is None:
                     if config.discovery_token != "":
+                        HazelcastCloudDiscovery._CLOUD_URL_BASE = (
+                            "api.viridian.hazelcast.com"
+                        )
                         self._client = HazelcastClient(
                             cluster_name=config.cluster_name,
+                            cloud_discovery_token=config.discovery_token,
                             statistics_enabled=True,
                             ssl_enabled=True,
-                            cloud_discovery_token=config.discovery_token,
                             ssl_cafile=config.ssl_cafile_path,
                             ssl_certfile=config.ssl_certfile_path,
                             ssl_keyfile=config.ssl_keyfile_path,
@@ -161,7 +165,7 @@ class HazelcastOnlineStore(OnlineStore):
             entity_key_str = base64.b64encode(
                 serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
+                    entity_key_serialization_version=2,
                 )
             ).decode("utf-8")
             event_ts_utc = pytz.utc.localize(event_ts, is_dst=None).timestamp()
@@ -213,7 +217,7 @@ class HazelcastOnlineStore(OnlineStore):
             entity_key_str = base64.b64encode(
                 serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
+                    entity_key_serialization_version=2,
                 )
             ).decode("utf-8")
             if requested_features:
