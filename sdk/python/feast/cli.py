@@ -675,12 +675,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Specify a server type: 'http' or 'grpc'",
 )
 @click.option(
-    "--go",
-    is_flag=True,
-    show_default=True,
-    help="Use Go to serve",
-)
-@click.option(
     "--no-access-log",
     is_flag=True,
     show_default=True,
@@ -698,7 +692,6 @@ def serve_command(
     host: str,
     port: int,
     type_: str,
-    go: bool,
     no_access_log: bool,
     no_feature_log: bool,
 ):
@@ -719,10 +712,6 @@ def serve_command(
         fs_yaml_file = ctx.obj["FS_YAML_FILE"]
         cli_check_repo(repo, fs_yaml_file)
         store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
-
-    if go:
-        # Turn on Go feature retrieval.
-        store.config.go_feature_serving = True
 
     store.serve(host, port, type_, no_access_log, no_feature_log)
 

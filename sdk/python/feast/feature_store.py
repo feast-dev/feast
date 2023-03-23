@@ -93,10 +93,7 @@ from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.type_map import (
-    feast_value_type_to_python_type,
-    python_values_to_proto_values,
-)
+from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
@@ -113,7 +110,6 @@ class FeatureStore:
         repo_path: The path to the feature repo.
         _registry: The registry for the feature store.
         _provider: The provider for the feature store.
-        _go_server: The (optional) Go feature server for the feature store.
     """
 
     config: RepoConfig
