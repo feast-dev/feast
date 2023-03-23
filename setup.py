@@ -70,7 +70,7 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard",
+    "typeguard==2.13.3",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
