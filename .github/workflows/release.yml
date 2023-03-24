@@ -13,6 +13,11 @@ on:
         required: true
         default: ""
         type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
 
@@ -110,7 +115,7 @@ jobs:
         working-directory: ./ui
         run: yarn build:lib
       - name: Publish UI package
-        if: github.event.inputs.dry_run == 'false'
+        if: github.event.inputs.publish_ui == 'true'
         working-directory: ./ui
         run: npm publish
         env:
