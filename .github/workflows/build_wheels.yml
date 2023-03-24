@@ -53,12 +53,14 @@ jobs:
 
   build-python-wheel:
     name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
@@ -67,40 +69,9 @@ jobs:
       - name: Build UI
         run: make build-ui
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.7.0
-        env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* cp37-* *-musllinux_x86_64 cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_BEFORE_ALL_MACOS: |
-            brew install apache-arrow
-            brew install pkg-config
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            git status
-            git restore go.mod go.sum
-            git restore sdk/python/feast/ui/yarn.lock
-          CIBW_BEFORE_TEST: "cd {project} && git status"
-      # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
-      - name: Build py310 specific wheels for macos
-        if: matrix.os == 'macos-10.15'
-        uses: pypa/cibuildwheel@v2.7.0
-        env:
-          CIBW_BUILD: "cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          # Need this environment variable because of this issue: https://github.com/pypa/cibuildwheel/issues/952.
-          CIBW_ENVIRONMENT: >
-            _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
-          # There's a `git restore` in here because remnant go.mod, go.sum changes from the build mess up the wheel naming.
-          CIBW_BEFORE_BUILD: |
-            git status
-            git restore go.mod go.sum
-            git restore sdk/python/feast/ui/yarn.lock
-            brew install apache-arrow
-            brew install pkg-config
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir wheelhouse/
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
