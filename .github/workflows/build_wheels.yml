@@ -171,9 +171,10 @@ jobs:
           cd dist/
           pip install wheel
           for f in *.whl; do pip install $f || true; done
-      - name: Install OS X dependencies
-        if: matrix.os == 'macos-10.15'
-        run: brew install coreutils
+      - name: Install sdist
+        # try to install the sdist
+        if: ${{ matrix.from-source }}
+        run: pip install dist/*tar.gz
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
         run: |
