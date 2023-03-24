@@ -9,7 +9,6 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
-    OnDemandFeatureViewNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -98,7 +97,7 @@ def get_on_demand_feature_view(
             and on_demand_feature_view.spec.name == name
         ):
             return OnDemandFeatureView.from_proto(on_demand_feature_view)
-    raise OnDemandFeatureViewNotFoundException(name, project=project)
+    raise FeatureViewNotFoundException(name, project=project)
 
 
 def get_data_source(
@@ -136,10 +135,6 @@ def get_validation_reference(
         ):
             return ValidationReference.from_proto(validation_reference)
     raise ValidationReferenceNotFound(name, project=project)
-
-
-def list_validation_references(registry_proto: RegistryProto):
-    return registry_proto.validation_references
 
 
 def list_feature_services(
@@ -215,13 +210,25 @@ def list_data_sources(registry_proto: RegistryProto, project: str) -> List[DataS
 
 
 def list_saved_datasets(
-    registry_proto: RegistryProto, project: str, allow_cache: bool = False
+    registry_proto: RegistryProto, project: str
 ) -> List[SavedDataset]:
-    return [
-        SavedDataset.from_proto(saved_dataset)
-        for saved_dataset in registry_proto.saved_datasets
-        if saved_dataset.spec.project == project
-    ]
+    saved_datasets = []
+    for saved_dataset in registry_proto.saved_datasets:
+        if saved_dataset.project == project:
+            saved_datasets.append(SavedDataset.from_proto(saved_dataset))
+    return saved_datasets
+
+
+def list_validation_references(
+    registry_proto: RegistryProto, project: str
+) -> List[ValidationReference]:
+    validation_references = []
+    for validation_reference in registry_proto.validation_references:
+        if validation_reference.project == project:
+            validation_references.append(
+                ValidationReference.from_proto(validation_reference)
+            )
+    return validation_references
 
 
 def list_project_metadata(

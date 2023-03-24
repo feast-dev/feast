@@ -21,8 +21,8 @@ const DatasourcesListingTable = ({
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`/p/${projectName}/data-source/${name}`}
-            to={`/p/${projectName}/data-source/${name}`}
+            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${name}`}
+            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${name}`}
           >
             {name}
           </EuiCustomLink>

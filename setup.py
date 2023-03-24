@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 import glob
-import json
 import os
 import pathlib
 import re
@@ -21,11 +19,9 @@ import shutil
 import subprocess
 import sys
 from distutils.cmd import Command
-from distutils.dir_util import copy_tree
 from pathlib import Path
-from subprocess import CalledProcessError
 
-from setuptools import Extension, find_packages
+from setuptools import find_packages
 
 try:
     from setuptools import setup
@@ -60,7 +56,7 @@ REQUIRED = [
     "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<9",
+    "pyarrow>=4,<12",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -70,7 +66,7 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard",
+    "typeguard==2.13.3",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
@@ -95,7 +91,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",

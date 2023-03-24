@@ -109,7 +109,7 @@ const FeatureServiceOverviewTab = () => {
                     tags={data.spec.tags}
                     createLink={(key, value) => {
                       return (
-                        `/p/${projectName}/feature-service?` +
+                        `${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service?` +
                         encodeSearchQueryString(`${key}:${value}`)
                       );
                     }}
@@ -133,7 +133,7 @@ const FeatureServiceOverviewTab = () => {
                             color="primary"
                             onClick={() => {
                               navigate(
-                                `/p/${projectName}/entity/${entity.name}`
+                                `${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${entity.name}`
                               );
                             }}
                             onClickAriaLabel={entity.name}

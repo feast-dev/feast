@@ -20,7 +20,10 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
         update_data_sources_with_inferred_event_timestamp_col(
             data_sources,
             RepoConfig(
-                provider="local", project="test", entity_key_serialization_version=2
+                provider="local",
+                project="test",
+                registry="test.pb",
+                entity_key_serialization_version=2,
             ),
         )
         actual_event_timestamp_cols = [
@@ -35,7 +38,10 @@ def test_update_file_data_source_with_inferred_event_timestamp_col(simple_datase
             update_data_sources_with_inferred_event_timestamp_col(
                 [file_source],
                 RepoConfig(
-                    provider="local", project="test", entity_key_serialization_version=2
+                    provider="local",
+                    project="test",
+                    registry="test.pb",
+                    entity_key_serialization_version=2,
                 ),
             )
 
@@ -53,7 +59,10 @@ def test_update_data_sources_with_inferred_event_timestamp_col(universal_data_so
     update_data_sources_with_inferred_event_timestamp_col(
         data_sources_copy.values(),
         RepoConfig(
-            provider="local", project="test", entity_key_serialization_version=2
+            provider="local",
+            project="test",
+            registry="test.pb",
+            entity_key_serialization_version=2,
         ),
     )
     actual_event_timestamp_cols = [

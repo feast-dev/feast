@@ -13,11 +13,9 @@ import feast
 
 def get_app(
     store: "feast.FeatureStore",
-    get_registry_dump: Callable,
     project_id: str,
     registry_ttl_secs: int,
-    host: str,
-    port: int,
+    root_path: str = "",
 ):
     app = FastAPI()
 
@@ -62,7 +60,7 @@ def get_app(
                     "name": "Project",
                     "description": "Test project",
                     "id": project_id,
-                    "registryPath": "/registry",
+                    "registryPath": f"{root_path}/registry",
                 }
             ]
         }
@@ -105,11 +103,8 @@ def start_server(
 ):
     app = get_app(
         store,
-        get_registry_dump,
         project_id,
         registry_ttl_sec,
-        host,
-        port,
+        root_path,
     )
-    assert root_path is not None
-    uvicorn.run(app, host=host, port=port, root_path=root_path)
+    uvicorn.run(app, host=host, port=port)

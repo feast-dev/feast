@@ -13,8 +13,8 @@ from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     execute_snowflake_statement,
-    get_snowflake_conn,
     get_snowflake_online_store_path,
     write_pandas_binary,
 )
@@ -29,13 +29,13 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Snowflake"""
 
     type: Literal["snowflake.online"] = "snowflake.online"
-    """ Online store type selector"""
+    """ Online store type selector """
 
     config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Can't use ~)"""
 
     account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com"""
+    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
 
     user: Optional[str] = None
     """ Snowflake user name """
@@ -44,7 +44,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     """ Snowflake password """
 
     role: Optional[str] = None
-    """ Snowflake role name"""
+    """ Snowflake role name """
 
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
@@ -114,7 +114,7 @@ class SnowflakeOnlineStore(OnlineStore):
 
             # This combines both the data upload plus the overwrite in the same transaction
             online_path = get_snowflake_online_store_path(config, table)
-            with get_snowflake_conn(config.online_store, autocommit=False) as conn:
+            with GetSnowflakeConnection(config.online_store, autocommit=False) as conn:
                 write_pandas_binary(
                     conn,
                     agg_df,
@@ -178,7 +178,7 @@ class SnowflakeOnlineStore(OnlineStore):
         )
 
         online_path = get_snowflake_online_store_path(config, table)
-        with get_snowflake_conn(config.online_store) as conn:
+        with GetSnowflakeConnection(config.online_store) as conn:
             query = f"""
                 SELECT
                     "entity_key", "feature_name", "value", "event_ts"
@@ -220,7 +220,7 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        with get_snowflake_conn(config.online_store) as conn:
+        with GetSnowflakeConnection(config.online_store) as conn:
             for table in tables_to_keep:
                 online_path = get_snowflake_online_store_path(config, table)
                 query = f"""
@@ -248,7 +248,7 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
-        with get_snowflake_conn(config.online_store) as conn:
+        with GetSnowflakeConnection(config.online_store) as conn:
             for table in tables:
                 online_path = get_snowflake_online_store_path(config, table)
                 query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
