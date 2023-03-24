@@ -46,7 +46,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     These environment variables can be used to reference Kubernetes secrets.
     """
 
-    image_pull_secrets: List[str] = []
+    image_pull_secrets: List[dict] = []
     """ (optional) The secrets to use when pulling the image to run for the materialization job """
 
     resources: dict = {}
