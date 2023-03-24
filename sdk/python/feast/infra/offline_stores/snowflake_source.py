@@ -213,13 +213,13 @@ class SnowflakeSource(DataSource):
         """
         from feast.infra.offline_stores.snowflake import SnowflakeOfflineStoreConfig
         from feast.infra.utils.snowflake.snowflake_utils import (
+            GetSnowflakeConnection,
             execute_snowflake_statement,
-            get_snowflake_conn,
         )
 
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
 
-        with get_snowflake_conn(config.offline_store) as conn:
+        with GetSnowflakeConnection(config.offline_store) as conn:
             query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
             cursor = execute_snowflake_statement(conn, query)
 
@@ -250,7 +250,7 @@ class SnowflakeSource(DataSource):
                     else:
                         column = row["column_name"]
 
-                        with get_snowflake_conn(config.offline_store) as conn:
+                        with GetSnowflakeConnection(config.offline_store) as conn:
                             query = f'SELECT MAX("{column}") AS "{column}" FROM {self.get_table_query_string()}'
                             result = execute_snowflake_statement(
                                 conn, query
