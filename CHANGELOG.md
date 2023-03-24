@@ -1,34 +1,5 @@
 # Changelog
 
-# [0.30.0](https://github.com/feast-dev/feast/compare/v0.29.0...v0.30.0) (2023-03-24)
-
-
-### Bug Fixes
-
-* Add description attribute to the Field.from_proto method ([#3469](https://github.com/feast-dev/feast/issues/3469)) ([473f8d9](https://github.com/feast-dev/feast/commit/473f8d93fa8d565e53fc59b3c444a1b8ed061c51))
-* Add filesystem kwargs when read prev_table on FileRetrievalJob (… ([#3491](https://github.com/feast-dev/feast/issues/3491)) ([dca4745](https://github.com/feast-dev/feast/commit/dca47458c81c211fee485a502feebe28426848f0)), closes [#3490](https://github.com/feast-dev/feast/issues/3490)
-* Bytewax image pull secret config ([#3547](https://github.com/feast-dev/feast/issues/3547)) ([d2d13b1](https://github.com/feast-dev/feast/commit/d2d13b1762ba67c386fcd48351f3872b92671450))
-* Clean up Rockset Online Store for use ([#3549](https://github.com/feast-dev/feast/issues/3549)) ([a76c6d0](https://github.com/feast-dev/feast/commit/a76c6d0f9e3aa28d03d430f6f85ce4e91870c844))
-* Feature view `entities` from_proto type ([#3524](https://github.com/feast-dev/feast/issues/3524)) ([57bbb61](https://github.com/feast-dev/feast/commit/57bbb61829fffe08ff3e09aceb1e82ea862b55a2))
-* Fix missing requests requirement after GCP requirement removed. Make BigQuerySource not require gcp extra ([2c85421](https://github.com/feast-dev/feast/commit/2c85421fef02dc85854960b4616f00e613934c01))
-* Fix SQL Registry cache miss ([#3482](https://github.com/feast-dev/feast/issues/3482)) ([3249b97](https://github.com/feast-dev/feast/commit/3249b97b5471322e068f81fc65d9072f2eed1ba3))
-* Fixed path inside quickstart notebook ([#3456](https://github.com/feast-dev/feast/issues/3456)) ([66edc32](https://github.com/feast-dev/feast/commit/66edc32b97f51049dd0fc97765c714c0c6e374e5))
-* Improve BQ point-in-time joining scalability ([#3429](https://github.com/feast-dev/feast/issues/3429)) ([ff66784](https://github.com/feast-dev/feast/commit/ff66784ddb1e63e68b88c47132996eccb13891ae))
-* Pin typeguard to 2.13.3 which is what we are currently using. ([#3542](https://github.com/feast-dev/feast/issues/3542)) ([61f6fb0](https://github.com/feast-dev/feast/commit/61f6fb03b27cfa92672beb054ee8aba41145645c))
-* Protobuf lower bound to 3.20 to alert that Feast is incompatible with tensorflow ([#3476](https://github.com/feast-dev/feast/issues/3476)) ([9ca59e3](https://github.com/feast-dev/feast/commit/9ca59e32d2f1c01cec3b5afaff6802e6036dcad8))
-* Spark kafka processor sorting ([#3479](https://github.com/feast-dev/feast/issues/3479)) ([f2cbf43](https://github.com/feast-dev/feast/commit/f2cbf43d4be6829ce3affb72b8a5416d8e084ba9))
-* UI working behind base url ([#3514](https://github.com/feast-dev/feast/issues/3514)) ([9a3fd98](https://github.com/feast-dev/feast/commit/9a3fd98468edc6e5fd185d05b8dd1cabac73845c))
-* Update go dependencies ([#3512](https://github.com/feast-dev/feast/issues/3512)) ([bada97c](https://github.com/feast-dev/feast/commit/bada97c9dadf05bb369e6f820290b0411bc7412d))
-
-
-### Features
-
-* Add Rockset as an OnlineStore ([#3405](https://github.com/feast-dev/feast/issues/3405)) ([fd91cda](https://github.com/feast-dev/feast/commit/fd91cda1af47bde948ef6a2f4688785358ae38ec))
-* Add Snowflake Registry ([#3363](https://github.com/feast-dev/feast/issues/3363)) ([ec1e61d](https://github.com/feast-dev/feast/commit/ec1e61d11c24247996b0f8508f44ec7f31b9145c))
-* Added SnowflakeConnection caching ([#3531](https://github.com/feast-dev/feast/issues/3531)) ([f9f8df2](https://github.com/feast-dev/feast/commit/f9f8df2802b980a3ee161222b174d397764f755a))
-* Adding query timeout to `to_df` and `to_arrow` retrieval methods ([#3505](https://github.com/feast-dev/feast/issues/3505)) ([bab6644](https://github.com/feast-dev/feast/commit/bab6644308efb1aa8bce52f2f47df9de87492fc9))
-* adds k8s config options to Bytewax materialization engine ([#3518](https://github.com/feast-dev/feast/issues/3518)) ([1883f55](https://github.com/feast-dev/feast/commit/1883f55729ffddaef8d730ba3ffb76eb50cc7201))
-
 # [0.29.0](https://github.com/feast-dev/feast/compare/v0.28.0...v0.29.0) (2023-01-31)
 
 
