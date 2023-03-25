@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.2](https://github.com/feast-dev/feast/compare/v0.30.1...v0.30.2) (2023-03-25)
+
+
+### Bug Fixes
+
+* **cI:** Install coreutils in mac github workers for smoke test ([#3563](https://github.com/feast-dev/feast/issues/3563)) ([28446ee](https://github.com/feast-dev/feast/commit/28446ee732e5f2b5f3e6e155a26683087e2a4d7b))
+
 ## [0.30.1](https://github.com/feast-dev/feast/compare/v0.30.0...v0.30.1) (2023-03-25)
 
 
