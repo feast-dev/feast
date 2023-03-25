@@ -137,6 +137,10 @@ ROCKSET_REQUIRED = [
     "rockset>=1.0.3",
 ]
 
+HAZELCAST_REQUIRED = [
+    "hazelcast-python-client>=5.1",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -195,6 +199,7 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
+    + HAZELCAST_REQUIRED
 )
 
 
@@ -361,6 +366,7 @@ setup(
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
+        "hazelcast": HAZELCAST_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

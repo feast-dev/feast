@@ -641,6 +641,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "hbase",
             "cassandra",
             "rockset",
+            "hazelcast",
         ],
         case_sensitive=False,
     ),

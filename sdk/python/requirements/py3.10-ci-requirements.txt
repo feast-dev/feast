@@ -336,6 +336,8 @@ h11==0.14.0
     #   uvicorn
 happybase==1.2.0
     # via feast (setup.py)
+hazelcast-python-client==5.1
+    # via feast (setup.py)
 hiredis==2.2.2
     # via feast (setup.py)
 httpcore==0.16.3
