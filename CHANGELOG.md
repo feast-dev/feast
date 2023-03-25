@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/feast-dev/feast/compare/v0.30.0...v0.30.1) (2023-03-25)
+
+
+### Bug Fixes
+
+* Use pyarrow in a way that works across versions ([#3562](https://github.com/feast-dev/feast/issues/3562)) ([99a163c](https://github.com/feast-dev/feast/commit/99a163c57a41ca0d62b17e7fc663108e3700174d))
+
 # [0.30.0](https://github.com/feast-dev/feast/compare/v0.29.0...v0.30.0) (2023-03-24)
 
 
