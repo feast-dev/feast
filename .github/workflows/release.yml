@@ -92,7 +92,7 @@ jobs:
 
 
   publish-web-ui-npm:
-    if: github.repository == 'feast-dev/feast' and github.event.inputs.publish_ui == 'true'
+    if: github.repository == 'feast-dev/feast' && github.event.inputs.publish_ui == 'true'
     needs: [validate_version_bumps, get_dry_release_versions]
     runs-on: ubuntu-latest
     env:
