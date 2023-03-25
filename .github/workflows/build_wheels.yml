@@ -52,7 +52,7 @@ jobs:
           echo $HIGHEST_SEMVER_TAG
 
   build-python-wheel:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -164,6 +164,9 @@ jobs:
         with:
           name: wheels
           path: dist
+      - name: Install OS X dependencies
+        if: matrix.os == 'macos-10.15'
+        run: brew install coreutils
       - name: Install wheel
         if: ${{ !matrix.from-source }}
         # try to install all wheels; only the current platform wheel should be actually installed

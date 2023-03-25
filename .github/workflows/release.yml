@@ -92,7 +92,7 @@ jobs:
 
 
   publish-web-ui-npm:
-    if: github.repository == 'feast-dev/feast'
+    if: github.repository == 'feast-dev/feast' and github.event.inputs.publish_ui == 'true'
     needs: [validate_version_bumps, get_dry_release_versions]
     runs-on: ubuntu-latest
     env:
@@ -115,7 +115,6 @@ jobs:
         working-directory: ./ui
         run: yarn build:lib
       - name: Publish UI package
-        if: github.event.inputs.publish_ui == 'true'
         working-directory: ./ui
         run: npm publish
         env:
