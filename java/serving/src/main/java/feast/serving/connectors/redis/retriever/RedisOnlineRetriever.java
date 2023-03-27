@@ -136,6 +136,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
             RedisHashDecoder.retrieveFeature(
                 f.get(), byteToFeatureIdxMap, featureReferences, timestampPrefix));
       } catch (InterruptedException | ExecutionException e) {
+        log.error("Exception occurred while fetching features from redis {}",e.getMessage(),e);
         throw new RuntimeException("Unexpected error when pulling data from Redis");
       }
     }
