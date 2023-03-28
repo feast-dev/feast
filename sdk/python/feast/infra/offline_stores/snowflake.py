@@ -156,7 +156,7 @@ class SnowflakeOfflineStore(OfflineStore):
         )
 
         if config.offline_store.convert_timestamp_columns:
-            select_timestamps =  list(map(lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}", timestamp_columns))
+            select_timestamps = list(map(lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}", timestamp_columns))
             inner_field_string = (
                 '"'
                 + '", "'.join(join_key_columns + feature_name_columns)
