@@ -61,6 +61,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     include_security_context_capabilities: bool = True
     """ (optional)  Include security context capabilities in the init and job container spec """
 
+
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
         self,
@@ -252,6 +253,13 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         # Add any Feast configured environment variables
         job_env.extend(env)
 
+        securityContextCapabilities = None
+        if self.batch_engine_config.include_security_context_capabilities:
+            securityContextCapabilities = {
+                "add": ["NET_BIND_SERVICE"],
+                "drop": ["ALL"],
+            }
+
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
@@ -293,7 +301,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "resources": {},
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
-                                    "capabilities": { "add": ["NET_BIND_SERVICE"], "drop": ["ALL"], } if self.batch_engine_config.include_security_context_capabilities else None,
+                                    "capabilities": securityContextCapabilities,
                                     "readOnlyRootFilesystem": True,
                                 },
                                 "terminationMessagePath": "/dev/termination-log",
@@ -328,7 +336,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "resources": self.batch_engine_config.resources,
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
-                                    "capabilities": { "add": ["NET_BIND_SERVICE"], "drop": ["ALL"], } if self.batch_engine_config.include_security_context_capabilities else None,
+                                    "capabilities": securityContextCapabilities,
                                     "readOnlyRootFilesystem": False,
                                 },
                                 "terminationMessagePath": "/dev/termination-log",
