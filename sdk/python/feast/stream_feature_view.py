@@ -100,8 +100,9 @@ class StreamFeatureView(FeatureView):
                 RuntimeWarning,
             )
 
+        shared_super_cls = len(set(t.__name__ for t in type(source).__bases__).intersection(SUPPORTED_STREAM_SOURCES))
         if (
-            type(source).__name__ not in SUPPORTED_STREAM_SOURCES
+                (type(source).__name__ not in SUPPORTED_STREAM_SOURCES and shared_super_cls == 0)
             and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
         ):
             raise ValueError(
