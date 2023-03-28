@@ -31,14 +31,14 @@ Data Model Used Per Doc
 project: my_feature_app
 registry: data/registry.db
 provider: local
-online_stores
+online_store:
     ## Basic Configs ##
 
     # If apikey or host is left blank the driver will try to pull
     # these values from environment variables ROCKSET_APIKEY and 
     # ROCKSET_APISERVER respectively.
     type: rockset
-    apikey: <your_api_key_here>
+    api_key: <your_api_key_here>
     host: <your_region_endpoint_here>
   
     ## Advanced Configs ## 
