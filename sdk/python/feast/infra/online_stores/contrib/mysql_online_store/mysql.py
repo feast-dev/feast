@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import threading
 import logging
+import time
 
 from enum import Enum
 from importlib import import_module
@@ -19,6 +20,10 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+
+MYSQL_DEADLOCK_ERR = 1213
+MYSQL_WRITE_RETRIES = 3
+MYSQL_READ_RETRIES = 3
 
 
 class ConnectionType(Enum):
@@ -71,8 +76,8 @@ class MySQLOnlineStore(OnlineStore):
 
         if online_store_config.session_manager_module:
             return (
-                    self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
-                    ConnectionType.SESSION
+                self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
+                ConnectionType.SESSION
             )
 
         if not hasattr(self._tls, 'conn') or not self._tls.conn.open:
@@ -96,14 +101,37 @@ class MySQLOnlineStore(OnlineStore):
                 if str(exc) != 'Already closed':
                     raise exc
 
+    def _execute_query_with_retry(self, cur: Cursor,
+                                        conn: Connection,
+                                        query: str,
+                                        values: Union[List, Tuple],
+                                        retries: int,
+                                        progress=None
+    ) -> bool:
+        for _ in range(retries):
+            try:
+                cur.execute(query, values)
+                conn.commit()
+                if progress:
+                    progress(1)
+                return True
+            except pymysql.Error as e:
+                if e.args[0] == MYSQL_DEADLOCK_ERR:
+                    time.sleep(0.5)
+                else:
+                    conn.rollback()
+                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                    return False
+        return False
+
     def online_write_batch(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        progress: Optional[Callable[[int], Any]],
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            progress: Optional[Callable[[int], Any]],
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -120,10 +148,9 @@ class MySQLOnlineStore(OnlineStore):
                     created_ts = _to_naive_utc(created_ts)
 
                 rows_to_insert = [(entity_key_bin, feature_name, val.SerializeToString(), timestamp, created_ts)
-                                    for feature_name, val in values.items()]
+                                  for feature_name, val in values.items()]
                 value_formatters = ', '.join(['(%s, %s, %s, %s, %s)'] * len(rows_to_insert))
-                cur.execute(
-                    f"""
+                query = f"""
                         INSERT INTO {_table_id(project, table)}
                         (entity_key, feature_name, value, event_ts, created_ts)
                         VALUES {value_formatters}
@@ -131,24 +158,21 @@ class MySQLOnlineStore(OnlineStore):
                         value = VALUES(value),
                         event_ts = VALUES(event_ts),
                         created_ts = VALUES(created_ts)
-                    """,
-                    [item for row in rows_to_insert for item in row]
-                )
-                try:
-                    conn.commit()
-                    if progress:
-                        progress(1)
-                except pymysql.Error as e:
-                    conn.rollback()
-                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                        """
+                query_values = [item for row in rows_to_insert for item in row]
+                self._execute_query_with_retry(cur=cur,
+                                               conn=conn,
+                                               query=query,
+                                               values=query_values,
+                                               retries=MYSQL_WRITE_RETRIES)
         self._close_conn(raw_conn, conn_type)
 
     def online_read(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        _: Optional[List[str]] = None,
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            entity_keys: List[EntityKeyProto],
+            _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -156,18 +180,16 @@ class MySQLOnlineStore(OnlineStore):
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
             for entity_key in entity_keys:
-                try:
-                    entity_key_bin = serialize_entity_key(
-                        entity_key,
-                        entity_key_serialization_version=2,
-                    ).hex()
-
-                    cur.execute(
-                        f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s",
-                        (entity_key_bin,),
-                    )
-                    conn.commit()
-
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=2,
+                ).hex()
+                query = f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s"
+                if self._execute_query_with_retry(cur=cur,
+                                                  conn=conn,
+                                                  query=query,
+                                                  values=(entity_key_bin,),
+                                                  retries=MYSQL_READ_RETRIES):
                     res = {}
                     res_ts: Optional[datetime] = None
                     records = cur.fetchall()
@@ -182,20 +204,19 @@ class MySQLOnlineStore(OnlineStore):
                         result.append((None, None))
                     else:
                         result.append((res_ts, res))
-                except pymysql.Error as e:
-                    conn.rollback()
-                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                else:
+                    logging.error(f'Skipping read for (entity, table)): ({entity_key}, {_table_id(project, table)})')
         self._close_conn(raw_conn, conn_type)
         return result
 
     def update(
-        self,
-        config: RepoConfig,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-        partial: bool,
+            self,
+            config: RepoConfig,
+            tables_to_delete: Sequence[FeatureView],
+            tables_to_keep: Sequence[FeatureView],
+            entities_to_delete: Sequence[Entity],
+            entities_to_keep: Sequence[Entity],
+            partial: bool,
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -241,10 +262,10 @@ class MySQLOnlineStore(OnlineStore):
         self._close_conn(raw_conn, conn_type)
 
     def teardown(
-        self,
-        config: RepoConfig,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
+            self,
+            config: RepoConfig,
+            tables: Sequence[FeatureView],
+            entities: Sequence[Entity],
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -259,6 +280,7 @@ class MySQLOnlineStore(OnlineStore):
                     logging.error("Error %d: %s"
                                   "" % (e.args[0], e.args[1]))
         self._close_conn(raw_conn, conn_type)
+
 
 def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
     table_name = _table_id(project, table)
