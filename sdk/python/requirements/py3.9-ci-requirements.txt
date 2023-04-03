@@ -786,7 +786,7 @@ pyzmq==25.0.0
     #   jupyter-server
     #   nbclassic
     #   notebook
-redis==4.5.3
+redis==4.5.4
     # via feast (setup.py)
 regex==2022.10.31
     # via feast (setup.py)
