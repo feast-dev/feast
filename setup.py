@@ -590,7 +590,7 @@ setup(
         "pybindgen==0.22.0",
     ],
     cmdclass={
-        #"build_python_protos": BuildPythonProtosCommand,
+        "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
