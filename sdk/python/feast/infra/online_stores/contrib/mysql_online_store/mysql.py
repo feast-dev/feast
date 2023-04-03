@@ -180,7 +180,7 @@ class MySQLOnlineStore(OnlineStore):
             entity_keys: List[EntityKeyProto],
             _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        raw_conn, conn_type = self._get_conn(config)
+        raw_conn, conn_type = self._get_conn(config, readonly=True)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
