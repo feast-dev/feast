@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm54"
+VERSION = "0.28+affirm55"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -590,7 +590,7 @@ setup(
         "pybindgen==0.22.0",
     ],
     cmdclass={
-        #"build_python_protos": BuildPythonProtosCommand,
+        "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,

@@ -60,23 +60,29 @@ class MySQLOnlineStore(OnlineStore):
 
     def __init__(self) -> None:
         self.dbsession = None
+        self.ro_dbsession = None
 
-    def _get_conn_session_manager(self, session_manager_module: str) -> Connection:
-        dbsession = self.dbsession
+    def _get_conn_session_manager(self, session_manager_module: str, readonly: bool = False) -> Connection:
+        dbsession = self.ro_dbsession if readonly else self.dbsession
         if dbsession is None:
             mod = import_module(session_manager_module)
-            dbsession, cache_session = mod.generate_session()
-            if cache_session:
+            dbsession, cache_session = mod.generate_session(readonly=readonly)
+            if cache_session and readonly:
+                self.ro_dbsession = dbsession
+            elif cache_session:
                 self.dbsession = dbsession
         return dbsession.get_bind(0).contextual_connect(close_with_result=False)
 
-    def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
+    def _get_conn(self, config: RepoConfig, readonly: bool = False) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
         if online_store_config.session_manager_module:
             return (
-                self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
+                self._get_conn_session_manager(
+                    session_manager_module=online_store_config.session_manager_module,
+                    readonly=readonly
+                ),
                 ConnectionType.SESSION
             )
 
@@ -174,7 +180,7 @@ class MySQLOnlineStore(OnlineStore):
             entity_keys: List[EntityKeyProto],
             _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        raw_conn, conn_type = self._get_conn(config)
+        raw_conn, conn_type = self._get_conn(config, readonly=True)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
