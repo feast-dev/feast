@@ -172,7 +172,7 @@ class MySQLOnlineStore(OnlineStore):
             config: RepoConfig,
             table: FeatureView,
             entity_keys: List[EntityKeyProto],
-            _: Optional[List[str]] = None,
+            features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -184,11 +184,17 @@ class MySQLOnlineStore(OnlineStore):
                     entity_key,
                     entity_key_serialization_version=2,
                 ).hex()
+
+                # Updated query to filter by feature names
                 query = f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s"
+                if features is not None and len(features) > 0:
+                    query += " AND feature_name IN (%s)" % ", ".join(["%s"] * len(features))
+
                 if self._execute_query_with_retry(cur=cur,
                                                   conn=conn,
                                                   query=query,
-                                                  values=(entity_key_bin,),
+                                                  values=(entity_key_bin, *features) if features else (
+                                                  entity_key_bin,),
                                                   retries=MYSQL_READ_RETRIES):
                     res = {}
                     res_ts: Optional[datetime] = None
