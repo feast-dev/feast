@@ -60,23 +60,29 @@ class MySQLOnlineStore(OnlineStore):
 
     def __init__(self) -> None:
         self.dbsession = None
+        self.ro_dbsession = None
 
-    def _get_conn_session_manager(self, session_manager_module: str) -> Connection:
-        dbsession = self.dbsession
+    def _get_conn_session_manager(self, session_manager_module: str, readonly: bool = False) -> Connection:
+        dbsession = self.ro_dbsession if readonly else self.dbsession
         if dbsession is None:
             mod = import_module(session_manager_module)
-            dbsession, cache_session = mod.generate_session()
-            if cache_session:
+            dbsession, cache_session = mod.generate_session(readonly=readonly)
+            if cache_session and readonly:
+                self.ro_dbsession = dbsession
+            elif cache_session:
                 self.dbsession = dbsession
         return dbsession.get_bind(0).contextual_connect(close_with_result=False)
 
-    def _get_conn(self, config: RepoConfig) -> Union[Connection, ConnectionType]:
+    def _get_conn(self, config: RepoConfig, readonly: bool = False) -> Union[Connection, ConnectionType]:
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
         if online_store_config.session_manager_module:
             return (
-                self._get_conn_session_manager(session_manager_module=online_store_config.session_manager_module),
+                self._get_conn_session_manager(
+                    session_manager_module=online_store_config.session_manager_module,
+                    readonly=readonly
+                ),
                 ConnectionType.SESSION
             )
 
@@ -172,7 +178,7 @@ class MySQLOnlineStore(OnlineStore):
             config: RepoConfig,
             table: FeatureView,
             entity_keys: List[EntityKeyProto],
-            features: Optional[List[str]] = None,
+            _: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
@@ -184,17 +190,11 @@ class MySQLOnlineStore(OnlineStore):
                     entity_key,
                     entity_key_serialization_version=2,
                 ).hex()
-
-                # Updated query to filter by feature names
                 query = f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s"
-                if features is not None and len(features) > 0:
-                    query += " AND feature_name IN (%s)" % ", ".join(["%s"] * len(features))
-
                 if self._execute_query_with_retry(cur=cur,
                                                   conn=conn,
                                                   query=query,
-                                                  values=(entity_key_bin, *features) if features else (
-                                                  entity_key_bin,),
+                                                  values=(entity_key_bin,),
                                                   retries=MYSQL_READ_RETRIES):
                     res = {}
                     res_ts: Optional[datetime] = None
