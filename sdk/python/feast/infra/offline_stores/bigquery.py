@@ -503,7 +503,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                 temp_dest_table = f"{tmp_dest['projectId']}.{tmp_dest['datasetId']}.{tmp_dest['tableId']}"
 
                 # persist temp table
-                sql = f"CREATE TABLE {dest} AS SELECT * FROM {temp_dest_table}"
+                sql = f"CREATE TABLE `{dest}` AS SELECT * FROM {temp_dest_table}"
                 self._execute_query(sql, timeout=timeout)
 
             print(f"Done writing to '{dest}'.")
@@ -663,7 +663,7 @@ def _upload_entity_df(
     job: Union[bigquery.job.query.QueryJob, bigquery.job.load.LoadJob]
 
     if isinstance(entity_df, str):
-        job = client.query(f"CREATE TABLE {table_name} AS ({entity_df})")
+        job = client.query(f"CREATE TABLE `{table_name}` AS ({entity_df})")
 
     elif isinstance(entity_df, pd.DataFrame):
         # Drop the index so that we don't have unnecessary columns
