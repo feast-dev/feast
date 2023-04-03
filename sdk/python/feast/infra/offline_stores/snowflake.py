@@ -109,6 +109,9 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     blob_export_location: Optional[str] = None
     """ Location (in S3, Google storage or Azure storage) where data is offloaded """
 
+    convert_timestamp_columns: Optional[bool] = None
+    """ Convert timestamp columns on export to a Parquet-supported format """
+
     class Config:
         allow_population_by_field_name = True
 
@@ -152,6 +155,29 @@ class SnowflakeOfflineStore(OfflineStore):
             + '"'
         )
 
+        if config.offline_store.convert_timestamp_columns:
+            select_fields = list(
+                map(
+                    lambda field_name: f'"{field_name}"',
+                    join_key_columns + feature_name_columns,
+                )
+            )
+            select_timestamps = list(
+                map(
+                    lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}",
+                    timestamp_columns,
+                )
+            )
+            inner_field_string = ", ".join(select_fields + select_timestamps)
+        else:
+            select_fields = list(
+                map(
+                    lambda field_name: f'"{field_name}"',
+                    join_key_columns + feature_name_columns + timestamp_columns,
+                )
+            )
+            inner_field_string = ", ".join(select_fields)
+
         if data_source.snowflake_options.warehouse:
             config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
@@ -166,7 +192,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 {field_string}
                 {f''', TRIM({repr(DUMMY_ENTITY_VAL)}::VARIANT,'"') AS "{DUMMY_ENTITY_ID}"''' if not join_key_columns else ""}
             FROM (
-                SELECT {field_string},
+                SELECT {inner_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS "_feast_row"
                 FROM {from_expression}
                 WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
@@ -533,7 +559,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self.to_snowflake(table)
 
         query = f"""
-            COPY INTO '{self.config.offline_store.blob_export_location}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
+            COPY INTO '{self.export_path}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
               STORAGE_INTEGRATION = {self.config.offline_store.storage_integration_name}\n
               FILE_FORMAT = (TYPE = PARQUET)
               DETAILED_OUTPUT = TRUE
