@@ -1,0 +1,98 @@
+name: fork-pr-integration-tests-snowflake
+
+on: [pull_request]
+
+jobs:
+  integration-test-python:
+    if: github.repository == 'your github repo' # swap here with your project id
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.8" ]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.0
+
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<22.1"
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V libarrow-dev
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Setup Redis Cluster
+        run: |
+          docker pull vishnunair/docker-redis-cluster:latest
+          docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
+      - name: Test python
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
+        env:
+          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
+          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
+          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
+          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
+          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+        # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
+        run: |
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp"
+

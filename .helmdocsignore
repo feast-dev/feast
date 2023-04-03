@@ -1,0 +1,6 @@
+infra/charts/feast/charts/postgresql
+infra/charts/feast/charts/kafka
+infra/charts/feast/charts/redis
+infra/charts/feast/charts/prometheus-statsd-exporter
+infra/charts/feast/charts/prometheus
+infra/charts/feast/charts/grafana

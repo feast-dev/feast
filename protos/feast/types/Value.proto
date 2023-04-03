@@ -1,0 +1,109 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package feast.types;
+
+option java_package = "feast.proto.types";
+option java_outer_classname = "ValueProto";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
+
+message ValueType {
+  enum Enum {
+    INVALID = 0;
+    BYTES = 1;
+    STRING = 2;
+    INT32 = 3;
+    INT64 = 4;
+    DOUBLE = 5;
+    FLOAT = 6;
+    BOOL = 7;
+    UNIX_TIMESTAMP = 8;
+    BYTES_LIST = 11;
+    STRING_LIST = 12;
+    INT32_LIST = 13;
+    INT64_LIST = 14;
+    DOUBLE_LIST = 15;
+    FLOAT_LIST = 16;
+    BOOL_LIST = 17;
+    UNIX_TIMESTAMP_LIST = 18;
+    NULL = 19;
+  }
+}
+
+message Value {
+  // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
+  // The enum values do not have to match the oneof val field ids, but they should.
+  // In JSON "*_val" field can be omitted
+  oneof val {
+    bytes bytes_val = 1;
+    string string_val = 2;
+    int32 int32_val = 3;
+    int64 int64_val = 4;
+    double double_val = 5;
+    float float_val = 6;
+    bool bool_val = 7;
+    int64 unix_timestamp_val = 8;
+    BytesList bytes_list_val = 11;
+    StringList string_list_val = 12;
+    Int32List int32_list_val = 13;
+    Int64List int64_list_val = 14;
+    DoubleList double_list_val = 15;
+    FloatList float_list_val = 16;
+    BoolList bool_list_val = 17;
+    Int64List unix_timestamp_list_val = 18;
+    Null null_val = 19;
+  }
+}
+
+enum Null {
+  NULL = 0;
+}
+
+message BytesList {
+  repeated bytes val = 1;
+}
+
+message StringList {
+  repeated string val = 1;
+}
+
+message Int32List {
+  repeated int32 val = 1;
+}
+
+message Int64List {
+  repeated int64 val = 1;
+}
+
+message DoubleList {
+  repeated double val = 1;
+}
+
+message FloatList {
+  repeated float val = 1;
+}
+
+message BoolList {
+  repeated bool val = 1;
+}
+
+// This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
+// In JSON "val" field can be omitted
+message RepeatedValue {
+  repeated Value val = 1;
+}

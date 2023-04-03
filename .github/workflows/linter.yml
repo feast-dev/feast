@@ -1,0 +1,41 @@
+name: linter
+
+on: [push, pull_request]
+
+jobs:
+  lint-python:
+    runs-on: [ubuntu-latest]
+    env:
+      PYTHON: 3.8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade pip
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install dependencies
+        run: |
+          make install-python-ci-dependencies
+      - name: Lint python
+        run: make lint-python

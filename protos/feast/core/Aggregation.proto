@@ -1,0 +1,15 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "AggregationProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/duration.proto";
+
+message Aggregation {
+    string column = 1;
+    string function = 2;
+    google.protobuf.Duration time_window = 3;
+    google.protobuf.Duration slide_interval = 4;
+}

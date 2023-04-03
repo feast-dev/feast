@@ -1,0 +1,86 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+package feast.core;
+
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "FeatureTableProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "feast/core/DataSource.proto";
+import "feast/core/Feature.proto";
+
+message FeatureTable {
+    // User-specified specifications of this feature table.
+    FeatureTableSpec spec = 1;
+
+    // System-populated metadata for this feature table.
+    FeatureTableMeta meta = 2;
+}
+
+message FeatureTableSpec {
+    // Name of the feature table. Must be unique. Not updated.
+    string name = 1;
+
+    // Name of Feast project that this feature table belongs to.
+    string project = 9;
+    
+    // List names of entities to associate with the Features defined in this 
+    // Feature Table. Not updatable.
+    repeated string entities = 3;
+
+    // List of features specifications for each feature defined with this feature table.
+    repeated FeatureSpecV2 features = 4;
+
+    // User defined metadata
+    map<string,string> labels = 5;
+
+    // Features in this feature table can only be retrieved from online serving
+    // younger than max age. Age is measured as the duration of time between 
+    // the feature's event timestamp and when the feature is retrieved
+    // Feature values outside max age will be returned as unset values and indicated to end user
+    google.protobuf.Duration max_age = 6;
+
+    // Batch/Offline DataSource to source batch/offline feature data.
+    // Only batch DataSource can be specified 
+    // (ie source type should start with 'BATCH_')
+    DataSource batch_source = 7;
+
+    // Stream/Online DataSource to source stream/online feature data.
+    // Only stream DataSource can be specified 
+    // (ie source type should start with 'STREAM_')
+    DataSource stream_source = 8;
+}
+
+message FeatureTableMeta {
+    // Time where this Feature Table is created
+    google.protobuf.Timestamp created_timestamp = 1;
+
+    // Time where this Feature Table is last updated
+    google.protobuf.Timestamp last_updated_timestamp = 2;
+
+    // Auto incrementing revision no. of this Feature Table
+    int64 revision = 3;
+
+    // Hash entities, features, batch_source and stream_source to inform JobService if
+    // jobs should be restarted should hash change
+    string hash = 4;
+}

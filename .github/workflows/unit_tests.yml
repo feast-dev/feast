@@ -1,0 +1,76 @@
+name: unit-tests
+
+on: [pull_request]
+jobs:
+  unit-test-python:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.8", "3.9", "3.10" ]
+        os: [ ubuntu-latest, macOS-latest ]
+        exclude:
+          - os: macOS-latest
+            python-version: "3.9"
+          - os: macOS-latest
+            python-version: "3.10"
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Install mysql on macOS
+        if:  startsWith(matrix.os, 'macOS')
+        run: |
+          brew install mysql
+          PATH=$PATH:/usr/local/mysql/bin
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade pip
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Test Python
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
+
+
+  unit-test-ui:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Run yarn tests
+        working-directory: ./ui
+        run: yarn test --watchAll=false

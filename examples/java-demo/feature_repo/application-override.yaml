@@ -1,0 +1,27 @@
+feature-server:
+    application-override.yaml:
+        enabled: true
+        feast:
+            activeStore: online
+            stores:
+            - name: online
+              type: REDIS
+              config:
+                host: my-redis-master
+                port: 6379
+                password: [YOUR PASSWORD]
+            entityKeySerializationVersion: 2
+    # Uncomment below for dev
+#    image:
+#      tag: dev
+
+# Uncomment below for dev
+#transformation-service:
+#  image:
+#    tag: dev
+
+global:
+  registry:
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
+    cache_ttl_seconds: 60
+  project: feast_java_demo

@@ -1,0 +1,182 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  get-version:
+    if: github.repository == 'feast-dev/feast'
+    runs-on:  ubuntu-latest
+    outputs:
+      release_version: ${{ steps.get_release_version.outputs.release_version }}
+      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get release version
+        id: get_release_version
+        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+      - name: Get release version without prefix
+        id: get_release_version_without_prefix
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
+      - name: Get highest semver
+        id: get_highest_semver
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          source infra/scripts/setup-common-functions.sh
+          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+          fi
+      - name: Check output
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+        run: |
+          echo $RELEASE_VERSION
+          echo $VERSION_WITHOUT_PREFIX
+          echo $HIGHEST_SEMVER_TAG
+
+  build-publish-docker-images:
+    runs-on: ubuntu-latest
+    needs: [get-version, publish-python-sdk]
+    strategy:
+      matrix:
+        component: [feature-server, feature-server-python-aws, feature-server-java, feature-transformation-server]
+    env:
+      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+      REGISTRY: feastdev
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Use gcloud CLI
+        run: gcloud info
+      - run: gcloud auth configure-docker --quiet
+      - name: Build image
+        run: |
+          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
+      - name: Push versioned images
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
+        run: |
+          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+
+          echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+          if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
+          then
+            docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/${{ matrix.component }}:latest
+            docker push feastdev/${{ matrix.component }}:latest
+          fi
+
+  publish-helm-charts:
+    if: github.repository == 'feast-dev/feast'
+    runs-on:  ubuntu-latest
+    needs: get-version
+    env:
+      HELM_VERSION: v3.8.0
+      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - run: gcloud auth configure-docker --quiet
+      - name: Remove previous Helm
+        run: sudo rm -rf $(which helm)
+      - name: Install Helm
+        run: ./infra/scripts/helm/install-helm.sh
+      - name: Validate Helm chart prior to publishing
+        run: ./infra/scripts/helm/validate-helm-chart-publish.sh
+      - name: Validate all version consistency
+        run: ./infra/scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
+      - name: Publish Helm charts
+        run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
+
+  build_wheels:
+    uses: ./.github/workflows/build_wheels.yml
+
+  publish-python-sdk:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    needs: [build_wheels]
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_PASSWORD }}
+
+  publish-java-sdk:
+    if: github.repository == 'feast-dev/feast'
+    container: maven:3.6-jdk-11
+    runs-on: ubuntu-latest
+    needs: get-version
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+          java-package: jdk
+          architecture: x64
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-it-maven-
+      - name: Publish java sdk
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
+        run: |
+          echo -n "$GPG_PUBLIC_KEY" > /root/public-key
+          echo -n "$GPG_PRIVATE_KEY" > /root/private-key
+          mkdir -p /root/.m2/
+          echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
+          infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root

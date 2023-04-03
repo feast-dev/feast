@@ -1,0 +1,69 @@
+name: pr-local-integration-tests
+# This runs local tests with containerized stubs of online stores. This is the main dev workflow
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+jobs:
+  integration-test-python-local:
+    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) ||
+      github.repository != 'feast-dev/feast'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.8" ]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade pip
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Test local integration tests
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
+        env:
+          FEAST_USAGE: "False"
+          IS_TEST: "True"
+          FEAST_LOCAL_ONLINE_CONTAINER: "True"
+          FEAST_IS_LOCAL_TEST: "True"
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not gcs_registry and not s3_registry and not test_lambda_materialization and not test_snowflake_materialization" sdk/python/tests

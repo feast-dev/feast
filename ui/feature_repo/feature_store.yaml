@@ -1,0 +1,7 @@
+registry: registry.db
+project: credit_scoring_aws
+provider: local
+online_store:
+  type: sqlite
+offline_store:
+  type: file

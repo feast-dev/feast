@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=60", "wheel", "setuptools_scm>=6.2", "grpcio", "grpcio-tools>=1.47.0", "mypy-protobuf==3.1", "sphinx!=4.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+# Including this section is comparable to supplying use_scm_version=True in setup.py.
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | pb2.py
+    | \.pyi
+    | protos
+    | sdk/python/feast/embedded_go/lib
+  )/
+)
+'''

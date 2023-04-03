@@ -1,0 +1,42 @@
+feast:
+  project: ""
+  registry: "prompt_dory/data/registry.db"
+  registryRefreshInterval: 0
+
+  # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
+  # will be deprecated in order to allow multiple stores to be served from a single serving instance
+  activeStore: online
+  
+  # List of store configurations
+  stores:
+      # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
+    - name: online # Name of the store (referenced by active_store)
+      type: REDIS # Type of the store. REDIS, REDIS_CLUSTER are available options
+      config:  # Store specific configuration. See
+        host: localhost
+        port: 6379
+      # Subscriptions indicate which feature sets needs to be retrieved and used to populate this store
+    - name: online_cluster
+      type: REDIS_CLUSTER
+      config:  # Store specific configuration.
+        # Connection string specifies the host:port of Redis instances in the redis cluster.
+        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
+        read_from: MASTER
+        # Redis operation timeout in ISO-8601 format
+        timeout: PT0.5S
+  tracing:
+    # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
+    # which can be useful to debug performance issues and perform benchmarking
+    enabled: false
+    # Only Jaeger tracer is supported currently
+    # https://opentracing.io/docs/supported-tracers/
+    tracerName: jaeger
+    # The service name identifier for the tracing data
+    serviceName: feast_serving
+
+grpc:
+  server:
+    # The port number Feast Serving GRPC service should listen on
+    # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
+    # which defaults to port 6565
+    port: 6566

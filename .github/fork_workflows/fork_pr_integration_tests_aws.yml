@@ -1,0 +1,161 @@
+name: fork-pr-integration-tests-aws
+
+on: [pull_request]
+
+jobs:
+  build-docker-image:
+    if: github.repository == 'your github repo' # swap here with your project id
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Set ECR image tag
+        id: image-tag
+        run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
+      - name: Cache Public ECR Image
+        id: lambda_python_3_9
+        uses: actions/cache@v2
+        with:
+          path: ~/cache
+          key: lambda_python_3_9
+      - name: Handle Cache Miss (pull public ECR image & save it to tar file)
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/cache
+          docker pull public.ecr.aws/lambda/python:3.9
+          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+      - name: Handle Cache Hit (load docker image from tar file)
+        if: steps.cache-primes.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/cache/lambda_python_3_9.tar
+      - name: Build and push
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: feast-python-server
+        run: |
+          docker build \
+            --file sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }} \
+            --load \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
+    outputs:
+      DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
+  integration-test-python:
+    if: github.repository == 'your github repo' # swap here with your project id
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.8" ]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.0
+      - name: Set up AWS SDK
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Use AWS CLI
+        run: aws sts get-caller-identity
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<22.1"
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V libarrow-dev
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Setup Redis Cluster
+        run: |
+          docker pull vishnunair/docker-redis-cluster:latest
+          docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
+      - name: Test python
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
+        env:
+          FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
+        run: |
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery"
+
+

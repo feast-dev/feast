@@ -1,0 +1,37 @@
+# This file is different from the CODEOWNERS file.
+# OWNERS is used by feast-ci-bot to accept commands like `/ok-to-test` and `/lgtm`
+# More info at https://www.kubernetes.dev/docs/guide/owners/
+approvers:
+  - woop
+  - achals
+  - adchia
+  - felixwang9817
+  - MattDelac
+  - kevjumba
+  - chhabrakadabra
+  - gbmarc1
+  - sfc-gh-madkins
+  - zhilingc
+  - whoahbot
+  - niklasvm
+  - toping4445
+  - DvirDukhan
+  - hemidactylus
+reviewers:
+  - woop
+  - achals
+  - tedhtchang
+  - adchia
+  - felixwang9817
+  - MattDelac
+  - kevjumba
+  - chhabrakadabra
+  - gbmarc1
+  - sfc-gh-madkins
+  - zhilingc
+  - whoahbot
+  - niklasvm
+  - toping4445
+  - DvirDukhan
+  - hemidactylus
+  

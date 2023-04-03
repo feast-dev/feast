@@ -1,0 +1,25 @@
+name: lint-pr
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+jobs:
+  validate-title:
+    if: github.repository == 'feast-dev/feast'
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v4
+        with:
+          # Must use uppercase
+          subjectPattern: ^(?=[A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            starts with an uppercase character.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
