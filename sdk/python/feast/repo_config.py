@@ -130,6 +130,30 @@ class RegistryConfig(FeastBaseModel):
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
 
+class SqlRegistryConfig(FeastBaseModel):
+    """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
+
+    registry_type: StrictStr = "sql"
+    """ str: Provider name or a class name that implements Registry."""
+
+    registry_store_type: Optional[StrictStr]
+    """ str: Provider name or a class name that implements RegistryStore. """
+
+    path: StrictStr = ""
+    """ str: Path to metadata store.
+        If registry_type is 'file', then an be a local path, or remote object storage path, e.g. a GCS URI
+        If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
+
+    cache_ttl_seconds: StrictInt = 600
+    """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
+     the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
+     set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
+     expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
+
+    s3_additional_kwargs: Optional[Dict[str, str]]
+    """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 

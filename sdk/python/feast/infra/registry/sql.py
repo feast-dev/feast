@@ -60,7 +60,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.repo_config import RegistryConfig
+from feast.repo_config import SqlRegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -181,7 +181,7 @@ feast_metadata = Table(
 class SqlRegistry(BaseRegistry):
     def __init__(
         self,
-        registry_config: Optional[RegistryConfig],
+        registry_config: Optional[SqlRegistryConfig],
         project: str,
         repo_path: Optional[Path],
     ):
