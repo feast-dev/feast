@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from typeguard import typechecked
@@ -45,7 +46,6 @@ class SnowflakeSource(DataSource):
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
             database (optional): Snowflake database where the features are stored.
-            warehouse (optional): Snowflake warehouse where the database is stored.
             schema (optional): Snowflake schema in which the table is located.
             table (optional): Snowflake table where the features are stored. Exactly one of 'table'
                 and 'query' must be specified.
@@ -60,6 +60,14 @@ class SnowflakeSource(DataSource):
             owner (optional): The owner of the snowflake source, typically the email of the primary
                 maintainer.
         """
+
+        if warehouse:
+            warnings.warn(
+                "Specifying a warehouse within a SnowflakeSource is to be deprecated."
+                "Starting v0.32.0, the warehouse as part of the Snowflake store config will be used.",
+                RuntimeWarning,
+            )
+
         if table is None and query is None:
             raise ValueError('No "table" or "query" argument provided.')
         if table and query:
@@ -73,7 +81,6 @@ class SnowflakeSource(DataSource):
             schema=_schema,
             table=table,
             query=query,
-            warehouse=warehouse,
         )
 
         # If no name, use the table as the default name.
@@ -109,7 +116,6 @@ class SnowflakeSource(DataSource):
             database=data_source.snowflake_options.database,
             schema=data_source.snowflake_options.schema,
             table=data_source.snowflake_options.table,
-            warehouse=data_source.snowflake_options.warehouse,
             created_timestamp_column=data_source.created_timestamp_column,
             field_mapping=dict(data_source.field_mapping),
             query=data_source.snowflake_options.query,
@@ -134,7 +140,6 @@ class SnowflakeSource(DataSource):
             and self.schema == other.schema
             and self.table == other.table
             and self.query == other.query
-            and self.warehouse == other.warehouse
         )
 
     @property
@@ -156,11 +161,6 @@ class SnowflakeSource(DataSource):
     def query(self):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
-
-    @property
-    def warehouse(self):
-        """Returns the warehouse of this snowflake source."""
-        return self.snowflake_options.warehouse
 
     def to_proto(self) -> DataSourceProto:
         """
@@ -335,13 +335,11 @@ class SnowflakeOptions:
         schema: Optional[str],
         table: Optional[str],
         query: Optional[str],
-        warehouse: Optional[str],
     ):
         self.database = database or ""
         self.schema = schema or ""
         self.table = table or ""
         self.query = query or ""
-        self.warehouse = warehouse or ""
 
     @classmethod
     def from_proto(cls, snowflake_options_proto: DataSourceProto.SnowflakeOptions):
@@ -359,7 +357,6 @@ class SnowflakeOptions:
             schema=snowflake_options_proto.schema,
             table=snowflake_options_proto.table,
             query=snowflake_options_proto.query,
-            warehouse=snowflake_options_proto.warehouse,
         )
 
         return snowflake_options
@@ -376,7 +373,6 @@ class SnowflakeOptions:
             schema=self.schema,
             table=self.table,
             query=self.query,
-            warehouse=self.warehouse,
         )
 
         return snowflake_options_proto
@@ -393,7 +389,6 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
             schema=None,
             table=table_ref,
             query=None,
-            warehouse=None,
         )
 
     @staticmethod
