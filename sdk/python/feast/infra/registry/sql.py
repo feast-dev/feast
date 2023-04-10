@@ -191,7 +191,7 @@ class SqlRegistryConfig(RegistryConfig):
 class SqlRegistry(BaseRegistry):
     def __init__(
         self,
-        registry_config: Optional[SqlRegistryConfig],
+        registry_config: Optional[Union[RegistryConfig, SqlRegistryConfig]],
         project: str,
         repo_path: Optional[Path],
     ):
