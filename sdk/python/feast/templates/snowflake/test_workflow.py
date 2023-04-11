@@ -11,10 +11,11 @@ from feast.data_source import PushMode
 
 
 def run_demo():
-    store = FeatureStore(repo_path="./feature_repo")
     print("\n--- Run feast apply to setup feature store on Snowflake ---")
     command = "cd feature_repo; feast apply"
     subprocess.run(command, shell=True)
+
+    store = FeatureStore(repo_path="./feature_repo")
 
     print("\n--- Historical features for training ---")
     fetch_historical_features_entity_df(store, for_batch_scoring=False)
