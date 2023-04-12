@@ -245,6 +245,7 @@ class RedshiftSource(DataSource):
             statement_id = aws_utils.execute_redshift_statement(
                 client,
                 config.offline_store.cluster_id,
+                config.offline_store.workgroup,
                 self.database if self.database else config.offline_store.database,
                 config.offline_store.user,
                 f"SELECT * FROM ({self.query}) LIMIT 1",

@@ -75,10 +75,10 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
 )
 def execute_redshift_statement_async(
     redshift_data_client,
-    cluster_id: str,
-    workgroup: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     query: str,
 ) -> dict:
     """Execute Redshift statement asynchronously. Does not wait for the query to finish.
@@ -100,7 +100,7 @@ def execute_redshift_statement_async(
         rs_kwargs = {"Database": database, "Sql": query}
 
         # Standard Redshift requires a ClusterId as well as DbUser.  RS Serverless instead requires a WorkgroupName.
-        if cluster_id:
+        if cluster_id and user:
             rs_kwargs["ClusterIdentifier"] = cluster_id
             rs_kwargs["DbUser"] = user
         elif workgroup:
@@ -145,10 +145,10 @@ def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
 
 def execute_redshift_statement(
     redshift_data_client,
-    cluster_id: str,
-    workgroup: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     query: str,
 ) -> str:
     """Execute Redshift statement synchronously. Waits for the query to finish.
@@ -210,10 +210,10 @@ def upload_df_to_s3(
 
 def upload_df_to_redshift(
     redshift_data_client,
-    cluster_id: str,
-    workgroup: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     s3_path: str,
     iam_role: str,
@@ -287,10 +287,10 @@ def delete_redshift_table(
 def upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
     redshift_data_client,
-    cluster_id: str,
-    workgroup: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     iam_role: str,
     s3_path: str,
@@ -507,10 +507,10 @@ def delete_s3_directory(s3_resource, bucket: str, key: str):
 
 def execute_redshift_query_and_unload_to_s3(
     redshift_data_client,
-    cluster_id: str,
-    workgroup: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_path: str,
     iam_role: str,
     query: str,

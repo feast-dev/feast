@@ -318,6 +318,7 @@ class RedshiftOfflineStore(OfflineStore):
             table=data,
             redshift_data_client=redshift_client,
             cluster_id=config.offline_store.cluster_id,
+            workgroup=config.offline_store.workgroup,
             database=config.offline_store.database,
             user=config.offline_store.user,
             s3_resource=s3_resource,
@@ -360,6 +361,7 @@ class RedshiftOfflineStore(OfflineStore):
             table=table,
             redshift_data_client=redshift_client,
             cluster_id=config.offline_store.cluster_id,
+            workgroup=config.offline_store.workgroup,
             database=redshift_options.database
             # Users can define database in the source if needed but it's not required.
             or config.offline_store.database,
