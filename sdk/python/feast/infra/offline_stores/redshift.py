@@ -20,7 +20,7 @@ import pyarrow
 import pyarrow as pa
 from dateutil import parser
 from pydantic import StrictStr, root_validator
-from pydantic.typing import Literal, Optional
+from pydantic.typing import Literal
 from pytz import utc
 
 from feast import OnDemandFeatureView, RedshiftSource
