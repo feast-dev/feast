@@ -345,6 +345,13 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 
 @log_exceptions_and_usage
+def teardown_project(repo_config: RepoConfig, repo_path: Path):
+    # Cannot pass in both repo_path and repo_config to FeatureStore.
+    feature_store = FeatureStore(repo_path=repo_path, config=None)
+    feature_store.teardown_project()
+
+
+@log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.registry

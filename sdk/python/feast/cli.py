@@ -45,6 +45,7 @@ from feast.repo_operations import (
     plan,
     registry_dump,
     teardown,
+    teardown_project
 )
 from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
@@ -546,6 +547,20 @@ def teardown_command(ctx: click.Context):
     repo_config = load_repo_config(repo, fs_yaml_file)
 
     teardown(repo_config, repo)
+
+
+@cli.command("teardown-project", cls=NoOptionDefaultFormat)
+@click.pass_context
+def teardown_project_command(ctx: click.Context):
+    """
+    Tear down deployed feature store infrastructure for project
+    """
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
+
+    teardown_project(repo_config, repo)
 
 
 @cli.command("registry-dump")

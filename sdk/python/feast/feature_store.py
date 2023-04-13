@@ -1013,6 +1013,18 @@ class FeatureStore:
         self._registry.teardown()
 
     @log_exceptions_and_usage
+    def teardown_project(self):
+        """Tears down all local and cloud resources for the feature store project defined."""
+        tables: List[FeatureView] = []
+        feature_views = self.list_feature_views()
+
+        tables.extend(feature_views)
+
+        entities = self.list_entities()
+
+        self._get_provider().teardown_infra(self.project, tables, entities)
+
+    @log_exceptions_and_usage
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
