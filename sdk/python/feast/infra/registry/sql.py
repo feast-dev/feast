@@ -429,7 +429,7 @@ class SqlRegistry(BaseRegistry):
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_validation_references(
-                self.cached_registry_proto
+                self.cached_registry_proto, project
             )
         return self._list_objects(
             table=validation_references,

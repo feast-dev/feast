@@ -85,16 +85,16 @@ class TrinoRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
         results = self._client.execute_query(query_text=self._query)
         self.pyarrow_schema = results.pyarrow_schema
         return results.to_dataframe()
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
         return pyarrow.Table.from_pandas(
-            self._to_df_internal(), schema=self.pyarrow_schema
+            self._to_df_internal(timeout=timeout), schema=self.pyarrow_schema
         )
 
     def to_sql(self) -> str:

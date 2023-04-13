@@ -13,6 +13,11 @@ on:
         required: true
         default: ""
         type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
 
@@ -87,7 +92,7 @@ jobs:
 
 
   publish-web-ui-npm:
-    if: github.repository == 'feast-dev/feast'
+    if: github.repository == 'feast-dev/feast' && github.event.inputs.publish_ui == 'true'
     needs: [validate_version_bumps, get_dry_release_versions]
     runs-on: ubuntu-latest
     env:
@@ -110,7 +115,6 @@ jobs:
         working-directory: ./ui
         run: yarn build:lib
       - name: Publish UI package
-        if: github.event.inputs.dry_run == 'false'
         working-directory: ./ui
         run: npm publish
         env:

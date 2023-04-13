@@ -42,7 +42,12 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [mysql.md](mysql.md)
 {% endcontent-ref %}
 
-{% content-ref url="mysql.md" %}
+{% content-ref url="rockset.md" %}
 [rockset.md](rockset.md)
 {% endcontent-ref %}
+
+{% content-ref url="hazelcast.md" %}
+[hazelcast.md](hazelcast.md)
+{% endcontent-ref %}
+
 

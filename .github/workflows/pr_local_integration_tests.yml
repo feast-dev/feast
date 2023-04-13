@@ -40,7 +40,7 @@ jobs:
           architecture: x64
       - name: Upgrade pip version
         run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
+          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -57,15 +57,6 @@ jobs:
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
         run: pip install pip-tools
-      - name: Install apache-arrow on ubuntu
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V libarrow-dev
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test local integration tests

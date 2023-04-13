@@ -174,6 +174,10 @@ class Registry(BaseRegistry):
             from feast.infra.registry.sql import SqlRegistry
 
             return SqlRegistry(registry_config, project, repo_path)
+        elif registry_config and registry_config.registry_type == "snowflake.registry":
+            from feast.infra.registry.snowflake import SnowflakeRegistry
+
+            return SnowflakeRegistry(registry_config, project, repo_path)
         else:
             return super(Registry, cls).__new__(cls)
 
@@ -731,7 +735,7 @@ class Registry(BaseRegistry):
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_validation_references(registry_proto)
+        return proto_registry_utils.list_validation_references(registry_proto, project)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         registry_proto = self._prepare_registry_for_changes(project)

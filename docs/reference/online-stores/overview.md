@@ -34,7 +34,7 @@ Details for each specific online store, such as how to configure it in a `featur
 
 Below is a matrix indicating which online stores support what functionality.
 
-| | Sqlite | Redis | DynamoDB | Snowflake | Datastore | Postgres | Hbase | Cassandra |
+| | Sqlite | Redis | DynamoDB | Snowflake | Datastore | Postgres | Hbase | [[Cassandra](https://cassandra.apache.org/_/index.html) / [Astra DB](https://www.datastax.com/products/datastax-astra?utm_source=feast)] |
 | :-------------------------------------------------------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | write feature values to the online store                  | yes | yes | yes | yes | yes | yes | yes | yes |
 | read feature values from the online store                 | yes | yes | yes | yes | yes | yes | yes | yes |

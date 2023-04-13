@@ -46,6 +46,18 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     These environment variables can be used to reference Kubernetes secrets.
     """
 
+    image_pull_secrets: List[dict] = []
+    """ (optional) The secrets to use when pulling the image to run for the materialization job """
+
+    resources: dict = {}
+    """ (optional) The resource requests and limits for the materialization containers """
+
+    service_account_name: StrictStr = ""
+    """ (optional) The service account name to use when running the job """
+
+    annotations: dict = {}
+    """ (optional) Annotations to apply to the job container. Useful for linking the service account to IAM roles, operational metadata, etc  """
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -248,9 +260,14 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "parallelism": pods,
                 "completionMode": "Indexed",
                 "template": {
+                    "metadata": {
+                        "annotations": self.batch_engine_config.annotations,
+                    },
                     "spec": {
                         "restartPolicy": "Never",
                         "subdomain": f"dataflow-{job_id}",
+                        "imagePullSecrets": self.batch_engine_config.image_pull_secrets,
+                        "serviceAccountName": self.batch_engine_config.service_account_name,
                         "initContainers": [
                             {
                                 "env": [
@@ -300,7 +317,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                         "protocol": "TCP",
                                     }
                                 ],
-                                "resources": {},
+                                "resources": self.batch_engine_config.resources,
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
                                     "capabilities": {
@@ -334,7 +351,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "name": f"feast-{job_id}",
                             },
                         ],
-                    }
+                    },
                 },
             },
         }

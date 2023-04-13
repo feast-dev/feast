@@ -2,7 +2,7 @@
 
 ## Description
 
-The [Cassandra / Astra DB] online store provides support for materializing feature values into an Apache Cassandra / Astra DB database for online features.
+The [[Cassandra](https://cassandra.apache.org/_/index.html) / [Astra DB](https://www.datastax.com/products/datastax-astra?utm_source=feast)] online store provides support for materializing feature values into an Apache Cassandra / Astra DB database for online features.
 
 * The whole project is contained within a Cassandra keyspace
 * Each feature view is mapped one-to-one to a specific Cassandra table

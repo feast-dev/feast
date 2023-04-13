@@ -24,19 +24,19 @@ TRINO_VERSION ?= 376
 
 # General
 
-format: format-python format-java format-go
+format: format-python format-java
 
-lint: lint-python lint-java lint-go
+lint: lint-python lint-java
 
-test: test-python test-java test-go
+test: test-python test-java
 
-protos: compile-protos-go compile-protos-python compile-protos-docs
+protos: compile-protos-python compile-protos-docs
 
 build: protos build-java build-docker
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
+install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 	COMPILE_GO=true python setup.py develop
 
@@ -259,6 +259,27 @@ test-python-universal-cassandra:
 	python -m pytest -x --integration \
 	sdk/python/tests
 
+test-python-universal-hazelcast:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.hazelcast_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
 test-python-universal-cassandra-no-cloud-providers:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
@@ -280,9 +301,6 @@ test-python-universal-cassandra-no-cloud-providers:
 
 test-python-universal:
 	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
-
-test-python-go-server: compile-go-lib
-	FEAST_USAGE=False IS_TEST=True pytest --integration --goserver sdk/python/tests
 
 format-python:
 	# Sort
@@ -334,48 +352,15 @@ test-trino-plugin-locally:
 kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
 
-# Go SDK & embedded
-
-install-go-proto-dependencies:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
-
-install-go-ci-dependencies:
-	# TODO: currently gopy installation doesn't work w/o explicit go get in the next line
-	# TODO: there should be a better way to install gopy
-	go get github.com/go-python/gopy@v0.4.4
-	go install golang.org/x/tools/cmd/goimports
-	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
-	# but the following command is needed to install it for some reason.
-	go install github.com/go-python/gopy
-	python -m pip install pybindgen==0.22.0 protobuf==3.20.1
-
 install-protoc-dependencies:
 	pip install --ignore-installed protobuf grpcio-tools==1.47.0 mypy-protobuf==3.1.0
-
-compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
-	python setup.py build_go_protos
-
-compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
 
-# Needs feast package to setup the feature store
-# CGO flag is due to this issue: https://github.com/golang/go/wiki/InvalidFlag
-test-go: compile-protos-go compile-protos-python  compile-go-lib install-feast-ci-locally
-	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
-
-format-go:
-	gofmt -s -w go/
-
-lint-go: compile-protos-go compile-go-lib
-	go vet -tags cgo,ccalloc ./go/internal/feast ./go/embedded
-
 # Docker
 
-build-docker: build-feature-server-python-docker build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
+build-docker: build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)

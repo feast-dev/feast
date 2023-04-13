@@ -23,6 +23,8 @@ To configure secrets, first create them using `kubectl`:
 kubectl create secret generic -n bytewax aws-credentials --from-literal=aws-access-key-id='<access key id>' --from-literal=aws-secret-access-key='<secret access key>'
 ```
 
+If your Docker registry requires authentication to store/pull containers, you can use this same approach to store your repository access credential and use when running the materialization engine.
+
 Then configure them in the batch_engine section of `feature_store.yaml`:
 
 ``` yaml
@@ -40,6 +42,8 @@ batch_engine:
         secretKeyRef:
           name: aws-credentials
           key: aws-secret-access-key
+  image_pull_secrets:
+    - docker-repository-access-secret
 ```
 
 #### Configuration
@@ -51,9 +55,28 @@ batch_engine:
   type: bytewax
   namespace: bytewax
   image: bytewax/bytewax-feast:latest
+  image_pull_secrets:
+    - my_container_secret
+  service_account_name: my-k8s-service-account
+  annotations:
+    # example annotation you might include if running on AWS EKS
+    iam.amazonaws.com/role: arn:aws:iam::<account number>:role/MyBytewaxPlatformRole
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2048Mi
+    requests:
+      cpu: 500m
+      memory: 1024Mi
 ```
 
-The `namespace` configuration directive specifies which Kubernetes [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) jobs, services and configuration maps will be created in.
+**Notes:**
+
+* The `namespace` configuration directive specifies which Kubernetes [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) jobs, services and configuration maps will be created in.
+* The `image_pull_secrets` configuration directive specifies the pre-configured secret to use when pulling the image container from your registry
+* The `service_account_name` specifies which Kubernetes service account to run the job under
+* `annotations` allows you to include additional Kubernetes annotations to the job. This is particularly useful for IAM roles which grant the running pod access to cloud platform resources (for example).
+* The `resources` configuration directive sets the standard Kubernetes [resource requests](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for the job containers to utilise when materializing data.
 
 #### Building a custom Bytewax Docker image
 

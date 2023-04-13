@@ -37,7 +37,6 @@ class IntegrationTestRepoConfig:
     full_feature_names: bool = True
     infer_features: bool = False
     python_feature_server: bool = False
-    go_feature_serving: bool = False
 
     def __repr__(self) -> str:
         if not self.online_store_creator:
@@ -61,7 +60,6 @@ class IntegrationTestRepoConfig:
                 f"{self.offline_store_creator.__name__.split('.')[-1].replace('DataSourceCreator', '')}",
                 online_store_type,
                 f"python_fs:{self.python_feature_server}",
-                f"go_fs:{self.go_feature_serving}",
             ]
         )
 
@@ -77,6 +75,5 @@ class IntegrationTestRepoConfig:
             and self.online_store == other.online_store
             and self.offline_store_creator == other.offline_store_creator
             and self.online_store_creator == other.online_store_creator
-            and self.go_feature_serving == other.go_feature_serving
             and self.python_feature_server == other.python_feature_server
         )

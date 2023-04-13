@@ -52,13 +52,15 @@ jobs:
           echo $HIGHEST_SEMVER_TAG
 
   build-python-wheel:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
+    name: Build wheels
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
@@ -67,52 +69,9 @@ jobs:
       - name: Build UI
         run: make build-ui
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.7.0
-        env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* cp37-* *-musllinux_x86_64 cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go version
-            yum -y update &&
-            yum install -y epel-release || yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1).noarch.rpm &&
-            yum install -y https://apache.jfrog.io/artifactory/arrow/centos/$(cut -d: -f5 /etc/system-release-cpe | cut -d. -f1)/apache-arrow-release-latest.rpm &&
-            yum install -y --enablerepo=epel arrow-devel # For C++
-          CIBW_BEFORE_ALL_MACOS: |
-            brew install apache-arrow
-            brew install pkg-config
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            make install-go-proto-dependencies
-            make install-go-ci-dependencies
-            git status
-            git restore go.mod go.sum
-            git restore sdk/python/feast/ui/yarn.lock
-          CIBW_BEFORE_TEST: "cd {project} && git status"
-      # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881.
-      - name: Build py310 specific wheels for macos
-        if: matrix.os == 'macos-10.15'
-        uses: pypa/cibuildwheel@v2.7.0
-        env:
-          CIBW_BUILD: "cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          # Need this environment variable because of this issue: https://github.com/pypa/cibuildwheel/issues/952.
-          CIBW_ENVIRONMENT: >
-            _PYTHON_HOST_PLATFORM=macosx-10.15-x86_64
-          # There's a `git restore` in here because remnant go.mod, go.sum changes from the build mess up the wheel naming.
-          CIBW_BEFORE_BUILD: |
-            git status
-            git restore go.mod go.sum
-            git restore sdk/python/feast/ui/yarn.lock
-            brew install apache-arrow
-            brew install pkg-config
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir wheelhouse/
       - uses: actions/upload-artifact@v2
         with:
           name: wheels
@@ -139,8 +98,6 @@ jobs:
         run: |
           pip install -U pip setuptools wheel twine
           make install-protoc-dependencies
-          make install-go-proto-dependencies
-          make install-go-ci-dependencies
           make build-ui
           git status
           git restore go.mod go.sum
@@ -203,13 +160,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '>=1.17.0'
       - uses: actions/download-artifact@v2
         with:
           name: wheels
           path: dist
+      - name: Install OS X dependencies
+        if: matrix.os == 'macos-10.15'
+        run: brew install coreutils
       - name: Install wheel
         if: ${{ !matrix.from-source }}
         # try to install all wheels; only the current platform wheel should be actually installed
@@ -217,36 +174,10 @@ jobs:
           cd dist/
           pip install wheel
           for f in *.whl; do pip install $f || true; done
-      - name: Install apache-arrow on ubuntu
-        if: ${{ matrix.from-source && matrix.os == 'ubuntu-latest' }}
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V libarrow-dev
-      - name: Install apache-arrow on macos
-        if: ${{ matrix.from-source && matrix.os == 'macos-10.15' && matrix.python-version != '3.10' }}
-        run: |
-            brew install apache-arrow
-            brew install pkg-config
-      - name: Install dist with go
-        if: ${{ matrix.from-source && (matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest')}}
-        env:
-          COMPILE_GO: "True"
-        run: |
-          pip install 'grpcio-tools==1.47.0' 'pybindgen==0.22.0'
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
-          pip install dist/*tar.gz
-      # py3.10 on MacOS does not work with Go so we have to install separately. Issue is tracked here: https://github.com/feast-dev/feast/issues/2881
-      - name: Install dist w/o go
-        if: ${{ matrix.from-source && matrix.python-version == '3.10' && matrix.os == 'macos-10.15'}}
+      - name: Install sdist
+        # try to install the sdist
+        if: ${{ matrix.from-source }}
         run: pip install dist/*tar.gz
-      - name: Install OS X dependencies
-        if: matrix.os == 'macos-10.15'
-        run: brew install coreutils
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
         run: |
@@ -269,13 +200,3 @@ jobs:
           echo "$TEST_SCRIPT" > run-and-wait.sh
           bash run-and-wait.sh feast serve
           bash run-and-wait.sh feast ui
-      # We disable this test for the Python 3.10 binary since it does not include Go.
-      - name: Smoke test with go
-        if: matrix.python-version != '3.10' || matrix.os == 'ubuntu-latest'
-        run: |
-          cd test_repo/feature_repo
-          feast apply
-          echo "$TEST_SCRIPT" > run-and-wait.sh
-          pip install cffi
-          printf "\ngo_feature_serving: True" >> feature_store.yaml
-          bash run-and-wait.sh feast serve

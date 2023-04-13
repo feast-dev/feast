@@ -136,8 +136,8 @@ taxi_entity = Entity(name='taxi', join_keys=['taxi_id'])
 ```python
 trips_stats_fv = BatchFeatureView(
     name='trip_stats',
-    entities=['taxi'],
-    features=[
+    entities=[taxi_entity],
+    schema=[
         Field(name="total_miles_travelled", dtype=Float64),
         Field(name="total_trip_seconds", dtype=Float64),
         Field(name="total_earned", dtype=Float64),
@@ -154,17 +154,17 @@ trips_stats_fv = BatchFeatureView(
 
 ```python
 @on_demand_feature_view(
-    schema=[
-        Field("avg_fare", Float64),
-        Field("avg_speed", Float64),
-        Field("avg_trip_seconds", Float64),
-        Field("earned_per_hour", Float64),
-    ],
     sources=[
       trips_stats_fv,
+    ],
+    schema=[
+        Field(name="avg_fare", dtype=Float64),
+        Field(name="avg_speed", dtype=Float64),
+        Field(name="avg_trip_seconds", dtype=Float64),
+        Field(name="earned_per_hour", dtype=Float64),
     ]
 )
-def on_demand_stats(inp):
+def on_demand_stats(inp: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame()
     out["avg_fare"] = inp["total_earned"] / inp["trip_count"]
     out["avg_speed"] = 3600 * inp["total_miles_travelled"] / inp["total_trip_seconds"]
@@ -647,7 +647,7 @@ Now we can create validation reference from dataset and profiler function:
 
 
 ```python
-validation_reference = ds.as_reference(profiler=stats_profiler)
+validation_reference = ds.as_reference(name="validation_reference_dataset", profiler=stats_profiler)
 ```
 
 and test it against our existing retrieval job

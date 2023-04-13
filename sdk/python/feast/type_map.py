@@ -300,7 +300,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
-    ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_}),
+    ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
 }
 
 
@@ -405,9 +405,14 @@ def _python_value_to_proto_value(
             if (sample == 0 or sample == 0.0) and feast_value_type != ValueType.BOOL:
                 # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
                 # So, if value is 0, type validation must pass if scalar_types are either int or float.
-                assert type(sample) in [np.int64, int, np.float64, float]
+                allowed_types = {np.int64, int, np.float64, float}
+                assert (
+                    type(sample) in allowed_types
+                ), f"Type `{type(sample)}` not in {allowed_types}"
             else:
-                assert type(sample) in valid_scalar_types
+                assert (
+                    type(sample) in valid_scalar_types
+                ), f"Type `{type(sample)}` not in {valid_scalar_types}"
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [

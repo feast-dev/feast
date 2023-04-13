@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 import glob
-import json
 import os
 import pathlib
 import re
@@ -21,11 +19,9 @@ import shutil
 import subprocess
 import sys
 from distutils.cmd import Command
-from distutils.dir_util import copy_tree
 from pathlib import Path
-from subprocess import CalledProcessError
 
-from setuptools import Extension, find_packages
+from setuptools import find_packages
 
 try:
     from setuptools import setup
@@ -60,7 +56,7 @@ REQUIRED = [
     "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<9",
+    "pyarrow>=4,<12",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -70,7 +66,7 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard",
+    "typeguard==2.13.3",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
@@ -95,7 +91,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",
@@ -110,7 +106,7 @@ SPARK_REQUIRED = [
 ]
 
 TRINO_REQUIRED = [
-    "trino>=0.305.0,<0.400.0",
+    "trino>=0.305.0,<0.400.0", "regex"
 ]
 
 POSTGRES_REQUIRED = [
@@ -127,11 +123,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.14.0,<0.15.0"]
-
-GO_REQUIRED = [
-    "cffi~=1.15.0",
-]
+GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -145,6 +137,10 @@ ROCKSET_REQUIRED = [
     "rockset>=1.0.3",
 ]
 
+HAZELCAST_REQUIRED = [
+    "hazelcast-python-client>=5.1",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -156,7 +152,7 @@ CI_REQUIRED = (
         "grpcio-testing>=1.47.0",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto<4",
+        "moto",
         "mypy>=0.981,<0.990",
         "mypy-protobuf==3.1",
         "avro==1.10.0",
@@ -203,6 +199,7 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
+    + HAZELCAST_REQUIRED
 )
 
 
@@ -316,93 +313,12 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
-def _generate_path_with_gopath():
-    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
-    go_path = go_path.strip()
-    path_val = os.getenv("PATH")
-    path_val = f"{path_val}:{go_path}/bin"
-
-    return path_val
-
-
-def _ensure_go_and_proto_toolchain():
-    try:
-        version = subprocess.check_output(["go", "version"])
-    except Exception as e:
-        raise RuntimeError("Unable to find go toolchain") from e
-
-    semver_string = re.search(r"go[\S]+", str(version)).group().lstrip("go")
-    parts = semver_string.split(".")
-    if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
-        raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
-
-    path_val = _generate_path_with_gopath()
-
-    try:
-        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
-        subprocess.check_call(
-            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
-        )
-    except Exception as e:
-        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
-
-
-class BuildGoProtosCommand(Command):
-    description = "Builds the proto files into Go files."
-    user_options = []
-
-    def initialize_options(self):
-        self.go_protoc = [
-            sys.executable,
-            "-m",
-            "grpc_tools.protoc",
-        ]  # find_executable("protoc")
-        self.proto_folder = os.path.join(repo_root, "protos")
-        self.go_folder = os.path.join(repo_root, "go/protos")
-        self.sub_folders = PROTO_SUBDIRS
-        self.path_val = _generate_path_with_gopath()
-
-    def finalize_options(self):
-        pass
-
-    def _generate_go_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-
-        try:
-            subprocess.check_call(
-                self.go_protoc
-                + [
-                    "-I",
-                    self.proto_folder,
-                    "--go_out",
-                    self.go_folder,
-                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
-                    "--go-grpc_out",
-                    self.go_folder,
-                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
-                ]
-                + proto_files,
-                env={"PATH": self.path_val},
-            )
-        except CalledProcessError as e:
-            print(f"Stderr: {e.stderr}")
-            print(f"Stdout: {e.stdout}")
-
-    def run(self):
-        go_dir = Path(repo_root) / "go" / "protos"
-        go_dir.mkdir(exist_ok=True)
-        for sub_folder in self.sub_folders:
-            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
-
 
 class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
-            self.run_command("build_go_protos")
 
         self.run_command("build_ext")
         build_py.run(self)
@@ -414,97 +330,8 @@ class DevelopCommand(develop):
     def run(self):
         self.reinitialize_command("build_python_protos", inplace=1)
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
-            self.run_command("build_go_protos")
 
         develop.run(self)
-
-
-class build_ext(_build_ext):
-    def finalize_options(self) -> None:
-        super().finalize_options()
-        if os.getenv("COMPILE_GO", "false").lower() == "false":
-            self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
-
-    def _is_go_ext(self, ext: Extension):
-        return any(
-            source.endswith(".go") or source.startswith("github")
-            for source in ext.sources
-        )
-
-    def build_extension(self, ext: Extension):
-        print(f"Building extension {ext}")
-        if not self._is_go_ext(ext):
-            # the base class may mutate `self.compiler`
-            compiler = copy.deepcopy(self.compiler)
-            self.compiler, compiler = compiler, self.compiler
-            try:
-                return _build_ext.build_extension(self, ext)
-            finally:
-                self.compiler, compiler = compiler, self.compiler
-
-        bin_path = _generate_path_with_gopath()
-        go_env = json.loads(
-            subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
-        )
-
-        print(f"Go env: {go_env}")
-        print(f"CWD: {os.getcwd()}")
-
-        destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(
-            ["go", "install", "golang.org/x/tools/cmd/goimports"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            ["go", "get", "github.com/go-python/gopy@v0.4.4"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            ["go", "install", "github.com/go-python/gopy"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            [
-                "gopy",
-                "build",
-                "-output",
-                destination,
-                "-vm",
-                sys.executable,
-                "--build-tags",
-                "cgo,ccalloc",
-                "--dynamic-link=True",
-                "-no-make",
-                *ext.sources,
-            ],
-            env={
-                "PATH": bin_path,
-                "CGO_LDFLAGS_ALLOW": ".*",
-                **go_env,
-            },
-        )
-
-    def copy_extensions_to_source(self):
-        build_py = self.get_finalized_command("build_py")
-        for ext in self.extensions:
-            fullname = self.get_ext_fullname(ext.name)
-            modpath = fullname.split(".")
-            package = ".".join(modpath[:-1])
-            package_dir = build_py.get_package_dir(package)
-
-            src_dir = dest_dir = package_dir
-
-            if src_dir.startswith(PYTHON_CODE_PREFIX):
-                src_dir = package_dir[len(PYTHON_CODE_PREFIX) :]
-            src_dir = src_dir.lstrip("/")
-
-            src_dir = os.path.join(self.build_lib, src_dir)
-
-            # copy whole directory
-            print(f"Copying from {src_dir} to {dest_dir}")
-            copy_tree(src_dir, dest_dir)
 
 
 setup(
@@ -537,9 +364,9 @@ setup(
         "mysql": MYSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
-        "go": GO_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
+        "hazelcast": HAZELCAST_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -562,15 +389,7 @@ setup(
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
-        "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
-        "build_ext": build_ext,
     },
-    ext_modules=[
-        Extension(
-            "feast.embedded_go.lib._embedded",
-            ["github.com/feast-dev/feast/go/embedded"],
-        )
-    ],
 )

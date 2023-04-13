@@ -48,8 +48,8 @@ from feast.infra.offline_stores.snowflake_source import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
+    GetSnowflakeConnection,
     execute_snowflake_statement,
-    get_snowflake_conn,
     write_pandas,
     write_parquet,
 )
@@ -74,13 +74,13 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for Snowflake"""
 
     type: Literal["snowflake.offline"] = "snowflake.offline"
-    """ Offline store type selector"""
+    """ Offline store type selector """
 
     config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
     """ Snowflake config path -- absolute path required (Cant use ~)"""
 
     account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com"""
+    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
 
     user: Optional[str] = None
     """ Snowflake user name """
@@ -89,7 +89,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     """ Snowflake password """
 
     role: Optional[str] = None
-    """ Snowflake role name"""
+    """ Snowflake role name """
 
     warehouse: Optional[str] = None
     """ Snowflake warehouse name """
@@ -108,6 +108,9 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     blob_export_location: Optional[str] = None
     """ Location (in S3, Google storage or Azure storage) where data is offloaded """
+
+    convert_timestamp_columns: Optional[bool] = None
+    """ Convert timestamp columns on export to a Parquet-supported format """
 
     class Config:
         allow_population_by_field_name = True
@@ -152,10 +155,34 @@ class SnowflakeOfflineStore(OfflineStore):
             + '"'
         )
 
+        if config.offline_store.convert_timestamp_columns:
+            select_fields = list(
+                map(
+                    lambda field_name: f'"{field_name}"',
+                    join_key_columns + feature_name_columns,
+                )
+            )
+            select_timestamps = list(
+                map(
+                    lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}",
+                    timestamp_columns,
+                )
+            )
+            inner_field_string = ", ".join(select_fields + select_timestamps)
+        else:
+            select_fields = list(
+                map(
+                    lambda field_name: f'"{field_name}"',
+                    join_key_columns + feature_name_columns + timestamp_columns,
+                )
+            )
+            inner_field_string = ", ".join(select_fields)
+
         if data_source.snowflake_options.warehouse:
             config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
@@ -165,7 +192,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 {field_string}
                 {f''', TRIM({repr(DUMMY_ENTITY_VAL)}::VARIANT,'"') AS "{DUMMY_ENTITY_ID}"''' if not join_key_columns else ""}
             FROM (
-                SELECT {field_string},
+                SELECT {inner_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS "_feast_row"
                 FROM {from_expression}
                 WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
@@ -208,7 +235,8 @@ class SnowflakeOfflineStore(OfflineStore):
         if data_source.snowflake_options.warehouse:
             config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
@@ -241,7 +269,8 @@ class SnowflakeOfflineStore(OfflineStore):
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         entity_schema = _get_entity_schema(entity_df, snowflake_conn, config)
 
@@ -319,7 +348,8 @@ class SnowflakeOfflineStore(OfflineStore):
     ):
         assert isinstance(logging_config.destination, SnowflakeLoggingDestination)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         if isinstance(data, Path):
             write_parquet(
@@ -359,7 +389,8 @@ class SnowflakeOfflineStore(OfflineStore):
         if table.schema != pa_schema:
             table = table.cast(pa_schema)
 
-        snowflake_conn = get_snowflake_conn(config.offline_store)
+        with GetSnowflakeConnection(config.offline_store) as conn:
+            snowflake_conn = conn
 
         write_pandas(
             snowflake_conn,
@@ -410,7 +441,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
 
             df = execute_snowflake_statement(
@@ -419,7 +450,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return df
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         with self._query_generator() as query:
 
             pa_table = execute_snowflake_statement(
@@ -427,7 +458,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
             ).fetch_arrow_all()
 
             if pa_table:
-
                 return pa_table
             else:
                 empty_result = execute_snowflake_statement(self.snowflake_conn, query)
@@ -529,7 +559,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self.to_snowflake(table)
 
         query = f"""
-            COPY INTO '{self.config.offline_store.blob_export_location}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
+            COPY INTO '{self.export_path}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
               STORAGE_INTEGRATION = {self.config.offline_store.storage_integration_name}\n
               FILE_FORMAT = (TYPE = PARQUET)
               DETAILED_OUTPUT = TRUE

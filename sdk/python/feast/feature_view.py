@@ -400,7 +400,7 @@ class FeatureView(BaseFeatureView):
             feature_view.stream_source = stream_source
 
         # This avoids the deprecation warning.
-        feature_view.entities = feature_view_proto.spec.entities
+        feature_view.entities = list(feature_view_proto.spec.entities)
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [

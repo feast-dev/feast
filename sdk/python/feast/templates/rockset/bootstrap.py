@@ -13,11 +13,13 @@ def bootstrap():
     data_path.mkdir(exist_ok=True)
 
     rockset_apikey = click.prompt(
-        "Rockset Api Key (If blank will be read from ROCKSET_APIKEY in ENV):"
+        "Rockset Api Key (If blank will be read from ROCKSET_APIKEY in ENV):",
+        default="",
     )
 
     rockset_host = click.prompt(
-        "Rockset Host (If blank will be read from ROCKSET_APISERVER in ENV):"
+        "Rockset Host (If blank will be read from ROCKSET_APISERVER in ENV):",
+        default="",
     )
 
     replace_str_in_file(config_file, "ROCKSET_APIKEY", rockset_apikey)
