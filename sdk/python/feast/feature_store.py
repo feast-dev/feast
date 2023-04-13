@@ -1014,7 +1014,7 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def teardown_project(self):
-        """Tears down all local and cloud resources for the feature store project defined."""
+        """Tears down all local and cloud resources for the feature store project defined without removing registry."""
         tables: List[FeatureView] = []
         feature_views = self.list_feature_views()
 
