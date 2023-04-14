@@ -45,7 +45,7 @@ from feast.repo_operations import (
     plan,
     registry_dump,
     teardown,
-    teardown_project
+    teardown_project,
 )
 from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
