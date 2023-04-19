@@ -6,6 +6,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
 } from "@elastic/eui";
+import { CopyBlock, atomOneDark } from "react-code-blocks";
 import { feast } from "../../protos";
 import { toDate } from "../../utils/timestamp";
 
@@ -59,6 +60,24 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                 <EuiDescriptionListDescription>
                   {batchSource.fileOptions ? batchSource.fileOptions.uri : ""}
                 </EuiDescriptionListDescription>
+              </React.Fragment>
+            )}
+            {batchSource.bigqueryOptions && (
+              <React.Fragment>
+                <EuiDescriptionListTitle>Source {batchSource.bigqueryOptions.table ? "Table" : "Query"}</EuiDescriptionListTitle>
+                {batchSource.bigqueryOptions.table ? (
+                    <EuiDescriptionListDescription>
+                        {batchSource.bigqueryOptions.table}
+                    </EuiDescriptionListDescription>
+                ) : <CopyBlock
+                        text={batchSource.bigqueryOptions.query}
+                        language="sql"
+                        showLineNumbers={false}
+                        theme={atomOneDark}
+                        wrapLines
+                    />
+                }
+
               </React.Fragment>
             )}
             {batchSource.meta?.latestEventTimestamp && (
