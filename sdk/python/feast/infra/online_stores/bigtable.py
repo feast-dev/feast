@@ -335,4 +335,8 @@ class BigtableOnlineStore(OnlineStore):
     def _get_client(
         self, online_config: BigtableOnlineStoreConfig, admin: bool = False
     ):
-        return bigtable.Client(project=online_config.project_id, admin=admin)
+        if self._client is None:
+            self._client = bigtable.Client(
+                project=online_config.project_id, admin=admin
+            )
+        return self._client
