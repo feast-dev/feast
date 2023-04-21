@@ -336,5 +336,7 @@ class BigtableOnlineStore(OnlineStore):
         self, online_config: BigtableOnlineStoreConfig, admin: bool = False
     ):
         if self._client is None:
-            self._client = bigtable.Client(project=online_config.project_id, admin=admin)
+            self._client = bigtable.Client(
+                project=online_config.project_id, admin=admin
+            )
         return self._client
