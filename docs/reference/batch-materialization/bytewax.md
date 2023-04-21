@@ -58,6 +58,7 @@ batch_engine:
   image_pull_secrets:
     - my_container_secret
   service_account_name: my-k8s-service-account
+  include_security_context_capabilities: false
   annotations:
     # example annotation you might include if running on AWS EKS
     iam.amazonaws.com/role: arn:aws:iam::<account number>:role/MyBytewaxPlatformRole
@@ -73,8 +74,9 @@ batch_engine:
 **Notes:**
 
 * The `namespace` configuration directive specifies which Kubernetes [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) jobs, services and configuration maps will be created in.
-* The `image_pull_secrets` configuration directive specifies the pre-configured secret to use when pulling the image container from your registry
-* The `service_account_name` specifies which Kubernetes service account to run the job under
+* The `image_pull_secrets` configuration directive specifies the pre-configured secret to use when pulling the image container from your registry.
+* The `service_account_name` specifies which Kubernetes service account to run the job under.
+* The `include_security_context_capabilities` flag indicates whether or not `"add": ["NET_BIND_SERVICE"]` and `"drop": ["ALL"]` are included in the job & pod security context capabilities.
 * `annotations` allows you to include additional Kubernetes annotations to the job. This is particularly useful for IAM roles which grant the running pod access to cloud platform resources (for example).
 * The `resources` configuration directive sets the standard Kubernetes [resource requests](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for the job containers to utilise when materializing data.
 
