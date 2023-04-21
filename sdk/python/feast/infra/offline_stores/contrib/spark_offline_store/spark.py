@@ -417,6 +417,7 @@ class SparkRetrievalJob(RetrievalJob):
 def get_spark_session_or_start_new_with_repoconfig(
     store_config: SparkOfflineStoreConfig,
 ) -> SparkSession:
+
     spark_session = SparkSession.getActiveSession()
     if not spark_session:
         spark_builder = SparkSession.builder

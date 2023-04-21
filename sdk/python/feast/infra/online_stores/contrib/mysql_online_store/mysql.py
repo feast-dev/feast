@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import threading
 import logging
 import time
 
@@ -56,7 +55,8 @@ class MySQLOnlineStore(OnlineStore):
     """
     RB: Connections should not be shared between threads: https://stackoverflow.com/questions/45636492/can-mysqldb-connection-and-cursor-objects-be-safely-used-from-with-multiple-thre
     """
-    _tls = threading.local()
+
+    conn: Connection
 
     def __init__(self) -> None:
         self.dbsession = None
@@ -85,10 +85,8 @@ class MySQLOnlineStore(OnlineStore):
                 ),
                 ConnectionType.SESSION
             )
-
-        if not hasattr(self._tls, 'conn') or not self._tls.conn.open:
-            # RB: be careful, we\'re not using autocommit
-            self._tls.conn = pymysql.connect(
+        elif self.conn is None or not self.conn.open:
+            self.conn = pymysql.connect(
                 host=online_store_config.host or "127.0.0.1",
                 user=online_store_config.user or "test",
                 password=online_store_config.password or "test",
@@ -96,8 +94,9 @@ class MySQLOnlineStore(OnlineStore):
                 port=online_store_config.port or 3306,
                 autocommit=False,
             )
-        assert self._tls.conn.get_autocommit() is False
-        return self._tls.conn, ConnectionType.RAW
+            assert self.conn.get_autocommit() is False
+            return self.conn, ConnectionType.RAW
+        return self.conn, ConnectionType.RAW
 
     def _close_conn(self, conn: Connection, conn_type: ConnectionType) -> None:
         if conn_type == ConnectionType.SESSION:
@@ -106,6 +105,11 @@ class MySQLOnlineStore(OnlineStore):
             except Exception as exc:
                 if str(exc) != 'Already closed':
                     raise exc
+        else:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def _execute_query_with_retry(self, cur: Cursor,
                                         conn: Connection,
