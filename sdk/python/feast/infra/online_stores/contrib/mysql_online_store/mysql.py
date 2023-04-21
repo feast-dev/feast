@@ -95,7 +95,6 @@ class MySQLOnlineStore(OnlineStore):
                 autocommit=False,
             )
             assert self.conn.get_autocommit() is False
-            return self.conn, ConnectionType.RAW
         return self.conn, ConnectionType.RAW
 
     def _close_conn(self, conn: Connection, conn_type: ConnectionType) -> None:
