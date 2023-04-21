@@ -884,4 +884,7 @@ class Registry(BaseRegistry):
         request_fvs = {
             fv.spec.name: fv for fv in self.cached_registry_proto.request_feature_views
         }
-        return {**odfvs, **fvs, **request_fvs}
+        sfv = {
+            fv.spec.name: fv for fv in self.cached_registry_proto.stream_feature_views
+        }
+        return {**odfvs, **fvs, **request_fvs, **sfv}
