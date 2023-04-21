@@ -35,6 +35,7 @@ def bootstrap():
         aws_utils.execute_redshift_statement(
             client,
             cluster_id,
+            None,
             database,
             user,
             "DROP TABLE IF EXISTS feast_driver_hourly_stats",
@@ -43,6 +44,7 @@ def bootstrap():
         aws_utils.upload_df_to_redshift(
             client,
             cluster_id,
+            None,
             database,
             user,
             s3,

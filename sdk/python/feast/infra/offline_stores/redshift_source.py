@@ -207,18 +207,30 @@ class RedshiftSource(DataSource):
         if self.table:
             try:
                 paginator = client.get_paginator("describe_table")
-                response_iterator = paginator.paginate(
-                    ClusterIdentifier=config.offline_store.cluster_id,
-                    Database=(
+
+                paginator_kwargs = {
+                    "Database": (
                         self.database
                         if self.database
                         else config.offline_store.database
                     ),
-                    DbUser=config.offline_store.user,
-                    Table=self.table,
-                    Schema=self.schema,
-                )
+                    "Table": self.table,
+                    "Schema": self.schema,
+                }
+
+                if config.offline_store.cluster_id:
+                    # Provisioned cluster
+                    paginator_kwargs[
+                        "ClusterIdentifier"
+                    ] = config.offline_store.cluster_id
+                    paginator_kwargs["Dbuser"] = config.offline_store.user
+                elif config.offline_store.workgroup:
+                    # Redshift serverless
+                    paginator_kwargs["WorkgroupName"] = config.offline_store.workgroup
+
+                response_iterator = paginator.paginate(**paginator_kwargs)
                 table = response_iterator.build_full_result()
+
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ValidationException":
                     raise RedshiftCredentialsError() from e

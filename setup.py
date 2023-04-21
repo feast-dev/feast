@@ -53,7 +53,8 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<3",
     "pandas>=1.4.3,<2",
-    "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "pandavro~=1.5.0",
     "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<12",
@@ -71,7 +72,8 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
-    "httpx>=0.23.3",  # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    "httpx>=0.23.3",
 ]
 
 GCP_REQUIRED = [
@@ -311,7 +313,6 @@ class BuildPythonProtosCommand(Command):
                 # Write the file out again
                 with open(path, "w") as file:
                     file.write(filedata)
-
 
 
 class BuildCommand(build_py):
