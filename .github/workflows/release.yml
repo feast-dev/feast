@@ -116,6 +116,7 @@ jobs:
         run: yarn build:lib
       - name: Publish UI package
         working-directory: ./ui
+        if: github.event.inputs.dry_run == 'false'
         run: npm publish
         env:
           # This publish is working using an NPM automation token to bypass 2FA
