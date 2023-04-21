@@ -456,8 +456,8 @@ class BigQueryRetrievalJob(RetrievalJob):
     def to_bigquery(
         self,
         job_config: Optional[bigquery.QueryJobConfig] = None,
-        timeout: int = 1800,
-        retry_cadence: int = 10,
+        timeout: Optional[int] = 1800,
+        retry_cadence: Optional[int] = 10,
     ) -> str:
         """
         Synchronously executes the underlying query and exports the result to a BigQuery table. The
@@ -530,11 +530,17 @@ class BigQueryRetrievalJob(RetrievalJob):
         block_until_done(client=self.client, bq_job=bq_job, timeout=timeout or 1800)
         return bq_job
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
         assert isinstance(storage, SavedDatasetBigQueryStorage)
 
         self.to_bigquery(
-            bigquery.QueryJobConfig(destination=storage.bigquery_options.table)
+            bigquery.QueryJobConfig(destination=storage.bigquery_options.table),
+            timeout=timeout,
         )
 
     @property

@@ -344,7 +344,12 @@ class SparkRetrievalJob(RetrievalJob):
         """Return dataset as pyarrow Table synchronously"""
         return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         Please note the persisting is done only within the scope of the spark session.

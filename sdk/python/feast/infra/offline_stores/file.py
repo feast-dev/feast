@@ -88,7 +88,12 @@ class FileRetrievalJob(RetrievalJob):
         df = self.evaluation_function().compute()
         return pyarrow.Table.from_pandas(df)
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
         assert isinstance(storage, SavedDatasetFileStorage)
 
         # Check if the specified location already exists.

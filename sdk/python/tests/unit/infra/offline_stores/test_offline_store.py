@@ -67,7 +67,12 @@ class MockRetrievalJob(RetrievalJob):
         """Returns a list containing all the on demand feature views to be handled."""
         pass
 
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: Optional[int] = None,
+    ):
         """
         Synchronously executes the underlying query and persists the result in the same offline store
         at the specified destination.
