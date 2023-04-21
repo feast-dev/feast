@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, List, Optional, Set, Union
 
+from pydantic import StrictStr
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
@@ -164,28 +165,31 @@ def get_registry_tables(metadata : MetaData = MetaData()):
         Column("infra_proto", LargeBinary, nullable=False),
     )
 
-    feast_metadata = Table(
-        "feast_metadata",
-        metadata,
-        Column("project_id", String(50), primary_key=True),
-        Column("metadata_key", String(50), primary_key=True),
-        Column("metadata_value", String(50), nullable=False),
-        Column("last_updated_timestamp", BigInteger, nullable=False),
-    )
-    
-    return entities, data_sources, feature_views, request_feature_views, \
-        stream_feature_views, on_demand_feature_views, feature_services, \
-        saved_datasets, validation_references, managed_infra, feast_metadata
+feast_metadata = Table(
+    "feast_metadata",
+    metadata,
+    Column("project_id", String(50), primary_key=True),
+    Column("metadata_key", String(50), primary_key=True),
+    Column("metadata_value", String(50), nullable=False),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+)
 
 
-class FeastMetadataKeys(Enum):
-        LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
-        PROJECT_UUID = "project_uuid"
+class SqlRegistryConfig(RegistryConfig):
+    registry_type: StrictStr = "sql"
+    """ str: Provider name or a class name that implements Registry."""
+
+    path: StrictStr = ""
+    """ str: Path to metadata store.
+    If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
 
 
 class SqlRegistry(BaseRegistry):
     def __init__(
-        self, registry_config: Optional[RegistryConfig], project: str, repo_path: Optional[Path]
+        self,
+        registry_config: Optional[Union[RegistryConfig, SqlRegistryConfig]],
+        project: str,
+        repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
