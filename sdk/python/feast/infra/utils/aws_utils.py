@@ -74,7 +74,12 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
     reraise=True,
 )
 def execute_redshift_statement_async(
-    redshift_data_client, cluster_id: str, database: str, user: str, query: str
+    redshift_data_client,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
+    database: str,
+    user: Optional[str],
+    query: str,
 ) -> dict:
     """Execute Redshift statement asynchronously. Does not wait for the query to finish.
 
@@ -83,6 +88,7 @@ def execute_redshift_statement_async(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         query: The SQL query to execute
@@ -91,12 +97,17 @@ def execute_redshift_statement_async(
 
     """
     try:
-        return redshift_data_client.execute_statement(
-            ClusterIdentifier=cluster_id,
-            Database=database,
-            DbUser=user,
-            Sql=query,
-        )
+        rs_kwargs = {"Database": database, "Sql": query}
+
+        # Standard Redshift requires a ClusterId as well as DbUser.  RS Serverless instead requires a WorkgroupName.
+        if cluster_id and user:
+            rs_kwargs["ClusterIdentifier"] = cluster_id
+            rs_kwargs["DbUser"] = user
+        elif workgroup:
+            rs_kwargs["WorkgroupName"] = workgroup
+
+        return redshift_data_client.execute_statement(**rs_kwargs)
+
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationException":
             raise RedshiftCredentialsError() from e
@@ -133,7 +144,12 @@ def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
 
 
 def execute_redshift_statement(
-    redshift_data_client, cluster_id: str, database: str, user: str, query: str
+    redshift_data_client,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
+    database: str,
+    user: Optional[str],
+    query: str,
 ) -> str:
     """Execute Redshift statement synchronously. Waits for the query to finish.
 
@@ -144,6 +160,7 @@ def execute_redshift_statement(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup:  Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         query: The SQL query to execute
@@ -152,7 +169,7 @@ def execute_redshift_statement(
 
     """
     statement = execute_redshift_statement_async(
-        redshift_data_client, cluster_id, database, user, query
+        redshift_data_client, cluster_id, workgroup, database, user, query
     )
     wait_for_redshift_statement(redshift_data_client, statement)
     return statement["Id"]
@@ -193,9 +210,10 @@ def upload_df_to_s3(
 
 def upload_df_to_redshift(
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     s3_path: str,
     iam_role: str,
@@ -209,6 +227,7 @@ def upload_df_to_redshift(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         s3_resource: S3 Resource object
@@ -236,6 +255,7 @@ def upload_df_to_redshift(
         table,
         redshift_data_client,
         cluster_id=cluster_id,
+        workgroup=workgroup,
         database=database,
         user=user,
         s3_resource=s3_resource,
@@ -248,6 +268,7 @@ def upload_df_to_redshift(
 def delete_redshift_table(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     table_name: str,
@@ -256,6 +277,7 @@ def delete_redshift_table(
     execute_redshift_statement(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         drop_query,
@@ -265,9 +287,10 @@ def delete_redshift_table(
 def upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     iam_role: str,
     s3_path: str,
@@ -286,6 +309,7 @@ def upload_arrow_table_to_redshift(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         s3_resource: S3 Resource object
@@ -345,6 +369,7 @@ def upload_arrow_table_to_redshift(
         execute_redshift_statement(
             redshift_data_client,
             cluster_id,
+            workgroup,
             database,
             user,
             f"{create_query}; {copy_query};",
@@ -359,6 +384,7 @@ def upload_arrow_table_to_redshift(
 def temporarily_upload_df_to_redshift(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -381,6 +407,7 @@ def temporarily_upload_df_to_redshift(
     upload_df_to_redshift(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_resource,
@@ -396,6 +423,7 @@ def temporarily_upload_df_to_redshift(
     execute_redshift_statement(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         f"DROP TABLE {table_name}",
@@ -407,6 +435,7 @@ def temporarily_upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -431,6 +460,7 @@ def temporarily_upload_arrow_table_to_redshift(
         table,
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_resource,
@@ -447,6 +477,7 @@ def temporarily_upload_arrow_table_to_redshift(
     execute_redshift_statement(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         f"DROP TABLE {table_name}",
@@ -476,9 +507,10 @@ def delete_s3_directory(s3_resource, bucket: str, key: str):
 
 def execute_redshift_query_and_unload_to_s3(
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_path: str,
     iam_role: str,
     query: str,
@@ -488,6 +520,7 @@ def execute_redshift_query_and_unload_to_s3(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless workgroup name
         database: Redshift Database Name
         user: Redshift username
         s3_path: S3 directory where the unloaded data is written
@@ -500,12 +533,15 @@ def execute_redshift_query_and_unload_to_s3(
     unique_table_name = "_" + str(uuid.uuid4()).replace("-", "")
     query = f"CREATE TEMPORARY TABLE {unique_table_name} AS ({query});\n"
     query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
-    execute_redshift_statement(redshift_data_client, cluster_id, database, user, query)
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, workgroup, database, user, query
+    )
 
 
 def unload_redshift_query_to_pa(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -519,6 +555,7 @@ def unload_redshift_query_to_pa(
     execute_redshift_query_and_unload_to_s3(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_path,
@@ -535,6 +572,7 @@ def unload_redshift_query_to_pa(
 def unload_redshift_query_to_df(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -546,6 +584,7 @@ def unload_redshift_query_to_df(
     table = unload_redshift_query_to_pa(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_resource,

@@ -19,7 +19,7 @@ import pandas as pd
 import pyarrow
 import pyarrow as pa
 from dateutil import parser
-from pydantic import StrictStr
+from pydantic import StrictStr, root_validator
 from pydantic.typing import Literal
 from pytz import utc
 
@@ -51,14 +51,17 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["redshift"] = "redshift"
     """ Offline store type selector"""
 
-    cluster_id: StrictStr
-    """ Redshift cluster identifier """
+    cluster_id: Optional[StrictStr]
+    """ Redshift cluster identifier, for provisioned clusters """
+
+    user: Optional[StrictStr]
+    """ Redshift user name, only required for provisioned clusters """
+
+    workgroup: Optional[StrictStr]
+    """ Redshift workgroup identifier, for serverless """
 
     region: StrictStr
     """ Redshift cluster's AWS region """
-
-    user: StrictStr
-    """ Redshift user name """
 
     database: StrictStr
     """ Redshift database name """
@@ -68,6 +71,26 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
 
     iam_role: StrictStr
     """ IAM Role for Redshift, granting it access to S3 """
+
+    @root_validator
+    def require_cluster_and_user_or_workgroup(cls, values):
+        """
+        Provisioned Redshift clusters:  Require cluster_id and user, ignore workgroup
+        Serverless Redshift:  Require workgroup, ignore cluster_id and user
+        """
+        cluster_id, user, workgroup = (
+            values.get("cluster_id"),
+            values.get("user"),
+            values.get("workgroup"),
+        )
+        if not (cluster_id and user) and not workgroup:
+            raise ValueError(
+                "please specify either cluster_id & user if using provisioned clusters, or workgroup if using serverless"
+            )
+        elif cluster_id and workgroup:
+            raise ValueError("cannot specify both cluster_id and workgroup")
+
+        return values
 
 
 class RedshiftOfflineStore(OfflineStore):
@@ -248,6 +271,7 @@ class RedshiftOfflineStore(OfflineStore):
                 aws_utils.execute_redshift_statement(
                     redshift_client,
                     config.offline_store.cluster_id,
+                    config.offline_store.workgroup,
                     config.offline_store.database,
                     config.offline_store.user,
                     f"DROP TABLE IF EXISTS {table_name}",
@@ -294,6 +318,7 @@ class RedshiftOfflineStore(OfflineStore):
             table=data,
             redshift_data_client=redshift_client,
             cluster_id=config.offline_store.cluster_id,
+            workgroup=config.offline_store.workgroup,
             database=config.offline_store.database,
             user=config.offline_store.user,
             s3_resource=s3_resource,
@@ -336,8 +361,10 @@ class RedshiftOfflineStore(OfflineStore):
             table=table,
             redshift_data_client=redshift_client,
             cluster_id=config.offline_store.cluster_id,
+            workgroup=config.offline_store.workgroup,
             database=redshift_options.database
-            or config.offline_store.database,  # Users can define database in the source if needed but it's not required.
+            # Users can define database in the source if needed but it's not required.
+            or config.offline_store.database,
             user=config.offline_store.user,
             s3_resource=s3_resource,
             s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
@@ -405,6 +432,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             return aws_utils.unload_redshift_query_to_df(
                 self._redshift_client,
                 self._config.offline_store.cluster_id,
+                self._config.offline_store.workgroup,
                 self._config.offline_store.database,
                 self._config.offline_store.user,
                 self._s3_resource,
@@ -419,6 +447,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             return aws_utils.unload_redshift_query_to_pa(
                 self._redshift_client,
                 self._config.offline_store.cluster_id,
+                self._config.offline_store.workgroup,
                 self._config.offline_store.database,
                 self._config.offline_store.user,
                 self._s3_resource,
@@ -439,6 +468,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             aws_utils.execute_redshift_query_and_unload_to_s3(
                 self._redshift_client,
                 self._config.offline_store.cluster_id,
+                self._config.offline_store.workgroup,
                 self._config.offline_store.database,
                 self._config.offline_store.user,
                 self._s3_path,
@@ -455,6 +485,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             aws_utils.upload_df_to_redshift(
                 self._redshift_client,
                 self._config.offline_store.cluster_id,
+                self._config.offline_store.workgroup,
                 self._config.offline_store.database,
                 self._config.offline_store.user,
                 self._s3_resource,
@@ -471,6 +502,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             aws_utils.execute_redshift_statement(
                 self._redshift_client,
                 self._config.offline_store.cluster_id,
+                self._config.offline_store.workgroup,
                 self._config.offline_store.database,
                 self._config.offline_store.user,
                 query,
@@ -509,6 +541,7 @@ def _upload_entity_df(
         aws_utils.upload_df_to_redshift(
             redshift_client,
             config.offline_store.cluster_id,
+            config.offline_store.workgroup,
             config.offline_store.database,
             config.offline_store.user,
             s3_resource,
@@ -522,6 +555,7 @@ def _upload_entity_df(
         aws_utils.execute_redshift_statement(
             redshift_client,
             config.offline_store.cluster_id,
+            config.offline_store.workgroup,
             config.offline_store.database,
             config.offline_store.user,
             f"CREATE TABLE {table_name} AS ({entity_df})",
@@ -577,6 +611,7 @@ def _get_entity_df_event_timestamp_range(
         statement_id = aws_utils.execute_redshift_statement(
             redshift_client,
             config.offline_store.cluster_id,
+            config.offline_store.workgroup,
             config.offline_store.database,
             config.offline_store.user,
             f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max "
