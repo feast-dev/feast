@@ -53,11 +53,11 @@ Below is a matrix indicating which functionality is supported by `SnowflakeRetri
 | ----------------------------------------------------- | --------- |
 | export to dataframe                                   | yes       |
 | export to arrow table                                 | yes       |
-| export to arrow batches                               | no        |
+| export to arrow batches                               | yes        |
 | export to SQL                                         | yes       |
 | export to data lake (S3, GCS, etc.)                   | yes       |
 | export to data warehouse                              | yes       |
-| export as Spark dataframe                             | no        |
+| export as Spark dataframe                             | yes       |
 | local execution of Python-based on-demand transforms  | yes       |
 | remote execution of Python-based on-demand transforms | no        |
 | persist results in the offline store                  | yes       |
