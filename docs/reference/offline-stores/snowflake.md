@@ -7,7 +7,7 @@ The [Snowflake](https://trial.snowflake.com) offline store provides support for 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be uploaded to Snowflake as a temporary table in order to complete join operations.
 
 ## Getting started
-In order to use this offline store, you'll need to run `pip install 'feast[snowflake]'`. 
+In order to use this offline store, you'll need to run `pip install 'feast[snowflake]'`.
 
 If you're using a file based registry, then you'll also need to install the relevant cloud extra (`pip install 'feast[snowflake, CLOUD]'` where `CLOUD` is one of `aws`, `gcp`, `azure`)
 
@@ -25,9 +25,10 @@ offline_store:
   account: snowflake_deployment.us-east-1
   user: user_login
   password: user_password
-  role: sysadmin
-  warehouse: demo_wh
+  role: SYSADMIN
+  warehouse: COMPUTE_WH
   database: FEAST
+  schema: PUBLIC
 ```
 {% endcode %}
 
