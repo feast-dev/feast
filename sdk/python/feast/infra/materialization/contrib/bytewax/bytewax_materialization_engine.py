@@ -58,6 +58,9 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     annotations: dict = {}
     """ (optional) Annotations to apply to the job container. Useful for linking the service account to IAM roles, operational metadata, etc  """
 
+    include_security_context_capabilities: bool = True
+    """ (optional)  Include security context capabilities in the init and job container spec """
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -198,6 +201,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             "apiVersion": "v1",
             "metadata": {
                 "name": f"feast-{job_id}",
+                "labels": {
+                    "feast-bytewax-materializer": "configmap",
+                },
             },
             "data": {
                 "feature_store.yaml": feature_store_configuration,
@@ -247,12 +253,22 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         # Add any Feast configured environment variables
         job_env.extend(env)
 
+        securityContextCapabilities = None
+        if self.batch_engine_config.include_security_context_capabilities:
+            securityContextCapabilities = {
+                "add": ["NET_BIND_SERVICE"],
+                "drop": ["ALL"],
+            }
+
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
                 "name": f"dataflow-{job_id}",
                 "namespace": namespace,
+                "labels": {
+                    "feast-bytewax-materializer": "job",
+                },
             },
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
@@ -262,6 +278,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "template": {
                     "metadata": {
                         "annotations": self.batch_engine_config.annotations,
+                        "labels": {
+                            "feast-bytewax-materializer": "pod",
+                        },
                     },
                     "spec": {
                         "restartPolicy": "Never",
@@ -282,10 +301,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "resources": {},
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
-                                    "capabilities": {
-                                        "add": ["NET_BIND_SERVICE"],
-                                        "drop": ["ALL"],
-                                    },
+                                    "capabilities": securityContextCapabilities,
                                     "readOnlyRootFilesystem": True,
                                 },
                                 "terminationMessagePath": "/dev/termination-log",
@@ -320,10 +336,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "resources": self.batch_engine_config.resources,
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
-                                    "capabilities": {
-                                        "add": ["NET_BIND_SERVICE"],
-                                        "drop": ["ALL"],
-                                    },
+                                    "capabilities": securityContextCapabilities,
                                     "readOnlyRootFilesystem": False,
                                 },
                                 "terminationMessagePath": "/dev/termination-log",
