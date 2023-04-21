@@ -164,7 +164,7 @@ class SnowflakeOfflineStore(OfflineStore):
             )
             select_timestamps = list(
                 map(
-                    lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}",
+                    lambda field_name: f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}",
                     timestamp_columns,
                 )
             )
@@ -177,9 +177,6 @@ class SnowflakeOfflineStore(OfflineStore):
                 )
             )
             inner_field_string = ", ".join(select_fields)
-
-        if data_source.snowflake_options.warehouse:
-            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
@@ -231,9 +228,6 @@ class SnowflakeOfflineStore(OfflineStore):
             + '", "'.join(join_key_columns + feature_name_columns + [timestamp_field])
             + '"'
         )
-
-        if data_source.snowflake_options.warehouse:
-            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn

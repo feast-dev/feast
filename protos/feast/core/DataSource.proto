@@ -197,6 +197,8 @@ message DataSource {
 
   // Defines options for DataSource that sources features from a Snowflake Query
   message SnowflakeOptions {
+    reserved 5; // Snowflake warehouse name
+
     // Snowflake table name
     string table = 1;
 
@@ -209,9 +211,6 @@ message DataSource {
 
     // Snowflake schema name
     string database = 4;
-
-    // Snowflake warehouse name
-    string warehouse = 5;
   }
 
   // Defines options for DataSource that sources features from a spark table/query
