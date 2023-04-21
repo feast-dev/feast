@@ -1,5 +1,34 @@
 # Changelog
 
+# [0.31.0](https://github.com/feast-dev/feast/compare/v0.30.0...v0.31.0) (2023-04-21)
+
+
+### Bug Fixes
+
+* Add Stream Feature Views to helper that collect Feature View names ([#3582](https://github.com/feast-dev/feast/issues/3582)) ([7854f63](https://github.com/feast-dev/feast/commit/7854f637160d4d1f4758b83e6c396fe49447e7b7))
+* Add StreamFeatureViewSpec to FeastObjectSpecProto convenience type ([#3550](https://github.com/feast-dev/feast/issues/3550)) ([3cefd6c](https://github.com/feast-dev/feast/commit/3cefd6cf806997be4ea8427bcf4aa9852d6ce038))
+* Batch Snowflake materialization queries to obey Snowpark 100 fea… ([#3406](https://github.com/feast-dev/feast/issues/3406)) ([f9862b5](https://github.com/feast-dev/feast/commit/f9862b565b6c9019ec146871d2fb45590eb31576))
+* Bytewax materializer security context ([#3573](https://github.com/feast-dev/feast/issues/3573)) ([6794338](https://github.com/feast-dev/feast/commit/6794338d0c9405a5a9ba7ef2b47de98cd905474e))
+* **cI:** Install coreutils in mac github workers for smoke test ([#3563](https://github.com/feast-dev/feast/issues/3563)) ([e7421c1](https://github.com/feast-dev/feast/commit/e7421c11172aaafff34da98fc14cf763c2d70002))
+* Fix bug with no SqlRegistryConfig class ([#3586](https://github.com/feast-dev/feast/issues/3586)) ([6dc1368](https://github.com/feast-dev/feast/commit/6dc1368afb66a4231b7513939a7cbf204ab4d46f))
+* Fix Snowflake template ([#3584](https://github.com/feast-dev/feast/issues/3584)) ([6c09c39](https://github.com/feast-dev/feast/commit/6c09c39b64e31dc6e84be566524d6126683f3013))
+* Make snowflake to remote tables temporary ([#3588](https://github.com/feast-dev/feast/issues/3588)) ([ad48146](https://github.com/feast-dev/feast/commit/ad4814643abd28d5b2e119b8ef46ddfdce77424a))
+* Remove snowflake source warehouse tech debt ([#3422](https://github.com/feast-dev/feast/issues/3422)) ([7da0580](https://github.com/feast-dev/feast/commit/7da058085cd1211fb383ff0a6c5ae8f59999c5f0))
+* Snowflake remote storage ([#3574](https://github.com/feast-dev/feast/issues/3574)) ([f8d3890](https://github.com/feast-dev/feast/commit/f8d3890f9f049c4b9190456b071e0fdb29aae69e))
+* Support param timeout when persisting ([#3593](https://github.com/feast-dev/feast/issues/3593)) ([01a98f0](https://github.com/feast-dev/feast/commit/01a98f08e9e6d0aebf41188f2644f49111ea4ca9))
+* Use pyarrow in a way that works across versions ([#3562](https://github.com/feast-dev/feast/issues/3562)) ([1289f3f](https://github.com/feast-dev/feast/commit/1289f3f7eea6bd3b08617606862a75f0224f9f18))
+* Wrap the bigquery table name with backtick. ([#3577](https://github.com/feast-dev/feast/issues/3577)) ([09f0e7e](https://github.com/feast-dev/feast/commit/09f0e7e1011fc451b3bfb94c4b7764007fc69836))
+
+
+### Features
+
+* Add AWS Redshift Serverless support ([#3595](https://github.com/feast-dev/feast/issues/3595)) ([58ce148](https://github.com/feast-dev/feast/commit/58ce148401fe578b1727bc42ee6b4b9a558660c7))
+* Add Hazelcast as an online store ([#3523](https://github.com/feast-dev/feast/issues/3523)) ([b05d50b](https://github.com/feast-dev/feast/commit/b05d50bcfeb179c2596f96f0d0a714754c516361))
+* Cache Bigtable client ([#3602](https://github.com/feast-dev/feast/issues/3602)) ([b27472f](https://github.com/feast-dev/feast/commit/b27472fc1fb42368ffe1556c848dc3b21b2fca0c))
+* Relax aws extras requirements ([#3585](https://github.com/feast-dev/feast/issues/3585)) ([7e77382](https://github.com/feast-dev/feast/commit/7e77382c6b75f514e18b683fef1495fa1fa87308))
+* Show bigquery datasource table and query on UI ([#3600](https://github.com/feast-dev/feast/issues/3600)) ([58d63f7](https://github.com/feast-dev/feast/commit/58d63f7e6b1dde3dcd8893e4448940ea34e671cf))
+* Update snowflake offline store job output formats -- added arrow ([#3589](https://github.com/feast-dev/feast/issues/3589)) ([be3e349](https://github.com/feast-dev/feast/commit/be3e3491d83e337af42e06f75226919904cb5d86))
+
 # [0.30.0](https://github.com/feast-dev/feast/compare/v0.29.0...v0.30.0) (2023-03-24)
 
 
