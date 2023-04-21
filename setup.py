@@ -109,9 +109,7 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
-TRINO_REQUIRED = [
-    "trino>=0.305.0,<0.400.0", "regex"
-]
+TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
@@ -310,7 +308,6 @@ class BuildPythonProtosCommand(Command):
                 # Write the file out again
                 with open(path, "w") as file:
                     file.write(filedata)
-
 
 
 class BuildCommand(build_py):
