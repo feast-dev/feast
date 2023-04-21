@@ -367,6 +367,7 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "rockset": ROCKSET_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
