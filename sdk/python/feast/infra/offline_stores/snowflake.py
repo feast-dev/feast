@@ -556,7 +556,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
             )
 
         table = f"temporary_{uuid.uuid4().hex}"
-        self.to_snowflake(table)
+        self.to_snowflake(table, temporary=True)
 
         query = f"""
             COPY INTO '{self.export_path}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n
