@@ -43,6 +43,7 @@
     "prop-types": "^15.8.1",
     "protobufjs": "^7.1.1",
     "query-string": "^7.1.1",
+    "react-code-blocks": "^0.0.9-0",
     "react-query": "^3.34.12",
     "react-router-dom": "6",
     "react-scripts": "^5.0.0",
