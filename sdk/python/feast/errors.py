@@ -56,14 +56,6 @@ class FeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Feature view {name} does not exist")
 
 
-class InvalidSparkSessionException(Exception):
-    def __init__(self, spark_arg):
-        super().__init__(
-            f" Need Spark Session to convert results to spark data frame\
-               recieved {type(spark_arg)} instead. "
-        )
-
-
 class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

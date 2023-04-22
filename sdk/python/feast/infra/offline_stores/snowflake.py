@@ -28,11 +28,7 @@ from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import (
-    EntitySQLEmptyResults,
-    InvalidEntityType,
-    InvalidSparkSessionException,
-)
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -528,28 +524,22 @@ class SnowflakeRetrievalJob(RetrievalJob):
         """
 
         try:
-            from pyspark.sql import DataFrame, SparkSession
+            from pyspark.sql import DataFrame
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
             raise FeastExtrasDependencyImportError("spark", str(e))
 
-        if isinstance(spark_session, SparkSession):
-            arrow_batches = self.to_arrow_batches()
+        spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
-            if arrow_batches:
-                spark_df = reduce(
-                    DataFrame.unionAll,
-                    [
-                        spark_session.createDataFrame(batch.to_pandas())
-                        for batch in arrow_batches
-                    ],
-                )
-                return spark_df
-            else:
-                raise EntitySQLEmptyResults(self.to_sql())
-        else:
-            raise InvalidSparkSessionException(spark_session)
+        # This can be improved by parallelizing the read of chunks
+        pandas_batches = self.to_pandas_batches()
+
+        spark_df = reduce(
+            DataFrame.unionAll,
+            [spark_session.createDataFrame(batch) for batch in pandas_batches],
+        )
+        return spark_df
 
     def persist(
         self,
