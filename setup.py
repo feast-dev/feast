@@ -96,11 +96,7 @@ AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2"]
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3,<3",
-    # `pyOpenSSL==22.1.0` requires `cryptography<39,>=38.0.0`, which is incompatible
-    # with `snowflake-connector-python[pandas]==2.8.0`, which depends on
-    # `cryptography<37.0.0,>=3.1.0`.
-    "pyOpenSSL<22.1.0",
+    "snowflake-connector-python[pandas]>=3,<4",
 ]
 
 SPARK_REQUIRED = [

@@ -28,6 +28,10 @@ anyio==3.6.2
     #   watchfiles
 appdirs==1.4.4
     # via fissix
+appnope==0.1.3
+    # via
+    #   ipykernel
+    #   ipython
 argon2-cffi==21.3.0
     # via
     #   jupyter-server
@@ -299,8 +303,6 @@ googleapis-common-protos[grpc]==1.59.0
     #   grpcio-status
 great-expectations==0.15.50
     # via feast (setup.py)
-greenlet==2.0.2
-    # via sqlalchemy
 grpc-google-iam-v1==0.12.6
     # via google-cloud-bigtable
 grpcio==1.53.0
@@ -563,6 +565,7 @@ packaging==23.0
     #   nbconvert
     #   pytest
     #   redis
+    #   snowflake-connector-python
     #   sphinx
 pandas==1.5.3
     # via
@@ -654,7 +657,7 @@ py-cpuinfo==9.0.0
     # via pytest-benchmark
 py4j==0.10.9.5
     # via pyspark
-pyarrow==8.0.0
+pyarrow==10.0.1
     # via
     #   db-dtypes
     #   feast (setup.py)
@@ -699,9 +702,7 @@ pymysql==1.0.3
 pyodbc==4.0.35
     # via feast (setup.py)
 pyopenssl==22.0.0
-    # via
-    #   feast (setup.py)
-    #   snowflake-connector-python
+    # via snowflake-connector-python
 pyparsing==3.0.9
     # via
     #   great-expectations
@@ -861,7 +862,7 @@ sniffio==1.3.0
     #   httpx
 snowballstemmer==2.2.0
     # via sphinx
-snowflake-connector-python[pandas]==2.9.0
+snowflake-connector-python[pandas]==3.0.3
     # via feast (setup.py)
 soupsieve==2.4
     # via beautifulsoup4
