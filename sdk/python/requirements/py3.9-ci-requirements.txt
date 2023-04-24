@@ -780,7 +780,7 @@ pyzmq==25.0.2
     #   jupyter-server
     #   nbclassic
     #   notebook
-redis==4.2.2
+redis==4.4.4
     # via feast (setup.py)
 regex==2023.3.23
     # via feast (setup.py)
