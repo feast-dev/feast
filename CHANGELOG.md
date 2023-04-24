@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/feast-dev/feast/compare/v0.31.0...v0.31.1) (2023-04-24)
+
+
+### Bug Fixes
+
+* Clean up snowflake to_spark_df() ([#3607](https://github.com/feast-dev/feast/issues/3607)) ([e8e643e](https://github.com/feast-dev/feast/commit/e8e643e3555127daf37fa4961fdadb0508a041db))
+
 # [0.31.0](https://github.com/feast-dev/feast/compare/v0.30.0...v0.31.0) (2023-04-21)
 
 
