@@ -49,8 +49,6 @@ fissix==21.11.13
     # via bowler
 fsspec==2023.4.0
     # via dask
-greenlet==2.0.2
-    # via sqlalchemy
 grpcio==1.54.0
     # via
     #   feast (setup.py)
