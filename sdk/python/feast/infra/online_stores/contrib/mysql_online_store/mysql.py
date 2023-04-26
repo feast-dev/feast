@@ -176,6 +176,47 @@ class MySQLOnlineStore(OnlineStore):
                                                retries=MYSQL_WRITE_RETRIES)
         self._close_conn(raw_conn, conn_type)
 
+    def bulk_insert(
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            batch_size: int = 10000
+    ) -> None:
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+
+        with conn.cursor() as cur:
+            project = config.project
+            for i in range(0, len(data), batch_size):
+                print(f'Inserting batch {batch} of {batch_size}....')
+                start = time.time()
+                batch = data[i:i + batch_size]
+                rows_to_insert = []
+                for entity_key, values, timestamp, created_ts in batch:
+                    entity_key_bin = serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=2,
+                    ).hex()
+                    timestamp = _to_naive_utc(timestamp)
+                    if created_ts is not None:
+                        created_ts = _to_naive_utc(created_ts)
+
+                    rows_to_insert += [(entity_key_bin, feature_name, val.SerializeToString(), timestamp, created_ts)
+                                      for feature_name, val in values.items()]
+                value_formatters = ', '.join(['(%s, %s, %s, %s, %s)'] * len(rows_to_insert))
+                query = f"""
+                        INSERT INTO {_table_id(project, table)}
+                        (entity_key, feature_name, value, event_ts, created_ts)
+                        VALUES {value_formatters}
+                        """
+                cur.execute(query)
+                conn.commit()
+                end = time.time()
+                print(f'batch elapsed time: {end - start}')
+
     def online_read(
             self,
             config: RepoConfig,

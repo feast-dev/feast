@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Optional, Sequence, Union
@@ -174,15 +175,15 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 )
             )
 
-            spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
-                feature_view=feature_view, repo_config=self.repo_config
-            )
+            #spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+            #    feature_view=feature_view, repo_config=self.repo_config
+            #)
 
             spark_df = offline_job.to_spark_df()
-            if self.repo_config.batch_engine.partitions != 0:
-                spark_df = spark_df.repartition(
-                    self.repo_config.batch_engine.partitions
-                )
+            #if self.repo_config.batch_engine.partitions != 0:
+            #    spark_df = spark_df.repartition(
+            #        self.repo_config.batch_engine.partitions
+            #    )
 
             num_rows = spark_df.count()
             if num_rows == 0:
@@ -195,8 +196,39 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 print(f"start materializing {num_rows} rows to online store")
 
             dill.extend(False)
-            spark_df.foreachPartition(
-                lambda x: _process_by_partition(x, spark_serialized_artifacts)
+            #spark_df.foreachPartition(
+            #    lambda x: _process_by_partition(x, spark_serialized_artifacts)
+            #)
+
+            print('Collecting into Pandas DF...')
+            start = time.time()
+            driver_data = spark_df.toPandas()
+            end = time.time()
+            print(f'toPandas() elapsed time: {end - start}')
+
+            print('Converting Pandas DF into PyArrow Table...')
+            start = time.time()
+            table = pyarrow.Table.from_pandas(driver_data)
+            end = time.time()
+            print(f'Table.from_pandas() elapsed time: {end - start}')
+
+            if feature_view.batch_source.field_mapping is not None:
+                table = _run_pyarrow_field_mapping(
+                    table, feature_view.batch_source.field_mapping
+                )
+
+            join_key_to_value_type = {
+                entity.name: entity.dtype.to_value_type()
+                for entity in feature_view.entity_columns
+            }
+
+            rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
+            provider = PassthroughProvider(self.repo_config)
+            online_store = provider.online_store
+            online_store.bulk_insert(
+                self.repo_config,
+                feature_view,
+                rows_to_write
             )
 
             print("Job is done, stop spark session now.")
