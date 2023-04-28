@@ -311,6 +311,24 @@ class MySQLOnlineStore(OnlineStore):
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
         self._close_conn(raw_conn, conn_type)
 
+    def clear_table(
+            self,
+            config: RepoConfig,
+            table: FeatureView
+    ) -> None:
+        raw_conn, conn_type = self._get_conn(config)
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        with conn.cursor() as cur:
+            table_name = _table_id(config.project, table)
+            try:
+                cur.execute(f"DELETE FROM {table_name};")
+                conn.commit()
+            except pymysql.Error as e:
+                conn.rollback()
+                logging.error("Error %d: %s"
+                              "" % (e.args[0], e.args[1]))
+        self._close_conn(raw_conn, conn_type)
+
     def teardown(
             self,
             config: RepoConfig,
