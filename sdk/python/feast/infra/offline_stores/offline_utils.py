@@ -232,7 +232,7 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
 
 
 def get_pyarrow_schema_from_batch_source(
-    config: RepoConfig, batch_source: DataSource
+    config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
 ) -> Tuple[pa.Schema, List[str]]:
     """Returns the pyarrow schema and column names for the given batch source."""
     column_names_and_types = batch_source.get_table_column_names_and_types(config)
@@ -244,7 +244,8 @@ def get_pyarrow_schema_from_batch_source(
             (
                 column_name,
                 feast_value_type_to_pa(
-                    batch_source.source_datatype_to_feast_value_type()(column_type)
+                    batch_source.source_datatype_to_feast_value_type()(column_type),
+                    timestamp_unit=timestamp_unit,
                 ),
             )
         )
