@@ -39,7 +39,7 @@ The primary entrypoint into the Feast Serving server is `ServingGuiceApplication
 Common Environment Setup for all feast-java Feast components:
 
 Ensure following development tools are installed:
-- Java SE Development Kit 11
+- Java SE Development Kit 11 (you may need to do `export JAVA_HOME=$(/usr/libexec/java_home -v 11)`)
 - Maven 3.6
 - `make`
 

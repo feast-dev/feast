@@ -16,7 +16,7 @@
     - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
   - [Feast Python SDK / CLI](#feast-python-sdk--cli)
     - [Environment Setup](#environment-setup)
-    - [Code Style & Linting](#code-style--linting)
+    - [Code Style \& Linting](#code-style--linting)
     - [Unit Tests](#unit-tests)
     - [Integration Tests](#integration-tests)
       - [Local integration tests](#local-integration-tests)
@@ -33,12 +33,7 @@
   - [Feast Java Serving](#feast-java-serving)
   - [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
     - [Feast Java Feature Server Helm Chart](#feast-java-feature-server-helm-chart)
-    - [Feast Python / Go Feature Server Helm Chart](#feast-python--go-feature-server-helm-chart)
-  - [Feast Go Client](#feast-go-client)
-    - [Go Environment Setup](#go-environment-setup)
-    - [Building Go](#building-go)
-    - [Go Code Style & Linting](#go-code-style--linting)
-    - [Go Unit Tests](#go-unit-tests)
+    - [Feast Python Feature Server Helm Chart](#feast-python-feature-server-helm-chart)
     - [Testing with Github Actions workflows](#testing-with-github-actions-workflows)
   - [Feast Data Storage Format](#feast-data-storage-format)
 ## Overview
@@ -46,7 +41,6 @@ This guide is targeted at developers looking to contribute to Feast components i
 the main Feast repository:
 - [Feast Python SDK / CLI](#feast-python-sdk--cli)
 - [Feast Java Serving](#feast-java-serving)
-- [Feast Go Client](#feast-go-client)
 
 Please see [this page](../reference/codebase-structure.md) for more details on the structure of the entire codebase.
 
@@ -135,7 +129,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 ### Environment Setup
 Setting up your development environment for Feast Python SDK / CLI:
 1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
-   1. Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
+   - Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
 2. Ensure that you have `make`, Python (3.8 and above) with `pip`, installed.
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
   ```sh
@@ -147,13 +141,20 @@ Setting up your development environment for Feast Python SDK / CLI:
   ```sh
   pip install --upgrade pip
   ```
-
-5. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
+5. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
+6. Install pip-tools
+  ```sh
+  pip install piptools
+  ```
+7. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
 ```
 make build-ui
 ```
-
-6. Install development dependencies for Feast Python SDK / CLI
+8. Install mysql (needed for ci dependencies)
+```sh
+brew install mysql
+```
+9. Install development dependencies for Feast Python SDK / CLI
 ```sh
 pip install -e ".[dev]"
 ```
@@ -361,18 +362,17 @@ You can run `test-python-universal-postgres-online` to run all tests against the
 TODO
 
 ## (Experimental) Feast UI
-See [Feast contributing guide](ui/CONTRIBUTING.md)
+See [Feast contributing guide](https://github.com/feast-dev/feast/blob/master/ui/CONTRIBUTING.md)
 
 ## Feast Java Serving
-See [Java contributing guide](java/CONTRIBUTING.md)
+See [Java contributing guide](https://github.com/feast-dev/feast/blob/master/java/CONTRIBUTING.md)
 
 See also development instructions related to the helm chart below at [Developing the Feast Helm charts](#developing-the-feast-helm-charts)
 
 ## Developing the Feast Helm charts
-There are 3 helm charts:
+There are 2 helm charts:
 - Feast Java feature server
-- Feast Python / Go feature server
-- (deprecated) Feast Python feature server
+- Feast Python feature server
 
 Generally, you can override the images in the helm charts with locally built Docker images, and install the local helm
 chart.
@@ -381,58 +381,23 @@ All README's for helm charts are generated using [helm-docs](https://github.com/
 (e.g. with `brew install norwoodj/tap/helm-docs`) and then run `make build-helm-docs`.
 
 ### Feast Java Feature Server Helm Chart
-See the Java demo example (it has development instructions too using minikube) [here](examples/java-demo/README.md)
+See the Java demo example (it has development instructions too using minikube) [here](https://github.com/feast-dev/feast/blob/master/examples/java-demo/README.md)
 
 It will:
 - run `make build-java-docker-dev` to build local Java feature server binaries
 - configure the included `application-override.yaml` to override the image tag to use the locally built dev images.
 - install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
 
-### Feast Python / Go Feature Server Helm Chart
+### Feast Python Feature Server Helm Chart
 See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
 
 It will:
 - run `make build-feature-server-dev` to build a local python feature server binary
 - install the local chart with `helm install feast-release ../../../infra/charts/feast-feature-server --set image.tag=dev --set feature_store_yaml_base64=$(base64 feature_store.yaml)`
 
-## Feast Go Client
-### Go Environment Setup
-Setting up your development environment for Feast Go SDK:
-
-- Install Golang, [`protoc` with the Golang &amp; grpc plugins](https://developers.google.com/protocol-buffers/docs/gotutorial#compiling-your-protocol-buffers)
-
-### Building Go
-Build the Feast Go Client with the `go` toolchain:
-```sh
-make compile-go-lib
-```
-
-### Go Code Style & Linting
-Feast Go Client codebase:
-- Conforms to the code style enforced by `go fmt`.
-- Is lintable by `go vet`.
-
-Autoformat your Go code to satisfy the Code Style standard:
-```sh
-go fmt
-```
-
-Lint your Go code:
-```sh
-go vet
-```
-
-> Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
-
-### Go Unit Tests
-Unit tests for the Feast Go Client can be run as follows:
-```sh
-make test-go
-```
-
 ### Testing with Github Actions workflows
 
-Please refer to the maintainers [doc](./docs/project/maintainers.md) if you would like to locally test out the github actions workflow changes. 
+Please refer to the maintainers [doc](maintainers.md) if you would like to locally test out the github actions workflow changes. 
 This document will help you setup your fork to test the ci integration tests and other workflows without needing to make a pull request against feast-dev master.
 
 ## Feast Data Storage Format
