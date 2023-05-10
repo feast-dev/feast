@@ -142,6 +142,21 @@
         </repository>
     </distributionManagement>
 
+    <profiles>
+        <profile>
+            <id>apple-m1</id>
+            <properties>
+                <os.detected.classifier>osx-x86_64</os.detected.classifier>
+            </properties>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                    <family>mac</family>
+                </os>
+            </activation>
+        </profile>
+    </profiles>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
