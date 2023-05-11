@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm78"
+VERSION = "0.28+affirm79"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -428,7 +428,7 @@ class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
-        # self.run_command("build_python_protos")
+        #self.run_command("build_python_protos")
         if os.getenv("COMPILE_GO", "false").lower() == "true":
             _ensure_go_and_proto_toolchain()
             self.run_command("build_go_protos")
@@ -590,7 +590,7 @@ setup(
         "pybindgen==0.22.0",
     ],
     cmdclass={
-        # "build_python_protos": BuildPythonProtosCommand,
+        "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
