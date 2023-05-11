@@ -2210,7 +2210,7 @@ x
             del online_features_response.metadata.feature_names.val[idx]
             del online_features_response.results[idx]
 
-    @lru_cache
+    @lru_cache(maxsize=128)
     def _get_feature_views_to_use(
         self,
         features: Optional[Union[List[str], FeatureService]],
