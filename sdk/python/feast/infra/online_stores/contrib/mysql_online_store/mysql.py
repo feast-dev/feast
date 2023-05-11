@@ -56,7 +56,7 @@ class MySQLOnlineStore(OnlineStore):
     RB: Connections should not be shared between threads: https://stackoverflow.com/questions/45636492/can-mysqldb-connection-and-cursor-objects-be-safely-used-from-with-multiple-thre
     """
 
-    conn: Connection
+    conn: Optional[Connection] = None
 
     def __init__(self) -> None:
         self.dbsession = None
