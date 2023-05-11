@@ -15,9 +15,9 @@ import copy
 import itertools
 import os
 import warnings
-from functools import lru_cache
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -107,6 +107,16 @@ warnings.simplefilter("once", DeprecationWarning)
 
 if TYPE_CHECKING:
     from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
+
+
+# decorator needed to use lru_cache with list arguments
+def listToTuple(function):
+    def wrapper(*args):
+        args = [tuple(x) if type(x) == list else x for x in args]
+        result = function(*args)
+        result = tuple(result) if type(result) == list else result
+        return result
+    return wrapper
 
 
 class FeatureStore:
@@ -2210,10 +2220,11 @@ x
             del online_features_response.metadata.feature_names.val[idx]
             del online_features_response.results[idx]
 
+    @listToTuple
     @lru_cache(maxsize=128)
     def _get_feature_views_to_use(
         self,
-        features: Optional[Union[List[str], FeatureService]],
+        features: Optional[Union[Tuple[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
     ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
