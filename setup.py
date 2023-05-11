@@ -40,8 +40,8 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm7"
-DESCRIPTION = "Python SDK for Feast"
+VERSION = "0.28+affirm78"
+DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.7.0"
@@ -84,6 +84,7 @@ GCP_REQUIRED = [
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.*,<3",
     "google-cloud-storage>=1.34.*,<3",
+    "google-cloud-bigtable>=2.11.*,<3",
 ]
 
 REDIS_REQUIRED = [
@@ -97,6 +98,10 @@ BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=2.7.3,<3",
+    # `pyOpenSSL==22.1.0` requires `cryptography<39,>=38.0.0`, which is incompatible
+    # with `snowflake-connector-python[pandas]==2.8.0`, which depends on
+    # `cryptography<37.0.0,>=3.1.0`.
+    "pyOpenSSL<22.1.0",
 ]
 
 SPARK_REQUIRED = [
@@ -111,11 +116,7 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = [
-    "mysqlclient",
-    "pymysql",
-    "types-PyMySQL"
-]
+MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
@@ -131,15 +132,13 @@ GO_REQUIRED = [
     "cffi==1.15.*,<2",
 ]
 
-AZURE_REQUIRED = (
-    [
-     "azure-storage-blob>=0.37.0",
-     "azure-identity>=1.6.1",
-     "SQLAlchemy>=1.4.19",
-     "pyodbc>=4.0.30",
-     "pymssql",
-    ]
-)
+AZURE_REQUIRED = [
+    "azure-storage-blob>=0.37.0",
+    "azure-identity>=1.6.1",
+    "SQLAlchemy>=1.4.19",
+    "pyodbc>=4.0.30",
+    "pymssql",
+]
 
 CI_REQUIRED = (
     [
@@ -152,13 +151,14 @@ CI_REQUIRED = (
         "grpcio-testing>=1.47.0",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
+        "moto<4",
         "mypy>=0.931",
         "mypy-protobuf==3.1",
-        # "avro==1.10.0",
+        "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
+        "py>=1.11.0", # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
@@ -167,8 +167,7 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering==0.6.*",
         "pytest-mock==1.10.4",
-        "Sphinx!=4.0.0,<4.4.0",
-        "sphinx-rtd-theme",
+        "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
@@ -223,7 +222,7 @@ AFFIRM_REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     # below are required for dev while were conflict with affirm environment.
     "google-api-core>=1.23.0,<2.7",
-    "googleapis-common-protos>=1.52.*,<1.54",
+    "googleapis-common-protos==1.53.0",
     "grpcio-reflection",
     "numpy<1.22,<2",
     "pandas>=1,<2",
@@ -232,8 +231,9 @@ AFFIRM_REQUIRED = [
     "PyYAML~=5.1.1",
     "uvicorn[standard]",
     "tensorflow-metadata",
-    "dask>=2021.*,<2022.01.0",
+    "dask==2021.12.0",
 ]
+
 
 # rtd builds fail because of mysql not being installed in their environment.
 # We can add mysql there, but it's not strictly needed. This will be faster for builds.
@@ -552,25 +552,25 @@ setup(
     install_requires=AFFIRM_REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    extras_require={
-        "dev": DEV_REQUIRED,
-        "ci": CI_REQUIRED,
-        "gcp": GCP_REQUIRED,
-        "aws": AWS_REQUIRED,
-        "bytewax": BYTEWAX_REQUIRED,
-        "redis": REDIS_REQUIRED,
-        "snowflake": SNOWFLAKE_REQUIRED,
-        "spark": SPARK_REQUIRED,
-        "trino": TRINO_REQUIRED,
-        "postgres": POSTGRES_REQUIRED,
-        "azure": AZURE_REQUIRED,
-        "mysql": MYSQL_REQUIRED,
-        "ge": GE_REQUIRED,
-        "hbase": HBASE_REQUIRED,
-        "go": GO_REQUIRED,
-        "docs": DOCS_REQUIRED,
-        "cassandra": CASSANDRA_REQUIRED,
-    },
+    # extras_require={
+    #     "dev": DEV_REQUIRED,
+    #     "ci": CI_REQUIRED,
+    #     "gcp": GCP_REQUIRED,
+    #     "aws": AWS_REQUIRED,
+    #     "bytewax": BYTEWAX_REQUIRED,
+    #     "redis": REDIS_REQUIRED,
+    #     "snowflake": SNOWFLAKE_REQUIRED,
+    #     "spark": SPARK_REQUIRED,
+    #     "trino": TRINO_REQUIRED,
+    #     "postgres": POSTGRES_REQUIRED,
+    #     "azure": AZURE_REQUIRED,
+    #     "mysql": MYSQL_REQUIRED,
+    #     "ge": GE_REQUIRED,
+    #     "hbase": HBASE_REQUIRED,
+    #     "go": GO_REQUIRED,
+    #     "docs": DOCS_REQUIRED,
+    #     "cassandra": CASSANDRA_REQUIRED,
+    # },
     include_package_data=True,
     license="Apache",
     classifiers=[
@@ -583,11 +583,11 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     setup_requires=[
+        # "setuptools_scm",
         "grpcio>=1.47.0",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "sphinx!=4.0.0",
     ],
     cmdclass={
         # "build_python_protos": BuildPythonProtosCommand,
