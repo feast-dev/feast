@@ -15,6 +15,7 @@ import copy
 import itertools
 import os
 import warnings
+from functools import lru_cache
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -2209,6 +2210,7 @@ x
             del online_features_response.metadata.feature_names.val[idx]
             del online_features_response.results[idx]
 
+    @lru_cache
     def _get_feature_views_to_use(
         self,
         features: Optional[Union[List[str], FeatureService]],
