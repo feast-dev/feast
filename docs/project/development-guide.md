@@ -144,7 +144,7 @@ Setting up your development environment for Feast Python SDK / CLI:
 5. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
 6. Install pip-tools
   ```sh
-  pip install piptools
+  pip install pip-tools
   ```
 7. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
 ```
