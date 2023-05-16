@@ -185,7 +185,7 @@ class FeastMetadataKeys(Enum):
 
 class SqlRegistry(BaseRegistry):
     def __init__(
-        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path]
+        self, registry_config: Optional[RegistryConfig], project: str, repo_path: Optional[Path]
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
