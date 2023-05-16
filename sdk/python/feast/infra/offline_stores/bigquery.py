@@ -363,7 +363,7 @@ class BigQueryOfflineStore(OfflineStore):
         assert isinstance(feature_view.batch_source, BigQuerySource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
-            config, feature_view.batch_source
+            config, feature_view.batch_source, timestamp_unit="ns"
         )
         if column_names != table.column_names:
             raise ValueError(
