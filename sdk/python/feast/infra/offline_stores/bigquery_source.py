@@ -181,8 +181,8 @@ class BigQuerySource(DataSource):
                 raise TypeError("Could not parse BigQuery table schema.")
         else:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
-            queryRes = client.query(bq_columns_query).result()
-            schema = queryRes.schema
+            query_res = client.query(bq_columns_query).result()
+            schema = query_res.schema
 
         name_type_pairs: List[Tuple[str, str]] = []
         for field in schema:
