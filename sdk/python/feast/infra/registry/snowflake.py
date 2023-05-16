@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from binascii import hexlify
@@ -58,6 +59,8 @@ from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+
+logger = logging.getLogger(__name__)
 
 
 class FeastMetadataKeys(Enum):
@@ -174,6 +177,7 @@ class SnowflakeRegistry(BaseRegistry):
             )
 
             if expired:
+                logger.info("Registry cache expired, so refreshing")
                 self.refresh()
 
     def teardown(self):

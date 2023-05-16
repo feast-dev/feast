@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta
 from enum import Enum
@@ -174,6 +175,8 @@ feast_metadata = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
 )
 
+logger = logging.getLogger(__name__)
+
 
 class SqlRegistryConfig(RegistryConfig):
     registry_type: StrictStr = "sql"
@@ -255,6 +258,7 @@ class SqlRegistry(BaseRegistry):
             )
 
             if expired:
+                logger.info("Registry cache expired, so refreshing")
                 self.refresh()
 
     def get_stream_feature_view(
