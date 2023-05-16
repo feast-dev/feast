@@ -180,7 +180,7 @@ class BigQuerySource(DataSource):
             if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
         else:
-            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
+            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
             queryRes = client.query(bq_columns_query).result()
             schema = queryRes.schema
 
