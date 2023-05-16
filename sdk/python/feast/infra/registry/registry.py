@@ -848,6 +848,7 @@ class Registry(BaseRegistry):
                 assert isinstance(self.cached_registry_proto, RegistryProto)
                 return self.cached_registry_proto
 
+            logger.info("Registry cache expired, so refreshing")
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
             self.cached_registry_proto_created = datetime.utcnow()
