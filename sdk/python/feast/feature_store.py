@@ -2223,7 +2223,7 @@ x
     @lru_cache(maxsize=128)
     def _get_feature_views_to_use(
         self,
-        features: Optional[Union[Tuple[str], FeatureService]],
+        features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
     ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
