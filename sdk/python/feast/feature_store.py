@@ -109,12 +109,11 @@ if TYPE_CHECKING:
     from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 
 
-# decorator needed to use lru_cache with list arguments
-def listToTuple(function):
-    def wrapper(*args):
-        args = [tuple(x) if type(x) == list else x for x in args]
-        result = function(*args)
-        result = tuple(result) if type(result) == list else result
+# decorator needed to use lru_cache with list arguments in `FeatureStore._get_feature_views_to_use()`
+def featuresListToTuple(function):
+    def wrapper(*args, **kwargs):
+        kwargs = {k: tuple(v) if k == 'features' and type(v) == list else v for k, v in kwargs.items()}
+        result = function(*args, **kwargs)
         return result
     return wrapper
 
@@ -2220,7 +2219,7 @@ x
             del online_features_response.metadata.feature_names.val[idx]
             del online_features_response.results[idx]
 
-    @listToTuple
+    @featuresListToTuple
     @lru_cache(maxsize=128)
     def _get_feature_views_to_use(
         self,
