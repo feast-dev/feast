@@ -886,7 +886,7 @@ sqlalchemy2-stubs==0.0.2a33
     # via sqlalchemy
 stack-data==0.6.2
     # via ipython
-starlette==0.26.1
+starlette==0.27.0
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)

@@ -147,7 +147,7 @@ sqlalchemy[mypy]==1.4.47
     # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a34
     # via sqlalchemy
-starlette==0.26.1
+starlette==0.27.0
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
