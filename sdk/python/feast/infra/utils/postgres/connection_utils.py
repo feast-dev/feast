@@ -26,6 +26,23 @@ def _get_conn(config: PostgreSQLConfig):
     return conn
 
 
+def _get_connection_pool(config: PostgreSQLConfig):
+    return psycopg2.pool.SimpleConnectionPool(
+        config.min_conn,
+        config.max_conn,
+        dbname=config.database,
+        host=config.host,
+        port=int(config.port),
+        user=config.user,
+        password=config.password,
+        sslmode=config.sslmode,
+        sslkey=config.sslkey_path,
+        sslcert=config.sslcert_path,
+        sslrootcert=config.sslrootcert_path,
+        options="-c search_path={}".format(config.db_schema or config.user),
+    )
+
+
 def _df_to_create_table_sql(entity_df, table_name) -> str:
     pa_table = pa.Table.from_pandas(entity_df)
     columns = [

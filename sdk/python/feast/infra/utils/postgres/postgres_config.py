@@ -6,6 +6,8 @@ from feast.repo_config import FeastConfigBaseModel
 
 
 class PostgreSQLConfig(FeastConfigBaseModel):
+    min_conn: int = 1
+    max_conn: int = 10
     host: StrictStr
     port: int = 5432
     database: StrictStr
