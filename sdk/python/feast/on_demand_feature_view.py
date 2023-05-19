@@ -306,18 +306,19 @@ class OnDemandFeatureView(BaseFeatureView):
     ) -> pd.DataFrame:
         # Apply on demand transformations
         columns_to_cleanup = []
+        dict_with_features = df_with_features.to_dict()
         for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
                 full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
-                if full_feature_ref in df_with_features.keys():
+                if full_feature_ref in dict_with_features.keys():
                     # Make sure the partial feature name is always present
-                    df_with_features[feature.name] = df_with_features[full_feature_ref]
+                    dict_with_features[feature.name] = dict_with_features[full_feature_ref]
                     columns_to_cleanup.append(feature.name)
-                elif feature.name in df_with_features.keys():
+                elif feature.name in dict_with_features.keys():
                     # Make sure the full feature name is always present
-                    df_with_features[full_feature_ref] = df_with_features[feature.name]
+                    dict_with_features[full_feature_ref] = dict_with_features[feature.name]
                     columns_to_cleanup.append(full_feature_ref)
-
+        df_with_features = pd.DataFrame.from_dict(dict_with_features)
         # Compute transformed values and apply to each result row
         df_with_transformed_features = self.udf.__call__(df_with_features)
 
@@ -335,9 +336,14 @@ class OnDemandFeatureView(BaseFeatureView):
                 # Long name must be in dataframe.
                 rename_columns[long_name] = short_name
 
-        # Cleanup extra columns used for transformation
-        df_with_features.drop(columns=columns_to_cleanup, inplace=True)
-        return df_with_transformed_features.rename(columns=rename_columns)
+        # Cleanup extra columns used for transformation. Ensure they were not removed in the udf
+        df_with_features.drop(columns=[c for c in columns_to_cleanup if c in df_with_features])
+        new_columns = []
+        for n in df_with_transformed_features.columns:
+            new_columns.append(rename_columns[n] if n in rename_columns else n)
+        df_with_transformed_features.columns = new_columns
+        result = df_with_transformed_features
+        return result
 
     def infer_features(self):
         """
