@@ -5,14 +5,14 @@ from pydantic import StrictStr
 from feast.repo_config import FeastConfigBaseModel
 
 
-class Connection(Enum):
+class ConnectionType(Enum):
     singleton = 'singleton'
     pool = 'pool'
 
 class PostgreSQLConfig(FeastConfigBaseModel):
     min_conn: int = 1
     max_conn: int = 10
-    conn_type: Connection = Connection.singleton
+    conn_type: ConnectionType = ConnectionType.singleton
     host: StrictStr
     port: int = 5432
     database: StrictStr

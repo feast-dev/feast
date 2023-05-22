@@ -15,7 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import _get_connection_pool, _get_conn
-from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig, Connection
+from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig, ConnectionType
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
@@ -32,7 +32,7 @@ class PostgreSQLOnlineStore(OnlineStore):
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):
         assert config.online_store.type == "postgres"
-        if config.online_store.conn_type == Connection.pool:
+        if config.online_store.conn_type == ConnectionType.pool:
             if not self._conn_pool:
                 self._conn_pool = _get_connection_pool(config.online_store)
             connection = self._conn_pool.getconn()
