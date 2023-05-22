@@ -14,8 +14,8 @@ from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.postgres.connection_utils import _get_connection_pool
-from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+from feast.infra.utils.postgres.connection_utils import _get_connection_pool, _get
+from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig, Connection
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
@@ -26,16 +26,22 @@ class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
 
 
 class PostgreSQLOnlineStore(OnlineStore):
+    _conn: Optional[psycopg2._psycopg.connection] = None
     _conn_pool: Optional[psycopg2.pool.SimpleConnectionPool] = None
 
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):
-        if not self._conn_pool:
-            assert config.online_store.type == "postgres"
-            self._conn_pool = _get_connection_pool(config.online_store)
-        connection = self._conn_pool.getconn()
-        yield connection
-        self._conn_pool.putconn(connection)
+        assert config.online_store.type == "postgres"
+        if config.online_store.conn_type == Connection.pool:
+            if not self._conn_pool:
+                self._conn_pool = _get_connection_pool(config.online_store)
+            connection = self._conn_pool.getconn()
+            yield connection
+            self._conn_pool.putconn(connection)
+        else:
+            if not self._conn:
+                self._conn = _get_conn(config.online_store)
+            yield self._conn
 
     @log_exceptions_and_usage(online_store="postgres")
     def online_write_batch(

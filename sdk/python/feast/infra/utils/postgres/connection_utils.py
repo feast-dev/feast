@@ -22,6 +22,7 @@ def _get_conn(config: PostgreSQLConfig):
         sslcert=config.sslcert_path,
         sslrootcert=config.sslrootcert_path,
         options="-c search_path={}".format(config.db_schema or config.user),
+        keepalives_idle=config.keepalives_idle
     )
     return conn
 
