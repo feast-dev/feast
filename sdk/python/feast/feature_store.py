@@ -2152,7 +2152,6 @@ class FeatureStore:
         allow_cache=False,
         hide_dummy_entity: bool = True,
     ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
-
         fvs = {
             fv.name: fv
             for fv in [
@@ -2223,6 +2222,8 @@ class FeatureStore:
         type_: str,
         no_access_log: bool,
         no_feature_log: bool,
+        workers: int,
+        keep_alive_timeout: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2231,7 +2232,14 @@ class FeatureStore:
                 f"Python server only supports 'http'. Got '{type_}' instead."
             )
         # Start the python server
-        feature_server.start_server(self, host, port, no_access_log)
+        feature_server.start_server(
+            self,
+            host=host,
+            port=port,
+            no_access_log=no_access_log,
+            workers=workers,
+            keep_alive_timeout=keep_alive_timeout,
+        )
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:

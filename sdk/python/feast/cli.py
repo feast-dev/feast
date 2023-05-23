@@ -649,6 +649,21 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
     help="Disable logging served features",
 )
+@click.option(
+    "--workers",
+    "-w",
+    type=click.INT,
+    default=1,
+    show_default=True,
+    help="Number of worker",
+)
+@click.option(
+    "--keep-alive-timeout",
+    type=click.INT,
+    default=5,
+    show_default=True,
+    help="Timeout for keep alive",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -657,11 +672,21 @@ def serve_command(
     type_: str,
     no_access_log: bool,
     no_feature_log: bool,
+    workers: int,
+    keep_alive_timeout: int,
 ):
     """Start a feature server locally on a given port."""
     store = create_feature_store(ctx)
 
-    store.serve(host, port, type_, no_access_log, no_feature_log)
+    store.serve(
+        host=host,
+        port=port,
+        type_=type_,
+        no_access_log=no_access_log,
+        no_feature_log=no_feature_log,
+        workers=workers,
+        keep_alive_timeout=keep_alive_timeout,
+    )
 
 
 @cli.command("serve_transformations")

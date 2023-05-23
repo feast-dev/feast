@@ -70,6 +70,7 @@ REQUIRED = [
     "typeguard==2.13.3",
     "fastapi>=0.68.0,<1",
     "uvicorn[standard]>=0.14.0,<1",
+    "gunicorn",
     "dask>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
@@ -103,9 +104,7 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
-TRINO_REQUIRED = [
-    "trino>=0.305.0,<0.400.0", "regex"
-]
+TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
