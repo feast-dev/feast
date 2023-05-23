@@ -136,7 +136,7 @@ pyyaml==6.0
     #   dask
     #   feast (setup.py)
     #   uvicorn
-requests==2.28.2
+requests==2.31.0
     # via feast (setup.py)
 six==1.16.0
     # via
