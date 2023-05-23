@@ -180,9 +180,9 @@ class BigQuerySource(DataSource):
             if not isinstance(schema[0], bigquery.schema.SchemaField):
                 raise TypeError("Could not parse BigQuery table schema.")
         else:
-            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
-            queryRes = client.query(bq_columns_query).result()
-            schema = queryRes.schema
+            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
+            query_res = client.query(bq_columns_query).result()
+            schema = query_res.schema
 
         name_type_pairs: List[Tuple[str, str]] = []
         for field in schema:
