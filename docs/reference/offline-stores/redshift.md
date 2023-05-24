@@ -155,3 +155,25 @@ While the following trust relationship is necessary to make sure that Redshift, 
   ]
 }
 ```
+
+
+## Redshift Serverless
+
+In order to use [AWS Redshift Serverless](https://aws.amazon.com/redshift/redshift-serverless/), specify a workgroup instead of a cluster_id and user.
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: aws
+offline_store:
+  type: redshift
+  region: us-west-2
+  workgroup: feast-workgroup
+  database: feast-database
+  s3_staging_location: s3://feast-bucket/redshift
+  iam_role: arn:aws:iam::123456789012:role/redshift_s3_access_role
+```
+{% endcode %}
+
+Please note that the IAM policies above will need the [redshift-serverless](https://aws.permissions.cloud/iam/redshift-serverless) version, rather than the standard [redshift](https://aws.permissions.cloud/iam/redshift).

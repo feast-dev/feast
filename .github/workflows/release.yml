@@ -92,7 +92,6 @@ jobs:
 
 
   publish-web-ui-npm:
-    if: github.repository == 'feast-dev/feast' && github.event.inputs.publish_ui == 'true'
     needs: [validate_version_bumps, get_dry_release_versions]
     runs-on: ubuntu-latest
     env:
@@ -116,6 +115,7 @@ jobs:
         run: yarn build:lib
       - name: Publish UI package
         working-directory: ./ui
+        if: github.event.inputs.dry_run == 'false' && github.event.inputs.publish_ui == 'true' 
         run: npm publish
         env:
           # This publish is working using an NPM automation token to bypass 2FA

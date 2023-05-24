@@ -53,7 +53,8 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<3",
     "pandas>=1.4.3,<2",
-    "pandavro~=1.5.0",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "pandavro~=1.5.0",
     "protobuf<5,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<12",
@@ -71,7 +72,8 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "dask>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
-    "httpx>=0.23.3",  # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    "httpx>=0.23.3",
 ]
 
 GCP_REQUIRED = [
@@ -89,16 +91,12 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3,<3",
-    # `pyOpenSSL==22.1.0` requires `cryptography<39,>=38.0.0`, which is incompatible
-    # with `snowflake-connector-python[pandas]==2.8.0`, which depends on
-    # `cryptography<37.0.0,>=3.1.0`.
-    "pyOpenSSL<22.1.0",
+    "snowflake-connector-python[pandas]>=3,<4",
 ]
 
 SPARK_REQUIRED = [
@@ -313,7 +311,6 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
-
 class BuildCommand(build_py):
     """Custom build command."""
 
@@ -367,6 +364,7 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "rockset": ROCKSET_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

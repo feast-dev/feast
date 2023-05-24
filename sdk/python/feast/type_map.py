@@ -845,7 +845,9 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
     return value
 
 
-def feast_value_type_to_pa(feast_type: ValueType) -> "pyarrow.DataType":
+def feast_value_type_to_pa(
+    feast_type: ValueType, timestamp_unit: str = "us"
+) -> "pyarrow.DataType":
     import pyarrow
 
     type_map = {
@@ -856,7 +858,7 @@ def feast_value_type_to_pa(feast_type: ValueType) -> "pyarrow.DataType":
         ValueType.STRING: pyarrow.string(),
         ValueType.BYTES: pyarrow.binary(),
         ValueType.BOOL: pyarrow.bool_(),
-        ValueType.UNIX_TIMESTAMP: pyarrow.timestamp("us"),
+        ValueType.UNIX_TIMESTAMP: pyarrow.timestamp(timestamp_unit),
         ValueType.INT32_LIST: pyarrow.list_(pyarrow.int32()),
         ValueType.INT64_LIST: pyarrow.list_(pyarrow.int64()),
         ValueType.DOUBLE_LIST: pyarrow.list_(pyarrow.float64()),
@@ -864,7 +866,7 @@ def feast_value_type_to_pa(feast_type: ValueType) -> "pyarrow.DataType":
         ValueType.STRING_LIST: pyarrow.list_(pyarrow.string()),
         ValueType.BYTES_LIST: pyarrow.list_(pyarrow.binary()),
         ValueType.BOOL_LIST: pyarrow.list_(pyarrow.bool_()),
-        ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp("us")),
+        ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp(timestamp_unit)),
         ValueType.NULL: pyarrow.null(),
     }
     return type_map[feast_type]

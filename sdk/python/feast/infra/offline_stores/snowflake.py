@@ -28,11 +28,7 @@ from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import (
-    EntitySQLEmptyResults,
-    InvalidEntityType,
-    InvalidSparkSessionException,
-)
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -164,7 +160,7 @@ class SnowflakeOfflineStore(OfflineStore):
             )
             select_timestamps = list(
                 map(
-                    lambda field_name: f"to_varchar({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') as {field_name}",
+                    lambda field_name: f"TO_VARCHAR({field_name}, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFTZH:TZM') AS {field_name}",
                     timestamp_columns,
                 )
             )
@@ -177,9 +173,6 @@ class SnowflakeOfflineStore(OfflineStore):
                 )
             )
             inner_field_string = ", ".join(select_fields)
-
-        if data_source.snowflake_options.warehouse:
-            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
@@ -231,9 +224,6 @@ class SnowflakeOfflineStore(OfflineStore):
             + '", "'.join(join_key_columns + feature_name_columns + [timestamp_field])
             + '"'
         )
-
-        if data_source.snowflake_options.warehouse:
-            config.offline_store.warehouse = data_source.snowflake_options.warehouse
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
@@ -442,45 +432,27 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
-        with self._query_generator() as query:
-
-            df = execute_snowflake_statement(
-                self.snowflake_conn, query
-            ).fetch_pandas_all()
+        df = execute_snowflake_statement(
+            self.snowflake_conn, self.to_sql()
+        ).fetch_pandas_all()
 
         return df
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
-        with self._query_generator() as query:
+        pa_table = execute_snowflake_statement(
+            self.snowflake_conn, self.to_sql()
+        ).fetch_arrow_all()
 
-            pa_table = execute_snowflake_statement(
-                self.snowflake_conn, query
-            ).fetch_arrow_all()
-
-            if pa_table:
-                return pa_table
-            else:
-                empty_result = execute_snowflake_statement(self.snowflake_conn, query)
-
-                return pyarrow.Table.from_pandas(
-                    pd.DataFrame(columns=[md.name for md in empty_result.description])
-                )
-
-    def to_snowflake(self, table_name: str, temporary=False) -> None:
-        """Save dataset as a new Snowflake table"""
-        if self.on_demand_feature_views:
-            transformed_df = self.to_df()
-
-            write_pandas(
-                self.snowflake_conn, transformed_df, table_name, auto_create_table=True
+        if pa_table:
+            return pa_table
+        else:
+            empty_result = execute_snowflake_statement(
+                self.snowflake_conn, self.to_sql()
             )
 
-            return None
-
-        with self._query_generator() as query:
-            query = f'CREATE {"TEMPORARY" if temporary else ""} TABLE IF NOT EXISTS "{table_name}" AS ({query});\n'
-
-            execute_snowflake_statement(self.snowflake_conn, query)
+            return pyarrow.Table.from_pandas(
+                pd.DataFrame(columns=[md.name for md in empty_result.description])
+            )
 
     def to_sql(self) -> str:
         """
@@ -488,6 +460,57 @@ class SnowflakeRetrievalJob(RetrievalJob):
         """
         with self._query_generator() as query:
             return query
+
+    def to_snowflake(
+        self, table_name: str, allow_overwrite: bool = False, temporary: bool = False
+    ) -> None:
+        """Save dataset as a new Snowflake table"""
+        if self.on_demand_feature_views:
+            transformed_df = self.to_df()
+
+            if allow_overwrite:
+                query = f'DROP TABLE IF EXISTS "{table_name}"'
+                execute_snowflake_statement(self.snowflake_conn, query)
+
+            write_pandas(
+                self.snowflake_conn,
+                transformed_df,
+                table_name,
+                auto_create_table=True,
+                create_temp_table=temporary,
+            )
+
+        else:
+            query = f'CREATE {"OR REPLACE" if allow_overwrite else ""} {"TEMPORARY" if temporary else ""} TABLE {"IF NOT EXISTS" if not allow_overwrite else ""} "{table_name}" AS ({self.to_sql()});\n'
+            execute_snowflake_statement(self.snowflake_conn, query)
+
+        return None
+
+    def to_arrow_batches(self) -> Iterator[pyarrow.Table]:
+
+        table_name = "temp_arrow_batches_" + uuid.uuid4().hex
+
+        self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
+
+        query = f'SELECT * FROM "{table_name}"'
+        arrow_batches = execute_snowflake_statement(
+            self.snowflake_conn, query
+        ).fetch_arrow_batches()
+
+        return arrow_batches
+
+    def to_pandas_batches(self) -> Iterator[pd.DataFrame]:
+
+        table_name = "temp_pandas_batches_" + uuid.uuid4().hex
+
+        self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
+
+        query = f'SELECT * FROM "{table_name}"'
+        arrow_batches = execute_snowflake_statement(
+            self.snowflake_conn, query
+        ).fetch_pandas_batches()
+
+        return arrow_batches
 
     def to_spark_df(self, spark_session: "SparkSession") -> "DataFrame":
         """
@@ -501,39 +524,34 @@ class SnowflakeRetrievalJob(RetrievalJob):
         """
 
         try:
-            from pyspark.sql import DataFrame, SparkSession
+            from pyspark.sql import DataFrame
         except ImportError as e:
             from feast.errors import FeastExtrasDependencyImportError
 
             raise FeastExtrasDependencyImportError("spark", str(e))
 
-        if isinstance(spark_session, SparkSession):
-            with self._query_generator() as query:
+        spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
-                arrow_batches = execute_snowflake_statement(
-                    self.snowflake_conn, query
-                ).fetch_arrow_batches()
+        # This can be improved by parallelizing the read of chunks
+        pandas_batches = self.to_pandas_batches()
 
-                if arrow_batches:
-                    spark_df = reduce(
-                        DataFrame.unionAll,
-                        [
-                            spark_session.createDataFrame(batch.to_pandas())
-                            for batch in arrow_batches
-                        ],
-                    )
+        spark_df = reduce(
+            DataFrame.unionAll,
+            [spark_session.createDataFrame(batch) for batch in pandas_batches],
+        )
+        return spark_df
 
-                    return spark_df
-
-                else:
-                    raise EntitySQLEmptyResults(query)
-
-        else:
-            raise InvalidSparkSessionException(spark_session)
-
-    def persist(self, storage: SavedDatasetStorage, allow_overwrite: bool = False):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: Optional[int] = None,
+    ):
         assert isinstance(storage, SavedDatasetSnowflakeStorage)
-        self.to_snowflake(table_name=storage.snowflake_options.table)
+
+        self.to_snowflake(
+            table_name=storage.snowflake_options.table, allow_overwrite=allow_overwrite
+        )
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -556,7 +574,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
             )
 
         table = f"temporary_{uuid.uuid4().hex}"
-        self.to_snowflake(table)
+        self.to_snowflake(table, temporary=True)
 
         query = f"""
             COPY INTO '{self.export_path}/{table}' FROM "{self.config.offline_store.database}"."{self.config.offline_store.schema_}"."{table}"\n

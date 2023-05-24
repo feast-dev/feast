@@ -45,8 +45,8 @@ def test_nullable_online_store_aws():
         entity_key_serialization_version: 2
         """
         ),
-        expect_error="__root__ -> offline_store -> cluster_id\n"
-        "  field required (type=value_error.missing)",
+        expect_error="__root__ -> offline_store -> __root__\n"
+        "  please specify either cluster_id & user if using provisioned clusters, or workgroup if using serverless (type=value_error)",
     )
 
 

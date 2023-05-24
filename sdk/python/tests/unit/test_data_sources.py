@@ -118,7 +118,6 @@ def test_proto_conversion():
     snowflake_source = SnowflakeSource(
         name="test_source",
         database="test_database",
-        warehouse="test_warehouse",
         schema="test_schema",
         table="test_table",
         timestamp_field="event_timestamp",

@@ -59,6 +59,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         aws_utils.upload_df_to_redshift(
             self.client,
             self.offline_store_config.cluster_id,
+            self.offline_store_config.workgroup,
             self.offline_store_config.database,
             self.offline_store_config.user,
             self.s3,
@@ -105,6 +106,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             aws_utils.execute_redshift_statement(
                 self.client,
                 self.offline_store_config.cluster_id,
+                self.offline_store_config.workgroup,
                 self.offline_store_config.database,
                 self.offline_store_config.user,
                 f"DROP TABLE IF EXISTS {table}",
