@@ -40,6 +40,7 @@ import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
@@ -1797,8 +1798,7 @@ x
             )
 
         provider = self._get_provider()
-        for table, requested_features in grouped_refs:
-            # Get the correct set of entity values with the correct join keys.
+        def _async_request_features(table, requested_features):
             table_entity_values, idxs = self._get_unique_entities(
                 table,
                 join_key_values,
@@ -1812,16 +1812,22 @@ x
                 requested_features,
                 table,
             )
+            return (feature_data,idxs,full_feature_names,requested_features,table)
 
-            # Populate the result_rows with the Features from the OnlineStore inplace.
-            self._populate_response_from_feature_data(
-                feature_data,
-                idxs,
-                online_features_response,
-                full_feature_names,
-                requested_features,
-                table,
-            )
+        tables_list, requested_features_list = zip(*grouped_refs)
+        with ThreadPoolExecutor(max_workers=None) as executor:
+            for feature_data, idxs, full_feature_names, requested_features, table in executor.map(
+                _async_request_features, tables_list, requested_features_list
+                ):
+                # Populate the result_rows with the Features from the OnlineStore inplace.
+                self._populate_response_from_feature_data(
+                    feature_data,
+                    idxs,
+                    online_features_response,
+                    full_feature_names,
+                    requested_features,
+                    table,
+                )
 
         if grouped_odfv_refs:
             self._augment_response_with_on_demand_transforms(
@@ -1865,11 +1871,16 @@ x
         entity_type_map: Dict[str, ValueType] = {}
         for entity in entities:
             entity_name_to_join_key_map[entity.name] = entity.join_key
+        cached_entities = {}
         for feature_view in feature_views:
             for entity_name in feature_view.entities:
-                entity = self._registry.get_entity(
-                    entity_name, self.project, allow_cache=allow_cache
-                )
+                if entity_name in cached_entities:
+                    entity = cached_entities[entity_name]
+                else:
+                    entity = self._registry.get_entity(
+                        entity_name, self.project, allow_cache=allow_cache
+                    )
+                    cached_entities[entity_name] = entity
                 # User directly uses join_key as the entity reference in the entity_rows for the
                 # entity mapping case.
                 entity_name = feature_view.projection.join_key_map.get(

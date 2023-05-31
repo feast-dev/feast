@@ -342,8 +342,7 @@ class OnDemandFeatureView(BaseFeatureView):
         for n in df_with_transformed_features.columns:
             new_columns.append(rename_columns[n] if n in rename_columns else n)
         df_with_transformed_features.columns = new_columns
-        result = df_with_transformed_features
-        return result
+        return df_with_transformed_features
 
     def infer_features(self):
         """
