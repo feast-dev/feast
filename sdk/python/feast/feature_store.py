@@ -164,6 +164,9 @@ class FeatureStore:
             self._registry = SnowflakeRegistry(
                 registry_config, self.config.project, None
             )
+        elif registry_config.registry_type == "rest":
+            from feast.infra.registry.rest import RestRegistry
+            self._registry = RestRegistry(registry_config, self.config.project, None)
         else:
             r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)

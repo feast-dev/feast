@@ -39,6 +39,7 @@ _logger = logging.getLogger(__name__)
 REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
+    "rest": "feast.infra.registry.rest.RestRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
 }
 

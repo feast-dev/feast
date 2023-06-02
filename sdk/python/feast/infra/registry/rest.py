@@ -9,17 +9,8 @@ from pydantic import StrictStr
 
 import requests
 import json
+import base64
 
-
-from feast.infra.registry import proto_registry_utils
-from feast.infra.registry.base_registry import BaseRegistry
-from feast.on_demand_feature_view import OnDemandFeatureView
-
-from feast.infra.registry.base_registry import BaseRegistry
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.repo_config import RegistryConfig
-from feast import usage
-from feast.usage import log_exceptions_and_usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -34,7 +25,7 @@ from feast.errors import (
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
-from feast.infra.registry import proto_registry_utils
+
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
@@ -59,6 +50,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
+from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.repo_config import RegistryConfig
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -66,6 +58,43 @@ from feast.stream_feature_view import StreamFeatureView
 
 
 logger = logging.getLogger(__name__)
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, bytes):
+            return base64.b64encode(
+                obj
+            ).decode('ascii')
+
+        return super().default(obj)
+
+
+class CustomJsonDecoder(json.JSONDecoder):
+    def decode(self, obj):
+        rv = super().decode(obj)
+        if isinstance(rv, dict):
+            if 'datetime' in rv:
+                rv["datetime"] = datetime.fromisoformat(rv["datetime"])
+            if 'metadata_bytes' in rv:
+                rv["user_metadata"] = base64.b64decode(
+                    rv["user_metadata"].encode('ascii')
+                )
+            if 'protostring' in rv:
+                rv["protostring"] = base64.b64decode(
+                    rv["protostring"].encode('ascii')
+                )
+            if 'protostrings' in rv:
+                rv["protostrings"] = [
+                    base64.b64decode(
+                        protostring.encode('ascii')
+                    )
+                    for protostring in rv["protostrings"]
+                ]
+
+        return rv
 
 
 class RestRegistryConfig(RegistryConfig):
@@ -77,8 +106,8 @@ class RestRegistryConfig(RegistryConfig):
     If registry_type is 'rest', then this is a RESTful URL that serves the Registry """
 
 
-class RestRegistryStore(BaseRegistry):
-    
+class RestRegistry(BaseRegistry):
+
     def __init__(
         self,
         registry_config: Optional[Union[RegistryConfig, RestRegistryConfig]],
@@ -87,9 +116,9 @@ class RestRegistryStore(BaseRegistry):
     ):
         assert registry_config is not None, "RestRegistry needs a valid registry_config"
         self.uri = registry_config.path
-        self.json_encoder = json.JSONEncoder
-        self.json_decoder = json.JSONDecoder
-        
+        self.json_encoder = CustomJsonEncoder
+        self.json_decoder = CustomJsonDecoder
+
         self.project = project
 
     # CRUD operations
@@ -111,12 +140,12 @@ class RestRegistryStore(BaseRegistry):
     def _manage_CRUD_request(
         self, request_func, endpoint, data=None, params={}, files=None
     ):
-        uri = self.uri + "/" + endpoint
+        uri = f"{self.uri}{endpoint}"
 
         if data is None and files is None:
             response = request_func(url=uri, params=params)
         elif data is not None and (files is None or len(files) == 0):
-            reqdata, header = self._content_type(data, self.jsonEncoder)
+            reqdata, header = self._content_type(data, self.json_encoder)
             response = request_func(
                 url=uri, params=params, data=reqdata, headers=header
             )
@@ -139,7 +168,6 @@ class RestRegistryStore(BaseRegistry):
     def _put(self, endpoint, data=None, params={}, files=None):
         return self._manage_CRUD_request(requests.put, endpoint, data, params, files)
 
-    
     def _apply_object(
         self,
         resource: str,
@@ -149,24 +177,25 @@ class RestRegistryStore(BaseRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
+        name = name or (obj.name if hasattr(obj, "name") else None)
         response = self._post(
-            f"{resource}/{project}",
+            f"/{project}",
             data={
-                proto_field_name: obj.to_proto().SerializeToString(),
+                "proto": obj.to_proto().SerializeToString(),
                 "last_updated_timestamp": datetime.utcnow(),
             },
             params={
-                id_field_name: name,
+                "resource": resource,
+                # "id_field_name": id_field_name,
+                "name": name,
             }
         )
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to apply object: Project={project} {id_field_name}={name} (E{response.status_code}: {response_json['error']})")
-        
+            raise RuntimeError(f"Failed to apply object: Project={project} {id_field_name}={name} (E{response.status_code}: {response_json})")
 
-    
     def _delete_object(
         self,
         resource: str,
@@ -176,9 +205,11 @@ class RestRegistryStore(BaseRegistry):
         not_found_exception: Optional[Callable],
     ):
         response = self._delete(
-            f"{resource}/{project}",
+            f"/{project}",
             params={
-                id_field_name: name,
+                "resource": resource,
+                # "id_field_name": id_field_name,
+                "name": name,
             }
         )
         response_json = json.loads(
@@ -186,7 +217,7 @@ class RestRegistryStore(BaseRegistry):
         )
         if response.status_code == 404 and not_found_exception:
             raise not_found_exception(name, project)
-        return len(response_json["deleted_ids"])
+        return response_json["count"]
 
     def _get_object(
         self,
@@ -200,9 +231,11 @@ class RestRegistryStore(BaseRegistry):
         not_found_exception: Optional[Callable],
     ):
         response = self._get(
-            f"{resource}/{project}",
+            f"/{project}",
             params={
-                id_field_name: name,
+                "resource": resource,
+                # "id_field_name": id_field_name,
+                "name": name,
             }
         )
         response_json = json.loads(
@@ -213,7 +246,7 @@ class RestRegistryStore(BaseRegistry):
                 raise not_found_exception(name, project)
             else:
                 return None
-        _proto = proto_class.FromString(response_json[proto_field_name])
+        _proto = proto_class.FromString(response_json["protostring"])
         return python_class.from_proto(_proto)
 
     def _list_objects(
@@ -225,19 +258,51 @@ class RestRegistryStore(BaseRegistry):
         proto_field_name: str,
     ):
         response = self._get(
-            f"{resource}/{project}",
+            f"/{project}/list",
+            params={
+                "resource": resource
+            }
         )
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
-        if response.status_code == 200 and proto_field_name in response_json:
+        if response.status_code == 200:
             return [
                 python_class.from_proto(
-                    proto_class.FromString(proto_field)
+                    proto_class.FromString(
+                        proto_field
+                    )
                 )
-                for proto_field in response_json[proto_field_name]
+                for proto_field in response_json["protostrings"]
             ]
         return []
+
+    def _get_all_projects(self) -> Set[str]:
+        response = self._get(
+            "/projects",
+        )
+        if response.status_code != 200:
+            return set()
+
+        response_json = json.loads(
+            response.content, cls=self.json_decoder
+        )
+        return set(map(
+            lambda protostring: protostring.decode('ascii'),
+            response_json["protostrings"]
+        ))
+
+    def _get_last_updated_metadata(self, project: str) -> datetime:
+        response = self._get(
+            f"/{project}/last_updated",
+            params={
+                "resource": "metadata"
+            }
+        )
+        response_json = json.loads(
+            response.content, cls=self.json_decoder
+        )
+        return response_json["datetime"]
 
     # Entity operations
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -284,11 +349,11 @@ class RestRegistryStore(BaseRegistry):
         self, data_source: DataSource, project: str, commit: bool = True
     ):
         self._apply_object(
-            resource="entity",
+            resource="data_source",
             project=project,
-            id_field_name="entity_name",
+            id_field_name="data_source_name",
             obj=data_source,
-            proto_field_name="entity_proto",
+            proto_field_name="data_source_proto",
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
@@ -376,7 +441,7 @@ class RestRegistryStore(BaseRegistry):
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
         self._apply_object(
-            resource="feature_view",
+            resource=self._infer_fv_resource(feature_view),
             project=project,
             id_field_name="feature_view_name",
             obj=feature_view,
@@ -631,34 +696,34 @@ class RestRegistryStore(BaseRegistry):
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         response = self._get(
-            "feast_metadata",
-            params={
-                "project": project
-            }
+            f"/{project}/feast_metadata"
         )
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
-        if response.status_code == 200 and "metadata" in response_json:
-            project_metadata = ProjectMetadata(project_name=project)
-            for metadata_key, metadata_value in response_json["metadata"].items():
-                if hasattr(project_metadata, metadata_key):
-                    setattr(project_metadata, metadata_key, metadata_value)
-            return [project_metadata]
+        if response.status_code == 200:
+            return [
+                ProjectMetadata.from_proto(
+                    ProjectMetadataProto.FromString(
+                        proto_field
+                    )
+                )
+                for proto_field in response_json["protostrings"]
+            ]
         return []
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
-        self._apply_object(
+        return self._apply_object(
             resource="managed_infra",
             project=project,
             id_field_name="infra_name",
             obj=infra,
             proto_field_name="infra_proto",
-            name="infra_obj",
+            name="infra_obj"
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        infra_object = self._get_object(
+        return self._get_object(
             resource="managed_infra",
             name="infra_obj",
             project=project,
@@ -666,11 +731,8 @@ class RestRegistryStore(BaseRegistry):
             python_class=Infra,
             id_field_name="infra_name",
             proto_field_name="infra_proto",
-            not_found_exception=None,
+            not_found_exception=RuntimeError,
         )
-        if infra_object:
-            return infra_object
-        return Infra()
 
     def apply_user_metadata(
         self,
@@ -678,23 +740,23 @@ class RestRegistryStore(BaseRegistry):
         feature_view: BaseFeatureView,
         metadata_bytes: Optional[bytes],
     ):
-        resource = self._infer_fv_table(feature_view)
+        resource = self._infer_fv_resource(feature_view)
 
         update_datetime = datetime.utcnow()
         update_time = int(update_datetime.timestamp())
 
         response = self._post(
-            endpoint=resource,
+            endpoint=f"{project}/user_metadata",
             params={
-                "feature_view_name": feature_view.name,
-                "project": project
+                "resource": resource,
+                "name": feature_view.name,
             },
             data={
-                    "user_metadata": metadata_bytes,
+                    "proto": metadata_bytes,
                     "last_updated_timestamp": update_time,
             }
         )
-        
+
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
@@ -706,13 +768,13 @@ class RestRegistryStore(BaseRegistry):
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]:
-        resource = self._infer_fv_table(feature_view)
+        resource = self._infer_fv_resource(feature_view)
 
         response = self._get(
-            resource,
+            f"/{project}/user_metadata",
             params={
                 "feature_view_name": feature_view.name,
-                "project": project
+                "resource": resource
             }
         )
         response_json = json.loads(
@@ -720,6 +782,7 @@ class RestRegistryStore(BaseRegistry):
         )
         if response.status_code == 404:
             raise FeatureViewNotFoundException(feature_view.name, project=project)
+
         return response_json["user_metadata"]
 
     def proto(self) -> RegistryProto:
@@ -767,24 +830,24 @@ class RestRegistryStore(BaseRegistry):
         # This method is a no-op since we're always reading values from the db.
         pass
 
-    def _infer_fv_table(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
-            resource = "stream_feature_views"
-        elif isinstance(feature_view, FeatureView):
-            resource = "feature_views"
+    def _infer_fv_resource(self, feature_view):
+        if isinstance(feature_view, FeatureView):
+            resource = "feature_view"
+        elif isinstance(feature_view, StreamFeatureView):
+            resource = "stream_feature_view"
         elif isinstance(feature_view, OnDemandFeatureView):
-            resource = "on_demand_feature_views"
+            resource = "on_demand_feature_view"
         elif isinstance(feature_view, RequestFeatureView):
-            resource = "request_feature_views"
+            resource = "request_feature_view"
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return resource
 
     def _infer_fv_classes(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
-            python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
-        elif isinstance(feature_view, FeatureView):
+        if isinstance(feature_view, FeatureView):
             python_class, proto_class = FeatureView, FeatureViewProto
+        elif isinstance(feature_view, StreamFeatureView):
+            python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
         elif isinstance(feature_view, OnDemandFeatureView):
             python_class, proto_class = OnDemandFeatureView, OnDemandFeatureViewProto
         elif isinstance(feature_view, RequestFeatureView):
