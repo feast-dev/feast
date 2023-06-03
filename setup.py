@@ -142,7 +142,7 @@ HAZELCAST_REQUIRED = [
 CI_REQUIRED = (
     [
         "build",
-        "cryptography>=35.0,<36",
+        "cryptography>=35.0,<42",
         "flake8",
         "black>=22.6.0,<23",
         "isort>=5,<6",
