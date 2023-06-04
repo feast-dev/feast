@@ -403,7 +403,7 @@ def fake_ingest_data():
         "conv_rate": [0.5],
         "acc_rate": [0.6],
         "avg_daily_trips": [4],
-        "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
-        "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
     }
     return pd.DataFrame(data)
