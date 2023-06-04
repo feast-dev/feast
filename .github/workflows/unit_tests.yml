@@ -30,6 +30,12 @@ jobs:
         run: |
           brew install mysql
           PATH=$PATH:/usr/local/mysql/bin
+      - name: Work around Homebrew MySQL being broken
+        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
+        if:  startsWith(matrix.os, 'macOS')
+        run: |
+          brew install zlib
+          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
       - name: Upgrade pip version
         run: |
           pip install --upgrade pip
