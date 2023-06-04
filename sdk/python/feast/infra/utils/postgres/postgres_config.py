@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional
 
 from pydantic import StrictStr
@@ -6,8 +7,9 @@ from feast.repo_config import FeastConfigBaseModel
 
 
 class ConnectionType(Enum):
-    singleton = 'singleton'
-    pool = 'pool'
+    singleton = "singleton"
+    pool = "pool"
+
 
 class PostgreSQLConfig(FeastConfigBaseModel):
     min_conn: int = 1

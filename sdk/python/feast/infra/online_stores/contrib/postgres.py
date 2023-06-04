@@ -1,9 +1,9 @@
+import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-import contextlib
 import psycopg2
 import pytz
 from psycopg2 import sql
@@ -14,12 +14,13 @@ from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.postgres.connection_utils import _get_connection_pool, _get_conn
-from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig, ConnectionType
+from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
+from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
+
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"

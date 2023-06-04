@@ -17,6 +17,7 @@ from feast.errors import FeatureNameCollisionError
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.utils.postgres.postgres_config import ConnectionType
 from feast.online_response import TIMESTAMP_POSTFIX
 from feast.types import Float32, Int32, String
 from feast.wait import wait_retry_backoff
@@ -30,12 +31,13 @@ from tests.integration.feature_repos.universal.feature_views import (
     driver_feature_view,
 )
 from tests.utils.data_source_test_creator import prep_file_source
-from feast.infra.utils.postgres.postgres_config import ConnectionType
 
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["postgres"])
-def test_connection_pool_online_stores(environment, universal_data_sources, fake_ingest_data):
+def test_connection_pool_online_stores(
+    environment, universal_data_sources, fake_ingest_data
+):
     if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         return
     fs = environment.feature_store
