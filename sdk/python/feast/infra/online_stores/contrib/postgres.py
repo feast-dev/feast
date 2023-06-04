@@ -8,6 +8,7 @@ import psycopg2
 import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
+from psycopg2.pool import SimpleConnectionPool
 from pydantic.schema import Literal
 
 from feast import Entity
@@ -28,7 +29,7 @@ class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
 
 class PostgreSQLOnlineStore(OnlineStore):
     _conn: Optional[psycopg2._psycopg.connection] = None
-    _conn_pool: Optional[psycopg2.pool.SimpleConnectionPool] = None
+    _conn_pool: Optional[SimpleConnectionPool] = None
 
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):

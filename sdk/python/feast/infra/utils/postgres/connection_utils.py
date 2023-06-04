@@ -5,6 +5,7 @@ import pandas as pd
 import psycopg2
 import psycopg2.extras
 import pyarrow as pa
+from psycopg2.pool import SimpleConnectionPool
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.type_map import arrow_to_pg_type
@@ -28,7 +29,7 @@ def _get_conn(config: PostgreSQLConfig):
 
 
 def _get_connection_pool(config: PostgreSQLConfig):
-    return psycopg2.pool.SimpleConnectionPool(
+    return SimpleConnectionPool(
         config.min_conn,
         config.max_conn,
         dbname=config.database,
