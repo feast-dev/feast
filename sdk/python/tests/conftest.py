@@ -393,3 +393,17 @@ def feature_store_for_online_retrieval(
     ]
 
     return fs, feature_refs, entity_rows
+
+
+@pytest.fixture
+def fake_ingest_data():
+    """Fake data to ingest into the feature store"""
+    data = {
+        "driver_id": [1],
+        "conv_rate": [0.5],
+        "acc_rate": [0.6],
+        "avg_daily_trips": [4],
+        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
+    }
+    return pd.DataFrame(data)
