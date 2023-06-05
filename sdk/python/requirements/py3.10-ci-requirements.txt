@@ -326,6 +326,8 @@ grpcio-testing==1.54.2
     # via feast (setup.py)
 grpcio-tools==1.54.2
     # via feast (setup.py)
+gunicorn==20.1.0
+    # via feast (setup.py)
 h11==0.14.0
     # via
     #   httpcore
