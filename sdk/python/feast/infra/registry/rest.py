@@ -828,6 +828,16 @@ class RestRegistry(BaseRegistry):
         # This method is a no-op since we're always reading values from the db.
         pass
 
+    def teardown(self):
+        response = self._delete(
+            "/teardown"
+        )
+        response_json = json.loads(
+            response.content, cls=self.json_decoder
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"Failed to tear down registry: {response_json['detail']}")
+
     def _infer_fv_resource(self, feature_view):
         if isinstance(feature_view, FeatureView):
             resource = "feature_view"
