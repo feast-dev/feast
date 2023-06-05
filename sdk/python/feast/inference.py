@@ -1,5 +1,5 @@
 import re
-from typing import List, Set, Union
+from typing import List, Optional, Set, Union
 
 from feast.data_source import DataSource, PushSource, RequestSource
 from feast.entity import Entity
@@ -187,7 +187,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
 def _infer_features_and_entities(
     fv: FeatureView,
-    join_keys: Set[str],
+    join_keys: Set[Optional[str]],
     run_inference_for_features,
     config,
 ) -> None:
