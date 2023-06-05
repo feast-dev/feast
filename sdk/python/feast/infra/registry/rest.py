@@ -215,8 +215,10 @@ class RestRegistry(BaseRegistry):
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
-        if response.status_code == 404 and not_found_exception:
-            raise not_found_exception(name, project)
+        if response.status_code == 404:
+            if not_found_exception:
+                raise not_found_exception(name, project)
+            return 0
         return response_json["count"]
 
     def _get_object(
@@ -295,9 +297,6 @@ class RestRegistry(BaseRegistry):
     def _get_last_updated_metadata(self, project: str) -> datetime:
         response = self._get(
             f"/{project}/last_updated",
-            params={
-                "resource": "metadata"
-            }
         )
         response_json = json.loads(
             response.content, cls=self.json_decoder
@@ -680,7 +679,6 @@ class RestRegistry(BaseRegistry):
             not_found_exception=ValidationReferenceNotFound,
         )
 
-    # TODO: Needs to be implemented.
     def list_validation_references(
         self, project: str, allow_cache: bool = False
     ) -> List[ValidationReference]:
