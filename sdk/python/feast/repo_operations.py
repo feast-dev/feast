@@ -1,9 +1,11 @@
+import base64
 import importlib
 import json
 import os
 import random
 import re
 import sys
+import tempfile
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from pathlib import Path
@@ -14,6 +16,7 @@ from click.exceptions import BadParameter
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
+from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
@@ -326,6 +329,27 @@ def log_infra_changes(
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.RED}{view.name}{Style.RESET_ALL}"
         )
+
+
+@log_exceptions_and_usage
+def create_feature_store(
+    ctx: click.Context,
+) -> FeatureStore:
+    repo = ctx.obj["CHDIR"]
+    # If we received a base64 encoded version of feature_store.yaml, use that
+    config_base64 = os.getenv(FEATURE_STORE_YAML_ENV_NAME)
+    if config_base64:
+        print("Received base64 encoded feature_store.yaml")
+        config_bytes = base64.b64decode(config_base64)
+        # Create a new unique directory for writing feature_store.yaml
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "wb") as f:
+            f.write(config_bytes)
+        return FeatureStore(repo_path=str(repo_path.resolve()))
+    else:
+        fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+        cli_check_repo(repo, fs_yaml_file)
+        return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
 
 @log_exceptions_and_usage
