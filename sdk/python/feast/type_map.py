@@ -538,7 +538,8 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "NULL": ValueType.NULL,
     }
 
-    value_type = type_map[bq_type_as_str]
+    value_type = type_map.get(bq_type_as_str, ValueType.STRING)
+
     if is_list:
         value_type = ValueType[value_type.name + "_LIST"]
 
