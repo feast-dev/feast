@@ -1,4 +1,3 @@
-import uuid
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,6 +10,7 @@ import requests
 import json
 import base64
 
+from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -26,7 +26,9 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 
+from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
+
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -119,6 +121,15 @@ class RestRegistry(BaseRegistry):
         self.json_encoder = CustomJsonEncoder
         self.json_decoder = CustomJsonDecoder
 
+        self.cached_registry_proto = self.proto()
+        proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
+        self.cached_registry_proto_created = datetime.utcnow()
+        self._refresh_lock = Lock()
+        self.cached_registry_proto_ttl = timedelta(
+            seconds=registry_config.cache_ttl_seconds
+            if registry_config.cache_ttl_seconds is not None
+            else 0
+        )
         self.project = project
 
     # CRUD operations
@@ -323,6 +334,11 @@ class RestRegistry(BaseRegistry):
         )
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_entity(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="entity",
             name=name,
@@ -335,6 +351,11 @@ class RestRegistry(BaseRegistry):
         )
 
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_entities(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="entity",
             project=project,
@@ -367,6 +388,11 @@ class RestRegistry(BaseRegistry):
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_data_source(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="data_source",
             name=name,
@@ -381,6 +407,11 @@ class RestRegistry(BaseRegistry):
     def list_data_sources(
         self, project: str, allow_cache: bool = False
     ) -> List[DataSource]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_data_sources(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="data_source",
             project=project,
@@ -413,6 +444,11 @@ class RestRegistry(BaseRegistry):
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureService:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_feature_service(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="feature_service",
             name=name,
@@ -427,6 +463,11 @@ class RestRegistry(BaseRegistry):
     def list_feature_services(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_feature_services(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="feature_service",
             project=project,
@@ -460,6 +501,11 @@ class RestRegistry(BaseRegistry):
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ):
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_stream_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="stream_feature_view",
             name=name,
@@ -474,6 +520,11 @@ class RestRegistry(BaseRegistry):
     def list_stream_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_stream_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="stream_feature_view",
             project=project,
@@ -486,6 +537,11 @@ class RestRegistry(BaseRegistry):
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_on_demand_feature_view(
+                self.cached_registry_proto, project
+            )
         return self._get_object(
             resource="on_demand_feature_view",
             name=name,
@@ -500,6 +556,11 @@ class RestRegistry(BaseRegistry):
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_on_demand_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="on_demand_feature_view",
             project=project,
@@ -512,6 +573,11 @@ class RestRegistry(BaseRegistry):
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> FeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_feature_view(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="feature_view",
             name=name,
@@ -526,6 +592,11 @@ class RestRegistry(BaseRegistry):
     def list_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="feature_view",
             project=project,
@@ -550,6 +621,11 @@ class RestRegistry(BaseRegistry):
     def list_request_feature_views(
         self, project: str, allow_cache: bool = False
     ) -> List[RequestFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_request_feature_views(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="request_feature_view",
             project=project,
@@ -607,18 +683,14 @@ class RestRegistry(BaseRegistry):
             proto_field_name="saved_dataset_proto",
         )
 
-    def delete_saved_dataset(self, name: str, project: str, allow_cache: bool = False):
-        return self._delete_object(
-            resource="saved_dataset",
-            name=name,
-            project=project,
-            id_field_name="saved_dataset_name",
-            not_found_exception=SavedDatasetNotFound
-        )
-
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_saved_dataset(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="saved_dataset",
             name=name,
@@ -633,6 +705,11 @@ class RestRegistry(BaseRegistry):
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_saved_datasets(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="saved_dataset",
             project=project,
@@ -668,6 +745,11 @@ class RestRegistry(BaseRegistry):
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
     ) -> ValidationReference:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_validation_reference(
+                self.cached_registry_proto, name, project
+            )
         return self._get_object(
             resource="validation_reference",
             name=name,
@@ -682,6 +764,11 @@ class RestRegistry(BaseRegistry):
     def list_validation_references(
         self, project: str, allow_cache: bool = False
     ) -> List[ValidationReference]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_validation_references(
+                self.cached_registry_proto, project
+            )
         return self._list_objects(
             resource="validation_reference",
             project=project,
@@ -693,6 +780,11 @@ class RestRegistry(BaseRegistry):
     def list_project_metadata(
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_project_metadata(
+                self.cached_registry_proto, project
+            )
         response = self._get(
             f"/{project}/feast_metadata"
         )
@@ -837,6 +929,41 @@ class RestRegistry(BaseRegistry):
         )
         if response.status_code != 200:
             raise RuntimeError(f"Failed to tear down registry: {response_json['detail']}")
+
+    def refresh(self, project: Optional[str] = None):
+        if project:
+            project_metadata = proto_registry_utils.get_project_metadata(
+                registry_proto=self.cached_registry_proto, project=project
+            )
+            if project_metadata:
+                usage.set_current_project_uuid(project_metadata.project_uuid)
+            else:
+                proto_registry_utils.init_project_metadata(
+                    self.cached_registry_proto, project
+                )
+        self.cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+
+    def _refresh_cached_registry_if_necessary(self):
+        with self._refresh_lock:
+            expired = (
+                self.cached_registry_proto is None
+                or self.cached_registry_proto_created is None
+            ) or (
+                self.cached_registry_proto_ttl.total_seconds()
+                > 0  # 0 ttl means infinity
+                and (
+                    datetime.utcnow()
+                    > (
+                        self.cached_registry_proto_created
+                        + self.cached_registry_proto_ttl
+                    )
+                )
+            )
+
+            if expired:
+                logger.info("Registry cache expired, so refreshing")
+                self.refresh()
 
     def _infer_fv_resource(self, feature_view):
         if isinstance(feature_view, FeatureView):
