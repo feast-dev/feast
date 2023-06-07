@@ -2,8 +2,8 @@ import json
 import traceback
 import warnings
 
+import gunicorn.app.base
 import pandas as pd
-import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
@@ -137,8 +137,35 @@ def get_app(store: "feast.FeatureStore"):
     return app
 
 
+class FeastServeApplication(gunicorn.app.base.BaseApplication):
+    def __init__(self, store: "feast.FeatureStore", **options):
+        self._app = get_app(store=store)
+        self._options = options
+        super().__init__()
+
+    def load_config(self):
+        for key, value in self._options.items():
+            if key.lower() in self.cfg.settings and value is not None:
+                self.cfg.set(key.lower(), value)
+
+        self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
+
+    def load(self):
+        return self._app
+
+
 def start_server(
-    store: "feast.FeatureStore", host: str, port: int, no_access_log: bool
+    store: "feast.FeatureStore",
+    host: str,
+    port: int,
+    no_access_log: bool,
+    workers: int,
+    keep_alive_timeout: int,
 ):
-    app = get_app(store)
-    uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+    FeastServeApplication(
+        store=store,
+        bind=f"{host}:{port}",
+        accesslog=None if no_access_log else "-",
+        workers=workers,
+        keepalive=keep_alive_timeout,
+    ).run()
