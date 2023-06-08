@@ -300,10 +300,7 @@ class RestRegistry(BaseRegistry):
         response_json = json.loads(
             response.content, cls=self.json_decoder
         )
-        return set(map(
-            lambda protostring: protostring.decode('ascii'),
-            response_json["protostrings"]
-        ))
+        return set(response_json["strings"])
 
     def _get_last_updated_metadata(self, project: str) -> datetime:
         response = self._get(
