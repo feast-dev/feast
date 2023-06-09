@@ -810,7 +810,7 @@ class RestRegistry(BaseRegistry):
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        return self._get_object(
+        infra = self._get_object(
             resource="managed_infra",
             name="infra_obj",
             project=project,
@@ -818,8 +818,11 @@ class RestRegistry(BaseRegistry):
             python_class=Infra,
             id_field_name="infra_name",
             proto_field_name="infra_proto",
-            not_found_exception=RuntimeError,
+            not_found_exception=None,
         )
+        if infra is None:
+            infra = Infra()
+        return infra
 
     def apply_user_metadata(
         self,
