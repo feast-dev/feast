@@ -190,6 +190,22 @@ class PassthroughProvider(Provider):
             )
         return result
 
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
+    def online_read_many(
+        self,
+        config: RepoConfig,
+        table_list: List[FeatureView],
+        entity_keys_list: List[List[EntityKeyProto]],
+        requested_features_list: List[List[str]] = None,
+    ) -> List[List]:
+        set_usage_attribute("provider", self.__class__.__name__)
+        result = []
+        if self.online_store:
+            result = self.online_store.online_read_many(
+                config, table_list, entity_keys_list, requested_features_list
+            )
+        return result
+
     def _unpack_df(self,
                    feature_view: FeatureView,
                    df: pd.DataFrame):

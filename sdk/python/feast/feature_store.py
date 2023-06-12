@@ -1797,29 +1797,53 @@ x
                 [DUMMY_ENTITY_VAL] * num_rows, DUMMY_ENTITY.value_type
             )
 
+        def unzip(grouped):
+            return zip(*grouped)
+
         provider = self._get_provider()
-        def _async_request_features(table, requested_features):
-            table_entity_values, idxs = self._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
-            )
+        if not 'mysql' in str(provider.online_store):
+            for table, requested_features in grouped_refs:
+                # Get the correct set of entity values with the correct join keys.
+                table_entity_values, idxs = self._get_unique_entities(
+                    table,
+                    join_key_values,
+                    entity_name_to_join_key_map,
+                )
 
-            # Fetch feature data for the minimum set of Entities.
-            feature_data = self._read_from_online_store(
-                table_entity_values,
-                provider,
-                requested_features,
-                table,
-            )
-            return (feature_data,idxs,full_feature_names,requested_features,table)
+                # Fetch feature data for the minimum set of Entities.
+                feature_data = self._read_from_online_store(
+                    table_entity_values,
+                    provider,
+                    requested_features,
+                    table,
+                )
 
-        tables_list, requested_features_list = zip(*grouped_refs)
-        with ThreadPoolExecutor(max_workers=None) as executor:
-            for feature_data, idxs, full_feature_names, requested_features, table in executor.map(
-                _async_request_features, tables_list, requested_features_list
-                ):
                 # Populate the result_rows with the Features from the OnlineStore inplace.
+                self._populate_response_from_feature_data(
+                    feature_data,
+                    idxs,
+                    online_features_response,
+                    full_feature_names,
+                    requested_features,
+                    table,
+                )
+        else:
+            # same as above except read_from_online_store is combined into one query
+            table_list, requested_features_list = unzip(grouped_refs)
+            table_entity_values_list, idxs_list = unzip([self._get_unique_entities(
+                    table,
+                    join_key_values,
+                    entity_name_to_join_key_map,
+                ) for table in table_list])
+
+            feature_data_list = self._read_from_online_store_many(
+                table_entity_values_list,
+                provider,
+                requested_features_list,
+                table_list,
+            )
+
+            for feature_data, idxs, requested_features, table in zip(feature_data_list, idxs_list, requested_features_list, table_list):
                 self._populate_response_from_feature_data(
                     feature_data,
                     idxs,
@@ -2017,36 +2041,11 @@ x
         )
         return unique_entities, indexes
 
-    def _read_from_online_store(
-        self,
-        entity_rows: Iterable[Mapping[str, Value]],
-        provider: Provider,
-        requested_features: List[str],
-        table: FeatureView,
+    @staticmethod
+    def _process_read_rows(
+        read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]],
+        requested_features: List[str]
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
-        """Read and process data from the OnlineStore for a given FeatureView.
-
-        This method guarantees that the order of the data in each element of the
-        List returned is the same as the order of `requested_features`.
-
-        This method assumes that `provider.online_read` returns data for each
-        combination of Entities in `entity_rows` in the same order as they
-        are provided.
-        """
-        # Instantiate one EntityKeyProto per Entity.
-        entity_key_protos = [
-            EntityKeyProto(join_keys=row.keys(), entity_values=row.values())
-            for row in entity_rows
-        ]
-
-        # Fetch data for Entities.
-        read_rows = provider.online_read(
-            config=self.config,
-            table=table,
-            entity_keys=entity_key_protos,
-            requested_features=requested_features,
-        )
-
         # Each row is a set of features for a given entity key. We only need to convert
         # the data to Protobuf once.
         null_value = Value()
@@ -2074,6 +2073,67 @@ x
                         values.append(feature_data[feature_name])
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
+
+    @staticmethod
+    def _instantiate_entity_key_protos(entity_rows):
+        # Instantiate one EntityKeyProto per Entity.
+        return [
+            EntityKeyProto(join_keys=row.keys(), entity_values=row.values())
+            for row in entity_rows
+        ]
+
+    def _read_from_online_store(
+        self,
+        entity_rows: Iterable[Mapping[str, Value]],
+        provider: Provider,
+        requested_features: List[str],
+        table: FeatureView,
+    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
+        """Read and process data from the OnlineStore for a given FeatureView.
+
+        This method guarantees that the order of the data in each element of the
+        List returned is the same as the order of `requested_features`.
+
+        This method assumes that `provider.online_read` returns data for each
+        combination of Entities in `entity_rows` in the same order as they
+        are provided.
+        """
+        entity_key_protos = self._instantiate_entity_key_protos(entity_rows)
+
+        # Fetch data for Entities.
+        read_rows = provider.online_read(
+            config=self.config,
+            table=table,
+            entity_keys=entity_key_protos,
+            requested_features=requested_features,
+        )
+
+        return self._process_read_rows(read_rows, requested_features)
+
+    def _read_from_online_store_many(
+        self,
+        entity_rows_list: List[Iterable[Mapping[str, Value]]],
+        provider: Provider,
+        requested_features_list: List[List[str]],
+        table_list: List[FeatureView],
+    ) -> List[List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]]:
+        entity_key_protos_list = [
+            self._instantiate_entity_key_protos(entity_rows) for entity_rows in entity_rows_list
+        ]
+
+        # Fetch data for Entities.
+        read_rows_list = provider.online_read_many(
+            config=self.config,
+            table_list=table_list,
+            entity_keys_list=entity_key_protos_list,
+            requested_features_list=requested_features_list,
+        )
+
+        processed_read_rows_list = [
+            self._process_read_rows(read_rows, requested_features) 
+            for read_rows, requested_features in zip(read_rows_list, requested_features_list)
+        ]
+        return processed_read_rows_list
 
     @staticmethod
     def _populate_response_from_feature_data(

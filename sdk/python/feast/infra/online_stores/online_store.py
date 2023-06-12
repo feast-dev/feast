@@ -82,6 +82,18 @@ class OnlineStore(ABC):
         pass
 
     @abstractmethod
+    def online_read_many(
+        self,
+        config: RepoConfig,
+        table_list: List[FeatureView],
+        entity_keys_list: List[List[EntityKeyProto]],
+        requested_features_list: Optional[List[Optional[List[str]]]] = None,
+    ) -> List[List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]]:
+        """
+        """
+        pass
+
+    @abstractmethod
     def update(
         self,
         config: RepoConfig,

@@ -259,6 +259,60 @@ class MySQLOnlineStore(OnlineStore):
         self._close_conn(raw_conn, conn_type)
         return result
 
+    def online_read_many(self,
+            config: RepoConfig,
+            table_list: List[FeatureView],
+            entity_keys_list: List[List[EntityKeyProto]],
+            _: Optional[List[Optional[List[str]]]] = None,
+    ) -> List[List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]]:
+        output = []
+        raw_conn, conn_type = self._get_conn(config, readonly=True)
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        queries = []
+        with conn.cursor() as cur:
+            project = config.project
+            entity_key_bins = []
+            for i, (table, entity_keys) in enumerate(zip(table_list, entity_keys_list)):
+                for entity_key in entity_keys:
+                    entity_key_bins.append(serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=2,
+                    ).hex())
+                    query = f"SELECT feature_name, value, event_ts, {i} as __i__ FROM {_table_id(project, table)} WHERE entity_key = %s"
+                    queries.append(query)
+            union_query = f"{' UNION ALL '.join(queries)}"
+            if self._execute_query_with_retry(cur=cur,
+                                            conn=conn,
+                                            query=union_query,
+                                            values=entity_key_bins,
+                                            retries=MYSQL_READ_RETRIES):
+                res = {}
+                res_ts: Optional[datetime] = None
+                all_records = cur.fetchall()
+                sorted_records = {i:[] for i in range(len(table_list))}
+                for feature_name, val_bin, ts, i in all_records:
+                    sorted_records[i].append((feature_name, val_bin, ts))
+                for i in range(len(table_list)):
+                    result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
+                    records = sorted_records[i]
+                    if records:
+                        for feature_name, val_bin, ts in records:
+                            val = ValueProto()
+                            val.ParseFromString(val_bin)
+                            res[feature_name] = val
+                            res_ts = ts
+
+                    if not res:
+                        result.append((None, None))
+                    else:
+                        result.append((res_ts, res))
+                    output.append(result)
+            else:
+                for table, entity_keys in zip(table_list, entity_keys_list):
+                    logging.error(f'Skipping read for (table, entities): ({_table_id(project, table)}, {entity_keys})')
+        self._close_conn(raw_conn, conn_type)
+        return output
+
     def update(
             self,
             config: RepoConfig,
