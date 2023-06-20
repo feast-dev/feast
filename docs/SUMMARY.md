@@ -98,6 +98,7 @@
   * [MySQL (contrib)](reference/online-stores/mysql.md)
   * [Rockset (contrib)](reference/online-stores/rockset.md)
   * [Hazelcast (contrib)](reference/online-stores/hazelcast.md)
+  [ScyllaDB (contrib)](reference/online-stores/scylladb.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
