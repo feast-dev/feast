@@ -89,15 +89,15 @@ class RedisOnlineStore(OnlineStore):
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0
-        pipeline = client.pipeline(transaction=False)
         prefix = _redis_key_prefix(join_keys)
 
-        for _k in client.scan_iter(
-            b"".join([prefix, b"*", config.project.encode("utf8")])
-        ):
-            pipeline.delete(_k)
-            deleted_count += 1
-        pipeline.execute()
+        with client.pipeline(transaction=False) as pipe:
+            for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
+                pipe.delete(_k)
+                deleted_count += 1
+            pipe.execute()
 
         logger.debug(f"Deleted {deleted_count} rows for entity {', '.join(join_keys)}")
 
