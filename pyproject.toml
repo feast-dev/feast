@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "feast-affirm"
-version = "0.28+affirm87"
+version = "0.28+affirm88"
 description = "Feast - Affirm"
 authors = ["Francisco Arceo", "Ross Briden", "Maks Stachowiak"]
 readme = "README.md"
@@ -26,7 +26,7 @@ fissix = "21.11.13"
 fsspec = "2023.1.0"
 google-api-core = "2.6.1"
 google-auth = "2.16.1"
-googleapis-common-protos = "1.53.0"
+googleapis-common-protos = "1.56.2"
 greenlet = "2.0.2"
 grpcio-tools = "1.47.0"
 grpcio = "1.51.3"

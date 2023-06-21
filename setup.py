@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm87"
+VERSION = "0.28+affirm88"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -222,7 +222,7 @@ AFFIRM_REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     # below are required for dev while were conflict with affirm environment.
     "google-api-core>=1.23.0,<2.7",
-    "googleapis-common-protos==1.53.0",
+    "googleapis-common-protos==1.56.2",
     "grpcio-reflection",
     "numpy<1.22,<2",
     "pandas>=1,<2",
