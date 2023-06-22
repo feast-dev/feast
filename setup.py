@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm89"
+VERSION = "0.28+affirm90"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -53,7 +53,7 @@ REQUIRED = [
     "fastavro>=1.1.0,<2",
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.*,<2",
-    "grpcio>=1.47.0,<2",
+    "grpcio==1.53.1",
     "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
     "jsonschema",
