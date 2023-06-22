@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm90"
+VERSION = "0.28+affirm91"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -53,7 +53,7 @@ REQUIRED = [
     "fastavro>=1.1.0,<2",
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.*,<2",
-    "grpcio==1.53.1",
+    "grpcio==1.51.1",
     "grpcio-reflection>=1.47.0,<2",
     "Jinja2>=2,<4",
     "jsonschema",
@@ -204,7 +204,7 @@ AFFIRM_REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill==0.3.*",
     "fastavro>=1.1.0,<2",
-    "grpcio>=1.47.0,<2",
+    "grpcio==1.51.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -584,7 +584,7 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     setup_requires=[
         # "setuptools_scm",
-        "grpcio>=1.47.0",
+        "grpcio==1.51.1",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
