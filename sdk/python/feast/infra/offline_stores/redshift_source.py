@@ -293,6 +293,15 @@ class RedshiftOptions:
         )
 
         return redshift_options
+    
+    @property
+    def fully_qualified_table_name(self) -> str:
+        if self.database and self.schema:
+            return f"{self.database}.{self.schema}.{self.table}"
+        elif self.schema:
+            return f"{self.schema}.{self.table}"
+        else:
+            return self.table
 
     def to_proto(self) -> DataSourceProto.RedshiftOptions:
         """
