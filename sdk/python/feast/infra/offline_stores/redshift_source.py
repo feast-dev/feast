@@ -293,7 +293,7 @@ class RedshiftOptions:
         )
 
         return redshift_options
-    
+
     @property
     def fully_qualified_table_name(self) -> str:
         if self.database and self.schema:
