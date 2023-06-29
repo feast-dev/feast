@@ -379,10 +379,11 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio>=1.47.0",
+        "grpcio>=1.47.0,<2",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
+        "protobuf<3.20"
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
