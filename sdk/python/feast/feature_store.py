@@ -819,7 +819,7 @@ class FeatureStore:
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
         # TODO: Add locking
-        if not isinstance(objects, Iterable):
+        if not isinstance(objects, list):
             objects = [objects]
         assert isinstance(objects, list)
 

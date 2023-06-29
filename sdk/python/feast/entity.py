@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from datetime import datetime
+from json import dumps
 from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
+from pydantic import BaseModel, root_validator
 from typeguard import typechecked
 
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -25,7 +27,7 @@ from feast.value_type import ValueType
 
 
 @typechecked
-class Entity:
+class Entity(BaseModel):
     """
     An entity defines a collection of entities for which features can be defined. An
     entity can also contain associated metadata.
@@ -44,62 +46,49 @@ class Entity:
     """
 
     name: str
-    value_type: ValueType
+    value_type: Optional[ValueType] = None
     join_key: str
-    description: str
-    tags: Dict[str, str]
-    owner: str
+    description: str = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: str = ""
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
-    @log_exceptions
-    def __init__(
-        self,
-        *,
-        name: str,
-        join_keys: Optional[List[str]] = None,
-        value_type: Optional[ValueType] = None,
-        description: str = "",
-        tags: Optional[Dict[str, str]] = None,
-        owner: str = "",
-    ):
-        """
-        Creates an Entity object.
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders = {
+            ValueType: lambda v: int(dumps(v.value, default=str))
+        }
 
-        Args:
-            name: The unique name of the entity.
-            join_keys (optional): A list of properties that uniquely identifies different entities
-                within the collection. This currently only supports a list of size one, but is
-                intended to eventually support multiple join keys.
-            value_type (optional): The type of the entity, such as string or float. If not specified,
-                it will be inferred from the schema of the underlying data source.
-            description (optional): A human-readable description.
-            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
-            owner (optional): The owner of the entity, typically the email of the primary maintainer.
+    @root_validator(pre=True)
+    def validate_and_adjust_fields(cls, values):
+        try:
+            values["value_type"] = values.get("value_type", ValueType.UNKNOWN)
+            values["tags"] = values.get("tags", {})
+            values["created_timestamp"] = None
+            values["last_updated_timestamp"] = None
 
-        Raises:
-            ValueError: Parameters are specified incorrectly.
-        """
-        self.name = name
-        self.value_type = value_type or ValueType.UNKNOWN
+            # Replace join_keys with a single join_key
+            join_keys = values.get("join_keys", None)
+            if join_keys and len(join_keys) > 1:
+                # TODO(felixwang9817): When multiple join keys are supported, add a `join_keys` attribute
+                # and deprecate the `join_key` attribute.
+                raise ValueError(
+                    "An entity may only have a single join key. "
+                    "Multiple join keys will be supported in the future."
+                )
+            elif join_keys and len(join_keys) == 1:
+                values["join_key"] = join_keys[0]
+            else:
+                values["join_key"] = values["name"]
 
-        if join_keys and len(join_keys) > 1:
-            # TODO(felixwang9817): When multiple join keys are supported, add a `join_keys` attribute
-            # and deprecate the `join_key` attribute.
-            raise ValueError(
-                "An entity may only have a single join key. "
-                "Multiple join keys will be supported in the future."
-            )
-        elif join_keys and len(join_keys) == 1:
-            self.join_key = join_keys[0]
-        else:
-            self.join_key = self.name
+            if "join_keys" in values:
+                del values["join_keys"]
 
-        self.description = description
-        self.tags = tags if tags is not None else {}
-        self.owner = owner
-        self.created_timestamp = None
-        self.last_updated_timestamp = None
+            return values
+        except KeyError as exception:
+            raise TypeError("Entity missing required values.") from exception
 
     def __hash__(self) -> int:
         return hash((self.name, self.join_key))
