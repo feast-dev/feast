@@ -5,7 +5,7 @@ from enum import Enum
 from json import dumps
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 from pyspark.sql import SparkSession
 
 from feast import flags_helper
@@ -41,7 +41,6 @@ class SparkSourceModel(DataSourceModel):
     query: Optional[str] = None
     path: Optional[str] = None
     file_format: Optional[str] = None
-    event_timestamp_column: Optional[str] = None
     created_timestamp_column: Optional[str] = None
     field_mapping: Optional[Dict[str, str]] = None
     description: Optional[str] = ""
@@ -222,9 +221,8 @@ class SparkSource(DataSource):
             query=self.query if self.query else "",
             path=self.path if self.path else "",
             file_format=self.file_format if self.file_format else "",
-            event_timestamp_column=self.event_timestamp_column if self.event_timestamp_column else "",
             created_timestamp_column=self.created_timestamp_column if self.created_timestamp_column else "",
-            field_mapping=self.field_mapping if self.field else {},
+            field_mapping=self.field_mapping if self.field_mapping else {},
             description=self.description if self.description else "",
             tags=self.tags if self.tags else {},
             owner=self.owner if self.owner else "",
@@ -244,7 +242,6 @@ class SparkSource(DataSource):
             query=pydantic_datasource.query or "",
             path=pydantic_datasource.path or "",
             file_format=pydantic_datasource.file_format or "",
-            event_timestamp_column=pydantic_datasource.event_timestamp_column or "",
             created_timestamp_column=pydantic_datasource.created_timestamp_column or "",
             field_mapping=pydantic_datasource.field_mapping if pydantic_datasource.field_mapping else None,
             description=pydantic_datasource.description or "",

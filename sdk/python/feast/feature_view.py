@@ -18,7 +18,7 @@ from json import dumps
 from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 from typeguard import typechecked
 
 from feast import utils

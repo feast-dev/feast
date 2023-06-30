@@ -20,7 +20,7 @@ from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type
+from feast.types import FeastType, from_value_type, ComplexFeastType, PrimitiveFeastType
 from feast.value_type import ValueType
 
 
@@ -45,7 +45,9 @@ class Field(BaseModel):
         arbitrary_types_allowed = True
         extra = "allow"
         json_encoders = {
-            FeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
+            FeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
+            ComplexFeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
+            PrimitiveFeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
         }
 
     @validator('dtype', pre=True, always=True)

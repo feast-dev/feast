@@ -16,7 +16,7 @@ from json import dumps
 from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 from typeguard import typechecked
 
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto

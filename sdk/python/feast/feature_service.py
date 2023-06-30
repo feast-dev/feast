@@ -1,7 +1,9 @@
 from datetime import datetime
+from json import dumps
 from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
+from pydantic import BaseModel, root_validator
 from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
@@ -20,6 +22,31 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceSpec as FeatureServiceSpecProto,
 )
 from feast.usage import log_exceptions
+
+
+class FeatureServiceModel(BaseModel):
+    """
+    Pydantic Model of a Feast FeatureService.
+    """
+
+    name: str
+    _features: List[Union[FeatureView, OnDemandFeatureView]]
+    feature_view_projections: List[FeatureViewProjection]
+    description: str = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: str = ""
+    created_timestamp: Optional[datetime] = None
+    last_updated_timestamp: Optional[datetime] = None
+    logging_config: Optional[LoggingConfig] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders = {
+        # OnDemandFeatureView
+        # FeatureViewProjection
+        # LoggingConfig
+        }
 
 
 @typechecked

@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 from pydantic import Field as PydanticField
 from typeguard import typechecked
 
@@ -557,7 +557,6 @@ class RequestSourceModel(DataSourceModel):
         arbitrary_types_allowed = True
         extra = "allow"
         json_encoders = {
-            Field: lambda v: int(dumps(v.value, default=str))
         }
 
 
@@ -692,7 +691,7 @@ class RequestSource(DataSource):
         """
         return RequestSource(
             name=pydantic_datasource.name,
-            schema=pydantic_datasource.schema,
+            schema=pydantic_datasource.schema_,
             description=pydantic_datasource.description,
             tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
             owner=pydantic_datasource.owner)
