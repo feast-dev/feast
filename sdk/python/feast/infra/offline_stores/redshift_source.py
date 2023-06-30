@@ -307,20 +307,26 @@ class RedshiftOptions:
         if not self.table:
             return self.table
         
-        # If the table name is already fully qualified, return it as is
-        if self.table.count(".") == 2:
-            return self.table
-        elif self.table.count(".") == 1 and self.database:
-            return f"{self.database}.{self.table}"
-        elif self.table.count(".") == 1:
-            return self.table
-
-        if self.database and self.schema:
-            return f"{self.database}.{self.schema}.{self.table}"
-        elif self.schema:
-            return f"{self.schema}.{self.table}"
+        # self.table may already contain the database and schema
+        parts = self.table.split(".")
+        if len(parts) == 3:
+            database, schema, table = parts
+        elif len(parts) == 2:
+            database = self.database
+            schema, table = parts
+        elif len(parts) == 1:
+            database = self.database
+            schema = self.schema
+            table = parts[0]
         else:
-            return self.table
+            raise ValueError(f"Invalid table name: {self.table} - can't determine database and schema")
+
+        if database and schema:
+            return f"{database}.{schema}.{table}"
+        elif schema:
+            return f"{schema}.{table}"
+        else:
+            return table
 
     def to_proto(self) -> DataSourceProto.RedshiftOptions:
         """
