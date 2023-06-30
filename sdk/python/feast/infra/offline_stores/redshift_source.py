@@ -295,17 +295,17 @@ class RedshiftOptions:
         return redshift_options
 
     @property
-    def fully_qualified_table_name(self) -> Optional[str]:
+    def fully_qualified_table_name(self) -> str:
         """
         The fully qualified table name of this Redshift table.
-        
+
         Returns:
             A string in the format of <database>.<schema>.<table>.
             May be empty or None if the table is not set.
         """
 
         if not self.table:
-            return self.table
+            return ""
 
         # self.table may already contain the database and schema
         parts = self.table.split(".")
