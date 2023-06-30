@@ -2,12 +2,14 @@ import logging
 import traceback
 import warnings
 from enum import Enum
+from json import dumps
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
+from pydantic import BaseModel, root_validator
 from pyspark.sql import SparkSession
 
 from feast import flags_helper
-from feast.data_source import DataSource
+from feast.data_source import DataSource, DataSourceModel
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -28,6 +30,28 @@ class SparkSourceFormat(Enum):
     parquet = "parquet"
     delta = "delta"
     avro = "avro"
+
+
+class SparkSourceModel(DataSourceModel):
+    """
+    Pydantic Model of a Feast SparkSource.
+    """
+    name: str
+    table: Optional[str] = None
+    query: Optional[str] = None
+    path: Optional[str] = None
+    file_format: Optional[str] = None
+    event_timestamp_column: Optional[str] = None
+    created_timestamp_column: Optional[str] = None
+    field_mapping: Optional[Dict[str, str]] = None
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: Optional[str] = ""
+    timestamp_field: Optional[str] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
 
 
 class SparkSource(DataSource):
@@ -184,6 +208,49 @@ class SparkSource(DataSource):
         df.createOrReplaceTempView(tmp_table_name)
 
         return f"`{tmp_table_name}`"
+
+    def to_pydantic_model(self) -> SparkSourceModel:
+        """
+        Converts a SparkSource object to its pydantic model representation.
+
+        Returns:
+            A SparkSourceModel.
+        """
+        return SparkSourceModel(
+            name=self.name,
+            table=self.table if self.table else "",
+            query=self.query if self.query else "",
+            path=self.path if self.path else "",
+            file_format=self.file_format if self.file_format else "",
+            event_timestamp_column=self.event_timestamp_column if self.event_timestamp_column else "",
+            created_timestamp_column=self.created_timestamp_column if self.created_timestamp_column else "",
+            field_mapping=self.field_mapping if self.field else {},
+            description=self.description if self.description else "",
+            tags=self.tags if self.tags else {},
+            owner=self.owner if self.owner else "",
+            timestamp_field=self.timestamp_field if self.timestamp_field else "")
+
+    @staticmethod
+    def datasource_from_pydantic_model(pydantic_datasource):
+        """
+        Given a Pydantic SparkSourceModel, create and return a SparkSource.
+
+        Returns:
+            A SparkSource.
+        """
+        return SparkSource(
+            name=pydantic_datasource.name,
+            table=pydantic_datasource.table,
+            query=pydantic_datasource.query,
+            path=pydantic_datasource.path,
+            file_format=pydantic_datasource.file_format,
+            event_timestamp_column=pydantic_datasource.event_timestamp_column,
+            created_timestamp_column=pydantic_datasource.created_timestamp_column,
+            field_mapping=pydantic_datasource.field_mapping if pydantic_datasource.field_mapping else None,
+            description=pydantic_datasource.description,
+            tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
+            owner=pydantic_datasource.owner,
+            timestamp_field=pydantic_datasource.timestamp_field)
 
 
 class SparkOptions:

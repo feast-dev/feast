@@ -232,19 +232,19 @@ class Entity:
             tags=self.tags if self.tags else None,
             owner=self.owner)
 
+    @staticmethod
+    def entity_from_pydantic_model(pydantic_entity):
+        """
+        Given a Pydantic EntityModel, create and return an Entity.
 
-def entity_from_pydantic_model(pydantic_entity):
-    """
-    Given a Pydantic EntityModel, create and return an Entity.
-
-    Returns:
-        An Entity.
-    """
-    return Entity(
-        name=pydantic_entity.name,
-        join_key=pydantic_entity.join_key,
-        value_type=pydantic_entity.value_type,
-        description=pydantic_entity.description,
-        tags=pydantic_entity.tags if pydantic_entity.tags else None,
-        owner=pydantic_entity.owner)
+        Returns:
+            An Entity.
+        """
+        return Entity(
+            name=pydantic_entity.name,
+            join_keys=[pydantic_entity.join_key],
+            value_type=pydantic_entity.value_type,
+            description=pydantic_entity.description,
+            tags=pydantic_entity.tags if pydantic_entity.tags else None,
+            owner=pydantic_entity.owner)
 

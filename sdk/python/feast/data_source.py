@@ -16,10 +16,13 @@ import enum
 import warnings
 from abc import ABC, abstractmethod
 from datetime import timedelta
+from json import dumps
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
+from pydantic import BaseModel, root_validator
+from pydantic import Field as PydanticField
 from typeguard import typechecked
 
 from feast import type_map
@@ -162,6 +165,25 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
+
+
+class DataSourceModel(BaseModel):
+    """
+    Pydantic Model of a Feast DataSource.
+    """
+
+    name: str
+    timestamp_field: Optional[str] = ""
+    created_timestamp_column: Optional[str] = ""
+    field_mapping: Optional[Dict[str, str]] = None
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: Optional[str] = ""
+    date_partition_column: Optional[str] = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
 
 
 @typechecked
@@ -341,6 +363,25 @@ class DataSource(ABC):
         """
         raise NotImplementedError
 
+    def to_pydantic_model(self) -> DataSourceModel:
+        """
+        Converts a DataSource object to its pydantic model representation.
+
+        Returns:
+            A DataSourceModel.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def datasource_from_pydantic_model(pydantic_datasource):
+        """
+        Given a Pydantic DataSourceModel, create and return a DataSource.
+
+        Returns:
+            A DataSource.
+        """
+        raise NotImplementedError
+
 
 @typechecked
 class KafkaSource(DataSource):
@@ -500,6 +541,27 @@ class KafkaSource(DataSource):
         raise NotImplementedError
 
 
+
+class RequestSourceModel(DataSourceModel):
+    """
+    Pydantic Model of a Feast RequestSource.
+    """
+
+    name: str
+    schema_: List[Field] = PydanticField(None, alias='schema')
+    description: Optional[Dict[str, str]] = None
+    tags: Dict[str, str]
+    owner: Optional[str] = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders = {
+            Field: lambda v: int(dumps(v.value, default=str))
+        }
+
+
+
 @typechecked
 class RequestSource(DataSource):
     """
@@ -605,6 +667,35 @@ class RequestSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+    def to_pydantic_model(self) -> RequestSourceModel:
+        """
+        Converts a RequestSource object to its pydantic model representation.
+
+        Returns:
+            A RequestSourceModel.
+        """
+        return RequestSourceModel(
+            name=self.name,
+            schema=self.schema,
+            description=self.description,
+            tags=self.tags if self.tags else None,
+            owner=self.owner)
+
+    @staticmethod
+    def datasource_from_pydantic_model(pydantic_datasource):
+        """
+        Given a Pydantic RequestSourceModel, create and return a RequestSource.
+
+        Returns:
+            A RequestSource.
+        """
+        return RequestSource(
+            name=pydantic_datasource.name,
+            schema=pydantic_datasource.schema,
+            description=pydantic_datasource.description,
+            tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
+            owner=pydantic_datasource.owner)
 
 
 @typechecked

@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from json import dumps
 from typing import Dict, Optional
 
+from pydantic import BaseModel, validator
 from typeguard import typechecked
 
 from feast.feature import Feature
@@ -23,7 +25,7 @@ from feast.value_type import ValueType
 
 
 @typechecked
-class Field:
+class Field(BaseModel):
     """
     A Field represents a set of values with the same structure.
 
@@ -36,30 +38,21 @@ class Field:
 
     name: str
     dtype: FeastType
-    description: str
-    tags: Dict[str, str]
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = {}
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        dtype: FeastType,
-        description: str = "",
-        tags: Optional[Dict[str, str]] = None,
-    ):
-        """
-        Creates a Field object.
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders = {
+            FeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
+        }
 
-        Args:
-            name: The name of the field.
-            dtype: The type of the field, such as string or float.
-            description (optional): A human-readable description.
-            tags (optional): User-defined metadata in dictionary form.
-        """
-        self.name = name
-        self.dtype = dtype
-        self.description = description
-        self.tags = tags or {}
+    @validator('dtype', pre=True, always=True)
+    def dtype_is_feasttype(cls, v):
+        if not isinstance(v, FeastType):
+            raise TypeError("dtype must be of type FeastType")
+        return v
 
     def __eq__(self, other):
         if type(self) != type(other):
