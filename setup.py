@@ -39,7 +39,7 @@ NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"
 URL = "https://github.com/ExpediaGroup/feast"
 AUTHOR = "Feast and EG"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = "<=3.8.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",

@@ -44,7 +44,7 @@ def test_entity_without_description():
 
 
 def test_entity_without_name():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         _ = Entity()
 
 
