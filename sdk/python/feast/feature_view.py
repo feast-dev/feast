@@ -14,9 +14,11 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
+from json import dumps
 from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
+from pydantic import BaseModel, root_validator
 from typeguard import typechecked
 
 from feast import utils
@@ -49,6 +51,32 @@ DUMMY_ENTITY = Entity(
     name=DUMMY_ENTITY_NAME,
     join_keys=[DUMMY_ENTITY_ID],
 )
+
+
+class FeatureViewModel(BaseModel):
+    """
+    Pydantic Model of a Feast FeatureView.
+    """
+
+    name: str
+    entities: List[str]
+    ttl: Optional[timedelta]
+    batch_source: DataSource
+    stream_source: Optional[DataSource]
+    entity_columns: List[Field]
+    features: List[Field]
+    online: bool = True
+    description: str = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: str = ""
+    materialization_intervals: List[Tuple[datetime, datetime]]
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders = {
+            Field: lambda v: int(dumps(v.value, default=str))
+        }
 
 
 @typechecked
@@ -452,3 +480,44 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    def to_pydantic_model(self) -> FeatureViewModel:
+        """
+        Converts a FeatureView object to its pydantic model representation.
+
+        Returns:
+            A FeatureViewModel.
+        """
+        return FeatureViewModel(
+            name=self.name,
+            entities=self.entities if self.entities else None,
+            ttl=self.ttl,
+            batch_source=self.batch_source,
+            stream_source=self.stream_source,
+            entity_columns=self.entity_columns if self.entity_columns else None,
+            features=self.features if self.features else None,
+            online=self.online,
+            description=self.description,
+            tags=self.tags if self.tags else None,
+            owner=self.owner,
+            materialization_intervals=self.materialization_intervals if self.materialization_intervals else None)
+
+    @staticmethod
+    def featureview_from_pydantic_model(pydantic_featureview):
+        """
+        Given a Pydantic FeatureViewModel, create and return a FeatureView.
+
+        Returns:
+            A FeatureView.
+        """
+        return FeatureView(
+            name=pydantic_featureview.name,
+            source=pydantic_featureview.source,
+            schema=pydantic_featureview.schema,
+            entities=pydantic_featureview.entities,
+            ttl=pydantic_featureview.ttl,
+            online=pydantic_featureview.online,
+            description=pydantic_featureview.description,
+            tags=pydantic_featureview.tags if pydantic_featureview.tags else None,
+            owner=pydantic_featureview.owner)
+

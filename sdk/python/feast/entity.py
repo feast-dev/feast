@@ -28,7 +28,7 @@ from feast.value_type import ValueType
 
 class EntityModel(BaseModel):
     """
-    Pydantic Model of a Feast entity.
+    Pydantic Model of a Feast Entity.
     """
 
     name: str

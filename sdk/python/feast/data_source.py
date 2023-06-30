@@ -549,8 +549,8 @@ class RequestSourceModel(DataSourceModel):
 
     name: str
     schema_: List[Field] = PydanticField(None, alias='schema')
-    description: Optional[Dict[str, str]] = None
-    tags: Dict[str, str]
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = None
     owner: Optional[str] = ""
 
     class Config:
