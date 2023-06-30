@@ -190,3 +190,28 @@ def test_column_conflict():
             timestamp_field="event_timestamp",
             created_timestamp_column="event_timestamp",
         )
+
+@pytest.mark.parametrize(
+    "source_kwargs,expected_name",
+    [
+        ({"database": "test_database", "schema": "test_schema", "table": "test_table"}, "test_database.test_schema.test_table"),
+        ({"database": "test_database", "table": "test_table"}, "test_database.public.test_table"),
+        ({"table": "test_table"}, "public.test_table"),
+        ({"database": "test_database", "table": "b.c"}, "test_database.b.c"),
+        ({"database": "test_database", "table": "a.b.c"}, "a.b.c"),
+        ({"database": "test_database", "schema": "test_schema", "query": "select * from abc"}, ""),
+    ]
+)
+def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
+    redshift_source = RedshiftSource(
+        name="test_source",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        **source_kwargs
+    )
+
+    assert redshift_source.redshift_options.fully_qualified_table_name == expected_name

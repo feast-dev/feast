@@ -306,6 +306,14 @@ class RedshiftOptions:
 
         if not self.table:
             return self.table
+        
+        # If the table name is already fully qualified, return it as is
+        if self.table.count(".") == 2:
+            return self.table
+        elif self.table.count(".") == 1 and self.database:
+            return f"{self.database}.{self.table}"
+        elif self.table.count(".") == 1:
+            return self.table
 
         if self.database and self.schema:
             return f"{self.database}.{self.schema}.{self.table}"
