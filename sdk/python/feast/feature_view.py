@@ -78,7 +78,8 @@ class FeatureViewModel(BaseModel):
         extra = "allow"
         json_encoders = {
             Field: lambda v: int(dumps(v.value, default=str)),
-            DataSource: lambda v: v.to_pydantic_model()
+            DataSource: lambda v: v.to_pydantic_model(),
+            Entity: lambda v: v.to_pydantic_model()
         }
 
 
