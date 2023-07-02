@@ -60,7 +60,7 @@ class FeatureViewModel(BaseModel):
     """
 
     name: str
-    original_entities: List[Entity]
+    original_entities: List[Entity] = None
     original_schema: Optional[List[Field]] = None
     ttl: Optional[timedelta]
     batch_source: DataSource

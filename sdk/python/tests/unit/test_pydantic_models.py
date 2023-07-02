@@ -73,6 +73,7 @@ def test_idempotent_featureview_conversion():
         Field(name="f1", dtype=Float32),
         Field(name="f2", dtype=Bool),
     ]
+    user_entity = Entity(name="user1", join_keys=["user_id"])
     request_source = RequestSource(
         name="source",
         schema=schema,
@@ -82,7 +83,7 @@ def test_idempotent_featureview_conversion():
     )
     feature_view = FeatureView(
         name="my-feature-view",
-        entities=[],
+        entities=[user_entity],
         schema=[
             Field(name="feature1", dtype=Float32),
             Field(name="feature2", dtype=Float32),
