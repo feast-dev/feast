@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from typeguard import typechecked
 
 from feast import utils
@@ -59,7 +60,8 @@ class FeatureViewModel(BaseModel):
     """
 
     name: str
-    entities: List[str]
+    original_entities: List[Entity]
+    original_schema: Optional[List[Field]] = None
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
@@ -75,7 +77,8 @@ class FeatureViewModel(BaseModel):
         arbitrary_types_allowed = True
         extra = "allow"
         json_encoders = {
-            Field: lambda v: int(dumps(v.value, default=str))
+            Field: lambda v: int(dumps(v.value, default=str)),
+            DataSource: lambda v: v.to_pydantic_model()
         }
 
 
@@ -162,6 +165,13 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+
+        # FeatureView is destructive of some of its original arguments,
+        # making it impossible to convert idempotently to another format.
+        # store these arguments to recover them in conversions.
+        self.original_schema = schema
+        self.original_entities = entities
+
         schema = schema or []
 
         # Initialize data sources.
@@ -490,17 +500,18 @@ class FeatureView(BaseFeatureView):
         """
         return FeatureViewModel(
             name=self.name,
-            entities=self.entities if self.entities else None,
+            original_entities=self.original_entities,
             ttl=self.ttl,
+            original_schema=self.original_schema,
             batch_source=self.batch_source,
             stream_source=self.stream_source,
-            entity_columns=self.entity_columns if self.entity_columns else None,
+            entity_columns=self.entity_columns,
             features=self.features if self.features else None,
             online=self.online,
             description=self.description,
             tags=self.tags if self.tags else None,
             owner=self.owner,
-            materialization_intervals=self.materialization_intervals if self.materialization_intervals else None)
+            materialization_intervals=self.materialization_intervals)
 
     @staticmethod
     def featureview_from_pydantic_model(pydantic_featureview):
@@ -510,14 +521,18 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureView.
         """
-        return FeatureView(
+        feature_view = FeatureView(
             name=pydantic_featureview.name,
-            source=pydantic_featureview.source,
-            schema=pydantic_featureview.schema,
-            entities=pydantic_featureview.entities,
+            source=pydantic_featureview.batch_source,
+            schema=pydantic_featureview.original_schema,
+            entities=pydantic_featureview.original_entities,
             ttl=pydantic_featureview.ttl,
             online=pydantic_featureview.online,
             description=pydantic_featureview.description,
             tags=pydantic_featureview.tags if pydantic_featureview.tags else None,
             owner=pydantic_featureview.owner)
+        # Correct the FeatureView to store both sources.
+        feature_view.batch_source=pydantic_featureview.batch_source
+        feature_view.stream_source=pydantic_featureview.stream_source
+        return feature_view
 

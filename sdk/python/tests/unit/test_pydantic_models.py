@@ -69,4 +69,28 @@ def test_type_safety_when_converting_multiple_datasources():
 
 
 def test_idempotent_featureview_conversion():
-    pass
+    schema = [
+        Field(name="f1", dtype=Float32),
+        Field(name="f2", dtype=Bool),
+    ]
+    request_source = RequestSource(
+        name="source",
+        schema=schema,
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=request_source,
+    )
+    feature_view_model = feature_view.to_pydantic_model()
+    feature_view_2 = FeatureView.featureview_from_pydantic_model(feature_view_model)
+    print(feature_view.original_schema)
+    print(feature_view_2.original_schema)
+    assert feature_view == feature_view_2
