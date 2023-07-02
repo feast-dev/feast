@@ -41,7 +41,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.types import from_value_type
+from feast.types import FeastType, from_value_type, ComplexFeastType, PrimitiveFeastType
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
