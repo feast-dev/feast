@@ -82,7 +82,10 @@ class FeatureViewModel(BaseModel):
         json_encoders = {
             Field: lambda v: int(dumps(v.value, default=str)),
             DataSource: lambda v: v.to_pydantic_model(),
-            Entity: lambda v: v.to_pydantic_model()
+            Entity: lambda v: v.to_pydantic_model(),
+            FeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
+            ComplexFeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
+            PrimitiveFeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
         }
 
 
