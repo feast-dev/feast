@@ -92,6 +92,25 @@ def test_idempotent_featureview_conversion():
     )
     feature_view_model = feature_view.to_pydantic_model()
     feature_view_2 = FeatureView.featureview_from_pydantic_model(feature_view_model)
-    print(feature_view.original_schema)
-    print(feature_view_2.original_schema)
     assert feature_view == feature_view_2
+
+
+    spark_source = SparkSource(
+        name="sparky_sparky_boom_man",
+        path=f"/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    feature_view_3 = FeatureView(
+        name="my-feature-view",
+        entities=[user_entity],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=spark_source,
+    )
+    feature_view_model_3 = feature_view_3.to_pydantic_model()
+    feature_view_4 = FeatureView.featureview_from_pydantic_model(feature_view_model_3)
+    assert feature_view_3 == feature_view_4

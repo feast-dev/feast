@@ -173,6 +173,7 @@ class DataSourceModel(BaseModel):
     """
 
     name: str
+    model_type: str = None
     timestamp_field: Optional[str] = ""
     created_timestamp_column: Optional[str] = ""
     field_mapping: Optional[Dict[str, str]] = None
@@ -548,6 +549,7 @@ class RequestSourceModel(DataSourceModel):
     """
 
     name: str
+    model_type: str = "RequestSource"
     schema_: List[Field] = PydanticField(None, alias='schema')
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = None
