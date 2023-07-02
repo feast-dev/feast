@@ -50,14 +50,14 @@ FEAST_TYPE_TO_ARROW_TYPE = {
     PrimitiveFeastType.BYTES: pa.binary(),
     PrimitiveFeastType.BOOL: pa.bool_(),
     PrimitiveFeastType.UNIX_TIMESTAMP: pa.timestamp("s"),
-    Array(PrimitiveFeastType.INT32): pa.list_(pa.int32()),
-    Array(PrimitiveFeastType.INT64): pa.list_(pa.int64()),
-    Array(PrimitiveFeastType.FLOAT32): pa.list_(pa.float32()),
-    Array(PrimitiveFeastType.FLOAT64): pa.list_(pa.float64()),
-    Array(PrimitiveFeastType.STRING): pa.list_(pa.string()),
-    Array(PrimitiveFeastType.BYTES): pa.list_(pa.binary()),
-    Array(PrimitiveFeastType.BOOL): pa.list_(pa.bool_()),
-    Array(PrimitiveFeastType.UNIX_TIMESTAMP): pa.list_(pa.timestamp("s")),
+    Array(base_type=PrimitiveFeastType.INT32): pa.list_(pa.int32()),
+    Array(base_type=PrimitiveFeastType.INT64): pa.list_(pa.int64()),
+    Array(base_type=PrimitiveFeastType.FLOAT32): pa.list_(pa.float32()),
+    Array(base_type=PrimitiveFeastType.FLOAT64): pa.list_(pa.float64()),
+    Array(base_type=PrimitiveFeastType.STRING): pa.list_(pa.string()),
+    Array(base_type=PrimitiveFeastType.BYTES): pa.list_(pa.binary()),
+    Array(base_type=PrimitiveFeastType.BOOL): pa.list_(pa.bool_()),
+    Array(base_type=PrimitiveFeastType.UNIX_TIMESTAMP): pa.list_(pa.timestamp("s")),
 }
 
 

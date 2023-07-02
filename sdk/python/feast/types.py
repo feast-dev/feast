@@ -15,6 +15,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Union
 
+from pydantic import BaseModel, validator
+
 from feast.value_type import ValueType
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
@@ -30,14 +32,14 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
 }
 
 
-class ComplexFeastType(ABC):
+class ComplexFeastType(ABC, BaseModel):
     """
     A ComplexFeastType represents a structured type that is recognized by Feast.
     """
 
-    def __init__(self):
-        """Creates a ComplexFeastType object."""
-        pass
+    # def __init__(self):
+    #     """Creates a ComplexFeastType object."""
+    #     pass
 
     @abstractmethod
     def to_value_type(self) -> ValueType:
@@ -136,13 +138,24 @@ class Array(ComplexFeastType):
 
     base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
-    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
+    @validator('base_type', pre=True, always=True)
+    def base_type_is_supported(cls, base_type):
         if base_type not in SUPPORTED_BASE_TYPES:
             raise ValueError(
                 f"Type {type(base_type)} is currently not supported as a base type for Array."
             )
+        return base_type
 
-        self.base_type = base_type
+    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
+        super(Array, self).__init__(base_type=base_type)
+
+    # def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
+    #     if base_type not in SUPPORTED_BASE_TYPES:
+    #         raise ValueError(
+    #             f"Type {type(base_type)} is currently not supported as a base type for Array."
+    #         )
+
+    #     self.base_type = base_type
 
     def to_value_type(self) -> ValueType:
         assert isinstance(self.base_type, PrimitiveFeastType)
@@ -155,7 +168,6 @@ class Array(ComplexFeastType):
 
 
 FeastType = Union[ComplexFeastType, PrimitiveFeastType]
-
 
 VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.UNKNOWN: Invalid,
