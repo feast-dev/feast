@@ -20,7 +20,7 @@ from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type, ComplexFeastType, PrimitiveFeastType
+from feast.types import FeastType, from_value_type, from_string, ComplexFeastType, PrimitiveFeastType
 from feast.value_type import ValueType
 
 
@@ -51,9 +51,20 @@ class Field(BaseModel):
         }
 
     @validator('dtype', pre=True, always=True)
-    def dtype_is_feasttype(cls, v):
+    def dtype_is_feasttype_or_string_feasttype(cls, v):
+        """
+        dtype must be a FeastType, but to allow wire transmission,
+        it is necessary to allow string representations of FeastTypes.
+        We therefore allow dtypes to be specified as strings which are
+        converted to FeastTypes at time of definition.
+        TO-DO: Investigate whether FeastType can be refactored to a json compatible
+        format.
+        """
         if not isinstance(v, FeastType):
-            raise TypeError("dtype must be of type FeastType")
+            if isinstance(v, str):
+                return from_string(v)
+            else:
+                raise TypeError("dtype must be of type FeastType")
         return v
 
     def __eq__(self, other):

@@ -7,6 +7,7 @@ from json import dumps
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from pyspark.sql import SparkSession
 
 from feast import flags_helper
@@ -37,7 +38,7 @@ class SparkSourceModel(DataSourceModel):
     Pydantic Model of a Feast SparkSource.
     """
     name: str
-    model_type: str = "SparkSource"
+    model_type: str = PydanticField("SparkSource", const=True)
     table: Optional[str] = None
     query: Optional[str] = None
     path: Optional[str] = None
@@ -218,14 +219,14 @@ class SparkSource(DataSource):
         """
         return SparkSourceModel(
             name=self.name,
-            table=self.table if self.table else "",
-            query=self.query if self.query else "",
-            path=self.path if self.path else "",
-            file_format=self.file_format if self.file_format else "",
+            table=self.table,
+            query=self.query,
+            path=self.path,
+            file_format=self.file_format,
             created_timestamp_column=self.created_timestamp_column if self.created_timestamp_column else "",
-            field_mapping=self.field_mapping if self.field_mapping else {},
+            field_mapping=self.field_mapping if self.field_mapping else None,
             description=self.description if self.description else "",
-            tags=self.tags if self.tags else {},
+            tags=self.tags if self.tags else None,
             owner=self.owner if self.owner else "",
             timestamp_field=self.timestamp_field if self.timestamp_field else "")
 

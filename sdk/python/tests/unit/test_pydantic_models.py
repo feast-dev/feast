@@ -14,20 +14,25 @@
 import assertpy
 import pytest
 
+from pydantic.error_wrappers import ValidationError
+
 from feast.entity import Entity, EntityModel
 from feast.field import Field
 from feast.data_source import DataSource, DataSourceModel, RequestSource, RequestSourceModel
 from feast.feature_view import FeatureView, FeatureViewModel
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import \
     SparkSource, SparkSourceModel
-from feast.types import Bool, Float32, Int64
+from feast.types import Array, Bool, Float32, Int64
 
 
 def test_datasourcemodel_to_sparksource():
     spark_source_model = DataSourceModel(
         name= "string",
-        model_type= "string",
+        model_type="SparkSource",
         table= "table1",
+        query="",
+        path="",
+        file_format="",
         timestamp_field= "",
         created_timestamp_column= "",
         description= "",
@@ -35,12 +40,14 @@ def test_datasourcemodel_to_sparksource():
         date_partition_column= ""
     )
     spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
+    spark_source_model_b = spark_source.to_pydantic_model()
+    assert spark_source_model == spark_source_model_b
 
     with pytest.raises(ValueError):
         # No file_format specified
-        spark_source_model_2 = DataSourceModel(
+        spark_source_model = DataSourceModel(
             name= "string",
-            model_type= "string",
+            model_type="SparkSource",
             path= "path1",
             timestamp_field= "",
             created_timestamp_column= "",
@@ -48,36 +55,48 @@ def test_datasourcemodel_to_sparksource():
             owner= "",
             date_partition_column= ""
         )
-        spark_source_2 = SparkSource.datasource_from_pydantic_model(spark_source_model_2)
+        spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
 
-    spark_source_model_2 = DataSourceModel(
+    spark_source_model = DataSourceModel(
         name= "string",
-        model_type= "string",
+        model_type="SparkSource",
         path= "path1",
         file_format="json",
+        table= "",
+        query="",
         timestamp_field= "",
         created_timestamp_column= "",
         description= "",
         owner= "",
         date_partition_column= ""
     )
-    spark_source_2 = SparkSource.datasource_from_pydantic_model(spark_source_model_2)
-
+    spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
+    spark_source_model_b = spark_source.to_pydantic_model()
+    assert spark_source_model == spark_source_model_b
 
 
 def test_datasourcemodel_to_requestsource():
+    with pytest.raises(ValidationError):
+        bad_schema = [
+            Field(name="f1", dtype="Array(Float323)"),
+            Field(name="f2", dtype="Bool"),
+        ]
+
     schema = [
-        Field(name="f1", dtype=Float32),
-        Field(name="f2", dtype=Bool),
+        Field(name="f1", dtype="Array(Float32)"),
+        Field(name="f2", dtype="Bool"),
     ]
     request_source_model = RequestSourceModel(
         name="source",
+        model_type="RequestSource",
         schema=schema,
         description="desc",
-        tags={},
+        tags=None,
         owner="feast",
     )
     request_source = RequestSource.datasource_from_pydantic_model(request_source_model)
+    request_source_model_b = request_source.to_pydantic_model()
+    assert request_source_model == request_source_model_b
 
 
 def test_idempotent_entity_conversion():
@@ -87,8 +106,8 @@ def test_idempotent_entity_conversion():
         tags={"key1": "val1", "key2": "val2"},
     )
     entity_model = entity.to_pydantic_model()
-    entity_2 = Entity.entity_from_pydantic_model(entity_model)
-    assert entity == entity_2
+    entity_b = Entity.entity_from_pydantic_model(entity_model)
+    assert entity == entity_b
 
 
 def test_idempotent_requestsource_conversion():
@@ -104,8 +123,8 @@ def test_idempotent_requestsource_conversion():
         owner="feast",
     )
     request_source_model = request_source.to_pydantic_model()
-    request_source_2 = RequestSource.datasource_from_pydantic_model(request_source_model)
-    assert request_source == request_source_2
+    request_source_b = RequestSource.datasource_from_pydantic_model(request_source_model)
+    assert request_source == request_source_b
 
 
 def test_idempotent_sparksource_conversion():
@@ -117,8 +136,8 @@ def test_idempotent_sparksource_conversion():
         owner="feast",
     )
     spark_source_model = spark_source.to_pydantic_model()
-    spark_source_2 = SparkSource.datasource_from_pydantic_model(spark_source_model)
-    assert spark_source == spark_source_2
+    spark_source_b = SparkSource.datasource_from_pydantic_model(spark_source_model)
+    assert spark_source == spark_source_b
 
 
 def test_type_safety_when_converting_multiple_datasources():
@@ -148,8 +167,8 @@ def test_idempotent_featureview_conversion():
         source=request_source,
     )
     feature_view_model = feature_view.to_pydantic_model()
-    feature_view_2 = FeatureView.featureview_from_pydantic_model(feature_view_model)
-    assert feature_view == feature_view_2
+    feature_view_b = FeatureView.featureview_from_pydantic_model(feature_view_model)
+    assert feature_view == feature_view_b
 
 
     spark_source = SparkSource(
@@ -159,7 +178,7 @@ def test_idempotent_featureview_conversion():
         timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
-    feature_view_3 = FeatureView(
+    feature_view = FeatureView(
         name="my-feature-view",
         entities=[user_entity],
         schema=[
@@ -168,6 +187,6 @@ def test_idempotent_featureview_conversion():
         ],
         source=spark_source,
     )
-    feature_view_model_3 = feature_view_3.to_pydantic_model()
-    feature_view_4 = FeatureView.featureview_from_pydantic_model(feature_view_model_3)
-    assert feature_view_3 == feature_view_4
+    feature_view_model = feature_view.to_pydantic_model()
+    feature_view_b = FeatureView.featureview_from_pydantic_model(feature_view_model)
+    assert feature_view == feature_view_b

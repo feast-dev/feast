@@ -549,7 +549,7 @@ class RequestSourceModel(DataSourceModel):
     """
 
     name: str
-    model_type: str = "RequestSource"
+    model_type: str = PydanticField("RequestSource", const=True)
     schema_: List[Field] = PydanticField(None, alias='schema')
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = None
