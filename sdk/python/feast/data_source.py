@@ -691,12 +691,14 @@ class RequestSource(DataSource):
         Returns:
             A RequestSource.
         """
-        return RequestSource(
-            name=pydantic_datasource.name,
-            schema=pydantic_datasource.schema_,
-            description=pydantic_datasource.description,
-            tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
-            owner=pydantic_datasource.owner)
+        params = {
+            "name":pydantic_datasource.name,
+            "description":pydantic_datasource.description,
+            "tags":pydantic_datasource.tags if pydantic_datasource.tags else None,
+            "owner":pydantic_datasource.owner
+        }
+        params["schema"] = [Field(name=sch.name,dtype=sch.dtype,description=sch.description,tags=sch.tags) for sch in pydantic_datasource.schema_]
+        return RequestSource(**params)
 
 
 @typechecked
