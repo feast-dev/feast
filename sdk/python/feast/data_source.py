@@ -173,7 +173,7 @@ class DataSourceModel(BaseModel):
     """
 
     name: str
-    model_type: str = None
+    model_type: str = ""
     timestamp_field: Optional[str] = ""
     created_timestamp_column: Optional[str] = ""
     field_mapping: Optional[Dict[str, str]] = None

@@ -44,7 +44,7 @@ class Field(BaseModel):
 
     name: str
     dtype: FeastType
-    description: Optional[str] = ""
+    description: str = ""
     tags: Optional[Dict[str, str]] = {}
 
     class Config:
@@ -70,7 +70,7 @@ class Field(BaseModel):
         TO-DO: Investigate whether FeastType can be refactored to a json compatible
         format.
         """
-        if not isinstance(v, FeastType): # noinspection
+        if not isinstance(v, FeastType): # type: ignore
             if isinstance(v, str):
                 return from_string(v)
             else:

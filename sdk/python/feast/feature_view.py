@@ -71,7 +71,7 @@ class FeatureViewModel(BaseModel):
     """
 
     name: str
-    original_entities: List[EntityModel] = None
+    original_entities: List[EntityModel] = []
     original_schema: Optional[List[Field]] = None
     ttl: Optional[timedelta]
     batch_source: DataSourceModel
@@ -132,10 +132,13 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
+    entity_columns: List[Field]
+    features: List[Field]
     online: bool
     description: str
     tags: Dict[str, str]
     owner: str
+    materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
     def __init__(
@@ -183,7 +186,7 @@ class FeatureView(BaseFeatureView):
         # making it impossible to convert idempotently to another format.
         # store these arguments to recover them in conversions.
         self.original_schema = schema
-        self.original_entities = entities
+        self.original_entities = entities or []
 
         schema = schema or []
 
