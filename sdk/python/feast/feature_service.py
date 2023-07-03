@@ -42,11 +42,6 @@ class FeatureServiceModel(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
-        json_encoders = {
-        # OnDemandFeatureView
-        # FeatureViewProjection
-        # LoggingConfig
-        }
 
 
 @typechecked

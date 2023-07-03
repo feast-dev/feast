@@ -37,6 +37,7 @@ class SparkSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast SparkSource.
     """
+
     name: str
     model_type: str = PydanticField("SparkSource", const=True)
     table: Optional[str] = None
@@ -223,12 +224,15 @@ class SparkSource(DataSource):
             query=self.query,
             path=self.path,
             file_format=self.file_format,
-            created_timestamp_column=self.created_timestamp_column if self.created_timestamp_column else "",
+            created_timestamp_column=self.created_timestamp_column
+            if self.created_timestamp_column
+            else "",
             field_mapping=self.field_mapping if self.field_mapping else None,
             description=self.description if self.description else "",
             tags=self.tags if self.tags else None,
             owner=self.owner if self.owner else "",
-            timestamp_field=self.timestamp_field if self.timestamp_field else "")
+            timestamp_field=self.timestamp_field if self.timestamp_field else "",
+        )
 
     @staticmethod
     def datasource_from_pydantic_model(pydantic_datasource):
@@ -240,16 +244,31 @@ class SparkSource(DataSource):
         """
         return SparkSource(
             name=pydantic_datasource.name,
-            table=pydantic_datasource.table if hasattr(pydantic_datasource,"table") else "",
-            query=pydantic_datasource.query if hasattr(pydantic_datasource,"query") else "",
-            path=pydantic_datasource.path if hasattr(pydantic_datasource,"path") else "",
-            file_format=pydantic_datasource.file_format if hasattr(pydantic_datasource,"file_format") else "",
-            created_timestamp_column=pydantic_datasource.created_timestamp_column if hasattr(pydantic_datasource,"created_timestamp_column") else "",
-            field_mapping=pydantic_datasource.field_mapping if pydantic_datasource.field_mapping else None,
+            table=pydantic_datasource.table
+            if hasattr(pydantic_datasource, "table")
+            else "",
+            query=pydantic_datasource.query
+            if hasattr(pydantic_datasource, "query")
+            else "",
+            path=pydantic_datasource.path
+            if hasattr(pydantic_datasource, "path")
+            else "",
+            file_format=pydantic_datasource.file_format
+            if hasattr(pydantic_datasource, "file_format")
+            else "",
+            created_timestamp_column=pydantic_datasource.created_timestamp_column
+            if hasattr(pydantic_datasource, "created_timestamp_column")
+            else "",
+            field_mapping=pydantic_datasource.field_mapping
+            if pydantic_datasource.field_mapping
+            else None,
             description=pydantic_datasource.description or "",
             tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
             owner=pydantic_datasource.owner or "",
-            timestamp_field=pydantic_datasource.timestamp_field if hasattr(pydantic_datasource,"timestamp_field") else "")
+            timestamp_field=pydantic_datasource.timestamp_field
+            if hasattr(pydantic_datasource, "timestamp_field")
+            else "",
+        )
 
 
 class SparkOptions:

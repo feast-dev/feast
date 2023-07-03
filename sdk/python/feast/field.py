@@ -13,14 +13,20 @@
 # limitations under the License.
 
 from json import dumps
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
 
 from pydantic import BaseModel, validator
 from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type, from_string, ComplexFeastType, PrimitiveFeastType
+from feast.types import (
+    ComplexFeastType,
+    FeastType,
+    PrimitiveFeastType,
+    from_string,
+    from_value_type,
+)
 from feast.value_type import ValueType
 
 
@@ -44,13 +50,17 @@ class Field(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
-        json_encoders = {
+        json_encoders: Dict[object, Callable] = {
             FeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
-            ComplexFeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
-            PrimitiveFeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
+            ComplexFeastType: lambda v: int(
+                dumps(v.to_value_type().value, default=str)
+            ),
+            PrimitiveFeastType: lambda v: int(
+                dumps(v.to_value_type().value, default=str)
+            ),
         }
 
-    @validator('dtype', pre=True, always=True)
+    @validator("dtype", pre=True, always=True)
     def dtype_is_feasttype_or_string_feasttype(cls, v):
         """
         dtype must be a FeastType, but to allow wire transmission,
@@ -60,7 +70,7 @@ class Field(BaseModel):
         TO-DO: Investigate whether FeastType can be refactored to a json compatible
         format.
         """
-        if not isinstance(v, FeastType):
+        if not isinstance(v, FeastType): # noinspection
             if isinstance(v, str):
                 return from_string(v)
             else:

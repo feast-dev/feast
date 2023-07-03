@@ -13,31 +13,37 @@
 # limitations under the License.
 import assertpy
 import pytest
-
 from pydantic.error_wrappers import ValidationError
 
+from feast.data_source import (
+    DataSource,
+    DataSourceModel,
+    RequestSource,
+    RequestSourceModel,
+)
 from feast.entity import Entity, EntityModel
-from feast.field import Field
-from feast.data_source import DataSource, DataSourceModel, RequestSource, RequestSourceModel
 from feast.feature_view import FeatureView, FeatureViewModel
-from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import \
-    SparkSource, SparkSourceModel
+from feast.field import Field
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+    SparkSourceModel,
+)
 from feast.types import Array, Bool, Float32, Int64
 
 
 def test_datasourcemodel_to_sparksource():
     spark_source_model = DataSourceModel(
-        name= "string",
+        name="string",
         model_type="SparkSource",
-        table= "table1",
+        table="table1",
         query="",
         path="",
         file_format="",
-        timestamp_field= "",
-        created_timestamp_column= "",
-        description= "",
-        owner= "",
-        date_partition_column= ""
+        timestamp_field="",
+        created_timestamp_column="",
+        description="",
+        owner="",
+        date_partition_column="",
     )
     spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
     spark_source_model_b = spark_source.to_pydantic_model()
@@ -46,29 +52,29 @@ def test_datasourcemodel_to_sparksource():
     with pytest.raises(ValueError):
         # No file_format specified
         spark_source_model = DataSourceModel(
-            name= "string",
+            name="string",
             model_type="SparkSource",
-            path= "path1",
-            timestamp_field= "",
-            created_timestamp_column= "",
-            description= "",
-            owner= "",
-            date_partition_column= ""
+            path="path1",
+            timestamp_field="",
+            created_timestamp_column="",
+            description="",
+            owner="",
+            date_partition_column="",
         )
         spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
 
     spark_source_model = DataSourceModel(
-        name= "string",
+        name="string",
         model_type="SparkSource",
-        path= "path1",
+        path="path1",
         file_format="json",
-        table= "",
+        table="",
         query="",
-        timestamp_field= "",
-        created_timestamp_column= "",
-        description= "",
-        owner= "",
-        date_partition_column= ""
+        timestamp_field="",
+        created_timestamp_column="",
+        description="",
+        owner="",
+        date_partition_column="",
     )
     spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
     spark_source_model_b = spark_source.to_pydantic_model()
@@ -123,7 +129,9 @@ def test_idempotent_requestsource_conversion():
         owner="feast",
     )
     request_source_model = request_source.to_pydantic_model()
-    request_source_b = RequestSource.datasource_from_pydantic_model(request_source_model)
+    request_source_b = RequestSource.datasource_from_pydantic_model(
+        request_source_model
+    )
     assert request_source == request_source_b
 
 
@@ -165,7 +173,6 @@ def test_idempotent_featureview_conversion():
     feature_view_model = feature_view.to_pydantic_model()
     feature_view_b = FeatureView.featureview_from_pydantic_model(feature_view_model)
     assert feature_view == feature_view_b
-
 
     spark_source = SparkSource(
         name="sparky_sparky_boom_man",

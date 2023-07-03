@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-
 from pydantic import ValidationError
 
 from feast.aggregation import Aggregation

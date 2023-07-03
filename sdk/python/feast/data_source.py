@@ -542,7 +542,6 @@ class KafkaSource(DataSource):
         raise NotImplementedError
 
 
-
 class RequestSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast RequestSource.
@@ -550,7 +549,7 @@ class RequestSourceModel(DataSourceModel):
 
     name: str
     model_type: str = PydanticField("RequestSource", const=True)
-    schema_: List[Field] = PydanticField(None, alias='schema')
+    schema_: List[Field] = PydanticField(None, alias="schema")
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = None
     owner: Optional[str] = ""
@@ -558,9 +557,6 @@ class RequestSourceModel(DataSourceModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
-        json_encoders = {
-        }
-
 
 
 @typechecked
@@ -681,7 +677,8 @@ class RequestSource(DataSource):
             schema=self.schema,
             description=self.description,
             tags=self.tags if self.tags else None,
-            owner=self.owner)
+            owner=self.owner,
+        )
 
     @staticmethod
     def datasource_from_pydantic_model(pydantic_datasource):
@@ -692,12 +689,20 @@ class RequestSource(DataSource):
             A RequestSource.
         """
         params = {
-            "name":pydantic_datasource.name,
-            "description":pydantic_datasource.description,
-            "tags":pydantic_datasource.tags if pydantic_datasource.tags else None,
-            "owner":pydantic_datasource.owner
+            "name": pydantic_datasource.name,
+            "description": pydantic_datasource.description,
+            "tags": pydantic_datasource.tags if pydantic_datasource.tags else None,
+            "owner": pydantic_datasource.owner,
         }
-        params["schema"] = [Field(name=sch.name,dtype=sch.dtype,description=sch.description,tags=sch.tags) for sch in pydantic_datasource.schema_]
+        params["schema"] = [
+            Field(
+                name=sch.name,
+                dtype=sch.dtype,
+                description=sch.description,
+                tags=sch.tags,
+            )
+            for sch in pydantic_datasource.schema_
+        ]
         return RequestSource(**params)
 
 

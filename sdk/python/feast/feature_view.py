@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import sys
 import warnings
 from datetime import datetime, timedelta
 from json import dumps
-from typing import Dict, List, Optional, Tuple, Type
-import sys
+from typing import Dict, List, Optional, Tuple, Type, Callable
 
 from google.protobuf.duration_pb2 import Duration
 from pydantic import BaseModel
@@ -25,12 +25,20 @@ from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, RequestSource, DataSourceModel, KafkaSource, KinesisSource, PushSource
+from feast.data_source import (
+    DataSource,
+    DataSourceModel,
+    KafkaSource,
+    KinesisSource,
+    PushSource,
+    RequestSource,
+)
 from feast.entity import Entity, EntityModel
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
-from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import \
-    SparkSource
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -41,7 +49,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.types import FeastType, from_value_type, ComplexFeastType, PrimitiveFeastType
+from feast.types import ComplexFeastType, FeastType, PrimitiveFeastType, from_value_type
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
@@ -68,24 +76,25 @@ class FeatureViewModel(BaseModel):
     ttl: Optional[timedelta]
     batch_source: DataSourceModel
     stream_source: Optional[DataSourceModel]
-    __entity_columns: List[Field]
-    __features: List[Field]
     online: bool = True
     description: str = ""
     tags: Optional[Dict[str, str]] = None
     owner: str = ""
-    __materialization_intervals: List[Tuple[datetime, datetime]]
 
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
-        json_encoders = {
+        json_encoders: Dict[object, Callable] = {
             Field: lambda v: int(dumps(v.value, default=str)),
             DataSource: lambda v: v.to_pydantic_model(),
             Entity: lambda v: v.to_pydantic_model(),
             FeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
-            ComplexFeastType: lambda v: int(dumps(v.to_value_type().value, default=str)),
-            PrimitiveFeastType: lambda v: int(dumps(v.to_value_type().value, default=str))
+            ComplexFeastType: lambda v: int(
+                dumps(v.to_value_type().value, default=str)
+            ),
+            PrimitiveFeastType: lambda v: int(
+                dumps(v.to_value_type().value, default=str)
+            ),
         }
 
 
@@ -292,8 +301,12 @@ class FeatureView(BaseFeatureView):
         ):
             return False
 
-        if isinstance(self.original_entities, List) and isinstance(other.original_entities, List):
-            for entity1, entity2 in zip(self.original_entities, other.original_entities):
+        if isinstance(self.original_entities, List) and isinstance(
+            other.original_entities, List
+        ):
+            for entity1, entity2 in zip(
+                self.original_entities, other.original_entities
+            ):
                 if entity1 != entity2:
                     return False
 
@@ -509,15 +522,22 @@ class FeatureView(BaseFeatureView):
         """
         return FeatureViewModel(
             name=self.name,
-            original_entities=[entity.to_pydantic_model() for entity in self.original_entities],
+            original_entities=[
+                entity.to_pydantic_model() for entity in self.original_entities
+            ],
             ttl=self.ttl,
             original_schema=self.original_schema,
-            batch_source=self.batch_source.to_pydantic_model() if self.batch_source else self.batch_source,
-            stream_source=self.stream_source.to_pydantic_model() if self.stream_source else self.stream_source,
+            batch_source=self.batch_source.to_pydantic_model()
+            if self.batch_source
+            else self.batch_source,
+            stream_source=self.stream_source.to_pydantic_model()
+            if self.stream_source
+            else self.stream_source,
             online=self.online,
             description=self.description,
             tags=self.tags if self.tags else None,
-            owner=self.owner)
+            owner=self.owner,
+        )
 
     @staticmethod
     def featureview_from_pydantic_model(pydantic_featureview):
@@ -530,28 +550,39 @@ class FeatureView(BaseFeatureView):
         # Convert each of the sources if they exist
         batch_source = None
         if pydantic_featureview.batch_source:
-            class_ = getattr(sys.modules[__name__], pydantic_featureview.batch_source.model_type)
-            batch_source = class_.datasource_from_pydantic_model(pydantic_featureview.batch_source)
+            class_ = getattr(
+                sys.modules[__name__], pydantic_featureview.batch_source.model_type
+            )
+            batch_source = class_.datasource_from_pydantic_model(
+                pydantic_featureview.batch_source
+            )
         stream_source = None
         if pydantic_featureview.stream_source:
-            class_ = getattr(sys.modules[__name__], pydantic_featureview.stream_source.model_type)
-            stream_source = class_.datasource_from_pydantic_model(pydantic_featureview.stream_source)
+            class_ = getattr(
+                sys.modules[__name__], pydantic_featureview.stream_source.model_type
+            )
+            stream_source = class_.datasource_from_pydantic_model(
+                pydantic_featureview.stream_source
+            )
 
         # Create the FeatureView
         feature_view = FeatureView(
             name=pydantic_featureview.name,
             source=batch_source,
             schema=pydantic_featureview.original_schema,
-            entities=[Entity.entity_from_pydantic_model(entity) for entity in pydantic_featureview.original_entities],
+            entities=[
+                Entity.entity_from_pydantic_model(entity)
+                for entity in pydantic_featureview.original_entities
+            ],
             ttl=pydantic_featureview.ttl,
             online=pydantic_featureview.online,
             description=pydantic_featureview.description,
             tags=pydantic_featureview.tags if pydantic_featureview.tags else None,
-            owner=pydantic_featureview.owner)
+            owner=pydantic_featureview.owner,
+        )
 
         # Correct the FeatureView to store both sources.
-        feature_view.batch_source=batch_source
-        feature_view.stream_source=stream_source
+        feature_view.batch_source = batch_source
+        feature_view.stream_source = stream_source
 
         return feature_view
-

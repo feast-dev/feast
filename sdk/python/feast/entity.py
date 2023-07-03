@@ -13,7 +13,7 @@
 # limitations under the License.
 from datetime import datetime
 from json import dumps
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 
 from google.protobuf.json_format import MessageToJson
 from pydantic import BaseModel
@@ -43,7 +43,7 @@ class EntityModel(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"
-        json_encoders = {
+        json_encoders: Dict[object, Callable] = {
             ValueType: lambda v: int(dumps(v.value, default=str))
         }
 
@@ -230,7 +230,8 @@ class Entity:
             value_type=self.value_type,
             description=self.description,
             tags=self.tags if self.tags else None,
-            owner=self.owner)
+            owner=self.owner,
+        )
 
     @staticmethod
     def entity_from_pydantic_model(pydantic_entity):
@@ -246,5 +247,5 @@ class Entity:
             value_type=pydantic_entity.value_type,
             description=pydantic_entity.description,
             tags=pydantic_entity.tags if pydantic_entity.tags else None,
-            owner=pydantic_entity.owner)
-
+            owner=pydantic_entity.owner,
+        )

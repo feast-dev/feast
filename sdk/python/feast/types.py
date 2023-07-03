@@ -138,7 +138,7 @@ class Array(ComplexFeastType):
 
     base_type: Union[PrimitiveFeastType, ComplexFeastType]
 
-    @validator('base_type', pre=True, always=True)
+    @validator("base_type", pre=True, always=True)
     def base_type_is_supported(cls, base_type):
         if base_type not in SUPPORTED_BASE_TYPES:
             raise ValueError(
@@ -208,8 +208,7 @@ def from_value_type(
     raise ValueError(f"Could not convert value type {value_type} to FeastType.")
 
 
-
-TYPE_STRINGS_TO_FEAST_TYPES = {
+TYPE_STRINGS_TO_FEAST_TYPES: Dict[str, FeastType] = {
     "Unknown": Invalid,
     "Bytes": Bytes,
     "String": String,
@@ -226,13 +225,11 @@ TYPE_STRINGS_TO_FEAST_TYPES = {
     "Array(Float64)": Array(Float64),
     "Array(Float32)": Array(Float32),
     "Array(Bool)": Array(Bool),
-    "Array(UnixTimestamp)": Array(UnixTimestamp)
+    "Array(UnixTimestamp)": Array(UnixTimestamp),
 }
 
 
-def from_string(
-    value_type: str
-) -> FeastType:
+def from_string(value_type: str) -> FeastType:
     """
     Converts a string to a Feast type.
 
