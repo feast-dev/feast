@@ -140,10 +140,6 @@ def test_idempotent_sparksource_conversion():
     assert spark_source == spark_source_b
 
 
-def test_type_safety_when_converting_multiple_datasources():
-    pass
-
-
 def test_idempotent_featureview_conversion():
     schema = [
         Field(name="f1", dtype=Float32),

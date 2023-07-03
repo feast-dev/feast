@@ -68,13 +68,13 @@ class FeatureViewModel(BaseModel):
     ttl: Optional[timedelta]
     batch_source: DataSourceModel
     stream_source: Optional[DataSourceModel]
-    entity_columns: List[Field]
-    features: List[Field]
+    __entity_columns: List[Field]
+    __features: List[Field]
     online: bool = True
     description: str = ""
     tags: Optional[Dict[str, str]] = None
     owner: str = ""
-    materialization_intervals: List[Tuple[datetime, datetime]]
+    __materialization_intervals: List[Tuple[datetime, datetime]]
 
     class Config:
         arbitrary_types_allowed = True
@@ -123,13 +123,10 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    entity_columns: List[Field]
-    features: List[Field]
     online: bool
     description: str
     tags: Dict[str, str]
     owner: str
-    materialization_intervals: List[Tuple[datetime, datetime]]
 
     @log_exceptions
     def __init__(
@@ -517,13 +514,10 @@ class FeatureView(BaseFeatureView):
             original_schema=self.original_schema,
             batch_source=self.batch_source.to_pydantic_model() if self.batch_source else self.batch_source,
             stream_source=self.stream_source.to_pydantic_model() if self.stream_source else self.stream_source,
-            entity_columns=self.entity_columns,
-            features=self.features if self.features else None,
             online=self.online,
             description=self.description,
             tags=self.tags if self.tags else None,
-            owner=self.owner,
-            materialization_intervals=self.materialization_intervals)
+            owner=self.owner)
 
     @staticmethod
     def featureview_from_pydantic_model(pydantic_featureview):
