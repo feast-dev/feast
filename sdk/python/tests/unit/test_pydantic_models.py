@@ -23,6 +23,63 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 from feast.types import Bool, Float32, Int64
 
 
+def test_datasourcemodel_to_sparksource():
+    spark_source_model = DataSourceModel(
+        name= "string",
+        model_type= "string",
+        table= "table1",
+        timestamp_field= "",
+        created_timestamp_column= "",
+        description= "",
+        owner= "",
+        date_partition_column= ""
+    )
+    spark_source = SparkSource.datasource_from_pydantic_model(spark_source_model)
+
+    with pytest.raises(ValueError):
+        # No file_format specified
+        spark_source_model_2 = DataSourceModel(
+            name= "string",
+            model_type= "string",
+            path= "path1",
+            timestamp_field= "",
+            created_timestamp_column= "",
+            description= "",
+            owner= "",
+            date_partition_column= ""
+        )
+        spark_source_2 = SparkSource.datasource_from_pydantic_model(spark_source_model_2)
+
+    spark_source_model_2 = DataSourceModel(
+        name= "string",
+        model_type= "string",
+        path= "path1",
+        file_format="json",
+        timestamp_field= "",
+        created_timestamp_column= "",
+        description= "",
+        owner= "",
+        date_partition_column= ""
+    )
+    spark_source_2 = SparkSource.datasource_from_pydantic_model(spark_source_model_2)
+
+
+
+def test_datasourcemodel_to_requestsource():
+    schema = [
+        Field(name="f1", dtype=Float32),
+        Field(name="f2", dtype=Bool),
+    ]
+    request_source_model = RequestSourceModel(
+        name="source",
+        schema=schema,
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+    request_source = RequestSource.datasource_from_pydantic_model(request_source_model)
+
+
 def test_idempotent_entity_conversion():
     entity = Entity(
         name="my-entity",

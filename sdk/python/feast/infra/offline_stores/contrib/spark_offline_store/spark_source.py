@@ -239,16 +239,16 @@ class SparkSource(DataSource):
         """
         return SparkSource(
             name=pydantic_datasource.name,
-            table=pydantic_datasource.table or "",
-            query=pydantic_datasource.query or "",
-            path=pydantic_datasource.path or "",
-            file_format=pydantic_datasource.file_format or "",
-            created_timestamp_column=pydantic_datasource.created_timestamp_column or "",
+            table=pydantic_datasource.table if hasattr(pydantic_datasource,"table") else "",
+            query=pydantic_datasource.query if hasattr(pydantic_datasource,"query") else "",
+            path=pydantic_datasource.path if hasattr(pydantic_datasource,"path") else "",
+            file_format=pydantic_datasource.file_format if hasattr(pydantic_datasource,"file_format") else "",
+            created_timestamp_column=pydantic_datasource.created_timestamp_column if hasattr(pydantic_datasource,"created_timestamp_column") else "",
             field_mapping=pydantic_datasource.field_mapping if pydantic_datasource.field_mapping else None,
             description=pydantic_datasource.description or "",
             tags=pydantic_datasource.tags if pydantic_datasource.tags else None,
             owner=pydantic_datasource.owner or "",
-            timestamp_field=pydantic_datasource.timestamp_field or "")
+            timestamp_field=pydantic_datasource.timestamp_field if hasattr(pydantic_datasource,"timestamp_field") else "")
 
 
 class SparkOptions:
