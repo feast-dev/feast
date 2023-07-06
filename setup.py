@@ -25,14 +25,7 @@ from setuptools import find_packages
 
 try:
     from setuptools import setup
-    from setuptools.command.build_ext import build_ext as _build_ext
-    from setuptools.command.build_py import build_py
-    from setuptools.command.develop import develop
-    from setuptools.command.install import install
-
 except ImportError:
-    from distutils.command.build_ext import build_ext as _build_ext
-    from distutils.command.build_py import build_py
     from distutils.core import setup
 
 NAME = "feast"
@@ -316,26 +309,6 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
-class BuildCommand(build_py):
-    """Custom build command."""
-
-    def run(self):
-        self.run_command("build_python_protos")
-
-        self.run_command("build_ext")
-        build_py.run(self)
-
-
-class DevelopCommand(develop):
-    """Custom develop command."""
-
-    def run(self):
-        self.reinitialize_command("build_python_protos", inplace=1)
-        self.run_command("build_python_protos")
-
-        develop.run(self)
-
-
 setup(
     name=NAME,
     author=AUTHOR,
@@ -393,7 +366,5 @@ setup(
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
-        "build_py": BuildCommand,
-        "develop": DevelopCommand,
     },
 )
