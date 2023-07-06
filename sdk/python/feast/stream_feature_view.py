@@ -251,6 +251,7 @@ class StreamFeatureView(FeatureView):
             stream_feature_view.stream_source = stream_source
 
         stream_feature_view.entities = list(sfv_proto.spec.entities)
+        stream_feature_view.original_entities = sfv_proto.spec.entities
 
         stream_feature_view.features = [
             Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features

@@ -123,8 +123,8 @@ def create_similarity_request_source():
     return RequestSource(
         name="similarity_input",
         schema=[
-            Field(name="vector_doube", dtype=Array(Float64)),
-            Field(name="vector_float", dtype=Array(Float32)),
+            Field(name="vector_doube", dtype=Array(base_type=Float64)),
+            Field(name="vector_float", dtype=Array(base_type=Float32)),
         ],
     )
 
@@ -136,8 +136,8 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
         schema=None
         if infer_features
         else [
-            Field(name="embedding_double", dtype=Array(Float64)),
-            Field(name="embedding_float", dtype=Array(Float32)),
+            Field(name="embedding_double", dtype=Array(base_type=Float64)),
+            Field(name="embedding_float", dtype=Array(base_type=Float32)),
         ],
         source=source,
         ttl=timedelta(hours=2),
@@ -154,8 +154,8 @@ def create_item_embeddings_batch_feature_view(
         schema=None
         if infer_features
         else [
-            Field(name="embedding_double", dtype=Array(Float64)),
-            Field(name="embedding_float", dtype=Array(Float32)),
+            Field(name="embedding_double", dtype=Array(base_type=Float64)),
+            Field(name="embedding_float", dtype=Array(base_type=Float32)),
         ],
         source=source,
         ttl=timedelta(hours=2),

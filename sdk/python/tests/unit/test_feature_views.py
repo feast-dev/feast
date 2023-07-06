@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
@@ -275,5 +276,5 @@ def test_hash():
 
 
 def test_field_types():
-    with pytest.raises(TypeError):
+    with pytest.raises(ValidationError):
         Field(name="name", dtype=ValueType.INT32)

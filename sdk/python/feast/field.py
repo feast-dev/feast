@@ -12,18 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
-from typeguard import typechecked
+from pydantic import BaseModel, validator
+from typeguard import check_type, typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type
+from feast.types import (
+    ComplexFeastType,
+    FeastType,
+    PrimitiveFeastType,
+    from_string,
+    from_value_type,
+)
 from feast.value_type import ValueType
 
 
 @typechecked
-class Field:
+class Field(BaseModel):
     """
     A Field represents a set of values with the same structure.
 
@@ -36,30 +43,36 @@ class Field:
 
     name: str
     dtype: FeastType
-    description: str
-    tags: Dict[str, str]
+    description: str = ""
+    tags: Optional[Dict[str, str]] = {}
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        dtype: FeastType,
-        description: str = "",
-        tags: Optional[Dict[str, str]] = None,
-    ):
-        """
-        Creates a Field object.
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+        json_encoders: Dict[object, Callable] = {
+            ComplexFeastType: lambda v: str(v),
+            PrimitiveFeastType: lambda v: str(v),
+        }
 
-        Args:
-            name: The name of the field.
-            dtype: The type of the field, such as string or float.
-            description (optional): A human-readable description.
-            tags (optional): User-defined metadata in dictionary form.
+    @validator("dtype", pre=True, always=True)
+    def dtype_is_feasttype_or_string_feasttype(cls, v):
         """
-        self.name = name
-        self.dtype = dtype
-        self.description = description
-        self.tags = tags or {}
+        dtype must be a FeastType, but to allow wire transmission,
+        it is necessary to allow string representations of FeastTypes.
+        We therefore allow dtypes to be specified as strings which are
+        converted to FeastTypes at time of definition.
+        TO-DO: Investigate whether FeastType can be refactored to a json compatible
+        format.
+        """
+        try:
+            check_type("v", v, FeastType)  # type: ignore
+        except TypeError:
+            try:
+                check_type("v", v, str)
+                return from_string(v)
+            except TypeError:
+                raise TypeError("dtype must be of type FeastType")
+        return v
 
     def __eq__(self, other):
         if type(self) != type(other):

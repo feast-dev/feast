@@ -78,7 +78,7 @@ babel==2.12.1
     # via sphinx
 backcall==0.2.0
     # via ipython
-backports-zoneinfo==0.2.1
+backports-zoneinfo==0.2.1;python_version<"3.9"
     # via
     #   trino
     #   tzlocal

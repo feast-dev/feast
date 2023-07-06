@@ -134,6 +134,13 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+
+        # FeatureView is destructive of some of its original arguments,
+        # making it impossible to convert idempotently to another format.
+        # store these arguments to recover them in conversions.
+        self.original_schema = schema
+        self.original_entities = entities or []
+
         schema = schema or []
 
         # Initialize data sources.
@@ -249,6 +256,18 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
         ):
             return False
+
+        if isinstance(self.original_entities, List) and isinstance(
+            other.original_entities, List
+        ):
+            if len(self.original_entities) != len(other.original_entities):
+                return False
+
+            for entity1, entity2 in zip(
+                self.original_entities, other.original_entities
+            ):
+                if entity1 != entity2:
+                    return False
 
         return True
 
@@ -401,6 +420,7 @@ class FeatureView(BaseFeatureView):
 
         # This avoids the deprecation warning.
         feature_view.entities = list(feature_view_proto.spec.entities)
+        feature_view.original_entities = feature_view_proto.spec.entities
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [

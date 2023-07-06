@@ -1,5 +1,6 @@
 import logging
 import traceback
+import uuid
 import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
@@ -9,7 +10,6 @@ from pyspark.sql import SparkSession
 from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
-from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -180,7 +180,7 @@ class SparkSource(DataSource):
             logger.exception(
                 "Spark read of file source failed.\n" + traceback.format_exc()
             )
-        tmp_table_name = get_temp_entity_table_name()
+        tmp_table_name = "feast_entity_df_" + uuid.uuid4().hex
         df.createOrReplaceTempView(tmp_table_name)
 
         return f"`{tmp_table_name}`"
