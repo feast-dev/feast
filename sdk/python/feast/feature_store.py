@@ -1555,6 +1555,23 @@ x
         provider.ingest_df_to_offline_store(feature_view, table)
 
     @log_exceptions_and_usage
+    def get_online_features_for_row(
+        self,
+        features: Union[List[str], FeatureService, FeatureView],
+        entities: Dict[str, Any],
+        full_feature_names: bool = False,
+        allow_registry_cache: bool = True
+    ) -> OnlineResponse:
+        columnar: Dict[str, List[Any]] = {k: [v] for k, v in entities.items()}
+        return self._get_online_features(
+            features=features,
+            entity_values=columnar,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+            allow_registry_cache=allow_registry_cache,
+        )
+
+    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1640,6 +1657,7 @@ x
         full_feature_names: bool = False,
         native_entity_values: bool = True,
         allow_registry_cache: bool = True,
+        apply_udfs_per_row: bool = True
     ):
         # Extract Sequence from RepeatedValue Protobuf.
         entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
@@ -2230,6 +2248,8 @@ x
                 )
 
         initial_response = OnlineResponse(online_features_response)
+
+        # RB / TODO: lazy populate DF and dict responses
         initial_response_df = initial_response.to_df()
 
         # Apply on demand transformations and augment the result rows
