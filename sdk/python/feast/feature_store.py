@@ -1732,7 +1732,7 @@ x
         }
         if not full_feature_names:
             requested_result_row_names = {
-                name.rpartition("__")[-1] for name in requested_result_row_names
+                name.partition("__")[-1] for name in requested_result_row_names
             }
 
         feature_views = list(view for view, _ in grouped_refs)
