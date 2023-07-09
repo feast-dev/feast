@@ -363,6 +363,7 @@ class OnDemandFeatureView(BaseFeatureView):
         feature_dict: Dict[str, List[Any]],
         full_feature_names: bool = False,
     ) -> Dict[str, Any]:
+        # generates a mapping between feature names and fv__feature names (and vice versa)
         name_map: Dict[str, str] = {}
         for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
@@ -373,25 +374,29 @@ class OnDemandFeatureView(BaseFeatureView):
                     name_map[feature.name] = name_map[full_feature_ref]
 
         rows = []
+        # this doesn't actually require 2 x |key_space| space; k and name_map[k] point to the same object in memory
         for values in zip(*feature_dict.values()):
             rows.append({
                 **{k: v for k, v in zip(feature_dict.keys(), values)},
                 **{name_map[k]: v for k, v in zip(feature_dict.keys(), values)},
             })
 
+        # construct output dictionary and mapping from expected feature names to alternative feature names
         output_dict: Dict[str, List[Any]] = {}
+        correct_feature_name_to_alias: Dict[str, str] = {}
         for feature in self.features:
             long_name = self._get_projected_feature_name(feature.name)
-            output_dict[long_name if full_feature_names else feature.name] = [None] * len(rows)
+            correct_name = long_name if full_feature_names else feature.name
+            correct_feature_name_to_alias[correct_name] = feature.name if full_feature_names else long_name
+            output_dict[correct_name] = [None] * len(rows)
 
+        # populate output dictionary per row
         for i, row in enumerate(rows):
-            for k, v in self.udf.__call__(row).items():
-                # RB: handle case where user uses same dict
-                if k not in output_dict and full_feature_names:
-                    full_key = self._get_projected_feature_name(k)
-                    if full_key in output_dict:
-                        k = full_key
-                output_dict[k][i] = v
+            row_output = self.udf.__call__(row)
+            for feature in output_dict:
+                output_dict[feature][i] = (
+                    row_output.get(feature, row_output[correct_feature_name_to_alias[feature]])
+                )
         return output_dict
 
     def get_transformed_features(

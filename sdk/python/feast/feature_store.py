@@ -1557,11 +1557,16 @@ x
     @log_exceptions_and_usage
     def get_online_features_for_row(
         self,
-        features: Union[List[str], FeatureService, FeatureView],
+        features: Union[List[str], FeatureService],
         entities: Dict[str, Any],
         full_feature_names: bool = False,
         allow_registry_cache: bool = True
     ) -> OnlineResponse:
+        """
+        Wrapper over `_get_online_features` for retrieving only one row of features, which occurs more commonly
+        for some workflows.
+        """
+
         columnar: Dict[str, List[Any]] = {k: [v] for k, v in entities.items()}
         return self._get_online_features(
             features=features,
