@@ -228,7 +228,7 @@ AFFIRM_REQUIRED = [
     "pandas>=1,<2",
     "protobuf",
     "proto-plus",
-    "PyYAML>=5.3.1",
+    "PyYAML>=5.1.2",
     "uvicorn[standard]",
     "tensorflow-metadata",
     "dask==2021.12.0",
