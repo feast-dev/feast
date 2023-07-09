@@ -387,8 +387,10 @@ class OnDemandFeatureView(BaseFeatureView):
         for i, row in enumerate(rows):
             for k, v in self.udf.__call__(row).items():
                 # RB: handle case where user uses same dict
-                if k not in output_dict:
-                    k = self._get_projected_feature_name(k)
+                if k not in output_dict and full_feature_names:
+                    full_key = self._get_projected_feature_name(k)
+                    if full_key in output_dict:
+                        k = full_key
                 output_dict[k][i] = v
         return output_dict
 
@@ -411,7 +413,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 full_feature_names=full_feature_names
             )
         else:
-            raise Exception('wow!')
+            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
 
     def infer_features(self):
         """

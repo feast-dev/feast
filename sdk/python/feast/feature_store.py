@@ -2272,7 +2272,7 @@ x
                     full_feature_names
                 )
             else:
-                raise Exception('')
+                raise Exception(f'Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of "pandas" or "python".')
 
             columns = transformed_features.columns \
                 if isinstance(transformed_features, pd.DataFrame) else transformed_features
@@ -2280,13 +2280,12 @@ x
                 f for f in columns if f in _feature_refs
             ]
 
-            value_fn = lambda col: col if isinstance(col, list) else col.values
-            proto_values = [
-                python_values_to_proto_values(
-                    value_fn(transformed_features[feature]), ValueType.UNKNOWN
+            proto_values = []
+            for feature in selected_subset:
+                feature_vector = transformed_features[feature]
+                proto_values.append(
+                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
                 )
-                for feature in selected_subset
-            ]
 
             odfv_result_names |= set(selected_subset)
 
