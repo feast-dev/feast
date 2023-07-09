@@ -34,7 +34,7 @@ message OnDemandFeatureView {
     OnDemandFeatureViewMeta meta = 2;
 }
 
-// Next available id: 9
+// Next available id: 10
 message OnDemandFeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
     string name = 1;
@@ -58,6 +58,9 @@ message OnDemandFeatureViewSpec {
 
     // Owner of the on demand feature view.
     string owner = 8;
+
+    // Backend used to handle on-demand transformations. One of python or pandas.
+    string mode = 9;
 }
 
 message OnDemandFeatureViewMeta {
