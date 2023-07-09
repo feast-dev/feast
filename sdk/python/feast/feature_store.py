@@ -2249,24 +2249,41 @@ x
 
         initial_response = OnlineResponse(online_features_response)
 
-        # RB / TODO: lazy populate DF and dict responses
-        initial_response_df = initial_response.to_df()
+        # RB: lazy populate df and dict responses
+        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
-            )
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features = odfv.get_transformed_features(
+                    initial_response_dict,
+                    full_feature_names
+                )
+            elif odfv.mode == "pandas":
+                if initial_response_df is None:
+                    initial_response_df = initial_response.to_df()
+                transformed_features = odfv.get_transformed_features(
+                    initial_response_df,
+                    full_feature_names
+                )
+            else:
+                raise Exception('')
+
+            columns = transformed_features.columns \
+                if isinstance(transformed_features, pd.DataFrame) else transformed_features
             selected_subset = [
-                f for f in transformed_features_df.columns if f in _feature_refs
+                f for f in columns if f in _feature_refs
             ]
 
+            value_fn = lambda col: col if isinstance(col, list) else col.values
             proto_values = [
                 python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+                    value_fn(transformed_features[feature]), ValueType.UNKNOWN
                 )
                 for feature in selected_subset
             ]

@@ -386,6 +386,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         for i, row in enumerate(rows):
             for k, v in self.udf.__call__(row).items():
+                # RB: handle case where user uses same dict
                 if k not in output_dict:
                     k = self._get_projected_feature_name(k)
                 output_dict[k][i] = v
