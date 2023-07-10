@@ -55,7 +55,7 @@ get_tag_release() {
   # Match only Semver tags
   # Regular expression should match MAJOR.MINOR.PATCH[-PRERELEASE[.IDENTIFIER]]
   # eg. v0.7.1 v0.7.2-alpha v0.7.2-rc.1
-  local TAG_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+  local TAG_REGEX='^eg-v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
   local OPTIND opt
   while getopts "ms" opt; do
     case "${opt}" in
