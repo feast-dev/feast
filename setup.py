@@ -35,7 +35,7 @@ except ImportError:
     from distutils.command.build_py import build_py
     from distutils.core import setup
 
-NAME = "feast"
+NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"
 URL = "https://github.com/ExpediaGroup/feast"
 AUTHOR = "Feast and EG"
