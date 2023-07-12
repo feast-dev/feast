@@ -30,6 +30,7 @@ from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTablePr
 DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
 DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
 SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.sqlite.SqliteTable"
+SQL_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.sql.SqlTable"
 
 
 class InfraObject(ABC):
