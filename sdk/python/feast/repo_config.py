@@ -53,6 +53,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
+    "couchbase": "feast.infra.online_stores.couchbase.CouchbaseOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
