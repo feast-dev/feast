@@ -693,7 +693,7 @@ def _get_entity_schema(
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, str):
         entity_df_sample = (
-            client.query(f"SELECT * FROM ({entity_df}) LIMIT 1").result().to_dataframe()
+            client.query(f"SELECT * FROM ({entity_df}) LIMIT 0").result().to_dataframe()
         )
 
         entity_schema = dict(zip(entity_df_sample.columns, entity_df_sample.dtypes))
