@@ -1,11 +1,15 @@
-from feast.protos.feast.serving.GrpcServer_pb2 import GrpcIngestFeatureResponse
-from feast.protos.feast.serving.GrpcServer_pb2_grpc import GrpcIngestFeatureServiceServicer, \
-    add_GrpcIngestFeatureServiceServicer_to_server
 from concurrent import futures
+
 import grpc
 import pandas as pd
-from feast.feature_store import FeatureStore
+
 from feast.data_source import PushMode
+from feast.feature_store import FeatureStore
+from feast.protos.feast.serving.GrpcServer_pb2 import GrpcIngestFeatureResponse
+from feast.protos.feast.serving.GrpcServer_pb2_grpc import (
+    GrpcIngestFeatureServiceServicer,
+    add_GrpcIngestFeatureServiceServicer_to_server,
+)
 
 
 class GrpcIngestFeatureService(GrpcIngestFeatureServiceServicer):
@@ -37,7 +41,9 @@ class GrpcIngestFeatureServer:
         self.fs = fs
         self.sfv = sfv_name
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        add_GrpcIngestFeatureServiceServicer_to_server(GrpcIngestFeatureService(self.fs, self.sfv, to), self.server)
+        add_GrpcIngestFeatureServiceServicer_to_server(
+            GrpcIngestFeatureService(self.fs, self.sfv, to), self.server
+        )
         self.server.add_insecure_port(self.address)
 
     def start(self):
