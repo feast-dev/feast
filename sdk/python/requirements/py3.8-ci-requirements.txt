@@ -154,7 +154,7 @@ comm==0.1.3
     # via ipykernel
 coverage[toml]==7.2.7
     # via pytest-cov
-cryptography==40.0.2
+cryptography==41.0.2
     # via
     #   adal
     #   azure-identity
