@@ -47,7 +47,9 @@ REQUIRED = [
     "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
     "grpcio>=1.47.0,<2",
+    "grpcio-tools>=1.47.0",
     "grpcio-reflection>=1.47.0,<2",
+    "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -146,13 +148,11 @@ CI_REQUIRED = (
         "flake8",
         "black>=22.6.0,<23",
         "isort>=5,<6",
-        "grpcio-tools>=1.47.0",
         "grpcio-testing>=1.47.0",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
         "mypy>=0.981,<0.990",
-        "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
@@ -170,7 +170,7 @@ CI_REQUIRED = (
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
-        "pre-commit",
+        "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
         "pybindgen",
@@ -182,6 +182,7 @@ CI_REQUIRED = (
         "types-requests",
         "types-setuptools",
         "types-tabulate",
+        "virtualenv<20.24.2"
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED

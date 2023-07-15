@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+message GrpcIngestFeatureResponse {
+  bool status = 1;
+}
+
+message GrpcIngestFeatureRequest {
+    map<string, string> features = 1;
+}
+
+service GrpcIngestFeatureService {
+  rpc GrpcIngestFeature (GrpcIngestFeatureRequest) returns (GrpcIngestFeatureResponse) {}
+}

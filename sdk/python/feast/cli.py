@@ -25,9 +25,14 @@ from dateutil import parser
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+from feast.constants import (
+    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    FEATURE_STORE_YAML_ENV_NAME,
+)
+from feast.data_source import PushMode
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
+from feast.infra.contrib.grpc_server import GetGrpcServer
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -687,6 +692,52 @@ def serve_command(
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
     )
+
+
+@cli.command("listen")
+@click.option(
+    "--address",
+    "-a",
+    type=click.STRING,
+    default="localhost:50051",
+    show_default=True,
+    help="Specify an address for the server",
+)
+@click.option(
+    "--stream_feature_view",
+    "-sfv",
+    type=click.STRING,
+    show_default=False,
+    help="Specify the stream feature view to update",
+)
+@click.option(
+    "--push_mode",
+    "-to",
+    type=click.STRING,
+    default="online",
+    show_default=False,
+    help="Specify the stream feature view to update",
+)
+@click.pass_context
+def listen_command(
+        ctx: click.Context,
+        address: str,
+        stream_feature_view: str,
+        push_mode: str
+):
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
+    to: PushMode
+    if push_mode == "online":
+        to = PushMode.ONLINE
+    elif push_mode == "offline":
+        to = PushMode.OFFLINE
+    else:
+        to = PushMode.ONLINE_AND_OFFLINE
+    server = GetGrpcServer(store, address, stream_feature_view, to)
+    server.start()
 
 
 @cli.command("serve_transformations")
