@@ -25,8 +25,8 @@ class GrpcIngestFeatureService(GrpcIngestFeatureServiceServicer):
 
     def GrpcIngestFeature(self, request, context):
         features = {}
-        for i in request.test.keys():
-            features[i] = [request.test.get(i)]
+        for i in request.features.keys():
+            features[i] = [request.features.get(i)]
         rows = pd.DataFrame.from_dict(features)
         if self.to == PushMode.ONLINE or self.to == PushMode.ONLINE_AND_OFFLINE:
             self.fs.write_to_online_store(self.sfv, rows)
