@@ -300,7 +300,7 @@ class RedshiftOptions:
         The fully qualified table name of this Redshift table.
 
         Returns:
-            A string in the format of <database>.<schema>.<table>.
+            A string in the format of <database>.<schema>.<table>
             May be empty or None if the table is not set.
         """
 
@@ -359,7 +359,6 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-
         return SavedDatasetRedshiftStorage(
             table_ref=RedshiftOptions.from_proto(storage_proto.redshift_storage).table
         )
