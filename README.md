@@ -53,7 +53,6 @@ feast apply
 
 ### 4. Explore your data in the web UI (experimental)
 ![Web UI](ui/sample.png)
-
 ```commandline
 feast ui
 ```
@@ -216,7 +215,6 @@ Please refer to the official documentation at [Documentation](https://docs.feast
 - [Slack (#Feast)](https://slack.feast.dev/)
 
 ## 👋 Contributing
-
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
 - [Contribution Process for Feast](https://docs.feast.dev/project/contributing)
 - [Development Guide for Feast](https://docs.feast.dev/project/development-guide)
