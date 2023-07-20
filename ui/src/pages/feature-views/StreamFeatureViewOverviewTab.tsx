@@ -56,7 +56,7 @@ const StreamFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <EuiCodeBlock language="py" fontSize="m" paddingSize="m">
-              {data.spec?.userDefinedFunction?.body}
+              {data.spec?.userDefinedFunction?.bodyText}
             </EuiCodeBlock>
           </EuiPanel>
         </EuiFlexItem>
