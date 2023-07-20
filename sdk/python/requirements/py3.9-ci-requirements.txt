@@ -8,7 +8,7 @@ adal==1.2.7
     # via msrestazure
 adlfs==0.5.9
     # via feast (setup.py)
-aiohttp==3.8.4
+aiohttp==3.8.5
     # via
     #   adlfs
     #   gcsfs
