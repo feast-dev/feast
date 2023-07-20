@@ -29,7 +29,6 @@ Feast allows ML platform teams to:
 Please see our [documentation](https://docs.feast.dev/) for more information about the project, or sign up for an [email newsletter](https://feast.dev/).
 
 ## 📐 Architecture
-
 ![](docs/assets/feast_marchitecture.png)
 
 The above architecture is the minimal Feast deployment. Want to run the full Feast on Snowflake/GCP/AWS? Click [here](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws).
@@ -37,26 +36,22 @@ The above architecture is the minimal Feast deployment. Want to run the full Fea
 ## 🐣 Getting Started
 
 ### 1. Install Feast
-
 ```commandline
 pip install feast
 ```
 
 ### 2. Create a feature repository
-
 ```commandline
 feast init my_feature_repo
 cd my_feature_repo/feature_repo
 ```
 
 ### 3. Register your feature definitions and set up your feature store
-
 ```commandline
 feast apply
 ```
 
 ### 4. Explore your data in the web UI (experimental)
-
 ![Web UI](ui/sample.png)
 
 ```commandline
@@ -64,7 +59,6 @@ feast ui
 ```
 
 ### 5. Build a training dataset
-
 ```python
 from feast import FeatureStore
 import pandas as pd
@@ -96,7 +90,6 @@ print(training_df.head())
 # Train model
 # model = ml.fit(training_df)
 ```
-
 ```commandline
             event_timestamp  driver_id  conv_rate  acc_rate  avg_daily_trips
 0 2021-04-12 08:12:10+00:00       1002   0.713465  0.597095              531
@@ -107,7 +100,6 @@ print(training_df.head())
 ```
 
 ### 6. Load feature values into your online store
-
 ```commandline
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
@@ -118,7 +110,6 @@ Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 don
 ```
 
 ### 7. Read online features at low latency
-
 ```python
 from pprint import pprint
 from feast import FeatureStore
@@ -139,7 +130,6 @@ pprint(feature_vector)
 # Make prediction
 # model.predict(feature_vector)
 ```
-
 ```json
 {
   "driver_id": [1001],
@@ -228,7 +218,6 @@ Please refer to the official documentation at [Documentation](https://docs.feast
 ## 👋 Contributing
 
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
-
 - [Contribution Process for Feast](https://docs.feast.dev/project/contributing)
 - [Development Guide for Feast](https://docs.feast.dev/project/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
