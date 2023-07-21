@@ -301,7 +301,7 @@ class RedshiftOptions:
 
         Returns:
             A string in the format of <database>.<schema>.<table>
-            May be empty or None if the table is not set.
+            May be empty or None if the table is not set
         """
 
         if not self.table:
