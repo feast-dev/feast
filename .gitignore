@@ -224,3 +224,7 @@ ui/.vercel
 
 # Go subprocess binaries (built during feast pip package building)
 sdk/python/feast/binaries/
+/sdk/python/feast/open_api/
+/sdk/python/feast/test_open_api/
+
+venv39/*

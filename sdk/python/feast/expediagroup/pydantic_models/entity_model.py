@@ -10,6 +10,7 @@ from json import dumps
 from typing import Callable, Dict, Optional
 
 from pydantic import BaseModel
+from typing_extensions import Self
 
 from feast.entity import Entity
 from feast.value_type import ValueType
@@ -36,7 +37,7 @@ class EntityModel(BaseModel):
             ValueType: lambda v: int(dumps(v.value, default=str))
         }
 
-    def to_entity(self):
+    def to_entity(self) -> Entity:
         """
         Given a Pydantic EntityModel, create and return an Entity.
 
@@ -51,12 +52,15 @@ class EntityModel(BaseModel):
             tags=self.tags if self.tags else None,
             owner=self.owner,
         )
-        entity.created_timestamp = (self.created_timestamp,)
+        entity.created_timestamp = self.created_timestamp
         entity.last_updated_timestamp = self.last_updated_timestamp
         return entity
 
     @classmethod
-    def from_entity(cls, entity):
+    def from_entity(
+        cls,
+        entity,
+    ) -> Self:  # type: ignore
         """
         Converts an entity object to its pydantic model representation.
 

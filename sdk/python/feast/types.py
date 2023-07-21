@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from feast.value_type import ValueType
 
@@ -103,18 +103,6 @@ Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 
 
-SUPPORTED_BASE_TYPES = [
-    Invalid,
-    String,
-    Bytes,
-    Bool,
-    Int32,
-    Int64,
-    Float32,
-    Float64,
-    UnixTimestamp,
-]
-
 PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "INVALID": "Invalid",
     "STRING": "String",
@@ -136,26 +124,10 @@ class Array(ComplexFeastType):
         base_type: The base type of the array.
     """
 
-    base_type: Union[PrimitiveFeastType, ComplexFeastType]
+    base_type: PrimitiveFeastType
 
-    @validator("base_type", pre=True, always=True)
-    def base_type_is_supported(cls, base_type):
-        if base_type not in SUPPORTED_BASE_TYPES:
-            raise ValueError(
-                f"Type {type(base_type)} is currently not supported as a base type for Array."
-            )
-        return base_type
-
-    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
+    def __init__(self, base_type: PrimitiveFeastType):
         super(Array, self).__init__(base_type=base_type)
-
-    # def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
-    #     if base_type not in SUPPORTED_BASE_TYPES:
-    #         raise ValueError(
-    #             f"Type {type(base_type)} is currently not supported as a base type for Array."
-    #         )
-
-    #     self.base_type = base_type
 
     def to_value_type(self) -> ValueType:
         assert isinstance(self.base_type, PrimitiveFeastType)

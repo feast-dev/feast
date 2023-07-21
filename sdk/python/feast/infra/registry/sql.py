@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Callable, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from pydantic import StrictStr
 from sqlalchemy import (  # type: ignore
@@ -33,6 +33,9 @@ from feast.errors import (
     FeatureViewNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
+)
+from feast.expediagroup.pydantic_models.project_metadata_model import (
+    ProjectMetadataModel,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -1080,3 +1083,56 @@ class SqlRegistry(BaseRegistry):
                     projects.add(row["project_id"])
 
         return projects
+
+    def get_all_project_metadata(self) -> List[ProjectMetadataModel]:
+        """
+        Returns all projects metdata. No supporting function in SQL Registry so implemented this here instead of _get_all_projects.
+        """
+        project_metadata_model_dict: Dict[str, ProjectMetadataModel] = {}
+        with self.engine.connect() as conn:
+            stmt = select(feast_metadata)
+            rows = conn.execute(stmt).all()
+            if rows:
+                for row in rows:
+                    project_id = row["project_id"]
+                    metadata_key = row["metadata_key"]
+                    metadata_value = row["metadata_value"]
+
+                    if project_id not in project_metadata_model_dict:
+                        project_metadata_model_dict[project_id] = ProjectMetadataModel(
+                            project_name=project_id
+                        )
+
+                    project_metadata_model: ProjectMetadataModel = (
+                        project_metadata_model_dict[project_id]
+                    )
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = metadata_value
+        return list(project_metadata_model_dict.values())
+
+    def get_project_metadata(self, project: str) -> ProjectMetadataModel:
+        """
+        Returns given project metdata. No supporting function in SQL Registry so implemented this here rather than using _get_last_updated_metadata and list_project_metadata.
+        """
+        project_metadata_model: ProjectMetadataModel = ProjectMetadataModel(
+            project_name=project
+        )
+        with self.engine.connect() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+            )
+            rows = conn.execute(stmt).all()
+            if rows:
+                for row in rows:
+                    metadata_key = row["metadata_key"]
+                    metadata_value = row["metadata_value"]
+
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = metadata_value
+        return project_metadata_model

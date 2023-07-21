@@ -1,4 +1,5 @@
 import pytest
+from pydantic.error_wrappers import ValidationError
 
 from feast.types import Array, Float32, String, from_value_type
 from feast.value_type import ValueType
@@ -20,10 +21,10 @@ def test_array_feast_type():
     assert array_float_32.to_value_type() == ValueType.FLOAT_LIST
     assert from_value_type(array_float_32.to_value_type()) == array_float_32
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         _ = Array(Array)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         _ = Array(Array(String))
 
 
