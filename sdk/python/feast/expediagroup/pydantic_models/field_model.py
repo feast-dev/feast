@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from feast import Field
+from feast.field import Field
 from feast.types import Array, PrimitiveFeastType
 
 

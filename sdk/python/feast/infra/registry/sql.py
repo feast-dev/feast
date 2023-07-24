@@ -1110,7 +1110,9 @@ class SqlRegistry(BaseRegistry):
                         project_metadata_model.project_uuid = metadata_value
 
                     if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
-                        project_metadata_model.last_updated_timestamp = metadata_value
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(int(metadata_value))
+                        )
         return list(project_metadata_model_dict.values())
 
     def get_project_metadata(self, project: str) -> ProjectMetadataModel:
@@ -1134,5 +1136,7 @@ class SqlRegistry(BaseRegistry):
                         project_metadata_model.project_uuid = metadata_value
 
                     if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
-                        project_metadata_model.last_updated_timestamp = metadata_value
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(int(metadata_value))
+                        )
         return project_metadata_model

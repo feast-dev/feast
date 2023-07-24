@@ -13,7 +13,7 @@ class ProjectMetadataModel(BaseModel):
 
     project_name: str
     project_uuid: str = ""
-    last_updated_timestamp: datetime = datetime.min
+    last_updated_timestamp: datetime = datetime.utcfromtimestamp(1)
 
     def to_project_metadata(self) -> ProjectMetadata:
         """

@@ -40,6 +40,7 @@ REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+    "http": "feast.infra.registry.http.HttpRegistry",
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
@@ -321,7 +322,10 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["online_store"], Dict):
             if isinstance(values["online_store"], str) and values[
                 "online_store"
-            ].lower() in {"none", "null"}:
+            ].lower() in {
+                "none",
+                "null",
+            }:
                 values["online_store"] = None
             return values
 

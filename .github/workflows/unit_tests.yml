@@ -7,8 +7,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.9", "3.10" ]
-        os: [ ubuntu-latest, macOS-latest ]
+        python-version: ["3.8", "3.9", "3.10"]
+        os: [ubuntu-latest, macOS-latest]
         exclude:
           - os: macOS-latest
             python-version: "3.9"
@@ -26,13 +26,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
       - name: Install mysql on macOS
-        if:  startsWith(matrix.os, 'macOS')
+        if: startsWith(matrix.os, 'macOS')
         run: |
           brew install mysql
           PATH=$PATH:/usr/local/mysql/bin
       - name: Work around Homebrew MySQL being broken
         # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
-        if:  startsWith(matrix.os, 'macOS')
+        if: startsWith(matrix.os, 'macOS')
         run: |
           brew install zlib
           ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
@@ -54,12 +54,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
       - name: Install pip-tools
-        run: pip install pip-tools
+        run: |
+          pip install -U pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
         run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
-
 
   unit-test-ui:
     runs-on: ubuntu-latest
@@ -69,8 +69,8 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "17.x"
+          registry-url: "https://registry.npmjs.org"
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install
