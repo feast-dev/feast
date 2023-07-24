@@ -294,6 +294,42 @@ class RedshiftOptions:
 
         return redshift_options
 
+    @property
+    def fully_qualified_table_name(self) -> str:
+        """
+        The fully qualified table name of this Redshift table.
+
+        Returns:
+            A string in the format of <database>.<schema>.<table>
+            May be empty or None if the table is not set
+        """
+
+        if not self.table:
+            return ""
+
+        # self.table may already contain the database and schema
+        parts = self.table.split(".")
+        if len(parts) == 3:
+            database, schema, table = parts
+        elif len(parts) == 2:
+            database = self.database
+            schema, table = parts
+        elif len(parts) == 1:
+            database = self.database
+            schema = self.schema
+            table = parts[0]
+        else:
+            raise ValueError(
+                f"Invalid table name: {self.table} - can't determine database and schema"
+            )
+
+        if database and schema:
+            return f"{database}.{schema}.{table}"
+        elif schema:
+            return f"{schema}.{table}"
+        else:
+            return table
+
     def to_proto(self) -> DataSourceProto.RedshiftOptions:
         """
         Converts an RedshiftOptionsProto object to its protobuf representation.
@@ -323,7 +359,6 @@ class SavedDatasetRedshiftStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-
         return SavedDatasetRedshiftStorage(
             table_ref=RedshiftOptions.from_proto(storage_proto.redshift_storage).table
         )
