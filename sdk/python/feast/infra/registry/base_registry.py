@@ -248,7 +248,7 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False, feast_apply_operation: bool = False,
+        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False,
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -256,7 +256,7 @@ class BaseRegistry(ABC):
         Args:
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
-            feast_apply_operation: Whether a feast apply operation is being executed. Determines whether environment
+            ignore_udfs: Whether a feast apply operation is being executed. Determines whether environment
                 sensitive commands, such as dill.loads(), are skipped and 'None' is set as their results.
         Returns:
             List of stream feature views
