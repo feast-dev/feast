@@ -991,8 +991,7 @@ class SqlRegistry(BaseRegistry):
                 for row in rows:
                     proto = proto_class.FromString(row[proto_field_name])
                     if python_class == StreamFeatureView:
-                        skip_udf = kwargs.get('skip_udf')
-                        obj = python_class.from_proto(proto, skip_udf if skip_udf else False)
+                        obj = python_class.from_proto(proto, True)
                     else:
                         obj = python_class.from_proto(proto)
                     res.append(obj)
