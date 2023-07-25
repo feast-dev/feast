@@ -248,7 +248,7 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -256,7 +256,7 @@ class BaseRegistry(ABC):
         Args:
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
-
+            ignore_udfs: If True, UDFs stored in the registry will not be loaded and SFV.udf will be set to `None`
         Returns:
             List of stream feature views
         """
