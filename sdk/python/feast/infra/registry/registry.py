@@ -94,7 +94,7 @@ class FeastObjectType(Enum):
                 project=project
             ),
             FeastObjectType.STREAM_FEATURE_VIEW: registry.list_stream_feature_views(
-                project=project, ignore_udfs=True
+                project=project,
             ),
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
                 project=project

@@ -254,7 +254,7 @@ class SqlRegistry(BaseRegistry):
         )
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
@@ -267,7 +267,6 @@ class SqlRegistry(BaseRegistry):
             StreamFeatureViewProto,
             StreamFeatureView,
             "feature_view_proto",
-            skip_udf=ignore_udfs
         )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -828,13 +827,6 @@ class SqlRegistry(BaseRegistry):
                         # Overriding project when missing, this is to handle failures when the registry is cached
                         if getattr(object_proto, 'spec', None) and object_proto.spec.project == '':
                             object_proto.spec.project = project
-
-                        if isinstance(obj, StreamFeatureView) and obj.udf_string:
-                            object_proto.spec.user_defined_function = UserDefinedFunctionProto(
-                                name='NULL',
-                                body=b'0',
-                                body_text=obj.udf_string
-                            )
                         registry_proto_field_data.append(object_proto)
 
                     registry_proto_field.extend(registry_proto_field_data)
