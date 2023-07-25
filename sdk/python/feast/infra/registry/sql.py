@@ -799,6 +799,10 @@ class SqlRegistry(BaseRegistry):
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
     def proto(self) -> RegistryProto:
+        from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+            UserDefinedFunction as UserDefinedFunctionProto,
+        )
+
         r = RegistryProto()
         last_updated_timestamps = []
         projects = self._get_all_projects()
@@ -823,6 +827,13 @@ class SqlRegistry(BaseRegistry):
                         # Overriding project when missing, this is to handle failures when the registry is cached
                         if getattr(object_proto, 'spec', None) and object_proto.spec.project == '':
                             object_proto.spec.project = project
+
+                        if isinstance(obj, StreamFeatureView) and obj.udf_string:
+                            object_proto.spec.user_defined_function = UserDefinedFunctionProto(
+                                name='NULL',
+                                body=b'0',
+                                body_text=obj.udf_string
+                            )
                         registry_proto_field_data.append(object_proto)
 
                     registry_proto_field.extend(registry_proto_field_data)
