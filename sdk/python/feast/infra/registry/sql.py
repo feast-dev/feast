@@ -254,7 +254,7 @@ class SqlRegistry(BaseRegistry):
         )
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False, feast_apply_operation: bool = False,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
@@ -267,6 +267,7 @@ class SqlRegistry(BaseRegistry):
             StreamFeatureViewProto,
             StreamFeatureView,
             "feature_view_proto",
+            skip_udfs=feast_apply_operation,
         )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -991,7 +992,7 @@ class SqlRegistry(BaseRegistry):
                 for row in rows:
                     proto = proto_class.FromString(row[proto_field_name])
                     if python_class == StreamFeatureView:
-                        obj = python_class.from_proto(proto, True)
+                        obj = python_class.from_proto(proto, True if kwargs["skip_udfs"] else False)
                     else:
                         obj = python_class.from_proto(proto)
                     res.append(obj)
