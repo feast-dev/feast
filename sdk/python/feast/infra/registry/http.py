@@ -69,7 +69,7 @@ class HttpRegistry(BaseRegistry):
         assert registry_config is not None, "HTTPRegistry needs a valid registry_config"
         # Timeouts in seconds
         timeout = httpx.Timeout(5.0, connect=60.0)
-        transport = httpx.HTTPTransport(retries=3)
+        transport = httpx.HTTPTransport(retries=3, verify=False)
         self.base_url = registry_config.path
         self.http_client = httpx.Client(
             timeout=timeout,
