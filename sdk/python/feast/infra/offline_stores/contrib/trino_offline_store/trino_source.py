@@ -227,10 +227,20 @@ class TrinoSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
+        auth = None
+        if config.offline_store.auth is not None:
+            auth = config.offline_store.auth.to_trino_auth()
+
         client = Trino(
             catalog=config.offline_store.catalog,
             host=config.offline_store.host,
             port=config.offline_store.port,
+            user=config.offline_store.user,
+            source=config.offline_store.source,
+            http_scheme=config.offline_store.http_scheme,
+            verify=config.offline_store.verify,
+            extra_credential=config.offline_store.extra_credential,
+            auth=auth,
         )
         if self.table:
             table_schema = client.execute_query(
