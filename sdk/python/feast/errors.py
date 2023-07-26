@@ -66,6 +66,11 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"On demand feature view {name} does not exist")
 
 
+class ProjectMetadataNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, project: str = None):
+        super().__init__(f"Project Metadata does not exist in project {project}")
+
+
 class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
     def __init__(self, feature_name, feature_view_name):
         super().__init__(

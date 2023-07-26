@@ -28,6 +28,7 @@ class SparkSourceFormat(Enum):
     parquet = "parquet"
     delta = "delta"
     avro = "avro"
+    iceberg = "iceberg"
 
 
 class SparkSource(DataSource):

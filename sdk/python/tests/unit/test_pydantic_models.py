@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import uuid
+from datetime import datetime, timedelta
 from typing import List
 
+import pandas as pd
 from pydantic import BaseModel
 
 from feast.data_source import RequestSource
@@ -23,13 +26,61 @@ from feast.expediagroup.pydantic_models.data_source_model import (
     SparkSourceModel,
 )
 from feast.expediagroup.pydantic_models.entity_model import EntityModel
-from feast.expediagroup.pydantic_models.feature_view_model import FeatureViewModel
+from feast.expediagroup.pydantic_models.feature_service import FeatureServiceModel
+from feast.expediagroup.pydantic_models.feature_view_model import (
+    FeatureViewModel,
+    FeatureViewProjectionModel,
+    OnDemandFeatureViewModel,
+)
+from feast.expediagroup.pydantic_models.field_model import FieldModel
+from feast.expediagroup.pydantic_models.project_metadata_model import (
+    ProjectMetadataModel,
+)
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
-from feast.types import Bool, Float32
+from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
+from feast.project_metadata import ProjectMetadata
+from feast.types import Array, Bool, Float32, Float64, Int64, PrimitiveFeastType, String
+from feast.value_type import ValueType
+
+
+def test_idempotent_field_primitive_type_conversion():
+    python_obj = Field(name="val_to_add", dtype=Int64)
+    pydantic_obj = FieldModel.from_field(python_obj)
+    converted_python_obj = pydantic_obj.to_field()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = Field.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FieldModel.parse_raw(pydantic_json)
+
+    pydantic_dict = pydantic_obj.dict()
+    assert pydantic_obj == FieldModel.parse_obj(pydantic_dict)
+
+
+def test_idempotent_field_complex_array_type_conversion():
+    python_obj = Field(name="val_to_add", dtype=Array(Int64))
+    pydantic_obj = FieldModel.from_field(python_obj)
+    converted_python_obj = pydantic_obj.to_field()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = Field.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FieldModel.parse_raw(pydantic_json)
+
+    pydantic_dict = pydantic_obj.dict()
+    assert pydantic_obj == FieldModel.parse_obj(pydantic_dict)
 
 
 def test_datasource_child_deserialization():
@@ -59,7 +110,14 @@ def test_datasource_child_deserialization():
     request_source_model_json = {
         "name": "source",
         "model_type": "RequestSourceModel",
-        "schema": [{"name": "string", "dtype": "Int32", "description": "", "tags": {}}],
+        "schema_": [
+            {
+                "name": "string",
+                "dtype": PrimitiveFeastType.INT64,
+                "description": "",
+                "tags": {},
+            }
+        ],
         "description": "desc",
         "tags": {},
         "owner": "feast",
@@ -78,14 +136,25 @@ def test_datasource_child_deserialization():
 
 
 def test_idempotent_entity_conversion():
-    entity = Entity(
+    python_obj = Entity(
         name="my-entity",
         description="My entity",
+        value_type=ValueType.INT64,
         tags={"key1": "val1", "key2": "val2"},
     )
-    entity_model = EntityModel.from_entity(entity)
-    entity_b = entity_model.to_entity()
-    assert entity == entity_b
+    pydantic_obj = EntityModel.from_entity(python_obj)
+    converted_python_obj = pydantic_obj.to_entity()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = Entity.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == EntityModel.parse_raw(pydantic_json)
+
+    pydantic_dict = pydantic_obj.dict()
+    assert pydantic_obj == EntityModel.parse_obj(pydantic_dict)
 
 
 def test_idempotent_requestsource_conversion():
@@ -93,6 +162,59 @@ def test_idempotent_requestsource_conversion():
         Field(name="f1", dtype=Float32),
         Field(name="f2", dtype=Bool),
     ]
+    python_obj = RequestSource(
+        name="source",
+        schema=schema,
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+    pydantic_obj = RequestSourceModel.from_data_source(python_obj)
+    converted_python_obj = pydantic_obj.to_data_source()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = RequestSource.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == RequestSourceModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == RequestSourceModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_sparksource_conversion():
+    python_obj = SparkSource(
+        name="source",
+        table="thingy",
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+    pydantic_obj = SparkSourceModel.from_data_source(python_obj)
+    converted_python_obj = pydantic_obj.to_data_source()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = SparkSource.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == SparkSourceModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == SparkSourceModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_featureview_conversion():
+    schema = [
+        Field(name="f1", dtype=Float32),
+        Field(name="f2", dtype=Bool),
+    ]
+    user_entity = Entity(
+        name="user1", join_keys=["user_id"], value_type=ValueType.INT64
+    )
     request_source = RequestSource(
         name="source",
         schema=schema,
@@ -100,25 +222,242 @@ def test_idempotent_requestsource_conversion():
         tags={},
         owner="feast",
     )
-    request_source_model = RequestSourceModel.from_data_source(request_source)
-    request_source_b = request_source_model.to_data_source()
-    assert request_source == request_source_b
-
-
-def test_idempotent_sparksource_conversion():
-    spark_source = SparkSource(
-        name="source",
-        table="thingy",
-        description="desc",
-        tags={},
-        owner="feast",
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[user_entity],
+        schema=[
+            Field(name="user1", dtype=Int64),
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=request_source,
+        ttl=timedelta(days=0),
     )
-    spark_source_model = SparkSourceModel.from_data_source(spark_source)
-    spark_source_b = spark_source_model.to_data_source()
-    assert spark_source == spark_source_b
+    feature_view_model = FeatureViewModel.from_feature_view(feature_view)
+    feature_view_b = feature_view_model.to_feature_view()
+    assert feature_view == feature_view_b
+
+    spark_source = SparkSource(
+        name="sparky_sparky_boom_man",
+        path="/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    python_obj = FeatureView(
+        name="my-feature-view",
+        entities=[user_entity],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=spark_source,
+    )
+    python_obj.materialization_intervals = [
+        (datetime.now() - timedelta(days=10), datetime.now() - timedelta(days=9)),
+        (datetime.now(), datetime.now()),
+    ]
+    pydantic_obj = FeatureViewModel.from_feature_view(python_obj)
+    converted_python_obj = pydantic_obj.to_feature_view()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = FeatureView.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FeatureViewModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == FeatureViewModel.parse_obj(pydantic_json)
 
 
-def test_idempotent_featureview_conversion():
+def test_idempotent_feature_view_projection_conversion():
+    # Feast not using desired_features while converting to proto
+    python_obj = FeatureViewProjection(
+        name="example_projection",
+        name_alias="alias",
+        desired_features=[],
+        features=[
+            Field(name="feature1", dtype=Float64),
+            Field(name="feature2", dtype=String),
+        ],
+        join_key_map={"old_key": "new_key"},
+    )
+    pydantic_obj = FeatureViewProjectionModel.from_feature_view_projection(python_obj)
+    converted_python_obj = pydantic_obj.to_feature_view_projection()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = FeatureViewProjection.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FeatureViewProjectionModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == FeatureViewProjectionModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_on_demand_feature_view_conversion():
+    tags = {
+        "tag1": "val1",
+        "tag2": "val2",
+        "tag3": "val3",
+    }
+
+    """
+        Entity is a collection of semantically related features.
+    """
+    entity1: Entity = Entity(
+        name="entity1",
+        description="entity1",
+        value_type=ValueType.INT64,
+        owner="x@xyz.com",
+        tags=tags,
+    )
+
+    entity2: Entity = Entity(
+        name="entity2",
+        description="entity2",
+        value_type=ValueType.INT64,
+        owner="x@zyz.com",
+        tags=tags,
+    )
+
+    """
+        Data source refers to raw features data that users own. Feature Store
+        does not manage any of the raw underlying data but instead, oversees
+        loading this data and performing different operations on
+        the data to retrieve or serve features.
+
+        Feast uses a time-series data model to represent data.
+    """
+
+    datasource1: SparkSource = SparkSource(
+        name="datasource1",
+        description="datasource1",
+        query="""select entity1
+                    , val1
+                    , val2
+                    , val3
+                    , val4
+                    , val5
+                    , CURRENT_DATE AS event_timestamp
+                from table1
+                WHERE entity1 < 100000""",
+        timestamp_field="event_timestamp",
+        tags=tags,
+        owner="x@xyz.com",
+    )
+
+    datasource2: SparkSource = SparkSource(
+        name="datasource2",
+        description="datasource2",
+        path="s3a://test-bucket/path1/datasource2",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        tags=tags,
+        owner="x@xyz.com",
+    )
+
+    """
+        A feature view is an object that represents a logical group
+        of time-series feature data as it is found in a data source.
+    """
+
+    view1: FeatureView = FeatureView(
+        name="view1",
+        entities=[entity1],
+        ttl=timedelta(days=365),
+        source=datasource1,
+        tags=tags,
+        description="view1",
+        owner="x@xyz.com",
+        schema=[
+            Field(name="val1", dtype=String),
+            Field(name="val2", dtype=String),
+            Field(name="val3", dtype=Float64),
+            Field(name="val4", dtype=Float64),
+            Field(name="val5", dtype=String),
+        ],
+    )
+
+    view2: FeatureView = FeatureView(
+        name="view2",
+        entities=[entity2],
+        ttl=timedelta(days=365),
+        source=datasource2,
+        tags=tags,
+        description="view2",
+        owner="x@xyz.com",
+        schema=[
+            Field(name="r1", dtype=Float64),
+            Field(name="r2", dtype=Float64),
+            Field(name="r3", dtype=String),
+        ],
+    )
+
+    distance_decorator = on_demand_feature_view(
+        sources=[view1, view2],
+        schema=[Field(name="distance_in_kms", dtype=Float64)],
+    )
+
+    def calculate_distance_demo_go(features_df: pd.DataFrame) -> pd.DataFrame:
+        import numpy as np
+
+        df = pd.DataFrame()
+        # Haversine formula
+        # Radius of earth in kilometers. Use 3956 for miles
+        r = 6371
+
+        # calculate the result
+        df["distance_in_kms"] = (
+            2
+            * np.arcsin(
+                np.sqrt(
+                    np.sin(
+                        (
+                            np.radians(features_df["val3"])
+                            - np.radians(features_df["r1"])
+                        )
+                        / 2
+                    )
+                    ** 2
+                    + np.cos(np.radians(features_df["r1"]))
+                    * np.cos(np.radians(features_df["val3"]))
+                    * np.sin(
+                        (
+                            np.radians(features_df["val4"])
+                            - np.radians(features_df["r2"])
+                        )
+                        / 2
+                    )
+                    ** 2
+                )
+            )
+            * r
+        )
+
+        return df
+
+    python_obj = distance_decorator(calculate_distance_demo_go)
+    pydantic_obj = OnDemandFeatureViewModel.from_feature_view(python_obj)
+    converted_python_obj = pydantic_obj.to_feature_view()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = OnDemandFeatureView.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == OnDemandFeatureViewModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == OnDemandFeatureViewModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_feature_service_conversion():
     schema = [
         Field(name="f1", dtype=Float32),
         Field(name="f2", dtype=Bool),
@@ -139,6 +478,7 @@ def test_idempotent_featureview_conversion():
             Field(name="feature2", dtype=Float32),
         ],
         source=request_source,
+        ttl=timedelta(days=0),
     )
     feature_view_model = FeatureViewModel.from_feature_view(feature_view)
     feature_view_b = feature_view_model.to_feature_view()
@@ -151,8 +491,8 @@ def test_idempotent_featureview_conversion():
         timestamp_field="event_timestamp",
         created_timestamp_column="created",
     )
-    feature_view = FeatureView(
-        name="my-feature-view",
+    view1 = FeatureView(
+        name="my-feature-view1",
         entities=[user_entity],
         schema=[
             Field(name="feature1", dtype=Float32),
@@ -160,6 +500,60 @@ def test_idempotent_featureview_conversion():
         ],
         source=spark_source,
     )
-    feature_view_model = FeatureViewModel.from_feature_view(feature_view)
-    feature_view_b = feature_view_model.to_feature_view()
-    assert feature_view == feature_view_b
+
+    spark_source_2 = SparkSource(
+        name="sparky_sparky_boom_man2",
+        path="/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    view2 = FeatureView(
+        name="my-feature-view2",
+        entities=[user_entity],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=spark_source_2,
+    )
+
+    python_obj = FeatureService(
+        name="feature_service_1",
+        description="Helps to retrieve features from view1 and view2",
+        owner="bdodla@expediagroup.com",
+        tags={},
+        features=[view1, view2[["feature1"]]],
+    )
+    pydantic_obj = FeatureServiceModel.from_feature_service(python_obj)
+    converted_python_obj = pydantic_obj.to_feature_service()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = FeatureService.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FeatureServiceModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == FeatureServiceModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_project_metadata_conversion():
+    python_obj = ProjectMetadata(
+        project_name="test_project", project_uuid=f"{uuid.uuid4()}"
+    )
+    pydantic_obj = ProjectMetadataModel.from_project_metadata(python_obj)
+    converted_python_obj = pydantic_obj.to_project_metadata()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = ProjectMetadata.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json(exclude={"last_updated_timestamp"})
+    assert pydantic_obj == ProjectMetadataModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict(exclude={"last_updated_timestamp"})
+    assert pydantic_obj == ProjectMetadataModel.parse_obj(pydantic_json)

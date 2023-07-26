@@ -25,6 +25,7 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -139,7 +140,7 @@ class FeatureView(BaseFeatureView):
         # making it impossible to convert idempotently to another format.
         # store these arguments to recover them in conversions.
         self.original_schema = schema
-        self.original_entities = entities or []
+        self.original_entities: List[Entity] = entities or []
 
         schema = schema or []
 
@@ -349,6 +350,10 @@ class FeatureView(BaseFeatureView):
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
+        original_entities: List[EntityProto] = []
+        for entity in self.original_entities:
+            original_entities.append(entity.to_proto())
+
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -361,6 +366,7 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            original_entities=original_entities,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -420,23 +426,30 @@ class FeatureView(BaseFeatureView):
 
         # This avoids the deprecation warning.
         feature_view.entities = list(feature_view_proto.spec.entities)
-        feature_view.original_entities = feature_view_proto.spec.entities
+        feature_view.original_entities = [
+            Entity.from_proto(entity)
+            for entity in feature_view_proto.spec.original_entities
+        ]
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [
             Field.from_proto(field_proto)
             for field_proto in feature_view_proto.spec.features
         ]
+
         feature_view.entity_columns = [
             Field.from_proto(field_proto)
             for field_proto in feature_view_proto.spec.entity_columns
         ]
-
         if len(feature_view.entities) != len(feature_view.entity_columns):
             warnings.warn(
                 f"There are some mismatches in your feature view's registered entities. Please check if you have applied your entities correctly."
                 f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
             )
+
+        feature_view.original_schema = (
+            feature_view.entity_columns + feature_view.features
+        )
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

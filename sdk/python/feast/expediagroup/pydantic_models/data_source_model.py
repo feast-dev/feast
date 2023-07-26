@@ -8,10 +8,10 @@ from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
 from pydantic import Field as PydanticField
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Self
 
 from feast.data_source import RequestSource
-from feast.field import Field
+from feast.expediagroup.pydantic_models.field_model import FieldModel
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
@@ -49,41 +49,31 @@ class RequestSourceModel(DataSourceModel):
 
     name: str
     model_type: Literal["RequestSourceModel"] = "RequestSourceModel"
-    schema_: List[Field] = PydanticField(None, alias="schema")
+    schema_: List[FieldModel]
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = None
     owner: Optional[str] = ""
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
-
-    def to_data_source(self):
+    def to_data_source(self) -> RequestSource:
         """
         Given a Pydantic RequestSourceModel, create and return a RequestSource.
 
         Returns:
             A RequestSource.
         """
-        params = {
-            "name": self.name,
-            "description": self.description,
-            "tags": self.tags if self.tags else None,
-            "owner": self.owner,
-        }
-        params["schema"] = [
-            Field(
-                name=sch.name,
-                dtype=sch.dtype,
-                description=sch.description,
-                tags=sch.tags,
-            )
-            for sch in self.schema_
-        ]
-        return RequestSource(**params)
+        return RequestSource(
+            name=self.name,
+            schema=[sch.to_field() for sch in self.schema_],
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+        )
 
     @classmethod
-    def from_data_source(cls, data_source):
+    def from_data_source(
+        cls,
+        data_source,
+    ) -> Self:  # type: ignore
         """
         Converts a RequestSource object to its pydantic model representation.
 
@@ -92,7 +82,9 @@ class RequestSourceModel(DataSourceModel):
         """
         return cls(
             name=data_source.name,
-            schema=data_source.schema,
+            schema_=[
+                FieldModel.from_field(ds_schema) for ds_schema in data_source.schema
+            ],
             description=data_source.description,
             tags=data_source.tags if data_source.tags else None,
             owner=data_source.owner,
@@ -117,11 +109,7 @@ class SparkSourceModel(DataSourceModel):
     owner: Optional[str] = ""
     timestamp_field: Optional[str] = None
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
-
-    def to_data_source(self):
+    def to_data_source(self) -> SparkSource:
         """
         Given a Pydantic SparkSourceModel, create and return a SparkSource.
 
@@ -130,24 +118,23 @@ class SparkSourceModel(DataSourceModel):
         """
         return SparkSource(
             name=self.name,
-            table=self.table if hasattr(self, "table") else "",
-            query=self.query if hasattr(self, "query") else "",
-            path=self.path if hasattr(self, "path") else "",
-            file_format=self.file_format if hasattr(self, "file_format") else "",
-            created_timestamp_column=self.created_timestamp_column
-            if hasattr(self, "created_timestamp_column")
-            else "",
-            field_mapping=self.field_mapping if self.field_mapping else None,
-            description=self.description or "",
-            tags=self.tags if self.tags else None,
-            owner=self.owner or "",
-            timestamp_field=self.timestamp_field
-            if hasattr(self, "timestamp_field")
-            else "",
+            table=self.table,
+            query=self.query,
+            path=self.path,
+            file_format=self.file_format,
+            created_timestamp_column=self.created_timestamp_column,
+            field_mapping=self.field_mapping,
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+            timestamp_field=self.timestamp_field,
         )
 
     @classmethod
-    def from_data_source(cls, data_source):
+    def from_data_source(
+        cls,
+        data_source,
+    ) -> Self:  # type: ignore
         """
         Converts a SparkSource object to its pydantic model representation.
 
@@ -160,18 +147,12 @@ class SparkSourceModel(DataSourceModel):
             query=data_source.query,
             path=data_source.path,
             file_format=data_source.file_format,
-            created_timestamp_column=data_source.created_timestamp_column
-            if data_source.created_timestamp_column
-            else "",
-            field_mapping=data_source.field_mapping
-            if data_source.field_mapping
-            else None,
-            description=data_source.description if data_source.description else "",
-            tags=data_source.tags if data_source.tags else None,
-            owner=data_source.owner if data_source.owner else "",
-            timestamp_field=data_source.timestamp_field
-            if data_source.timestamp_field
-            else "",
+            created_timestamp_column=data_source.created_timestamp_column,
+            field_mapping=data_source.field_mapping,
+            description=data_source.description,
+            tags=data_source.tags,
+            owner=data_source.owner,
+            timestamp_field=data_source.timestamp_field,
         )
 
 

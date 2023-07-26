@@ -174,6 +174,10 @@ class Registry(BaseRegistry):
             from feast.infra.registry.sql import SqlRegistry
 
             return SqlRegistry(registry_config, project, repo_path)
+        elif registry_config and registry_config.registry_type == "http":
+            from feast.infra.registry.http import HttpRegistry
+
+            return HttpRegistry(registry_config, project, repo_path)
         elif registry_config and registry_config.registry_type == "snowflake.registry":
             from feast.infra.registry.snowflake import SnowflakeRegistry
 
