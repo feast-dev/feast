@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Type
 
 from typeguard import typechecked
 
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -15,7 +16,7 @@ from feast.protos.feast.core.VectorFeatureView_pb2 import VectorFeatureView as V
 from feast.usage import log_exceptions
 
 @typechecked
-class VectorFeatureView(FeatureView):
+class VectorFeatureView(BaseFeatureView):
     """
     A FeatureView for vector databases.
 
@@ -45,6 +46,9 @@ class VectorFeatureView(FeatureView):
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
     """
+    # inheriting from FeatureView wouldn't work due to issue with conflicting proto classes
+    # therefore using composition instead
+    feature_view: FeatureView
     vector_field: str
     dimensions: int
     index_algorithm: IndexType
@@ -89,7 +93,7 @@ class VectorFeatureView(FeatureView):
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
         """
-        super().__init__(
+        feature_view = FeatureView(
             name=name,
             source=source,
             schema=schema,
@@ -101,35 +105,36 @@ class VectorFeatureView(FeatureView):
             owner=owner
         )
 
+        self.feature_view = feature_view
         self.vector_field = vector_field
         self.dimensions = dimensions
         self.index_algorithm = index_algorithm
 
     def __hash__(self):
-        return super().__hash__()
+        return self.feature_view.__hash__()
 
     def __copy__(self):
         vector_feature_view = VectorFeatureView(
-            name=self.name,
-            source=self.stream_source if self.stream_source else self.batch_source,
+            name=self.feature_view.name,
+            source=self.feature_view.stream_source if self.feature_view.stream_source else self.feature_view.batch_source,
             vector_field=self.vector_field,
             dimensions=self.dimensions,
             index_algorithm=self.index_algorithm,
-            schema=self.schema,
-            ttl=self.ttl,
-            online=self.online,
-            description=self.description,
-            tags=self.tags,
-            owner=self.owner
+            schema=self.feature_view.schema,
+            ttl=self.feature_view.ttl,
+            online=self.feature_view.online,
+            description=self.feature_view.description,
+            tags=self.feature_view.tags,
+            owner=self.feature_view.owner
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
-        vector_feature_view.entities = self.entities
-        vector_feature_view.features = copy.copy(self.features)
-        vector_feature_view.entity_columns = copy.copy(self.entity_columns)
-        vector_feature_view.projection = copy.copy(self.projection)
-        vector_feature_view.original_schema = copy.copy(self.original_schema)
-        vector_feature_view.original_entities = copy.copy(self.original_entities)
+        vector_feature_view.feature_view.entities = self.feature_view.entities
+        vector_feature_view.feature_view.features = copy.copy(self.feature_view.features)
+        vector_feature_view.feature_view.entity_columns = copy.copy(self.feature_view.entity_columns)
+        vector_feature_view.feature_view.projection = copy.copy(self.feature_view.projection)
+        vector_feature_view.feature_view.original_schema = copy.copy(self.feature_view.original_schema)
+        vector_feature_view.feature_view.original_entities = copy.copy(self.feature_view.original_entities)
 
         return vector_feature_view
 
@@ -139,7 +144,7 @@ class VectorFeatureView(FeatureView):
                 "Comparisons should only involve VectorFeatureView class objects."
             )
 
-        if not super().__eq__(other):
+        if not self.feature_view.__eq__(other.feature_view):
             return False
 
         if (self.vector_field != other.vector_field
@@ -151,15 +156,24 @@ class VectorFeatureView(FeatureView):
         return True
 
     @property
+    def join_keys(self) -> List[str]:
+        """Returns a list of all the join keys."""
+        return self.feature_view.join_keys
+
+    @property
+    def schema(self) -> List[Field]:
+        return self.feature_view.schema()
+
+    @property
     def proto_class(self) -> Type[VectorFeatureViewProto]:
         return VectorFeatureViewProto
 
     def to_proto(self) -> VectorFeatureViewProto:
-        feature_view_proto = super().to_proto()
+        feature_view_proto = self.feature_view.to_proto()
 
         proto = VectorFeatureViewProto(
             feature_view=feature_view_proto,
-            entities=[entity.to_proto() for entity in self.original_entities],
+            entities=[entity.to_proto() for entity in self.feature_view.original_entities],
             vector_field=self.vector_field,
             dimensions=self.dimensions,
             index_type=self.index_algorithm.value

@@ -107,7 +107,7 @@ def test_vector_field_mapping():
     user1 = Entity(name="user1")
     batch_source = FileSource(path="some path")
 
-    feature_view = VectorFeatureView(
+    vector_feature_view = VectorFeatureView(
         name=feature_view_name,
         entities=[user1],
         ttl=timedelta(days=30),
@@ -117,10 +117,10 @@ def test_vector_field_mapping():
         index_algorithm=vector_index_algorithm
     )
 
-    assert(feature_view.vector_field == vector_field_name)
-    assert(feature_view.dimensions == vector_dimensions)
-    assert(feature_view.index_algorithm == vector_index_algorithm)
-    assert(feature_view.name == feature_view_name)
+    assert(vector_feature_view.vector_field == vector_field_name)
+    assert(vector_feature_view.dimensions == vector_dimensions)
+    assert(vector_feature_view.index_algorithm == vector_index_algorithm)
+    assert(vector_feature_view.feature_view.name == feature_view_name)
 
 
 def test_copy():
@@ -197,7 +197,7 @@ def test_from_proto():
 
     vector_feature_view = VectorFeatureView.from_proto(vector_feature_view_proto)
     assert(isinstance(vector_feature_view, VectorFeatureView))
-    assert(vector_feature_view.original_entities == entities)
+    assert(vector_feature_view.feature_view.original_entities == entities)
     assert(vector_feature_view.vector_field == vector_field_name)
     assert(vector_feature_view.dimensions == vector_dimensions)
     assert(vector_feature_view.index_algorithm == vector_index_algorithm)
