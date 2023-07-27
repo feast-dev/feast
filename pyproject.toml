@@ -6,7 +6,7 @@ authors = ["Francisco Arceo", "Ross Briden", "Maks Stachowiak"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.7.9"
+python = "3.7.13"
 absl-py = "1.4.0"
 anyio = "3.6.2"
 appdirs = "1.4.4"
