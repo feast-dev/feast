@@ -2,6 +2,7 @@ from copy import copy
 from datetime import timedelta
 
 import pytest
+from google.protobuf.duration_pb2 import Duration
 from pydantic import ValidationError
 
 from feast.aggregation import Aggregation
@@ -16,10 +17,11 @@ from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.protos.feast.core.VectorFeatureView_pb2 import VectorFeatureView as VectorFeatureViewProto
+from feast.protos.feast.core.VectorFeatureView_pb2 import (
+    VectorFeatureView as VectorFeatureViewProto,
+)
 from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.types import Float32
-from google.protobuf.duration_pb2 import Duration
 
 
 def test_create_vector_feature_view_with_conflicting_entities():
@@ -35,7 +37,7 @@ def test_create_vector_feature_view_with_conflicting_entities():
             source=batch_source,
             vector_field="vector_field",
             dimensions=32,
-            index_algorithm=IndexType.hnsw
+            index_algorithm=IndexType.hnsw,
         )
 
 
@@ -51,7 +53,7 @@ def test_hash():
         source=file_source,
         vector_field="vector_field",
         dimensions=32,
-        index_algorithm=IndexType.hnsw
+        index_algorithm=IndexType.hnsw,
     )
     feature_view_2 = VectorFeatureView(
         name="my-feature-view",
@@ -63,7 +65,7 @@ def test_hash():
         source=file_source,
         vector_field="vector_field",
         dimensions=32,
-        index_algorithm=IndexType.hnsw
+        index_algorithm=IndexType.hnsw,
     )
     feature_view_3 = VectorFeatureView(
         name="my-feature-view",
@@ -72,7 +74,7 @@ def test_hash():
         source=file_source,
         vector_field="vector_field",
         dimensions=32,
-        index_algorithm=IndexType.hnsw
+        index_algorithm=IndexType.hnsw,
     )
     feature_view_4 = VectorFeatureView(
         name="my-feature-view",
@@ -82,7 +84,7 @@ def test_hash():
         vector_field="vector_field",
         dimensions=32,
         index_algorithm=IndexType.hnsw,
-        description="test"
+        description="test",
     )
 
     s1 = {feature_view_1, feature_view_2}
@@ -114,13 +116,13 @@ def test_vector_field_mapping():
         source=batch_source,
         vector_field=vector_field_name,
         dimensions=vector_dimensions,
-        index_algorithm=vector_index_algorithm
+        index_algorithm=vector_index_algorithm,
     )
 
-    assert(vector_feature_view.vector_field == vector_field_name)
-    assert(vector_feature_view.dimensions == vector_dimensions)
-    assert(vector_feature_view.index_algorithm == vector_index_algorithm)
-    assert(vector_feature_view.feature_view.name == feature_view_name)
+    assert vector_feature_view.vector_field == vector_field_name
+    assert vector_feature_view.dimensions == vector_dimensions
+    assert vector_feature_view.index_algorithm == vector_index_algorithm
+    assert vector_feature_view.feature_view.name == feature_view_name
 
 
 def test_copy():
@@ -134,11 +136,11 @@ def test_copy():
         source=batch_source,
         vector_field="vector_field",
         dimensions=32,
-        index_algorithm=IndexType.hnsw
+        index_algorithm=IndexType.hnsw,
     )
 
     feature_view_copy = copy(feature_view)
-    assert(feature_view_copy == feature_view)
+    assert feature_view_copy == feature_view
 
 
 def test_join_keys():
@@ -157,14 +159,14 @@ def test_join_keys():
         schema=[
             Field(name="feature1", dtype=Float32),
             Field(name="feature2", dtype=Float32),
-        ]
+        ],
     )
 
     join_keys = feature_view.join_keys
-    assert(isinstance(join_keys, list))
-    assert(len(join_keys) == 2)
-    assert(join_keys.__getitem__(0) == "feature1")
-    assert(join_keys.__getitem__(1) == "feature2")
+    assert isinstance(join_keys, list)
+    assert len(join_keys) == 2
+    assert join_keys.__getitem__(0) == "feature1"
+    assert join_keys.__getitem__(1) == "feature2"
 
 
 def test_from_proto():
@@ -192,15 +194,15 @@ def test_from_proto():
         entities=entities_proto,
         vector_field=vector_field_name,
         dimensions=vector_dimensions,
-        index_type=vector_index_algorithm.value
+        index_type=vector_index_algorithm.value,
     )
 
     vector_feature_view = VectorFeatureView.from_proto(vector_feature_view_proto)
-    assert(isinstance(vector_feature_view, VectorFeatureView))
-    assert(vector_feature_view.feature_view.original_entities == entities)
-    assert(vector_feature_view.vector_field == vector_field_name)
-    assert(vector_feature_view.dimensions == vector_dimensions)
-    assert(vector_feature_view.index_algorithm == vector_index_algorithm)
+    assert isinstance(vector_feature_view, VectorFeatureView)
+    assert vector_feature_view.feature_view.original_entities == entities
+    assert vector_feature_view.vector_field == vector_field_name
+    assert vector_feature_view.dimensions == vector_dimensions
+    assert vector_feature_view.index_algorithm == vector_index_algorithm
 
 
 def test_to_proto():
@@ -223,12 +225,12 @@ def test_to_proto():
         schema=[
             Field(name="feature1", dtype=Float32),
             Field(name="feature2", dtype=Float32),
-        ]
+        ],
     )
 
     proto = vector_feature_view.to_proto()
 
-    assert(isinstance(proto, VectorFeatureViewProto))
-    assert(proto.vector_field == vector_field_name)
-    assert(proto.dimensions == vector_dimensions)
-    assert(proto.index_type == vector_index_algorithm.value)
+    assert isinstance(proto, VectorFeatureViewProto)
+    assert proto.vector_field == vector_field_name
+    assert proto.dimensions == vector_dimensions
+    assert proto.index_type == vector_index_algorithm.value

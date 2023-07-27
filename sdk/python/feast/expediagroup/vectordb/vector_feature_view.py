@@ -7,13 +7,15 @@ from typeguard import typechecked
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.expediagroup.vectordb.index_type import IndexType
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.expediagroup.vectordb.index_type import IndexType
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.protos.feast.core.VectorFeatureView_pb2 import VectorFeatureView as VectorFeatureViewProto
-
+from feast.protos.feast.core.VectorFeatureView_pb2 import (
+    VectorFeatureView as VectorFeatureViewProto,
+)
 from feast.usage import log_exceptions
+
 
 @typechecked
 class VectorFeatureView(BaseFeatureView):
@@ -46,6 +48,7 @@ class VectorFeatureView(BaseFeatureView):
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
     """
+
     # inheriting from FeatureView wouldn't work due to issue with conflicting proto classes
     # therefore using composition instead
     feature_view: FeatureView
@@ -102,7 +105,7 @@ class VectorFeatureView(BaseFeatureView):
             online=online,
             description=description,
             tags=tags,
-            owner=owner
+            owner=owner,
         )
 
         self.feature_view = feature_view
@@ -116,7 +119,9 @@ class VectorFeatureView(BaseFeatureView):
     def __copy__(self):
         vector_feature_view = VectorFeatureView(
             name=self.feature_view.name,
-            source=self.feature_view.stream_source if self.feature_view.stream_source else self.feature_view.batch_source,
+            source=self.feature_view.stream_source
+            if self.feature_view.stream_source
+            else self.feature_view.batch_source,
             vector_field=self.vector_field,
             dimensions=self.dimensions,
             index_algorithm=self.index_algorithm,
@@ -125,16 +130,26 @@ class VectorFeatureView(BaseFeatureView):
             online=self.feature_view.online,
             description=self.feature_view.description,
             tags=self.feature_view.tags,
-            owner=self.feature_view.owner
+            owner=self.feature_view.owner,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
         vector_feature_view.feature_view.entities = self.feature_view.entities
-        vector_feature_view.feature_view.features = copy.copy(self.feature_view.features)
-        vector_feature_view.feature_view.entity_columns = copy.copy(self.feature_view.entity_columns)
-        vector_feature_view.feature_view.projection = copy.copy(self.feature_view.projection)
-        vector_feature_view.feature_view.original_schema = copy.copy(self.feature_view.original_schema)
-        vector_feature_view.feature_view.original_entities = copy.copy(self.feature_view.original_entities)
+        vector_feature_view.feature_view.features = copy.copy(
+            self.feature_view.features
+        )
+        vector_feature_view.feature_view.entity_columns = copy.copy(
+            self.feature_view.entity_columns
+        )
+        vector_feature_view.feature_view.projection = copy.copy(
+            self.feature_view.projection
+        )
+        vector_feature_view.feature_view.original_schema = copy.copy(
+            self.feature_view.original_schema
+        )
+        vector_feature_view.feature_view.original_entities = copy.copy(
+            self.feature_view.original_entities
+        )
 
         return vector_feature_view
 
@@ -147,7 +162,8 @@ class VectorFeatureView(BaseFeatureView):
         if not self.feature_view.__eq__(other.feature_view):
             return False
 
-        if (self.vector_field != other.vector_field
+        if (
+            self.vector_field != other.vector_field
             or self.dimensions != other.dimensions
             or self.index_algorithm != other.index_algorithm
         ):
@@ -173,10 +189,12 @@ class VectorFeatureView(BaseFeatureView):
 
         proto = VectorFeatureViewProto(
             feature_view=feature_view_proto,
-            entities=[entity.to_proto() for entity in self.feature_view.original_entities],
+            entities=[
+                entity.to_proto() for entity in self.feature_view.original_entities
+            ],
             vector_field=self.vector_field,
             dimensions=self.dimensions,
-            index_type=self.index_algorithm.value
+            index_type=self.index_algorithm.value,
         )
 
         return proto
@@ -203,7 +221,9 @@ class VectorFeatureView(BaseFeatureView):
 
         vector_feature_view = VectorFeatureView(
             name=feature_view.name,
-            source=feature_view.stream_source if feature_view.stream_source else feature_view.batch_source,
+            source=feature_view.stream_source
+            if feature_view.stream_source
+            else feature_view.batch_source,
             vector_field=vector_field,
             dimensions=dimensions,
             index_algorithm=index_algorithm,
@@ -213,7 +233,7 @@ class VectorFeatureView(BaseFeatureView):
             online=feature_view.online,
             description=feature_view.description,
             tags=feature_view.tags,
-            owner=feature_view.owner
+            owner=feature_view.owner,
         )
 
         return vector_feature_view
