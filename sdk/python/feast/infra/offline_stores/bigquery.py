@@ -605,6 +605,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
+        # prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 
