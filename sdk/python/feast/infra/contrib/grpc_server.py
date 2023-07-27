@@ -36,11 +36,11 @@ class GrpcIngestFeatureService(GrpcIngestFeatureServiceServicer):
 
 
 class GrpcIngestFeatureServer:
-    def __init__(self, address, fs: FeatureStore, sfv_name, to):
+    def __init__(self, address, fs: FeatureStore, sfv_name, to, max_workers):
         self.address = address
         self.fs = fs
         self.sfv = sfv_name
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
         add_GrpcIngestFeatureServiceServicer_to_server(
             GrpcIngestFeatureService(self.fs, self.sfv, to), self.server
         )
@@ -51,5 +51,5 @@ class GrpcIngestFeatureServer:
         self.server.wait_for_termination()
 
 
-def GetGrpcServer(fs: FeatureStore, address: str, sfv: str, to: PushMode):
-    return GrpcIngestFeatureServer(address, fs, sfv, to)
+def GetGrpcServer(fs: FeatureStore, address: str, sfv: str, to: PushMode, max_workers):
+    return GrpcIngestFeatureServer(address, fs, sfv, to, max_workers)

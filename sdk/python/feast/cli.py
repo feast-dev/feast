@@ -701,14 +701,14 @@ def serve_command(
     type=click.STRING,
     default="localhost:50051",
     show_default=True,
-    help="Specify an address for the server",
+    help="Address of the gRPC server",
 )
 @click.option(
     "--stream_feature_view",
     "-sfv",
     type=click.STRING,
     show_default=False,
-    help="Specify the stream feature view to update",
+    help="Stream feature view to push streaming features",
 )
 @click.option(
     "--push_mode",
@@ -716,11 +716,19 @@ def serve_command(
     type=click.STRING,
     default="online",
     show_default=False,
-    help="Specify the stream feature view to update",
+    help="Push mode for the streaming data",
+)
+@click.option(
+    "--max_workers",
+    "-w",
+    type=click.INT,
+    default=10,
+    show_default=False,
+    help="The maximum number of threads that can be used to execute the gRPC calls",
 )
 @click.pass_context
 def listen_command(
-    ctx: click.Context, address: str, stream_feature_view: str, push_mode: str
+    ctx: click.Context, address: str, stream_feature_view: str, push_mode: str, max_workers: int
 ):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
@@ -733,7 +741,7 @@ def listen_command(
         to = PushMode.OFFLINE
     else:
         to = PushMode.ONLINE_AND_OFFLINE
-    server = GetGrpcServer(store, address, stream_feature_view, to)
+    server = GetGrpcServer(store, address, stream_feature_view, to, max_workers)
     server.start()
 
 
