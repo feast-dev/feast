@@ -2,25 +2,16 @@ from copy import copy
 from datetime import timedelta
 
 import pytest
-from google.protobuf.duration_pb2 import Duration
-from pydantic import ValidationError
 
-from feast.aggregation import Aggregation
-from feast.batch_feature_view import BatchFeatureView
-from feast.data_format import AvroFormat
-from feast.data_source import KafkaSource, PushSource
 from feast.entity import Entity
 from feast.expediagroup.vectordb.index_type import IndexType
 from feast.expediagroup.vectordb.vector_feature_view import VectorFeatureView
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.protos.feast.core.DataSource_pb2 import DataSource
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.VectorFeatureView_pb2 import (
     VectorFeatureView as VectorFeatureViewProto,
 )
-from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.types import Float32
 
 

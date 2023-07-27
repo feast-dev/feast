@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional, Type
 
 from typeguard import typechecked
@@ -10,7 +10,6 @@ from feast.entity import Entity
 from feast.expediagroup.vectordb.index_type import IndexType
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.VectorFeatureView_pb2 import (
     VectorFeatureView as VectorFeatureViewProto,
 )
