@@ -728,7 +728,11 @@ def serve_command(
 )
 @click.pass_context
 def listen_command(
-    ctx: click.Context, address: str, stream_feature_view: str, push_mode: str, max_workers: int
+    ctx: click.Context,
+    address: str,
+    stream_feature_view: str,
+    push_mode: str,
+    max_workers: int,
 ):
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
