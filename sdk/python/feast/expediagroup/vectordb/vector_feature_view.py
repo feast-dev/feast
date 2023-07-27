@@ -162,7 +162,7 @@ class VectorFeatureView(BaseFeatureView):
 
     @property
     def schema(self) -> List[Field]:
-        return self.feature_view.schema()
+        return self.feature_view.schema
 
     @property
     def proto_class(self) -> Type[VectorFeatureViewProto]:
