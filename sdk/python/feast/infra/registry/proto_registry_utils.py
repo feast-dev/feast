@@ -138,7 +138,7 @@ def get_validation_reference(
 
 
 def list_feature_services(
-    registry_proto: RegistryProto, project: str, allow_cache: bool = False
+    registry_proto: RegistryProto, project: str
 ) -> List[FeatureService]:
     feature_services = []
     for feature_service_proto in registry_proto.feature_services:
