@@ -202,7 +202,11 @@ class SqlRegistry(BaseRegistry):
         repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
-        self.engine: Engine = create_engine(registry_config.path, echo=False)
+        # pool_recycle will recycle connections after the given number of seconds has passed
+        # This is to avoid automatic disconnections when no activity is detected on connection
+        self.engine: Engine = create_engine(
+            registry_config.path, echo=False, pool_recycle=3600
+        )
         metadata.create_all(self.engine)
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
