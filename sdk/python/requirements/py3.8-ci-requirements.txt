@@ -4,7 +4,6 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.8-ci-requirements.txt
 #
---index-url https://mbackes:AKCp8iggbuYyNhLVWCYxNvGniBeYHS9PKBrLhdbfAzL9PU2hFYHuAHco5tAKGTpWYVf7nQJPE@artylab.expedia.biz/api/pypi/public-pypi-virtual/simple
 
 adal==1.2.7
     # via msrestazure
