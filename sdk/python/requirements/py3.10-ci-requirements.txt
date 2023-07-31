@@ -368,12 +368,6 @@ importlib-metadata==6.8.0
     # via
     #   dask
     #   great-expectations
-    #   jupyter-client
-    #   jupyter-lsp
-    #   jupyterlab
-    #   jupyterlab-server
-    #   nbconvert
-    #   sphinx
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.25.0
@@ -857,8 +851,6 @@ rsa==4.9
     # via google-auth
 ruamel-yaml==0.17.17
     # via great-expectations
-ruamel-yaml-clib==0.2.7
-    # via ruamel-yaml
 s3transfer==0.6.1
     # via boto3
 scipy==1.11.1
@@ -937,9 +929,7 @@ toml==0.10.2
     # via eg-feast (setup.py)
 tomli==2.0.1
     # via
-    #   black
     #   build
-    #   coverage
     #   jupyterlab
     #   mypy
     #   pip-tools
@@ -1012,15 +1002,12 @@ typing-extensions==4.7.1
     #   async-lru
     #   azure-core
     #   azure-storage-blob
-    #   black
     #   fastapi
     #   great-expectations
-    #   ipython
     #   mypy
     #   pydantic
     #   snowflake-connector-python
     #   sqlalchemy2-stubs
-    #   starlette
     #   uvicorn
 tzlocal==5.0.1
     # via
