@@ -3,7 +3,6 @@
 # by the following command:
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.8-ci-requirements.txt
-#
 
 adal==1.2.7
     # via msrestazure
@@ -952,7 +951,9 @@ toml==0.10.2
     # via eg-feast (setup.py)
 tomli==2.0.1
     # via
+    #   black
     #   build
+    #   coverage
     #   jupyterlab
     #   mypy
     #   pip-tools
