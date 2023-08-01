@@ -217,7 +217,7 @@ class OnDemandFeatureView(BaseFeatureView):
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
-    def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto):
+    def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto, skip_udf: bool = False):
         """
         Creates an on demand feature view from a protobuf representation.
 
@@ -247,6 +247,12 @@ class OnDemandFeatureView(BaseFeatureView):
                     RequestSource.from_proto(on_demand_source.request_data_source)
                 )
 
+        udf = (
+            None
+            if skip_udf
+            else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
+        )
+
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -257,9 +263,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 for feature in on_demand_feature_view_proto.spec.features
             ],
             sources=sources,
-            udf=dill.loads(
-                on_demand_feature_view_proto.spec.user_defined_function.body
-            ),
+            udf=udf,
             udf_string=on_demand_feature_view_proto.spec.user_defined_function.body_text,
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),

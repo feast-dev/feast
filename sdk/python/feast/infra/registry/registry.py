@@ -88,7 +88,7 @@ class FeastObjectType(Enum):
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
-                project=project
+                project=project, ignore_udfs=True
             ),
             FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
                 project=project

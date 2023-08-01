@@ -593,7 +593,7 @@ class SqlRegistry(BaseRegistry):
         )
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
@@ -606,6 +606,7 @@ class SqlRegistry(BaseRegistry):
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
             "feature_view_proto",
+            skip_udfs=ignore_udfs
         )
 
     def list_project_metadata(
@@ -991,7 +992,7 @@ class SqlRegistry(BaseRegistry):
                 res = []
                 for row in rows:
                     proto = proto_class.FromString(row[proto_field_name])
-                    if python_class == StreamFeatureView:
+                    if python_class in {StreamFeatureView, OnDemandFeatureView}:
                         obj = python_class.from_proto(proto, kwargs.get("skip_udfs", False))
                     else:
                         obj = python_class.from_proto(proto)
