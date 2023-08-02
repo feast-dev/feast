@@ -205,10 +205,6 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        if self.udf == _empty_odfv_udf_fn:
-            raise RuntimeError('Unable to serialize EMPTY_ODFV_UDF_FN to proto. Serializing EMPTY_ODFV_UDF suggests'
-                               ' feast apply was not applied correctly.')
-
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
