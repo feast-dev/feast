@@ -257,7 +257,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         udf = (
-            _empty_odfv_udf
+            _empty_odfv_udf_fn
             if skip_udf
             else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
         )
