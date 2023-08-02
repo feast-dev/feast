@@ -186,14 +186,30 @@ class SqlRegistry(BaseRegistry):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
         metadata.create_all(self.engine)
-        self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = self._cached_registry_proto = None
+
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=registry_config.cache_ttl_seconds
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
+
+    @property
+    def cached_registry_proto(self):
+        """
+        Build cached registry, lazily. A subtle bug arises if we don't:
+        1. `feast apply` is called in a forked process.
+        2. A `FeatureStore` object is created, which also creates an `SqlRegistry` object.
+        3. `SqlRegistry` calls `self.proto()`, eventually this leads us to calling `dill.dumps` on an SFV or ODFV
+            UDF with swapping the old udf with the new one. `dill.dumps` fails, sometimes silently.
+        """
+        if self._cached_registry_proto:
+            return self._cached_registry_proto
+
+        self._cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+        return self._cached_registry_proto
 
     def teardown(self):
         for t in {
@@ -211,13 +227,13 @@ class SqlRegistry(BaseRegistry):
                 conn.execute(stmt)
 
     def refresh(self, project: Optional[str] = None):
-        self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
+        self._cached_registry_proto = None
+        return self.cached_registry_proto
 
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
             expired = (
-                self.cached_registry_proto is None
+                self._cached_registry_proto is None
                 or self.cached_registry_proto_created is None
             ) or (
                 self.cached_registry_proto_ttl.total_seconds()
@@ -801,10 +817,6 @@ class SqlRegistry(BaseRegistry):
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
     def proto(self) -> RegistryProto:
-        from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-            UserDefinedFunction as UserDefinedFunctionProto,
-        )
-
         r = RegistryProto()
         last_updated_timestamps = []
         projects = self._get_all_projects()
