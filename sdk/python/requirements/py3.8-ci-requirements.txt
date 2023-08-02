@@ -311,7 +311,7 @@ greenlet==2.0.2
     # via sqlalchemy
 grpc-google-iam-v1==0.12.6
     # via google-cloud-bigtable
-grpcio==1.54.2
+grpcio==1.56.0
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -322,16 +322,17 @@ grpcio==1.54.2
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
-grpcio-reflection==1.54.2
-    # via feast (setup.py)
-grpcio-status==1.54.2
+    #   pymilvus
+grpcio-reflection==1.56.0
+    # via eg-feast (setup.py)
+grpcio-status==1.56.0
     # via google-api-core
-grpcio-testing==1.54.2
-    # via feast (setup.py)
-grpcio-tools==1.54.2
-    # via feast (setup.py)
-gunicorn==20.1.0
-    # via feast (setup.py)
+grpcio-testing==1.56.0
+    # via eg-feast (setup.py)
+grpcio-tools==1.56.0
+    # via eg-feast (setup.py)
+gunicorn==21.2.0
+    # via eg-feast (setup.py)
 h11==0.14.0
     # via
     #   httpcore
@@ -477,6 +478,8 @@ matplotlib-inline==0.1.6
     #   ipython
 mccabe==0.7.0
     # via flake8
+milvus==2.2.12
+    # via eg-feast (setup.py)
 minio==7.1.0
     # via feast (setup.py)
 mistune==2.0.5
@@ -549,16 +552,19 @@ nodeenv==1.8.0
 notebook==6.5.4
     # via great-expectations
 notebook-shim==0.2.3
-    # via nbclassic
-numpy==1.24.3
+    # via
+    #   jupyterlab
+    #   notebook
+numpy==1.24.4
     # via
     #   altair
     #   db-dtypes
-    #   feast (setup.py)
+    #   eg-feast (setup.py)
     #   great-expectations
     #   pandas
     #   pandavro
     #   pyarrow
+    #   pymilvus
     #   scipy
 oauthlib==3.2.2
     # via requests-oauthlib
@@ -575,8 +581,11 @@ packaging==23.1
     #   docker
     #   google-cloud-bigquery
     #   great-expectations
+    #   gunicorn
     #   ipykernel
     #   jupyter-server
+    #   jupyterlab
+    #   jupyterlab-server
     #   marshmallow
     #   nbconvert
     #   pytest
@@ -591,6 +600,7 @@ pandas==1.5.3
     #   google-cloud-bigquery
     #   great-expectations
     #   pandavro
+    #   pymilvus
     #   snowflake-connector-python
 pandavro==1.5.2
     # via feast (setup.py)
@@ -640,7 +650,7 @@ proto-plus==1.22.2
     #   google-cloud-bigtable
     #   google-cloud-datastore
     #   google-cloud-firestore
-protobuf==4.23.2
+protobuf==4.23.4
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -657,6 +667,7 @@ protobuf==4.23.2
     #   grpcio-tools
     #   mypy-protobuf
     #   proto-plus
+    #   pymilvus
 psutil==5.9.0
     # via
     #   feast (setup.py)
@@ -713,6 +724,8 @@ pyjwt[crypto]==2.7.0
     #   adal
     #   msal
     #   snowflake-connector-python
+pymilvus==2.2.14
+    # via eg-feast (setup.py)
 pymssql==2.2.7
     # via feast (setup.py)
 pymysql==1.0.3
@@ -1013,6 +1026,8 @@ tzlocal==5.0.1
     # via
     #   great-expectations
     #   trino
+ujson==5.8.0
+    # via pymilvus
 uri-template==1.2.0
     # via jsonschema
 uritemplate==4.1.1

@@ -138,6 +138,11 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
+MILVUS_REQUIRED = [
+    "milvus==2.2.12",
+    "pymilvus==2.2.14"
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -197,6 +202,7 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + MILVUS_REQUIRED
 )
 
 
@@ -364,6 +370,7 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "milvus": MILVUS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
