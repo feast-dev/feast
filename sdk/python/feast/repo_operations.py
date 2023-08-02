@@ -313,7 +313,7 @@ def apply_total_with_repo_instance(
         store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
         log_infra_changes(views_to_keep, views_to_delete)
     registry.exit_apply_context()
-
+    registry.refresh()
 
 def log_infra_changes(
     views_to_keep: Set[FeatureView], views_to_delete: Set[FeatureView]

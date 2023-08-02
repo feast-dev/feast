@@ -790,7 +790,7 @@ class Registry(BaseRegistry):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
 
-    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
+    def proto(self) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
 
     def _prepare_registry_for_changes(self, project: str):

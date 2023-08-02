@@ -202,6 +202,11 @@ class SqlRegistry(BaseRegistry):
     def exit_apply_context(self):
         self._in_feast_apply_context = False
 
+    def _build_cached_registry_proto(self):
+        self._cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+        return self._cached_registry_proto
+
     @property
     def cached_registry_proto(self):
         """
@@ -213,10 +218,7 @@ class SqlRegistry(BaseRegistry):
         """
         if self._cached_registry_proto:
             return self._cached_registry_proto
-
-        self._cached_registry_proto = self.proto(ignore_udfs=self._in_feast_apply_context)
-        self.cached_registry_proto_created = datetime.utcnow()
-        return self._cached_registry_proto
+        return self._build_cached_registry_proto()
 
     def teardown(self):
         for t in {
@@ -233,9 +235,8 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self, project: Optional[str] = None, ignore_udfs: bool = False):
-        self._cached_registry_proto = None
-        return self.cached_registry_proto
+    def refresh(self, project: Optional[str] = None):
+        self._build_cached_registry_proto()
 
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
@@ -823,7 +824,7 @@ class SqlRegistry(BaseRegistry):
             else:
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
+    def proto(self) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
         projects = self._get_all_projects()
@@ -841,6 +842,7 @@ class SqlRegistry(BaseRegistry):
                 (self.list_project_metadata, r.project_metadata),
             ]:
                 lister_has_udf = {self.list_on_demand_feature_views, self.list_stream_feature_views}
+                ignore_udfs = self._in_feast_apply_context
                 objs: List[Any] = lister(project, ignore_udfs) if lister_has_udf else lister(project) # type: ignore
                 if objs:
                     registry_proto_field_data = []

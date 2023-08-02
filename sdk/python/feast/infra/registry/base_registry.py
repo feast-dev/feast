@@ -566,7 +566,7 @@ class BaseRegistry(ABC):
         ...
 
     @abstractmethod
-    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
+    def proto(self) -> RegistryProto:
         """
         Retrieves a proto version of the registry.
 
@@ -579,7 +579,7 @@ class BaseRegistry(ABC):
         """Commits the state of the registry cache to the remote registry store."""
 
     @abstractmethod
-    def refresh(self, project: Optional[str] = None, ignore_udfs: bool = False):
+    def refresh(self, project: Optional[str] = None):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
     @staticmethod
