@@ -40,6 +40,14 @@ class BaseRegistry(ABC):
     feature views, and data sources).
     """
 
+    @abstractmethod
+    def enter_apply_context(self):
+        pass
+
+    @abstractmethod
+    def exit_apply_context(self):
+        pass
+
     # Entity operations
     @abstractmethod
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -558,7 +566,7 @@ class BaseRegistry(ABC):
         ...
 
     @abstractmethod
-    def proto(self) -> RegistryProto:
+    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
         """
         Retrieves a proto version of the registry.
 
@@ -571,7 +579,7 @@ class BaseRegistry(ABC):
         """Commits the state of the registry cache to the remote registry store."""
 
     @abstractmethod
-    def refresh(self, project: Optional[str] = None):
+    def refresh(self, project: Optional[str] = None, ignore_udfs: bool = False):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
 
     @staticmethod

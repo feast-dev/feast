@@ -176,7 +176,13 @@ class Registry(BaseRegistry):
     ) -> Optional[bytes]:
         pass
 
-    # The cached_registry_proto object is used for both reads and writes. In particular,
+    def enter_apply_context(self):
+        pass
+
+    def exit_apply_context(self):
+        pass
+
+        # The cached_registry_proto object is used for both reads and writes. In particular,
     # all write operations refresh the cache and modify it in memory; the write must
     # then be persisted to the underlying RegistryStore with a call to commit().
     cached_registry_proto: Optional[RegistryProto] = None
@@ -784,7 +790,7 @@ class Registry(BaseRegistry):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()
 
-    def proto(self) -> RegistryProto:
+    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
         return self.cached_registry_proto or RegistryProto()
 
     def _prepare_registry_for_changes(self, project: str):

@@ -293,6 +293,7 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
+    registry.enter_apply_context()
     registry_diff, infra_diff, new_infra = store.plan(repo)
 
     # For each object in the registry, determine whether it should be kept or deleted.
@@ -311,6 +312,7 @@ def apply_total_with_repo_instance(
     else:
         store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
         log_infra_changes(views_to_keep, views_to_delete)
+    registry.exit_apply_context()
 
 
 def log_infra_changes(

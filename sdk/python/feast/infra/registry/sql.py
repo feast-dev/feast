@@ -194,6 +194,13 @@ class SqlRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
+        self._in_feast_apply_context = False
+
+    def enter_apply_context(self):
+        self._in_feast_apply_context = True
+
+    def exit_apply_context(self):
+        self._in_feast_apply_context = False
 
     @property
     def cached_registry_proto(self):
@@ -207,7 +214,7 @@ class SqlRegistry(BaseRegistry):
         if self._cached_registry_proto:
             return self._cached_registry_proto
 
-        self._cached_registry_proto = self.proto()
+        self._cached_registry_proto = self.proto(ignore_udfs=self._in_feast_apply_context)
         self.cached_registry_proto_created = datetime.utcnow()
         return self._cached_registry_proto
 
@@ -226,7 +233,7 @@ class SqlRegistry(BaseRegistry):
                 stmt = delete(t)
                 conn.execute(stmt)
 
-    def refresh(self, project: Optional[str] = None):
+    def refresh(self, project: Optional[str] = None, ignore_udfs: bool = False):
         self._cached_registry_proto = None
         return self.cached_registry_proto
 
@@ -816,7 +823,7 @@ class SqlRegistry(BaseRegistry):
             else:
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def proto(self) -> RegistryProto:
+    def proto(self, ignore_udfs: bool = False) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
         projects = self._get_all_projects()
@@ -833,7 +840,8 @@ class SqlRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project)  # type: ignore
+                lister_has_udf = {self.list_on_demand_feature_views, self.list_stream_feature_views}
+                objs: List[Any] = lister(project, ignore_udfs) if lister_has_udf else lister(project) # type: ignore
                 if objs:
                     registry_proto_field_data = []
                     for obj in objs:
