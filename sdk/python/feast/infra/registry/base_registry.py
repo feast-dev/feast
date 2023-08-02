@@ -40,6 +40,14 @@ class BaseRegistry(ABC):
     feature views, and data sources).
     """
 
+    @abstractmethod
+    def enter_apply_context(self):
+        pass
+
+    @abstractmethod
+    def exit_apply_context(self):
+        pass
+
     # Entity operations
     @abstractmethod
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):

@@ -194,6 +194,18 @@ class SqlRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
+        self._in_feast_apply_context = False
+
+    def enter_apply_context(self):
+        self._in_feast_apply_context = True
+
+    def exit_apply_context(self):
+        self._in_feast_apply_context = False
+
+    def _build_cached_registry_proto(self):
+        self._cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = datetime.utcnow()
+        return self._cached_registry_proto
 
     @property
     def cached_registry_proto(self):
@@ -206,10 +218,7 @@ class SqlRegistry(BaseRegistry):
         """
         if self._cached_registry_proto:
             return self._cached_registry_proto
-
-        self._cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
-        return self._cached_registry_proto
+        return self._build_cached_registry_proto()
 
     def teardown(self):
         for t in {
@@ -227,8 +236,7 @@ class SqlRegistry(BaseRegistry):
                 conn.execute(stmt)
 
     def refresh(self, project: Optional[str] = None):
-        self._cached_registry_proto = None
-        return self.cached_registry_proto
+        self._build_cached_registry_proto()
 
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
@@ -833,7 +841,9 @@ class SqlRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project)  # type: ignore
+                lister_has_udf = {self.list_on_demand_feature_views, self.list_stream_feature_views}
+                ignore_udfs = self._in_feast_apply_context
+                objs: List[Any] = lister(project, ignore_udfs) if lister_has_udf else lister(project) # type: ignore
                 if objs:
                     registry_proto_field_data = []
                     for obj in objs:
