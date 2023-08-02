@@ -1,5 +1,6 @@
 import copy
 import functools
+import logging
 import warnings
 from datetime import datetime
 from types import FunctionType
@@ -36,6 +37,10 @@ from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
 
+
+def _empty_odfv_udf_fn(x: Any):
+    # RB: really just an identity mapping, otherwise we risk tripping some downstream tests
+    return x
 
 @typechecked
 class OnDemandFeatureView(BaseFeatureView):
@@ -200,6 +205,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        if self.udf == _empty_odfv_udf_fn:
+            raise RuntimeError('Unable to serialize EMPTY_ODFV_UDF_FN to proto. Serializing EMPTY_ODFV_UDF suggests'
+                               ' feast apply was not applied correctly.')
+
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
@@ -248,7 +257,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         udf = (
-            None
+            _empty_odfv_udf
             if skip_udf
             else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
         )
