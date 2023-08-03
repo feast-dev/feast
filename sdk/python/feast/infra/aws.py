@@ -53,16 +53,19 @@ class AwsProvider(PassthroughProvider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        # TODO: Temporarily disabling the capability of Deleting data
+        # from online stores when a Feature View is deleted.
+
         # Call update only if there is an online store
-        if self.online_store:
-            self.online_store.update(
-                config=self.repo_config,
-                tables_to_delete=tables_to_delete,
-                tables_to_keep=tables_to_keep,
-                entities_to_keep=entities_to_keep,
-                entities_to_delete=entities_to_delete,
-                partial=partial,
-            )
+        # if self.online_store:
+        #     self.online_store.update(
+        #         config=self.repo_config,
+        #         tables_to_delete=tables_to_delete,
+        #         tables_to_keep=tables_to_keep,
+        #         entities_to_keep=entities_to_keep,
+        #         entities_to_delete=entities_to_delete,
+        #         partial=partial,
+        #     )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
             warnings.warn(

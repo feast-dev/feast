@@ -90,8 +90,8 @@ def mysql_registry():
 
     container.start()
 
-    # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
+    # The log string uses '8.1.*' since the version might be changed as new Docker images are pushed.
+    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.1.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
     waited = wait_for_logs(
         container=container,
         predicate=log_string_to_wait_for,

@@ -21,6 +21,9 @@ from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
+# Make sure spark warning are ignored
+warnings.simplefilter("ignore", RuntimeWarning)
+
 
 class SparkSourceFormat(Enum):
     csv = "csv"

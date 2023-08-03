@@ -40,7 +40,7 @@ from feast.types import from_value_type
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
-warnings.simplefilter("once", DeprecationWarning)
+warnings.simplefilter("ignore", DeprecationWarning)
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
 DUMMY_ENTITY_ID = "__dummy_id"

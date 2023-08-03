@@ -37,8 +37,8 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
 from feast.usage import log_exceptions_and_usage
 
-# Make sure spark warning doesn't raise more than once.
-warnings.simplefilter("once", RuntimeWarning)
+# Make sure spark warning are ignored
+warnings.simplefilter("ignore", RuntimeWarning)
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
