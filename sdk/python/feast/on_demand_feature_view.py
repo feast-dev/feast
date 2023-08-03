@@ -360,6 +360,7 @@ class OnDemandFeatureView(BaseFeatureView):
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
+        """
         rand_df_value: Dict[str, Any] = {
             "float": 1.0,
             "int": 1,
@@ -412,6 +413,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 "OnDemandFeatureView",
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
+        """
+        pass 
 
     @staticmethod
     def get_requested_odfvs(feature_refs, project, registry):
