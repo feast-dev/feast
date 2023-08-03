@@ -841,9 +841,9 @@ class SqlRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                lister_has_udf = {self.list_on_demand_feature_views, self.list_stream_feature_views}
+                lister_has_udf = lister in {self.list_on_demand_feature_views, self.list_stream_feature_views}
                 ignore_udfs = self._in_feast_apply_context
-                objs: List[Any] = lister(project, ignore_udfs) if lister_has_udf else lister(project) # type: ignore
+                objs: List[Any] = lister(project, ignore_udfs=ignore_udfs) if lister_has_udf else lister(project) # type: ignore
                 if objs:
                     registry_proto_field_data = []
                     for obj in objs:
