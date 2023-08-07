@@ -317,10 +317,13 @@ grpcio==1.57.0
     #   google-cloud-bigquery
     #   googleapis-common-protos
     #   grpc-google-iam-v1
+    #   grpcio-health-checking
     #   grpcio-reflection
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
+grpcio-health-checking==1.57.0
+    # via feast (setup.py)
 grpcio-reflection==1.57.0
     # via feast (setup.py)
 grpcio-status==1.57.0
@@ -649,6 +652,7 @@ protobuf==4.23.3
     #   google-cloud-firestore
     #   googleapis-common-protos
     #   grpc-google-iam-v1
+    #   grpcio-health-checking
     #   grpcio-reflection
     #   grpcio-status
     #   grpcio-testing
