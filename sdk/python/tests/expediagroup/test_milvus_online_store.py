@@ -1,7 +1,13 @@
 from pymilvus.client.stub import Milvus
 from pymilvus.client.types import DataType
+from dataclasses import dataclass
 
 from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
+
+
+@dataclass
+class MockFeatureView:
+    name: str
 
 
 def test_milvus_start_stop():
@@ -33,5 +39,4 @@ def test_milvus_start_stop():
 
     collection = milvus.describe_collection(collection_name)
     assert collection.get("collection_name") == collection_name
-
     online_store_creator.teardown()

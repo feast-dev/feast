@@ -216,6 +216,8 @@ class RepoConfig(FeastBaseModel):
                 self._online_config = "dynamodb"
             elif data["provider"] == "rockset":
                 self._online_config = "rockset"
+            elif data["provider"] == "milvus":
+                self._online_config = "milvus"
 
         self._batch_engine = None
         if "batch_engine" in data:
