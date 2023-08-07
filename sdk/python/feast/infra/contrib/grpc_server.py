@@ -2,54 +2,88 @@ from concurrent import futures
 
 import grpc
 import pandas as pd
-
+import logging
 from feast.data_source import PushMode
+from feast.errors import PushSourceNotFoundException
 from feast.feature_store import FeatureStore
-from feast.protos.feast.serving.GrpcServer_pb2 import GrpcIngestFeatureResponse
+from feast.protos.feast.serving.GrpcServer_pb2 import WriteToOnlineStoreResponse, PushResponse
 from feast.protos.feast.serving.GrpcServer_pb2_grpc import (
-    GrpcIngestFeatureServiceServicer,
-    add_GrpcIngestFeatureServiceServicer_to_server,
+    GrpcFeatureServerServicer,
+    add_GrpcFeatureServerServicer_to_server,
 )
+from grpc_health.v1 import health
+from grpc_health.v1 import health_pb2_grpc
 
 
-class GrpcIngestFeatureService(GrpcIngestFeatureServiceServicer):
+def parse(features):
+    df = {}
+    for i in features.keys():
+        df[i] = [features.get(i)]
+    return pd.DataFrame.from_dict(df)
+
+
+class GrpcFeatureServer(GrpcFeatureServerServicer):
     fs: FeatureStore
-    sfv: str
-    to: PushMode
 
-    def __init__(self, fs, sfv, to):
+    def __init__(self, fs):
         self.fs = fs
-        self.sfv = sfv
-        self.to = to
         super().__init__()
 
-    def GrpcIngestFeature(self, request, context):
-        features = {}
-        for i in request.features.keys():
-            features[i] = [request.features.get(i)]
-        rows = pd.DataFrame.from_dict(features)
-        if self.to == PushMode.ONLINE or self.to == PushMode.ONLINE_AND_OFFLINE:
-            self.fs.write_to_online_store(self.sfv, rows)
-        if self.to == PushMode.OFFLINE or self.to == PushMode.ONLINE_AND_OFFLINE:
-            self.fs.write_to_offline_store(self.sfv, rows)
-        return GrpcIngestFeatureResponse(status=True)
+    def Push(self, request, context):
+        try:
+            df = parse(request.features)
+            if request.to == "offline":
+                to = PushMode.OFFLINE
+            elif request.to == "online":
+                to = PushMode.ONLINE
+            elif request.to == "online_and_offline":
+                to = PushMode.ONLINE_AND_OFFLINE
+            else:
+                raise ValueError(
+                    f"{request.to} is not a supported push format. Please specify one of these ['online', 'offline', "
+                    f"'online_and_offline']."
+                )
+            self.fs.push(
+                push_source_name=request.push_source_name,
+                df=df,
+                allow_registry_cache=request.allow_registry_cache,
+                to=to,
+            )
+        except PushSourceNotFoundException as e:
+            logging.exception(e)
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details(str(e))
+            return PushResponse(status=False)
+        except Exception as e:
+            logging.exception(e)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return PushResponse(status=False)
+        return PushResponse(status=True)
 
-
-class GrpcIngestFeatureServer:
-    def __init__(self, address, fs: FeatureStore, sfv_name, to, max_workers):
-        self.address = address
-        self.fs = fs
-        self.sfv = sfv_name
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
-        add_GrpcIngestFeatureServiceServicer_to_server(
-            GrpcIngestFeatureService(self.fs, self.sfv, to), self.server
+    def WriteToOnlineStore(self, request, context):
+        logging.warning(
+            "write_to_online_store is deprecated. Please consider using Push instead",
+            RuntimeWarning,
         )
-        self.server.add_insecure_port(self.address)
+        try:
+            df = parse(request.features)
+            self.fs.write_to_online_store(
+                feature_view_name=request.feature_view_name,
+                df=df,
+                allow_registry_cache=request.allow_registry_cache,
+            )
+        except Exception as e:
+            logging.exception(e)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return PushResponse(status=False)
+        return WriteToOnlineStoreResponse(status=True)
 
-    def start(self):
-        self.server.start()
-        self.server.wait_for_termination()
 
-
-def GetGrpcServer(fs: FeatureStore, address: str, sfv: str, to: PushMode, max_workers):
-    return GrpcIngestFeatureServer(address, fs, sfv, to, max_workers)
+def get_grpc_server(address: str, fs: FeatureStore, max_workers: int):
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
+    add_GrpcFeatureServerServicer_to_server(GrpcFeatureServer(fs), server)
+    health_pb2_grpc.add_HealthServicer_to_server(health.HealthServicer(), server)
+    server.add_insecure_port(address)
+    return server
