@@ -25,7 +25,7 @@ def parse(features):
 class GrpcFeatureServer(GrpcFeatureServerServicer):
     fs: FeatureStore
 
-    def __init__(self, fs):
+    def __init__(self, fs: FeatureStore):
         self.fs = fs
         super().__init__()
 
