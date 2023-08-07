@@ -3,6 +3,11 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pydantic.typing import Literal
+from pymilvus import (
+    Collection,
+    connections,
+    utility,
+)
 
 from feast import Entity, RepoConfig
 from feast.expediagroup.vectordb.vector_feature_view import VectorFeatureView
@@ -10,8 +15,6 @@ from feast.expediagroup.vectordb.vector_online_store import VectorOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-
-from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +74,9 @@ class MilvusOnlineStore(VectorOnlineStore):
         for table_to_keep in tables_to_keep:
             try:
                 Collection(name=table_to_keep.name, schema=table_to_keep.schema)
-                logger.info(f"Collection {table_to_keep.name} has been updated successfully.")
+                logger.info(
+                    f"Collection {table_to_keep.name} has been updated successfully."
+                )
             except Exception as e:
                 logger.error(f"Collection update failed due to {e}")
 
@@ -80,9 +85,13 @@ class MilvusOnlineStore(VectorOnlineStore):
             try:
                 if collection_available:
                     utility.drop_collection(table_to_delete.name)
-                    logger.info(f"Collection {table_to_keep.name} has been deleted successfully.")
+                    logger.info(
+                        f"Collection {table_to_keep.name} has been deleted successfully."
+                    )
                 else:
-                    return logger.error("Collection does not exist or is already deleted.")
+                    return logger.error(
+                        "Collection does not exist or is already deleted."
+                    )
             except Exception as e:
                 logger.error(f"Collection deletion failed due to {e}")
 
