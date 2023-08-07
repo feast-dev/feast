@@ -66,6 +66,28 @@ def default_version_id(feature_view_name: str, offset: int = 0) -> int:
     return int.from_bytes(hashlib.sha256(offset_bstr).digest()[:8], 'little')
 
 
+def build_legacy_features_read_query(
+    project: str,
+    table: FeatureView,
+    union_offset: Optional[int] = None
+) -> str:
+    base = "SELECT feature_name, value, event_ts" + " " if union_offset is None else f", {union_offset} as __i__ "
+    base += f"FROM {_table_id(project, table)} WHERE entity_key = %s"
+    return base
+
+
+def build_feature_view_features_read_query(
+    config: MySQLOnlineStoreConfig,
+    feature_view_name: str,
+    union_offset: Optional[int] = None
+) -> str:
+    version_table, data_table = config.feature_version_table, config.feature_version_table
+    base = "SELECT feature_name, value, event_ts" + "" if union_offset is None else f", {union_offset} as __i__"
+    base += f" FROM {data_table} WHERE feature_view_name = {feature_view_name} AND entity_id = %s IN "
+    base += f"(SELECT version_id FROM {data_table} WHERE feature_view_name = {feature_view_name});"
+    return base
+
+
 def _execute_query_with_retry(
     cur: Cursor,
     conn: Connection,

@@ -12,7 +12,7 @@ from pymysql.connections import Connection
 from pymysql.cursors import Cursor
 
 from feast import Entity, FeatureView, StreamFeatureView, RepoConfig
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import serialize_entity_key, serialize_entity_key_plaintext
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -28,7 +28,9 @@ from feast.infra.online_stores.contrib.mysql_online_store.util import (
     create_feature_view_partition,
     drop_feature_view_partitions,
     drop_feature_view,
-    insert_feature_view_version
+    insert_feature_view_version,
+    build_feature_view_features_read_query,
+    build_legacy_features_read_query
 )
 
 
@@ -159,15 +161,22 @@ class MySQLOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        mysql_config = self._get_store_config(config)
         with conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
             project = config.project
             for entity_key in entity_keys:
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=2,
-                ).hex()
-                query = f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s"
+                if isinstance(table, StreamFeatureView):
+                    entity_key_bin = serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=2,
+                    ).hex()
+                    query = build_legacy_features_read_query(project=project, table=table)
+                else:
+                    entity_key_bin = serialize_entity_key_plaintext(
+                        entity_key,
+                    )
+                    query = build_feature_view_features_read_query(config=mysql_config, feature_view_name=table.name)
                 if _execute_query_with_retry(cur=cur,
                                                   conn=conn,
                                                   query=query,
@@ -229,21 +238,30 @@ class MySQLOnlineStore(OnlineStore):
             entity_keys_list: List[List[EntityKeyProto]],
             _: Optional[List[Optional[List[str]]]] = None,
     ) -> List[List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]]:
-        output = []
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
-        queries = []
+        queries, output, mysql_config = [], [], self._get_store_config(config)
         with conn.cursor() as cur:
             project = config.project
             entity_key_bins = []
             for i, (table, entity_keys) in enumerate(zip(table_list, entity_keys_list)):
+                # TODO: this can probably be made more efficient now that we're querying from one table
                 for entity_key in entity_keys:
-                    entity_key_bins.append(serialize_entity_key(
-                        entity_key,
-                        entity_key_serialization_version=2,
-                    ).hex())
-                    query = f"SELECT feature_name, value, event_ts, {i} as __i__ FROM {_table_id(project, table)} WHERE entity_key = %s"
+                    if isinstance(table, StreamFeatureView):
+                        entity_key_bins.append(serialize_entity_key(
+                            entity_key,
+                            entity_key_serialization_version=2,
+                        ).hex())
+                        query = build_legacy_features_read_query(project=project, table=table, union_offset=i)
+                    else:
+                        entity_key_bins.append(serialize_entity_key_plaintext(
+                            entity_key
+                        ))
+                        query = build_feature_view_features_read_query(
+                            config=mysql_config, feature_view_name=table.name, union_offset=i
+                        )
                     queries.append(query)
+
             union_query = f"{' UNION ALL '.join(queries)}"
             if _execute_query_with_retry(cur=cur,
                                             conn=conn,
