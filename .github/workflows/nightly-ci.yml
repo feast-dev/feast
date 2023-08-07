@@ -27,7 +27,7 @@ jobs:
   cleanup_dynamo_tables:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    name: Cleanup dynamo tables which can fail to cleanup
+    name: Cleanup Bigtable / Dynamo tables which can fail to cleanup
     steps:
       - uses: actions/checkout@v2
         with:
@@ -47,9 +47,20 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install boto3
+          pip install google-cloud-bigtable
           pip install tqdm
-      - name: Run DynamoDB cleanup script
-        run: python infra/scripts/cleanup_dynamo_ci.py
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Use gcloud CLI
+        run: gcloud info
+      - name: Run DynamoDB / Bigtable cleanup script
+        run: python infra/scripts/cleanup_ci.py
   build-docker-image:
     if: github.repository == 'feast-dev/feast'
     needs: [check_date]
