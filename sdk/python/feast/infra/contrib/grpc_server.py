@@ -1,18 +1,21 @@
+import logging
 from concurrent import futures
 
 import grpc
 import pandas as pd
-import logging
+from grpc_health.v1 import health, health_pb2_grpc
+
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.feature_store import FeatureStore
-from feast.protos.feast.serving.GrpcServer_pb2 import WriteToOnlineStoreResponse, PushResponse
+from feast.protos.feast.serving.GrpcServer_pb2 import (
+    PushResponse,
+    WriteToOnlineStoreResponse,
+)
 from feast.protos.feast.serving.GrpcServer_pb2_grpc import (
     GrpcFeatureServerServicer,
     add_GrpcFeatureServerServicer_to_server,
 )
-from grpc_health.v1 import health
-from grpc_health.v1 import health_pb2_grpc
 
 
 def parse(features):
@@ -62,7 +65,9 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
         return PushResponse(status=True)
 
     def WriteToOnlineStore(self, request, context):
-        logging.warning("write_to_online_store is deprecated. Please consider using Push instead")
+        logging.warning(
+            "write_to_online_store is deprecated. Please consider using Push instead"
+        )
         try:
             df = parse(request.features)
             self.fs.write_to_online_store(
@@ -81,6 +86,10 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
 def get_grpc_server(address: str, fs: FeatureStore, max_workers: int):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
     add_GrpcFeatureServerServicer_to_server(GrpcFeatureServer(fs), server)
-    health_pb2_grpc.add_HealthServicer_to_server(health.HealthServicer(), server)
+    health_servicer = health.HealthServicer(
+        experimental_non_blocking=True,
+        experimental_thread_pool=futures.ThreadPoolExecutor(max_workers=max_workers),
+    )
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
     server.add_insecure_port(address)
     return server
