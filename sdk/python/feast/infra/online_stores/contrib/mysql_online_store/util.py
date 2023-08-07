@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import logging
 import time
+import hashlib
 
 from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple, Union
@@ -60,6 +61,11 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
 
+def default_version_id(feature_view_name: str, offset: int = 0) -> int:
+    offset_bstr = (feature_view_name + '_' + str(offset)).encode('utf-8')
+    return int.from_bytes(hashlib.sha256(offset_bstr).digest()[:8], 'little')
+
+
 def _execute_query_with_retry(
     cur: Cursor,
     conn: Connection,
@@ -111,11 +117,26 @@ def _get_feature_view_version_id(
     return version_id
 
 
+def insert_feature_view_version(
+    cur: Cursor,
+    conn: Connection,
+    config: MySQLOnlineStoreConfig,
+    feature_view_name: str,
+    version_id: int,
+    lock_row: bool = False,
+    commit: bool = True
+) -> None:
+    write_query, table = "INSERT INTO %s VALUES (%s, %s, %s,)", config.feature_version_table
+    cur.execute(write_query, (table, feature_view_name, version_id, lock_row,))
+    if commit:
+        conn.commit()
+
+
 def _get_and_lock_feature_view_version(
     cur: Cursor,
     conn: Connection,
     config: MySQLOnlineStoreConfig,
-    feature_view_name: str
+    feature_view_name: str,
 ) -> Optional[int]:
     table, version_id = config.feature_version_table, None
 
@@ -201,6 +222,29 @@ def _update_feature_view_version_id(
     conn.commit()
     return version_id
 
+def create_feature_view_partition(
+    cur: Cursor,
+    conn: Connection,
+    config: MySQLOnlineStoreConfig,
+    version_id: int
+) -> str:
+    table, partition_name = config.feature_data_table, get_partition_id_from_version(version_id=version_id)
+
+    cur.execute(
+        "SELECT COUNT(*) FROM information.schema.partitions WHERE TABLE_NAME = %s AND partition_name IS NOT NULL",
+        (table,)
+    )
+    result = cur.fetchone()
+    table_not_partitioned = result is None or result == 0
+    conn.commit()
+
+    partition_query = "ALTER TABLE %s"
+    partition_query += "PARTITION BY LIST (version_id)(" if table_not_partitioned else "ADD PARTITION ("
+    partition_query += "PARTITION `%s` VALUES IN (%s));"
+    cur.execute(partition_query, (table, partition_name, version_id,))
+
+    conn.commit()
+    return partition_name
 
 def drop_feature_view_partitions(
     cur: Cursor,

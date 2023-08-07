@@ -19,26 +19,27 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 from feast.infra.online_stores.contrib.mysql_online_store.util import (
     MySQLOnlineStoreConfig,
+    default_version_id,
     _drop_table_and_index,
     _table_id,
     _to_naive_utc,
     _execute_query_with_retry,
     _get_feature_view_version_id,
-    _get_and_lock_feature_view_version,
-    _update_feature_view_version_id,
+    create_feature_view_partition,
     drop_feature_view_partitions,
-    drop_feature_view
+    drop_feature_view,
+    insert_feature_view_version
 )
 
 
 MYSQL_WRITE_RETRIES = 3
 MYSQL_READ_RETRIES = 3
+MYSQL_PARTITION_EXISTS_ERROR = 1517
 
 
 class ConnectionType(Enum):
     RAW = 0
     SESSION = 1
-
 
 
 class MySQLOnlineStore(OnlineStore):
@@ -276,8 +277,47 @@ class MySQLOnlineStore(OnlineStore):
         self._close_conn(raw_conn, conn_type)
         return output
 
-    def _batch_create(self) -> None:
-        pass
+    def _batch_create(
+        self,
+        cur: Cursor,
+        conn: Connection,
+        config: MySQLOnlineStoreConfig,
+        table: FeatureView,
+        tries: int = 3
+    ) -> None:
+        """
+        1.
+        """
+        version_id = _get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
+        if version_id is not None:
+            return  # FeatureView already created
+
+        for offset in range(tries):
+            version_id = default_version_id(table.name, offset=offset)
+            try:
+                # open transaction but do not commit
+                insert_feature_view_version(
+                    cur=cur,
+                    conn=conn,
+                    config=config,
+                    feature_view_name=table.name,
+                    version_id=version_id,
+                    lock_row=False,
+                    commit=False
+                )
+
+                # alter table
+                create_feature_view_partition(
+                    cur=cur, conn=conn, config=config, version_id=version_id
+                )
+                break
+            except pymysql.Error as e:
+                if e.args[0] == MYSQL_PARTITION_EXISTS_ERROR:
+                    conn.rollback()
+                    logging.warning(f'Partition ({version_id}) already exists in table ({config.feature_data_table}).'
+                                    f'Attempting insert with a different version id.')
+                    continue
+                raise e
 
     def _legacy_create(
             self,
@@ -333,7 +373,9 @@ class MySQLOnlineStore(OnlineStore):
                             cur=cur, conn=conn, project=project, table=table,
                         )
                     else:
-                        self._batch_create()
+                        self._batch_create(
+                            cur=cur, conn=conn, config=mysql_config, table=table
+                        )
                 except pymysql.Error as e:
                     conn.rollback()
                     logging.error("Error %d: %s" % (e.args[0], e.args[1]))
@@ -411,7 +453,6 @@ class MySQLOnlineStore(OnlineStore):
             logging.error(f"Unable to teardown FeatureView ({table.name}) table ({config.feature_data_table})"
                           f"due to exception {e}.")
             conn.rollback()
-
             raise e
 
     def teardown(
