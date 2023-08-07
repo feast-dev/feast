@@ -13,7 +13,7 @@ message PushResponse {
 
 message WriteToOnlineStoreRequest {
     map<string, string> features = 1;
-    string stream_feature_view = 2;
+    string feature_view_name = 2;
     bool allow_registry_cache = 3;
 }
 

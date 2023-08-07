@@ -25,14 +25,18 @@ from dateutil import parser
 from pygments import formatters, highlight, lexers
 
 from feast import utils
+<<<<<<< HEAD
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
     FEATURE_STORE_YAML_ENV_NAME,
 )
 from feast.data_source import PushMode
+=======
+from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+>>>>>>> 76daf3f9 (Refactor CLI.)
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.contrib.grpc_server import GetGrpcServer
+from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -704,21 +708,6 @@ def serve_command(
     help="Address of the gRPC server",
 )
 @click.option(
-    "--stream_feature_view",
-    "-sfv",
-    type=click.STRING,
-    show_default=False,
-    help="Stream feature view to push streaming features",
-)
-@click.option(
-    "--push_mode",
-    "-to",
-    type=click.STRING,
-    default="online",
-    show_default=False,
-    help="Push mode for the streaming data",
-)
-@click.option(
     "--max_workers",
     "-w",
     type=click.INT,
@@ -728,25 +717,15 @@ def serve_command(
 )
 @click.pass_context
 def listen_command(
-    ctx: click.Context,
-    address: str,
-    stream_feature_view: str,
-    push_mode: str,
-    max_workers: int,
+        ctx: click.Context,
+        address: str,
+        max_workers: int,
 ):
-    repo = ctx.obj["CHDIR"]
-    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
-    cli_check_repo(repo, fs_yaml_file)
-    store = FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
-    to: PushMode
-    if push_mode == "online":
-        to = PushMode.ONLINE
-    elif push_mode == "offline":
-        to = PushMode.OFFLINE
-    else:
-        to = PushMode.ONLINE_AND_OFFLINE
-    server = GetGrpcServer(store, address, stream_feature_view, to, max_workers)
+    """Start a gRPC feature server to ingest streaming features on given address"""
+    store = create_feature_store(ctx)
+    server = get_grpc_server(address, store, max_workers)
     server.start()
+    server.wait_for_termination()
 
 
 @cli.command("serve_transformations")

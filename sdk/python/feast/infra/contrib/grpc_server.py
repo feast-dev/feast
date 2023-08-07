@@ -50,22 +50,19 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                 to=to,
             )
         except PushSourceNotFoundException as e:
-            logging.exception(e)
+            logging.exception(str(e))
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             context.set_details(str(e))
             return PushResponse(status=False)
         except Exception as e:
-            logging.exception(e)
+            logging.exception(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return PushResponse(status=False)
         return PushResponse(status=True)
 
     def WriteToOnlineStore(self, request, context):
-        logging.warning(
-            "write_to_online_store is deprecated. Please consider using Push instead",
-            RuntimeWarning,
-        )
+        logging.warning("write_to_online_store is deprecated. Please consider using Push instead")
         try:
             df = parse(request.features)
             self.fs.write_to_online_store(
@@ -74,7 +71,7 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                 allow_registry_cache=request.allow_registry_cache,
             )
         except Exception as e:
-            logging.exception(e)
+            logging.exception(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return PushResponse(status=False)
