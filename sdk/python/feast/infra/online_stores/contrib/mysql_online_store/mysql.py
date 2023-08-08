@@ -11,7 +11,7 @@ from pymysql.cursors import Cursor
 from feast import Entity, FeatureView, StreamFeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key, serialize_entity_key_plaintext
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.exceptions import OnlineStoreMajorError, OnlineStoreMinorError
+from feast.infra.online_stores.exceptions import OnlineStoreError
 
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -24,15 +24,16 @@ from feast.infra.online_stores.contrib.mysql_online_store.defs import (
     MYSQL_READ_RETRIES,
     MYSQL_PARTITION_EXISTS_ERROR
 )
+
 from feast.infra.online_stores.contrib.mysql_online_store.util import (
     MySQLOnlineStoreConfig,
     default_version_id,
     unpack_read_features,
-    _drop_table_and_index,
-    _table_id,
-    _to_naive_utc,
-    _execute_query_with_retry,
-    _get_feature_view_version_id,
+    drop_table_and_index,
+    table_id,
+    to_naive_utc,
+    execute_query_with_retry,
+    get_feature_view_version_id,
     create_feature_view_partition,
     drop_feature_view_partitions,
     drop_feature_view,
@@ -48,6 +49,9 @@ class MySQLOnlineStore(OnlineStore):
     An online store implementation that uses MySQL.
     NOTE: The class *must* end with the `OnlineStore` suffix.
     """
+
+    # pymysql connection used when working with a raw PyMySQL connection (not managed by SQLAlchemy)
+    # don't use this unless you need to.
     conn: Optional[Connection] = None
 
     def __init__(self) -> None:
@@ -55,7 +59,8 @@ class MySQLOnlineStore(OnlineStore):
         self.ro_dbsession = None
 
     @staticmethod
-    def _get_store_config(config: RepoConfig) -> MySQLOnlineStoreConfig:
+    def get_store_config(config: RepoConfig) -> MySQLOnlineStoreConfig:
+        # extracts online store config from RepoConfig
         assert isinstance(config.online_store, MySQLOnlineStoreConfig)
         return cast(MySQLOnlineStoreConfig, config.online_store)
 
@@ -71,7 +76,7 @@ class MySQLOnlineStore(OnlineStore):
         return dbsession.get_bind(0).contextual_connect(close_with_result=False)
 
     def _get_conn(self, config: RepoConfig, readonly: bool = False) -> Union[Connection, ConnectionType]:
-        online_store_config = self._get_store_config(config=config)
+        online_store_config = self.get_store_config(config=config)
         if online_store_config.session_manager_module:
             return (
                 self._get_conn_session_manager(
@@ -90,10 +95,13 @@ class MySQLOnlineStore(OnlineStore):
                 autocommit=False,
             )
             assert self.conn.get_autocommit() is False
+        # remark: autocommit=0 for both SQLAlchemy connections and PyMySQL connections
         return self.conn, ConnectionType.RAW
 
     @staticmethod
     def _get_pymysql_conn(raw_conn: Connection, conn_type: ConnectionType) -> PyMySQLConnection:
+        # extracts PyMySQL Connection object, which is used for committing transactions.
+        # SQLAlchemy connections don't allow you to bind a cursor, so we need the db connection.
         return raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
 
     @staticmethod
@@ -123,19 +131,19 @@ class MySQLOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=2,
             ).hex()
-            timestamp = _to_naive_utc(timestamp)
+            timestamp = to_naive_utc(timestamp)
 
             if created_ts is not None:
-                created_ts = _to_naive_utc(created_ts)
+                created_ts = to_naive_utc(created_ts)
 
             rows_to_insert = [
                 (entity_key_bin, feature_name, val.SerializeToString(), timestamp, created_ts)
                 for feature_name, val in values.items()
             ]
             value_formatters = ', '.join(['(%s, %s, %s, %s, %s)'] * len(rows_to_insert))
-            query = build_insert_query_for_entity(table=_table_id(project, table), value_formatters=value_formatters)
+            query = build_insert_query_for_entity(table=table_id(project, table), value_formatters=value_formatters)
             query_values = [item for row in rows_to_insert for item in row]
-            _execute_query_with_retry(
+            execute_query_with_retry(
                 cur=cur, conn=conn, query=query, values=query_values, retries=MYSQL_WRITE_RETRIES
             )
 
@@ -147,19 +155,19 @@ class MySQLOnlineStore(OnlineStore):
             config: MySQLOnlineStoreConfig,
             data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
     ) -> None:
-        raw_version_id = _get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
+        raw_version_id = get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
         if raw_version_id is None:
-            raise OnlineStoreMinorError(f'FeatureView ({table.name}) does not have a version id. '
-                                        f'Rows cannot be inserted until a version id is created.')
+            raise OnlineStoreError(f'FeatureView ({table.name}) does not have a version id. '
+                                   f'Rows cannot be inserted until a version id is created.')
         version_id = cast(int, raw_version_id)
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key_plaintext(
                 entity_key,
             )
 
-            event_ts = _to_naive_utc(timestamp)
+            event_ts = to_naive_utc(timestamp)
             if created_ts is not None:
-                created_ts = _to_naive_utc(created_ts)
+                created_ts = to_naive_utc(created_ts)
 
             rows_to_insert = [
                 (version_id, table.name, entity_key_bin, feature_name, val.SerializeToString(), event_ts, created_ts)
@@ -168,7 +176,7 @@ class MySQLOnlineStore(OnlineStore):
             value_formatters = ', '.join(['(%s, %s, %s, %s, %s, %s, %s)'] * len(rows_to_insert))
             query = build_insert_query_for_entity(table=table.name, value_formatters=value_formatters)
             query_values = [item for row in rows_to_insert for item in row]
-            _execute_query_with_retry(
+            execute_query_with_retry(
                 cur=cur, conn=conn, query=query, values=query_values, retries=MYSQL_WRITE_RETRIES
             )
 
@@ -180,15 +188,16 @@ class MySQLOnlineStore(OnlineStore):
             progress: Optional[Callable[[int], Any]],
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
-        mysql_config = self._get_store_config(config=config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
+
+        mysql_config = self.get_store_config(config=config)
         with pymysql_conn.cursor() as cur:
             if isinstance(table, StreamFeatureView):
                 self._legacy_batch_write(cur=cur, conn=pymysql_conn, table=table, data=data, project=config.project)
             elif isinstance(table, FeatureView):
                 self._batch_write(cur=cur, conn=pymysql_conn, table=table, config=mysql_config, data=data)
             else:
-                raise OnlineStoreMinorError(f'Attempted batch write to unknown feature view type ({table}).')
+                raise OnlineStoreError(f'Attempted batch write to unknown feature view type ({table}).')
         self._close_conn(raw_conn, conn_type)
 
     def online_read(
@@ -201,12 +210,13 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self._get_store_config(config)
+        mysql_config = self.get_store_config(config)
+        project = config.project
+        use_legacy_handling = isinstance(table, StreamFeatureView)
         with pymysql_conn.cursor() as cur:
             result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
-            project = config.project
             for entity_key in entity_keys:
-                if isinstance(table, StreamFeatureView):
+                if use_legacy_handling:
                     entity_key_bin = serialize_entity_key(
                         entity_key,
                         entity_key_serialization_version=2,
@@ -218,13 +228,19 @@ class MySQLOnlineStore(OnlineStore):
                     )
                     query = build_feature_view_features_read_query(config=mysql_config, feature_view_name=table.name)
 
-                if _execute_query_with_retry(
+                try:
+                    execute_query_with_retry(
                         cur=cur, conn=pymysql_conn, query=query, values=(entity_key_bin,), retries=MYSQL_READ_RETRIES
-                ):
+                    )
                     records = cur.fetchall()
                     result.append(unpack_read_features(records=records))
-                else:
-                    logging.error(f'Skipping read for (entity, table)): ({entity_key}, {_table_id(project, table)})')
+                except Exception as e:
+                    if use_legacy_handling:
+                        logging.exception(
+                            f'Skipping read for (entity, table)): ({entity_key}, {table_id(project, table)})'
+                        )
+                        continue
+                    raise e
         self._close_conn(raw_conn, conn_type)
         return result
 
@@ -267,14 +283,16 @@ class MySQLOnlineStore(OnlineStore):
     ) -> List[List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]]:
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
-        queries, output = [], []
 
-        mysql_config = self._get_store_config(config)
+        mysql_config = self.get_store_config(config)
+        queries, output = [], []
+        use_legacy_handling = False
         with pymysql_conn.cursor() as cur:
             project = config.project
             entity_key_bins = []
             for i, (table, entity_keys) in enumerate(zip(table_list, entity_keys_list)):
                 # TODO: this can probably be made more efficient now that we're querying from one table
+                use_legacy_handling |= isinstance(table, StreamFeatureView)
                 for entity_key in entity_keys:
                     if isinstance(table, StreamFeatureView):
                         entity_key_bins.append(serialize_entity_key(
@@ -292,11 +310,10 @@ class MySQLOnlineStore(OnlineStore):
                     queries.append(query)
 
             union_query = f"{' UNION ALL '.join(queries)}"
-            if _execute_query_with_retry(cur=cur,
-                                         conn=pymysql_conn,
-                                         query=union_query,
-                                         values=entity_key_bins,
-                                         retries=MYSQL_READ_RETRIES):
+            try:
+                execute_query_with_retry(
+                    cur=cur, conn=pymysql_conn, query=union_query, values=entity_key_bins, retries=MYSQL_READ_RETRIES
+                )
                 res = {}
                 res_ts: Optional[datetime] = None
                 all_records = cur.fetchall()
@@ -318,9 +335,14 @@ class MySQLOnlineStore(OnlineStore):
                     else:
                         result.append((res_ts, res))
                     output.append(result)
-            else:
-                for table, entity_keys in zip(table_list, entity_keys_list):
-                    logging.error(f'Skipping read for (table, entities): ({_table_id(project, table)}, {entity_keys})')
+            except Exception as e:
+                if use_legacy_handling:
+                    for table, entity_keys in zip(table_list, entity_keys_list):
+                        logging.error(
+                            f'Skipping read for (table, entities): ({table_id(project, table)}, {entity_keys})'
+                        )
+                else:
+                    raise e
         self._close_conn(raw_conn, conn_type)
         return output
 
@@ -330,9 +352,10 @@ class MySQLOnlineStore(OnlineStore):
         conn: PyMySQLConnection,
         config: MySQLOnlineStoreConfig,
         table: FeatureView,
-        tries: int = 3
+        tries: int = 3,
+        **kwargs
     ) -> None:
-        version_id = _get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
+        version_id = get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
         if version_id is not None:
             return  # FeatureView already created
 
@@ -354,7 +377,7 @@ class MySQLOnlineStore(OnlineStore):
                 create_feature_view_partition(
                     cur=cur, conn=conn, config=config, version_id=version_id
                 )
-                break
+                return
             except pymysql.Error as e:
                 if e.args[0] == MYSQL_PARTITION_EXISTS_ERROR:
                     conn.rollback()
@@ -362,6 +385,7 @@ class MySQLOnlineStore(OnlineStore):
                                     f'Attempting insert with a different version id.')
                     continue
                 raise e
+        raise OnlineStoreError(f'Max retries ({tries}) reached for _batch_create and FeatureView ({table.name})')
 
     def _legacy_create(
             self,
@@ -371,7 +395,7 @@ class MySQLOnlineStore(OnlineStore):
             table: FeatureView,
     ) -> None:
         cur.execute(
-            f"""CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key VARCHAR(512),
+            f"""CREATE TABLE IF NOT EXISTS {table_id(project, table)} (entity_key VARCHAR(512),
                                 feature_name VARCHAR(256),
                                 value BLOB,
                                 event_ts timestamp NULL DEFAULT NULL,
@@ -379,18 +403,18 @@ class MySQLOnlineStore(OnlineStore):
                                 PRIMARY KEY(entity_key, feature_name))"""
         )
         cur.execute(
-            f"SHOW INDEXES FROM {_table_id(project, table)};"
+            f"SHOW INDEXES FROM {table_id(project, table)};"
         )
 
         index_exists = False
         for index in cur.fetchall():
-            if index[2] == f"{_table_id(project, table)}_ek":
+            if index[2] == f"{table_id(project, table)}_ek":
                 index_exists = True
                 break
 
         if not index_exists:
             cur.execute(
-                f"ALTER TABLE {_table_id(project, table)} ADD INDEX {_table_id(project, table)}_ek (entity_key);"
+                f"ALTER TABLE {table_id(project, table)} ADD INDEX {table_id(project, table)}_ek (entity_key);"
             )
         conn.commit()
 
@@ -402,10 +426,11 @@ class MySQLOnlineStore(OnlineStore):
             entities_to_delete: Sequence[Entity],
             entities_to_keep: Sequence[Entity],
             partial: bool,
+            **kwargs
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
-        mysql_config = self._get_store_config(config=config)
+        mysql_config = self.get_store_config(config=config)
 
         with pymysql_conn.cursor() as cur:
             project = config.project
@@ -422,15 +447,15 @@ class MySQLOnlineStore(OnlineStore):
                         )
                 except pymysql.Error as e:
                     pymysql_conn.rollback()
-                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                    raise e
 
             for table in tables_to_delete:
                 try:
-                    _drop_table_and_index(cur, project, table)
+                    drop_table_and_index(cur, project, table)
                     pymysql_conn.commit()
                 except pymysql.Error as e:
                     pymysql_conn.rollback()
-                    logging.error("Error %d: %s" % (e.args[0], e.args[1]))
+                    raise e
         self._close_conn(raw_conn, conn_type)
 
     def clear_table(
@@ -443,7 +468,7 @@ class MySQLOnlineStore(OnlineStore):
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
         with pymysql_conn.cursor() as cur:
-            table_name = _table_id(config.project, table)
+            table_name = table_id(config.project, table)
             try:
                 cur.execute(f"DELETE FROM {table_name};")
                 pymysql_conn.commit()
@@ -461,12 +486,13 @@ class MySQLOnlineStore(OnlineStore):
             project: str
     ):
         try:
-            _drop_table_and_index(cur, project, table)
+            drop_table_and_index(cur, project, table)
             conn.commit()
         except pymysql.Error as e:
             conn.rollback()
             logging.error("Error %d: %s"
                           "" % (e.args[0], e.args[1]))
+            raise e
 
     def _batch_teardown(
             self,
@@ -476,7 +502,7 @@ class MySQLOnlineStore(OnlineStore):
             config: MySQLOnlineStoreConfig
     ) -> None:
         try:
-            version_id = _get_feature_view_version_id(
+            version_id = get_feature_view_version_id(
                 cur=cur,
                 conn=conn,
                 config=config,
@@ -509,7 +535,7 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self._get_store_config(config)
+        mysql_config = self.get_store_config(config)
         with pymysql_conn.cursor() as cur:
             for table in tables:
                 if isinstance(table, StreamFeatureView):

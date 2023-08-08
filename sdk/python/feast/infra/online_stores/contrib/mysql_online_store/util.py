@@ -18,6 +18,7 @@ from feast.repo_config import FeastConfigBaseModel
 from feast.infra.online_stores.contrib.mysql_online_store.defs import (
     MYSQL_DEADLOCK_ERR
 )
+from feast.infra.online_stores.exceptions import OnlineStoreError
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
@@ -40,23 +41,21 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     feature_data_table: str = ''
 
 
-def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
-    table_name = _table_id(project, table)
+def table_id(project: str, table: FeatureView) -> str:
+    return f"{project}_{table.name}"
+
+
+def drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
+    table_name = table_id(project, table)
     cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
-
-
-def get_partition_id_from_version(
-    version_id: int
-) -> str:
+def get_partition_id_from_version(version_id: int) -> str:
     return f'p_{version_id}'
 
 
-def _to_naive_utc(ts: datetime) -> datetime:
+def to_naive_utc(ts: datetime) -> datetime:
     if ts.tzinfo is None:
         return ts
     else:
@@ -74,7 +73,7 @@ def build_legacy_features_read_query(
     union_offset: Optional[int] = None
 ) -> str:
     base = "SELECT feature_name, value, event_ts" + " " if union_offset is None else f", {union_offset} as __i__ "
-    base += f"FROM {_table_id(project, table)} WHERE entity_key = %s"
+    base += f"FROM {table_id(project, table)} WHERE entity_key = %s"
     return base
 
 
@@ -120,7 +119,7 @@ def unpack_read_features(
     return res if res else None, res_ts if res else None
 
 
-def _execute_query_with_retry(
+def execute_query_with_retry(
     cur: Cursor,
     conn: Connection,
     query: str,
@@ -128,30 +127,26 @@ def _execute_query_with_retry(
     retries: int = 3,
     progress: Optional[Callable[[int], Any]] = None,
     commit: bool = True,
-    propagate_exceptions: bool = False,
     exponential: bool = False
-) -> bool:
-    for _ in range(retries):
+) -> None:
+    for i in range(retries):
         try:
             cur.execute(query, values)
             if commit:
                 conn.commit()
             if progress:
                 progress(1)
-            return True
+            return
         except pymysql.Error as e:
             if e.args[0] == MYSQL_DEADLOCK_ERR:
-                time.sleep(0.5 * (2 ** retries) if exponential else 0.5)
-            elif propagate_exceptions:
-                raise e
-            else:
-                conn.rollback()
-                logging.error("Error %d: %s" % (e.args[0], e.args[1]))
-                return False
-    return False
+                time.sleep(0.5 * (2 ** i) if exponential else 0.5)
+                continue
+            conn.rollback()
+            raise e
+    raise OnlineStoreError(f'Max retries ({retries}) reached for query ({query}) with values ({values}).')
 
 
-def _get_feature_view_version_id(
+def get_feature_view_version_id(
     cur: Cursor,
     conn: Connection,
     config: MySQLOnlineStoreConfig,
@@ -195,13 +190,12 @@ def _get_and_lock_feature_view_version(
     table, version_id = config.feature_version_table, None
 
     read_query = "SELECT version_id, alter_in_progress FROM %s WHERE feature_view_name = %s FOR UPDATE;"
-    _execute_query_with_retry(
+    execute_query_with_retry(
         cur=cur,
         conn=conn,
         query=read_query,
         values=(table, feature_view_name,),
         commit=False,
-        propagate_exceptions=True
     )
     record = cur.fetchone()
     if record is None:
@@ -218,14 +212,13 @@ def _get_and_lock_feature_view_version(
                          f'operation is in progress.')
 
     lock_query = "UPDATE %s SET alter_in_progress = True FROM %s WHERE feature_view_name = %s;"
-    _execute_query_with_retry(
+    execute_query_with_retry(
         cur=cur,
         conn=conn,
         query=lock_query,
         values=(table, feature_view_name,),
         retries=20,
         commit=False,
-        propagate_exceptions=True
     )
     conn.commit()
     return version_id
@@ -241,14 +234,13 @@ def _update_feature_view_version_id(
     table, version_id = config.feature_version_table, None
 
     query = "SELECT alter_in_progress FROM %s WHERE feature_view_name = %s FOR UPDATE;"
-    _execute_query_with_retry(
+    execute_query_with_retry(
         cur=cur,
         conn=conn,
         query=query,
         values=(table, feature_view_name,),
         retries=5,
         commit=False,
-        propagate_exceptions=True
     )
     record = cur.fetchone()
     if record is None:
@@ -264,17 +256,17 @@ def _update_feature_view_version_id(
                          f'without alter_in_progress being set to True.')
 
     lock_query = "UPDATE %s SET version_id = %s, alter_in_progress = False FROM %s WHERE feature_view_name = %s;"
-    _execute_query_with_retry(
+    execute_query_with_retry(
         cur=cur,
         conn=conn,
         query=lock_query,
         values=(table, new_version_id, feature_view_name,),
         retries=20,
         commit=False,
-        propagate_exceptions=True
     )
     conn.commit()
     return version_id
+
 
 def create_feature_view_partition(
     cur: Cursor,
@@ -300,6 +292,7 @@ def create_feature_view_partition(
     conn.commit()
     return partition_name
 
+
 def drop_feature_view_partitions(
     cur: Cursor,
     conn: Connection,
@@ -310,7 +303,7 @@ def drop_feature_view_partitions(
     partition_list = ', '.join([f"`{partition_name}`" for partition_name in partition_names])
 
     alter_query, query_values = "ALTER TABLE %s DROP PARTITION %s", (config.feature_data_table, partition_list,)
-    _execute_query_with_retry(
+    execute_query_with_retry(
         cur=cur, conn=conn, query=alter_query, values=query_values, propagate_exceptions=True
     )
 
@@ -346,7 +339,7 @@ def drop_feature_view(
     # RB: version_id in this case roughly acts as a "proof of lock" value.
     query, values = "DELETE FROM %s WHERE feature_view_name = %s", (config.feature_version_table, feature_view_name,)
     try:
-        _execute_query_with_retry(
+        execute_query_with_retry(
             cur=cur, conn=conn, query=query, values=values, propagate_exceptions=True
         )
     except Exception as e:
