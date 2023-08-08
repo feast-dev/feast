@@ -4,7 +4,7 @@ import time
 import hashlib
 
 from datetime import datetime
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union, Dict, Iterable
 
 import pymysql
 import pytz
@@ -15,8 +15,10 @@ from pymysql.cursors import Cursor
 from feast import FeatureView
 from feast.repo_config import FeastConfigBaseModel
 
-
-MYSQL_DEADLOCK_ERR = 1213
+from feast.infra.online_stores.contrib.mysql_online_store.defs import (
+    MYSQL_DEADLOCK_ERR
+)
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
 class MySQLOnlineStoreConfig(FeastConfigBaseModel):
@@ -86,6 +88,36 @@ def build_feature_view_features_read_query(
     base += f" FROM {data_table} WHERE feature_view_name = {feature_view_name} AND entity_id = %s IN "
     base += f"(SELECT version_id FROM {data_table} WHERE feature_view_name = {feature_view_name});"
     return base
+
+
+def build_insert_query_for_entity(
+    table: str,
+    value_formatters: str
+) -> str:
+    return \
+        f"""
+        INSERT INTO {table}
+        (entity_key, feature_name, value, event_ts, created_ts)
+        VALUES {value_formatters}
+        ON DUPLICATE KEY UPDATE 
+        value = VALUES(value),
+        event_ts = VALUES(event_ts),
+        created_ts = VALUES(created_ts)
+        """
+
+
+def unpack_read_features(
+    records: Optional[Iterable],
+) -> Tuple[Optional[datetime], Optional[Dict[str, Any]]]:
+    res: Dict[str, Any] = {}
+    res_ts: Optional[datetime] = None
+    if records:
+        for feature_name, val_bin, ts in records:
+            val = ValueProto()
+            val.ParseFromString(val_bin)
+            res[feature_name] = val
+            res_ts = ts
+    return res if res else None, res_ts if res else None
 
 
 def _execute_query_with_retry(
