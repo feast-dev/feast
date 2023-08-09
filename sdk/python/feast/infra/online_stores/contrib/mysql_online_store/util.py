@@ -45,10 +45,15 @@ def table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
-def drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
+def drop_table_and_index(cur: Cursor, conn: Connection, project: str, table: FeatureView) -> None:
     table_name = table_id(project, table)
-    cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
-    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+    try:
+        cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
+        cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
 
 
 def get_partition_id_from_version(version_id: int) -> str:
@@ -89,7 +94,7 @@ def build_feature_view_features_read_query(
     return base
 
 
-def build_insert_query_for_entity(
+def build_legacy_insert_query_for_entity(
     table: str,
     value_formatters: str
 ) -> str:
@@ -97,6 +102,22 @@ def build_insert_query_for_entity(
         f"""
         INSERT INTO {table}
         (entity_key, feature_name, value, event_ts, created_ts)
+        VALUES {value_formatters}
+        ON DUPLICATE KEY UPDATE 
+        value = VALUES(value),
+        event_ts = VALUES(event_ts),
+        created_ts = VALUES(created_ts)
+        """
+
+
+def build_insert_query_for_entity(
+    table: str,
+    value_formatters: str
+) -> str:
+    return \
+        f"""
+        INSERT INTO {table}
+        (version_id, feature_view_name, entity_key, feature_name, value, event_ts, created_ts)
         VALUES {value_formatters}
         ON DUPLICATE KEY UPDATE 
         value = VALUES(value),
@@ -116,7 +137,7 @@ def unpack_read_features(
             val.ParseFromString(val_bin)
             res[feature_name] = val
             res_ts = ts
-    return res if res else None, res_ts if res else None
+    return (res_ts, res) if res else (None, None)
 
 
 def execute_query_with_retry(
@@ -127,6 +148,7 @@ def execute_query_with_retry(
     retries: int = 3,
     progress: Optional[Callable[[int], Any]] = None,
     commit: bool = True,
+    sleep_time_sec: float = 0.25,
     exponential: bool = False
 ) -> None:
     for i in range(retries):
@@ -138,9 +160,12 @@ def execute_query_with_retry(
                 progress(1)
             return
         except pymysql.Error as e:
-            if e.args[0] == MYSQL_DEADLOCK_ERR:
-                time.sleep(0.5 * (2 ** i) if exponential else 0.5)
-                continue
+            logging.error(f'Query ({query}) with values ({values}) failed due to exception {e}.'
+                          f'Rolling back and attempting retry {i + 1} of {retries}.')
+            time.sleep(sleep_time_sec * (2 ** i) if exponential else sleep_time_sec)
+            conn.rollback()
+            continue
+        except Exception as e:
             conn.rollback()
             raise e
     raise OnlineStoreError(f'Max retries ({retries}) reached for query ({query}) with values ({values}).')
@@ -282,7 +307,6 @@ def create_feature_view_partition(
     )
     result = cur.fetchone()
     table_not_partitioned = result is None or result == 0
-    conn.commit()
 
     partition_query = "ALTER TABLE %s"
     partition_query += "PARTITION BY LIST (version_id)(" if table_not_partitioned else "ADD PARTITION ("
@@ -346,5 +370,5 @@ def drop_feature_view(
         unlock_feature_view_version(
             cur=cur, conn=conn, config=config, feature_view_name=feature_view_name, version_id=version_id
         )
-        conn.rollback()
+        raise e
 
