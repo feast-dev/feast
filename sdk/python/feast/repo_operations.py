@@ -69,11 +69,11 @@ def get_ignore_files(repo_root: Path, ignore_paths: List[str]) -> Set[Path]:
         for matched_path in repo_root.glob(ignore_path):
             if matched_path.is_file():
                 # If the matched path is a file, add that to ignore_files set
-                ignore_files.add(matched_path.resolve())
+                ignore_files.add(matched_path)
             else:
                 # Otherwise, list all Python files in that directory and add all of them to ignore_files set
                 ignore_files |= {
-                    sub_path.resolve()
+                    sub_path
                     for sub_path in matched_path.glob("**/*.py")
                     if sub_path.is_file()
                 }
@@ -88,7 +88,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
 
     # List all Python files in the root directory (recursively)
     repo_files = {
-        p.resolve()
+        p
         for p in repo_root.glob("**/*.py")
         if p.is_file() and "__init__.py" != p.name
     }
@@ -344,7 +344,7 @@ def create_feature_store(
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "wb") as f:
             f.write(config_bytes)
-        return FeatureStore(repo_path=str(repo_path.resolve()))
+        return FeatureStore(repo_path=str(repo_path))
     else:
         fs_yaml_file = ctx.obj["FS_YAML_FILE"]
         cli_check_repo(repo, fs_yaml_file)
