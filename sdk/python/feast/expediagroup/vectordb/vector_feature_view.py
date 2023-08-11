@@ -50,6 +50,7 @@ class VectorFeatureView(BaseFeatureView):
 
     # inheriting from FeatureView wouldn't work due to issue with conflicting proto classes
     # therefore using composition instead
+    name: str
     feature_view: FeatureView
     vector_field: str
     dimensions: int
@@ -106,7 +107,7 @@ class VectorFeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
-
+        self.name = name
         self.feature_view = feature_view
         self.vector_field = vector_field
         self.dimensions = dimensions
