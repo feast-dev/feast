@@ -33,7 +33,7 @@ TABLE_NAME = "milvus_online_store"
 REGION = "us-west-2"
 HOST = "localhost"
 PORT = 19530
-ALIAS = "milvus"
+ALIAS = "default"
 SOURCE = FileSource(path="some path")
 VECTOR_FIELD = "feature1"
 DIMENSIONS = 10
@@ -54,13 +54,8 @@ def repo_config():
     )
 
 
-@pytest.fixture
-def milvus_online_store():
-    return MilvusOnlineStore()
-
-
 @pytest.fixture(scope="session")
-def milvus_online_setup():
+def embedded_milvus():
     # Creating an online store through embedded Milvus for all tests in the class
     online_store_creator = MilvusOnlineStoreCreator("milvus")
     online_store_creator.create_online_store()
@@ -71,36 +66,26 @@ def milvus_online_setup():
     online_store_creator.teardown()
 
 
-class PymilvusConnectionContext:
-    def __enter__(self):
-        # Connecting to Milvus
-        connections.connect(host=HOST, port=PORT)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        # Disconnecting from Milvus
-        connections.disconnect("milvus")
-
-
 class TestMilvusConnectionManager:
-    def test_connection_manager(self, repo_config, caplog, milvus_online_setup, mocker):
+    def test_connection_manager(self, repo_config, caplog, mocker):
 
         mocker.patch("pymilvus.connections.connect")
         with MilvusConnectionManager(repo_config.online_store):
             assert (
-                f"Connecting to Milvus with alias {repo_config.online_store.alias} and host {repo_config.online_store.host} and default port {repo_config.online_store.port}."
+                f"Connecting to Milvus with alias {repo_config.online_store.alias} and host {repo_config.online_store.host} and port {repo_config.online_store.port}."
                 in caplog.text
             )
 
         connections.connect.assert_called_once_with(
+            alias=repo_config.online_store.alias,
             host=repo_config.online_store.host,
-            username=repo_config.online_store.username,
+            port=repo_config.online_store.port,
+            user=repo_config.online_store.username,
             password=repo_config.online_store.password,
             use_secure=True,
         )
 
-    def test_context_manager_exit(
-        self, repo_config, caplog, milvus_online_setup, mocker
-    ):
+    def test_context_manager_exit(self, repo_config, caplog, mocker):
         # Create a mock for connections.disconnect
         mock_disconnect = mocker.patch("pymilvus.connections.disconnect")
 
@@ -125,21 +110,24 @@ class TestMilvusOnlineStore:
 
     collection_to_write = "Collection2"
     collection_to_delete = "Collection1"
+    unavailable_collection = "abc"
 
-    def setup_method(self, milvus_online_setup):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, repo_config):
         # Ensuring that the collections created are dropped before the tests are run
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             # Dropping collections if they exist
             if utility.has_collection(self.collection_to_delete):
                 utility.drop_collection(self.collection_to_delete)
             if utility.has_collection(self.collection_to_write):
                 utility.drop_collection(self.collection_to_write)
+            if utility.has_collection(self.unavailable_collection):
+                utility.drop_collection(self.unavailable_collection)
             # Closing the temporary collection to do this
 
-    def test_milvus_update_add_collection(
-        self, repo_config, milvus_online_setup, caplog
-    ):
+        yield
 
+    def test_milvus_update_add_collection(self, repo_config, caplog, embedded_milvus):
         feast_schema = [
             Field(
                 name="feature2",
@@ -205,18 +193,14 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and check whether the collection was added and then close the connection.
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is True
             assert (
                 Collection(self.collection_to_write).schema == schema1
                 or Collection(self.collection_to_write).schema == schema2
             )
 
-    def test_milvus_update_add_existing_collection(
-        self, repo_config, caplog, milvus_online_setup
-    ):
-
-        self.setup_method(milvus_online_setup)
+    def test_milvus_update_add_existing_collection(self, repo_config, caplog, embedded_milvus):
         # Creating a common schema for collection
         feast_schema = [
             Field(
@@ -225,7 +209,7 @@ class TestMilvusOnlineStore:
                 tags={
                     "is_primary": "False",
                     "description": "float32",
-                    "dimension": "128",
+                    "dimensions": "128",
                 },
             ),
             Field(
@@ -248,7 +232,7 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and add a collection using pymilvus directly and close the connection.
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             Collection(name=self.collection_to_write, schema=schema)
             assert utility.has_collection(self.collection_to_write) is True
             assert len(utility.list_collections()) == 1
@@ -272,14 +256,11 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and add a collection using pymilvus directly and close the connection, we need to check if the collection count remains 1 and exists.
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is True
             assert len(utility.list_collections()) == 1
 
-    def test_milvus_update_delete_collection(
-        self, repo_config, caplog, milvus_online_setup
-    ):
-        self.setup_method(milvus_online_setup)
+    def test_milvus_update_delete_collection(self, repo_config, caplog, embedded_milvus):
         # Creating a common schema for collection which is compatible with FEAST
         feast_schema = [
             Field(
@@ -288,7 +269,7 @@ class TestMilvusOnlineStore:
                 tags={
                     "is_primary": "False",
                     "description": "float32",
-                    "dimension": "128",
+                    "dimensions": "128",
                 },
             ),
             Field(
@@ -311,7 +292,7 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and add a collection using pymilvus directly and close the connection
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             Collection(name=self.collection_to_write, schema=schema)
             assert utility.has_collection(self.collection_to_write) is True
 
@@ -334,12 +315,10 @@ class TestMilvusOnlineStore:
         )
 
         # Opening and closing the connection and checking if the collection is actually deleted.
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is False
 
-    def test_milvus_update_delete_unavailable_collection(
-        self, repo_config, caplog, milvus_online_setup
-    ):
+    def test_milvus_update_delete_unavailable_collection(self, repo_config, caplog, embedded_milvus):
         feast_schema = [
             Field(
                 name="feature1",
@@ -347,7 +326,7 @@ class TestMilvusOnlineStore:
                 tags={
                     "is_primary": "False",
                     "description": "float32",
-                    "dimension": "128",
+                    "dimensions": "128",
                 },
             ),
             Field(
@@ -361,7 +340,7 @@ class TestMilvusOnlineStore:
             config=repo_config,
             tables_to_delete=[
                 VectorFeatureView(
-                    name="abc",
+                    name=self.unavailable_collection,
                     schema=feast_schema,
                     source=SOURCE,
                     vector_field=VECTOR_FIELD,
@@ -375,5 +354,5 @@ class TestMilvusOnlineStore:
             partial=None,
         )
 
-        with PymilvusConnectionContext():
+        with MilvusConnectionManager(repo_config.online_store):
             assert len(utility.list_collections()) == 0

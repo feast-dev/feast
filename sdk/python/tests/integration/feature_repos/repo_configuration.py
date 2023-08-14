@@ -20,6 +20,9 @@ from feast.errors import FeastModuleImportError
 from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
+from tests.expediagroup.milvus_online_store_creator import (
+    MilvusOnlineStoreCreator,
+)
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
@@ -99,6 +102,15 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
+MILVUS_CONFIG = {
+    "alias": "default",
+    "type": "milvus",
+    "host": "localhost",
+    "port": 19530,
+    "username": "user",
+    "password": "password"
+}
+
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -114,6 +126,7 @@ AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
+    "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
 }
 
 # Only configure Cloud DWH if running full integration tests

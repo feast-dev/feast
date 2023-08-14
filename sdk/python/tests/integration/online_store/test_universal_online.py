@@ -28,6 +28,7 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
+    create_vector_feature_view,
     driver_feature_view,
 )
 from tests.utils.data_source_test_creator import prep_file_source
@@ -561,6 +562,46 @@ def test_online_retrieval_success(feature_store_for_online_retrieval):
         features=feature_refs,
         entity_rows=entity_rows,
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["milvus"])
+def test_write_vectors_to_online_store(environment, universal_data_sources):
+    fs = environment.feature_store
+    entities, datasets, data_sources = universal_data_sources
+    driver_daily_stats = create_vector_feature_view(data_sources.customer)
+    driver_entity = driver()
+
+    print("running apply at: " + time.strftime("%H:%M:%S", time.localtime()))
+    # Register Feature View and Entity
+    fs.apply([driver_daily_stats, driver_entity])
+
+    # fake data to ingest into Online Store
+    data = {
+        "driver_id": [123],
+        "profile_embedding": [np.random.default_rng().uniform(-100, 100, 50)],
+        "lifetime_trip_count": [85],
+        "avg_passenger_count": [0.067],
+        "current_balance": [0.78325],
+        "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+    }
+    df_data = pd.DataFrame(data)
+
+    # directly ingest data into the Online Store
+    fs.write_to_online_store("driver_profile", df_data)
+
+    # assert the right data is in the Online Store
+    df = fs.get_online_features(
+        features=[
+            "driver_profile:profile_embedding",
+            "driver_profile:lifetime_trip_count",
+        ],
+        entity_rows=[{"driver_id": 123}],
+    ).to_df()
+    assertpy.assert_that(df["profile_embedding"].iloc[0]).is_type_of(np.array)
+    assertpy.assert_that(df["profile_embedding"].iloc[0]).is_length(50)
+    assertpy.assert_that(df["lifetime_trip_count"].iloc[0]).is_equal_to(85)
 
 
 def response_feature_name(
