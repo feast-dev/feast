@@ -18,7 +18,7 @@ jobs:
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Get release version
@@ -55,7 +55,7 @@ jobs:
     name: Build wheels
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
@@ -81,7 +81,7 @@ jobs:
     name: Build source distribution
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v2
@@ -120,7 +120,7 @@ jobs:
     env:
       REGISTRY: feastdev
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx

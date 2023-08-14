@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint-java
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -69,7 +69,7 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Setup Python
@@ -101,7 +101,7 @@ jobs:
     env:
       PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
