@@ -34,7 +34,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -60,7 +60,7 @@ jobs:
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -101,7 +101,7 @@ jobs:
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -137,7 +137,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Setup Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: '18.x'
         registry-url: 'https://registry.npmjs.org'
