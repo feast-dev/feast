@@ -54,7 +54,7 @@ jobs:
             ${{ runner.os }}-ut-maven-
       - name: Test java
         run: make test-java-with-coverage
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: java-coverage-report
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
@@ -172,7 +172,7 @@ jobs:
       - name: Run integration tests
         run:  make test-java-integration
       - name: Save report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: it-report
