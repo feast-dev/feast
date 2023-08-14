@@ -231,6 +231,26 @@ class Provider(ABC):
         pass
 
     @abstractmethod
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+    ) -> bool:
+        """
+        Deletes all records with the given entity_keys.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose records should be deleted.
+            entity_keys: The list of entity keys for which records should be deleted.
+
+        Returns:
+            Boolean that corresponds to whether all records with the given entity_keys were deleted.
+        """
+        pass
+
+    @abstractmethod
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
