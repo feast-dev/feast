@@ -73,7 +73,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: "3.8"
@@ -114,7 +114,7 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: '3.8'
           architecture: 'x64'
@@ -143,7 +143,7 @@ jobs:
       - name: Use AWS CLI
         run: aws sts get-caller-identity
       - name: Setup Python (to call feast apply)
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: 3.8
