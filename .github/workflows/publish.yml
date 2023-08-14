@@ -158,7 +158,7 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: '3.7'
           architecture: 'x64'
