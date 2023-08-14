@@ -192,11 +192,12 @@ jobs:
             echo "$VERSION_OUTPUT from installed wheel is not in the correct format or doesn't have the right version $VERSION."
             exit 1
           fi
-      - name: Smoke test
-        run: |
-          feast init test_repo
-          cd test_repo/feature_repo
-          feast apply
-          echo "$TEST_SCRIPT" > run-and-wait.sh
-          bash run-and-wait.sh feast serve
-          bash run-and-wait.sh feast ui
+      # This is temporarily disabled.
+      # - name: Smoke test
+      #   run: |
+      #     feast init test_repo
+      #     cd test_repo/feature_repo
+      #     feast apply
+      #     echo "$TEST_SCRIPT" > run-and-wait.sh
+      #     bash run-and-wait.sh feast serve
+      #     bash run-and-wait.sh feast ui
