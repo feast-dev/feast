@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.1](https://github.com/feast-dev/feast/compare/v0.33.0...v0.33.1) (2023-08-14)
+
+
+### Bug Fixes
+
+* Run store.plan() only when need it. ([#3708](https://github.com/feast-dev/feast/issues/3708)) ([7bc7c47](https://github.com/feast-dev/feast/commit/7bc7c47b4507310850474290131c03fb6d480834))
+
 # [0.33.0](https://github.com/feast-dev/feast/compare/v0.32.0...v0.33.0) (2023-08-14)
 
 
