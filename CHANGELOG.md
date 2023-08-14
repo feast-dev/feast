@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.32.1](https://github.com/feast-dev/feast/compare/v0.32.0...v0.32.1) (2023-08-14)
+
+
+### Bug Fixes
+
+* Add aws-sts dependency in java sdk so that S3 client acquires IRSA role ([#3696](https://github.com/feast-dev/feast/issues/3696)) ([c75a01f](https://github.com/feast-dev/feast/commit/c75a01fce2d52cd18479ace748b8eb2e6c81c988))
+* Redshift push ignores schema ([#3671](https://github.com/feast-dev/feast/issues/3671)) ([76270f6](https://github.com/feast-dev/feast/commit/76270f66b3d98b0119b70927c06908f9834b6120))
+
 # [0.32.0](https://github.com/feast-dev/feast/compare/v0.31.0...v0.32.0) (2023-07-17)
 
 
