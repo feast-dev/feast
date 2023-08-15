@@ -100,15 +100,6 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
-MILVUS_CONFIG = {
-    "alias": "default",
-    "type": "milvus",
-    "host": "localhost",
-    "port": 19530,
-    "username": "user",
-    "password": "password",
-}
-
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -125,7 +116,6 @@ AVAILABLE_ONLINE_STORES: Dict[
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
     "milvus": ({"type": "milvus"}, MilvusOnlineStoreCreator),
-    # "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
 }
 
 # Only configure Cloud DWH if running full integration tests
