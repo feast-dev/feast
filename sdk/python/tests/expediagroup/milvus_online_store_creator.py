@@ -11,7 +11,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 class MilvusOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
-        self.container = DockerContainer("milvus/milvus:2.2.12").with_exposed_ports(
+        self.container = DockerContainer("mbackes/milvus-lite:2.2.12").with_exposed_ports(
             "19530"
         )
 
