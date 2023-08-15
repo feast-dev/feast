@@ -20,9 +20,7 @@ from feast.errors import FeastModuleImportError
 from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
-from tests.expediagroup.milvus_online_store_creator import (
-    MilvusOnlineStoreCreator,
-)
+from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
@@ -108,7 +106,7 @@ MILVUS_CONFIG = {
     "host": "localhost",
     "port": 19530,
     "username": "user",
-    "password": "password"
+    "password": "password",
 }
 
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
@@ -126,7 +124,8 @@ AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
-    "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
+    "milvus": ({"type": "milvus"}, MilvusOnlineStoreCreator),
+    # "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
 }
 
 # Only configure Cloud DWH if running full integration tests

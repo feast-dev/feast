@@ -200,7 +200,9 @@ class TestMilvusOnlineStore:
                 or Collection(self.collection_to_write).schema == schema2
             )
 
-    def test_milvus_update_add_existing_collection(self, repo_config, caplog, embedded_milvus):
+    def test_milvus_update_add_existing_collection(
+        self, repo_config, caplog, embedded_milvus
+    ):
         # Creating a common schema for collection
         feast_schema = [
             Field(
@@ -260,7 +262,9 @@ class TestMilvusOnlineStore:
             assert utility.has_collection(self.collection_to_write) is True
             assert len(utility.list_collections()) == 1
 
-    def test_milvus_update_delete_collection(self, repo_config, caplog, embedded_milvus):
+    def test_milvus_update_delete_collection(
+        self, repo_config, caplog, embedded_milvus
+    ):
         # Creating a common schema for collection which is compatible with FEAST
         feast_schema = [
             Field(
@@ -318,7 +322,9 @@ class TestMilvusOnlineStore:
         with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is False
 
-    def test_milvus_update_delete_unavailable_collection(self, repo_config, caplog, embedded_milvus):
+    def test_milvus_update_delete_unavailable_collection(
+        self, repo_config, caplog, embedded_milvus
+    ):
         feast_schema = [
             Field(
                 name="feature1",

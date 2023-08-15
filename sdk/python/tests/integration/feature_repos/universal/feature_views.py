@@ -301,9 +301,12 @@ def create_vector_feature_view(source):
     vector_feature_view = FeatureView(
         name="driver_profile",
         entities=[driver_entity],
-        schema=
-        [
-            Field(name="profile_embedding", dtype=Array(base_type=Float32), tags=vector_tag),
+        schema=[
+            Field(
+                name="profile_embedding",
+                dtype=Array(base_type=Float32),
+                tags=vector_tag,
+            ),
             Field(name="lifetime_trip_count", dtype=Int32),
             Field(name=driver_entity.join_key, dtype=Int32),
         ],
