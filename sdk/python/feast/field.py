@@ -65,7 +65,7 @@ class Field(BaseModel):
         return v
 
     def __eq__(self, other):
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
 
         if (

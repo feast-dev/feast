@@ -133,7 +133,7 @@ def diff_registry_objects(
     if isinstance(
         current_proto, (DataSourceProto, ValidationReferenceProto)
     ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
-        assert type(current_proto) == type(new_proto)
+        assert type(current_proto) is type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)
     else:
