@@ -41,13 +41,14 @@ INDEX_ALGO = IndexType.flat
 
 
 @pytest.fixture(scope="session")
-def repo_config():
+def repo_config(embedded_milvus):
     return RepoConfig(
         registry=REGISTRY,
         project=PROJECT,
         provider=PROVIDER,
         online_store=MilvusOnlineStoreConfig(
-            alias=ALIAS, host=HOST, username="abc", password="cde"
+            alias=embedded_milvus["alias"], host=embedded_milvus["host"], port=embedded_milvus["port"],
+            username=embedded_milvus["username"], password=embedded_milvus["password"]
         ),
         offline_store=FileOfflineStoreConfig(),
         entity_key_serialization_version=2,
@@ -58,9 +59,9 @@ def repo_config():
 def embedded_milvus():
     # Creating an online store through embedded Milvus for all tests in the class
     online_store_creator = MilvusOnlineStoreCreator("milvus")
-    online_store_creator.create_online_store()
+    online_store_config = online_store_creator.create_online_store()
 
-    yield online_store_creator
+    yield online_store_config
 
     # Tearing down the Milvus instance after all tests in the class
     online_store_creator.teardown()
@@ -127,7 +128,7 @@ class TestMilvusOnlineStore:
 
         yield
 
-    def test_milvus_update_add_collection(self, repo_config, caplog, embedded_milvus):
+    def test_milvus_update_add_collection(self, repo_config, caplog):
         feast_schema = [
             Field(
                 name="feature2",
@@ -201,7 +202,7 @@ class TestMilvusOnlineStore:
             )
 
     def test_milvus_update_add_existing_collection(
-        self, repo_config, caplog, embedded_milvus
+        self, repo_config, caplog
     ):
         # Creating a common schema for collection
         feast_schema = [
@@ -263,7 +264,7 @@ class TestMilvusOnlineStore:
             assert len(utility.list_collections()) == 1
 
     def test_milvus_update_delete_collection(
-        self, repo_config, caplog, embedded_milvus
+        self, repo_config, caplog
     ):
         # Creating a common schema for collection which is compatible with FEAST
         feast_schema = [
@@ -323,7 +324,7 @@ class TestMilvusOnlineStore:
             assert utility.has_collection(self.collection_to_write) is False
 
     def test_milvus_update_delete_unavailable_collection(
-        self, repo_config, caplog, embedded_milvus
+        self, repo_config, caplog
     ):
         feast_schema = [
             Field(
