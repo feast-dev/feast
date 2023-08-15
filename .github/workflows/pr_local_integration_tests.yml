@@ -66,4 +66,4 @@ jobs:
           IS_TEST: "True"
           FEAST_LOCAL_ONLINE_CONTAINER: "True"
           FEAST_IS_LOCAL_TEST: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not gcs_registry and not s3_registry and not test_lambda_materialization and not test_snowflake_materialization" sdk/python/tests
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not gcs_registry and not s3_registry and not test_lambda_materialization and not test_snowflake_materialization and not milvus" sdk/python/tests
