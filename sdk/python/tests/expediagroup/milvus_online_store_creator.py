@@ -11,9 +11,9 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 class MilvusOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
-        self.container = DockerContainer("mbackes/milvus-lite:2.2.12").with_exposed_ports(
-            "19530"
-        )
+        self.container = DockerContainer(
+            "mbackes/milvus-lite:2.2.12"
+        ).with_exposed_ports("19530")
 
     def create_online_store(self) -> Dict[str, str]:
         self.container.start()
@@ -21,7 +21,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
             "Milvus Proxy successfully initialized and ready to serve!"
         )
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=20
+            container=self.container, predicate=log_string_to_wait_for, timeout=30
         )
         exposed_port = self.container.get_exposed_port("19530")
 
