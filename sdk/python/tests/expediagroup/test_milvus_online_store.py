@@ -47,8 +47,11 @@ def repo_config(embedded_milvus):
         project=PROJECT,
         provider=PROVIDER,
         online_store=MilvusOnlineStoreConfig(
-            alias=embedded_milvus["alias"], host=embedded_milvus["host"], port=embedded_milvus["port"],
-            username=embedded_milvus["username"], password=embedded_milvus["password"]
+            alias=embedded_milvus["alias"],
+            host=embedded_milvus["host"],
+            port=embedded_milvus["port"],
+            username=embedded_milvus["username"],
+            password=embedded_milvus["password"],
         ),
         offline_store=FileOfflineStoreConfig(),
         entity_key_serialization_version=2,
@@ -201,9 +204,7 @@ class TestMilvusOnlineStore:
                 or Collection(self.collection_to_write).schema == schema2
             )
 
-    def test_milvus_update_add_existing_collection(
-        self, repo_config, caplog
-    ):
+    def test_milvus_update_add_existing_collection(self, repo_config, caplog):
         # Creating a common schema for collection
         feast_schema = [
             Field(
@@ -263,9 +264,7 @@ class TestMilvusOnlineStore:
             assert utility.has_collection(self.collection_to_write) is True
             assert len(utility.list_collections()) == 1
 
-    def test_milvus_update_delete_collection(
-        self, repo_config, caplog
-    ):
+    def test_milvus_update_delete_collection(self, repo_config, caplog):
         # Creating a common schema for collection which is compatible with FEAST
         feast_schema = [
             Field(
@@ -323,9 +322,7 @@ class TestMilvusOnlineStore:
         with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is False
 
-    def test_milvus_update_delete_unavailable_collection(
-        self, repo_config, caplog
-    ):
+    def test_milvus_update_delete_unavailable_collection(self, repo_config, caplog):
         feast_schema = [
             Field(
                 name="feature1",
