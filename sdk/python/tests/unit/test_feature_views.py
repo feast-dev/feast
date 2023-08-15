@@ -181,7 +181,7 @@ def test_stream_feature_view_udfs():
     def pandas_udf(pandas_df):
         import pandas as pd
 
-        assert type(pandas_df) == pd.DataFrame
+        assert isinstance(pandas_df, pd.DataFrame)
         df = pandas_df.transform(lambda x: x + 10, axis=1)
         return df
 

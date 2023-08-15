@@ -114,6 +114,8 @@ AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
+    # uncomment below once Milvus implementation is complete
+    # "milvus": ({"type": "milvus"}, MilvusOnlineStoreCreator),
 }
 
 # Only configure Cloud DWH if running full integration tests

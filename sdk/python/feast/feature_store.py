@@ -1109,7 +1109,7 @@ class FeatureStore:
         set_usage_attribute("request_fv", bool(request_feature_views))
 
         # Check that the right request data is present in the entity_df
-        if type(entity_df) == pd.DataFrame:
+        if isinstance(entity_df, pd.DataFrame):
             if self.config.coerce_tz_aware:
                 entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for fv in request_feature_views:

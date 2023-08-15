@@ -63,11 +63,13 @@ class MilvusConnectionManager:
     def __enter__(self):
         # Connecting to Milvus
         logger.info(
-            f"Connecting to Milvus with alias {self.online_config.alias} and host {self.online_config.host} and default port {self.online_config.port}."
+            f"Connecting to Milvus with alias {self.online_config.alias} and host {self.online_config.host} and port {self.online_config.port}."
         )
         connections.connect(
+            alias=self.online_config.alias,
             host=self.online_config.host,
-            username=self.online_config.username,
+            port=self.online_config.port,
+            user=self.online_config.username,
             password=self.online_config.password,
             use_secure=True,
         )
@@ -158,9 +160,7 @@ class MilvusOnlineStore(VectorOnlineStore):
         tables: Sequence[VectorFeatureView],
         entities: Sequence[Entity],
     ):
-        raise NotImplementedError(
-            "to be implemented in https://jira.expedia.biz/browse/EAPC-7974"
-        )
+        pass
 
     def _convert_featureview_schema_to_milvus_readable(
         self, feast_schema: List[Field], vector_field, vector_field_dimensions

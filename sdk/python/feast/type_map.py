@@ -745,7 +745,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
     # TODO: Find better way of doing this.
-    if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
+    if not isinstance(spark_type_as_str, str) or spark_type_as_str not in type_map:
         return ValueType.NULL
     return type_map[spark_type_as_str.lower()]
 
