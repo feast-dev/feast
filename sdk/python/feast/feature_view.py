@@ -85,10 +85,9 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    online_source_config: Optional[Any]
     entity_columns: List[Field]
     features: List[Field]
-    online: bool
+    online: Optional[str]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -103,7 +102,7 @@ class FeatureView(BaseFeatureView):
         schema: Optional[List[Field]] = None,
         entities: List[Entity] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
-        online: Union[bool, DataSource] = True,
+        online: Optional[str] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -208,12 +207,8 @@ class FeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
-        if isinstance(online, bool):
-            self.online = online
-            warnings.warn(f"FeatureView {self.name} is missing a defined online_store",UserWarning)
-        else:
-            self.online = True
-            self.online_source_config = online
+
+        self.online = online
         self.materialization_intervals = []
 
     def __hash__(self):
@@ -335,12 +330,6 @@ class FeatureView(BaseFeatureView):
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
-        online_source_proto = None
-        if self.online_source_config:
-            online_source_proto = self.online_source_config.to_proto()
-            online_source_proto.data_source_class_type = f"{self.online_source_config.__class__.__module__}.{self.online_source_config.__class__.__name__}"
-
-
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -350,10 +339,9 @@ class FeatureView(BaseFeatureView):
             tags=self.tags,
             owner=self.owner,
             ttl=(ttl_duration if ttl_duration is not None else None),
-            online=self.online,
+            online_source=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
-            online_source_proto=online_source_proto
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -395,11 +383,6 @@ class FeatureView(BaseFeatureView):
             if feature_view_proto.spec.HasField("stream_source")
             else None
         )
-        online_source = (
-            DataSource.from_proto(feature_view_proto.spec.online_source)
-            if feature_view_proto.spec.HasField("online_source")
-            else None
-        )
 
 
         feature_view = cls(
@@ -407,7 +390,7 @@ class FeatureView(BaseFeatureView):
             description=feature_view_proto.spec.description,
             tags=dict(feature_view_proto.spec.tags),
             owner=feature_view_proto.spec.owner,
-            online=online_source or feature_view_proto.spec.online,
+            online=feature_view_proto.spec.online_source,
             ttl=(
                 timedelta(days=0)
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0

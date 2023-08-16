@@ -72,8 +72,8 @@ message FeatureViewSpec {
     DataSource batch_source = 7;
     // Streaming DataSource from where this view can consume "online" feature data.
     DataSource stream_source = 9;
-    // Online DataSource which can find and rehydrate online features [DISCORD]
-    DataSource online_source = 4701;
+    // Online source name [DISCORD]
+    string online_source = 4701;
 
     // Whether these features should be served online or not
     bool online = 8;
