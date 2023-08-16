@@ -111,10 +111,9 @@ class FeatureViewSpec(google.protobuf.message.Message):
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
         pass
-    @property
-    def online_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Online DataSource which can find and rehydrate online features [DISCORD]"""
-        pass
+    online_source: typing.Text = ...
+    """Online source name [DISCORD]"""
+
     online: builtins.bool = ...
     """Whether these features should be served online or not"""
 
@@ -131,10 +130,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         ttl : typing.Optional[google.protobuf.duration_pb2.Duration] = ...,
         batch_source : typing.Optional[feast.core.DataSource_pb2.DataSource] = ...,
         stream_source : typing.Optional[feast.core.DataSource_pb2.DataSource] = ...,
-        online_source : typing.Optional[feast.core.DataSource_pb2.DataSource] = ...,
+        online_source : typing.Text = ...,
         online : builtins.bool = ...,
         ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source",b"batch_source","online_source",b"online_source","stream_source",b"stream_source","ttl",b"ttl"]) -> builtins.bool: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source",b"batch_source","stream_source",b"stream_source","ttl",b"ttl"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing_extensions.Literal["batch_source",b"batch_source","description",b"description","entities",b"entities","entity_columns",b"entity_columns","features",b"features","name",b"name","online",b"online","online_source",b"online_source","owner",b"owner","project",b"project","stream_source",b"stream_source","tags",b"tags","ttl",b"ttl"]) -> None: ...
 global___FeatureViewSpec = FeatureViewSpec
 
