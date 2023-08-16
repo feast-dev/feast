@@ -198,7 +198,7 @@ class MilvusOnlineStore(OnlineStore):
                 if is_vector:
                     dimensions = int(field.tags.get("dimensions", "0"))
 
-                    if dimensions <= 0:
+                    if dimensions <= 0 or dimensions >= 32768:
                         logger.error(
                             f"invalid value for dimensions: {dimensions} set for field: {field_name}"
                         )
