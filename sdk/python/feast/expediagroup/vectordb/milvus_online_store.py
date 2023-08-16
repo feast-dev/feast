@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
 from pydantic.typing import Literal
 from pymilvus import (
     Collection,
@@ -91,9 +92,15 @@ class MilvusOnlineStore(VectorOnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        raise NotImplementedError(
-            "to be implemented in https://jira.expedia.biz/browse/EAPC-7971"
-        )
+        with MilvusConnectionManager(config.online_store):
+            try:
+                entities = self._format_data_for_milvus(data)
+                collection_to_load_data = Collection(table.name)
+                collection_to_load_data.insert(entities)
+                #  The flush call will seal any remaining segments and send them for indexing
+                collection_to_load_data.flush()
+            except Exception as e:
+                logger.error(f"Batch writing data failed due to {e}")
 
     def online_read(
         self,
@@ -123,6 +130,7 @@ class MilvusOnlineStore(VectorOnlineStore):
                     if collection_available:
                         logger.info(f"Collection {table_to_keep.name} already exists.")
                     else:
+                        # TODO: Enable dynamic schema option
                         schema = self._convert_featureview_schema_to_milvus_readable(
                             table_to_keep.schema,
                             table_to_keep.vector_field,
@@ -230,3 +238,49 @@ class MilvusOnlineStore(VectorOnlineStore):
             # TODO: Need to think about list of binaries and list of bytes
             # FeastType.BYTES_LIST: DataType.BINARY_VECTOR
         }.get(feast_type, None)
+
+    def _format_data_for_milvus(self, feast_data):
+        """
+        Data stored into Milvus takes the grouped representation approach where each feature value is grouped together:
+        [[1,2], [1,3]], [John, Lucy], [3,4]]
+
+        Parameters:
+        feast_data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]: Data represented for batch write in Feast
+
+        Returns:
+        List[List]: transformed_data: Data that can be directly written into Milvus
+        """
+
+        milvus_data = []
+        for entity_key, values, timestamp, created_ts in feast_data:
+            feature = []
+            for feature_name, val in values.items():
+                val_type = val.WhichOneof("val")
+                if val_type == "float_list_val":
+                    float_list = val.float_list_val.val
+                    final_float_list = np.array(float_list)
+                    feature.append(final_float_list)
+                # TODO: Test out binary lists
+                if val_type == "biinary_list_val":
+                    binary_list = val.binary_list_val.val
+                    feature.append(binary_list)
+                if val_type == "string_val":
+                    string_val = val.string_val
+                    feature.append(string_val)
+                if val_type == "int32_val":
+                    int32_val = val.int32_val
+                    feature.append(int32_val)
+                if val_type == "int64_val":
+                    int64_val = val.int64_val
+                    feature.append(int64_val)
+                if val_type == "bytes_val":
+                    bytes_val = val.bytes_val
+                    feature.append(bytes_val)
+                if val_type == "float_val":
+                    float_val = val.float_val
+                    feature.append(float_val)
+            milvus_data.append(feature)
+
+        transformed_data = [list(item) for item in zip(*milvus_data)]
+        return transformed_data
