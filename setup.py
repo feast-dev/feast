@@ -40,7 +40,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm92"
+VERSION = "0.28+affirm117"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -228,7 +228,7 @@ AFFIRM_REQUIRED = [
     "pandas>=1,<2",
     "protobuf",
     "proto-plus",
-    "PyYAML>=5.3.1",
+    "PyYAML>=5.1.2",
     "uvicorn[standard]",
     "tensorflow-metadata",
     "dask==2021.12.0",

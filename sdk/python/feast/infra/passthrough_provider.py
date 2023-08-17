@@ -191,6 +191,20 @@ class PassthroughProvider(Provider):
         return result
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+    ) -> bool:
+        set_usage_attribute("provider", self.__class__.__name__)
+        if self.online_store:
+            return self.online_store.online_delete(
+                config, table, entity_keys
+            )
+        return False
+
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read_many(
         self,
         config: RepoConfig,

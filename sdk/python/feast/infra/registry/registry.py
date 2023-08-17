@@ -88,13 +88,13 @@ class FeastObjectType(Enum):
             FeastObjectType.ENTITY: registry.list_entities(project=project),
             FeastObjectType.FEATURE_VIEW: registry.list_feature_views(project=project),
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: registry.list_on_demand_feature_views(
-                project=project
+                project=project, ignore_udfs=True
             ),
             FeastObjectType.REQUEST_FEATURE_VIEW: registry.list_request_feature_views(
                 project=project
             ),
             FeastObjectType.STREAM_FEATURE_VIEW: registry.list_stream_feature_views(
-                project=project,
+                project=project, ignore_udfs=True
             ),
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
                 project=project
@@ -176,7 +176,13 @@ class Registry(BaseRegistry):
     ) -> Optional[bytes]:
         pass
 
-    # The cached_registry_proto object is used for both reads and writes. In particular,
+    def enter_apply_context(self):
+        pass
+
+    def exit_apply_context(self):
+        pass
+
+        # The cached_registry_proto object is used for both reads and writes. In particular,
     # all write operations refresh the cache and modify it in memory; the write must
     # then be persisted to the underlying RegistryStore with a call to commit().
     cached_registry_proto: Optional[RegistryProto] = None

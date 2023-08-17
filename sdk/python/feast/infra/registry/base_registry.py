@@ -40,6 +40,14 @@ class BaseRegistry(ABC):
     feature views, and data sources).
     """
 
+    @abstractmethod
+    def enter_apply_context(self):
+        pass
+
+    @abstractmethod
+    def exit_apply_context(self):
+        pass
+
     # Entity operations
     @abstractmethod
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -248,7 +256,7 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False,
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -256,7 +264,8 @@ class BaseRegistry(ABC):
         Args:
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
-
+            ignore_udfs: Whether a feast apply operation is being executed. Determines whether environment
+                sensitive commands, such as dill.loads(), are skipped and 'None' is set as their results.
         Returns:
             List of stream feature views
         """
@@ -281,7 +290,7 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False, ignore_udfs: bool = False
     ) -> List[OnDemandFeatureView]:
         """
         Retrieve a list of on demand feature views from the registry
@@ -289,7 +298,8 @@ class BaseRegistry(ABC):
         Args:
             project: Filter on demand feature views based on project name
             allow_cache: Whether to allow returning on demand feature views from a cached registry
-
+            ignore_udfs: Whether a feast apply operation is being executed. Determines whether environment
+                         sensitive commands, such as dill.loads(), are skipped and 'None' is set as their results.
         Returns:
             List of on demand feature views
         """

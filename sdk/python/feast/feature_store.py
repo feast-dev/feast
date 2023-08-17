@@ -20,7 +20,6 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -96,18 +95,12 @@ from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.type_map import (
-    feast_value_type_to_python_type,
-    python_values_to_proto_values,
-)
+from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
-
-if TYPE_CHECKING:
-    from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
 
 
 # decorator needed to use lru_cache with list arguments in `FeatureStore._get_feature_views_to_use()`
@@ -128,14 +121,12 @@ class FeatureStore:
         repo_path: The path to the feature repo.
         _registry: The registry for the feature store.
         _provider: The provider for the feature store.
-        _go_server: The (optional) Go feature server for the feature store.
     """
 
     config: RepoConfig
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     @log_exceptions
     def __init__(
@@ -184,7 +175,6 @@ class FeatureStore:
             self._registry = r
 
         self._provider = get_provider(self.config)
-        self._go_server = None
 
     @log_exceptions
     def version(self) -> str:
@@ -1022,11 +1012,6 @@ x
 
         self._registry.commit()
 
-        # go server needs to be reloaded to apply new configuration.
-        # we're stopping it here
-        # new server will be instantiated on the next online request
-        self._teardown_go_server()
-
     @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
@@ -1039,7 +1024,6 @@ x
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
-        self._teardown_go_server()
 
     @log_exceptions_and_usage
     def get_historical_features(
@@ -1641,18 +1625,6 @@ x
             allow_registry_cache=allow_registry_cache,
         )
 
-    def _lazy_init_go_server(self):
-        """Lazily initialize self._go_server if it hasn't been initialized before."""
-        from feast.embedded_go.online_features_service import (
-            EmbeddedOnlineFeatureServer,
-        )
-
-        # Lazily start the go server on the first request
-        if self._go_server is None:
-            self._go_server = EmbeddedOnlineFeatureServer(
-                str(self.repo_path.absolute()), self.config, self
-            )
-
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1668,35 +1640,6 @@ x
             k: list(v) if isinstance(v, Sequence) else list(v.val)
             for k, v in entity_values.items()
         }
-
-        # If the embedded Go code is enabled, send request to it instead of going through regular Python logic.
-        if self.config.go_feature_retrieval and self._go_server:
-            self._lazy_init_go_server()
-
-            entity_native_values: Dict[str, List[Any]]
-            if not native_entity_values:
-                # Convert proto types to native types since Go feature server currently
-                # only handles native types.
-                # TODO(felixwang9817): Remove this logic once native types are supported.
-                entity_native_values = {
-                    k: [
-                        feast_value_type_to_python_type(proto_value)
-                        for proto_value in v
-                    ]
-                    for k, v in entity_value_lists.items()
-                }
-            else:
-                entity_native_values = entity_value_lists
-
-            return self._go_server.get_online_features(
-                features_refs=features if isinstance(features, list) else [],
-                feature_service=features
-                if isinstance(features, FeatureService)
-                else None,
-                entities=entity_native_values,
-                request_data={},  # TODO: add request data parameter to public API
-                full_feature_names=full_feature_names,
-            )
 
         _feature_refs = self._get_features(features, allow_cache=allow_registry_cache)
         (
@@ -2412,45 +2355,12 @@ x
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_serving and self._go_server:
-            # Start go server instead of python if the flag is enabled
-            self._lazy_init_go_server()
-            enable_logging = (
-                self.config.feature_server
-                and self.config.feature_server.feature_logging
-                and self.config.feature_server.feature_logging.enabled
-                and not no_feature_log
+        if type_ != "http":
+            raise ValueError(
+                f"Python server only supports 'http'. Got '{type_}' instead."
             )
-            logging_options = (
-                self.config.feature_server.feature_logging
-                if enable_logging and self.config.feature_server
-                else None
-            )
-            if type_ == "http":
-                self._go_server.start_http_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            elif type_ == "grpc":
-                self._go_server.start_grpc_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            else:
-                raise ValueError(
-                    f"Unsupported server type '{type_}'. Must be one of 'http' or 'grpc'."
-                )
-        else:
-            if type_ != "http":
-                raise ValueError(
-                    f"Python server only supports 'http'. Got '{type_}' instead."
-                )
-            # Start the python server if go server isn't enabled
-            feature_server.start_server(self, host, port, no_access_log)
+        # Start the python server
+        feature_server.start_server(self, host, port, no_access_log)
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -2495,9 +2405,6 @@ x
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
-
-    def _teardown_go_server(self):
-        self._go_server = None
 
     @log_exceptions_and_usage
     def write_logged_features(

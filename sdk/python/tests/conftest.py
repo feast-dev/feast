@@ -81,13 +81,6 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
     config.addinivalue_line(
-        "markers", "goserver: mark tests that use the go feature server"
-    )
-    config.addinivalue_line(
-        "markers",
-        "universal_online_stores: mark tests that can be run against different online stores",
-    )
-    config.addinivalue_line(
         "markers",
         "universal_offline_stores: mark tests that can be run against different offline stores",
     )
@@ -106,18 +99,10 @@ def pytest_addoption(parser):
         default=False,
         help="Run benchmark tests",
     )
-    parser.addoption(
-        "--goserver",
-        action="store_true",
-        default=False,
-        help="Run tests that use the go feature server",
-    )
-
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
-    should_run_goserver = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -135,15 +120,6 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     else:
         items.clear()
         for t in benchmark_tests:
-            items.append(t)
-
-    goserver_tests = [t for t in items if "goserver" in t.keywords]
-    if not should_run_goserver:
-        for t in goserver_tests:
-            items.remove(t)
-    else:
-        items.clear()
-        for t in goserver_tests:
             items.append(t)
 
 
@@ -276,9 +252,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                 ]
             )
 
-        if "goserver" in markers:
-            extra_dimensions.append({"go_feature_serving": True})
-
         configs = []
         if offline_stores:
             for provider, offline_store_creator in offline_stores:
@@ -291,12 +264,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             "online_store_creator": online_store_creator,
                             **dim,
                         }
-                        # temporary Go works only with redis
-                        if config.get("go_feature_serving") and (
-                            not isinstance(online_store, dict)
-                            or online_store["type"] != "redis"
-                        ):
-                            continue
 
                         # aws lambda works only with dynamo
                         if (

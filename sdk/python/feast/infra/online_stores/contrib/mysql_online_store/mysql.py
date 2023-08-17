@@ -259,6 +259,37 @@ class MySQLOnlineStore(OnlineStore):
         self._close_conn(raw_conn, conn_type)
         return result
 
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+    ) -> bool:
+        raw_conn, conn_type = self._get_conn(config, readonly=True)
+        conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
+        corresponding_records_deleted = True
+
+        with conn.cursor() as cur:
+            project = config.project
+            for entity_key in entity_keys:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=2,
+                ).hex()
+                query = f"DELETE FROM {_table_id(project, table)} WHERE entity_key = %s"
+                query_executed = self._execute_query_with_retry(
+                    cur=cur,
+                    conn=conn,
+                    query=query,
+                    values=(entity_key_bin,),
+                    retries=MYSQL_READ_RETRIES)
+
+                if not query_executed:
+                    corresponding_records_deleted = False
+                    logging.error(f'Skipping delete for (entity, table)): ({entity_key}, {_table_id(project, table)})')
+        self._close_conn(raw_conn, conn_type)
+        return corresponding_records_deleted
+
     def online_read_many(self,
             config: RepoConfig,
             table_list: List[FeatureView],
