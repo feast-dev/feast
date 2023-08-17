@@ -13,7 +13,6 @@ from typeguard import typechecked
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import RequestSource
-from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
@@ -516,7 +515,7 @@ def on_demand_feature_view(
             FeatureViewProjection,
         ]
     ],
-    mode: str = "python",
+    mode: str = "pandas",
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",

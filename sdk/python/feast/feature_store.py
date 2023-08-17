@@ -39,7 +39,6 @@ import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
 
 from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView

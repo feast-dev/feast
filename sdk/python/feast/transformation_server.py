@@ -47,8 +47,8 @@ class TransformationServer(TransformationServiceServicer):
 
         df = pa.ipc.open_file(request.transformation_input.arrow_value).read_pandas()
 
-        if odfv.mode == 'python':
-            raise Exception(f'OnDemandFeatureView mode "python" not supported by TransformationServer.')
+        if odfv.mode != 'pandas':
+            raise Exception(f'OnDemandFeatureView mode "{odfv.mode}" not supported by TransformationServer.')
 
         result_df = odfv.get_transformed_features_df(df, True)
         result_arrow = pa.Table.from_pandas(result_df)
