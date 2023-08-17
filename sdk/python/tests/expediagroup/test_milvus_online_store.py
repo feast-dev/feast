@@ -171,6 +171,8 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": 10,
                     "index_type": IndexType.hnsw.value,
+                    "m": 32,
+                    "efConstruction": 256,
                 },
             ),
         ]
@@ -223,6 +225,11 @@ class TestMilvusOnlineStore:
             ],
         )
 
+        index_params = {
+            "metric_type": "L2",
+            "index_type": "HNSW",
+            "params": {"M": 32, "efConstruction": 256},
+        }
         # Here we want to open and check whether the collection was added and then close the connection.
         with MilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write)
@@ -230,6 +237,9 @@ class TestMilvusOnlineStore:
                 Collection(self.collection_to_write).schema == schema1
                 or Collection(self.collection_to_write).schema == schema2
             )
+            indexes = Collection(self.collection_to_write).indexes
+            assert len(indexes) == 1
+            assert indexes[0].params == index_params
 
     def test_milvus_update_add_existing_collection(self, repo_config, caplog):
         # Creating a common schema for collection
@@ -242,6 +252,8 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": IndexType.hnsw.value,
+                    "M": 32,
+                    "efConstruction": 256,
                 },
             ),
             Field(
@@ -418,13 +430,13 @@ class TestMilvusOnlineStore:
             }
             collection.create_index("avg_orders_day", index_params)
 
-        vectorFeatureView = FeatureView(
+        feature_view = FeatureView(
             name=self.collection_to_write,
             source=SOURCE,
         )
 
         MilvusOnlineStore().online_write_batch(
-            config=repo_config, table=vectorFeatureView, data=data, progress=None
+            config=repo_config, table=feature_view, data=data, progress=None
         )
 
         with MilvusConnectionManager(repo_config.online_store):

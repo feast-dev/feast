@@ -296,7 +296,12 @@ def create_pushable_feature_view(batch_source: DataSource):
 
 def create_vector_feature_view(source):
     driver_entity = driver()
-    vector_tags = {"dimensions": 50, "index_type": "hnsw"}
+    vector_tags = {
+        "dimensions": 50,
+        "index_type": "hnsw",
+        "M": 32,
+        "efConstruction": 256,
+    }
     vector_feature_view = FeatureView(
         name="driver_profile",
         entities=[driver_entity],
