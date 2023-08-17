@@ -11,13 +11,13 @@ from pymilvus import (
     utility,
 )
 
+from feast import FeatureView
 from feast.expediagroup.vectordb.index_type import IndexType
 from feast.expediagroup.vectordb.milvus_online_store import (
     MilvusConnectionManager,
     MilvusOnlineStore,
     MilvusOnlineStoreConfig,
 )
-from feast.expediagroup.vectordb.vector_feature_view import VectorFeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
@@ -166,7 +166,12 @@ class TestMilvusOnlineStore:
             Field(
                 name="feature1",
                 dtype=Array(Float32),
-                tags={"is_primary": "False", "description": "float32"},
+                tags={
+                    "is_primary": "False",
+                    "description": "float32",
+                    "dimensions": 10,
+                    "index_type": IndexType.hnsw.value,
+                },
             ),
         ]
 
@@ -174,13 +179,10 @@ class TestMilvusOnlineStore:
             config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
-                VectorFeatureView(
+                FeatureView(
                     name=self.collection_to_write,
                     schema=feast_schema,
                     source=SOURCE,
-                    vector_field=VECTOR_FIELD,
-                    dimensions=DIMENSIONS,
-                    index_algorithm=INDEX_ALGO,
                 )
             ],
             entities_to_delete=None,
@@ -223,7 +225,7 @@ class TestMilvusOnlineStore:
 
         # Here we want to open and check whether the collection was added and then close the connection.
         with MilvusConnectionManager(repo_config.online_store):
-            assert utility.has_collection(self.collection_to_write) is True
+            assert utility.has_collection(self.collection_to_write)
             assert (
                 Collection(self.collection_to_write).schema == schema1
                 or Collection(self.collection_to_write).schema == schema2
@@ -239,6 +241,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
+                    "index_type": IndexType.hnsw.value,
                 },
             ),
             Field(
@@ -270,13 +273,10 @@ class TestMilvusOnlineStore:
             config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
-                VectorFeatureView(
+                FeatureView(
                     name=self.collection_to_write,
                     schema=feast_schema,
                     source=SOURCE,
-                    vector_field=VECTOR_FIELD,
-                    dimensions=DIMENSIONS,
-                    index_algorithm=INDEX_ALGO,
                 )
             ],
             entities_to_delete=None,
@@ -299,6 +299,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
+                    "index_type": IndexType.hnsw.value,
                 },
             ),
             Field(
@@ -328,13 +329,10 @@ class TestMilvusOnlineStore:
         MilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[
-                VectorFeatureView(
+                FeatureView(
                     name=self.collection_to_write,
                     schema=feast_schema,
                     source=SOURCE,
-                    vector_field=VECTOR_FIELD,
-                    dimensions=DIMENSIONS,
-                    index_algorithm=INDEX_ALGO,
                 )
             ],
             tables_to_keep=[],
@@ -356,6 +354,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
+                    "index_type": IndexType.hnsw.value,
                 },
             ),
             Field(
@@ -368,13 +367,10 @@ class TestMilvusOnlineStore:
         MilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[
-                VectorFeatureView(
+                FeatureView(
                     name=self.unavailable_collection,
                     schema=feast_schema,
                     source=SOURCE,
-                    vector_field=VECTOR_FIELD,
-                    dimensions=DIMENSIONS,
-                    index_algorithm=INDEX_ALGO,
                 )
             ],
             tables_to_keep=[],

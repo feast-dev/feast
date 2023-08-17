@@ -572,7 +572,6 @@ def test_write_vectors_to_online_store(environment, universal_data_sources):
     driver_daily_stats = create_vector_feature_view(data_sources.customer)
     driver_entity = driver()
 
-    print("running apply at: " + time.strftime("%H:%M:%S", time.localtime()))
     # Register Feature View and Entity
     fs.apply([driver_daily_stats, driver_entity])
 
