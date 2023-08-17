@@ -418,12 +418,9 @@ class TestMilvusOnlineStore:
             }
             collection.create_index("avg_orders_day", index_params)
 
-        vectorFeatureView = VectorFeatureView(
+        vectorFeatureView = FeatureView(
             name=self.collection_to_write,
             source=SOURCE,
-            vector_field="avg_orders_day",
-            dimensions=DIMENSIONS,
-            index_algorithm=IndexType.flat,
         )
 
         MilvusOnlineStore().online_write_batch(
