@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
 from pydantic.typing import Literal
 from pymilvus import (
     Collection,
@@ -93,9 +94,15 @@ class MilvusOnlineStore(VectorOnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        raise NotImplementedError(
-            "to be implemented in https://jira.expedia.biz/browse/EAPC-7971"
-        )
+        with MilvusConnectionManager(config.online_store):
+            try:
+                rows = self._format_data_for_milvus(data)
+                collection_to_load_data = Collection(table.name)
+                collection_to_load_data.insert(rows)
+                #  The flush call will seal any remaining segments and send them for indexing
+                collection_to_load_data.flush()
+            except Exception as e:
+                logger.error(f"Batch writing data failed due to {e}")
 
     def online_read(
         self,
@@ -230,3 +237,31 @@ class MilvusOnlineStore(VectorOnlineStore):
             # TODO: Need to think about list of binaries and list of bytes
             # FeastType.BYTES_LIST: DataType.BINARY_VECTOR
         }.get(feast_type, None)
+
+    def _format_data_for_milvus(self, feast_data):
+        """
+        Data stored into Milvus takes the grouped representation approach where each feature value is grouped together:
+        [[1,2], [1,3]], [John, Lucy], [3,4]]
+
+        Parameters:
+        feast_data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]: Data represented for batch write in Feast
+
+        Returns:
+        List[List]: transformed_data: Data that can be directly written into Milvus
+        """
+
+        milvus_data = []
+        for entity_key, values, timestamp, created_ts in feast_data:
+            feature = []
+            for feature_name, val in values.items():
+                val_type = val.WhichOneof("val")
+                value = getattr(val, val_type)
+                if val_type == "float_list_val":
+                    value = np.array(value.val)
+                # TODO: Check binary vector conversion
+                feature.append(value)
+            milvus_data.append(feature)
+
+        transformed_data = [list(item) for item in zip(*milvus_data)]
+        return transformed_data

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import pytest
 from pymilvus import (
@@ -20,6 +21,9 @@ from feast.expediagroup.vectordb.vector_feature_view import VectorFeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Float32, Int64
 from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
@@ -130,6 +134,27 @@ class TestMilvusOnlineStore:
             # Closing the temporary collection to do this
 
         yield
+
+    def create_n_customer_test_samples_milvus(self, n=10):
+        # Utility method to create sample data
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["customer"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "avg_orders_day": ValueProto(
+                        float_list_val=FloatList(val=[1.0, 2.1, 3.3, 4.0, 5.0])
+                    ),
+                    "name": ValueProto(string_val="John"),
+                    "age": ValueProto(int64_val=3),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
 
     def test_milvus_update_add_collection(self, repo_config, caplog):
         feast_schema = [
@@ -360,3 +385,56 @@ class TestMilvusOnlineStore:
 
         with MilvusConnectionManager(repo_config.online_store):
             assert len(utility.list_collections()) == 0
+
+    def test_milvus_online_write_batch(self, repo_config, caplog):
+
+        total_rows_to_write = 100
+
+        data = self.create_n_customer_test_samples_milvus(n=total_rows_to_write)
+
+        # Creating a common schema for collection to directly add to Milvus
+        milvus_schema = CollectionSchema(
+            fields=[
+                FieldSchema(
+                    "avg_orders_day", DataType.FLOAT_VECTOR, is_primary=False, dim=5
+                ),
+                FieldSchema(
+                    "name",
+                    DataType.VARCHAR,
+                    description="string",
+                    is_primary=True,
+                    max_length=256,
+                ),
+                FieldSchema("age", DataType.INT64, is_primary=False),
+            ]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            # Create a collection
+            collection = Collection(name=self.collection_to_write, schema=milvus_schema)
+            # Drop all indexes if any exists
+            collection.drop_index()
+            # Create a new index
+            index_params = {
+                "metric_type": "L2",
+                "index_type": "IVF_FLAT",
+                "params": {"nlist": 1024},
+            }
+            collection.create_index("avg_orders_day", index_params)
+
+        vectorFeatureView = VectorFeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+            vector_field="avg_orders_day",
+            dimensions=DIMENSIONS,
+            index_algorithm=IndexType.flat,
+        )
+
+        MilvusOnlineStore().online_write_batch(
+            config=repo_config, table=vectorFeatureView, data=data, progress=None
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            collection = Collection(name=self.collection_to_write)
+            progress = utility.index_building_progress(collection_name=collection.name)
+            assert progress["total_rows"] == total_rows_to_write
