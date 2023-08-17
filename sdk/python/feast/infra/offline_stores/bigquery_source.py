@@ -138,7 +138,7 @@ class BigQuerySource(DataSource):
             from google.api_core.exceptions import NotFound
             from google.cloud import bigquery
 
-            client = bigquery.Client()
+            client = bigquery.Client(project=config.offline_store.billing_project_id or config.offline_store.project_id)
             try:
                 client.get_table(self.table)
             except NotFound:
