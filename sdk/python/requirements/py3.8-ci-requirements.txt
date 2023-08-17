@@ -228,7 +228,7 @@ firebase-admin==5.4.0
     # via feast (setup.py)
 fissix==21.11.13
     # via bowler
-flake8==6.1.0
+flake8==6.0.0
     # via feast (setup.py)
 fqdn==1.5.1
     # via jsonschema
@@ -701,7 +701,7 @@ pyasn1-modules==0.3.0
     # via google-auth
 pybindgen==0.22.1
     # via feast (setup.py)
-pycodestyle==2.11.0
+pycodestyle==2.10.0
     # via flake8
 pycparser==2.21
     # via cffi
@@ -712,7 +712,7 @@ pydantic==1.10.12
     #   fastapi
     #   feast (setup.py)
     #   great-expectations
-pyflakes==3.1.0
+pyflakes==3.0.1
     # via flake8
 pygments==2.16.1
     # via
