@@ -13,10 +13,9 @@ from pymilvus import (
     connections,
     utility,
 )
-from pymilvus.client.types import IndexType as MilvusIndexType
+from pymilvus.client.types import IndexType
 
 from feast import Entity, FeatureView, RepoConfig
-from feast.expediagroup.vectordb.index_type import IndexType
 from feast.field import Field
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -203,7 +202,10 @@ class MilvusOnlineStore(OnlineStore):
             is_vector = False
             dimensions = 0
 
-            if self._data_type_is_supported_vector(data_type):
+            if (
+                self._data_type_is_supported_vector(data_type)
+                and "index_type" in field.tags
+            ):
                 is_vector = True
 
             if field.tags:
@@ -216,25 +218,19 @@ class MilvusOnlineStore(OnlineStore):
                     dimensions = int(field.tags.get("dimensions", "0"))
 
                     if dimensions <= 0 or dimensions >= 32768:
-                        logger.error(
-                            f"invalid value for dimensions: {dimensions} set for field: {field_name}"
-                        )
+                        msg = f"invalid value for dimensions: {dimensions} set for field: {field_name}"
+                        logger.error(msg)
+                        raise ValueError(msg)
 
-                    index_type_from_tag = field.tags.get("index_type")
-                    index_type = IndexType(index_type_from_tag).milvus_index_type
-
-                    if index_type == MilvusIndexType.INVALID:
-                        logger.error(f"invalid index type: {index_type_from_tag}")
                     else:
                         try:
-                            index_params = self._create_index_params(
-                                index_type, field.tags, data_type
-                            )
+                            index_params = self._create_index_params(field.tags)
                             indexes[field_name] = index_params
-                        except TypeError as e:
+                        except ValueError as e:
                             logger.error(
                                 f"Could not create index for field: {field_name}.", e
                             )
+                            raise e
 
             # Appending the above converted values to construct a FieldSchema
             field_list.append(
@@ -317,9 +313,7 @@ class MilvusOnlineStore(OnlineStore):
         transformed_data = [list(item) for item in zip(*milvus_data)]
         return transformed_data
 
-    def _create_index_params(
-        self, index_type: MilvusIndexType, tags: Dict[str, str], data_type: DataType
-    ):
+    def _create_index_params(self, tags: Dict[str, str], data_type: DataType):
         """
         Parses the tags to generate the index_params needed to create the specified index
 
@@ -331,6 +325,27 @@ class MilvusOnlineStore(OnlineStore):
         Returns:
             (Dict): a dictionary formatted for the create_index params argument
         """
+        valid_indexes = IndexType._member_map_
+        index_type_tag = tags.get("index_type").upper().strip("BIN_")
+
+        index_type = (
+            IndexType[index_type_tag]
+            if index_type_tag in valid_indexes
+            else IndexType.INVALID
+        )
+        if index_type == IndexType.INVALID:
+            raise ValueError(f"Invalid index type: {index_type}")
+
+        if data_type is DataType.BINARY_VECTOR:
+            if index_type in [
+                IndexType.IVFLAT,
+                IndexType.FLAT,
+            ]:
+                index_type_name = "BIN_" + index_type.name
+            else:
+                raise ValueError(f"invalid index type for binary vector: {index_type}")
+        else:
+            index_type_name = index_type.name
 
         params = {}
         if "index_params" in tags:
@@ -340,14 +355,8 @@ class MilvusOnlineStore(OnlineStore):
         if "metric_type" in tags:
             metric_type = tags["metric_type"]
 
-        index_name = index_type.name
-        if data_type is DataType.BINARY_VECTOR:
-            if index_type in [
-                MilvusIndexType.IVFLAT,
-                MilvusIndexType.FLAT,
-            ]:
-                index_name = f"BIN_{index_name}"
-            else:
-                raise TypeError(f"invalid index type for binary vector: {index_name}")
-
-        return {"metric_type": metric_type, "index_type": index_name, "params": params}
+        return {
+            "metric_type": metric_type,
+            "index_type": index_type_name,
+            "params": params,
+        }

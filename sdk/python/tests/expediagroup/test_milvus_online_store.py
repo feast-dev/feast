@@ -12,7 +12,6 @@ from pymilvus import (
 )
 
 from feast import FeatureView
-from feast.expediagroup.vectordb.index_type import IndexType
 from feast.expediagroup.vectordb.milvus_online_store import (
     MilvusConnectionManager,
     MilvusOnlineStore,
@@ -41,7 +40,7 @@ ALIAS = "default"
 SOURCE = FileSource(path="some path")
 VECTOR_FIELD = "feature1"
 DIMENSIONS = 10
-INDEX_ALGO = IndexType.flat
+INDEX_ALGO = "FLAT"
 
 
 @pytest.fixture(scope="session")
@@ -170,7 +169,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": 10,
-                    "index_type": IndexType.hnsw.value,
+                    "index_type": "HNSW",
                     "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
@@ -250,7 +249,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
-                    "index_type": IndexType.hnsw.value,
+                    "index_type": "HNSW",
                     "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
@@ -309,7 +308,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
-                    "index_type": IndexType.hnsw.value,
+                    "index_type": "HNSW",
                     "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
@@ -365,7 +364,7 @@ class TestMilvusOnlineStore:
                     "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
-                    "index_type": IndexType.hnsw.value,
+                    "index_type": "HNSW",
                     "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
