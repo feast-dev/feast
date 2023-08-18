@@ -84,6 +84,17 @@ test-python-integration-local:
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
+test-milvus-integration-local:
+	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		FEAST_IS_LOCAL_TEST=True \
+		FEAST_LOCAL_ONLINE_CONTAINER=True \
+		python -m pytest -n 8 --integration \
+			-k "milvus" \
+		sdk/python/tests \
+	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
+
 test-python-integration-container:
 	@(docker info > /dev/null 2>&1 && \
 		FEAST_USAGE=False \
