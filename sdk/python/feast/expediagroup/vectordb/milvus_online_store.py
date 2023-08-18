@@ -199,14 +199,7 @@ class MilvusOnlineStore(OnlineStore):
 
             field_name = field.name
             data_type = self._feast_to_milvus_data_type(field.dtype)
-            is_vector = False
             dimensions = 0
-
-            if (
-                self._data_type_is_supported_vector(data_type)
-                and "index_type" in field.tags
-            ):
-                is_vector = True
 
             if field.tags:
                 description = field.tags.get("description", " ")
@@ -214,7 +207,9 @@ class MilvusOnlineStore(OnlineStore):
                     field.tags.get("is_primary", "False")
                 )
 
-                if is_vector:
+                if self._data_type_is_supported_vector(data_type) and field.tags.get(
+                    "index_type"
+                ):
                     dimensions = int(field.tags.get("dimensions", "0"))
 
                     if dimensions <= 0 or dimensions >= 32768:
@@ -224,7 +219,9 @@ class MilvusOnlineStore(OnlineStore):
 
                     else:
                         try:
-                            index_params = self._create_index_params(field.tags, data_type)
+                            index_params = self._create_index_params(
+                                field.tags, data_type
+                            )
                             indexes[field_name] = index_params
                         except ValueError as e:
                             logger.error(
@@ -326,7 +323,7 @@ class MilvusOnlineStore(OnlineStore):
             (Dict): a dictionary formatted for the create_index params argument
         """
         valid_indexes = IndexType._member_map_
-        index_type_tag = tags.get("index_type").upper().strip("BIN_")
+        index_type_tag = tags.get("index_type", "").upper().strip("BIN_")
 
         index_type = (
             IndexType[index_type_tag]
