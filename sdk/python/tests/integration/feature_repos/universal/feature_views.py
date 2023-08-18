@@ -299,8 +299,8 @@ def create_vector_feature_view(source):
     vector_tags = {
         "dimensions": 50,
         "index_type": "hnsw",
-        "M": 32,
-        "efConstruction": 256,
+        "metric_type": "L2",
+        "index_params": '{ "M": 32, "efConstruction": 256}',
     }
     vector_feature_view = FeatureView(
         name="driver_profile",

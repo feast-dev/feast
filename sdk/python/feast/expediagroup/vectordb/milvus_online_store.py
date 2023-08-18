@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -230,7 +231,7 @@ class MilvusOnlineStore(OnlineStore):
                                 index_type, field.tags, data_type
                             )
                             indexes[field_name] = index_params
-                        except (KeyError, TypeError) as e:
+                        except TypeError as e:
                             logger.error(
                                 f"Could not create index for field: {field_name}.", e
                             )
@@ -332,39 +333,10 @@ class MilvusOnlineStore(OnlineStore):
         """
 
         params = {}
+        if "index_params" in tags:
+            params = json.loads(tags["index_params"])
+
         metric_type = "L2"
-
-        def get_required_from_tags(*keys):
-            for k in keys:
-                v = tags.get(k)
-                if v:
-                    return int(v)
-            raise KeyError(
-                f"tags are required to have one of {keys} for index_type {index_type.name}"
-            )
-
-        if index_type in [
-            MilvusIndexType.IVFLAT,
-            MilvusIndexType.IVF_SQ8,
-            MilvusIndexType.IVF_SQ8H,
-            MilvusIndexType.IVF_PQ,
-        ]:
-            params["nlist"] = get_required_from_tags("nlist", "n_list")
-
-        if index_type is MilvusIndexType.IVF_PQ:
-            params["m"] = get_required_from_tags("m", "M")
-            if "nbits" in tags or "n_bits" in tags:
-                params["nbits"] = get_required_from_tags("nbits", "n_bits")
-
-        if index_type is MilvusIndexType.HNSW:
-            params["M"] = get_required_from_tags("M", "m")
-            params["efConstruction"] = get_required_from_tags(
-                "efConstruction", "ef_construction", "ef"
-            )
-
-        if index_type is MilvusIndexType.ANNOY:
-            params["n_trees"] = get_required_from_tags("n_trees", "ntrees")
-
         if "metric_type" in tags:
             metric_type = tags["metric_type"]
 

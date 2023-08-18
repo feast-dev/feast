@@ -171,8 +171,7 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": 10,
                     "index_type": IndexType.hnsw.value,
-                    "m": 32,
-                    "efConstruction": 256,
+                    "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
         ]
@@ -252,8 +251,7 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": IndexType.hnsw.value,
-                    "M": 32,
-                    "efConstruction": 256,
+                    "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
             Field(
@@ -312,6 +310,7 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": IndexType.hnsw.value,
+                    "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
             Field(
@@ -367,6 +366,7 @@ class TestMilvusOnlineStore:
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": IndexType.hnsw.value,
+                    "index_params": '{ "M": 32, "efConstruction": 256}',
                 },
             ),
             Field(
