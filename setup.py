@@ -139,7 +139,6 @@ HAZELCAST_REQUIRED = [
 ]
 
 MILVUS_REQUIRED = [
-    "milvus==2.2.12",
     "pymilvus==2.2.14"
 ]
 
