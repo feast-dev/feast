@@ -224,7 +224,7 @@ class MilvusOnlineStore(OnlineStore):
 
                     else:
                         try:
-                            index_params = self._create_index_params(field.tags)
+                            index_params = self._create_index_params(field.tags, data_type)
                             indexes[field_name] = index_params
                         except ValueError as e:
                             logger.error(
