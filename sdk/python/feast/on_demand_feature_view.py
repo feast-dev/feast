@@ -13,6 +13,7 @@ from typeguard import typechecked
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import RequestSource
+from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
@@ -29,6 +30,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 )
 from feast.type_map import (
     feast_value_type_to_pandas_type,
+    feast_value_type_to_python_type,
     python_type_to_feast_value_type,
 )
 from feast.usage import log_exceptions
@@ -429,12 +431,19 @@ class OnDemandFeatureView(BaseFeatureView):
             raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
 
     def infer_features(self):
+        if self.mode == "pandas":
+            self._infer_features_df()
+        elif self.mode == "python":
+            self._infer_features_dict()
+        else:
+            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+
+    def _infer_features_df(self):
         """
         Infers the set of features associated to this feature view from the input source.
 
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
-        """
         """
         rand_df_value: Dict[str, Any] = {
             "float": 1.0,
@@ -488,8 +497,71 @@ class OnDemandFeatureView(BaseFeatureView):
                 "OnDemandFeatureView",
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
+
+    def _infer_features_dict(self):
         """
-        pass 
+        Infers the set of features associated to this feature view from the input source.
+
+        Raises:
+            RegistryInferenceFailure: The set of features could not be inferred.
+        """
+        rand_value: Dict[str, Any] = {
+            "float": 1.0,
+            "int": 1,
+            "str": "hello world",
+            "bytes": str.encode("hello world"),
+            "bool": True,
+            "datetime64[ns]": datetime.utcnow(),
+        }
+
+        feature_dict = {}
+        # Populate feature dictionary with plausible random inputs
+        for feature_view_projection in self.source_feature_view_projections.values():
+            for feature in feature_view_projection.features:
+                dtype = feast_value_type_to_python_type(feature.dtype.to_value_type())
+                sample_val = rand_value[dtype] if dtype in rand_value else None
+                feature_key = f"{feature_view_projection.name}__{feature.name}"
+                feature_dict[feature_key] = sample_val
+        for request_data in self.source_request_sources.values():
+            for field in request_data.schema:
+                dtype = feast_value_type_to_python_type(field.dtype.to_value_type())
+                sample_val = rand_value[dtype] if dtype in rand_value else None
+                feature_dict[field.name] = sample_val
+
+        # Call the UDF with the feature dictionary to get an output dictionary
+        output_dict: Dict[str, Any] = self.udf.__call__(feature_dict)
+
+        inferred_features = []
+        # Determine feature data types using the output dictionary
+        for f, val in output_dict.items():
+            inferred_features.append(
+                # TODO: assumes that the UDF produces a dict of (f_name: f_value) pairs
+                # should instead use `value=val[0]` if the UDF produces (f_name: List(f_value))
+                Field(
+                    name=f,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(f, value=val)
+                    ),
+                )
+            )
+
+        if self.features:
+            missing_features = []
+            for specified_feature in self.features:
+                if specified_feature.name not in feature_dict:
+                    missing_features.append(specified_feature)
+            if missing_features:
+                raise SpecifiedFeaturesNotPresentError(
+                    missing_features, inferred_features, self.name
+                )
+        else:
+            self.features = inferred_features
+
+        if not self.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{self.name}'.",
+            )
 
     @staticmethod
     def get_requested_odfvs(feature_refs, project, registry):
