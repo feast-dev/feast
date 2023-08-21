@@ -81,9 +81,9 @@ REQUIRED = [
 GCP_REQUIRED = [
     "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore>=2.1.*,<3",
-    "google-cloud-storage>=1.34.*,<3",
-    "google-cloud-bigtable>=2.11.*,<3",
+    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-storage>=1.34.0,<3",
+    "google-cloud-bigtable>=2.11.0,<3",
 ]
 
 REDIS_REQUIRED = [
@@ -551,25 +551,25 @@ setup(
     install_requires=AFFIRM_REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    # extras_require={
-    #     "dev": DEV_REQUIRED,
-    #     "ci": CI_REQUIRED,
-    #     "gcp": GCP_REQUIRED,
-    #     "aws": AWS_REQUIRED,
-    #     "bytewax": BYTEWAX_REQUIRED,
-    #     "redis": REDIS_REQUIRED,
-    #     "snowflake": SNOWFLAKE_REQUIRED,
-    #     "spark": SPARK_REQUIRED,
-    #     "trino": TRINO_REQUIRED,
-    #     "postgres": POSTGRES_REQUIRED,
-    #     "azure": AZURE_REQUIRED,
-    #     "mysql": MYSQL_REQUIRED,
-    #     "ge": GE_REQUIRED,
-    #     "hbase": HBASE_REQUIRED,
-    #     "go": GO_REQUIRED,
-    #     "docs": DOCS_REQUIRED,
-    #     "cassandra": CASSANDRA_REQUIRED,
-    # },
+    extras_require={
+        "dev": DEV_REQUIRED,
+        "ci": CI_REQUIRED,
+        "gcp": GCP_REQUIRED,
+        "aws": AWS_REQUIRED,
+        "bytewax": BYTEWAX_REQUIRED,
+        "redis": REDIS_REQUIRED,
+        "snowflake": SNOWFLAKE_REQUIRED,
+        "spark": SPARK_REQUIRED,
+        "trino": TRINO_REQUIRED,
+        "postgres": POSTGRES_REQUIRED,
+        "azure": AZURE_REQUIRED,
+        "mysql": MYSQL_REQUIRED,
+        "ge": GE_REQUIRED,
+        "hbase": HBASE_REQUIRED,
+        "go": GO_REQUIRED,
+        "docs": DOCS_REQUIRED,
+        "cassandra": CASSANDRA_REQUIRED,
+    },
     include_package_data=True,
     license="Apache",
     classifiers=[
