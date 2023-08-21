@@ -375,6 +375,22 @@ class TestMilvusOnlineStore:
             progress = utility.index_building_progress(collection_name=collection.name)
             assert progress["total_rows"] == total_rows_to_write
 
+    def test_milvus_teardown_with_empty_collection(self, repo_config, caplog):
+        self._create_collection_in_milvus(self.collection_to_write, repo_config)
+
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
+
+        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store.teardown(
+            config=repo_config, tables=[feature_view], entities=[]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            assert not utility.has_collection(self.collection_to_write)
+
     def test_milvus_teardown_with_non_empty_collection(self, repo_config, caplog):
         self._create_collection_in_milvus(self.collection_to_write, repo_config)
 
@@ -386,6 +402,20 @@ class TestMilvusOnlineStore:
         total_rows_to_write = 100
         data = self._create_n_customer_test_samples_milvus(n=total_rows_to_write)
         self._write_data_to_milvus(self.collection_to_write, data, repo_config)
+
+        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store.teardown(
+            config=repo_config, tables=[feature_view], entities=[]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            assert not utility.has_collection(self.collection_to_write)
+
+    def test_milvus_teardown_with_collection_not_existing(self, repo_config, caplog):
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
 
         milvus_online_store = MilvusOnlineStore()
         milvus_online_store.teardown(
