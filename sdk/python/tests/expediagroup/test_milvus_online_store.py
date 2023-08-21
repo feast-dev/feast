@@ -27,6 +27,13 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Float32, Int64
 from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
+import random
+
+from feast.infra.key_encoding_utils import (
+    serialize_entity_key
+)
+import mmh3
+from typing import Any, List
 
 logging.basicConfig(level=logging.INFO)
 
@@ -134,6 +141,34 @@ class TestMilvusOnlineStore:
             # Closing the temporary collection to do this
 
         yield
+
+
+    data = [
+            [i for i in range(10)],
+            [i + 2000 for i in range(10)],
+            [[random.random() for _ in range(2)] for _ in range(10)],
+        ]
+
+    def create_n_customer_test_samples_milvus_online_read(self, n=10):
+        # Utility method to create sample data
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["film_id"],
+                    entity_values=[ValueProto(int32_val=str(i))],
+                ),
+                {
+                    "films": ValueProto(
+                        float_list_val=FloatList(val=[random.random() for _ in range(2)])
+                    ),
+                    "film_date": ValueProto(int64_val=n),
+                    "film_id": ValueProto(int64_val=n),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
 
     def create_n_customer_test_samples_milvus(self, n=10):
         # Utility method to create sample data
@@ -431,3 +466,81 @@ class TestMilvusOnlineStore:
             collection = Collection(name=self.collection_to_write)
             progress = utility.index_building_progress(collection_name=collection.name)
             assert progress["total_rows"] == total_rows_to_write
+
+    def test_milvus_online_read(self, repo_config, caplog):
+
+        # Generating data
+        data = [
+            [i for i in range(10)],
+            [i + 2000 for i in range(10)],
+            [[random.random() for _ in range(2)] for _ in range(10)],
+        ]
+
+        logging.info("PRINTING DATA")
+        logging.info(data)
+
+        # Creating a common schema for collection to directly add to Milvus
+        schema = CollectionSchema([
+            FieldSchema("film_id", DataType.INT64, is_primary=True),
+            FieldSchema("film_date", DataType.INT64),
+            FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)])
+
+        # Creating an end-to-end example with just using pymilvus to understand how it works 
+        with MilvusConnectionManager(repo_config.online_store):
+            # Create a collection
+            collection = Collection(name=self.collection_to_write, schema=schema)
+            # Drop all indexes if any exists
+            collection.drop_index()
+            # Create a new index
+            index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            collection.create_index("films", index_param)
+            collection.insert(data)
+
+            progress = utility.index_building_progress(collection_name=collection.name)
+            logging.info("Logging progress")
+            logging.info(progress)
+            # Load Collection
+            collection.load()
+
+            expr = "film_id in [1, 2, 3, 4, 5]"
+            features = ["film_date", "films", "film_id"]
+            res = collection.query(expr=expr, output_fields=features, offset=1, limit=5)
+            logging.info(res)
+
+        feast_schema = [
+            Field(
+                name="film_id",
+                dtype=Int64,
+                tags={"is_primary": "True", "description": "int64"},
+            ),
+            Field(
+                name="film_date",
+                dtype=Int64,
+                tags={
+                    "is_primary": "False",
+                    "description": "Int64",
+                },
+            ),
+            Field(
+                name="films",
+                dtype=Array(Float32),
+                tags={
+                    "is_primary": "False",
+                    "description": "float32",
+                    "dimensions": 2,
+                    "index_type": IndexType.hnsw.value,
+                },
+            ),
+        ]
+
+        data_example_2 = self.create_n_customer_test_samples_milvus_online_read()
+        entity_keys, features, *rest = zip(*data_example_2)
+        logging.info("Data Example 2")
+        logging.info(data_example_2)
+
+        MilvusOnlineStore().online_read(
+            config=repo_config,
+            table=FeatureView(name=self.collection_to_write, schema=feast_schema, source=SOURCE),
+            entity_keys=entity_keys,
+            requested_features=features
+        )

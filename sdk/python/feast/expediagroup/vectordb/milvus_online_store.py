@@ -34,6 +34,7 @@ from feast.types import (
 )
 from feast.usage import log_exceptions_and_usage
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,9 +114,42 @@ class MilvusOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        raise NotImplementedError(
-            "to be implemented in https://jira.expedia.biz/browse/EAPC-7972"
-        )
+
+        with MilvusConnectionManager(config.online_store):
+            collection = Collection(table.name)
+
+            # expr = "film_id in [1, 2, 3, 4, 5]"
+            # res = collection.query(expr=expr, output_fields=["film_date", "films", "film_id"], offset=1, limit=5)
+            # keys = []
+            # for entity_key in entity_keys:
+
+            # join_keys_list = []
+            # entity_values_list = []
+            
+            # for item in entity_keys:
+            #     if item.join_keys:
+            #         join_keys_list.append(item.join_keys)
+            #     if item.entity_values:
+            #         entity_values_list.append(item.entity_values[0])
+
+            primary_fields = []
+            for field in table.schema:
+                if "is_primary" in field.tags and field.tags["is_primary"].lower() == "true":
+                    primary_fields.append(field.name)
+
+            collection = Collection(table.name)
+            collection.load()
+            # Where do the values to specify which primary keys we should specifically query come from?
+            primary_keys_to_query = "[1, 2, 3, 4, 5]"
+            expression_template = " in "
+            
+            main_result = []
+            for primary_field in primary_fields:
+                expression = primary_field + expression_template + primary_keys_to_query
+                result = collection.query(expr=expression, output_fields=requested_features, offset=1, limit=5)
+                main_result.append(result)
+
+            logging.info(main_result)
 
     @log_exceptions_and_usage(online_store="milvus")
     def update(
