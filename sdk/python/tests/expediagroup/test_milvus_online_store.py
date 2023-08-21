@@ -134,27 +134,6 @@ class TestMilvusOnlineStore:
 
         yield
 
-    def create_n_customer_test_samples_milvus(self, n=10):
-        # Utility method to create sample data
-        return [
-            (
-                EntityKeyProto(
-                    join_keys=["customer"],
-                    entity_values=[ValueProto(string_val=str(i))],
-                ),
-                {
-                    "avg_orders_day": ValueProto(
-                        float_list_val=FloatList(val=[1.0, 2.1, 3.3, 4.0, 5.0])
-                    ),
-                    "name": ValueProto(string_val="John"),
-                    "age": ValueProto(int64_val=3),
-                },
-                datetime.utcnow(),
-                None,
-            )
-            for i in range(n)
-        ]
-
     def test_milvus_update_add_collection(self, repo_config, caplog):
         feast_schema = [
             Field(
@@ -260,23 +239,7 @@ class TestMilvusOnlineStore:
             ),
         ]
 
-        # Creating a common schema for collection to directly add to Milvus
-        schema = CollectionSchema(
-            fields=[
-                FieldSchema(
-                    "int64", DataType.INT64, description="int64", is_primary=True
-                ),
-                FieldSchema(
-                    "float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128
-                ),
-            ]
-        )
-
-        # Here we want to open and add a collection using pymilvus directly and close the connection.
-        with MilvusConnectionManager(repo_config.online_store):
-            Collection(name=self.collection_to_write, schema=schema)
-            assert utility.has_collection(self.collection_to_write) is True
-            assert len(utility.list_collections()) == 1
+        self._create_collection_in_milvus(self.collection_to_write, repo_config)
 
         MilvusOnlineStore().update(
             config=repo_config,
@@ -394,12 +357,96 @@ class TestMilvusOnlineStore:
             assert len(utility.list_collections()) == 0
 
     def test_milvus_online_write_batch(self, repo_config, caplog):
+        self._create_collection_in_milvus(self.collection_to_write, repo_config)
+
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
 
         total_rows_to_write = 100
+        data = self._create_n_customer_test_samples_milvus(n=total_rows_to_write)
+        MilvusOnlineStore().online_write_batch(
+            config=repo_config, table=feature_view, data=data, progress=None
+        )
 
-        data = self.create_n_customer_test_samples_milvus(n=total_rows_to_write)
+        with MilvusConnectionManager(repo_config.online_store):
+            collection = Collection(name=self.collection_to_write)
+            progress = utility.index_building_progress(collection_name=collection.name)
+            assert progress["total_rows"] == total_rows_to_write
 
-        # Creating a common schema for collection to directly add to Milvus
+    def test_milvus_teardown_with_empty_collection(self, repo_config, caplog):
+        self._create_collection_in_milvus(self.collection_to_write, repo_config)
+
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
+
+        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store.teardown(
+            config=repo_config, tables=[feature_view], entities=[]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            assert not utility.has_collection(self.collection_to_write)
+
+    def test_milvus_teardown_with_non_empty_collection(self, repo_config, caplog):
+        self._create_collection_in_milvus(self.collection_to_write, repo_config)
+
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
+
+        total_rows_to_write = 100
+        data = self._create_n_customer_test_samples_milvus(n=total_rows_to_write)
+        self._write_data_to_milvus(self.collection_to_write, data, repo_config)
+
+        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store.teardown(
+            config=repo_config, tables=[feature_view], entities=[]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            assert not utility.has_collection(self.collection_to_write)
+
+    def test_milvus_teardown_with_collection_not_existing(self, repo_config, caplog):
+        feature_view = FeatureView(
+            name=self.collection_to_write,
+            source=SOURCE,
+        )
+
+        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store.teardown(
+            config=repo_config, tables=[feature_view], entities=[]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            assert not utility.has_collection(self.collection_to_write)
+
+    def _create_n_customer_test_samples_milvus(self, n=10):
+        # Utility method to create sample data
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["customer"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "avg_orders_day": ValueProto(
+                        float_list_val=FloatList(val=[1.0, 2.1, 3.3, 4.0, 5.0])
+                    ),
+                    "name": ValueProto(string_val="John"),
+                    "age": ValueProto(int64_val=3),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
+
+    def _create_collection_in_milvus(self, collection_name, repo_config):
         milvus_schema = CollectionSchema(
             fields=[
                 FieldSchema(
@@ -429,16 +476,9 @@ class TestMilvusOnlineStore:
             }
             collection.create_index("avg_orders_day", index_params)
 
-        feature_view = FeatureView(
-            name=self.collection_to_write,
-            source=SOURCE,
-        )
-
-        MilvusOnlineStore().online_write_batch(
-            config=repo_config, table=feature_view, data=data, progress=None
-        )
-
+    def _write_data_to_milvus(self, collection_name, data, repo_config):
         with MilvusConnectionManager(repo_config.online_store):
-            collection = Collection(name=self.collection_to_write)
-            progress = utility.index_building_progress(collection_name=collection.name)
-            assert progress["total_rows"] == total_rows_to_write
+            rows = MilvusOnlineStore().format_data_for_milvus(data)
+            collection_to_load_data = Collection(collection_name)
+            collection_to_load_data.insert(rows)
+            collection_to_load_data.flush()

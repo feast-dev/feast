@@ -98,7 +98,7 @@ class MilvusOnlineStore(OnlineStore):
     ) -> None:
         with MilvusConnectionManager(config.online_store):
             try:
-                rows = self._format_data_for_milvus(data)
+                rows = self.format_data_for_milvus(data)
                 collection_to_load_data = Collection(table.name)
                 collection_to_load_data.insert(rows)
                 #  The flush call will seal any remaining segments and send them for indexing
@@ -174,7 +174,13 @@ class MilvusOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        pass
+        with MilvusConnectionManager(config.online_store):
+
+            for table in tables:
+                collection_name = table.name
+                if utility.has_collection(collection_name):
+                    logger.info(f"Dropping collection: {collection_name}")
+                    utility.drop_collection(collection_name)
 
     def _convert_featureview_schema_to_milvus_readable(
         self, feast_schema: List[Field]
@@ -282,7 +288,7 @@ class MilvusOnlineStore(OnlineStore):
             Array(Bytes): DataType.BINARY_VECTOR,
         }.get(feast_type, None)
 
-    def _format_data_for_milvus(self, feast_data):
+    def format_data_for_milvus(self, feast_data):
         """
         Data stored into Milvus takes the grouped representation approach where each feature value is grouped together:
         [[1,2], [1,3]], [John, Lucy], [3,4]]
