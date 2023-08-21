@@ -625,6 +625,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            mode=mode,
             udf_string=udf_string,
         )
         functools.update_wrapper(
