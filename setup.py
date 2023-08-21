@@ -32,7 +32,6 @@ try:
     from setuptools.command.build_ext import build_ext as _build_ext
     from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
-    from setuptools.command.install import install
 
 except ImportError:
     from distutils.command.build_ext import build_ext as _build_ext
@@ -40,7 +39,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm117"
+VERSION = "0.28+affirm118"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"

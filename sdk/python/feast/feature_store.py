@@ -39,7 +39,6 @@ import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
 
 from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
@@ -1539,6 +1538,28 @@ x
         provider.ingest_df_to_offline_store(feature_view, table)
 
     @log_exceptions_and_usage
+    def get_online_features_for_row(
+        self,
+        features: Union[List[str], FeatureService],
+        entities: Dict[str, Any],
+        full_feature_names: bool = False,
+        allow_registry_cache: bool = True
+    ) -> OnlineResponse:
+        """
+        Wrapper over `_get_online_features` for retrieving only one row of features, which occurs more commonly
+        for some workflows.
+        """
+
+        columnar: Dict[str, List[Any]] = {k: [v] for k, v in entities.items()}
+        return self._get_online_features(
+            features=features,
+            entity_values=columnar,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+            allow_registry_cache=allow_registry_cache,
+        )
+
+    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -2173,26 +2194,44 @@ x
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df = initial_response.to_df()
+
+        # RB: lazy populate df and dict responses
+        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
-            )
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features = odfv.get_transformed_features(
+                    initial_response_dict,
+                    full_feature_names
+                )
+            elif odfv.mode == "pandas":
+                if initial_response_df is None:
+                    initial_response_df = initial_response.to_df()
+                transformed_features = odfv.get_transformed_features(
+                    initial_response_df,
+                    full_feature_names
+                )
+            else:
+                raise Exception(f'Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of "pandas" or "python".')
+
+            columns = transformed_features.columns \
+                if isinstance(transformed_features, pd.DataFrame) else transformed_features
             selected_subset = [
-                f for f in transformed_features_df.columns if f in _feature_refs
+                f for f in columns if f in _feature_refs
             ]
 
-            proto_values = [
-                python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+            proto_values = []
+            for feature in selected_subset:
+                feature_vector = transformed_features[feature]
+                proto_values.append(
+                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
                 )
-                for feature in selected_subset
-            ]
 
             odfv_result_names |= set(selected_subset)
 
