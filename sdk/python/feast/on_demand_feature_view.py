@@ -524,7 +524,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_dict[f"{feature.name}"] = sample_val
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
-                dtype = feast_value_type_to_python_type(field.dtype.to_value_type())
+                dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
                 sample_val = rand_value[dtype] if dtype in rand_value else None
                 feature_dict[f"{field.name}"] = sample_val
 
