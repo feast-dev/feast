@@ -482,9 +482,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if self.features:
             missing_features = []
-            for specified_features in self.features:
-                if specified_features not in inferred_features:
-                    missing_features.append(specified_features)
+            for specified_feature in self.features:
+                if specified_feature not in inferred_features:
+                    missing_features.append(specified_feature)
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
                     missing_features, inferred_features, self.name
@@ -518,15 +518,15 @@ class OnDemandFeatureView(BaseFeatureView):
         # Populate feature dictionary with plausible random inputs
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
-                dtype = feast_value_type_to_python_type(feature.dtype.to_value_type())
+                dtype = feast_value_type_to_pandas_type(feature.dtype.to_value_type())
                 sample_val = rand_value[dtype] if dtype in rand_value else None
-                feature_key = f"{feature_view_projection.name}__{feature.name}"
-                feature_dict[feature_key] = sample_val
+                feature_dict[f"{feature_view_projection.name}__{feature.name}"] = None
+                feature_dict[f"{feature.name}"] = sample_val
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 dtype = feast_value_type_to_python_type(field.dtype.to_value_type())
                 sample_val = rand_value[dtype] if dtype in rand_value else None
-                feature_dict[field.name] = sample_val
+                feature_dict[f"{field.name}"] = sample_val
 
         # Call the UDF with the feature dictionary to get an output dictionary
         output_dict: Dict[str, Any] = self.udf.__call__(feature_dict)
@@ -535,8 +535,6 @@ class OnDemandFeatureView(BaseFeatureView):
         # Determine feature data types using the output dictionary
         for f, val in output_dict.items():
             inferred_features.append(
-                # TODO: assumes that the UDF produces a dict of (f_name: f_value) pairs
-                # should instead use `value=val[0]` if the UDF produces (f_name: List(f_value))
                 Field(
                     name=f,
                     dtype=from_value_type(
@@ -548,7 +546,7 @@ class OnDemandFeatureView(BaseFeatureView):
         if self.features:
             missing_features = []
             for specified_feature in self.features:
-                if specified_feature.name not in feature_dict:
+                if specified_feature not in inferred_features:
                     missing_features.append(specified_feature)
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
