@@ -152,6 +152,7 @@ class OnDemandFeatureView(BaseFeatureView):
             + list(self.source_request_sources.values()),
             udf=self.udf,
             udf_string=self.udf_string,
+            mode=self.mode,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -173,6 +174,7 @@ class OnDemandFeatureView(BaseFeatureView):
             != other.source_feature_view_projections
             or self.source_request_sources != other.source_request_sources
             or self.udf_string != other.udf_string
+            or self.mode != other.mode
             or self.udf.__code__.co_code != other.udf.__code__.co_code
         ):
             return False
@@ -259,18 +261,11 @@ class OnDemandFeatureView(BaseFeatureView):
                     RequestSource.from_proto(on_demand_source.request_data_source)
                 )
 
-        if skip_udf:
-            udf = _empty_odfv_udf_fn
-            mode = "pandas"
-            description = ""
-            tags = None
-            owner = ""
-        else:
-            udf = dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
-            mode = on_demand_feature_view_proto.spec.mode,
-            description = on_demand_feature_view_proto.spec.description,
-            tags = dict(on_demand_feature_view_proto.spec.tags),
-            owner = on_demand_feature_view_proto.spec.owner
+        udf = (
+            _empty_odfv_udf_fn
+            if skip_udf
+            else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
+        )
 
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
@@ -284,10 +279,10 @@ class OnDemandFeatureView(BaseFeatureView):
             sources=sources,
             udf=udf,
             udf_string=on_demand_feature_view_proto.spec.user_defined_function.body_text,
-            mode=mode,
-            description=description,
-            tags=tags,
-            owner=owner,
+            mode=on_demand_feature_view_proto.spec.mode,
+            description=on_demand_feature_view_proto.spec.description,
+            tags=dict(on_demand_feature_view_proto.spec.tags),
+            owner=on_demand_feature_view_proto.spec.owner,
         )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
