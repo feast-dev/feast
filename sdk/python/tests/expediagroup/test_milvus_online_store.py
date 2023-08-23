@@ -1,4 +1,5 @@
 import logging
+import random
 from datetime import datetime
 
 import pytest
@@ -27,13 +28,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Float32, Int64
 from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
-import random
-
-from feast.infra.key_encoding_utils import (
-    serialize_entity_key
-)
-import mmh3
-from typing import Any, List
 
 logging.basicConfig(level=logging.INFO)
 
@@ -142,24 +136,19 @@ class TestMilvusOnlineStore:
 
         yield
 
-
-    data = [
-            [i for i in range(10)],
-            [i + 2000 for i in range(10)],
-            [[random.random() for _ in range(2)] for _ in range(10)],
-        ]
-
     def create_n_customer_test_samples_milvus_online_read(self, n=10):
         # Utility method to create sample data
         return [
             (
                 EntityKeyProto(
                     join_keys=["film_id"],
-                    entity_values=[ValueProto(int32_val=str(i))],
+                    entity_values=[ValueProto(int64_val=i)],
                 ),
                 {
                     "films": ValueProto(
-                        float_list_val=FloatList(val=[random.random() for _ in range(2)])
+                        float_list_val=FloatList(
+                            val=[random.random() for _ in range(2)]
+                        )
                     ),
                     "film_date": ValueProto(int64_val=n),
                     "film_id": ValueProto(int64_val=n),
@@ -469,23 +458,23 @@ class TestMilvusOnlineStore:
 
     def test_milvus_online_read(self, repo_config, caplog):
 
-        # Generating data
-        data = [
+        # Generating data to directly load into Milvus
+        data_to_load = [
             [i for i in range(10)],
             [i + 2000 for i in range(10)],
             [[random.random() for _ in range(2)] for _ in range(10)],
         ]
 
-        logging.info("PRINTING DATA")
-        logging.info(data)
-
         # Creating a common schema for collection to directly add to Milvus
-        schema = CollectionSchema([
-            FieldSchema("film_id", DataType.INT64, is_primary=True),
-            FieldSchema("film_date", DataType.INT64),
-            FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)])
+        schema = CollectionSchema(
+            [
+                FieldSchema("film_id", DataType.INT64, is_primary=True),
+                FieldSchema("film_date", DataType.INT64),
+                FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2),
+            ]
+        )
 
-        # Creating an end-to-end example with just using pymilvus to understand how it works 
+        # Creating an end-to-end example with just using pymilvus to understand how it works
         with MilvusConnectionManager(repo_config.online_store):
             # Create a collection
             collection = Collection(name=self.collection_to_write, schema=schema)
@@ -494,18 +483,8 @@ class TestMilvusOnlineStore:
             # Create a new index
             index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
             collection.create_index("films", index_param)
-            collection.insert(data)
-
-            progress = utility.index_building_progress(collection_name=collection.name)
-            logging.info("Logging progress")
-            logging.info(progress)
-            # Load Collection
+            collection.insert(data_to_load)
             collection.load()
-
-            expr = "film_id in [1, 2, 3, 4, 5]"
-            features = ["film_date", "films", "film_id"]
-            res = collection.query(expr=expr, output_fields=features, offset=1, limit=5)
-            logging.info(res)
 
         feast_schema = [
             Field(
@@ -533,14 +512,24 @@ class TestMilvusOnlineStore:
             ),
         ]
 
-        data_example_2 = self.create_n_customer_test_samples_milvus_online_read()
-        entity_keys, features, *rest = zip(*data_example_2)
-        logging.info("Data Example 2")
-        logging.info(data_example_2)
-
-        MilvusOnlineStore().online_read(
-            config=repo_config,
-            table=FeatureView(name=self.collection_to_write, schema=feast_schema, source=SOURCE),
-            entity_keys=entity_keys,
-            requested_features=features
+        film_data_with_entity_keys = (
+            self.create_n_customer_test_samples_milvus_online_read()
         )
+        entity_keys, features, *rest = zip(*film_data_with_entity_keys)
+        feature_list = ["film_date", "films", "film_id"]
+
+        result = MilvusOnlineStore().online_read(
+            config=repo_config,
+            table=FeatureView(
+                name=self.collection_to_write, schema=feast_schema, source=SOURCE
+            ),
+            entity_keys=entity_keys,
+            requested_features=feature_list,
+        )
+
+        assert result is not None
+        assert len(result) == 10
+        assert result[0]["film_id"].int64_val == 0
+        assert result[0]["film_date"].int64_val == 2000
+        assert result[-1]["film_id"].int64_val == 9
+        assert result[-1]["film_date"].int64_val == 2009
