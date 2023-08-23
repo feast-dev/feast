@@ -6,6 +6,7 @@ from types import FunctionType
 from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
+import logging
 import pandas as pd
 from typeguard import typechecked
 
@@ -81,7 +82,6 @@ class OnDemandFeatureView(BaseFeatureView):
         *,
         name: str,
         schema: List[Field],
-        mode: str,
         sources: List[
             Union[
                 FeatureView,
@@ -91,6 +91,7 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: FunctionType,
         udf_string: str = "",
+        mode: str,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -137,7 +138,9 @@ class OnDemandFeatureView(BaseFeatureView):
         self.udf_string = udf_string
 
         if mode not in {"python", "pandas"}:
-            raise Exception(f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs.")
+            logging.warning(f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs. Defaulting to 'pandas'.")
+            mode = "pandas"
+            # raise Exception(f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs.")
         self.mode = mode
 
     @property
@@ -222,8 +225,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 body=dill.dumps(self.udf, recurse=True),
                 body_text=self.udf_string,
             ),
-            description=self.description,
             mode=self.mode,
+            description=self.description,
             tags=self.tags,
             owner=self.owner,
         )
@@ -612,14 +615,14 @@ def on_demand_feature_view(
         mainify(user_function)
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,
-            sources=sources,
             schema=schema,
+            sources=sources,
             udf=user_function,
+            udf_string=udf_string,
+            mode=mode,
             description=description,
             tags=tags,
             owner=owner,
-            mode=mode,
-            udf_string=udf_string,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function
