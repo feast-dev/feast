@@ -91,7 +91,7 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: FunctionType,
         udf_string: str = "",
-        mode: str,
+        mode: str = "pandas",
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
