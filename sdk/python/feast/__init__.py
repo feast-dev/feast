@@ -1,3 +1,5 @@
+from couchbase.pycbc_core import exception
+
 try:
     from importlib.metadata import PackageNotFoundError
     from importlib.metadata import version as _version
