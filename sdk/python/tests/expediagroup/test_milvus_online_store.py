@@ -1,4 +1,5 @@
 import logging
+import random
 from datetime import datetime
 
 import pytest
@@ -133,6 +134,50 @@ class TestMilvusOnlineStore:
             # Closing the temporary collection to do this
 
         yield
+
+    def create_n_customer_test_samples_milvus_online_read(self, n=10):
+        # Utility method to create sample data
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["film_id"],
+                    entity_values=[ValueProto(int64_val=i)],
+                ),
+                {
+                    "films": ValueProto(
+                        float_list_val=FloatList(
+                            val=[random.random() for _ in range(2)]
+                        )
+                    ),
+                    "film_date": ValueProto(int64_val=n),
+                    "film_id": ValueProto(int64_val=n),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
+
+    def _create_n_customer_test_samples_milvus(self, n=10):
+        # Utility method to create sample data
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["customer"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "avg_orders_day": ValueProto(
+                        float_list_val=FloatList(val=[1.0, 2.1, 3.3, 4.0, 5.0])
+                    ),
+                    "name": ValueProto(string_val="John"),
+                    "age": ValueProto(int64_val=3),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
 
     def test_milvus_update_add_collection(self, repo_config, caplog):
         feast_schema = [
@@ -425,27 +470,6 @@ class TestMilvusOnlineStore:
         with MilvusConnectionManager(repo_config.online_store):
             assert not utility.has_collection(self.collection_to_write)
 
-    def _create_n_customer_test_samples_milvus(self, n=10):
-        # Utility method to create sample data
-        return [
-            (
-                EntityKeyProto(
-                    join_keys=["customer"],
-                    entity_values=[ValueProto(string_val=str(i))],
-                ),
-                {
-                    "avg_orders_day": ValueProto(
-                        float_list_val=FloatList(val=[1.0, 2.1, 3.3, 4.0, 5.0])
-                    ),
-                    "name": ValueProto(string_val="John"),
-                    "age": ValueProto(int64_val=3),
-                },
-                datetime.utcnow(),
-                None,
-            )
-            for i in range(n)
-        ]
-
     def _create_collection_in_milvus(self, collection_name, repo_config):
         milvus_schema = CollectionSchema(
             fields=[
@@ -478,7 +502,83 @@ class TestMilvusOnlineStore:
 
     def _write_data_to_milvus(self, collection_name, data, repo_config):
         with MilvusConnectionManager(repo_config.online_store):
-            rows = MilvusOnlineStore().format_data_for_milvus(data)
+            rows = MilvusOnlineStore()._format_data_for_milvus(data)
             collection_to_load_data = Collection(collection_name)
             collection_to_load_data.insert(rows)
             collection_to_load_data.flush()
+
+    def test_milvus_online_read(self, repo_config, caplog):
+
+        # Generating data to directly load into Milvus
+        data_to_load = [
+            [i for i in range(10)],
+            [i + 2000 for i in range(10)],
+            [[random.random() for _ in range(2)] for _ in range(10)],
+        ]
+
+        # Creating a common schema for collection to directly add to Milvus
+        schema = CollectionSchema(
+            [
+                FieldSchema("film_id", DataType.INT64, is_primary=True),
+                FieldSchema("film_date", DataType.INT64),
+                FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2),
+            ]
+        )
+
+        with MilvusConnectionManager(repo_config.online_store):
+            # Create a collection
+            collection = Collection(name=self.collection_to_write, schema=schema)
+            # Drop all indexes if any exists
+            collection.drop_index()
+            # Create a new index
+            index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            collection.create_index("films", index_param)
+            collection.insert(data_to_load)
+            collection.load()
+
+        feast_schema = [
+            Field(
+                name="film_id",
+                dtype=Int64,
+                tags={"description": "int64"},
+            ),
+            Field(
+                name="film_date",
+                dtype=Int64,
+                tags={
+                    "description": "Int64",
+                },
+            ),
+            Field(
+                name="films",
+                dtype=Array(Float32),
+                tags={
+                    "description": "float32",
+                    "dimensions": 2,
+                    "index_type": "HNSW",
+                    "index_params": '{ "M": 32, "efConstruction": 256}',
+                },
+            ),
+        ]
+
+        film_data_with_entity_keys = (
+            self.create_n_customer_test_samples_milvus_online_read()
+        )
+        entity_keys, features, *rest = zip(*film_data_with_entity_keys)
+        feature_list = ["film_date", "films", "film_id"]
+
+        result = MilvusOnlineStore().online_read(
+            config=repo_config,
+            table=FeatureView(
+                name=self.collection_to_write, schema=feast_schema, source=SOURCE
+            ),
+            entity_keys=entity_keys,
+            requested_features=feature_list,
+        )
+
+        assert result is not None
+        assert len(result) == 10
+        assert result[0]["film_id"].int64_val == 0
+        assert result[0]["film_date"].int64_val == 2000
+        assert result[-1]["film_id"].int64_val == 9
+        assert result[-1]["film_date"].int64_val == 2009
