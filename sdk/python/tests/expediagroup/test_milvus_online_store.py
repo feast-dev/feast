@@ -587,7 +587,7 @@ class TestMilvusOnlineStore:
 
         assert result is not None
         assert len(result) == 10
-        assert result[0]["film_id"].int64_val == 0
-        assert result[0]["film_date"].int64_val == 2000
-        assert result[-1]["film_id"].int64_val == 9
-        assert result[-1]["film_date"].int64_val == 2009
+        assert result[0][1]["film_id"].int64_val == 0
+        assert result[0][1]["film_date"].int64_val == 2000
+        assert result[9][1]["film_id"].int64_val == 9
+        assert result[9][1]["film_date"].int64_val == 2009
