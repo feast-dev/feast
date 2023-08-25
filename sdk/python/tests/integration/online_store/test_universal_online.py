@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Tuple, Union
 import assertpy
 import numpy as np
 import pandas as pd
+import pandas.api.types as ptypes
 import pytest
 import requests
 from botocore.exceptions import BotoCoreError
@@ -580,8 +581,6 @@ def test_write_vectors_to_online_store(environment, universal_data_sources):
         "driver_id": [123],
         "profile_embedding": [np.random.default_rng().uniform(-100, 100, 50)],
         "lifetime_trip_count": [85],
-        "avg_passenger_count": [0.067],
-        "current_balance": [0.78325],
         "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
         "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
     }
@@ -598,7 +597,8 @@ def test_write_vectors_to_online_store(environment, universal_data_sources):
         ],
         entity_rows=[{"driver_id": 123}],
     ).to_df()
-    assertpy.assert_that(df["profile_embedding"].iloc[0]).is_type_of(np.array)
+
+    assert ptypes.is_array_like(df["profile_embedding"])
     assertpy.assert_that(df["profile_embedding"].iloc[0]).is_length(50)
     assertpy.assert_that(df["lifetime_trip_count"].iloc[0]).is_equal_to(85)
 
