@@ -2214,7 +2214,7 @@ x
             elif odfv.mode == "pandas":
                 if initial_response_df is None:
                     initial_response_df = initial_response.to_df()
-                transformed_features = odfv.get_transformed_features_df(
+                transformed_features = odfv.get_transformed_features(
                     initial_response_df,
                     full_feature_names
                 )

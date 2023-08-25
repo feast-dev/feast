@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "feast-affirm"
-version = "0.28+affirm127"
+version = "0.28+affirm128"
 description = "Feast - Affirm"
 authors = ["Francisco Arceo", "Ross Briden", "Maks Stachowiak"]
 readme = "README.md"
