@@ -54,15 +54,11 @@ An example feature view:
                     Field(
                     name="book_id",
                     dtype=Int64,
-                    tags={
-                        "is_primary": "True",
-                    },
                 ),
                 Field(
                     name="book_embedding",
                     dtype=Array(Float32),
                     tags={
-                        "is_primary": "False",
                         "description": "book embedding of the content",
                         "dimensions": "2200",
                         "index_type": IndexType.ivf_flat.value,
@@ -70,6 +66,7 @@ An example feature view:
                             "nlist": 1024,
                         },
                         "metric_type": "L2",
+                    }
                 ),
             ],
             source=SOURCE,
@@ -110,7 +107,7 @@ Below is a matrix indicating which functionality is supported by the Milvus onli
 | readable by Python SDK                                    | yes    |
 | readable by Java                                          | no     |
 | readable by Go                                            | no     |
-| support for entityless feature views                      | yes    |
+| support for entityless feature views                      | no     |
 | support for concurrent writing to the same key            | yes    |
 | support for ttl (time to live) at retrieval               | no     |
 | support for deleting expired data                         | no     |

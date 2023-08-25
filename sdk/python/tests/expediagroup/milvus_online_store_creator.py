@@ -21,7 +21,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
             "Milvus Proxy successfully initialized and ready to serve!"
         )
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=30
+            container=self.container, predicate=log_string_to_wait_for, timeout=60
         )
         exposed_port = self.container.get_exposed_port("19530")
 

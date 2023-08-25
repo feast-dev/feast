@@ -13,6 +13,7 @@ from pymilvus import (
 )
 
 from feast import FeatureView
+from feast.entity import Entity
 from feast.expediagroup.vectordb.milvus_online_store import (
     MilvusConnectionManager,
     MilvusOnlineStore,
@@ -180,11 +181,12 @@ class TestMilvusOnlineStore:
         ]
 
     def test_milvus_update_add_collection(self, repo_config, caplog):
+        entity = Entity(name="feature2")
         feast_schema = [
             Field(
                 name="feature2",
                 dtype=Int64,
-                tags={"is_primary": "True", "description": "int64"},
+                tags={"description": "int64"},
             ),
             Field(
                 name="feature1",
@@ -205,6 +207,7 @@ class TestMilvusOnlineStore:
             tables_to_keep=[
                 FeatureView(
                     name=self.collection_to_write,
+                    entities=[entity],
                     schema=feast_schema,
                     source=SOURCE,
                 )
@@ -264,13 +267,13 @@ class TestMilvusOnlineStore:
             assert indexes[0].params == index_params
 
     def test_milvus_update_add_existing_collection(self, repo_config, caplog):
+        entity = Entity(name="feature2")
         # Creating a common schema for collection
         feast_schema = [
             Field(
                 name="feature1",
                 dtype=Array(Float32),
                 tags={
-                    "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": "HNSW",
@@ -280,7 +283,7 @@ class TestMilvusOnlineStore:
             Field(
                 name="feature2",
                 dtype=Int64,
-                tags={"is_primary": "True", "description": "int64"},
+                tags={"description": "int64"},
             ),
         ]
 
@@ -292,6 +295,7 @@ class TestMilvusOnlineStore:
             tables_to_keep=[
                 FeatureView(
                     name=self.collection_to_write,
+                    entities=[entity],
                     schema=feast_schema,
                     source=SOURCE,
                 )
@@ -307,13 +311,13 @@ class TestMilvusOnlineStore:
             assert len(utility.list_collections()) == 1
 
     def test_milvus_update_delete_collection(self, repo_config, caplog):
+        entity = Entity(name="feature2")
         # Creating a common schema for collection which is compatible with FEAST
         feast_schema = [
             Field(
                 name="feature1",
                 dtype=Array(Float32),
                 tags={
-                    "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": "HNSW",
@@ -323,7 +327,7 @@ class TestMilvusOnlineStore:
             Field(
                 name="feature2",
                 dtype=Int64,
-                tags={"is_primary": "True", "description": "int64"},
+                tags={"description": "int64"},
             ),
         ]
 
@@ -349,6 +353,7 @@ class TestMilvusOnlineStore:
             tables_to_delete=[
                 FeatureView(
                     name=self.collection_to_write,
+                    entities=[entity],
                     schema=feast_schema,
                     source=SOURCE,
                 )
@@ -364,12 +369,12 @@ class TestMilvusOnlineStore:
             assert utility.has_collection(self.collection_to_write) is False
 
     def test_milvus_update_delete_unavailable_collection(self, repo_config, caplog):
+        entity = Entity(name="feature2")
         feast_schema = [
             Field(
                 name="feature1",
                 dtype=Array(Float32),
                 tags={
-                    "is_primary": "False",
                     "description": "float32",
                     "dimensions": "128",
                     "index_type": "HNSW",
@@ -379,7 +384,7 @@ class TestMilvusOnlineStore:
             Field(
                 name="feature2",
                 dtype=Int64,
-                tags={"is_primary": "True", "description": "int64"},
+                tags={"description": "int64"},
             ),
         ]
 
@@ -388,6 +393,7 @@ class TestMilvusOnlineStore:
             tables_to_delete=[
                 FeatureView(
                     name=self.unavailable_collection,
+                    entities=[entity],
                     schema=feast_schema,
                     source=SOURCE,
                 )
@@ -502,10 +508,13 @@ class TestMilvusOnlineStore:
 
     def _write_data_to_milvus(self, collection_name, data, repo_config):
         with MilvusConnectionManager(repo_config.online_store):
-            rows = MilvusOnlineStore()._format_data_for_milvus(data)
             collection_to_load_data = Collection(collection_name)
+            rows = MilvusOnlineStore()._format_data_for_milvus(
+                data, collection_to_load_data
+            )
             collection_to_load_data.insert(rows)
             collection_to_load_data.flush()
+            collection_to_load_data.load()
 
     def test_milvus_online_read(self, repo_config, caplog):
 
@@ -578,7 +587,7 @@ class TestMilvusOnlineStore:
 
         assert result is not None
         assert len(result) == 10
-        assert result[0]["film_id"].int64_val == 0
-        assert result[0]["film_date"].int64_val == 2000
-        assert result[-1]["film_id"].int64_val == 9
-        assert result[-1]["film_date"].int64_val == 2009
+        assert result[0][1]["film_id"].int64_val == 0
+        assert result[0][1]["film_date"].int64_val == 2000
+        assert result[9][1]["film_id"].int64_val == 9
+        assert result[9][1]["film_date"].int64_val == 2009
