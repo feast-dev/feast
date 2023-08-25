@@ -392,8 +392,9 @@ class OnDemandFeatureView(BaseFeatureView):
         
         # construct output dictionary and mapping from expected feature names to alternative feature names
         output_dict: Dict[str, Any] = {}
+        projection_name_to_use = self.projection.name_to_use()
         for feature in self.features:
-            long_name = self._get_projected_feature_name(feature.name)
+            long_name = f"{projection_name_to_use}__{feature}"
             correct_name = long_name if full_feature_names else feature.name
             output_dict[correct_name] = [None] * len(rows)
 

@@ -2206,14 +2206,15 @@ x
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features = odfv.get_transformed_features(
+                # MS: calling directly cuts 2 ms; will refactor
+                transformed_features = odfv._get_transformed_features_dict(
                     initial_response_dict,
                     full_feature_names
                 )
             elif odfv.mode == "pandas":
                 if initial_response_df is None:
                     initial_response_df = initial_response.to_df()
-                transformed_features = odfv.get_transformed_features(
+                transformed_features = odfv.get_transformed_features_df(
                     initial_response_df,
                     full_feature_names
                 )
