@@ -321,13 +321,21 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
         return schema
 
-    def _get_projected_feature_name(
-        self,
-        feature: str
-    ) -> str:
-        return f"{self.projection.name_to_use()}__{feature}"
+    def _get_correct_names(self, actual_names, full_feature_names):
+        correct_names: Dict[str, str] = {}
+        projection_name_to_use = self.projection.name_to_use()
+        for feature in self.features:
+            short_name = feature.name
+            long_name = f"{projection_name_to_use}__{feature.name}"
+            if short_name in actual_names:
+                correct_names[short_name] = long_name if full_feature_names else short_name
+            elif long_name in actual_names:
+                correct_names[long_name] = long_name if full_feature_names else short_name
+            else:
+                raise Exception(f"Feature {feature.name} was not returned by {self.name} udf. Got: {actual_names}")
+        return correct_names
 
-    def _get_transformed_features_df(
+    def get_transformed_features_df(
         self,
         df_with_features: pd.DataFrame,
         full_feature_names: bool = False,
@@ -351,18 +359,7 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_transformed_features = self.udf.__call__(df_with_features)
 
         # Work out whether the correct columns names are used.
-        rename_columns: Dict[str, str] = {}
-        for feature in self.features:
-            short_name = feature.name
-            long_name = self._get_projected_feature_name(feature.name)
-            if (
-                short_name in df_with_transformed_features.columns
-                and full_feature_names
-            ):
-                rename_columns[short_name] = long_name
-            elif not full_feature_names:
-                # Long name must be in dataframe.
-                rename_columns[long_name] = short_name
+        rename_columns = self._get_correct_names(df_with_transformed_features.columns, full_feature_names)
 
         # Cleanup extra columns used for transformation. Ensure they were not removed in the udf
         df_with_features.drop(columns=[c for c in columns_to_cleanup if c in df_with_features])
@@ -372,62 +369,31 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_transformed_features.columns = new_columns
         return df_with_transformed_features
 
-    def _get_transformed_features_dict(
+    def get_transformed_features_dict(
         self,
         feature_dict: Dict[str, List[Any]],
         full_feature_names: bool = False,
-    ) -> Dict[str, Any]:
-        columns_to_cleanup = []
+    ) -> Dict[str, List[Any]]:
         for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
                 full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
                 if full_feature_ref in feature_dict:
                     feature_dict[feature.name] = feature_dict[full_feature_ref]
-                    columns_to_cleanup.append(feature.name)
                 elif feature.name in feature_dict:
                     feature_dict[full_feature_ref] = feature_dict[feature.name]
-                    columns_to_cleanup.append(full_feature_ref)
 
-        rows = [dict(zip(feature_dict.keys(), values)) for values in zip(*feature_dict.values())]
+        # dict of lists into list of dicts
+        input_rows = [dict(zip(feature_dict.keys(), values)) for values in zip(*feature_dict.values())]
+        output_rows = [self.udf.__call__(row) for row in input_rows]
+        output_names = list(output_rows[0].keys())
+        correct_names_map = self._get_correct_names(output_names, full_feature_names)
         
-        # construct output dictionary and mapping from expected feature names to alternative feature names
-        output_dict: Dict[str, Any] = {}
-        projection_name_to_use = self.projection.name_to_use()
-        for feature in self.features:
-            long_name = f"{projection_name_to_use}__{feature}"
-            correct_name = long_name if full_feature_names else feature.name
-            output_dict[correct_name] = [None] * len(rows)
-
-        # populate output dictionary per row
-        for i, row in enumerate(rows):
-            row_output = self.udf.__call__(row)
-            for feature in output_dict:
-                output_dict[feature][i] = row_output[feature]
-        for col in columns_to_cleanup:
-            if col in output_dict:
-                output_dict.pop(col)
-        return output_dict
-
-    def get_transformed_features(
-            self,
-            features: Union[Dict[str, List[Any]], pd.DataFrame],
-            full_feature_names: bool = False
-    ) -> Union[Dict[str, List[Any]], pd.DataFrame]:
-        # RB / TODO: classic inheritance pattern....maybe fix this
-        if self.mode == "python":
-            assert isinstance(features, dict)
-            return self._get_transformed_features_dict(
-                feature_dict=features,
-                full_feature_names=full_feature_names
-            )
-        elif self.mode == "pandas":
-            assert isinstance(features, pd.DataFrame)
-            return self._get_transformed_features_df(
-                df_with_features=features,
-                full_feature_names=full_feature_names
-            )
-        else:
-            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+        try:
+            # list of dicts into dict of lists
+            return {correct_names_map[name]: [row[name] for row in output_rows] for name in output_names}
+        except KeyError as e:
+            logging.error(f"OnDemandFeatureView {self.name} udf returned unknown feature: {e.message}")
+            
 
     def infer_features(self):
         if self.mode == "pandas":
