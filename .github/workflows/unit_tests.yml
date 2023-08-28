@@ -38,7 +38,7 @@ jobs:
           ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
       - name: Upgrade pip version
         run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |
