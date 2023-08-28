@@ -36,12 +36,14 @@ from feast.infra.online_stores.contrib.mysql_online_store.util import (
     get_feature_view_version_id,
     create_feature_view_partition,
     drop_feature_view_partitions,
-    drop_feature_view,
+    drop_feature_view_version,
     insert_feature_view_version,
     build_feature_view_features_read_query,
     build_legacy_features_read_query,
     build_insert_query_for_entity,
-    build_legacy_insert_query_for_entity
+    build_legacy_insert_query_for_entity,
+    build_feature_view_version_table,
+    build_feature_view_data_table
 )
 
 
@@ -156,10 +158,10 @@ class MySQLOnlineStore(OnlineStore):
             cur: Cursor,
             conn: PyMySQLConnection,
             table: FeatureView,
-            config: MySQLOnlineStoreConfig,
+            project: str,
             data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
     ) -> None:
-        raw_version_id = get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
+        raw_version_id = get_feature_view_version_id(cur=cur, conn=conn, project=project, feature_view=table)
         if raw_version_id is None:
             raise OnlineStoreError(f'FeatureView ({table.name}) does not have a version id. '
                                    f'Rows cannot be inserted until a version id is created.')
@@ -174,10 +176,10 @@ class MySQLOnlineStore(OnlineStore):
                 created_ts = to_naive_utc(created_ts)
 
             rows_to_insert = [
-                (version_id, table.name, entity_key_bin, feature_name, val.SerializeToString(), event_ts, created_ts)
+                (version_id, entity_key_bin, feature_name, val.SerializeToString(), event_ts, created_ts)
                 for feature_name, val in values.items()
             ]
-            value_formatters = ', '.join(['(%s, %s, %s, %s, %s, %s, %s)'] * len(rows_to_insert))
+            value_formatters = ', '.join(['(%s, %s, %s, %s, %s, %s)'] * len(rows_to_insert))
             query = build_insert_query_for_entity(table=table.name, value_formatters=value_formatters)
             query_values = [item for row in rows_to_insert for item in row]
             execute_query_with_retry(
@@ -194,14 +196,14 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self.get_store_config(config=config)
+        project = config.project
         legacy_table = isinstance(table, StreamFeatureView)
         try:
             with pymysql_conn.cursor() as cur:
                 if legacy_table:
                     self._legacy_batch_write(cur=cur, conn=pymysql_conn, table=table, data=data, project=config.project)
                 elif isinstance(table, FeatureView):
-                    self._batch_write(cur=cur, conn=pymysql_conn, table=table, config=mysql_config, data=data)
+                    self._batch_write(cur=cur, conn=pymysql_conn, table=table, project=project, data=data)
                 else:
                     raise OnlineStoreError(f'Attempted batch write to unknown feature view type ({table}).')
         except Exception as e:
@@ -224,7 +226,6 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self.get_store_config(config)
         project = config.project
         legacy_table = isinstance(table, StreamFeatureView)
 
@@ -237,12 +238,12 @@ class MySQLOnlineStore(OnlineStore):
                             entity_key,
                             entity_key_serialization_version=2,
                         ).hex()
-                        query = build_legacy_features_read_query(project=project, table=table)
+                        query = build_legacy_features_read_query(project=project, fv_name=table.name)
                     elif isinstance(table, FeatureView):
                         entity_key_bin = serialize_entity_key_plaintext(
                             entity_key,
                         )
-                        query = build_feature_view_features_read_query(config=mysql_config, feature_view_name=table.name)
+                        query = build_feature_view_features_read_query(project=project, fv_name=table.name)
                     else:
                         raise OnlineStoreError(f'Attempted batch read to unknown feature view type ({table}).')
 
@@ -276,28 +277,30 @@ class MySQLOnlineStore(OnlineStore):
     ) -> bool:
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         conn = raw_conn.connection if conn_type == ConnectionType.SESSION else raw_conn
-        corresponding_records_deleted = True
 
-        with conn.cursor() as cur:
-            project = config.project
-            for entity_key in entity_keys:
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=2,
-                ).hex()
-                query = f"DELETE FROM {_table_id(project, table)} WHERE entity_key = %s"
-                query_executed = self._execute_query_with_retry(
-                    cur=cur,
-                    conn=conn,
-                    query=query,
-                    values=(entity_key_bin,),
-                    retries=MYSQL_READ_RETRIES)
-
-                if not query_executed:
-                    corresponding_records_deleted = False
-                    logging.error(f'Skipping delete for (entity, table)): ({entity_key}, {_table_id(project, table)})')
-        self._close_conn(raw_conn, conn_type)
-        return corresponding_records_deleted
+        use_legacy_handling = isinstance(table, StreamFeatureView)
+        project = config.project
+        try:
+            with conn.cursor() as cur:
+                for entity_key in entity_keys:
+                    entity_key_bin = serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=2,
+                    ).hex()
+                    query = f"DELETE FROM {table_id(project, table.name)} WHERE entity_key = %s"
+                    execute_query_with_retry(
+                        cur=cur,
+                        conn=conn,
+                        query=query,
+                        values=(entity_key_bin,),
+                        retries=MYSQL_READ_RETRIES
+                    )
+        except Exception as e:
+            if use_legacy_handling:
+                return False
+            raise e
+        finally:
+            self._close_conn(conn, conn_type)
 
     def online_read_many(self,
             config: RepoConfig,
@@ -308,7 +311,6 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config, readonly=True)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self.get_store_config(config)
         queries, output = [], []
         use_legacy_handling = False
         try:
@@ -324,13 +326,15 @@ class MySQLOnlineStore(OnlineStore):
                                 entity_key,
                                 entity_key_serialization_version=2,
                             ).hex())
-                            query = build_legacy_features_read_query(project=project, table=table, union_offset=i)
+                            query = build_legacy_features_read_query(
+                                project=project, fv_name=table.name, union_offset=i
+                            )
                         else:
                             entity_key_bins.append(serialize_entity_key_plaintext(
                                 entity_key
                             ))
                             query = build_feature_view_features_read_query(
-                                config=mysql_config, feature_view_name=table.name, union_offset=i
+                                project=project, fv_name=table.name, union_offset=i
                             )
                         queries.append(query)
 
@@ -348,7 +352,7 @@ class MySQLOnlineStore(OnlineStore):
                     if use_legacy_handling:
                         for table, entity_keys in zip(table_list, entity_keys_list):
                             logging.error(
-                                f'Skipping read for (table, entities): ({table_id(project, table)}, {entity_keys})'
+                                f'Skipping read for (table, entities): ({table_id(project, table.name)}, {entity_keys})'
                             )
                         return output
                     raise e
@@ -382,39 +386,49 @@ class MySQLOnlineStore(OnlineStore):
         self,
         cur: Cursor,
         conn: PyMySQLConnection,
-        config: MySQLOnlineStoreConfig,
+        project: str,
         table: FeatureView,
         tries: int = 3,
         **kwargs
     ) -> None:
-        for offset in range(tries):
-            version_id = get_feature_view_version_id(cur=cur, conn=conn, config=config, feature_view_name=table.name)
-            if version_id is not None:
-                return  # FeatureView already created
-
-            version_id = default_version_id(table.name, offset=offset)
+        version_id = None
+        for attempt in range(tries):
             try:
+                version_id = get_feature_view_version_id(cur=cur, conn=conn, project=project, feature_view=table)
+
+                if version_id is not None:
+                    return  # FeatureView already created
+
+                version_id = default_version_id()
+
                 # open transaction but do not commit
+                data_table_name = build_feature_view_data_table(
+                    cur=cur,
+                    conn=conn,
+                    feature_view=table,
+                    project=project
+                )
+
                 insert_feature_view_version(
                     cur=cur,
                     conn=conn,
-                    config=config,
-                    feature_view_name=table.name,
+                    project=project,
+                    fv_name=table.name,
                     version_id=version_id,
                     lock_row=False,
                     commit=False
                 )
 
-                # alter table
+                # alter table and commit; commit will fail if there is a race between table creation
                 create_feature_view_partition(
-                    cur=cur, conn=conn, config=config, version_id=version_id
+                    cur=cur, conn=conn, fv_table=data_table_name, version_id=version_id
                 )
                 return
             except Exception as e:
                 conn.rollback()
                 if isinstance(e, pymysql.Error) and e.args[0] == MYSQL_PARTITION_EXISTS_ERROR:
-                    logging.warning(f'Partition ({version_id}) already exists in table ({config.feature_data_table}).'
-                                    f'Attempting insert with a different version id.')
+                    logging.warning(f'Partition ({version_id}) already exists for Feature View ({table.name})).'
+                                    f'Attempting insert again.')
                     continue
                 raise e
         raise OnlineStoreError(f'Max retries ({tries}) reached for _batch_create and FeatureView ({table.name})')
@@ -466,11 +480,12 @@ class MySQLOnlineStore(OnlineStore):
     ) -> None:
         raw_conn, conn_type = self._get_conn(config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
-        mysql_config = self.get_store_config(config=config)
-
         project = config.project
         try:
             with pymysql_conn.cursor() as cur:
+                # Construct FeatureViewVersion table
+                build_feature_view_version_table(cur=cur, conn=pymysql_conn, project=project)
+
                 # We don't create any special state for the entities in this implementation.
                 for table in tables_to_keep:
                     if isinstance(table, StreamFeatureView):
@@ -479,7 +494,7 @@ class MySQLOnlineStore(OnlineStore):
                         )
                     else:
                         self._batch_create(
-                            cur=cur, conn=pymysql_conn, config=mysql_config, table=table
+                            cur=cur, conn=pymysql_conn, project=project, table=table
                         )
 
                 for table in tables_to_delete:
@@ -521,14 +536,16 @@ class MySQLOnlineStore(OnlineStore):
             cur: Cursor,
             conn: PyMySQLConnection,
             table: FeatureView,
-            config: MySQLOnlineStoreConfig
+            project: str
     ) -> None:
+        data_table = table_id(project=project, table=table)
+
         try:
             version_id = get_feature_view_version_id(
                 cur=cur,
                 conn=conn,
-                config=config,
-                feature_view_name=table.name
+                project=project,
+                feature_view=table
             )
             if version_id is None:
                 logging.error(f'Unable to teardown FeatureView ({table.name}) '
@@ -537,13 +554,13 @@ class MySQLOnlineStore(OnlineStore):
                 # RB / TODO: this code only drops the latest partitions; GC during apply time in prod can be hairy
                 #            for local we should definitely drop all.
                 drop_feature_view_partitions(
-                    cur=cur, conn=conn, config=config, version_ids=[version_id]
+                    cur=cur, conn=conn, fv_table=data_table, version_ids=[version_id]
                 )
-                drop_feature_view(
-                    cur=cur, conn=conn, config=config, feature_view_name=table.name, version_id=version_id
+                drop_feature_view_version(
+                    cur=cur, conn=conn, project=project, feature_view_name=table.name, version_id=version_id
                 )
         except Exception as e:
-            logging.error(f"Unable to teardown FeatureView ({table.name}) table ({config.feature_data_table})"
+            logging.error(f"Unable to teardown FeatureView ({table.name}) table ({data_table})"
                           f"due to exception {e}.")
             conn.rollback()
             raise e
@@ -557,22 +574,16 @@ class MySQLOnlineStore(OnlineStore):
         raw_conn, conn_type = self._get_conn(config)
         pymysql_conn = self._get_pymysql_conn(raw_conn=raw_conn, conn_type=conn_type)
 
-        mysql_config = self.get_store_config(config)
         try:
             with pymysql_conn.cursor() as cur:
                 for table in tables:
-                    if isinstance(table, StreamFeatureView):
-                        drop_table_and_index(
-                            cur=cur, conn=pymysql_conn, project=config.project, table=table
-                        )
-                    elif isinstance(table, FeatureView):
+                    if isinstance(table, FeatureView):
                         self._batch_teardown(
                             cur=cur,
                             conn=pymysql_conn,
                             table=table,
-                            config=mysql_config
+                            project=config.project
                         )
-                    else:
-                        raise ValueError(f'Unknown feature view type: {table}.')
+                    drop_table_and_index(cur=cur, conn=pymysql_conn, project=config.project, table=table)
         finally:
             self._close_conn(raw_conn, conn_type)
