@@ -381,7 +381,7 @@ def build_feature_view_version_table(
     conn: Connection,
     project: str
 ) -> str:
-    table_name = table_id(project=project, table=FEATURE_VIEW_VERSION_TABLE_NAME)
+    table_name = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
     try:
         cur.execute(
             "CREATE TABLE IF NOT EXISTS %s (feature_view_name VARCHAR(255), version_id BIGINT, version_locked BOOL)",

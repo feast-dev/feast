@@ -35,15 +35,14 @@ from feast.infra.online_stores.contrib.mysql_online_store.util import (
     execute_query_with_retry,
     get_feature_view_version_id,
     create_feature_view_partition,
-    drop_feature_view_partitions,
-    drop_feature_view_version,
     insert_feature_view_version,
     build_feature_view_features_read_query,
     build_legacy_features_read_query,
     build_insert_query_for_entity,
     build_legacy_insert_query_for_entity,
     build_feature_view_version_table,
-    build_feature_view_data_table
+    build_feature_view_data_table,
+    FEATURE_VIEW_VERSION_TABLE_NAME
 )
 
 
@@ -131,7 +130,7 @@ class MySQLOnlineStore(OnlineStore):
             data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
             project: str
     ) -> None:
-        table_name = table_id(project, table)
+        table_name = table_id(project=project, fv_name=table.name)
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
                 entity_key,
@@ -388,50 +387,44 @@ class MySQLOnlineStore(OnlineStore):
         conn: PyMySQLConnection,
         project: str,
         table: FeatureView,
-        tries: int = 3,
         **kwargs
     ) -> None:
         version_id = None
-        for attempt in range(tries):
-            try:
-                version_id = get_feature_view_version_id(cur=cur, conn=conn, project=project, feature_view=table)
+        try:
+            data_table_name = build_feature_view_data_table(
+                cur=cur,
+                conn=conn,
+                feature_view=table,
+                project=project
+            )
+            conn.commit()
 
-                if version_id is not None:
-                    return  # FeatureView already created
+            version_id = get_feature_view_version_id(cur=cur, conn=conn, project=project, feature_view=table)
+            if version_id is not None:
+                return  # FeatureView already created
 
-                version_id = default_version_id()
+            version_id = default_version_id()
+            insert_feature_view_version(
+                cur=cur,
+                conn=conn,
+                project=project,
+                fv_name=table.name,
+                version_id=version_id,
+                lock_row=False,
+                commit=False
+            )
 
-                # open transaction but do not commit
-                data_table_name = build_feature_view_data_table(
-                    cur=cur,
-                    conn=conn,
-                    feature_view=table,
-                    project=project
-                )
-
-                insert_feature_view_version(
-                    cur=cur,
-                    conn=conn,
-                    project=project,
-                    fv_name=table.name,
-                    version_id=version_id,
-                    lock_row=False,
-                    commit=False
-                )
-
-                # alter table and commit; commit will fail if there is a race between table creation
-                create_feature_view_partition(
-                    cur=cur, conn=conn, fv_table=data_table_name, version_id=version_id
-                )
-                return
-            except Exception as e:
-                conn.rollback()
-                if isinstance(e, pymysql.Error) and e.args[0] == MYSQL_PARTITION_EXISTS_ERROR:
-                    logging.warning(f'Partition ({version_id}) already exists for Feature View ({table.name})).'
-                                    f'Attempting insert again.')
-                    continue
+            # alter table and commit; commit will fail if there is a race between table creation
+            create_feature_view_partition(
+                cur=cur, conn=conn, fv_table=data_table_name, version_id=version_id
+            )
+            return
+        except Exception as e:
+            conn.rollback()
+            if isinstance(e, pymysql.Error) and e.args[0] == MYSQL_PARTITION_EXISTS_ERROR:
+                logging.warning(f'Partition ({version_id}) already exists for Feature View ({table.name})).')
+            else:
                 raise e
-        raise OnlineStoreError(f'Max retries ({tries}) reached for _batch_create and FeatureView ({table.name})')
 
     def _legacy_create(
             self,
@@ -485,6 +478,7 @@ class MySQLOnlineStore(OnlineStore):
             with pymysql_conn.cursor() as cur:
                 # Construct FeatureViewVersion table
                 build_feature_view_version_table(cur=cur, conn=pymysql_conn, project=project)
+                pymysql_conn.commit()
 
                 # We don't create any special state for the entities in this implementation.
                 for table in tables_to_keep:
@@ -522,49 +516,6 @@ class MySQLOnlineStore(OnlineStore):
                               "" % (e.args[0], e.args[1]))
         self._close_conn(raw_conn, conn_type)
 
-    def _legacy_teardown(
-            self,
-            cur: Cursor,
-            conn: PyMySQLConnection,
-            table: StreamFeatureView,
-            project: str
-    ):
-        drop_table_and_index(cur, conn, project, table)
-
-    def _batch_teardown(
-            self,
-            cur: Cursor,
-            conn: PyMySQLConnection,
-            table: FeatureView,
-            project: str
-    ) -> None:
-        data_table = table_id(project=project, table=table)
-
-        try:
-            version_id = get_feature_view_version_id(
-                cur=cur,
-                conn=conn,
-                project=project,
-                feature_view=table
-            )
-            if version_id is None:
-                logging.error(f'Unable to teardown FeatureView ({table.name}) '
-                              f'because version_id is None.')
-            else:
-                # RB / TODO: this code only drops the latest partitions; GC during apply time in prod can be hairy
-                #            for local we should definitely drop all.
-                drop_feature_view_partitions(
-                    cur=cur, conn=conn, fv_table=data_table, version_ids=[version_id]
-                )
-                drop_feature_view_version(
-                    cur=cur, conn=conn, project=project, feature_view_name=table.name, version_id=version_id
-                )
-        except Exception as e:
-            logging.error(f"Unable to teardown FeatureView ({table.name}) table ({data_table})"
-                          f"due to exception {e}.")
-            conn.rollback()
-            raise e
-
     def teardown(
             self,
             config: RepoConfig,
@@ -577,13 +528,15 @@ class MySQLOnlineStore(OnlineStore):
         try:
             with pymysql_conn.cursor() as cur:
                 for table in tables:
-                    if isinstance(table, FeatureView):
-                        self._batch_teardown(
-                            cur=cur,
-                            conn=pymysql_conn,
-                            table=table,
-                            project=config.project
-                        )
                     drop_table_and_index(cur=cur, conn=pymysql_conn, project=config.project, table=table)
+                try:
+                    cur.execute(
+                        "DROP TABLE IF EXISTS %s",
+                        table_id(project=config.project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
+                    )
+                    pymysql_conn.commit()
+                except Exception as e:
+                    pymysql_conn.rollback()
+                    raise e
         finally:
             self._close_conn(raw_conn, conn_type)
