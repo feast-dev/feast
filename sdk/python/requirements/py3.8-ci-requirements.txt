@@ -210,7 +210,7 @@ executing==1.2.0
     # via stack-data
 fastapi==0.95.2
     # via feast (setup.py)
-fastavro==1.7.4
+fastavro==1.8.1
     # via
     #   feast (setup.py)
     #   pandavro
@@ -713,7 +713,7 @@ pyjwt[crypto]==2.7.0
     #   adal
     #   msal
     #   snowflake-connector-python
-pymssql==2.2.7
+pymssql==2.2.8
     # via feast (setup.py)
 pymysql==1.0.3
     # via feast (setup.py)
@@ -779,7 +779,7 @@ pytz==2023.3
     #   pandas
     #   snowflake-connector-python
     #   trino
-pyyaml==6.0
+pyyaml==6.0.1
     # via
     #   dask
     #   feast (setup.py)
