@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import oracledb
 from pydantic import StrictStr
 from pydantic.schema import Literal
+from string import Template
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -81,6 +82,28 @@ class OracleDBOnlineStore(OnlineStore):
             )
         return self._conn
 
+    @staticmethod
+    def _get_feature_view_value_map(progress, config, entity_key, values, timestamp, created_ts):
+        entity_key_bin = serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=config.entity_key_serialization_version,
+        )
+        timestamp = to_naive_utc(timestamp)
+        if created_ts is not None:
+            created_ts = to_naive_utc(created_ts)
+
+        value_map = {
+            "entity_key": entity_key_bin,
+            "event_ts": timestamp,
+            "created_ts": created_ts,
+        }
+        
+        for feature_name, value in values.items():
+            value_map[feature_name] = value.SerializeToString()
+        if progress:
+            progress(1)
+        return value_map
+
     @log_exceptions_and_usage(online_store="oracledb")
     def online_write_batch(
         self,
@@ -96,46 +119,40 @@ class OracleDBOnlineStore(OnlineStore):
 
         project = config.project
 
+        if len(data) == 0:
+            return
+
         with conn.cursor() as cursor:
-            for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                )
-                timestamp = to_naive_utc(timestamp)
-                if created_ts is not None:
-                    created_ts = to_naive_utc(created_ts)
+            # each entry has a composite key of (entity_key, feature_name)
+            # and the number of feature-names is the same for entity for this FeatureView.
+            # So make each `merge into` statement select all the feature-names for each entity,
+            # and `executemany` over all the entities
 
-                # TODO investigate using cursor.setinputsizes() for performance boost
-                cursor.executemany(
-                    f"""
-                    MERGE INTO {_table_id(project, table)} tt
-                    USING (
-                        SELECT :entity_key entity_key, :feature_name feature_name, :value value, :event_ts event_ts, :created_ts created_ts
-                        FROM DUAL
-                    ) vt
-                    ON ( tt.entity_key = vt.entity_key and tt.feature_name = vt.feature_name )
-                    WHEN NOT MATCHED THEN
-                        insert ( tt.entity_key, tt.feature_name, tt.value, tt.event_ts, tt.created_ts )
-                        values ( vt.entity_key, vt.feature_name, vt.value, vt.event_ts, vt.created_ts )
-                    WHEN MATCHED THEN
-                        update set tt.value = vt.value, tt.event_ts = vt.event_ts, tt.created_ts = vt.created_ts
-                    """,
-                    [
-                        {
-                            "entity_key": entity_key_bin,
-                            "feature_name": feature_name,
-                            "value": val.SerializeToString(),
-                            "event_ts": timestamp,
-                            "created_ts": created_ts,
-                        }
-                        for feature_name, val in values.items()
-                    ]
-                )
-                conn.commit()
+            # peak the first entity's features to ascertain the feature-names that will be repeated
+            select_line = " UNION ALL\n".join([
+                f"SELECT :entity_key entity_key, '{feature_name}' feature_name, :{feature_name} value, :event_ts event_ts, :created_ts created_ts FROM DUAL"
+                for feature_name in data[0][1].keys()
+            ])
 
-                if progress:
-                    progress(1)
+            cursor.executemany(
+                f"""
+                MERGE INTO {_table_id(project, table)} tt
+                USING (
+                    {select_line}
+                ) vt
+                ON ( tt.entity_key = vt.entity_key and tt.feature_name = vt.feature_name )
+                WHEN NOT MATCHED THEN
+                    insert ( tt.entity_key, tt.feature_name, tt.value, tt.event_ts, tt.created_ts )
+                    values ( vt.entity_key, vt.feature_name, vt.value, vt.event_ts, vt.created_ts )
+                WHEN MATCHED THEN
+                    update set tt.value = vt.value, tt.event_ts = vt.event_ts, tt.created_ts = vt.created_ts
+                """,
+                [
+                    self._get_feature_view_value_map(progress, config, entity_key, values, timestamp, created_ts)
+                    for entity_key, values, timestamp, created_ts in data
+                ]
+            )
+            conn.commit()
 
     @log_exceptions_and_usage(online_store="oracledb")
     def online_read(
