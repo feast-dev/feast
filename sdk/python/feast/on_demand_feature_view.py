@@ -393,7 +393,7 @@ class OnDemandFeatureView(BaseFeatureView):
             return {correct_names_map[name]: [row[name] for row in output_rows] for name in output_names}
         except KeyError as e:
             logging.error(f"OnDemandFeatureView {self.name} udf returned unknown feature: {e.message}")
-            
+            raise
 
     def infer_features(self):
         if self.mode == "pandas":
