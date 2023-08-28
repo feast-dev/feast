@@ -150,7 +150,7 @@ jobs:
           architecture: x64
       - name: Upgrade pip version
         run: |
-          pip install --upgrade pip
+          pip install --upgrade "pip>=21.3.1,<22.1"
       - name: Get pip cache dir
         id: pip-cache
         run: |
