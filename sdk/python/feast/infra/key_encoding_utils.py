@@ -72,3 +72,30 @@ def serialize_entity_key(
         output.append(val_bytes)
 
     return b"".join(output)
+
+
+def _cast_value_to_str(
+    value_type: str,
+    v: ValueProto
+) -> Tuple[str, int]:
+    if value_type == "string_val":
+        return v.string_val, ValueType.STRING
+    elif value_type == "int32_val":
+        return str(v.int32_val), ValueType.INT32
+    elif value_type == "int64_val":
+        return str(v.int64_val), ValueType.INT64
+    else:
+        raise ValueError(f"Value type not supported for plaintext entities: {v}")
+
+
+def serialize_entity_key_plaintext(
+    entity_key: EntityKeyProto,
+) -> str:
+    sorted_keys, sorted_values = zip(
+        *sorted(zip(entity_key.join_keys, entity_key.entity_values))
+    )
+    output: List[str] = []
+    for k, v in zip(sorted_keys, sorted_values):
+        casted_value = _cast_value_to_str(value_type=v.WhichOneof("val"), v=v)
+        output.append(f"{k}:{casted_value}")
+    return ','.join(output)
