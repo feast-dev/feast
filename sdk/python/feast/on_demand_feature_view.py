@@ -321,7 +321,11 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
         return schema
 
-    def _get_correct_names(self, actual_names, full_feature_names):
+    def _get_correct_names(
+        self,
+        actual_names: List[str],
+        full_feature_names: bool,
+    ) -> Dict[str, str]:
         correct_names: Dict[str, str] = {}
         projection_name_to_use = self.projection.name_to_use()
         for feature in self.features:

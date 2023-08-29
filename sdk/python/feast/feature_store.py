@@ -1538,28 +1538,6 @@ x
         provider.ingest_df_to_offline_store(feature_view, table)
 
     @log_exceptions_and_usage
-    def get_online_features_for_row(
-        self,
-        features: Union[List[str], FeatureService],
-        entities: Dict[str, Any],
-        full_feature_names: bool = False,
-        allow_registry_cache: bool = True
-    ) -> OnlineResponse:
-        """
-        Wrapper over `_get_online_features` for retrieving only one row of features, which occurs more commonly
-        for some workflows.
-        """
-
-        columnar: Dict[str, List[Any]] = {k: [v] for k, v in entities.items()}
-        return self._get_online_features(
-            features=features,
-            entity_values=columnar,
-            full_feature_names=full_feature_names,
-            native_entity_values=True,
-            allow_registry_cache=allow_registry_cache,
-        )
-
-    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -2229,6 +2207,7 @@ x
             proto_values = []
             for feature in selected_subset:
                 feature_vector = transformed_features[feature]
+                feature_vector = feature_vector.values if isinstance(feature_vector, pd.Series) else feature_vector
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
                 )
