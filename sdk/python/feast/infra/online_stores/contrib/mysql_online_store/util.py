@@ -47,8 +47,8 @@ def drop_table_and_index(cur: Cursor, conn: Connection, project: str, table: Fea
     table_name = table_id(project, table.name)
     try:
         if isinstance(table, StreamFeatureView):
-            cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
-        cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+            cur.execute(f"DROP INDEX {table_name}_ek ON `{table_name}`;")
+        cur.execute(f"DROP TABLE IF EXISTS `{table_name}`")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -76,9 +76,11 @@ def build_legacy_features_read_query(
     fv_name: str,
     union_offset: Optional[int] = None
 ) -> str:
-    base = "SELECT feature_name, value, event_ts" + " " if union_offset is None else f", {union_offset} as __i__ "
-    base += f"FROM {table_id(project, fv_name.name)} WHERE entity_key = %s"
-    return base
+    union_col = " " if union_offset is None else f", {union_offset} as __i__ "
+
+    return (
+        f"SELECT feature_name, value, event_ts{union_col} FROM `{table_id(project, fv_name)}` WHERE entity_key = %s"
+    )
 
 
 def build_feature_view_features_read_query(
@@ -88,11 +90,12 @@ def build_feature_view_features_read_query(
 ) -> str:
     version_table = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
     data_table = table_id(project=project, fv_name=fv_name)
-
-    base = "SELECT feature_name, value, event_ts" + "" if union_offset is None else f", {union_offset} as __i__"
-    base += f" FROM {data_table} WHERE entity_key = %s AND version_id IN "
-    base += f"(SELECT version_id FROM {version_table} WHERE feature_view_name = {fv_name});"
-    return base
+    union_col = "" if union_offset is None else f", {union_offset} as __i__"
+    return (
+        f"SELECT feature_name, value, event_ts{union_col} "
+        f"FROM `{data_table}` WHERE entity_key = %s AND version_id IN ("
+        f"SELECT version_id FROM `{version_table}` WHERE feature_view_name = {fv_name});"
+    )
 
 
 def build_legacy_insert_query_for_entity(
@@ -101,7 +104,7 @@ def build_legacy_insert_query_for_entity(
 ) -> str:
     return \
         f"""
-        INSERT INTO {table}
+        INSERT INTO `{table}`
         (entity_key, feature_name, value, event_ts, created_ts)
         VALUES {value_formatters}
         ON DUPLICATE KEY UPDATE 
@@ -117,8 +120,8 @@ def build_insert_query_for_entity(
 ) -> str:
     return \
         f"""
-        INSERT INTO {table}
-        (version_id, feature_view_name, entity_key, feature_name, value, event_ts, created_ts)
+        INSERT INTO `{table}`
+        (version_id, entity_key, feature_name, value, event_ts, created_ts)
         VALUES {value_formatters}
         ON DUPLICATE KEY UPDATE 
         value = VALUES(value),
@@ -178,10 +181,11 @@ def get_feature_view_version_id(
     project: str,
     feature_view: FeatureView,
 ) -> Optional[int]:
-    table, version_id = table_id(project=project, table=FEATURE_VIEW_VERSION_TABLE_NAME), None
+    version_id = None
+    table = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
     cur.execute(
-        "SELECT version_id FROM %s WHERE feature_view_name = %s;",
-        (table, feature_view.name)
+        f"SELECT version_id FROM `{table}` WHERE feature_view_name = %s;",
+        (feature_view.name,)
     )
     record = cur.fetchone()
     if record is not None:
@@ -201,14 +205,14 @@ def insert_feature_view_version(
     lock_row: bool = False,
     commit: bool = True
 ) -> None:
-    write_query = "INSERT INTO %s VALUES (%s, %s, %s,)"
-    table = table_id(project=project, table=FEATURE_VIEW_VERSION_TABLE_NAME)
-    cur.execute(write_query, (table, fv_name, version_id, lock_row,))
+    table = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
+    write_query = f"INSERT INTO `{table}` VALUES (%s, %s, %s,)"
+    cur.execute(write_query, (fv_name, version_id, lock_row,))
     if commit:
         conn.commit()
 
 
-def _get_and_lock_feature_view_version(
+def get_and_lock_feature_view_version(
     cur: Cursor,
     conn: Connection,
     config: MySQLOnlineStoreConfig,
@@ -310,15 +314,16 @@ def create_feature_view_partition(
     result = cur.fetchone()
     table_not_partitioned = result is None or result == 0
 
-    partition_query = "ALTER TABLE %s"
+    partition_query = f"ALTER TABLE `{fv_table}`"
     partition_query += "PARTITION BY LIST (version_id)(" if table_not_partitioned else "ADD PARTITION ("
     partition_query += "PARTITION `%s` VALUES IN (%s));"
-    cur.execute(partition_query, (fv_table, partition_name, version_id,))
+    cur.execute(partition_query, (partition_name, version_id,))
 
     conn.commit()
     return partition_name
 
 
+"""
 def drop_feature_view_partitions(
     cur: Cursor,
     conn: Connection,
@@ -332,8 +337,9 @@ def drop_feature_view_partitions(
     execute_query_with_retry(
         cur=cur, conn=conn, query=alter_query, values=query_values,
     )
+"""
 
-
+"""
 def unlock_feature_view_version(
     cur: Cursor,
     conn: Connection,
@@ -353,8 +359,9 @@ def unlock_feature_view_version(
                       f'SELECT version_id, alter_in_progress FROM {config.feature_version_table} WHERE'
                       f'feature_view_name = \'{feature_view_name}\'')
         raise e
+"""
 
-
+"""
 def drop_feature_view_version(
     cur: Cursor,
     conn: Connection,
@@ -363,8 +370,9 @@ def drop_feature_view_version(
     version_id: int
 ) -> None:
     # RB: version_id in this case roughly acts as a "proof of lock" value.
-    version_table = table_id(project=project, table=FEATURE_VIEW_VERSION_TABLE_NAME)
-    query, values = "DELETE FROM %s WHERE feature_view_name = %s", (version_table, feature_view_name,)
+    version_table = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
+    query = f"DELETE FROM {version_table} WHERE feature_view_name = %s"
+    values = (feature_view_name,)
     try:
         execute_query_with_retry(
             cur=cur, conn=conn, query=query, values=values,
@@ -374,6 +382,7 @@ def drop_feature_view_version(
             cur=cur, conn=conn, project=project, feature_view_name=feature_view_name, version_id=version_id
         )
         raise e
+"""
 
 
 def build_feature_view_version_table(
@@ -384,9 +393,13 @@ def build_feature_view_version_table(
     table_name = table_id(project=project, fv_name=FEATURE_VIEW_VERSION_TABLE_NAME)
     try:
         cur.execute(
-            "CREATE TABLE IF NOT EXISTS %s (feature_view_name VARCHAR(255), version_id BIGINT, version_locked BOOL)",
-            table_name
+            f"CREATE TABLE IF NOT EXISTS `{table_name}` ("
+            "feature_view_name VARCHAR(255), "
+            "version_id BIGINT, "
+            "version_locked BOOL,"
+            "PRIMARY KEY (feature_view_name))",
         )
+        conn.commit()
     except Exception as e:
         conn.rollback()
         raise e
@@ -399,10 +412,10 @@ def build_feature_view_data_table(
     feature_view: FeatureView,
     project: str
 ) -> str:
-    table_name = table_id(project=project, table=feature_view)
+    table_name = table_id(project=project, fv_name=feature_view.name)
     try:
         cur.execute(
-            "CREATE TABLE IF NOT EXISTS %s ("
+            f"CREATE TABLE IF NOT EXISTS `{table_name}` ("
             "version_id BIGINT, "
             "entity_key VARCHAR(255), "
             "feature_name VARCHAR(255), "
@@ -411,6 +424,7 @@ def build_feature_view_data_table(
             "created_ts timestamp NULL DEFAULT NULL, "
             "PRIMARY KEY(version_id, entity_key, feature_name))"
         )
+        conn.commit()
     except Exception as e:
         conn.rollback()
         raise e

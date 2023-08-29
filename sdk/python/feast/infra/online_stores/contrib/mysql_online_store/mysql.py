@@ -200,7 +200,7 @@ class MySQLOnlineStore(OnlineStore):
         try:
             with pymysql_conn.cursor() as cur:
                 if legacy_table:
-                    self._legacy_batch_write(cur=cur, conn=pymysql_conn, table=table, data=data, project=config.project)
+                    self._legacy_batch_write(cur=cur, conn=pymysql_conn, table=table, project=config.project, data=data)
                 elif isinstance(table, FeatureView):
                     self._batch_write(cur=cur, conn=pymysql_conn, table=table, project=project, data=data)
                 else:
@@ -391,14 +391,15 @@ class MySQLOnlineStore(OnlineStore):
     ) -> None:
         version_id = None
         try:
+            # create table for FeatureView; immediate transaction
             data_table_name = build_feature_view_data_table(
                 cur=cur,
                 conn=conn,
                 feature_view=table,
                 project=project
             )
-            conn.commit()
 
+            # lock feature view version, if it exists
             version_id = get_feature_view_version_id(cur=cur, conn=conn, project=project, feature_view=table)
             if version_id is not None:
                 return  # FeatureView already created
@@ -478,7 +479,6 @@ class MySQLOnlineStore(OnlineStore):
             with pymysql_conn.cursor() as cur:
                 # Construct FeatureViewVersion table
                 build_feature_view_version_table(cur=cur, conn=pymysql_conn, project=project)
-                pymysql_conn.commit()
 
                 # We don't create any special state for the entities in this implementation.
                 for table in tables_to_keep:
@@ -491,6 +491,7 @@ class MySQLOnlineStore(OnlineStore):
                             cur=cur, conn=pymysql_conn, project=project, table=table
                         )
 
+                # TODO: better safety for prod
                 for table in tables_to_delete:
                     drop_table_and_index(cur, pymysql_conn, project, table)
         finally:
