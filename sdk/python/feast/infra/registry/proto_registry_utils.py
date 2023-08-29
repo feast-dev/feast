@@ -38,6 +38,7 @@ def registry_proto_cache(func):
             return cache_value
         else:
             cache_value = func(registry_proto, project)
+            cache_key = key
             return cache_value
 
     return wrapper
