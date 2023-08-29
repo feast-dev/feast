@@ -3,7 +3,7 @@ import functools
 import warnings
 from datetime import datetime
 from types import FunctionType
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union, Iterable
 
 import dill
 import logging
@@ -323,7 +323,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _get_correct_names(
         self,
-        actual_names: List[str],
+        actual_names: Iterable[str],
         full_feature_names: bool,
     ) -> Dict[str, str]:
         correct_names: Dict[str, str] = {}
