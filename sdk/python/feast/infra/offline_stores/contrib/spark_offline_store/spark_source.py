@@ -142,7 +142,9 @@ class SparkSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        self.get_table_column_names_and_types(config)
+        # RB: Disable this, possibly temporarily. This is an expensive operation to run on an RPC pod.
+        # self.get_table_column_names_and_types(config)
+        pass
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
