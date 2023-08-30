@@ -142,8 +142,6 @@ class SparkSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        # RB: Disable this, possibly temporarily. This is an expensive operation to run on an RPC pod.
-        # self.get_table_column_names_and_types(config)
         pass
 
     @staticmethod
