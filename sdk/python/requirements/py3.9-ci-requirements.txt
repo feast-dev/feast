@@ -442,7 +442,7 @@ jupyter-core==5.3.0
     #   notebook
 jupyter-events==0.6.3
     # via jupyter-server
-jupyter-server==2.6.0
+jupyter-server==2.7.2
     # via
     #   nbclassic
     #   notebook-shim
