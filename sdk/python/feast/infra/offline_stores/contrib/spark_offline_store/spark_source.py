@@ -163,7 +163,7 @@ class SparkSource(DataSource):
         df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
         return ((field.name, field.dataType.simpleString()) for field in df.schema)
 
-    def get_table_query_string(self) -> str:
+    def get_table_query_string(self, **kwargs) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
             # Backticks make sure that spark sql knows this a table reference.
