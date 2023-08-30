@@ -23,7 +23,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.types import Array, Bytes, Float32, Float64, Int32, Int64, Invalid, String
+from feast.types import Array, Bytes, Float32, Float64, Int32, Int64, Invalid, String, UnixTimestamp
 from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ TYPE_MAPPING = bidict(
         DataType.INT64: Int64,
         DataType.FLOAT: Float32,
         DataType.DOUBLE: Float64,
-        DataType.STRING: String,
+        DataType.VARCHAR: String,
         DataType.UNKNOWN: Invalid,
         DataType.FLOAT_VECTOR: Array(Float32),
         DataType.BINARY_VECTOR: Array(Bytes),
@@ -255,15 +255,27 @@ class MilvusOnlineStore(OnlineStore):
                             )
                             raise e
 
-            # Appending the above converted values to construct a FieldSchema
-            field_list.append(
-                FieldSchema(
+            field = FieldSchema(
+                name=field_name,
+                dtype=data_type,
+                description=description,
+                is_primary=is_primary,
+                dim=dimensions,
+            )
+
+            if data_type == DataType.VARCHAR:
+                field = FieldSchema(
                     name=field_name,
                     dtype=data_type,
+                    max_length=50,
                     description=description,
                     is_primary=is_primary,
                     dim=dimensions,
                 )
+
+            # Appending the above converted values to construct a FieldSchema
+            field_list.append(
+                field
             )
         # Returning a CollectionSchema which is a list of type FieldSchema.
         return CollectionSchema(field_list), indexes
@@ -478,6 +490,10 @@ class MilvusOnlineStore(OnlineStore):
         """
         Convert Feast type to Milvus type using the TYPE_MAPPING bidict.
         """
+        # todo this is just a hacky way to make the event_timestamp work
+        if feast_type == UnixTimestamp:
+            return DataType.INT64
+
         return TYPE_MAPPING.inverse.get(feast_type, None)
 
     def _get_feast_type(self, milvus_type) -> object:
