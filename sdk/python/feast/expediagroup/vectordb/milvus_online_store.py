@@ -83,6 +83,9 @@ class MilvusConnectionManager:
         logger.info(
             f"Connecting to Milvus with alias {self.online_config.alias} and host {self.online_config.host} and port {self.online_config.port}."
         )
+        print(
+            f"Connecting to Milvus with alias {self.online_config.alias} and host {self.online_config.host} and port {self.online_config.port}."
+        )
         connections.connect(
             alias=self.online_config.alias,
             host=self.online_config.host,
@@ -95,10 +98,12 @@ class MilvusConnectionManager:
     def __exit__(self, exc_type, exc_value, traceback):
         # Disconnecting from Milvus
         logger.info("Closing the connection to Milvus")
+        print("Closing the connection to Milvus")
         connections.disconnect(self.online_config.alias)
         logger.info("Connection Closed")
         if exc_type is not None:
             logger.error(f"An exception of type {exc_type} occurred: {exc_value}")
+            print(f"An exception of type {exc_type} occurred: {exc_value}")
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -112,6 +117,7 @@ class MilvusOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         with MilvusConnectionManager(config.online_store):
+            print("Starting the process to batch write data into Milvus.")
             collection_to_load_data = Collection(table.name)
             rows = self._format_data_for_milvus(data, collection_to_load_data)
             collection_to_load_data.insert(rows)
@@ -119,8 +125,10 @@ class MilvusOnlineStore(OnlineStore):
             collection_to_load_data.flush()
             collection_to_load_data.load()
             logger.info("loading data into memory")
+            print("loading data into memory")
             utility.wait_for_loading_complete(table.name)
             logger.info("loading data into memory complete")
+            print("loading data into memory complete")
 
     def online_read(
         self,
@@ -160,6 +168,7 @@ class MilvusOnlineStore(OnlineStore):
 
                 if collection_available:
                     logger.info(f"Collection {table_to_keep.name} already exists.")
+                    print(f"Collection {table_to_keep.name} already exists.")
                 else:
                     if not table_to_keep.schema:
                         raise ValueError(
@@ -176,12 +185,18 @@ class MilvusOnlineStore(OnlineStore):
                     logger.info(
                         f"creating collection {table_to_keep.name} with schema: {schema}"
                     )
+                    print(
+                        f"creating collection {table_to_keep.name} with schema: {schema}"
+                    )
                     collection = Collection(name=table_to_keep.name, schema=schema)
 
                     for field_name, index_params in indexes.items():
                         collection.create_index(field_name, index_params)
 
                     logger.info(
+                        f"Collection {table_to_keep.name} has been created successfully."
+                    )
+                    print(
                         f"Collection {table_to_keep.name} has been created successfully."
                     )
 
