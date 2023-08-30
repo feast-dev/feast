@@ -10,10 +10,6 @@ from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource, SparkOptions
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
-from feast.infra.offline_stores.contrib.spark_offline_store.defs import (
-    MATERIALIZATION_START_DATE_KEY,
-    MATERIALIZATION_END_DATE_KEY
-)
 
 
 logger = logging.getLogger(__name__)
@@ -138,8 +134,8 @@ class TimeDependentSparkSource(SparkSource):
     def get_table_query_string(self, **kwargs) -> str:
         spark_session = SparkSession.getActiveSession()
 
-        start_date: datetime = kwargs.get(MATERIALIZATION_START_DATE_KEY)
-        end_date: datetime = kwargs.get(MATERIALIZATION_END_DATE_KEY)
+        start_date: datetime = kwargs.get("start_date")
+        end_date: datetime = kwargs.get("end_date")
 
         paths = []
         if start_date is None or end_date is None:

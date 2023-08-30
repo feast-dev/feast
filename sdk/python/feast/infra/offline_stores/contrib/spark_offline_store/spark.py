@@ -83,7 +83,8 @@ class SparkOfflineStore(OfflineStore):
 
         print("Pulling latest features from spark offline store")
 
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string(start_date=start_date, end_date=end_date)
+
 
         partition_by_join_key_string = ", ".join(join_key_columns)
         if partition_by_join_key_string != "":
@@ -287,7 +288,7 @@ class SparkOfflineStore(OfflineStore):
         )
 
         fields = ", ".join(join_key_columns + feature_name_columns + [timestamp_field])
-        from_expression = data_source.get_table_query_string()
+        from_expression = data_source.get_table_query_string(start_date=start_date, end_date=end_date)
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
 
