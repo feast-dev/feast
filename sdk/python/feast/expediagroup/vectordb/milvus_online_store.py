@@ -23,7 +23,17 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.types import Array, Bytes, Float32, Float64, Int32, Int64, Invalid, String, UnixTimestamp
+from feast.types import (
+    Array,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    Invalid,
+    String,
+    UnixTimestamp,
+)
 from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
@@ -274,9 +284,7 @@ class MilvusOnlineStore(OnlineStore):
                 )
 
             # Appending the above converted values to construct a FieldSchema
-            field_list.append(
-                field
-            )
+            field_list.append(field)
         # Returning a CollectionSchema which is a list of type FieldSchema.
         return CollectionSchema(field_list), indexes
 
