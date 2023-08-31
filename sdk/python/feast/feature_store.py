@@ -994,12 +994,14 @@ class FeatureStore:
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
         # TODO: remove
-        print(f"""Update project={self.project},
+        print(
+            f"""Update project={self.project},
             tables_to_delete={tables_to_delete},
             tables_to_keep={tables_to_keep},
             entities_to_delete={entities_to_delete if not partial else []},
             entities_to_keep={entities_to_update},
-            partial={partial},""")
+            partial={partial},"""
+        )
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=tables_to_delete,
