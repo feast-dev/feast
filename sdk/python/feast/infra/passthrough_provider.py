@@ -116,7 +116,8 @@ class PassthroughProvider(Provider):
     ):
         set_usage_attribute("provider", self.__class__.__name__)
 
-        print(f"Is online store={self.online_store}") #TODO: remove
+        # TODO: remove
+        print(f"Is online store={self.online_store}")
         # Call update only if there is an online store
         if self.online_store:
             self.online_store.update(
