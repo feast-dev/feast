@@ -821,6 +821,7 @@ class FeatureStore:
             ... )
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
+        print(f"Apply with: {objects}") #TODO: remove
         # TODO: Add locking
         if not isinstance(objects, Iterable):
             objects = [objects]
@@ -991,6 +992,12 @@ class FeatureStore:
         tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
+        print(f"""Update project={self.project},
+            tables_to_delete={tables_to_delete},
+            tables_to_keep={tables_to_keep},
+            entities_to_delete={entities_to_delete if not partial else []},
+            entities_to_keep={entities_to_update},
+            partial={partial},""") #TODO: remove
         self._get_provider().update_infra(
             project=self.project,
             tables_to_delete=tables_to_delete,
