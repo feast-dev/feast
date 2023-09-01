@@ -195,6 +195,7 @@ class SqlRegistry(BaseRegistry):
             else 0
         )
         self._in_feast_apply_context = is_feast_apply
+        self.refresh()
 
     def enter_apply_context(self):
         self._in_feast_apply_context = True

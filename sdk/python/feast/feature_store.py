@@ -170,7 +170,6 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, None, is_feast_apply=is_feast_apply)
-            self._registry.refresh()
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
