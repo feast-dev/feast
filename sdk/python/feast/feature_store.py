@@ -133,6 +133,7 @@ class FeatureStore:
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
         fs_yaml_file: Optional[Path] = None,
+        is_feast_apply: bool = False,
     ):
         """
         Creates a FeatureStore object.
@@ -142,6 +143,7 @@ class FeatureStore:
             config (optional): Configuration object used to configure the feature store.
             fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
                 At most one of 'fs_yaml_file' and 'config' can be set.
+            is_feast_apply (bool): True if the feature store is being created while in a 'feast apply' execution flow.
 
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
@@ -168,6 +170,11 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, None)
+
+            if is_feast_apply:
+                self._registry.enter_apply_context()
+                self._registry.refresh()
+                self._registry.exit_apply_context()
         else:
             r = Registry(registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
