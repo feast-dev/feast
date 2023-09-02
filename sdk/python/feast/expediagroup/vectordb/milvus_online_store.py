@@ -34,7 +34,6 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
-from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +116,7 @@ class MilvusOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         with MilvusConnectionManager(config.online_store):
+            self._create_collection_if_not_exists(table)
             print("Starting the process to batch write data into Milvus.")
             collection_to_load_data = Collection(table.name)
             rows = self._format_data_for_milvus(data, collection_to_load_data)
@@ -152,7 +152,6 @@ class MilvusOnlineStore(OnlineStore):
             # results do not have timestamps
             return [(None, row) for row in results]
 
-    @log_exceptions_and_usage(online_store="milvus")
     def update(
         self,
         config: RepoConfig,
@@ -164,41 +163,7 @@ class MilvusOnlineStore(OnlineStore):
     ):
         with MilvusConnectionManager(config.online_store):
             for table_to_keep in tables_to_keep:
-                collection_available = utility.has_collection(table_to_keep.name)
-
-                if collection_available:
-                    logger.info(f"Collection {table_to_keep.name} already exists.")
-                    print(f"Collection {table_to_keep.name} already exists.")
-                else:
-                    if not table_to_keep.schema:
-                        raise ValueError(
-                            f"a schema must be provided for feature_view: {table_to_keep}"
-                        )
-
-                    (
-                        schema,
-                        indexes,
-                    ) = self._convert_featureview_schema_to_milvus_readable(
-                        table_to_keep,
-                    )
-
-                    logger.info(
-                        f"creating collection {table_to_keep.name} with schema: {schema}"
-                    )
-                    print(
-                        f"creating collection {table_to_keep.name} with schema: {schema}"
-                    )
-                    collection = Collection(name=table_to_keep.name, schema=schema)
-
-                    for field_name, index_params in indexes.items():
-                        collection.create_index(field_name, index_params)
-
-                    logger.info(
-                        f"Collection {table_to_keep.name} has been created successfully."
-                    )
-                    print(
-                        f"Collection {table_to_keep.name} has been created successfully."
-                    )
+                self._create_collection_if_not_exists(table_to_keep)
 
             for table_to_delete in tables_to_delete:
                 collection_available = utility.has_collection(table_to_delete.name)
@@ -228,6 +193,40 @@ class MilvusOnlineStore(OnlineStore):
                 if utility.has_collection(collection_name):
                     logger.info(f"Dropping collection: {collection_name}")
                     utility.drop_collection(collection_name)
+
+    def _create_collection_if_not_exists(self, feature_view: FeatureView):
+        """
+        Checks whether the collection already exists and creates it based on the provided feature view.
+
+        Parameters:
+        feature_view (FeatureView): the FeatureView that contains the schema.
+        """
+        collection_available = utility.has_collection(feature_view.name)
+
+        if collection_available:
+            logger.info(f"Collection {feature_view.name} already exists.")
+            print(f"Collection {feature_view.name} already exists.")
+        else:
+            if not feature_view.schema:
+                raise ValueError(
+                    f"a schema must be provided for feature_view: {feature_view.name}"
+                )
+
+            (schema, indexes,) = self._convert_featureview_schema_to_milvus_readable(
+                feature_view,
+            )
+
+            logger.info(
+                f"creating collection {feature_view.name} with schema: {schema}"
+            )
+            collection = Collection(name=feature_view.name, schema=schema)
+
+            for field_name, index_params in indexes.items():
+                collection.create_index(field_name, index_params)
+
+            logger.info(
+                f"Collection {feature_view.name} has been created successfully."
+            )
 
     def _convert_featureview_schema_to_milvus_readable(
         self, feature_view: FeatureView
