@@ -18,10 +18,10 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -38,7 +38,7 @@ jobs:
           ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
       - name: Upgrade pip version
         run: |
-          pip install --upgrade pip
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -66,8 +66,8 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'

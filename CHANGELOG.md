@@ -1,5 +1,41 @@
 # Changelog
 
+# [0.33.0](https://github.com/feast-dev/feast/compare/v0.32.0...v0.33.0) (2023-08-14)
+
+
+### Bug Fixes
+
+* Add aws-sts dependency in java sdk so that S3 client acquires IRSA role ([#3696](https://github.com/feast-dev/feast/issues/3696)) ([c75a01f](https://github.com/feast-dev/feast/commit/c75a01fce2d52cd18479ace748b8eb2e6c81c988))
+* Redshift push ignores schema ([#3671](https://github.com/feast-dev/feast/issues/3671)) ([76270f6](https://github.com/feast-dev/feast/commit/76270f66b3d98b0119b70927c06908f9834b6120))
+
+
+### Features
+
+* Add possibility to save dataset as table, when spark config has remote warehouse info ([#3645](https://github.com/feast-dev/feast/issues/3645)) ([22c109b](https://github.com/feast-dev/feast/commit/22c109bc088d093a7c81c59e11490a9a21f82309))
+
+# [0.32.0](https://github.com/feast-dev/feast/compare/v0.31.0...v0.32.0) (2023-07-17)
+
+
+### Bug Fixes
+
+* Added generic Feature store Creation for CLI ([#3618](https://github.com/feast-dev/feast/issues/3618)) ([bf740d2](https://github.com/feast-dev/feast/commit/bf740d2d0ef3b62cf27f25083b5b4d49955b56fb))
+* Broken non-root path with projects-list.json ([#3665](https://github.com/feast-dev/feast/issues/3665)) ([4861af0](https://github.com/feast-dev/feast/commit/4861af0f3206f965ad2f7a4eddf2ebec2df149f8))
+* Clean up snowflake to_spark_df() ([#3607](https://github.com/feast-dev/feast/issues/3607)) ([e8e643e](https://github.com/feast-dev/feast/commit/e8e643e3555127daf37fa4961fdadb0508a041db))
+* Entityless fv breaks with `KeyError: __dummy` applying feature_store.plan() on python ([#3640](https://github.com/feast-dev/feast/issues/3640)) ([ef4ef32](https://github.com/feast-dev/feast/commit/ef4ef32f7466b5d874d537abe8def4731b15dc85))
+* Fix scan datasize to 0 for inference schema ([#3628](https://github.com/feast-dev/feast/issues/3628)) ([c3dd74e](https://github.com/feast-dev/feast/commit/c3dd74e238b5b9e784e3dbe102941c66a63f6686))
+* Fix timestamp consistency in push api ([#3614](https://github.com/feast-dev/feast/issues/3614)) ([9b227d7](https://github.com/feast-dev/feast/commit/9b227d7d44f30d28d1faadc8015f25dc4a6f56b5))
+* For SQL registry, increase max data_source_name length to 255 ([#3630](https://github.com/feast-dev/feast/issues/3630)) ([478caec](https://github.com/feast-dev/feast/commit/478caecc8d61b6070ec03bc13688a83b8c5f5936))
+* Implements connection pool for postgres online store ([#3633](https://github.com/feast-dev/feast/issues/3633)) ([059509a](https://github.com/feast-dev/feast/commit/059509a492d180effb1786713738665e293838e7))
+* Manage redis pipe's context ([#3655](https://github.com/feast-dev/feast/issues/3655)) ([48e0971](https://github.com/feast-dev/feast/commit/48e097130e68241e751bd4be5af7427fffad47cf))
+* Missing Catalog argument in athena connector ([#3661](https://github.com/feast-dev/feast/issues/3661)) ([f6d3caf](https://github.com/feast-dev/feast/commit/f6d3caf8affc74aef7ac489d3e6816d45b30d820))
+* Optimize bytes processed when retrieving entity df schema to 0 ([#3680](https://github.com/feast-dev/feast/issues/3680)) ([1c01035](https://github.com/feast-dev/feast/commit/1c010357affd48616d39f1ad01b872fac946269d))
+
+
+### Features
+
+* Add gunicorn for serve with multiprocess ([#3636](https://github.com/feast-dev/feast/issues/3636)) ([4de7faf](https://github.com/feast-dev/feast/commit/4de7faf7b262d30a9f6795911d8fa97df775fa8d))
+* Use string as a substitute for unregistered types during schema inference ([#3646](https://github.com/feast-dev/feast/issues/3646)) ([c474ccd](https://github.com/feast-dev/feast/commit/c474ccdd23ca8161de5e2958f0a12826c020dc44))
+
 # [0.31.0](https://github.com/feast-dev/feast/compare/v0.30.0...v0.31.0) (2023-04-21)
 
 

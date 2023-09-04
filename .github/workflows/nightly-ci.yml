@@ -17,7 +17,7 @@ jobs:
     outputs:
       WAS_EDITED: ${{ steps.check_date.outputs.WAS_EDITED }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
       - id: check_date
@@ -29,11 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Cleanup Bigtable / Dynamo tables which can fail to cleanup
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: "3.8"
@@ -140,12 +140,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
           submodules: recursive
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -175,7 +175,7 @@ jobs:
         run: aws sts get-caller-identity
       - name: Upgrade pip version
         run: |
-          pip install --upgrade pip
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |

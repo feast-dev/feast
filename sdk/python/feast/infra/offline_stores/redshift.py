@@ -369,7 +369,7 @@ class RedshiftOfflineStore(OfflineStore):
             s3_resource=s3_resource,
             s3_path=f"{config.offline_store.s3_staging_location}/push/{uuid.uuid4()}.parquet",
             iam_role=config.offline_store.iam_role,
-            table_name=redshift_options.table,
+            table_name=redshift_options.fully_qualified_table_name,
             schema=pa_schema,
             fail_if_exists=False,
         )
