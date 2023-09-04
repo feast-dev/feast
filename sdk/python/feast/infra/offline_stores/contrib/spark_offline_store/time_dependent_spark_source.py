@@ -53,10 +53,19 @@ class TimeDependentSparkSource(SparkSource):
         if name is None:
             raise DataSourceNoNameException()
 
+        from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+            SPARK_SOURCE_SUBTYPE_KEY,
+            SparkSourceSubtype
+        )
+
+        if tags is None:
+            tags = {}
+
         tags.update({
             self.PATH_PREFIX_KEY: path_prefix,
             self.TIME_FMT_STR_KEY: time_fmt_str,
-            self.PATH_SUFFIX_KEY: path_suffix
+            self.PATH_SUFFIX_KEY: path_suffix,
+            SPARK_SOURCE_SUBTYPE_KEY: SparkSourceSubtype.time_dependent.value
         })
 
         self.path_prefix = path_prefix
@@ -79,7 +88,6 @@ class TimeDependentSparkSource(SparkSource):
             tags=tags,
             owner=owner,
         )
-
 
     @property
     def time_dependent_path(self) -> str:
@@ -120,7 +128,7 @@ class TimeDependentSparkSource(SparkSource):
             file_format=spark_options.file_format,
             created_timestamp_column=data_source.created_timestamp_column,
             timestamp_field=data_source.timestamp_field,
-            field_mapping=dict(data_source.field_mapping)
+            field_mapping=dict(data_source.field_mapping),
         )
 
     def get_paths_in_date_range(self, start_date: datetime, end_date: datetime) -> List[str]:

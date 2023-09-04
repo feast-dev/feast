@@ -22,6 +22,13 @@ from feast.value_type import ValueType
 logger = logging.getLogger(__name__)
 
 
+SPARK_SOURCE_SUBTYPE_KEY = "spark_source_subtype"
+
+
+class SparkSourceSubtype(Enum):
+    time_dependent = "time_dependent"
+
+
 class SparkSourceFormat(Enum):
     csv = "csv"
     json = "json"
@@ -107,8 +114,36 @@ class SparkSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
+        from feast.infra.offline_stores.contrib.spark_offline_store.time_dependent_spark_source import (
+            TimeDependentSparkSource
+        )
+
         assert data_source.HasField("spark_options")
         spark_options = SparkOptions.from_proto(data_source.spark_options)
+
+        if SPARK_SOURCE_SUBTYPE_KEY in data_source.tags:
+            tags = dict(data_source.tags)
+            path_prefix = str(tags[TimeDependentSparkSource.PATH_PREFIX_KEY])
+            time_fmt_str = str(tags[TimeDependentSparkSource.TIME_FMT_STR_KEY])
+            path_suffix = str(tags.get(TimeDependentSparkSource.PATH_SUFFIX_KEY, ""))
+
+            assert data_source.HasField("spark_options")
+            spark_options = SparkOptions.from_proto(data_source.spark_options)
+
+            return TimeDependentSparkSource(
+                name=data_source.name,
+                path_prefix=path_prefix,
+                time_fmt_str=time_fmt_str,
+                path_suffix=path_suffix,
+                file_format=spark_options.file_format,
+                created_timestamp_column=data_source.created_timestamp_column,
+                timestamp_field=data_source.timestamp_field,
+                field_mapping=dict(data_source.field_mapping),
+                tags=dict(data_source.tags),
+                owner=data_source.owner,
+                description=data_source.description,
+
+            )
 
         return SparkSource(
             name=data_source.name,
