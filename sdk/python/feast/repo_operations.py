@@ -219,8 +219,8 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
     click.echo(infra_diff.to_string())
 
 
-def _prepare_registry_and_repo(repo_config, repo_path):
-    store = FeatureStore(config=repo_config)
+def _prepare_registry_and_repo(repo_config, repo_path, is_feast_apply=False):
+    store = FeatureStore(config=repo_config, is_feast_apply=is_feast_apply)
     project = store.project
     if not is_valid_name(project):
         print(
@@ -333,7 +333,7 @@ def log_infra_changes(
 @log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
-    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
+    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path, is_feast_apply=True)
     apply_total_with_repo_instance(
         store, project, registry, repo, skip_source_validation
     )
