@@ -383,8 +383,8 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio==1.56.2",
-        "grpcio-tools==1.56.2",
+        "grpcio>=1.56.2,<2",
+        "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
     ],
