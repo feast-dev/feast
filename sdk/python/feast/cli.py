@@ -25,15 +25,8 @@ from dateutil import parser
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-<<<<<<< HEAD
-from feast.constants import (
-    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
-    FEATURE_STORE_YAML_ENV_NAME,
-)
-from feast.data_source import PushMode
-=======
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
->>>>>>> 76daf3f9 (Refactor CLI.)
+from feast.data_source import PushMode
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.contrib.grpc_server import get_grpc_server
@@ -717,9 +710,9 @@ def serve_command(
 )
 @click.pass_context
 def listen_command(
-        ctx: click.Context,
-        address: str,
-        max_workers: int,
+    ctx: click.Context,
+    address: str,
+    max_workers: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
     store = create_feature_store(ctx)
