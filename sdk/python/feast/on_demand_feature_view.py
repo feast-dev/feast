@@ -362,9 +362,13 @@ class OnDemandFeatureView(BaseFeatureView):
                     dict_with_features[full_feature_ref] = dict_with_features[feature.name]
                     columns_to_cleanup.append(full_feature_ref)
         df_with_features = pd.DataFrame.from_dict(dict_with_features)
-        # Compute transformed values and apply to each result row
-        df_with_transformed_features = self.udf.__call__(df_with_features)
-
+        try:
+            # Compute transformed values and apply to each result row
+            df_with_transformed_features = self.udf.__call__(df_with_features)
+        except Exception as e:
+            with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+                message = f"A udf error occured for {self.name}: {e}; udf inputs: {df_with_features}."
+                raise Exception(message) from e
         # Work out whether the correct columns names are used.
         rename_columns = self._get_correct_names(df_with_transformed_features.columns, full_feature_names)
 
@@ -391,15 +395,23 @@ class OnDemandFeatureView(BaseFeatureView):
 
         # dict of lists into list of dicts
         input_rows = [dict(zip(feature_dict.keys(), values)) for values in zip(*feature_dict.values())]
-        output_rows = [self.udf.__call__(row) for row in input_rows]
+        output_rows = []
+        for row in input_rows:
+            for feature_value in row.values():
+                assert not isinstance(feature_value, pd.Series)
+            try:
+                output_rows.append(self.udf.__call__(row))
+            except Exception as e:
+                message = f"A udf error occured for {self.name}: {e}; udf inputs: {row}."
+                raise Exception(message) from e
         output_names = list(output_rows[0].keys())
         correct_names_map = self._get_correct_names(output_names, full_feature_names)
-        
+
         try:
             # list of dicts into dict of lists
             return {correct_names_map[name]: [row[name] for row in output_rows] for name in output_names}
         except KeyError as e:
-            logging.error(f"OnDemandFeatureView {self.name} udf returned unknown feature: {e.message}")
+            logging.error(f"OnDemandFeatureView {self.name} udf returned unknown feature: {e}")
             raise
 
     def infer_features(self):
