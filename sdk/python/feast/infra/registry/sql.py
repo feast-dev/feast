@@ -181,7 +181,7 @@ feast_metadata = Table(
 
 class SqlRegistry(BaseRegistry):
     def __init__(
-        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path], is_feast_apply: False,
+        self, registry_config: Optional[RegistryConfig], repo_path: Optional[Path], is_feast_apply: bool = False,
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
