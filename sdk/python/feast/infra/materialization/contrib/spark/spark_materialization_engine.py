@@ -199,6 +199,8 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             else:
                 print(f"start materializing {num_rows} rows to online store")
 
+            from cloudpickle import CloudPickler
+
             spark_df.foreachPartition(
                 lambda x: _process_by_partition(x, spark_serialized_artifacts)
             )
@@ -249,7 +251,7 @@ class _SparkSerializedArtifacts:
         if self.feature_view_type == "stream_feature_view":
             proto = StreamFeatureViewProto()
             proto.ParseFromString(self.feature_view_proto)
-            feature_view = StreamFeatureView.from_proto(proto)
+            feature_view = StreamFeatureView.from_proto(proto, skip_udf=True)
         else:
             proto = FeatureViewProto()
             proto.ParseFromString(self.feature_view_proto)

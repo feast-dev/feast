@@ -3,6 +3,7 @@ from types import FunctionType
 from typing import Any, Callable, Dict, List
 
 import dill
+dill.extend(False)
 import great_expectations as ge
 import numpy as np
 import pandas as pd
@@ -147,6 +148,7 @@ class GEProfiler(Profiler):
         # keep only the code and drop context for now
         # ToDo (pyalex): include some context, but not all (dill tries to pull too much)
         udp = FunctionType(self.user_defined_profiler.__code__, {})
+        dill.extend(True)
         return GEValidationProfilerProto(
             profiler=GEValidationProfilerProto.UserDefinedProfiler(
                 body=dill.dumps(udp, recurse=False)
@@ -155,6 +157,7 @@ class GEProfiler(Profiler):
 
     @classmethod
     def from_proto(cls, proto: GEValidationProfilerProto) -> "GEProfiler":
+        dill.extend(True)
         return GEProfiler(user_defined_profiler=dill.loads(proto.profiler.body))
 
 

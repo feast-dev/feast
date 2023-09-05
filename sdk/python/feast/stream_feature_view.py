@@ -6,6 +6,7 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
+dill.extend(False)
 from typeguard import typechecked
 
 from feast import flags_helper, utils
@@ -179,6 +180,7 @@ class StreamFeatureView(FeatureView):
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
         udf_proto = None
+        dill.extend(True)
         if self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
@@ -217,6 +219,8 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("stream_source")
             else None
         )
+
+        dill.extend(True)
         udf = (
             dill.loads(sfv_proto.spec.user_defined_function.body)
             if sfv_proto.spec.HasField("user_defined_function") and not skip_udf
@@ -334,6 +338,7 @@ def stream_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+        dill.extend(True)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         stream_feature_view_obj = StreamFeatureView(

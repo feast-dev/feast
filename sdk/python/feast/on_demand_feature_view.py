@@ -6,6 +6,7 @@ from types import FunctionType
 from typing import Any, Dict, List, Optional, Type, Union, Iterable
 
 import dill
+dill.extend(False)
 import logging
 import pandas as pd
 from typeguard import typechecked
@@ -216,6 +217,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        dill.extend(True)
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
@@ -264,6 +266,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     RequestSource.from_proto(on_demand_source.request_data_source)
                 )
 
+        dill.extend(True)
         udf = (
             _empty_odfv_udf_fn
             if skip_udf
@@ -582,6 +585,7 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+        dill.extend(True)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         on_demand_feature_view_obj = OnDemandFeatureView(
