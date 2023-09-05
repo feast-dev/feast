@@ -873,10 +873,10 @@ def feast_value_type_to_pa(
 
 
 def pg_type_code_to_pg_type(code: int) -> str:
-    """ Map the postgres type code a Feast type string
+    """Map the postgres type code a Feast type string
 
     Rather than raise an exception on an unknown type, we return the
-    string representation of the type code. This way rather than raising 
+    string representation of the type code. This way rather than raising
     an exception on unknown types, Feast will just skip the problem columns.
 
     Note that json and jsonb are not supported but this shows up in the
