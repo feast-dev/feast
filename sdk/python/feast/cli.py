@@ -26,7 +26,6 @@ from pygments import formatters, highlight, lexers
 
 from feast import utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
-from feast.data_source import PushMode
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.contrib.grpc_server import get_grpc_server
