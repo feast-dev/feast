@@ -26,7 +26,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Array, Float32, Int64
+from feast.types import Array, Float32, Int64, String
 from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 
 logging.basicConfig(level=logging.INFO)
@@ -408,11 +408,30 @@ class TestMilvusOnlineStore:
             assert len(utility.list_collections()) == 0
 
     def test_milvus_online_write_batch(self, repo_config, caplog):
-        self._create_collection_in_milvus(self.collection_to_write, repo_config)
-
+        entity = Entity(name="name")
         feature_view = FeatureView(
             name=self.collection_to_write,
             source=SOURCE,
+            entities=[entity],
+            schema=[
+                Field(
+                    name="name",
+                    dtype=String,
+                ),
+                Field(
+                    name="age",
+                    dtype=Int64,
+                ),
+                Field(
+                    name="avg_orders_day",
+                    dtype=Array(Float32),
+                    tags={
+                        "dimensions": 5,
+                        "index_type": "HNSW",
+                        "index_params": '{ "M": 32, "efConstruction": 256}',
+                    },
+                ),
+            ],
         )
 
         total_rows_to_write = 100
