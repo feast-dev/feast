@@ -97,7 +97,7 @@ ReactDOM.render(
       reactQueryClient={queryClient}
       feastUIConfigs={{
         tabsRegistry: tabsRegistry,
-        projectListPromise: fetch(process.env.PUBLIC_URL || "" + "/projects-list.json", {
+        projectListPromise: fetch((process.env.PUBLIC_URL || "") + "/projects-list.json", {
             headers: {
               "Content-Type": "application/json",
             },

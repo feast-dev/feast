@@ -585,7 +585,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
-        # prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 
@@ -701,7 +700,7 @@ def _get_entity_schema(
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, str):
         entity_df_sample = (
-            client.query(f"SELECT * FROM ({entity_df}) LIMIT 1").result().to_dataframe()
+            client.query(f"SELECT * FROM ({entity_df}) LIMIT 0").result().to_dataframe()
         )
 
         entity_schema = dict(zip(entity_df_sample.columns, entity_df_sample.dtypes))
