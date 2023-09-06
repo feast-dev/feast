@@ -1,5 +1,5 @@
 import re
-from typing import List, Set, Union
+from typing import List, Optional, Set, Union
 
 from feast.data_source import DataSource, PushSource, RequestSource
 from feast.entity import Entity
@@ -119,7 +119,10 @@ def update_feature_views_with_inferred_features_and_entities(
 
     for fv in fvs:
         join_keys = set(
-            [entity_name_to_join_key_map[entity_name] for entity_name in fv.entities]
+            [
+                entity_name_to_join_key_map.get(entity_name)
+                for entity_name in fv.entities
+            ]
         )
 
         # Fields whose names match a join key are considered to be entity columns; all
@@ -137,7 +140,10 @@ def update_feature_views_with_inferred_features_and_entities(
 
         # Respect the `value_type` attribute of the entity, if it is specified.
         for entity_name in fv.entities:
-            entity = entity_name_to_entity_map[entity_name]
+            entity = entity_name_to_entity_map.get(entity_name)
+            # pass when entity does not exist. Entityless feature view case
+            if entity is None:
+                continue
             if (
                 entity.join_key
                 not in [entity_column.name for entity_column in fv.entity_columns]
@@ -181,7 +187,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
 def _infer_features_and_entities(
     fv: FeatureView,
-    join_keys: Set[str],
+    join_keys: Set[Optional[str]],
     run_inference_for_features,
     config,
 ) -> None:
