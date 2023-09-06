@@ -384,7 +384,7 @@ class MilvusOnlineStore(OnlineStore):
         (Dict): a dictionary formatted for the create_index params argument
         """
         valid_indexes = IndexType._member_map_
-        index_type_tag = tags.get("index_type", "").upper().strip("BIN_")
+        index_type_tag = tags.get("index_type", "").upper().replace("BIN_", "")
 
         index_type = (
             IndexType[index_type_tag]
