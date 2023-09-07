@@ -79,6 +79,7 @@ REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7"
 ]
 
 GCP_REQUIRED = [
