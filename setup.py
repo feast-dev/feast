@@ -72,7 +72,7 @@ REQUIRED = [
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
     "typeguard==2.13.3",
-    "fastapi>=0.68.0,<1",
+    "fastapi>=0.68.0,<0.100",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",

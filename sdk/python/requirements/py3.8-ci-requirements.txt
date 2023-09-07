@@ -18,9 +18,8 @@ alabaster==0.7.13
     # via sphinx
 altair==4.2.0
     # via great-expectations
-anyio==3.7.1
+anyio==4.0.0
     # via
-    #   fastapi
     #   httpcore
     #   jupyter-server
     #   starlette
@@ -91,18 +90,18 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.0.0
     # via nbconvert
-boto3==1.28.40
+boto3==1.28.42
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.31.40
+botocore==1.31.42
     # via
     #   boto3
     #   moto
     #   s3transfer
 bowler==0.9.0
     # via feast (setup.py)
-build==1.0.0
+build==1.0.3
     # via
     #   feast (setup.py)
     #   pip-tools
@@ -157,7 +156,7 @@ comm==0.1.4
     # via
     #   ipykernel
     #   ipywidgets
-coverage[toml]==7.3.0
+coverage[toml]==7.3.1
     # via pytest-cov
 cryptography==41.0.3
     # via
@@ -212,7 +211,7 @@ execnet==2.0.2
     # via pytest-xdist
 executing==1.2.0
     # via stack-data
-fastapi==0.103.1
+fastapi==0.99.1
     # via feast (setup.py)
 fastavro==1.8.2
     # via
@@ -259,7 +258,7 @@ google-api-core[grpc]==2.11.1
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.97.0
+google-api-python-client==2.98.0
     # via firebase-admin
 google-auth==2.22.0
     # via
@@ -288,7 +287,7 @@ google-cloud-core==2.3.3
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-cloud-datastore==2.17.0
+google-cloud-datastore==2.18.0
     # via feast (setup.py)
 google-cloud-firestore==2.11.1
     # via firebase-admin
@@ -299,7 +298,7 @@ google-cloud-storage==2.10.0
     #   gcsfs
 google-crc32c==1.5.0
     # via google-resumable-media
-google-resumable-media==2.5.0
+google-resumable-media==2.6.0
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
@@ -1006,7 +1005,7 @@ types-redis==4.6.0.5
     # via feast (setup.py)
 types-requests==2.31.0.2
     # via feast (setup.py)
-types-setuptools==68.1.0.1
+types-setuptools==68.2.0.0
     # via feast (setup.py)
 types-tabulate==0.9.0.3
     # via feast (setup.py)
