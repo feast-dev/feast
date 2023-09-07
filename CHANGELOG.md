@@ -1,5 +1,25 @@
 # Changelog
 
+# [0.34.0](https://github.com/feast-dev/feast/compare/v0.33.0...v0.34.0) (2023-09-07)
+
+
+### Bug Fixes
+
+* Add NUMERIC to bq_to_feast type map ([#3719](https://github.com/feast-dev/feast/issues/3719)) ([6474b4b](https://github.com/feast-dev/feast/commit/6474b4b0169dc9b3df8e8daecded2b1fad5ead58))
+* Fix python unit tests ([#3734](https://github.com/feast-dev/feast/issues/3734)) ([e81684d](https://github.com/feast-dev/feast/commit/e81684d4f7916c986fa8e6cf06c2918951469799))
+* Handle unknown postgres source types gracefully ([#3634](https://github.com/feast-dev/feast/issues/3634)) ([d7041f4](https://github.com/feast-dev/feast/commit/d7041f4cce813d349e9016da55d65a65c1ec2355))
+* Pin protobuf version to avoid seg fault on some machines ([028cc20](https://github.com/feast-dev/feast/commit/028cc20a28118bd31deca8965782d5ad25f74300))
+* Remove unwanted excessive splitting of gcs path, so expected gcs parquet paths are returned from BigQueryRetrievalJob.to_remote_storage() ([#3730](https://github.com/feast-dev/feast/issues/3730)) ([f2c5988](https://github.com/feast-dev/feast/commit/f2c59885e31f3f238dbd9c13cd1ba168e3233a9d))
+* Run store.plan() only when need it. ([#3708](https://github.com/feast-dev/feast/issues/3708)) ([7bc7c47](https://github.com/feast-dev/feast/commit/7bc7c47b4507310850474290131c03fb6d480834))
+* Saved datasets no longer break CLI registry-dump command ([#3717](https://github.com/feast-dev/feast/issues/3717)) ([f28ccc2](https://github.com/feast-dev/feast/commit/f28ccc2b8f42bcca943d498ad583337d4cd70383))
+* Update py3.8 ci requirements for cython 3.0 release ([#3735](https://github.com/feast-dev/feast/issues/3735)) ([1695c13](https://github.com/feast-dev/feast/commit/1695c13fa8f48fdc2b5e627837043c5eea0914a9))
+
+
+### Features
+
+* Enhance customization of Trino connections when using Trino-based Offline Stores ([#3699](https://github.com/feast-dev/feast/issues/3699)) ([ed7535e](https://github.com/feast-dev/feast/commit/ed7535e23d490249ca7d224fb88e53b98d496ec0))
+* Implement gRPC server to ingest streaming features ([#3687](https://github.com/feast-dev/feast/issues/3687)) ([a3fcd1f](https://github.com/feast-dev/feast/commit/a3fcd1f369bdf07174b5ecf2a49ca9864cf145d4))
+
 # [0.33.0](https://github.com/feast-dev/feast/compare/v0.32.0...v0.33.0) (2023-08-14)
 
 
