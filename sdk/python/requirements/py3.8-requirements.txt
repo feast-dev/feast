@@ -82,9 +82,12 @@ idna==3.4
     #   httpx
     #   requests
 importlib-metadata==6.8.0
-    # via dask
+    # via
+    #   dask
+    #   feast (setup.py)
 importlib-resources==6.0.1
     # via
+    #   feast (setup.py)
     #   jsonschema
     #   jsonschema-specifications
 jinja2==3.1.2
@@ -105,7 +108,7 @@ mypy==1.5.1
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-mypy-protobuf==3.1
+mypy-protobuf==3.1.0
     # via feast (setup.py)
 numpy==1.24.4
     # via

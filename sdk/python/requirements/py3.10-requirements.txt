@@ -82,7 +82,11 @@ idna==3.4
     #   httpx
     #   requests
 importlib-metadata==6.8.0
-    # via dask
+    # via
+    #   dask
+    #   feast (setup.py)
+importlib-resources==6.0.1
+    # via feast (setup.py)
 jinja2==3.1.2
     # via feast (setup.py)
 jsonschema==4.19.0
