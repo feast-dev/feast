@@ -113,7 +113,7 @@ packaging==23.1
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
+pandas==2.1.0
     # via
     #   feast (setup.py)
     #   pandavro
@@ -201,6 +201,8 @@ typing-extensions==4.7.1
     #   sqlalchemy2-stubs
     #   starlette
     #   uvicorn
+tzdata==2023.3
+    # via pandas
 urllib3==2.0.4
     # via requests
 uvicorn[standard]==0.23.2

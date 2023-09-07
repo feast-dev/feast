@@ -105,7 +105,7 @@ mypy==1.5.1
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-mypy-protobuf==3.1
+mypy-protobuf==3.1.0
     # via feast (setup.py)
 numpy==1.24.4
     # via
@@ -117,7 +117,7 @@ packaging==23.1
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
+pandas==2.0.3
     # via
     #   feast (setup.py)
     #   pandavro
@@ -207,6 +207,8 @@ typing-extensions==4.7.1
     #   sqlalchemy2-stubs
     #   starlette
     #   uvicorn
+tzdata==2023.3
+    # via pandas
 urllib3==2.0.4
     # via requests
 uvicorn[standard]==0.23.2

@@ -577,7 +577,7 @@ packaging==23.1
     #   pytest
     #   snowflake-connector-python
     #   sphinx
-pandas==1.5.3
+pandas==2.0.3
     # via
     #   altair
     #   db-dtypes
@@ -1007,6 +1007,8 @@ typing-extensions==4.7.1
     #   snowflake-connector-python
     #   sqlalchemy2-stubs
     #   uvicorn
+tzdata==2023.3
+    # via pandas
 tzlocal==5.0.1
     # via
     #   great-expectations
