@@ -214,7 +214,7 @@ def list_saved_datasets(
 ) -> List[SavedDataset]:
     saved_datasets = []
     for saved_dataset in registry_proto.saved_datasets:
-        if saved_dataset.project == project:
+        if saved_dataset.spec.project == project:
             saved_datasets.append(SavedDataset.from_proto(saved_dataset))
     return saved_datasets
 
