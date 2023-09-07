@@ -180,8 +180,6 @@ decorator==5.1.1
     #   ipython
 defusedxml==0.7.1
     # via nbconvert
-deprecated==1.2.14
-    # via redis
 deprecation==2.1.0
     # via testcontainers
 dill==0.3.7
@@ -527,7 +525,7 @@ mypy-extensions==1.0.0
     # via
     #   black
     #   mypy
-mypy-protobuf==3.1
+mypy-protobuf==3.1.0
     # via feast (setup.py)
 mysqlclient==2.2.0
     # via feast (setup.py)
@@ -584,7 +582,6 @@ packaging==23.1
     #   marshmallow
     #   nbconvert
     #   pytest
-    #   redis
     #   snowflake-connector-python
     #   sphinx
 pandas==1.5.3
@@ -791,7 +788,7 @@ pyzmq==25.1.1
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
-redis==4.2.2
+redis==4.6.0
     # via feast (setup.py)
 referencing==0.30.2
     # via
@@ -1077,9 +1074,7 @@ wheel==0.41.2
 widgetsnbextension==4.0.8
     # via ipywidgets
 wrapt==1.15.0
-    # via
-    #   deprecated
-    #   testcontainers
+    # via testcontainers
 xmltodict==0.13.0
     # via moto
 yarl==1.9.2
