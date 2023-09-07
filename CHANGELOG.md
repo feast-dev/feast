@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.34.1](https://github.com/feast-dev/feast/compare/v0.34.0...v0.34.1) (2023-09-07)
+
+
+### Bug Fixes
+
+* Fix warnings from deprecated paths and update default log level ([#3757](https://github.com/feast-dev/feast/issues/3757)) ([77bfe36](https://github.com/feast-dev/feast/commit/77bfe3625fe3815fb820b4bc462361861c5c165d))
+* Pin numpy version to avoid spammy deprecation messages ([904c4c7](https://github.com/feast-dev/feast/commit/904c4c705242572fd7b5bc2c0d8d607a5f88eb02))
+* Set keepalives_idle None by default ([#3756](https://github.com/feast-dev/feast/issues/3756)) ([093928d](https://github.com/feast-dev/feast/commit/093928d10342105ecff4348eb365d6703a0fdc28))
+
 # [0.34.0](https://github.com/feast-dev/feast/compare/v0.33.0...v0.34.0) (2023-09-07)
 
 
