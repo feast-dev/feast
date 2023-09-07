@@ -366,7 +366,10 @@ imagesize==1.4.1
 importlib-metadata==6.8.0
     # via
     #   dask
+    #   feast (setup.py)
     #   great-expectations
+importlib-resources==6.0.1
+    # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.25.2

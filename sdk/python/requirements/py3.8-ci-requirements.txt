@@ -370,6 +370,7 @@ importlib-metadata==6.8.0
     # via
     #   build
     #   dask
+    #   feast (setup.py)
     #   great-expectations
     #   jupyter-client
     #   jupyter-lsp
@@ -379,6 +380,7 @@ importlib-metadata==6.8.0
     #   sphinx
 importlib-resources==6.0.1
     # via
+    #   feast (setup.py)
     #   jsonschema
     #   jsonschema-specifications
     #   jupyterlab
@@ -533,7 +535,7 @@ mypy-extensions==1.0.0
     # via
     #   black
     #   mypy
-mypy-protobuf==3.1
+mypy-protobuf==3.1.0
     # via feast (setup.py)
 mysqlclient==2.2.0
     # via feast (setup.py)
