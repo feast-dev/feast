@@ -28,6 +28,7 @@ from feast import utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
+from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -687,6 +688,36 @@ def serve_command(
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
     )
+
+
+@cli.command("listen")
+@click.option(
+    "--address",
+    "-a",
+    type=click.STRING,
+    default="localhost:50051",
+    show_default=True,
+    help="Address of the gRPC server",
+)
+@click.option(
+    "--max_workers",
+    "-w",
+    type=click.INT,
+    default=10,
+    show_default=False,
+    help="The maximum number of threads that can be used to execute the gRPC calls",
+)
+@click.pass_context
+def listen_command(
+    ctx: click.Context,
+    address: str,
+    max_workers: int,
+):
+    """Start a gRPC feature server to ingest streaming features on given address"""
+    store = create_feature_store(ctx)
+    server = get_grpc_server(address, store, max_workers)
+    server.start()
+    server.wait_for_termination()
 
 
 @cli.command("serve_transformations")
