@@ -18,10 +18,10 @@ from pathlib import Path
 from typing import List, Optional
 
 import click
-import pkg_resources
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
+from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
@@ -122,7 +122,7 @@ def version():
     """
     Display Feast SDK version
     """
-    print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
+    print(f'Feast SDK Version: "{importlib_version("feast")}"')
 
 
 @cli.command()
