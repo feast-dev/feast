@@ -1,5 +1,4 @@
 import uuid
-from importlib_metadata import version as importlib_version
 from typing import Any, Callable, Type
 
 from google.protobuf.json_format import (  # type: ignore
@@ -8,6 +7,7 @@ from google.protobuf.json_format import (  # type: ignore
     _Parser,
     _Printer,
 )
+from importlib_metadata import version as importlib_version
 from packaging import version
 
 from feast.protos.feast.serving.ServingService_pb2 import FeatureList
