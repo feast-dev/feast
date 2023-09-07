@@ -1,5 +1,5 @@
 import uuid
-from importlib.metadata import version as importlib_version
+from importlib_metadata import version as importlib_version
 from typing import Any, Callable, Type
 
 from google.protobuf.json_format import (  # type: ignore

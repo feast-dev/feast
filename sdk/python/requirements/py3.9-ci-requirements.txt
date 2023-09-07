@@ -367,6 +367,7 @@ importlib-metadata==6.8.0
     # via
     #   build
     #   dask
+    #   feast (setup.py)
     #   great-expectations
     #   jupyter-client
     #   jupyter-lsp
@@ -374,6 +375,8 @@ importlib-metadata==6.8.0
     #   jupyterlab-server
     #   nbconvert
     #   sphinx
+importlib-resources==6.0.1
+    # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.25.2
@@ -1080,7 +1083,9 @@ xmltodict==0.13.0
 yarl==1.9.2
     # via aiohttp
 zipp==3.16.2
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
