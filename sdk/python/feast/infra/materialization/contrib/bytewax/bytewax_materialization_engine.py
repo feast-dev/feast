@@ -64,6 +64,9 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     labels: dict = {}
     """ (optional) additional labels to append to kubernetes objects """
 
+    max_parallelism: int = 10
+    """ (optional) Maximum number of pods  (default 10) allowed to run in parallel per job"""
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -275,7 +278,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
                 "completions": pods,
-                "parallelism": pods,
+                "parallelism": min(pods, self.batch_engine_config.max_parallelism),
                 "completionMode": "Indexed",
                 "template": {
                     "metadata": {
