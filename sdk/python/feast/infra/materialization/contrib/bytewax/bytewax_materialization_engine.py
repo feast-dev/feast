@@ -1,3 +1,4 @@
+import sys
 import uuid
 from datetime import datetime
 from typing import Callable, List, Literal, Sequence, Union
@@ -7,14 +8,17 @@ from kubernetes import client
 from kubernetes import config as k8s_config
 from kubernetes import utils
 from kubernetes.utils import FailToCreateError
+from kubernetes.client.exceptions import ApiException
 from pydantic import StrictStr
 from tqdm import tqdm
+import logging
 
 from feast import FeatureView, RepoConfig
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
+    MaterializationJobStatus,
     MaterializationJob,
     MaterializationTask,
 )
@@ -24,9 +28,16 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names, get_default_yaml_file_path
+from time import sleep
+import signal
 
 from .bytewax_materialization_job import BytewaxMaterializationJob
 
+logger = logging.getLogger(__name__)
+
+def term_handler(signum, frame):
+    logger.info("Received SIGTERM. Shutting down")
+    sys.exit(0)
 
 class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     """Batch Materialization Engine config for Bytewax"""
@@ -65,7 +76,13 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     """ (optional) additional labels to append to kubernetes objects """
 
     max_parallelism: int = 10
-    """ (optional) Maximum number of pods  (default 10) allowed to run in parallel per job"""
+    """ (optional) Maximum number of pods allowed to run in parallel per job"""
+
+    synchronous: bool = False
+    """ (optional) If true, wait for materialization for one feature to complete before moving to the next """
+
+    retry_limit: int = 2
+    """ (optional) Maximum number of times to retry a materialization worker pod"""
 
     mini_batch_size: int = 1000
     """ (optional) Number of rows to process per write operation (default 1000)"""
@@ -98,6 +115,8 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.batch_v1 = client.BatchV1Api(self.k8s_client)
         self.batch_engine_config = repo_config.batch_engine
         self.namespace = self.batch_engine_config.namespace
+
+        signal.signal(signal.SIGTERM, term_handler)
 
     def update(
         self,
@@ -174,7 +193,31 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
 
         paths = offline_job.to_remote_storage()
         job_id = str(uuid.uuid4())
-        return self._create_kubernetes_job(job_id, paths, feature_view)
+        job = self._create_kubernetes_job(job_id, paths, feature_view)
+        if self.batch_engine_config.synchronous:
+            try:
+                while job.status() in (MaterializationJobStatus.WAITING, MaterializationJobStatus.RUNNING):
+                    logger.info(f"{feature_view.name} materialization still running...")
+                    sleep(30)
+                logger.info(f"{feature_view.name} materialization complete with status {job.status()}")
+            except (KeyboardInterrupt, BaseException) as e:
+                logger.info(f"Killing job {job.job_id()}")
+                self.batch_v1.delete_namespaced_job(job.job_id(), self.namespace)
+                raise e
+            self._print_pod_logs(job.job_id(), feature_view)
+        return job
+
+    def _print_pod_logs(self, job_id, feature_view):
+        pods_list = self.v1.list_namespaced_pod(
+            namespace=self.namespace,
+            label_selector=f"job-name={job_id}",
+        ).items
+        for i, pod in enumerate(pods_list):
+            logger.info(f"Logging output for {feature_view.name} pod {i}")
+            try:
+                logger.info(self.v1.read_namespaced_pod_log(pod.metadata.name, self.namespace))
+            except ApiException as e:
+                logger.warning(f"Could not retrieve pod logs due to: {e.body}")
 
     def _create_kubernetes_job(self, job_id, paths, feature_view):
         try:
@@ -284,6 +327,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
+                "backoffLimit": self.batch_engine_config.retry_limit,
                 "completions": pods,
                 "parallelism": min(pods, self.batch_engine_config.max_parallelism),
                 "completionMode": "Indexed",
