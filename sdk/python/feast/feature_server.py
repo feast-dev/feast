@@ -1,5 +1,6 @@
 import json
 import traceback
+from typing import List, Optional
 import warnings
 
 import gunicorn.app.base
@@ -15,7 +16,8 @@ from feast import proto_json
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
-
+from dateutil import parser
+from feast import utils
 
 # TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):
@@ -29,6 +31,16 @@ class PushFeaturesRequest(BaseModel):
     df: dict
     allow_registry_cache: bool = True
     to: str = "online"
+
+
+class MaterializeRequest(BaseModel):
+    start_ts: str
+    end_ts: str
+    feature_views: Optional[List[str]] = None
+
+class MaterializeIncrementalRequest(BaseModel):
+    end_ts: str
+    feature_views: Optional[List[str]] = None
 
 
 def get_app(store: "feast.FeatureStore"):
@@ -133,6 +145,30 @@ def get_app(store: "feast.FeatureStore"):
     @app.get("/health")
     def health():
         return Response(status_code=status.HTTP_200_OK)
+
+    @app.post("/materialize")
+    def materialize(body=Depends(get_body)):
+        try:
+            request = MaterializeRequest(**json.loads(body))
+            store.materialize(utils.make_tzaware(parser.parse(request.start_ts)), utils.make_tzaware(
+                parser.parse(request.end_ts)), request.feature_views)
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/materialize-incremental")
+    def materialize_incremental(body=Depends(get_body)):
+        try:
+            request = MaterializeIncrementalRequest(**json.loads(body))
+            store.materialize_incremental(utils.make_tzaware(
+                parser.parse(request.end_ts)), request.feature_views)
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
 
     return app
 
