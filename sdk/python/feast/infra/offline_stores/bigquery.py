@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow.parquet
-from pydantic import StrictStr, validator, ConstrainedStr
+from pydantic import ConstrainedStr, StrictStr, validator
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
@@ -71,9 +71,11 @@ except ImportError as e:
 def get_http_client_info():
     return http_client_info.ClientInfo(user_agent=get_user_agent())
 
+
 class BigQueryTableCreateDisposition(ConstrainedStr):
     """Custom constraint for table_create_disposition. To understand more, see:
     https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition"""
+
     values = {"CREATE_NEVER", "CREATE_IF_NEEDED"}
 
 
