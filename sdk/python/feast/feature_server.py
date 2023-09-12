@@ -1,10 +1,11 @@
 import json
 import traceback
-from typing import List, Optional
 import warnings
+from typing import List, Optional
 
 import gunicorn.app.base
 import pandas as pd
+from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
@@ -12,12 +13,11 @@ from google.protobuf.json_format import MessageToDict, Parse
 from pydantic import BaseModel
 
 import feast
-from feast import proto_json
+from feast import proto_json, utils
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
-from dateutil import parser
-from feast import utils
+
 
 # TODO: deprecate this in favor of push features
 class WriteToFeatureStoreRequest(BaseModel):
@@ -37,6 +37,7 @@ class MaterializeRequest(BaseModel):
     start_ts: str
     end_ts: str
     feature_views: Optional[List[str]] = None
+
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
@@ -150,8 +151,11 @@ def get_app(store: "feast.FeatureStore"):
     def materialize(body=Depends(get_body)):
         try:
             request = MaterializeRequest(**json.loads(body))
-            store.materialize(utils.make_tzaware(parser.parse(request.start_ts)), utils.make_tzaware(
-                parser.parse(request.end_ts)), request.feature_views)
+            store.materialize(
+                utils.make_tzaware(parser.parse(request.start_ts)),
+                utils.make_tzaware(parser.parse(request.end_ts)),
+                request.feature_views,
+            )
         except Exception as e:
             # Print the original exception on the server side
             logger.exception(traceback.format_exc())
@@ -162,8 +166,9 @@ def get_app(store: "feast.FeatureStore"):
     def materialize_incremental(body=Depends(get_body)):
         try:
             request = MaterializeIncrementalRequest(**json.loads(body))
-            store.materialize_incremental(utils.make_tzaware(
-                parser.parse(request.end_ts)), request.feature_views)
+            store.materialize_incremental(
+                utils.make_tzaware(parser.parse(request.end_ts)), request.feature_views
+            )
         except Exception as e:
             # Print the original exception on the server side
             logger.exception(traceback.format_exc())
