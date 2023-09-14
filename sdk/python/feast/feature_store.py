@@ -1771,7 +1771,7 @@ x
                     requested_features,
                     table,
                 )
-        else:
+        elif grouped_refs:
             # same as above except read_from_online_store is combined into one query
             table_list, requested_features_list = unzip(grouped_refs)
             table_entity_values_list, idxs_list = unzip([self._get_unique_entities(
