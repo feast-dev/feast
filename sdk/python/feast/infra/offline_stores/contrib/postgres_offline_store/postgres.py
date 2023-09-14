@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow as pa
+from adbc_driver_postgresql.dbapi import connect
 from jinja2 import BaseLoader, Environment
 from psycopg2 import sql
 from pydantic.typing import Literal
@@ -49,7 +50,6 @@ from feast.type_map import pg_type_code_to_arrow
 from feast.usage import log_exceptions_and_usage
 
 from .postgres_source import PostgreSQLSource
-from adbc_driver_postgresql.dbapi import connect
 
 
 class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
@@ -264,6 +264,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         with conn.cursor() as cur:
             cur.adbc_ingest(config.offline_store.database, table, mode="append")
         conn.commit()
+
 
 class PostgreSQLRetrievalJob(RetrievalJob):
     def __init__(
