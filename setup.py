@@ -114,6 +114,7 @@ TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
+    "adbc-driver-postgresql==0.6.0",
 ]
 
 MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
