@@ -453,7 +453,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
                     Array(Float64),
                     Array(Float32),
                 ]:
-                    df[feature.name] = df[feature.name].apply(lambda x: json.loads(x))
+                    df[feature.name] = [json.loads(x) for x in df[feature.name]]
 
         return df
 
