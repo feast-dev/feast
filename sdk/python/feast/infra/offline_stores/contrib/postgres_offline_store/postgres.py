@@ -272,7 +272,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             uri = f"postgresql://{config.offline_store.user}:{config.offline_store.password}@{config.offline_store.host}:{config.offline_store.port}/{config.offline_store.database}"
             conn = connect(uri)
             with conn.cursor() as cur:
-                cur.adbc_ingest(config.offline_store.database, table, mode="append")
+                cur.adbc_ingest(feature_view.batch_source.name, table, mode="append")
             conn.commit()
 
 
