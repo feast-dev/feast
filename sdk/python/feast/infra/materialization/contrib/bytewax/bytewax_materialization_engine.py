@@ -293,7 +293,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             {
                 "name": "BYTEWAX_REPLICAS",
-                "value": f"{pods}",
+                "value": "1",
             },
             {
                 "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
@@ -349,7 +349,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "env": [
                                     {
                                         "name": "BYTEWAX_REPLICAS",
-                                        "value": f"{pods}",
+                                        "value": "1",
                                     }
                                 ],
                                 "image": "busybox",
