@@ -1,3 +1,4 @@
+import os
 import yaml
 
 from feast import FeatureStore, RepoConfig
@@ -19,4 +20,5 @@ if __name__ == "__main__":
                 config,
                 store.get_feature_view(bytewax_config["feature_view"]),
                 bytewax_config["paths"],
+                int(os.environ["JOB_COMPLETION_INDEX"])
             )
