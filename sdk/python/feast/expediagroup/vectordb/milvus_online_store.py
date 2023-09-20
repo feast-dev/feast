@@ -411,11 +411,12 @@ class MilvusOnlineStore(OnlineStore):
 
         metric_type = "L2"
         if "metric_type" in tags:
-            metric_type = tags["metric_type"]
+            metric_type = tags["metric_type"].upper()
 
         return {
             "metric_type": metric_type,
-            "index_type": index_type_name,
+            # Note: Milvus aliases variations of IVF_FLAT to the IVFLAT enum, but requires "IVF_FLAT" for index creation
+            "index_type": index_type_name.replace("IVFLAT", "IVF_FLAT"),
             "params": params,
         }
 
