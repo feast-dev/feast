@@ -76,6 +76,7 @@ class HttpRegistry(BaseRegistry):
             transport=transport,
             headers={"Content-Type": "application/json"},
         )
+        self.project = project
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = datetime.utcnow()
@@ -85,7 +86,6 @@ class HttpRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
-        self.project = project
 
     def _handle_exception(self, exception: Exception):
         logger.exception("Request failed with exception: %s", str(exception))
@@ -590,7 +590,11 @@ class HttpRegistry(BaseRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
-        projects = self._get_all_projects()
+        if self.project is None:
+            projects = self._get_all_projects()
+        else:
+            projects = [self.project]
+
         for project in projects:
             for lister, registry_proto_field in [
                 (self.list_entities, r.entities),

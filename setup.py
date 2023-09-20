@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import glob
+import json
 import os
 import pathlib
 import re
@@ -19,9 +21,11 @@ import shutil
 import subprocess
 import sys
 from distutils.cmd import Command
+from distutils.dir_util import copy_tree
 from pathlib import Path
+from subprocess import CalledProcessError
 
-from setuptools import find_packages
+from setuptools import Extension, find_packages
 
 try:
     from setuptools import setup
@@ -75,6 +79,11 @@ REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
+    "importlib_resources",
+]
+
+GO_REQUIRED = [
+    "cffi~=1.15.0",
 ]
 
 GCP_REQUIRED = [
@@ -138,10 +147,8 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
-MILVUS_REQUIRED = [
-    "pymilvus==2.2.14",
-    "bidict==0.22.1"
-]
+
+MILVUS_REQUIRED = ["pymilvus==2.2.14", "bidict==0.22.1"]
 
 CI_REQUIRED = (
     [
@@ -225,9 +232,7 @@ with open(README_FILE, "r", encoding="utf8") as f:
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
 # Regex modified from default tag regex in:
 # https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
-TAG_REGEX = re.compile(
-    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
-)
+TAG_REGEX = re.compile(r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$")
 
 # Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
 if shutil.which("git"):
@@ -316,11 +321,91 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
+def _generate_path_with_gopath():
+    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
+    go_path = go_path.strip()
+    path_val = os.getenv("PATH")
+    path_val = f"{path_val}:{go_path}/bin"
+
+    return path_val
+
+
+def _ensure_go_and_proto_toolchain():
+    try:
+        version = subprocess.check_output(["go", "version"])
+    except Exception as e:
+        raise RuntimeError("Unable to find go toolchain") from e
+
+    semver_string = re.search(r"go[\S]+", str(version)).group().lstrip("go")
+    parts = semver_string.split(".")
+    if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
+        raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
+
+    path_val = _generate_path_with_gopath()
+
+    try:
+        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
+        subprocess.check_call(["protoc-gen-go-grpc", "--version"], env={"PATH": path_val})
+    except Exception as e:
+        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
+
+
+class BuildGoProtosCommand(Command):
+    description = "Builds the proto files into Go files."
+    user_options = []
+
+    def initialize_options(self):
+        self.go_protoc = [
+            sys.executable,
+            "-m",
+            "grpc_tools.protoc",
+        ]  # find_executable("protoc")
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.go_folder = os.path.join(repo_root, "go/protos")
+        self.sub_folders = PROTO_SUBDIRS
+        self.path_val = _generate_path_with_gopath()
+
+    def finalize_options(self):
+        pass
+
+    def _generate_go_protos(self, path: str):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
+
+        try:
+            subprocess.check_call(
+                self.go_protoc
+                + [
+                    "-I",
+                    self.proto_folder,
+                    "--go_out",
+                    self.go_folder,
+                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
+                    "--go-grpc_out",
+                    self.go_folder,
+                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
+                ]
+                + proto_files,
+                env={"PATH": self.path_val},
+            )
+        except CalledProcessError as e:
+            print(f"Stderr: {e.stderr}")
+            print(f"Stdout: {e.stdout}")
+
+    def run(self):
+        go_dir = Path(repo_root) / "go" / "protos"
+        go_dir.mkdir(exist_ok=True)
+        for sub_folder in self.sub_folders:
+            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
+
+
 class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
         self.run_command("build_python_protos")
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
+            self.run_command("build_go_protos")
 
         self.run_command("build_ext")
         build_py.run(self)
@@ -332,8 +417,94 @@ class DevelopCommand(develop):
     def run(self):
         self.reinitialize_command("build_python_protos", inplace=1)
         self.run_command("build_python_protos")
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
+            self.run_command("build_go_protos")
 
         develop.run(self)
+
+
+class build_ext(_build_ext):
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        if os.getenv("COMPILE_GO", "false").lower() == "false":
+            self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
+
+    def _is_go_ext(self, ext: Extension):
+        return any(source.endswith(".go") or source.startswith("github") for source in ext.sources)
+
+    def build_extension(self, ext: Extension):
+        print(f"Building extension {ext}")
+        if not self._is_go_ext(ext):
+            # the base class may mutate `self.compiler`
+            compiler = copy.deepcopy(self.compiler)
+            self.compiler, compiler = compiler, self.compiler
+            try:
+                return _build_ext.build_extension(self, ext)
+            finally:
+                self.compiler, compiler = compiler, self.compiler
+
+        bin_path = _generate_path_with_gopath()
+        go_env = json.loads(
+            subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
+        )
+
+        print(f"Go env: {go_env}")
+        print(f"CWD: {os.getcwd()}")
+
+        destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
+        subprocess.check_call(
+            ["go", "install", "golang.org/x/tools/cmd/goimports"],
+            env={"PATH": bin_path, **go_env},
+        )
+        subprocess.check_call(
+            ["go", "get", "github.com/go-python/gopy@v0.4.4"],
+            env={"PATH": bin_path, **go_env},
+        )
+        subprocess.check_call(
+            ["go", "install", "github.com/go-python/gopy"],
+            env={"PATH": bin_path, **go_env},
+        )
+        subprocess.check_call(
+            [
+                "gopy",
+                "build",
+                "-output",
+                destination,
+                "-vm",
+                sys.executable,
+                "--build-tags",
+                "cgo,ccalloc",
+                "--dynamic-link=True",
+                "-no-make",
+                *ext.sources,
+            ],
+            env={
+                "PATH": bin_path,
+                "CGO_LDFLAGS_ALLOW": ".*",
+                **go_env,
+            },
+        )
+
+    def copy_extensions_to_source(self):
+        build_py = self.get_finalized_command("build_py")
+        for ext in self.extensions:
+            fullname = self.get_ext_fullname(ext.name)
+            modpath = fullname.split(".")
+            package = ".".join(modpath[:-1])
+            package_dir = build_py.get_package_dir(package)
+
+            src_dir = dest_dir = package_dir
+
+            if src_dir.startswith(PYTHON_CODE_PREFIX):
+                src_dir = package_dir[len(PYTHON_CODE_PREFIX) :]
+            src_dir = src_dir.lstrip("/")
+
+            src_dir = os.path.join(self.build_lib, src_dir)
+
+            # copy whole directory
+            print(f"Copying from {src_dir} to {dest_dir}")
+            copy_tree(src_dir, dest_dir)
 
 
 setup(
@@ -371,6 +542,7 @@ setup(
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "go": GO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -389,11 +561,19 @@ setup(
         "grpcio>=1.47.0",
         "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
-        "pybindgen==0.22.0",
+        "pybindgen==0.22.1",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
+        "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
+        "build_ext": build_ext,
     },
+    ext_modules=[
+        Extension(
+            "feast.embedded_go.lib._embedded",
+            ["github.com/feast-dev/feast/go/embedded"],
+        )
+    ],
 )

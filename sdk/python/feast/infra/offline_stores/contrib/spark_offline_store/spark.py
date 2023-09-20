@@ -16,10 +16,9 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 from pytz import utc
 
-from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
@@ -32,6 +31,7 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.registry.registry import Registry
 from feast.infra.utils import aws_utils
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -366,7 +366,6 @@ class SparkRetrievalJob(RetrievalJob):
     def to_remote_storage(self) -> List[str]:
         """Currently only works for local and s3-based staging locations"""
         if self.supports_remote_storage_export():
-
             sdf: pyspark.sql.DataFrame = self.to_spark_df()
 
             if self._config.offline_store.staging_location.startswith("/"):
@@ -382,7 +381,6 @@ class SparkRetrievalJob(RetrievalJob):
 
                 return _list_files_in_folder(output_uri)
             elif self._config.offline_store.staging_location.startswith("s3://"):
-
                 spark_compatible_s3_staging_location = (
                     self._config.offline_store.staging_location.replace(
                         "s3://", "s3a://"

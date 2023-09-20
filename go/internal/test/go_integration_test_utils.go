@@ -107,7 +107,11 @@ func SetupCleanFeatureRepo(basePath string) error {
 		return err
 	}
 	applyCommand.Dir = featureRepoPath
-	applyCommand.Run()
+	err = applyCommand.Run()
+	if err != nil {
+		return err
+	}
+
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",

@@ -14,10 +14,12 @@ import (
 
 var REGISTRY_SCHEMA_VERSION string = "1"
 var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
-	"gs":   "GCSRegistryStore",
-	"s3":   "S3RegistryStore",
-	"file": "FileRegistryStore",
-	"":     "FileRegistryStore",
+	"gs":    "GCSRegistryStore",
+	"s3":    "S3RegistryStore",
+	"file":  "FileRegistryStore",
+	"http":  "HttpRegistryStore",
+	"https": "HttpRegistryStore",
+	"":      "FileRegistryStore",
 }
 
 /*
@@ -26,6 +28,7 @@ var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 */
 
 type Registry struct {
+	project                        string
 	registryStore                  RegistryStore
 	cachedFeatureServices          map[string]map[string]*core.FeatureService
 	cachedEntities                 map[string]map[string]*core.Entity
@@ -38,21 +41,22 @@ type Registry struct {
 	mu                             sync.Mutex
 }
 
-func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, error) {
+func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string) (*Registry, error) {
 	registryStoreType := registryConfig.RegistryStoreType
 	registryPath := registryConfig.Path
 	r := &Registry{
-		cachedRegistryProtoTtl: time.Duration(registryConfig.CacheTtlSeconds),
+		project:                project,
+		cachedRegistryProtoTtl: time.Duration(registryConfig.CacheTtlSeconds) * time.Second,
 	}
 
 	if len(registryStoreType) == 0 {
-		registryStore, err := getRegistryStoreFromScheme(registryPath, registryConfig, repoPath)
+		registryStore, err := getRegistryStoreFromScheme(registryPath, registryConfig, repoPath, project)
 		if err != nil {
 			return nil, err
 		}
 		r.registryStore = registryStore
 	} else {
-		registryStore, err := getRegistryStoreFromType(registryStoreType, registryConfig, repoPath)
+		registryStore, err := getRegistryStoreFromType(registryStoreType, registryConfig, repoPath, project)
 		if err != nil {
 			return nil, err
 		}
@@ -62,26 +66,31 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string) (*Registry, er
 	return r, nil
 }
 
-func (r *Registry) InitializeRegistry() {
+func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
+		if _, ok := r.registryStore.(*HttpRegistryStore); ok {
+			fmt.Println("ERROR: Registry Initialization Failed: ", err)
+			return err
+		}
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
-		r.registryStore.UpdateRegistryProto(registryProto)
-		go r.refreshRegistryOnInterval()
+ 		r.registryStore.UpdateRegistryProto(registryProto)
 	}
+	go r.RefreshRegistryOnInterval()
+	return nil
 }
 
-func (r *Registry) refreshRegistryOnInterval() {
+func (r *Registry) RefreshRegistryOnInterval() {
 	ticker := time.NewTicker(r.cachedRegistryProtoTtl)
 	for ; true; <-ticker.C {
 		err := r.refresh()
 		if err != nil {
+			fmt.Println("ERROR: Failed to refresh Registry: ", err)
 			return
 		}
 	}
 }
 
-// TODO: Add a goroutine and automatically refresh every cachedRegistryProtoTtl
 func (r *Registry) refresh() error {
 	_, err := r.getRegistryProto()
 	return err
@@ -120,50 +129,55 @@ func (r *Registry) load(registry *core.Registry) {
 func (r *Registry) loadEntities(registry *core.Registry) {
 	entities := registry.Entities
 	for _, entity := range entities {
-		if _, ok := r.cachedEntities[entity.Spec.Project]; !ok {
-			r.cachedEntities[entity.Spec.Project] = make(map[string]*core.Entity)
+		// fmt.Println("Entity load: ", entity.Spec.Name)
+		if _, ok := r.cachedEntities[r.project]; !ok {
+			r.cachedEntities[r.project] = make(map[string]*core.Entity)
 		}
-		r.cachedEntities[entity.Spec.Project][entity.Spec.Name] = entity
+		r.cachedEntities[r.project][entity.Spec.Name] = entity
 	}
 }
 
 func (r *Registry) loadFeatureServices(registry *core.Registry) {
 	featureServices := registry.FeatureServices
 	for _, featureService := range featureServices {
-		if _, ok := r.cachedFeatureServices[featureService.Spec.Project]; !ok {
-			r.cachedFeatureServices[featureService.Spec.Project] = make(map[string]*core.FeatureService)
+		// fmt.Println("featureServices load: ", featureService.Spec.Name)
+		if _, ok := r.cachedFeatureServices[r.project]; !ok {
+			r.cachedFeatureServices[r.project] = make(map[string]*core.FeatureService)
 		}
-		r.cachedFeatureServices[featureService.Spec.Project][featureService.Spec.Name] = featureService
+		r.cachedFeatureServices[r.project][featureService.Spec.Name] = featureService
 	}
 }
 
 func (r *Registry) loadFeatureViews(registry *core.Registry) {
 	featureViews := registry.FeatureViews
 	for _, featureView := range featureViews {
-		if _, ok := r.cachedFeatureViews[featureView.Spec.Project]; !ok {
-			r.cachedFeatureViews[featureView.Spec.Project] = make(map[string]*core.FeatureView)
+		// fmt.Println("featureView load: ", featureView.Spec.Name)
+		if _, ok := r.cachedFeatureViews[r.project]; !ok {
+			r.cachedFeatureViews[r.project] = make(map[string]*core.FeatureView)
 		}
-		r.cachedFeatureViews[featureView.Spec.Project][featureView.Spec.Name] = featureView
+		r.cachedFeatureViews[r.project][featureView.Spec.Name] = featureView
 	}
 }
 
 func (r *Registry) loadStreamFeatureViews(registry *core.Registry) {
 	streamFeatureViews := registry.StreamFeatureViews
 	for _, streamFeatureView := range streamFeatureViews {
-		if _, ok := r.cachedStreamFeatureViews[streamFeatureView.Spec.Project]; !ok {
-			r.cachedStreamFeatureViews[streamFeatureView.Spec.Project] = make(map[string]*core.StreamFeatureView)
+		// fmt.Println("streamFeatureView load: ", streamFeatureView.Spec.Name)
+		if _, ok := r.cachedStreamFeatureViews[r.project]; !ok {
+			r.cachedStreamFeatureViews[r.project] = make(map[string]*core.StreamFeatureView)
 		}
-		r.cachedStreamFeatureViews[streamFeatureView.Spec.Project][streamFeatureView.Spec.Name] = streamFeatureView
+		r.cachedStreamFeatureViews[r.project][streamFeatureView.Spec.Name] = streamFeatureView
 	}
 }
 
 func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 	onDemandFeatureViews := registry.OnDemandFeatureViews
 	for _, onDemandFeatureView := range onDemandFeatureViews {
-		if _, ok := r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project]; !ok {
-			r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project] = make(map[string]*core.OnDemandFeatureView)
+		// fmt.Println("onDemandFeatureView load: ", onDemandFeatureView.Spec.Name)
+		if _, ok := r.cachedOnDemandFeatureViews[r.project]; !ok {
+			r.cachedOnDemandFeatureViews[r.project] = make(map[string]*core.OnDemandFeatureView)
 		}
-		r.cachedOnDemandFeatureViews[onDemandFeatureView.Spec.Project][onDemandFeatureView.Spec.Name] = onDemandFeatureView
+		r.cachedOnDemandFeatureViews[r.project][onDemandFeatureView.Spec.Name] = onDemandFeatureView
 	}
 }
 
@@ -322,21 +336,23 @@ func (r *Registry) GetOnDemandFeatureView(project, onDemandFeatureViewName strin
 	}
 }
 
-func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
+func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryConfig, repoPath string, project string) (RegistryStore, error) {
 	uri, err := url.Parse(registryPath)
 	if err != nil {
 		return nil, err
 	}
 	if registryStoreType, ok := REGISTRY_STORE_CLASS_FOR_SCHEME[uri.Scheme]; ok {
-		return getRegistryStoreFromType(registryStoreType, registryConfig, repoPath)
+		return getRegistryStoreFromType(registryStoreType, registryConfig, repoPath, project)
 	}
 	return nil, fmt.Errorf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gs", registryPath, uri.Scheme)
 }
 
-func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string) (RegistryStore, error) {
+func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string, project string) (RegistryStore, error) {
 	switch registryStoreType {
 	case "FileRegistryStore":
 		return NewFileRegistryStore(registryConfig, repoPath), nil
+	case "HttpRegistryStore":
+		return NewHttpRegistryStore(registryConfig, project)
 	}
-	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
+	return nil, errors.New("only FileRegistryStore or HttpRegistryStore as a RegistryStore is supported at this moment")
 }

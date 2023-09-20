@@ -6,14 +6,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/golang/protobuf/proto"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+
+	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -39,6 +40,9 @@ type RedisOnlineStore struct {
 	// Redis client connector
 	client *redis.Client
 
+	// Redis cluster client connector
+	clusterClient *redis.ClusterClient
+
 	config *registry.RepoConfig
 }
 
@@ -53,11 +57,12 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	var tlsConfig *tls.Config
 	var db int // Default to 0
 
-	// Parse redis_type and write it into conf.t
-	t, err := getRedisType(onlineStoreConfig)
+	// Parse redis_type and write it into conf.redisStoreType
+	redisStoreType, err := getRedisType(onlineStoreConfig)
 	if err != nil {
 		return nil, err
 	}
+	store.t = redisStoreType
 
 	// Parse connection_string and write it into conf.address, conf.password, and conf.ssl
 	redisConnJson, ok := onlineStoreConfig["connection_string"]
@@ -66,7 +71,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		redisConnJson = "localhost:6379"
 	}
 	if redisConnStr, ok := redisConnJson.(string); !ok {
-		return nil, errors.New(fmt.Sprintf("failed to convert connection_string to string: %+v", redisConnJson))
+		return nil, fmt.Errorf("failed to convert connection_string to string: %+v", redisConnJson)
 	} else {
 		parts := strings.Split(redisConnStr, ",")
 		for _, part := range parts {
@@ -89,23 +94,28 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 						return nil, err
 					}
 				} else {
-					return nil, errors.New(fmt.Sprintf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0]))
+					return nil, fmt.Errorf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0])
 				}
 			} else {
-				return nil, errors.New(fmt.Sprintf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part))
+				return nil, fmt.Errorf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part)
 			}
 		}
 	}
 
-	if t == redisNode {
+	if redisStoreType == redisNode {
 		store.client = redis.NewClient(&redis.Options{
 			Addr:      address[0],
 			Password:  password, // No password set
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
-	} else {
-		return nil, errors.New("only single node Redis is supported at this time")
+	} else if redisStoreType == redisCluster {
+		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:     []string{address[0]},
+			Password:  password, // No password set
+			TLSConfig: tlsConfig,
+			ReadOnly:  true,
+		})
 	}
 
 	return &store, nil
@@ -119,14 +129,14 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 		// Default to "redis"
 		redisTypeJson = "redis"
 	} else if redisTypeStr, ok := redisTypeJson.(string); !ok {
-		return -1, errors.New(fmt.Sprintf("failed to convert redis_type to string: %+v", redisTypeJson))
+		return -1, fmt.Errorf("failed to convert redis_type to string: %+v", redisTypeJson)
 	} else {
 		if redisTypeStr == "redis" {
 			t = redisNode
 		} else if redisTypeStr == "redis_cluster" {
 			t = redisCluster
 		} else {
-			return -1, errors.New(fmt.Sprintf("failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr))
+			return -1, fmt.Errorf("failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr)
 		}
 	}
 	return t, nil
@@ -179,17 +189,33 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 	// TODO: Move context object out
 
 	results := make([][]FeatureData, len(entityKeys))
-	pipe := r.client.Pipeline()
+
 	commands := map[string]*redis.SliceCmd{}
 
-	for _, redisKey := range redisKeys {
-		keyString := string(*redisKey)
-		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
-	}
+	if r.t == redisNode {
+		pipe := r.client.Pipeline()
 
-	_, err := pipe.Exec(ctx)
-	if err != nil {
-		return nil, err
+		for _, redisKey := range redisKeys {
+			keyString := string(*redisKey)
+			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		}
+
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else if r.t == redisCluster {
+		pipe := r.clusterClient.Pipeline()
+
+		for _, redisKey := range redisKeys {
+			keyString := string(*redisKey)
+			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		}
+
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var entityIndex int
@@ -290,7 +316,7 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
-		return nil, errors.New(fmt.Sprintf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
+		return nil, fmt.Errorf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues)
 	}
 
 	// Make sure that join keys are sorted so that we have consistent key building

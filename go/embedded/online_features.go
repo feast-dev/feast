@@ -21,11 +21,13 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/server"
+	"github.com/feast-dev/feast/go/internal/feast/server/healthcheck"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type OnlineFeatureService struct {
@@ -306,6 +308,8 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, ser)
+	healthService := healthcheck.NewHealthChecker()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
 
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server

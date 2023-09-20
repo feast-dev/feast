@@ -169,6 +169,12 @@ class RepoConfig(FeastBaseModel):
 
     repo_path: Optional[Path] = None
 
+    go_feature_serving: Optional[bool] = False
+    """ If True, use the Go feature server instead of the Python feature server. """
+
+    go_feature_retrieval: Optional[bool] = False
+    """ If True, use the embedded Go code to retrieve features instead of the Python SDK. """
+
     entity_key_serialization_version: StrictInt = 1
     """ Entity key serialization version: This version is used to control what serialization scheme is
     used when writing data to the online store.

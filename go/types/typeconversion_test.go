@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )

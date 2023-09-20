@@ -88,6 +88,15 @@ func (r *RepoConfig) GetRegistryConfig() *RegistryConfig {
 					registryConfig.RegistryStoreType = value
 				}
 			case "cache_ttl_seconds":
+				// cache_ttl_seconds defaulted to type float64. Ex: "cache_ttl_seconds": 60 in registryConfigMap
+				if value, ok := v.(float64); ok {
+					registryConfig.CacheTtlSeconds = int64(value)
+				}
+
+				if value, ok := v.(int32); ok {
+					registryConfig.CacheTtlSeconds = int64(value)
+				}
+
 				if value, ok := v.(int64); ok {
 					registryConfig.CacheTtlSeconds = value
 				}

@@ -4,14 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"net/http"
-	"time"
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type httpServer struct {
@@ -210,14 +215,14 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		"results": results,
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(response)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error encoding response: %+v", err), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
 		logger, err := s.loggingService.GetOrCreateLogger(featureService)
@@ -253,14 +258,26 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) Serve(host string, port int) error {
-	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: nil}
-	http.HandleFunc("/get-online-features", s.getOnlineFeatures)
+	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+
+		tracer.Start(tracer.WithRuntimeMetrics())
+		defer tracer.Stop()
+	}
+	mux := httptrace.NewServeMux()
+	mux.HandleFunc("/get-online-features", s.getOnlineFeatures)
+	mux.HandleFunc("/health", healthCheckHandler)
+	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux}
 	err := s.server.ListenAndServe()
 	// Don't return the error if it's caused by graceful shutdown using Stop()
 	if err == http.ErrServerClosed {
 		return nil
 	}
 	return err
+}
+
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Healthy")
 }
 func (s *httpServer) Stop() error {
 	if s.server != nil {

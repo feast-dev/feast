@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib.metadata
 import json
 import logging
 from datetime import datetime
@@ -18,7 +19,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import click
-import pkg_resources
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
@@ -121,7 +121,7 @@ def version():
     """
     Display Feast SDK version
     """
-    print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
+    print(f'Feast SDK Version: "{importlib.metadata.distribution("eg-feast").version}"')
 
 
 @cli.command()
@@ -664,6 +664,12 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
     help="Timeout for keep alive",
 )
+@click.option(
+    "--go",
+    is_flag=True,
+    show_default=True,
+    help="Use Go to serve",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -674,9 +680,14 @@ def serve_command(
     no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
+    go: bool,
 ):
     """Start a feature server locally on a given port."""
     store = create_feature_store(ctx)
+
+    if go:
+        # Turn on Go feature retrieval.
+        store.config.go_feature_serving = True
 
     store.serve(
         host=host,

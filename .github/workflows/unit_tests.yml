@@ -27,6 +27,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.7
       - name: Install mysql on macOS
         if: startsWith(matrix.os, 'macOS')
         run: |
@@ -58,11 +63,54 @@ jobs:
       - name: Install pip-tools
         run: |
           pip install -U pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V "libarrow-dev=11.0.0-1"
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
         run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
 
+  unit-test-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=22.1,<23"
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.7
+      - name: Install apache-arrow on ubuntu
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V "libarrow-dev=11.0.0-1"
+            sudo apt install -y -V pkg-config
+      - name: Test
+        run: make test-go
+        
   unit-test-ui:
     runs-on: ubuntu-latest
     env:
