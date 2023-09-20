@@ -15,7 +15,7 @@ from pymilvus import (
     connections,
     utility,
 )
-from pymilvus.client.types import IndexType
+from pymilvus.client.types import IndexType, LoadState
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.online_store import OnlineStore
@@ -49,6 +49,22 @@ TYPE_MAPPING = bidict(
         DataType.BINARY_VECTOR: Array(Bytes),
     }
 )
+
+VALID_INDEXES = {
+    "FLAT",
+    "IVF_FLAT",
+    "IVF_SQ8",
+    "IVF_PQ",
+    "GPU_IVF_FLAT",
+    "GPU_IVF_PQ",
+    "HNSW",
+    "SCANN",
+    "BIN_FLAT",
+    "BIN_IVF_FLAT",
+}
+
+MAX_SEARCH_SIZE = 16_384
+BATCH_SIZE = 10_000
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel):
@@ -141,10 +157,30 @@ class MilvusOnlineStore(OnlineStore):
         with MilvusConnectionManager(config.online_store):
 
             quer_expr = self._construct_milvus_query(entity_keys)
+            use_iter_search = len(entity_keys) > MAX_SEARCH_SIZE
             collection = Collection(table.name)
-            query_result = collection.query(
-                expr=quer_expr, output_fields=requested_features
-            )
+            if utility.load_state(table.name) is LoadState.NotLoad:
+                collection.load()
+                utility.wait_for_loading_complete(table.name)
+
+            query_result = []
+            if use_iter_search:
+                query_iter = collection.query_iterator(
+                    batch_size=BATCH_SIZE,
+                    expr=quer_expr,
+                    output_fields=requested_features,
+                )
+                while True:
+                    res = query_iter.next()
+                    if len(res) == 0:
+                        query_iter.close()
+                        break
+                    query_result.extend(res)
+            else:
+                query_result = collection.query(
+                    expr=quer_expr, output_fields=requested_features
+                )
+
             results = self._convert_milvus_result_to_feast_type(
                 query_result, collection, requested_features
             )
@@ -220,6 +256,9 @@ class MilvusOnlineStore(OnlineStore):
                 f"creating collection {feature_view.name} with schema: {schema}"
             )
             collection = Collection(name=feature_view.name, schema=schema)
+            collection.set_properties(
+                properties={"collection.ttl.seconds": feature_view.ttl.total_seconds()}
+            )
 
             for field_name, index_params in indexes.items():
                 collection.create_index(field_name, index_params)
@@ -250,12 +289,14 @@ class MilvusOnlineStore(OnlineStore):
 
             field_name = field.name
             data_type = self._get_milvus_type(field.dtype)
+            max_length = 64
             dimensions = 0
             description = ""
             is_primary = True if field.name in feature_view.join_keys else False
 
             if field.tags:
                 description = field.tags.get("description", "")
+                max_length = int(field.tags.get("max_length", "64"))
 
                 if self._data_type_is_supported_vector(data_type) and field.tags.get(
                     "index_type"
@@ -291,7 +332,7 @@ class MilvusOnlineStore(OnlineStore):
                 field = FieldSchema(
                     name=field_name,
                     dtype=data_type,
-                    max_length=50,
+                    max_length=max_length,
                     description=description,
                     is_primary=is_primary,
                     dim=dimensions,
@@ -383,40 +424,38 @@ class MilvusOnlineStore(OnlineStore):
         Returns:
         (Dict): a dictionary formatted for the create_index params argument
         """
-        valid_indexes = IndexType._member_map_
-        index_type_tag = tags.get("index_type", "").upper().replace("BIN_", "")
-
-        index_type = (
-            IndexType[index_type_tag]
-            if index_type_tag in valid_indexes
-            else IndexType.INVALID
-        )
-        if index_type == IndexType.INVALID:
-            raise ValueError(f"Invalid index type: {index_type}")
-
-        if data_type is DataType.BINARY_VECTOR:
-            if index_type in [
-                IndexType.IVFLAT,
-                IndexType.FLAT,
-            ]:
-                index_type_name = "BIN_" + index_type.name
-            else:
-                raise ValueError(f"invalid index type for binary vector: {index_type}")
-        else:
-            index_type_name = index_type.name
-
-        params = {}
-        if "index_params" in tags:
-            params = json.loads(tags["index_params"])
+        index_type = tags.get("index_type", "").upper()
 
         metric_type = "L2"
         if "metric_type" in tags:
             metric_type = tags["metric_type"].upper()
 
+        if index_type not in VALID_INDEXES:
+            index_type = IndexType.INVALID.name
+
+        if data_type is DataType.BINARY_VECTOR:
+            if index_type not in [
+                "BIN_IVF_FLAT",
+                "BIN_FLAT",
+            ]:
+                raise ValueError(f"invalid index type for binary vector: {index_type}")
+            elif metric_type not in ["JACCARD", "HAMMING"]:
+                raise ValueError(
+                    f"invalid metric type for binary vector: {metric_type}"
+                )
+        elif metric_type not in ["L2", "IP", "COSINE"]:
+            raise ValueError(f"invalid metric type for float vector: {metric_type}")
+
+        if index_type == IndexType.INVALID.name:
+            raise ValueError(f"Invalid index type: {index_type}")
+
+        params = {}
+        if "index_params" in tags:
+            params = json.loads(tags["index_params"])
+
         return {
             "metric_type": metric_type,
-            # Note: Milvus aliases variations of IVF_FLAT to the IVFLAT enum, but requires "IVF_FLAT" for index creation
-            "index_type": index_type_name.replace("IVFLAT", "IVF_FLAT"),
+            "index_type": index_type,
             "params": params,
         }
 

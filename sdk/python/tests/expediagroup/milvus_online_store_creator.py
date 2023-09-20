@@ -12,7 +12,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.container = DockerContainer(
-            "mbackes/milvus-lite:2.2.12"
+            "mbackes/milvus-lite:2.3.0"
         ).with_exposed_ports("19530")
 
     def create_online_store(self) -> Dict[str, str]:
