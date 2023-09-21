@@ -86,8 +86,6 @@ def cli(
     Feast CLI
 
     For more information, see our public docs at https://docs.feast.dev/
-
-    For any questions, you can reach us at https://slack.feast.dev/
     """
     ctx.ensure_object(dict)
     ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
