@@ -2,16 +2,16 @@
 # for more info about CODEOWNERS file
 
 # Core Interfaces
-/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @chhabrakadabra @mavysavydav @sfc-gh-madkins
+/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @sfc-gh-madkins
 /sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers @DvirDukhan
 /sdk/python/feast/infra/materialization_engine/batch_materialization_engine.py @feast-dev/maintainers @whoahbot @sfc-gh-madkins
 
 # ==== Offline Stores ====
 # Core utils
-/sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers @chhabrakadabra @mavysavydav @sfc-gh-madkins
+/sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers @sfc-gh-madkins
 
 # BigQuery
-/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @chhabrakadabra @mavysavydav
+/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers
 
 # Snowflake
 /sdk/python/feast/infra/offline_stores/snowflake* @sfc-gh-madkins
@@ -47,8 +47,3 @@
 
 # AWS Lambda
 /sdk/python/feast/infra/materialization/contrib/aws_lambda/ @achals
-
-# ==== Web UI ====
-/ui/ @adchia
-/sdk/python/feast/ui/ @adchia
-/sdk/python/feast/ui_server.py @adchia

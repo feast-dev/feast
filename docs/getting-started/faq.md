@@ -3,7 +3,7 @@
 {% hint style="info" %}
 **Don't see your question?**
 
-We encourage you to ask questions on [Slack](https://slack.feast.dev) or [GitHub](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
+We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast). Even better, once you get an answer, add the answer to this FAQ via a [pull request](../project/development-guide.md)!
 {% endhint %}
 
 ## Getting started
