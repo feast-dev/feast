@@ -3,7 +3,6 @@
 The list below contains the functionality that contributors are planning to develop for Feast.
 
 * We welcome contribution to all items in the roadmap!
-* Have questions about the roadmap? Go to the Slack channel to ask on #feast-development.
 
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
