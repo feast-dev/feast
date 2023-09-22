@@ -11,8 +11,6 @@ Usage: feast [OPTIONS] COMMAND [ARGS]...
 
   For more information, see our public docs at https://docs.feast.dev/
 
-  For any questions, you can reach us at https://slack.feast.dev/
-
 Options:
   -c, --chdir TEXT  Switch to a different feature repository directory before
                     executing the given subcommand.

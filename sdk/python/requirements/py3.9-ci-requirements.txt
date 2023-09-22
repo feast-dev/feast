@@ -58,7 +58,7 @@ attrs==23.1.0
     #   referencing
 avro==1.10.0
     # via feast (setup.py)
-azure-core==1.29.3
+azure-core==1.29.4
     # via
     #   adlfs
     #   azure-identity
@@ -86,11 +86,11 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.0.0
     # via nbconvert
-boto3==1.28.42
+boto3==1.28.43
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.31.42
+botocore==1.31.43
     # via
     #   boto3
     #   moto
@@ -172,7 +172,7 @@ dask==2023.9.1
     # via feast (setup.py)
 db-dtypes==1.1.1
     # via google-cloud-bigquery
-debugpy==1.6.7.post1
+debugpy==1.7.0
     # via ipykernel
 decorator==5.1.1
     # via
@@ -208,7 +208,7 @@ executing==1.2.0
     # via stack-data
 fastapi==0.99.1
     # via feast (setup.py)
-fastavro==1.8.2
+fastavro==1.8.3
     # via
     #   feast (setup.py)
     #   pandavro
@@ -307,7 +307,7 @@ great-expectations==0.15.50
     # via feast (setup.py)
 grpc-google-iam-v1==0.12.6
     # via google-cloud-bigtable
-grpcio==1.57.0
+grpcio==1.58.0
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -319,15 +319,15 @@ grpcio==1.57.0
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
-grpcio-health-checking==1.57.0
+grpcio-health-checking==1.58.0
     # via feast (setup.py)
-grpcio-reflection==1.57.0
+grpcio-reflection==1.58.0
     # via feast (setup.py)
-grpcio-status==1.57.0
+grpcio-status==1.58.0
     # via google-api-core
-grpcio-testing==1.57.0
+grpcio-testing==1.58.0
     # via feast (setup.py)
-grpcio-tools==1.57.0
+grpcio-tools==1.58.0
     # via feast (setup.py)
 gunicorn==21.2.0
     # via feast (setup.py)
@@ -367,6 +367,7 @@ importlib-metadata==6.8.0
     # via
     #   build
     #   dask
+    #   feast (setup.py)
     #   great-expectations
     #   jupyter-client
     #   jupyter-lsp
@@ -374,6 +375,8 @@ importlib-metadata==6.8.0
     #   jupyterlab-server
     #   nbconvert
     #   sphinx
+importlib-resources==6.0.1
+    # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.25.2
@@ -549,7 +552,7 @@ notebook-shim==0.2.3
     # via
     #   jupyterlab
     #   notebook
-numpy==1.25.2
+numpy==1.24.4
     # via
     #   altair
     #   db-dtypes
@@ -727,7 +730,7 @@ pyproject-hooks==1.0.0
     # via build
 pyspark==3.4.1
     # via feast (setup.py)
-pytest==7.4.1
+pytest==7.4.2
     # via
     #   feast (setup.py)
     #   pytest-benchmark
@@ -1082,7 +1085,9 @@ xmltodict==0.13.0
 yarl==1.9.2
     # via aiohttp
 zipp==3.16.2
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
