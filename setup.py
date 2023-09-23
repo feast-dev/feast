@@ -56,7 +56,6 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<1.25",
     "pandas>=1.4.3,<3",
-    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro>1.7.0",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf<4.23.4,>3.20",
@@ -98,7 +97,13 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
+AWS_REQUIRED = [
+    # Higher than 1.28.18 will cause conflict with s3fs
+    "boto3>=1.17.0,<1.28.18",
+    "docker>=5.0.2",
+    # make sure this keeps in sync with gcsfs
+    "s3fs>=2023.6.0,<=2023.9.1",
+]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
@@ -158,7 +163,7 @@ CI_REQUIRED = (
         "moto",
         "mypy>=0.981,<0.990",
         "avro==1.10.0",
-        "gcsfs>=0.4.0,<=2022.01.0",
+        "gcsfs>=2023.6.0,<=2023.9.1",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
