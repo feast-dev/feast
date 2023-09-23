@@ -55,9 +55,9 @@ REQUIRED = [
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<1.25",
-    "pandas>=1.4.3,<2",
+    "pandas>=1.4.3,<3",
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "pandavro~=1.5.0",
+    "pandavro>1.7.0",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
