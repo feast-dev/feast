@@ -136,6 +136,7 @@ type getOnlineFeaturesRequest struct {
 	Entities         map[string]repeatedValue `json:"entities"`
 	FullFeatureNames bool                     `json:"full_feature_names"`
 	RequestContext   map[string]repeatedValue `json:"request_context"`
+	Status           bool                     `json:"status"`
 }
 
 func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *httpServer {
@@ -190,17 +191,19 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		var statuses []string
-		for _, status := range vector.Statuses {
-			statuses = append(statuses, status.String())
-		}
-		var timestamps []string
-		for _, timestamp := range vector.Timestamps {
-			timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
-		}
+		if request.Status {
+            var statuses []string
+            for _, status := range vector.Statuses {
+                statuses = append(statuses, status.String())
+            }
+            var timestamps []string
+            for _, timestamp := range vector.Timestamps {
+                timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
+            }
 
-		result["statuses"] = statuses
-		result["event_timestamps"] = timestamps
+            result["statuses"] = statuses
+            result["event_timestamps"] = timestamps
+		}
 		// Note, that vector.Values is an Arrow Array, but this type implements JSON Marshaller.
 		// So, it's not necessary to pre-process it in any way.
 		result["values"] = vector.Values
