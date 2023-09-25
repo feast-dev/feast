@@ -191,7 +191,7 @@ class TestMilvusOnlineStore:
             "params": {"nlist": 64},
         },
         {
-            "metric_type": "L2",
+            "metric_type": "COSINE",
             "index_type": "IVF_SQ8",
             "params": {"nlist": 64},
         },
