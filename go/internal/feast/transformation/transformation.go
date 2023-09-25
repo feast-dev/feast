@@ -121,6 +121,13 @@ func CallTransformations(
 
 	cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
 
+	// Recover from a panic from FFI so the server doesn't crash
+	defer func() {
+		if e := recover(); e != nil {
+			ret = nil
+			nil = e.(Error)
+		}
+	}()
 	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 
 	if ret != numRows {
