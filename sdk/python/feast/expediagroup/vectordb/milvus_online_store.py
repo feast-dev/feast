@@ -256,9 +256,12 @@ class MilvusOnlineStore(OnlineStore):
                 f"creating collection {feature_view.name} with schema: {schema}"
             )
             collection = Collection(name=feature_view.name, schema=schema)
-            collection.set_properties(
-                properties={"collection.ttl.seconds": feature_view.ttl.total_seconds()}
-            )
+            if feature_view.ttl:
+                collection.set_properties(
+                    properties={
+                        "collection.ttl.seconds": feature_view.ttl.total_seconds()
+                    }
+                )
 
             for field_name, index_params in indexes.items():
                 collection.create_index(field_name, index_params)
