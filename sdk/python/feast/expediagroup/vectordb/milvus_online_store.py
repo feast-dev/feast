@@ -15,7 +15,7 @@ from pymilvus import (
     connections,
     utility,
 )
-from pymilvus.client.types import IndexType, LoadState
+from pymilvus.client.types import LoadState
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.online_store import OnlineStore
@@ -49,19 +49,6 @@ TYPE_MAPPING = bidict(
         DataType.BINARY_VECTOR: Array(Bytes),
     }
 )
-
-VALID_INDEXES = {
-    "FLAT",
-    "IVF_FLAT",
-    "IVF_SQ8",
-    "IVF_PQ",
-    "GPU_IVF_FLAT",
-    "GPU_IVF_PQ",
-    "HNSW",
-    "SCANN",
-    "BIN_FLAT",
-    "BIN_IVF_FLAT",
-}
 
 MAX_SEARCH_SIZE = 16_384
 BATCH_SIZE = 10_000
@@ -170,12 +157,10 @@ class MilvusOnlineStore(OnlineStore):
                     expr=quer_expr,
                     output_fields=requested_features,
                 )
-                while True:
-                    res = query_iter.next()
-                    if len(res) == 0:
-                        query_iter.close()
-                        break
+                res = query_iter.next()
+                while len(res) > 0:
                     query_result.extend(res)
+                    res = query_iter.next()
             else:
                 query_result = collection.query(
                     expr=quer_expr, output_fields=requested_features
@@ -432,25 +417,6 @@ class MilvusOnlineStore(OnlineStore):
         metric_type = "L2"
         if "metric_type" in tags:
             metric_type = tags["metric_type"].upper()
-
-        if index_type not in VALID_INDEXES:
-            index_type = IndexType.INVALID.name
-
-        if data_type is DataType.BINARY_VECTOR:
-            if index_type not in [
-                "BIN_IVF_FLAT",
-                "BIN_FLAT",
-            ]:
-                raise ValueError(f"invalid index type for binary vector: {index_type}")
-            elif metric_type not in ["JACCARD", "HAMMING"]:
-                raise ValueError(
-                    f"invalid metric type for binary vector: {metric_type}"
-                )
-        elif metric_type not in ["L2", "IP", "COSINE"]:
-            raise ValueError(f"invalid metric type for float vector: {metric_type}")
-
-        if index_type == IndexType.INVALID.name:
-            raise ValueError(f"Invalid index type: {index_type}")
 
         params = {}
         if "index_params" in tags:
