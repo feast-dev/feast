@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,7 +137,6 @@ type getOnlineFeaturesRequest struct {
 	Entities         map[string]repeatedValue `json:"entities"`
 	FullFeatureNames bool                     `json:"full_feature_names"`
 	RequestContext   map[string]repeatedValue `json:"request_context"`
-	Status           bool                     `json:"status"`
 }
 
 func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *httpServer {
@@ -147,6 +147,17 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.NotFound(w, r)
 		return
+	}
+
+	statusQuery := r.URL.Query().Get("status")
+	status := false
+	if statusQuery != "" {
+		var err error
+		status, err = strconv.ParseBool(statusQuery)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
+			return
+		}
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -191,7 +202,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		if request.Status {
+		if status {
             var statuses []string
             for _, status := range vector.Statuses {
                 statuses = append(statuses, status.String())
