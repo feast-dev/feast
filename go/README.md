@@ -95,7 +95,7 @@ The documentation for `ExportArrowRecordBatch` is great. It has this super usefu
 > // and release the memory if the record has already been released. But since this must be explicitly
 > // done, make sure it is released so that you do not create a memory leak.
 
-This implies that the reciever is on the hook for explicitly releasing this memory. 
+This implies that the receiver is on the hook for explicitly releasing this memory. 
 
 However, we're using `_import_from_c`, which uses [`ImportRecordBatch`](https://arrow.apache.org/docs/cpp/api/c_abi.html#_CPPv417ImportRecordBatchP10ArrowArrayP11ArrowSchema), which implies that the receiver of the RecordBatch is the new owner of the data.
 This is wrapped by pyarrow - and when the corresponding python object goes out of scope, it should clean up the underlying record batch.   
