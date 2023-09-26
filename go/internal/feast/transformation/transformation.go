@@ -122,13 +122,14 @@ func CallTransformations(
 	cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
 
 	// Recover from a panic from FFI so the server doesn't crash
+	var err error
+	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 	defer func() {
 		if e := recover(); e != nil {
-			ret = nil
-			nil = e.(Error)
+			ret = -1
+			err = e.(error)
 		}
 	}()
-	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 
 	if ret != numRows {
 		return nil, errors.New("python transformation callback failed")
