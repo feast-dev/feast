@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -148,6 +149,17 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	statusQuery := r.URL.Query().Get("status")
+	status := false
+	if statusQuery != "" {
+		var err error
+		status, err = strconv.ParseBool(statusQuery)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	var request getOnlineFeaturesRequest
 	err := decoder.Decode(&request)
@@ -190,17 +202,19 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		var statuses []string
-		for _, status := range vector.Statuses {
-			statuses = append(statuses, status.String())
-		}
-		var timestamps []string
-		for _, timestamp := range vector.Timestamps {
-			timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
-		}
+		if status {
+            var statuses []string
+            for _, status := range vector.Statuses {
+                statuses = append(statuses, status.String())
+            }
+            var timestamps []string
+            for _, timestamp := range vector.Timestamps {
+                timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
+            }
 
-		result["statuses"] = statuses
-		result["event_timestamps"] = timestamps
+            result["statuses"] = statuses
+            result["event_timestamps"] = timestamps
+		}
 		// Note, that vector.Values is an Arrow Array, but this type implements JSON Marshaller.
 		// So, it's not necessary to pre-process it in any way.
 		result["values"] = vector.Values
