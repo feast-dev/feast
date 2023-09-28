@@ -53,7 +53,7 @@ def get_app(
 
     ui_dir = importlib_resources.files(__name__) / "ui/build/"
     # Initialize with the projects-list.json file
-    with open(ui_dir + "projects-list.json", mode="w") as f:
+    with open(str(ui_dir) + "projects-list.json", mode="w") as f:
         projects_dict = {
             "projects": [
                 {

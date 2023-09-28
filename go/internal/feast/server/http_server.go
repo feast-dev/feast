@@ -12,6 +12,7 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
@@ -269,6 +270,14 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	go releaseCGOMemory(featureVectors)
+}
+
+func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
+    for _, vector := range featureVectors {
+        vector.Values.Release()
+    }
 }
 
 func (s *httpServer) Serve(host string, port int) error {

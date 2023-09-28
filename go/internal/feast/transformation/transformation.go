@@ -74,6 +74,11 @@ func AugmentResponseWithOnDemandTransforms(
 			return nil, err
 		}
 		result = append(result, onDemandFeatures...)
+		
+		// Release memory used by requestContextArrow
+		for _, arrowArray := range requestContextArrow {
+			arrowArray.Release()
+		}
 	}
 
 	return result, nil
