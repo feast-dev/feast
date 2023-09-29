@@ -87,6 +87,9 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     mini_batch_size: int = 1000
     """ (optional) Number of rows to process per write operation (default 1000)"""
 
+    active_deadline_seconds: int = 86400
+    """ (optional) Maximum amount of time a materialization job is allowed to run"""
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -333,6 +336,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "backoffLimit": self.batch_engine_config.retry_limit,
                 "completions": pods,
                 "parallelism": min(pods, self.batch_engine_config.max_parallelism),
+                "activeDeadlineSeconds": self.batch_engine_config.active_deadline_seconds,
                 "completionMode": "Indexed",
                 "template": {
                     "metadata": {
