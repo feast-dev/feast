@@ -70,7 +70,7 @@ func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
 		if _, ok := r.registryStore.(*HttpRegistryStore); ok {
-			fmt.Println("ERROR: Registry Initialization Failed: ", err)
+			fmt.Printf("[%s] %s %s\n", time.UTC.String(), "ERROR: Registry Initialization Failed: ", err)
 			return err
 		}
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
@@ -85,7 +85,7 @@ func (r *Registry) RefreshRegistryOnInterval() {
 	for ; true; <-ticker.C {
 		err := r.refresh()
 		if err != nil {
-			fmt.Println("ERROR: Failed to refresh Registry: ", err)
+			fmt.Printf("[%s] %s %s\n", time.UTC.String(), "ERROR: Failed to refresh Registry: ", err)
 			return
 		}
 	}

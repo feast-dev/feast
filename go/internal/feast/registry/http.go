@@ -116,7 +116,7 @@ func (r *HttpRegistryStore) loadProtobufMessages(url string, messageProcessor fu
 }
 
 func (r *HttpRegistryStore) loadEntities(registry *core.Registry) error {
-	url := fmt.Sprintf("%s/projects/%s/entities", r.endpoint, r.project)
+	url := fmt.Sprintf("%s/projects/%s/entities?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
 		entity := &core.Entity{}
 		if err := proto.Unmarshal(data, entity); err != nil {
@@ -128,7 +128,7 @@ func (r *HttpRegistryStore) loadEntities(registry *core.Registry) error {
 }
 
 func (r *HttpRegistryStore) loadDatasources(registry *core.Registry) error {
-	url := fmt.Sprintf("%s/projects/%s/data_sources", r.endpoint, r.project)
+	url := fmt.Sprintf("%s/projects/%s/data_sources?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
 		data_source := &core.DataSource{}
 		if err := proto.Unmarshal(data, data_source); err != nil {
@@ -140,7 +140,7 @@ func (r *HttpRegistryStore) loadDatasources(registry *core.Registry) error {
 }
 
 func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
-	url := fmt.Sprintf("%s/projects/%s/feature_views", r.endpoint, r.project)
+	url := fmt.Sprintf("%s/projects/%s/feature_views?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
 		feature_view := &core.FeatureView{}
 		if err := proto.Unmarshal(data, feature_view); err != nil {
@@ -152,7 +152,7 @@ func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
 }
 
 func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) error {
-	url := fmt.Sprintf("%s/projects/%s/on_demand_feature_views", r.endpoint, r.project)
+	url := fmt.Sprintf("%s/projects/%s/on_demand_feature_views?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
 		od_feature_view := &core.OnDemandFeatureView{}
 		if err := proto.Unmarshal(data, od_feature_view); err != nil {
@@ -164,7 +164,7 @@ func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) er
 }
 
 func (r *HttpRegistryStore) loadFeatureServices(registry *core.Registry) error {
-	url := fmt.Sprintf("%s/projects/%s/feature_services", r.endpoint, r.project)
+	url := fmt.Sprintf("%s/projects/%s/feature_services?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
 		feature_service := &core.FeatureService{}
 		if err := proto.Unmarshal(data, feature_service); err != nil {
