@@ -77,8 +77,8 @@ class HttpRegistry(BaseRegistry):
             headers={"Content-Type": "application/json"},
         )
         self.project = project
+        self.apply_project(self.project)
         self.cached_registry_proto = self.proto()
-        proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -99,6 +99,15 @@ class HttpRegistry(BaseRegistry):
             return response.json()
         except httpx.HTTPError as http_exception:
             self._handle_exception(http_exception)
+        except Exception as exception:
+            self._handle_exception(exception)
+
+    def apply_project(self, project: str, commit: bool = True) -> ProjectMetadataModel:
+        try:
+            url = f"{self.base_url}/projects"
+            params = {"project": project, "commit": commit}
+            response_data = self._send_request("PUT", url, params=params)
+            return ProjectMetadataModel.parse_obj(response_data)
         except Exception as exception:
             self._handle_exception(exception)
 
@@ -608,7 +617,7 @@ class HttpRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project, False)  # type: ignore
+                objs: List[Any] = lister(project, True)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
