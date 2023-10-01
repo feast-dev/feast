@@ -158,7 +158,7 @@ comm==0.1.4
     #   ipywidgets
 coverage[toml]==7.3.1
     # via pytest-cov
-cryptography==41.0.3
+cryptography==41.0.4
     # via
     #   adal
     #   azure-identity
