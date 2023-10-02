@@ -82,7 +82,7 @@ class RepoUpgrader:
 
     @staticmethod
     def rename_arguments_in_children(
-        children: List[Node], renames: Dict[str, str]
+        children: 'List[Node]', renames: Dict[str, str]
     ) -> None:
         """
         Renames the arguments in the children list of a node by searching for the
@@ -109,7 +109,7 @@ class RepoUpgrader:
                                 ]
 
     @staticmethod
-    def rename_class_call(node: Node, new_class_name: str):
+    def rename_class_call(node: "Node", new_class_name: str):
         """
         Rename the class being instantiated.
         f = Feature(
@@ -127,7 +127,7 @@ class RepoUpgrader:
         node.children[0].value = new_class_name
 
     @staticmethod
-    def remove_argument_transform(node: Node, argument: str):
+    def remove_argument_transform(node: "Node", argument: str):
         """
         Removes the specified argument.
         For example, if the argument is "join_key", this method transforms
