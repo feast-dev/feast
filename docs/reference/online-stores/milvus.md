@@ -44,7 +44,20 @@ Milvus organizes data in _collections_. A collection is a table-like structure a
 
 ### Managing Milvus Resources Through FeatureView
 
-A collection will reflect the schema of a FeatureView. The name of the FeatureView will also be the name of the collection that is created in Milvus. The online store implementation translates the schema of the _feature view_ into the equivalent schema of a collection (see example below). Therefore, the schema is **not optional** for feature views. Indexes are defined through _field_ tags. Every feature view has to have one field marked as primary key.
+A collection will reflect the schema of a FeatureView. The name of the FeatureView will also be the name of the collection that is created in Milvus. The online store implementation translates the schema of the _feature view_ into the equivalent schema of a collection (see example below). Therefore, the schema is **not optional** for feature views. Every feature view has to have one field marked as primary key.
+
+Indexes are defined through _field_ level tags. The following tags are expected:
+
+* index_type: defines the index for the collection. Refer to the [Milvus documentation](https://milvus.io/docs/index.md) on what the differences between index types are. The format is expected as string. You can refer to this overview [here](https://milvus.io/docs/build_index.md#Prepare-index-parameter).
+* index_params: index types have different parameters that they expect. Follow the [documentation](https://milvus.io/docs/index.md) on which parameters are needed. Parameters are expected to be put in a dict that then is passed as a string.
+    Example:
+```python
+    "index_params": """{
+        "M": 64,
+        "efConstruction": 512
+    }""",
+```
+* metric_type: type of metrics used to measure the similarity of vectors. Check [here](https://milvus.io/docs/metric.md to learn which types exist and refer to [this page](https://milvus.io/docs/build_index.md#Prepare-index-parameter) to know which value to set. The value is expected to be a string. 
 
 An example feature view:
 ```python
@@ -61,7 +74,7 @@ An example feature view:
                     tags={
                         "description": "book embedding of the content",
                         "dimensions": "2200",
-                        "index_type": IndexType.ivf_flat.value,
+                        "index_type": "IVFLAT",
                         "index_params": {
                             "nlist": 1024,
                         },
@@ -77,10 +90,8 @@ This will create a collection named _books_ with two fields: _book_id_ and _book
 
 _book_embedding_ is the vector field of the collection. This field will have the following properties:
 * float vectors with 2200 dimensions
-* index type is IVF_FLAT with 1024 cluster units (_nlist_)
+* index type is IVFLAT with 1024 cluster units (_nlist_)
 * metric type is L2
-
-[IndexType](https://github.com/ExpediaGroup/feast/blob/master/sdk/python/feast/expediagroup/vectordb/index_type.py) is a convenience type for selecting an index type. The index type is passed as string. Refer to the Milvus documentation [here](https://milvus.io/docs/index.md) and [here](https://milvus.io/docs/metric.md) to understand which index types, index parameters (_index_params_) and metric types can be chosen.
 
 A _collection_ will be loaded into memory after write operations are performed. This is done to ensure the best performance for searches and queries.
 
