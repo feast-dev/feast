@@ -2,11 +2,15 @@ import logging
 from pathlib import Path
 from typing import Dict, List
 
-from bowler import Query
-from fissix.fixer_util import touch_import
-from fissix.pgen2 import token
-from fissix.pygram import python_symbols
-from fissix.pytree import Node
+try:
+    from bowler import Query
+    from fissix.fixer_util import touch_import
+    from fissix.pgen2 import token
+    from fissix.pygram import python_symbols
+    from fissix.pytree import Node
+except ImportError:
+    # Extra not installed
+    pass
 
 from feast.repo_operations import get_repo_files
 
