@@ -69,7 +69,6 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",
-    "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
@@ -137,6 +136,10 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
+UPGRADES_REQUIRED = [
+        "bowler",  # Needed for automatic repo upgrades
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -196,6 +199,7 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + UPGRADES_REQUIRED
 )
 
 
@@ -343,6 +347,7 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "upgrades": UPGRADES_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
