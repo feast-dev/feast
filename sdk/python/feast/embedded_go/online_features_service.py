@@ -65,7 +65,6 @@ class EmbeddedOnlineFeatureServer:
         request_data: Dict[str, Union[List[Any], Value_pb2.RepeatedValue]],
         full_feature_names: bool = False,
     ):
-
         if feature_service:
             join_keys_types = self._service.GetEntityTypesMapByFeatureService(
                 feature_service.name
@@ -244,7 +243,7 @@ def transformation_callback(
     output_schema_ptr: int,
     full_feature_names: bool,
 ) -> int:
-    odfv = fs.get_on_demand_feature_view(on_demand_feature_view_name)
+    odfv = fs.get_on_demand_feature_view(on_demand_feature_view_name, allow_cache=True)
 
     input_record = pa.RecordBatch._import_from_c(input_arr_ptr, input_schema_ptr)
 

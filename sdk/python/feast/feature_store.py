@@ -466,12 +466,15 @@ class FeatureStore:
         return stream_feature_view
 
     @log_exceptions_and_usage
-    def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
+    def get_on_demand_feature_view(
+        self, name: str, allow_cache: bool = False
+    ) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
 
         Args:
             name: Name of feature view.
+            allow_cache: Whether to allow returning this on demand feature view from a cached registry
 
         Returns:
             The specified feature view.
@@ -479,15 +482,18 @@ class FeatureStore:
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.get_on_demand_feature_view(name, self.project)
+        return self._registry.get_on_demand_feature_view(
+            name, self.project, allow_cache
+        )
 
     @log_exceptions_and_usage
-    def get_data_source(self, name: str) -> DataSource:
+    def get_data_source(self, name: str, allow_cache: bool = False) -> DataSource:
         """
         Retrieves the list of data sources from the registry.
 
         Args:
             name: Name of the data source.
+            allow_cache: Whether to allow returning this data source from a cached registry
 
         Returns:
             The specified data source.
@@ -495,7 +501,7 @@ class FeatureStore:
         Raises:
             DataSourceObjectNotFoundException: The data source could not be found.
         """
-        return self._registry.get_data_source(name, self.project)
+        return self._registry.get_data_source(name, self.project, allow_cache)
 
     @log_exceptions_and_usage
     def delete_feature_view(self, name: str):

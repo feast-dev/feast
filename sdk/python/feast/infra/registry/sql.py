@@ -231,16 +231,19 @@ class SqlRegistry(BaseRegistry):
 
     def _refresh_cache(self):
         while not self.stop_thread:
-            self.refresh()
+            try:
+                self.refresh()
+            except Exception as e:
+                logger.error(f"Registry refresh failed with exception: {e}")
             # Sleep for cached_registry_proto_ttl - 10 seconds
+            # TODO: This process needs an update. There is not way to send kill signal to
+            # the thread. When the cached_registry_proto_ttl is large, it will wait longer
+            # before it terminates the thread.
             time.sleep(self.cached_registry_proto_ttl.total_seconds() - 10)
 
     def close(self):
         self.stop_thread = True
-        self.refresh_cache_thread.join()
-
-    def __del__(self):
-        self.close()
+        self.refresh_cache_thread.join(10)
 
     def teardown(self):
         for t in {
@@ -259,6 +262,23 @@ class SqlRegistry(BaseRegistry):
 
         self.close()
 
+    def delete_project(self, project: str, commit: bool = True):
+        with self.engine.connect() as conn:
+            for t in {
+                entities,
+                data_sources,
+                feature_views,
+                feature_services,
+                on_demand_feature_views,
+                request_feature_views,
+                saved_datasets,
+                validation_references,
+                managed_infra,
+                feast_metadata,
+            }:
+                stmt = delete(t).where(t.c.project_id == project)
+                conn.execute(stmt)
+
     def refresh(self, project: Optional[str] = None):
         if project:
             project_metadata = proto_registry_utils.get_project_metadata(
@@ -270,7 +290,9 @@ class SqlRegistry(BaseRegistry):
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )
-        self.cached_registry_proto = self.proto()
+        refreshed_cache_registry_proto = self.proto()
+        with self._refresh_lock:
+            self.cached_registry_proto = refreshed_cache_registry_proto
         self.cached_registry_proto_created = datetime.utcnow()
 
     def _refresh_cached_registry_if_necessary(self):

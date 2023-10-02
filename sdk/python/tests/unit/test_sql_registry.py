@@ -70,6 +70,7 @@ def pg_registry():
     registry_config = RegistryConfig(
         registry_type="sql",
         path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        cache_ttl_seconds=60,
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -104,6 +105,7 @@ def mysql_registry():
     registry_config = RegistryConfig(
         registry_type="sql",
         path=f"mysql+mysqldb://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        cache_ttl_seconds=60,
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -116,6 +118,7 @@ def sqlite_registry():
     registry_config = RegistryConfig(
         registry_type="sql",
         path="sqlite://",
+        cache_ttl_seconds=60,
     )
     print("Initializing SQL Registry for SQlite..")
 

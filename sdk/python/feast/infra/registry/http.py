@@ -1,4 +1,6 @@
 import logging
+import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Lock
@@ -59,6 +61,9 @@ class HttpRegistryConfig(RegistryConfig):
     If registry_type is 'http', then this is a endpoint of Feature Registry """
 
 
+CACHE_REFRESH_THRESHOLD_SECONDS = 300
+
+
 class HttpRegistry(BaseRegistry):
     def __init__(
         self,
@@ -78,7 +83,6 @@ class HttpRegistry(BaseRegistry):
         )
         self.project = project
         self.apply_project(self.project)
-        self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -86,6 +90,29 @@ class HttpRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
+        self.cached_registry_proto = self.proto(allow_cache=False)
+        self.stop_thread = False
+        self.refresh_cache_thread = threading.Thread(target=self._refresh_cache)
+        self.refresh_cache_thread.start()
+
+    def _refresh_cache(self):
+        while not self.stop_thread:
+            try:
+                self.refresh()
+            except Exception as e:
+                logger.error(f"Registry refresh failed with exception: {e}")
+            # Sleep for cached_registry_proto_ttl - 10 seconds
+            # TODO: This process needs an update. There is not way to send kill signal to
+            # the thread. When the cached_registry_proto_ttl is large, it will wait longer
+            # before it terminates the thread.
+            time.sleep(self.cached_registry_proto_ttl.total_seconds() - 10)
+
+    def close(self):
+        self.stop_thread = True
+        self.refresh_cache_thread.join(10)
+
+    def teardown(self):
+        self.close()
 
     def _handle_exception(self, exception: Exception):
         logger.exception("Request failed with exception: %s", str(exception))
@@ -139,10 +166,10 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> Entity:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.get_entity(
                 self.cached_registry_proto, name, project
             )
@@ -162,10 +189,10 @@ class HttpRegistry(BaseRegistry):
     def list_entities(  # type: ignore[return]
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[Entity]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_entities(
                 self.cached_registry_proto, project
             )
@@ -219,10 +246,10 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> DataSource:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.get_data_source(
                 self.cached_registry_proto, name, project
             )
@@ -252,7 +279,7 @@ class HttpRegistry(BaseRegistry):
         allow_cache: bool = True,
     ) -> List[DataSource]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_data_sources(
                 self.cached_registry_proto, project
             )
@@ -308,10 +335,10 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> FeatureService:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.get_feature_service(
                 self.cached_registry_proto, name, project
             )
@@ -332,7 +359,7 @@ class HttpRegistry(BaseRegistry):
         self, project: str, allow_cache: bool = True
     ) -> List[FeatureService]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_feature_services(
                 self.cached_registry_proto, project
             )
@@ -391,10 +418,10 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> FeatureView:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.get_feature_view(
                 self.cached_registry_proto, name, project
             )
@@ -412,10 +439,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = True
+        self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_feature_views(
                 self.cached_registry_proto, project
             )
@@ -432,10 +459,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_on_demand_feature_view(  # type: ignore[return]
-        self, name: str, project: str, allow_cache: bool = True
+        self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.get_on_demand_feature_view(
                 self.cached_registry_proto, name, project
             )
@@ -453,10 +480,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_on_demand_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = True
+        self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_on_demand_feature_views(
                 self.cached_registry_proto, project
             )
@@ -476,14 +503,14 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ):
         raise NotImplementedError("Method not implemented")
 
     def list_stream_feature_views(
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[StreamFeatureView]:
         # TODO: Implement listing Stream Feature Views
         return []
@@ -498,7 +525,7 @@ class HttpRegistry(BaseRegistry):
     def list_request_feature_views(
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[RequestFeatureView]:
         # TODO: Implement listing Request Feature Views
         return []
@@ -535,14 +562,14 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> SavedDataset:
         raise NotImplementedError("Method not implemented")
 
     def list_saved_datasets(
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[SavedDataset]:
         pass
 
@@ -561,7 +588,7 @@ class HttpRegistry(BaseRegistry):
         self,
         name: str,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> ValidationReference:
         raise NotImplementedError("Method not implemented")
 
@@ -571,7 +598,7 @@ class HttpRegistry(BaseRegistry):
     def get_infra(
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> Infra:
         # TODO: Need to implement this when necessary
         return Infra()
@@ -592,11 +619,11 @@ class HttpRegistry(BaseRegistry):
     def list_validation_references(
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[ValidationReference]:
         pass
 
-    def proto(self) -> RegistryProto:
+    def proto(self, allow_cache: bool = True) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
         if self.project is None:
@@ -617,7 +644,7 @@ class HttpRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project, True)  # type: ignore
+                objs: List[Any] = lister(project, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -652,7 +679,10 @@ class HttpRegistry(BaseRegistry):
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )
-        self.cached_registry_proto = self.proto()
+
+        refreshed_cache_registry_proto = self.proto(True)
+        with self._refresh_lock:
+            self.cached_registry_proto = refreshed_cache_registry_proto
         self.cached_registry_proto_created = datetime.utcnow()
 
     def _refresh_cached_registry_if_necessary(self):
@@ -676,6 +706,25 @@ class HttpRegistry(BaseRegistry):
                 logger.info("Registry cache expired, so refreshing")
                 self.refresh()
 
+    def _check_if_registry_refreshed(self):
+        if (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto_created is None
+        ) or (
+            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
+            and (
+                datetime.utcnow()
+                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+            )
+        ):
+            seconds_since_last_refresh = (
+                datetime.utcnow() - self.cached_registry_proto_created
+            ).total_seconds()
+            if seconds_since_last_refresh > CACHE_REFRESH_THRESHOLD_SECONDS:
+                logger.warning(
+                    f"Cache is stale: {seconds_since_last_refresh} seconds since last refresh"
+                )
+
     def _get_all_projects(self) -> Set[str]:  # type: ignore[return]
         try:
             url = f"{self.base_url}/projects"
@@ -695,10 +744,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_project_metadata(  # type: ignore[return]
-        self, project: str, allow_cache: bool = True
+        self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         if allow_cache:
-            self._refresh_cached_registry_if_necessary()
+            self._check_if_registry_refreshed()
             return proto_registry_utils.list_project_metadata(
                 self.cached_registry_proto, project
             )
