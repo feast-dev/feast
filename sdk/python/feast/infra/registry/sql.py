@@ -227,6 +227,7 @@ class SqlRegistry(BaseRegistry):
         )
         self.stop_thread = False
         self.refresh_cache_thread = threading.Thread(target=self._refresh_cache)
+        self.refresh_cache_thread.daemon = True
         self.refresh_cache_thread.start()
 
     def _refresh_cache(self):

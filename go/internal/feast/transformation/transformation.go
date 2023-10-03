@@ -10,6 +10,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/cdata"
 	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -74,7 +75,7 @@ func AugmentResponseWithOnDemandTransforms(
 			return nil, err
 		}
 		result = append(result, onDemandFeatures...)
-		
+
 		// Release memory used by requestContextArrow
 		for _, arrowArray := range requestContextArrow {
 			arrowArray.Release()
@@ -132,7 +133,8 @@ func CallTransformations(
 	defer func() {
 		if e := recover(); e != nil {
 			ret = -1
-			err = e.(error)
+			log.Error().Err(err).Msg("")
+			err = fmt.Errorf("python transformation callback error: %v", e)
 		}
 	}()
 

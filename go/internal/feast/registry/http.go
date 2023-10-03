@@ -93,23 +93,13 @@ func (r *HttpRegistryStore) loadProtobufMessages(url string, messageProcessor fu
 	}
 	defer resp.Body.Close()
 
-	buffer := make([]byte, BUFFER_SIZE)
+	buffer, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 
-	for {
-		n, err := resp.Body.Read(buffer)
-		if err != nil && err != io.EOF {
-			return err
-		}
-
-		if n > 0 {
-			if err := messageProcessor(buffer[:n]); err != nil {
-				return err
-			}
-		}
-
-		if err == io.EOF {
-			break
-		}
+	if err := messageProcessor(buffer); err != nil {
+		return err
 	}
 
 	return nil
@@ -118,11 +108,11 @@ func (r *HttpRegistryStore) loadProtobufMessages(url string, messageProcessor fu
 func (r *HttpRegistryStore) loadEntities(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/entities?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
-		entity := &core.Entity{}
-		if err := proto.Unmarshal(data, entity); err != nil {
+		entity_list := &core.EntityList{}
+		if err := proto.Unmarshal(data, entity_list); err != nil {
 			return err
 		}
-		registry.Entities = append(registry.Entities, entity)
+		registry.Entities = append(registry.Entities, entity_list.GetEntities()...)
 		return nil
 	})
 }
@@ -130,11 +120,11 @@ func (r *HttpRegistryStore) loadEntities(registry *core.Registry) error {
 func (r *HttpRegistryStore) loadDatasources(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/data_sources?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
-		data_source := &core.DataSource{}
-		if err := proto.Unmarshal(data, data_source); err != nil {
+		data_source_list := &core.DataSourceList{}
+		if err := proto.Unmarshal(data, data_source_list); err != nil {
 			return err
 		}
-		registry.DataSources = append(registry.DataSources, data_source)
+		registry.DataSources = append(registry.DataSources, data_source_list.GetDatasources()...)
 		return nil
 	})
 }
@@ -154,11 +144,11 @@ func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
 func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/on_demand_feature_views?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
-		od_feature_view := &core.OnDemandFeatureView{}
-		if err := proto.Unmarshal(data, od_feature_view); err != nil {
+		od_feature_view_list := &core.OnDemandFeatureViewList{}
+		if err := proto.Unmarshal(data, od_feature_view_list); err != nil {
 			return err
 		}
-		registry.OnDemandFeatureViews = append(registry.OnDemandFeatureViews, od_feature_view)
+		registry.OnDemandFeatureViews = append(registry.OnDemandFeatureViews, od_feature_view_list.GetOndemandfeatureviews()...)
 		return nil
 	})
 }
@@ -166,11 +156,11 @@ func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) er
 func (r *HttpRegistryStore) loadFeatureServices(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/feature_services?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
-		feature_service := &core.FeatureService{}
-		if err := proto.Unmarshal(data, feature_service); err != nil {
+		feature_service_list := &core.FeatureServiceList{}
+		if err := proto.Unmarshal(data, feature_service_list); err != nil {
 			return err
 		}
-		registry.FeatureServices = append(registry.FeatureServices, feature_service)
+		registry.FeatureServices = append(registry.FeatureServices, feature_service_list.GetFeatureservices()...)
 		return nil
 	})
 }
