@@ -132,11 +132,11 @@ func (r *HttpRegistryStore) loadDatasources(registry *core.Registry) error {
 func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/feature_views?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
-		feature_view := &core.FeatureView{}
-		if err := proto.Unmarshal(data, feature_view); err != nil {
+		feature_view_list := &core.FeatureViewList{}
+		if err := proto.Unmarshal(data, feature_view_list); err != nil {
 			return err
 		}
-		registry.FeatureViews = append(registry.FeatureViews, feature_view)
+		registry.FeatureViews = append(registry.FeatureViews, feature_view_list.GetFeatureviews()...)
 		return nil
 	})
 }
