@@ -42,6 +42,8 @@ require (
 	inet.af/netaddr v0.0.0-20220811202034-502d2d690317 // indirect
 )
 
+require github.com/rs/zerolog v1.21.0
+
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect

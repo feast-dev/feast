@@ -682,22 +682,30 @@ def serve_command(
     keep_alive_timeout: int,
     go: bool,
 ):
-    """Start a feature server locally on a given port."""
-    store = create_feature_store(ctx)
+    try:
+        """Start a feature server locally on a given port."""
+        store = create_feature_store(ctx)
 
-    if go:
-        # Turn on Go feature retrieval.
-        store.config.go_feature_serving = True
+        if go:
+            # Turn on Go feature retrieval.
+            store.config.go_feature_serving = True
 
-    store.serve(
-        host=host,
-        port=port,
-        type_=type_,
-        no_access_log=no_access_log,
-        no_feature_log=no_feature_log,
-        workers=workers,
-        keep_alive_timeout=keep_alive_timeout,
-    )
+        store.serve(
+            host=host,
+            port=port,
+            type_=type_,
+            no_access_log=no_access_log,
+            no_feature_log=no_feature_log,
+            workers=workers,
+            keep_alive_timeout=keep_alive_timeout,
+        )
+    except Exception as exception:
+        _logger.exception(
+            "Failed to start feature server with exception: %s", str(exception)
+        )
+        raise Exception(
+            "Failed to start feature server with exception: " + str(exception)
+        )
 
 
 @cli.command("serve_transformations")

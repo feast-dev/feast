@@ -38,7 +38,7 @@ type Registry struct {
 	cachedRegistry                 *core.Registry
 	cachedRegistryProtoLastUpdated time.Time
 	cachedRegistryProtoTtl         time.Duration
-	mu                             sync.Mutex
+	mu                             sync.RWMutex
 }
 
 func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string) (*Registry, error) {
@@ -74,7 +74,7 @@ func (r *Registry) InitializeRegistry() error {
 			return err
 		}
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
- 		r.registryStore.UpdateRegistryProto(registryProto)
+		r.registryStore.UpdateRegistryProto(registryProto)
 	}
 	go r.RefreshRegistryOnInterval()
 	return nil
@@ -187,6 +187,8 @@ func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 */
 
 func (r *Registry) ListEntities(project string) ([]*model.Entity, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return []*model.Entity{}, nil
 	} else {
@@ -206,6 +208,8 @@ func (r *Registry) ListEntities(project string) ([]*model.Entity, error) {
 */
 
 func (r *Registry) ListFeatureViews(project string) ([]*model.FeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return []*model.FeatureView{}, nil
 	} else {
@@ -225,6 +229,8 @@ func (r *Registry) ListFeatureViews(project string) ([]*model.FeatureView, error
 */
 
 func (r *Registry) ListStreamFeatureViews(project string) ([]*model.FeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedStreamFeatureViews, ok := r.cachedStreamFeatureViews[project]; !ok {
 		return []*model.FeatureView{}, nil
 	} else {
@@ -244,6 +250,8 @@ func (r *Registry) ListStreamFeatureViews(project string) ([]*model.FeatureView,
 */
 
 func (r *Registry) ListFeatureServices(project string) ([]*model.FeatureService, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return []*model.FeatureService{}, nil
 	} else {
@@ -263,6 +271,8 @@ func (r *Registry) ListFeatureServices(project string) ([]*model.FeatureService,
 */
 
 func (r *Registry) ListOnDemandFeatureViews(project string) ([]*model.OnDemandFeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return []*model.OnDemandFeatureView{}, nil
 	} else {
@@ -277,6 +287,8 @@ func (r *Registry) ListOnDemandFeatureViews(project string) ([]*model.OnDemandFe
 }
 
 func (r *Registry) GetEntity(project, entityName string) (*model.Entity, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedEntities, ok := r.cachedEntities[project]; !ok {
 		return nil, fmt.Errorf("no cached entities found for project %s", project)
 	} else {
@@ -289,6 +301,8 @@ func (r *Registry) GetEntity(project, entityName string) (*model.Entity, error) 
 }
 
 func (r *Registry) GetFeatureView(project, featureViewName string) (*model.FeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedFeatureViews, ok := r.cachedFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached feature views found for project %s", project)
 	} else {
@@ -301,6 +315,8 @@ func (r *Registry) GetFeatureView(project, featureViewName string) (*model.Featu
 }
 
 func (r *Registry) GetStreamFeatureView(project, streamFeatureViewName string) (*model.FeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedStreamFeatureViews, ok := r.cachedStreamFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached stream feature views found for project %s", project)
 	} else {
@@ -313,6 +329,8 @@ func (r *Registry) GetStreamFeatureView(project, streamFeatureViewName string) (
 }
 
 func (r *Registry) GetFeatureService(project, featureServiceName string) (*model.FeatureService, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedFeatureServices, ok := r.cachedFeatureServices[project]; !ok {
 		return nil, fmt.Errorf("no cached feature services found for project %s", project)
 	} else {
@@ -325,6 +343,8 @@ func (r *Registry) GetFeatureService(project, featureServiceName string) (*model
 }
 
 func (r *Registry) GetOnDemandFeatureView(project, onDemandFeatureViewName string) (*model.OnDemandFeatureView, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if cachedOnDemandFeatureViews, ok := r.cachedOnDemandFeatureViews[project]; !ok {
 		return nil, fmt.Errorf("no cached on demand feature views found for project %s", project)
 	} else {

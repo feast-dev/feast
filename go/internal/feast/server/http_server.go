@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	"github.com/rs/zerolog/log"
 	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
@@ -204,17 +206,17 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
 		if status {
-            var statuses []string
-            for _, status := range vector.Statuses {
-                statuses = append(statuses, status.String())
-            }
-            var timestamps []string
-            for _, timestamp := range vector.Timestamps {
-                timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
-            }
+			var statuses []string
+			for _, status := range vector.Statuses {
+				statuses = append(statuses, status.String())
+			}
+			var timestamps []string
+			for _, timestamp := range vector.Timestamps {
+				timestamps = append(timestamps, timestamp.AsTime().Format(time.RFC3339))
+			}
 
-            result["statuses"] = statuses
-            result["event_timestamps"] = timestamps
+			result["statuses"] = statuses
+			result["event_timestamps"] = timestamps
 		}
 		// Note, that vector.Values is an Arrow Array, but this type implements JSON Marshaller.
 		// So, it's not necessary to pre-process it in any way.
@@ -275,9 +277,34 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
-    for _, vector := range featureVectors {
-        vector.Values.Release()
-    }
+	for _, vector := range featureVectors {
+		vector.Values.Release()
+	}
+}
+
+func logStackTrace() {
+	// Create a buffer for storing the stack trace
+	const size = 4096
+	buf := make([]byte, size)
+
+	// Retrieve the stack trace and write it to the buffer
+	stackSize := runtime.Stack(buf, false)
+
+	// Log the stack trace using zerolog
+	log.Error().Str("stack_trace", string(buf[:stackSize])).Msg("")
+}
+
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic recovered: %v", r)
+				logStackTrace()
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *httpServer) Serve(host string, port int) error {
@@ -287,9 +314,9 @@ func (s *httpServer) Serve(host string, port int) error {
 		defer tracer.Stop()
 	}
 	mux := httptrace.NewServeMux()
-	mux.HandleFunc("/get-online-features", s.getOnlineFeatures)
+	mux.Handle("/get-online-features", recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)))
 	mux.HandleFunc("/health", healthCheckHandler)
-	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux}
+	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
 	err := s.server.ListenAndServe()
 	// Don't return the error if it's caused by graceful shutdown using Stop()
 	if err == http.ErrServerClosed {

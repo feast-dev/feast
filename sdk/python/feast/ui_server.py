@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 import importlib_resources
 import uvicorn
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -72,6 +72,10 @@ def get_app(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
         )
+
+    @app.get("/health")
+    def health():
+        return Response(status_code=status.HTTP_200_OK)
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
