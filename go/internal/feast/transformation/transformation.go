@@ -132,16 +132,18 @@ func CallTransformations(
 	var err error
 	defer func() {
 		if e := recover(); e != nil {
+			logStackTrace()
 			switch value := e.(type) {
 			case error:
 				log.Error().Err(value).Msg("")
+				err = fmt.Errorf("python transformation callback error: %w\n", value)
 			case string:
 				log.Error().Msg(value)
+				err = fmt.Errorf("python transformation callback error: %s\n", value)
 			default:
 				log.Error().Msg("Unknown panic")
+				err = fmt.Errorf("python transformation callback error: %v\n", value)
 			}
-			logStackTrace()
-			err = fmt.Errorf("python transformation callback error: %w\n", e)
 		}
 	}()
 	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
