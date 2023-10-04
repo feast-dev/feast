@@ -3,6 +3,7 @@ package transformation
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"unsafe"
 
@@ -129,14 +130,21 @@ func CallTransformations(
 
 	// Recover from a panic from FFI so the server doesn't crash
 	var err error
-	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 	defer func() {
 		if e := recover(); e != nil {
-			ret = -1
-			log.Error().Err(err).Msg("")
-			err = fmt.Errorf("python transformation callback error: %v", e)
+			switch value := e.(type) {
+			case error:
+				log.Error().Err(value).Msg("")
+			case string:
+				log.Error().Msg(value)
+			default:
+				log.Error().Msg("Unknown panic")
+			}
+			logStackTrace()
+			err = fmt.Errorf("python transformation callback error: %w\n", e)
 		}
 	}()
+	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
 
 	if ret != numRows {
 		return nil, errors.New("python transformation callback failed")
@@ -222,4 +230,16 @@ func getNeededRequestData(requestedOnDemandFeatureViews []*model.OnDemandFeature
 	}
 
 	return neededRequestData, nil
+}
+
+func logStackTrace() {
+	// Create a buffer for storing the stack trace
+	const size = 4096
+	buf := make([]byte, size)
+
+	// Retrieve the stack trace and write it to the buffer
+	stackSize := runtime.Stack(buf, false)
+
+	// Log the stack trace using zerolog
+	log.Error().Str("stack_trace", string(buf[:stackSize])).Msg("")
 }
