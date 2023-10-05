@@ -277,7 +277,7 @@ class HttpRegistry(BaseRegistry):
     def list_data_sources(  # type: ignore[return]
         self,
         project: str,
-        allow_cache: bool = True,
+        allow_cache: bool = False,
     ) -> List[DataSource]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -357,7 +357,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_services(  # type: ignore[return]
-        self, project: str, allow_cache: bool = True
+        self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -624,7 +624,7 @@ class HttpRegistry(BaseRegistry):
     ) -> List[ValidationReference]:
         pass
 
-    def proto(self, allow_cache: bool = True) -> RegistryProto:
+    def proto(self) -> RegistryProto:
         r = RegistryProto()
         # last_updated_timestamps = []
         if self.project is None:

@@ -211,7 +211,7 @@ class SqlRegistry(BaseRegistry):
         # pool_recycle will recycle connections after the given number of seconds has passed
         # This is to avoid automatic disconnections when no activity is detected on connection
         self.engine: Engine = create_engine(
-            registry_config.path, echo=False, pool_recycle=3600
+            registry_config.path, echo=False, pool_recycle=3600, pool_size=10
         )
         metadata.create_all(self.engine)
         self.project = project
