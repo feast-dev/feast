@@ -736,7 +736,9 @@ class SqlRegistry(BaseRegistry):
                         row["metadata_key"]
                         == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value
                     ):
-                        project_metadata.last_updated_timestamp = row["metadata_value"]
+                        project_metadata.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(int(row["metadata_value"]))
+                        )
 
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
