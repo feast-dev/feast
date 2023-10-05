@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/rs/zerolog/log"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
@@ -70,7 +71,7 @@ func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
 		if _, ok := r.registryStore.(*HttpRegistryStore); ok {
-			fmt.Printf("[%s] %s %s\n", time.UTC.String(), "ERROR: Registry Initialization Failed: ", err)
+			log.Error().Err(err).Msg("Registry Initialization Failed")
 			return err
 		}
 		registryProto := &core.Registry{RegistrySchemaVersion: REGISTRY_SCHEMA_VERSION}
@@ -85,7 +86,7 @@ func (r *Registry) RefreshRegistryOnInterval() {
 	for ; true; <-ticker.C {
 		err := r.refresh()
 		if err != nil {
-			fmt.Printf("[%s] %s %s\n", time.UTC.String(), "ERROR: Failed to refresh Registry: ", err)
+			log.Error().Stack().Err(err).Msg("Registry refresh Failed")
 			return
 		}
 	}

@@ -731,7 +731,13 @@ class SqlRegistry(BaseRegistry):
                 for row in rows:
                     if row["metadata_key"] == FeastMetadataKeys.PROJECT_UUID.value:
                         project_metadata.project_uuid = row["metadata_value"]
-                        break
+
+                    if (
+                        row["metadata_key"]
+                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value
+                    ):
+                        project_metadata.last_updated_timestamp = row["metadata_value"]
+
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -906,10 +912,10 @@ class SqlRegistry(BaseRegistry):
 
     def proto(self) -> RegistryProto:
         r = RegistryProto()
-        last_updated_timestamps = []
+        # last_updated_timestamps = []
 
         def process_project(project):
-            nonlocal r, last_updated_timestamps
+            nonlocal r  # , last_updated_timestamps
             for lister, registry_proto_field in [
                 (self.list_entities, r.entities),
                 (self.list_feature_views, r.feature_views),
@@ -935,7 +941,9 @@ class SqlRegistry(BaseRegistry):
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+
+            # This is helping to find last updated metadata for project and its not being used anywhere so commenting this process
+            # last_updated_timestamps.append(self._get_last_updated_metadata(project))
 
         if self.project is None:
             projects = self._get_all_projects()
@@ -948,8 +956,11 @@ class SqlRegistry(BaseRegistry):
         ) as executor:  # Adjust max_workers as needed
             executor.map(process_project, projects)
 
-        if last_updated_timestamps:
-            r.last_updated.FromDatetime(max(last_updated_timestamps))
+        # This logic is calculating the max projects updated time. Not used anywhere. Just setting to current timestamp
+        # if last_updated_timestamps:
+        #     r.last_updated.FromDatetime(max(last_updated_timestamps))
+
+        r.last_updated.FromDatetime(datetime.utcnow())
 
         return r
 
@@ -1014,6 +1025,7 @@ class SqlRegistry(BaseRegistry):
             self._set_last_updated_metadata(update_datetime, project)
 
     def create_project_if_not_exists(self, project):
+        new_project = False
         # Initialize project metadata if needed
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
@@ -1036,6 +1048,9 @@ class SqlRegistry(BaseRegistry):
                 insert_stmt = insert(feast_metadata).values(values)
                 conn.execute(insert_stmt)
                 usage.set_current_project_uuid(new_project_uuid)
+                new_project = True
+
+        if new_project:
             self._set_last_updated_metadata(update_datetime, project)
 
     def _delete_object(
@@ -1198,10 +1213,25 @@ class SqlRegistry(BaseRegistry):
                         )
         return list(project_metadata_model_dict.values())
 
-    def get_project_metadata(self, project: str) -> ProjectMetadataModel:
+    def get_project_metadata(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> ProjectMetadataModel:
         """
         Returns given project metdata. No supporting function in SQL Registry so implemented this here rather than using _get_last_updated_metadata and list_project_metadata.
         """
+
+        if allow_cache:
+            self._check_if_registry_refreshed()
+            project_metadata_proto = proto_registry_utils.get_project_metadata(
+                self.cached_registry_proto, project
+            )
+            if project_metadata_proto is not None:
+                return ProjectMetadataModel.from_project_metadata(
+                    ProjectMetadata.from_proto(project_metadata_proto)
+                )
+
         project_metadata_model: ProjectMetadataModel = ProjectMetadataModel(
             project_name=project
         )

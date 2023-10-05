@@ -25,6 +25,7 @@ class ProjectMetadataModel(BaseModel):
         return ProjectMetadata(
             project_name=self.project_name,
             project_uuid=self.project_uuid,
+            last_updated_timestamp=self.last_updated_timestamp,
         )
 
     @classmethod
@@ -41,4 +42,5 @@ class ProjectMetadataModel(BaseModel):
         return cls(
             project_name=project_metadata.project_name,
             project_uuid=project_metadata.project_uuid,
+            last_updated_timestamp=project_metadata.last_updated_timestamp,
         )

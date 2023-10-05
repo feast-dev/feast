@@ -322,6 +322,7 @@ func (s *httpServer) Serve(host string, port int) error {
 	if err == http.ErrServerClosed {
 		return nil
 	}
+	log.Error().Stack().Err(err).Msg("Startup failed")
 	return err
 }
 

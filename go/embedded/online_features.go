@@ -27,6 +27,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	jsonlog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -65,6 +66,7 @@ type LoggingOptions struct {
 func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
 	repoConfig, err := registry.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
 	if err != nil {
+		jsonlog.Error().Stack().Err(err).Msg("Failed to convert to RepoConfig")
 		return &OnlineFeatureService{
 			err: err,
 		}
@@ -72,6 +74,7 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 
 	fs, err := feast.NewFeatureStore(repoConfig, transformationCallback)
 	if err != nil {
+		jsonlog.Error().Stack().Err(err).Msg("Failed to create NewFeatureStore")
 		return &OnlineFeatureService{
 			err: err,
 		}

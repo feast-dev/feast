@@ -542,7 +542,9 @@ def test_idempotent_feature_service_conversion():
 
 def test_idempotent_project_metadata_conversion():
     python_obj = ProjectMetadata(
-        project_name="test_project", project_uuid=f"{uuid.uuid4()}"
+        project_name="test_project",
+        project_uuid=f"{uuid.uuid4()}",
+        last_updated_timestamp=datetime.utcnow(),
     )
     pydantic_obj = ProjectMetadataModel.from_project_metadata(python_obj)
     converted_python_obj = pydantic_obj.to_project_metadata()
@@ -552,8 +554,8 @@ def test_idempotent_project_metadata_conversion():
     python_obj_from_proto = ProjectMetadata.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json(exclude={"last_updated_timestamp"})
+    pydantic_json = pydantic_obj.json()
     assert pydantic_obj == ProjectMetadataModel.parse_raw(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict(exclude={"last_updated_timestamp"})
+    pydantic_json = pydantic_obj.dict()
     assert pydantic_obj == ProjectMetadataModel.parse_obj(pydantic_json)

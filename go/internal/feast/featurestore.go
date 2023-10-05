@@ -3,7 +3,6 @@ package feast
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
 
@@ -53,7 +52,6 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	}
 	err = registry.InitializeRegistry()
 	if err != nil {
-		fmt.Println("ERROR: Unable to Initialize Registry: ", err)
 		return nil, err
 	}
 

@@ -90,7 +90,7 @@ class HttpRegistry(BaseRegistry):
             if registry_config.cache_ttl_seconds is not None
             else 0
         )
-        self.cached_registry_proto = self.proto(allow_cache=False)
+        self.cached_registry_proto = self.proto()
         self.stop_thread = False
         self.refresh_cache_thread = threading.Thread(target=self._refresh_cache)
         self.refresh_cache_thread.daemon = True
@@ -176,7 +176,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/entities/{name}"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             return EntityModel.parse_obj(response_data).to_entity()
         except EntityNotFoundException as exception:
@@ -199,7 +199,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/entities"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -256,7 +256,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/data_sources/{name}"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             if "model_type" in response_data:
                 if response_data["model_type"] == "RequestSourceModel":
@@ -286,7 +286,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/data_sources"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
             data_source_list = []
@@ -345,7 +345,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_services/{name}"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             return FeatureServiceModel.parse_obj(response_data).to_feature_service()
         except FeatureServiceNotFoundException as exception:
@@ -366,7 +366,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_services"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -428,7 +428,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_views/{name}"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             return FeatureViewModel.parse_obj(response_data).to_feature_view()
         except FeatureViewNotFoundException as exception:
@@ -449,7 +449,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_views"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -469,7 +469,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/on_demand_feature_views/{name}"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             return OnDemandFeatureViewModel.parse_obj(response_data).to_feature_view()
         except FeatureViewNotFoundException as exception:
@@ -490,7 +490,7 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}/on_demand_feature_views"
-            params = {"allow_cache": False}
+            params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -626,7 +626,7 @@ class HttpRegistry(BaseRegistry):
 
     def proto(self, allow_cache: bool = True) -> RegistryProto:
         r = RegistryProto()
-        last_updated_timestamps = []
+        # last_updated_timestamps = []
         if self.project is None:
             projects = self._get_all_projects()
         else:
@@ -645,7 +645,7 @@ class HttpRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project, allow_cache)  # type: ignore
+                objs: List[Any] = lister(project)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -658,10 +658,11 @@ class HttpRegistry(BaseRegistry):
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+            # last_updated_timestamps.append(self._get_last_updated_metadata(project))
 
-        if last_updated_timestamps:
-            r.last_updated.FromDatetime(max(last_updated_timestamps))
+        # if last_updated_timestamps:
+        #     r.last_updated.FromDatetime(max(last_updated_timestamps))
+        r.last_updated.FromDatetime(datetime.utcnow())
 
         return r
 
@@ -681,7 +682,7 @@ class HttpRegistry(BaseRegistry):
                     self.cached_registry_proto, project
                 )
 
-        refreshed_cache_registry_proto = self.proto(True)
+        refreshed_cache_registry_proto = self.proto()
         with self._refresh_lock:
             self.cached_registry_proto = refreshed_cache_registry_proto
         self.cached_registry_proto_created = datetime.utcnow()
@@ -754,7 +755,8 @@ class HttpRegistry(BaseRegistry):
             )
         try:
             url = f"{self.base_url}/projects/{project}"
-            response_data = self._send_request("GET", url)
+            params = {"allow_cache": True}
+            response_data = self._send_request("GET", url, params=params)
             return [ProjectMetadataModel.parse_obj(response_data).to_project_metadata()]
         except ProjectMetadataNotFoundException as exception:
             logger.error(
