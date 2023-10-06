@@ -170,13 +170,13 @@ func CallTransformations(
 			}
 		}
 	})
-	err := proc.Close()
-	if err != nil {
-		return nil, err
-	}
 	resp := <-transformResp
 	if resp.err != nil {
 		return nil, resp.err
+	}
+	err := proc.Close()
+	if err != nil {
+		return nil, err
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
