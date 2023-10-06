@@ -22,7 +22,7 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 
-	//_ "github.com/ianlancetaylor/cgosymbolizer"
+	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 /*
