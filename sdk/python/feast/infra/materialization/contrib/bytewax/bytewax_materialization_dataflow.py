@@ -21,7 +21,7 @@ class BytewaxMaterializationDataflow:
         config: RepoConfig,
         feature_view: FeatureView,
         paths: List[str],
-        worker_index: int
+        worker_index: int,
     ):
         self.config = config
         self.feature_store = FeatureStore(config=config)
@@ -33,13 +33,7 @@ class BytewaxMaterializationDataflow:
         self._run_dataflow()
 
     def process_path(self, path):
-<<<<<<< HEAD
         dataset = pq.ParquetDataset(path, use_legacy_dataset=False)
-=======
-        fs = s3fs.S3FileSystem()
-        logger.info(f"Processing path {path}")
-        dataset = pq.ParquetDataset(path, filesystem=fs, use_legacy_dataset=False)
->>>>>>> 15c523a2 (SAASMLOPS-809 fix bytewax workers so they only process a single file (#6))
         batches = []
         for fragment in dataset.fragments:
             for batch in fragment.to_table().to_batches():
