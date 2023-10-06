@@ -22,7 +22,7 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 
-	_ "github.com/ianlancetaylor/cgosymbolizer"
+	//_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 /*
@@ -102,27 +102,28 @@ func CallTransformations(
 	fullFeatureNames bool,
 ) ([]*onlineserving.FeatureVector, error) {
 
-	var err error
-	defer func() {
-		if e := recover(); e != nil {
-			logStackTrace()
-			switch value := e.(type) {
-			case error:
-				log.Error().Err(value).Msg("")
-				err = fmt.Errorf("python transformation callback error: %w\n", value)
-			case string:
-				log.Error().Msg(value)
-				err = fmt.Errorf("python transformation callback error: %s\n", value)
-			default:
-				log.Error().Msg("Unknown panic")
-				err = fmt.Errorf("python transformation callback error: %v\n", value)
-			}
-		}
-	}()
 	transformResp := make(chan TransformChannel)
 	proc := goprocess.Background()
 	proc.Go(func(p goprocess.Process) {
 		debug.SetPanicOnFault(true)
+		defer func() {
+			if e := recover(); e != nil {
+				logStackTrace()
+				var err error
+				switch value := e.(type) {
+				case error:
+					log.Error().Err(value).Msg("")
+					err = fmt.Errorf("python transformation callback error: %w\n", value)
+				case string:
+					log.Error().Msg(value)
+					err = fmt.Errorf("python transformation callback error: %s\n", value)
+				default:
+					log.Error().Msg("Unknown panic")
+					err = fmt.Errorf("python transformation callback error: %v\n", value)
+				}
+				transformResp <- TransformChannel{nil, err}
+			}
+		}()
 		inputArr := cdata.CArrowArray{}
 		inputSchema := cdata.CArrowSchema{}
 
@@ -169,7 +170,7 @@ func CallTransformations(
 			}
 		}
 	})
-	err = proc.Close()
+	err := proc.Close()
 	if err != nil {
 		return nil, err
 	}
