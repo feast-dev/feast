@@ -3,7 +3,9 @@ package transformation
 import (
 	"errors"
 	"fmt"
+	"github.com/jbenet/goprocess"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"unsafe"
 
@@ -19,6 +21,8 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+
+	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 /*
@@ -28,6 +32,10 @@ Each record batch is being passed as two pointers: pointer to array (data) and p
 Python function is expected to return number of rows added to the output record batch.
 */
 type TransformationCallback func(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int
+type TransformChannel struct {
+	outRecord arrow.Record
+	err       error
+}
 
 func AugmentResponseWithOnDemandTransforms(
 	onDemandFeatureViews []*model.OnDemandFeatureView,
@@ -63,7 +71,6 @@ func AugmentResponseWithOnDemandTransforms(
 		for _, vector := range features {
 			retrievedFeatures[vector.Name] = vector.Values
 		}
-
 		onDemandFeatures, err := CallTransformations(
 			odfv,
 			retrievedFeatures,
@@ -95,70 +102,85 @@ func CallTransformations(
 	fullFeatureNames bool,
 ) ([]*onlineserving.FeatureVector, error) {
 
-	inputArr := cdata.CArrowArray{}
-	inputSchema := cdata.CArrowSchema{}
+	transformResp := make(chan TransformChannel)
+	proc := goprocess.Background()
+	proc.Go(func(p goprocess.Process) {
+		debug.SetPanicOnFault(true)
+		defer func() {
+			if e := recover(); e != nil {
+				logStackTrace()
+				var err error
+				switch value := e.(type) {
+				case error:
+					log.Error().Err(value).Msg("")
+					err = fmt.Errorf("python transformation callback error: %w\n", value)
+				case string:
+					log.Error().Msg(value)
+					err = fmt.Errorf("python transformation callback error: %s\n", value)
+				default:
+					log.Error().Msg("Unknown panic")
+					err = fmt.Errorf("python transformation callback error: %v\n", value)
+				}
+				transformResp <- TransformChannel{nil, err}
+			}
+		}()
+		inputArr := cdata.CArrowArray{}
+		inputSchema := cdata.CArrowSchema{}
 
-	outArr := cdata.CArrowArray{}
-	outSchema := cdata.CArrowSchema{}
+		outArr := cdata.CArrowArray{}
+		outSchema := cdata.CArrowSchema{}
 
-	defer cdata.ReleaseCArrowArray(&inputArr)
-	defer cdata.ReleaseCArrowArray(&outArr)
-	defer cdata.ReleaseCArrowSchema(&inputSchema)
-	defer cdata.ReleaseCArrowSchema(&outSchema)
+		defer cdata.ReleaseCArrowArray(&inputArr)
+		defer cdata.ReleaseCArrowArray(&outArr)
+		defer cdata.ReleaseCArrowSchema(&inputSchema)
+		defer cdata.ReleaseCArrowSchema(&outSchema)
 
-	inputArrPtr := uintptr(unsafe.Pointer(&inputArr))
-	inputSchemaPtr := uintptr(unsafe.Pointer(&inputSchema))
+		inputArrPtr := uintptr(unsafe.Pointer(&inputArr))
+		inputSchemaPtr := uintptr(unsafe.Pointer(&inputSchema))
 
-	outArrPtr := uintptr(unsafe.Pointer(&outArr))
-	outSchemaPtr := uintptr(unsafe.Pointer(&outSchema))
+		outArrPtr := uintptr(unsafe.Pointer(&outArr))
+		outSchemaPtr := uintptr(unsafe.Pointer(&outSchema))
 
-	inputFields := make([]arrow.Field, 0)
-	inputColumns := make([]arrow.Array, 0)
-	for name, arr := range retrievedFeatures {
-		inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
-		inputColumns = append(inputColumns, arr)
-	}
-	for name, arr := range requestContext {
-		inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
-		inputColumns = append(inputColumns, arr)
-	}
+		inputFields := make([]arrow.Field, 0)
+		inputColumns := make([]arrow.Array, 0)
+		for name, arr := range retrievedFeatures {
+			inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
+			inputColumns = append(inputColumns, arr)
+		}
+		for name, arr := range requestContext {
+			inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
+			inputColumns = append(inputColumns, arr)
+		}
 
-	inputRecord := array.NewRecord(arrow.NewSchema(inputFields, nil), inputColumns, int64(numRows))
-	defer inputRecord.Release()
+		inputRecord := array.NewRecord(arrow.NewSchema(inputFields, nil), inputColumns, int64(numRows))
+		defer inputRecord.Release()
 
-	cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
+		cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
 
-	// Recover from a panic from FFI so the server doesn't crash
-	var err error
-	defer func() {
-		if e := recover(); e != nil {
-			logStackTrace()
-			switch value := e.(type) {
-			case error:
-				log.Error().Err(value).Msg("")
-				err = fmt.Errorf("python transformation callback error: %w\n", value)
-			case string:
-				log.Error().Msg(value)
-				err = fmt.Errorf("python transformation callback error: %s\n", value)
-			default:
-				log.Error().Msg("Unknown panic")
-				err = fmt.Errorf("python transformation callback error: %v\n", value)
+		ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
+
+		if ret != numRows {
+			transformResp <- TransformChannel{nil, errors.New("python transformation callback failed")}
+		} else {
+			outRecord, err := cdata.ImportCRecordBatch(&outArr, &outSchema)
+			if err != nil {
+				transformResp <- TransformChannel{nil, err}
+			} else {
+				transformResp <- TransformChannel{outRecord, nil}
 			}
 		}
-	}()
-	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
-
-	if ret != numRows {
-		return nil, errors.New("python transformation callback failed")
-	}
-
-	outRecord, err := cdata.ImportCRecordBatch(&outArr, &outSchema)
+	})
+	err := proc.Close()
 	if err != nil {
 		return nil, err
 	}
+	resp := <-transformResp
+	if resp.err != nil {
+		return nil, resp.err
+	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
-	for idx, field := range outRecord.Schema().Fields() {
+	for idx, field := range resp.outRecord.Schema().Fields() {
 		dropFeature := true
 
 		if featureView.Base.Projection != nil {
@@ -192,7 +214,7 @@ func CallTransformations(
 
 		result = append(result, &onlineserving.FeatureVector{
 			Name:       field.Name,
-			Values:     outRecord.Column(idx),
+			Values:     resp.outRecord.Column(idx),
 			Statuses:   statuses,
 			Timestamps: timestamps,
 		})
