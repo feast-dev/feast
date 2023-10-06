@@ -265,7 +265,7 @@ def transformation_callback(
 
         return output_record.num_rows
     except Exception as e:
-        logger.error(f"transformation callback failed with exception: {e}")
+        logger.exception(f"transformation callback failed with exception: {e}", e)
         return 0
 
 
