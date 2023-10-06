@@ -169,14 +169,11 @@ func CallTransformations(
 				transformResp <- TransformChannel{outRecord, nil}
 			}
 		}
+		p.Close()
 	})
 	resp := <-transformResp
 	if resp.err != nil {
 		return nil, resp.err
-	}
-	err := proc.Close()
-	if err != nil {
-		return nil, err
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)

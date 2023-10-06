@@ -40,7 +40,7 @@ func createOnDemandFeatureView(name string, featureSources map[string][]*core.Fe
 	return model.NewOnDemandFeatureViewFromProto(proto)
 }
 
-func TestCallTransformations(t *testing.T) {
+func TestCallTransformationsFailsWithError(t *testing.T) {
 	featASpec := createFeature("featA", prototypes.ValueType_INT32)
 	featBSpec := createFeature("featB", prototypes.ValueType_INT32)
 	onDemandFeature1 := createFeature("featC", prototypes.ValueType_FLOAT)
