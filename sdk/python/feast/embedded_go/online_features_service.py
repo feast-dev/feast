@@ -247,7 +247,9 @@ def transformation_callback(
     full_feature_names: bool,
 ) -> int:
     try:
-        odfv = fs.get_on_demand_feature_view(on_demand_feature_view_name, allow_cache=True)
+        odfv = fs.get_on_demand_feature_view(
+            on_demand_feature_view_name, allow_cache=True
+        )
 
         input_record = pa.RecordBatch._import_from_c(input_arr_ptr, input_schema_ptr)
 
