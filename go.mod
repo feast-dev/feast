@@ -43,8 +43,6 @@ require (
 )
 
 require github.com/rs/zerolog v1.21.0
-require github.com/jbenet/goprocess v0.1.4
-require github.com/ianlancetaylor/cgosymbolizer v0.0.0-20230801000641-8736a9d41aaa
 
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
