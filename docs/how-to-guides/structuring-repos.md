@@ -96,7 +96,7 @@ An example of how such a repository would be structured is as follows:
 
 Users can then apply the applying them to each environment in this way:
 ```shell
-feast -f staging/feature_store.yaml apply
+feast --feature-store-yaml staging/feature_store.yaml apply
 ```
 
 This setup has the advantage that you can share the feature definitions entirely, which may prevent issues with copy-pasting code.
