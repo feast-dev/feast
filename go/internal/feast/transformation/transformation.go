@@ -169,8 +169,11 @@ func CallTransformations(
 				transformResp <- TransformChannel{outRecord, nil}
 			}
 		}
-		p.Close()
 	})
+	err := proc.Close()
+	if err != nil {
+		return nil, err
+	}
 	resp := <-transformResp
 	if resp.err != nil {
 		return nil, resp.err
