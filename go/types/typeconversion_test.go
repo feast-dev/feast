@@ -13,13 +13,22 @@ import (
 
 var (
 	PROTO_VALUES = [][]*types.Value{
+		{{Val: &types.Value_Int32Val{10}}, nil},
+		{nil, {Val: &types.Value_Int32Val{20}}},
 		{{Val: &types.Value_Int32Val{10}}, {Val: &types.Value_Int32Val{20}}},
+		{{Val: &types.Value_Int64Val{10}}, nil},
 		{{Val: &types.Value_Int64Val{10}}, {Val: &types.Value_Int64Val{20}}},
+		{nil, {Val: &types.Value_FloatVal{2.0}}},
 		{{Val: &types.Value_FloatVal{1.0}}, {Val: &types.Value_FloatVal{2.0}}},
 		{{Val: &types.Value_DoubleVal{1.0}}, {Val: &types.Value_DoubleVal{2.0}}},
+		{{Val: &types.Value_DoubleVal{1.0}}, nil},
+		{nil, {Val: &types.Value_StringVal{"bbb"}}},
 		{{Val: &types.Value_StringVal{"aaa"}}, {Val: &types.Value_StringVal{"bbb"}}},
+		{{Val: &types.Value_BytesVal{[]byte{1, 2, 3}}}, nil},
 		{{Val: &types.Value_BytesVal{[]byte{1, 2, 3}}}, {Val: &types.Value_BytesVal{[]byte{4, 5, 6}}}},
+		{nil, {Val: &types.Value_BoolVal{false}}},
 		{{Val: &types.Value_BoolVal{true}}, {Val: &types.Value_BoolVal{false}}},
+		{{Val: &types.Value_UnixTimestampVal{time.Now().Unix()}}, nil},
 		{{Val: &types.Value_UnixTimestampVal{time.Now().Unix()}},
 			{Val: &types.Value_UnixTimestampVal{time.Now().Unix()}}},
 

@@ -999,7 +999,10 @@ class SqlRegistry(BaseRegistry):
                 }
                 update_stmt = (
                     update(table)
-                    .where(getattr(table.c, id_field_name) == name)
+                    .where(
+                        getattr(table.c, id_field_name) == name,
+                        table.c.project_id == project,
+                    )
                     .values(
                         values,
                     )
