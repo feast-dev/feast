@@ -71,7 +71,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     """ (optional) additional labels to append to kubernetes objects """
 
     max_parallelism: int = 10
-    """ (optional) Maximum number of pods allowed to run in parallel per job"""
+    """ (optional) Maximum number of pods allowed to run in parallel"""
 
     synchronous: bool = False
     """ (optional) If true, wait for materialization for one feature to complete before moving to the next """
