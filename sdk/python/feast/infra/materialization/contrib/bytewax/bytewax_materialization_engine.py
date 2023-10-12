@@ -200,6 +200,11 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             batch_size = self.batch_engine_config.job_batch_size
             if batch_size < 1:
                 raise ValueError("job_batch_size must be a value greater than 0")
+            if batch_size < self.batch_engine_config.max_parallelism:
+                logger.warning(
+                    "job_batch_size is less than max_parallelism. Setting job_batch_size = max_parallelism"
+                )
+                batch_size = self.batch_engine_config.max_parallelism
 
             while True:
                 next_offset = min(offset + batch_size, total_pods)
