@@ -1,7 +1,7 @@
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from pyarrow._fs import FileSystem
-from pyarrow._s3fs import S3FileSystem
+import s3fs
 from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
@@ -165,20 +165,24 @@ class FileSource(DataSource):
                 pass
             else:
                 schema = schema.to_arrow_schema()
+                arrow_schema = schema.to_arrow_schema()
         else:
             schema = ParquetDataset(path, filesystem=filesystem).schema
 
-        return zip(schema.names, map(str, schema.types))
+        return zip(arrow_schema.names, map(str, arrow_schema.types))
 
     @staticmethod
     def create_filesystem_and_path(
         path: str, s3_endpoint_override: str
-    ) -> Tuple[Optional[FileSystem], str]:
+    ) -> Tuple[Optional[Union[FileSystem, s3fs.S3FileSystem]], str]:
         if path.startswith("s3://"):
-            s3fs = S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
-            )
-            return s3fs, path.replace("s3://", "")
+            if s3_endpoint_override:
+                sfs = s3fs.S3FileSystem(
+                    client_kwargs=dict(endpoint_url=s3_endpoint_override)
+                )
+            else:
+                sfs = s3fs.S3FileSystem()
+            return sfs, path.replace("s3://", "")
         else:
             return None, path
 
