@@ -80,7 +80,8 @@ REQUIRED = [
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
-    "importlib_metadata>=6.8.0,<7"
+    "importlib_metadata>=6.8.0,<7",
+    "s3fs",
 ]
 
 GCP_REQUIRED = [
@@ -186,7 +187,7 @@ CI_REQUIRED = (
         "types-requests",
         "types-setuptools",
         "types-tabulate",
-        "virtualenv<20.24.2"
+        "virtualenv<20.24.2",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
