@@ -1,7 +1,7 @@
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-from pyarrow._fs import FileSystem
 import s3fs
+from pyarrow._fs import FileSystem
 from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 

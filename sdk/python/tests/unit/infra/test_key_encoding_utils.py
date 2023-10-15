@@ -9,14 +9,14 @@ def test_serialize_entity_key():
     # Should be fine
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**15))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
         ),
         entity_key_serialization_version=2,
     )
     # True int64, but should also be fine.
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
         ),
         entity_key_serialization_version=2,
     )
@@ -25,6 +25,6 @@ def test_serialize_entity_key():
     with pytest.raises(BaseException):
         serialize_entity_key(
             EntityKeyProto(
-                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
             ),
         )
