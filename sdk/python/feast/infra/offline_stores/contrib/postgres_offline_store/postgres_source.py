@@ -92,7 +92,7 @@ class PostgreSQLSource(DataSource):
             )
 
     def get_table_query_string(self) -> str:
-        return f"({self._postgres_options._query})"
+        return f"{self._postgres_options._query}"
 
 
 class PostgreSQLOptions:
