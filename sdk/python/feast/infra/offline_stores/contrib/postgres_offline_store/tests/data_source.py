@@ -40,7 +40,10 @@ def postgres_container():
 
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
-        container=container, predicate=log_string_to_wait_for, timeout=30, interval=10,
+        container=container,
+        predicate=log_string_to_wait_for,
+        timeout=30,
+        interval=10,
     )
     logger.info("Waited for %s seconds until postgres container was up", waited)
 
@@ -52,7 +55,9 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def __init__(
         self, project_name: str, fixture_request: pytest.FixtureRequest, **kwargs
     ):
-        super().__init__(project_name,)
+        super().__init__(
+            project_name,
+        )
 
         self.project_name = project_name
         self.container = fixture_request.getfixturevalue("postgres_container")
@@ -86,7 +91,6 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
 
         if self.offline_store_config:
             df_to_postgres_table(self.offline_store_config, df, destination_name)
-
         return PostgreSQLSource(
             name=destination_name,
             query=f"SELECT * FROM {destination_name}",

@@ -1,9 +1,9 @@
 import { encodeSearchQueryString } from "./encodeSearchQueryString";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 
-import { FeastFeatureViewType } from "../parsers/feastFeatureViews";
 import { useParams } from "react-router-dom";
 import { useFeatureViewTagsAggregation } from "./useTagsAggregation";
+import { feast } from "../protos";
 
 interface ExplorationSuggestionItem {
   name: string;
@@ -66,14 +66,14 @@ const sortTagsByTotalUsage = <T>(
 };
 
 const generateExplorationSuggestions = (
-  tagAggregation: Record<string, Record<string, FeastFeatureViewType[]>>,
+  tagAggregation: Record<string, Record<string, feast.core.IFeatureView[]>>,
   projectName: string
 ) => {
   const suggestions: ExplorationSuggestion[] = [];
 
   if (tagAggregation) {
     const SortedCandidates =
-      sortTagByUniqueValues<FeastFeatureViewType>(tagAggregation);
+      sortTagByUniqueValues<feast.core.IFeatureView>(tagAggregation);
 
     SortedCandidates.slice(0, NUMBER_OF_SUGGESTION_GROUPS).forEach(
       ([selectedTag, selectedTagValuesMap]) => {

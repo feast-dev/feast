@@ -1,6 +1,6 @@
 {
   "name": "@feast-dev/feast-ui",
-  "version": "0.20.4",
+  "version": "0.34.0",
   "private": false,
   "files": [
     "dist"
@@ -41,7 +41,9 @@
     "inter-ui": "^3.19.3",
     "moment": "^2.29.1",
     "prop-types": "^15.8.1",
+    "protobufjs": "^7.1.1",
     "query-string": "^7.1.1",
+    "react-code-blocks": "^0.0.9-0",
     "react-query": "^3.34.12",
     "react-router-dom": "6",
     "react-scripts": "^5.0.0",
@@ -49,12 +51,13 @@
     "zod": "^3.11.6"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "build:lib": "rimraf ./dist && tsc && rollup -c",
-    "build:lib-dev": "rimraf ./dist && tsc && rollup -c && yalc publish -f",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "npm run generate-protos && react-scripts start",
+    "build": "npm run generate-protos && react-scripts build",
+    "build:lib": "npm run generate-protos && rimraf ./dist && tsc && rollup -c",
+    "build:lib-dev": "npm run generate-protos && rimraf ./dist && tsc && rollup -c && yalc publish -f",
+    "test": "npm run generate-protos && react-scripts test",
+    "eject": "react-scripts eject",
+    "generate-protos": "pbjs --no-encode -o src/protos.js -w commonjs -t static-module `find ../protos/feast/ -iname *.proto` && pbts -n protos -o src/protos.d.ts src/protos.js"
   },
   "eslintConfig": {
     "extends": [
@@ -92,6 +95,7 @@
     "@testing-library/react": "^12.0.0",
     "@testing-library/user-event": "^13.2.1",
     "msw": "^0.36.8",
+    "protobufjs-cli": "^1.0.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "rimraf": "^3.0.2",

@@ -108,7 +108,10 @@ class HbaseOnlineStore(OnlineStore):
 
         b = hbase.batch(table_name)
         for entity_key, values, timestamp, created_ts in data:
-            row_key = serialize_entity_key(entity_key).hex()
+            row_key = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
             values_dict = {}
             for feature_name, val in values.items():
                 values_dict[
@@ -154,7 +157,11 @@ class HbaseOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         row_keys = [
-            serialize_entity_key(entity_key).hex() for entity_key in entity_keys
+            serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
+            for entity_key in entity_keys
         ]
         rows = hbase.rows(table_name, row_keys=row_keys)
 

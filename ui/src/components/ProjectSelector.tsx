@@ -22,7 +22,7 @@ const ProjectSelector = () => {
 
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
   const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    navigate(`/p/${e.target.value}`);
+    navigate(`${process.env.PUBLIC_URL || ""}/p/${e.target.value}`);
   };
 
   return (

@@ -1,11 +1,15 @@
+import os
+import tempfile
+import uuid
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas
 import pandas as pd
 import pyarrow
+import pyarrow.parquet as pq
 import pyspark
 from pydantic import StrictStr
 from pyspark import SparkConf
@@ -14,7 +18,7 @@ from pytz import utc
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
-from feast.errors import InvalidEntityType
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -26,7 +30,8 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.registry import Registry
+from feast.infra.registry.registry import Registry
+from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -43,6 +48,12 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
     spark_conf: Optional[Dict[str, str]] = None
     """ Configuration overlay for the spark session """
     # sparksession is not serializable and we dont want to pass it around as an argument
+
+    staging_location: Optional[StrictStr] = None
+    """ Remote path for batch materialization jobs"""
+
+    region: Optional[StrictStr] = None
+    """ AWS Region if applicable for s3-based staging locations"""
 
 
 class SparkOfflineStore(OfflineStore):
@@ -103,6 +114,7 @@ class SparkOfflineStore(OfflineStore):
         return SparkRetrievalJob(
             spark_session=spark_session,
             query=query,
+            config=config,
             full_feature_names=False,
             on_demand_feature_views=None,
         )
@@ -119,24 +131,31 @@ class SparkOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, SparkSource)
+
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
+
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         entity_schema = _get_entity_schema(
-            spark_session=spark_session, entity_df=entity_df,
+            spark_session=spark_session,
+            entity_df=entity_df,
         )
         event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
             entity_schema=entity_schema,
         )
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df, event_timestamp_col, spark_session,
+            entity_df,
+            event_timestamp_col,
+            spark_session,
         )
         _upload_entity_df(
             spark_session=spark_session,
@@ -184,7 +203,60 @@ class SparkOfflineStore(OfflineStore):
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
+            config=config,
         )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, SparkSource)
+
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+            )
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+
+        if feature_view.batch_source.path:
+            # write data to disk so that it can be loaded into spark (for preserving column types)
+            with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
+                print(tmp_file.name)
+                pq.write_table(table, tmp_file.name)
+
+                # load data
+                df_batch = spark_session.read.parquet(tmp_file.name)
+
+                # load existing data to get spark table schema
+                df_existing = spark_session.read.format(
+                    feature_view.batch_source.file_format
+                ).load(feature_view.batch_source.path)
+
+                # cast columns if applicable
+                df_batch = _cast_data_frame(df_batch, df_existing)
+
+                df_batch.write.format(feature_view.batch_source.file_format).mode(
+                    "append"
+                ).save(feature_view.batch_source.path)
+        elif feature_view.batch_source.query:
+            raise NotImplementedError(
+                "offline_write_batch not implemented for batch sources specified by query"
+            )
+        else:
+            raise NotImplementedError(
+                "offline_write_batch not implemented for batch sources specified by a table"
+            )
 
     @staticmethod
     @log_exceptions_and_usage(offline_store="spark")
@@ -202,6 +274,7 @@ class SparkOfflineStore(OfflineStore):
         created_timestamp_column have all already been mapped to column names of the
         source table and those column names are the values passed into this function.
         """
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         assert isinstance(data_source, SparkSource)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -225,7 +298,10 @@ class SparkOfflineStore(OfflineStore):
         """
 
         return SparkRetrievalJob(
-            spark_session=spark_session, query=query, full_feature_names=False
+            spark_session=spark_session,
+            query=query,
+            full_feature_names=False,
+            config=config,
         )
 
 
@@ -235,6 +311,7 @@ class SparkRetrievalJob(RetrievalJob):
         spark_session: SparkSession,
         query: str,
         full_feature_names: bool,
+        config: RepoConfig,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
@@ -242,15 +319,16 @@ class SparkRetrievalJob(RetrievalJob):
         self.spark_session = spark_session
         self.query = query
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
+        self._config = config
 
     @property
     def full_feature_names(self) -> bool:
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
@@ -258,25 +336,99 @@ class SparkRetrievalJob(RetrievalJob):
         *_, last = map(self.spark_session.sql, statements)
         return last
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
         return self.to_spark_df().toPandas()
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
-        df = self.to_df()
-        return pyarrow.Table.from_pandas(df)  # noqa
+        return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
         """
         Run the retrieval and persist the results in the same offline store used for read.
-        Please note the persisting is done only within the scope of the spark session.
+        Please note the persisting is done only within the scope of the spark session for local warehouse directory.
         """
         assert isinstance(storage, SavedDatasetSparkStorage)
         table_name = storage.spark_options.table
         if not table_name:
             raise ValueError("Cannot persist, table_name is not defined")
-        self.to_spark_df().createOrReplaceTempView(table_name)
+        if self._has_remote_warehouse_in_config():
+            file_format = storage.spark_options.file_format
+            if not file_format:
+                self.to_spark_df().write.saveAsTable(table_name)
+            else:
+                self.to_spark_df().write.format(file_format).saveAsTable(table_name)
+        else:
+            self.to_spark_df().createOrReplaceTempView(table_name)
+
+    def _has_remote_warehouse_in_config(self) -> bool:
+        """
+        Check if Spark Session config has info about hive metastore uri
+        or warehouse directory is not a local path
+        """
+        self.spark_session.sparkContext.getConf().getAll()
+        try:
+            self.spark_session.conf.get("hive.metastore.uris")
+            return True
+        except Exception:
+            warehouse_dir = self.spark_session.conf.get("spark.sql.warehouse.dir")
+            if warehouse_dir and warehouse_dir.startswith("file:"):
+                return False
+            else:
+                return True
+
+    def supports_remote_storage_export(self) -> bool:
+        return self._config.offline_store.staging_location is not None
+
+    def to_remote_storage(self) -> List[str]:
+        """Currently only works for local and s3-based staging locations"""
+        if self.supports_remote_storage_export():
+
+            sdf: pyspark.sql.DataFrame = self.to_spark_df()
+
+            if self._config.offline_store.staging_location.startswith("/"):
+                local_file_staging_location = os.path.abspath(
+                    self._config.offline_store.staging_location
+                )
+
+                # write to staging location
+                output_uri = os.path.join(
+                    str(local_file_staging_location), str(uuid.uuid4())
+                )
+                sdf.write.parquet(output_uri)
+
+                return _list_files_in_folder(output_uri)
+            elif self._config.offline_store.staging_location.startswith("s3://"):
+
+                spark_compatible_s3_staging_location = (
+                    self._config.offline_store.staging_location.replace(
+                        "s3://", "s3a://"
+                    )
+                )
+
+                # write to staging location
+                output_uri = os.path.join(
+                    str(spark_compatible_s3_staging_location), str(uuid.uuid4())
+                )
+                sdf.write.parquet(output_uri)
+
+                return aws_utils.list_s3_files(
+                    self._config.offline_store.region, output_uri
+                )
+
+            else:
+                raise NotImplementedError(
+                    "to_remote_storage is only implemented for file:// and s3:// uri schemes"
+                )
+
+        else:
+            raise NotImplementedError()
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -325,10 +477,16 @@ def _get_entity_df_event_timestamp_range(
         # If the entity_df is a string (SQL query), determine range
         # from table
         df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
+
+        # Checks if executing entity sql resulted in any data
+        if df.rdd.isEmpty():
+            raise EntitySQLEmptyResults(entity_df)
+
         # TODO(kzhang132): need utc conversion here.
+
         entity_df_event_timestamp_range = (
-            df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
             df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
+            df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
         )
     else:
         raise InvalidEntityType(type(entity_df))
@@ -378,6 +536,35 @@ def _format_datetime(t: datetime) -> str:
         t = t.astimezone(tz=utc)
     dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
     return dt
+
+
+def _list_files_in_folder(folder):
+    """List full filenames in a folder"""
+    files = []
+    for file in os.listdir(folder):
+        filename = os.path.join(folder, file)
+        if os.path.isfile(filename):
+            files.append(filename)
+
+    return files
+
+
+def _cast_data_frame(
+    df_new: pyspark.sql.DataFrame, df_existing: pyspark.sql.DataFrame
+) -> pyspark.sql.DataFrame:
+    """Convert new dataframe's columns to the same types as existing dataframe while preserving the order of columns"""
+    existing_dtypes = {k: v for k, v in df_existing.dtypes}
+    new_dtypes = {k: v for k, v in df_new.dtypes}
+
+    select_expression = []
+    for col, new_type in new_dtypes.items():
+        existing_type = existing_dtypes[col]
+        if new_type != existing_type:
+            select_expression.append(f"cast({col} as {existing_type}) as {col}")
+        else:
+            select_expression.append(col)
+
+    return df_new.selectExpr(*select_expression)
 
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """

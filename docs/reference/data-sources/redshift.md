@@ -1,15 +1,14 @@
-# Redshift
+# Redshift source
 
 ## Description
 
-Redshift data sources allow for the retrieval of historical feature values from Redshift for building training datasets as well as materializing features into an online store.
-
-* Either a table name or a SQL query can be provided.
-* No performance guarantees can be provided over SQL query-based sources. Please use table references where possible.
+Redshift data sources are Redshift tables or views.
+These can be specified either by a table reference or a SQL query.
+However, no performance guarantees can be provided for SQL query-based sources, so table references are recommended.
 
 ## Examples
 
-Using a table name
+Using a table name:
 
 ```python
 from feast import RedshiftSource
@@ -19,7 +18,7 @@ my_redshift_source = RedshiftSource(
 )
 ```
 
-Using a query
+Using a query:
 
 ```python
 from feast import RedshiftSource
@@ -30,5 +29,9 @@ my_redshift_source = RedshiftSource(
 )
 ```
 
-Configuration options are available [here](https://rtd.feast.dev/en/master/feast.html?#feast.RedshiftSource).
+The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.redshift_source.RedshiftSource).
 
+## Supported Types
+
+Redshift data sources support all eight primitive types, but currently do not support array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

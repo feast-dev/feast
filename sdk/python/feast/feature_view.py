@@ -14,15 +14,15 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
+from typeguard import typechecked
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
-from feast.feature import Feature
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -35,7 +35,9 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.types import from_value_type
 from feast.usage import log_exceptions
+from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -43,9 +45,13 @@ warnings.simplefilter("once", DeprecationWarning)
 DUMMY_ENTITY_ID = "__dummy_id"
 DUMMY_ENTITY_NAME = "__dummy"
 DUMMY_ENTITY_VAL = ""
-DUMMY_ENTITY = Entity(name=DUMMY_ENTITY_NAME, join_keys=[DUMMY_ENTITY_ID],)
+DUMMY_ENTITY = Entity(
+    name=DUMMY_ENTITY_NAME,
+    join_keys=[DUMMY_ENTITY_ID],
+)
 
 
+@typechecked
 class FeatureView(BaseFeatureView):
     """
     A FeatureView defines a logical group of features.
@@ -56,11 +62,10 @@ class FeatureView(BaseFeatureView):
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
             can result in extremely computationally intensive queries.
-        batch_source (optional): The batch source of data where this group of features
+        batch_source: The batch source of data where this group of features
             is stored. This is optional ONLY if a push source is specified as the
-            stream_source, since push sources contain their own batch sources. This is deprecated in favor of `source`.
-        stream_source (optional): The stream source of data where this group of features
-            is stored. This is deprecated in favor of `source`.
+            stream_source, since push sources contain their own batch sources.
+        stream_source: The stream source of data where this group of features is stored.
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
         entity_columns: The list of entity columns contained in the schema. If not specified,
@@ -73,8 +78,6 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
-        source (optional): The source of data for this group of features. May be a stream source, or a batch source.
-            If a stream source, the source should contain a batch_source for backfills & batch materialization.
     """
 
     name: str
@@ -82,7 +85,6 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
     online: bool
@@ -90,157 +92,104 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
-    source: Optional[DataSource]
 
     @log_exceptions
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        entities: Optional[Union[List[Entity], List[str]]] = None,
-        ttl: Optional[Union[Duration, timedelta]] = None,
-        batch_source: Optional[DataSource] = None,
-        stream_source: Optional[DataSource] = None,
-        features: Optional[List[Feature]] = None,
-        tags: Optional[Dict[str, str]] = None,
+        *,
+        name: str,
+        source: DataSource,
+        schema: Optional[List[Field]] = None,
+        entities: List[Entity] = None,
+        ttl: Optional[timedelta] = timedelta(days=0),
         online: bool = True,
         description: str = "",
+        tags: Optional[Dict[str, str]] = None,
         owner: str = "",
-        schema: Optional[List[Field]] = None,
-        source: Optional[DataSource] = None,
     ):
         """
         Creates a FeatureView object.
 
         Args:
             name: The unique name of the feature view.
-            entities: The list of entities with which this group of features is associated.
-            ttl: The amount of time this group of features lives. A ttl of 0 indicates that
+            source: The source of data for this group of features. May be a stream source, or a batch source.
+                If a stream source, the source should contain a batch_source for backfills & batch materialization.
+            schema (optional): The schema of the feature view, including feature, timestamp,
+                and entity columns.
+            # TODO: clarify that schema is only useful here...
+            entities (optional): The list of entities with which this group of features is associated.
+            ttl (optional): The amount of time this group of features lives. A ttl of 0 indicates that
                 this group of features lives forever. Note that large ttl's or a ttl of 0
                 can result in extremely computationally intensive queries.
-            batch_source: The batch source of data where this group of features is stored.
-            stream_source (optional): The stream source of data where this group of features
-                is stored.
-            features (deprecated): The list of features defined as part of this feature view.
-            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
             description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
-            schema (optional): The schema of the feature view, including feature, timestamp,
-                and entity columns. If entity columns are included in the schema, a List[Entity]
-                must be passed to `entities` instead of a List[str]; otherwise, the entity columns
-                will be mistakenly interpreted as feature columns.
-            source (optional): The source of data for this group of features. May be a stream source, or a batch source.
-                If a stream source, the source should contain a batch_source for backfills & batch materialization.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
-        positional_attributes = ["name", "entities", "ttl"]
+        self.name = name
+        self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
+        self.ttl = ttl
+        schema = schema or []
 
-        _name = name
-        _entities = entities
-        _ttl = ttl
-
-        if args:
-            warnings.warn(
-                (
-                    "feature view parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct feature views"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
+        # Initialize data sources.
+        if (
+            isinstance(source, PushSource)
+            or isinstance(source, KafkaSource)
+            or isinstance(source, KinesisSource)
+        ):
+            self.stream_source = source
+            if not source.batch_source:
                 raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"feature views, for backwards compatibility."
+                    f"A batch_source needs to be specified for stream source `{source.name}`"
                 )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _entities = args[1]
-            if len(args) >= 3:
-                _ttl = args[2]
-
-        if not _name:
-            raise ValueError("feature view name needs to be specified")
-
-        self.name = _name
-
-        self.entities = (
-            [e.name if isinstance(e, Entity) else e for e in _entities]
-            if _entities
-            else [DUMMY_ENTITY_NAME]
-        )
-        if _entities and isinstance(_entities[0], str):
-            warnings.warn(
-                (
-                    "The `entities` parameter should be a list of `Entity` objects. "
-                    "Feast 0.23 and onwards will not support passing in a list of "
-                    "strings to define entities."
-                ),
-                DeprecationWarning,
-            )
-
-        self._initialize_sources(_name, batch_source, stream_source, source)
-
-        if isinstance(_ttl, Duration):
-            self.ttl = timedelta(seconds=int(_ttl.seconds))
-            warnings.warn(
-                (
-                    "The option to pass a Duration object to the ttl parameter is being deprecated. "
-                    "Please pass a timedelta object instead. Feast 0.23 and onwards will not support "
-                    "Duration objects."
-                ),
-                DeprecationWarning,
-            )
-        elif isinstance(_ttl, timedelta) or _ttl is None:
-            self.ttl = _ttl
+            else:
+                self.batch_source = source.batch_source
         else:
-            raise ValueError(f"unknown value type specified for ttl {type(_ttl)}")
+            self.stream_source = None
+            self.batch_source = source
 
-        if features is not None:
-            warnings.warn(
-                (
-                    "The `features` parameter is being deprecated in favor of the `schema` parameter. "
-                    "Please switch from using `features` to `schema`. This will also requiring switching "
-                    "feature definitions from using `Feature` to `Field`. Feast 0.23 and onwards will not "
-                    "support the `features` parameter."
-                ),
-                DeprecationWarning,
-            )
-
-        _schema = schema or []
-        if len(_schema) == 0 and features is not None:
-            _schema = [Field.from_feature(feature) for feature in features]
-        self.schema = _schema
-
-        # If a user has added entity fields to schema, then they should also have switched
-        # to using a List[Entity], in which case entity and feature columns can be separated
-        # here. Conversely, if the user is still using a List[str], they must not have added
-        # added entity fields, in which case we can set the `features` attribute directly
-        # equal to the schema.
-        _features: List[Field] = []
+        # Initialize features and entity columns.
+        features: List[Field] = []
         self.entity_columns = []
-        if _entities and len(_entities) > 0 and isinstance(_entities[0], str):
-            _features = _schema
-        else:
-            join_keys = []
-            if _entities:
-                for entity in _entities:
-                    if isinstance(entity, Entity):
-                        join_keys += entity.join_keys
 
-            for field in _schema:
-                if field.name in join_keys:
-                    self.entity_columns.append(field)
-                else:
-                    _features.append(field)
+        join_keys: List[str] = []
+        if entities:
+            for entity in entities:
+                join_keys.append(entity.join_key)
+
+        # Ensure that entities have unique join keys.
+        if len(set(join_keys)) < len(join_keys):
+            raise ValueError(
+                "A feature view should not have entities that share a join key."
+            )
+
+        for field in schema:
+            if field.name in join_keys:
+                self.entity_columns.append(field)
+
+                # Confirm that the inferred type matches the specified entity type, if it exists.
+                matching_entities = (
+                    [e for e in entities if e.join_key == field.name]
+                    if entities
+                    else []
+                )
+                assert len(matching_entities) == 1
+                entity = matching_entities[0]
+                if entity.value_type != ValueType.UNKNOWN:
+                    if from_value_type(entity.value_type) != field.dtype:
+                        raise ValueError(
+                            f"Entity {entity.name} has type {entity.value_type}, which does not match the inferred type {field.dtype}."
+                        )
+            else:
+                features.append(field)
 
         # TODO(felixwang9817): Add more robust validation of features.
-        cols = [field.name for field in _schema]
+        cols = [field.name for field in schema]
         for col in cols:
             if (
                 self.batch_source.field_mapping is not None
@@ -253,49 +202,14 @@ class FeatureView(BaseFeatureView):
                 )
 
         super().__init__(
-            name=_name,
-            features=_features,
+            name=name,
+            features=features,
             description=description,
             tags=tags,
             owner=owner,
         )
         self.online = online
         self.materialization_intervals = []
-
-    def _initialize_sources(self, name, batch_source, stream_source, source):
-        if source:
-            if (
-                isinstance(source, PushSource)
-                or isinstance(source, KafkaSource)
-                or isinstance(source, KinesisSource)
-            ):
-                self.stream_source = source
-                if not source.batch_source:
-                    raise ValueError(
-                        f"A batch_source needs to be specified for stream source `{source.name}`"
-                    )
-                else:
-                    self.batch_source = source.batch_source
-            else:
-                self.stream_source = stream_source
-                self.batch_source = source
-        else:
-            warnings.warn(
-                "batch_source and stream_source have been deprecated in favor of `source`."
-                "The deprecated fields will be removed in Feast 0.23.",
-                DeprecationWarning,
-            )
-            if stream_source is not None and isinstance(stream_source, PushSource):
-                self.stream_source = stream_source
-                self.batch_source = stream_source.batch_source
-            else:
-                if batch_source is None:
-                    raise ValueError(
-                        f"A batch_source needs to be specified for feature view `{name}`"
-                    )
-                self.stream_source = stream_source
-                self.batch_source = batch_source
-        self.source = source
 
     def __hash__(self):
         return super().__hash__()
@@ -304,21 +218,17 @@ class FeatureView(BaseFeatureView):
         fv = FeatureView(
             name=self.name,
             ttl=self.ttl,
-            source=self.batch_source,
-            stream_source=self.stream_source,
+            source=self.stream_source if self.stream_source else self.batch_source,
             schema=self.schema,
             tags=self.tags,
             online=self.online,
         )
 
-        # This is deliberately set outside of the FV initialization to avoid the deprecation warning.
-        # TODO(felixwang9817): Move this into the FV initialization when the deprecation warning
-        # is removed.
+        # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
-        fv.entities = self.entities
         return fv
 
     def __eq__(self, other):
@@ -346,6 +256,10 @@ class FeatureView(BaseFeatureView):
     def join_keys(self) -> List[str]:
         """Returns a list of all the join keys."""
         return [entity.name for entity in self.entity_columns]
+
+    @property
+    def schema(self) -> List[Field]:
+        return list(set(self.entity_columns + self.features))
 
     def ensure_valid(self):
         """
@@ -405,21 +319,8 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto protobuf.
         """
-        meta = FeatureViewMetaProto(materialization_intervals=[])
-        if self.created_timestamp:
-            meta.created_timestamp.FromDatetime(self.created_timestamp)
-        if self.last_updated_timestamp:
-            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
-        for interval in self.materialization_intervals:
-            interval_proto = MaterializationIntervalProto()
-            interval_proto.start_time.FromDatetime(interval[0])
-            interval_proto.end_time.FromDatetime(interval[1])
-            meta.materialization_intervals.append(interval_proto)
-
-        ttl_duration = None
-        if self.ttl is not None:
-            ttl_duration = Duration()
-            ttl_duration.FromTimedelta(self.ttl)
+        meta = self.to_proto_meta()
+        ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = self.batch_source.to_proto()
         batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
@@ -444,6 +345,26 @@ class FeatureView(BaseFeatureView):
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
+
+    def to_proto_meta(self):
+        meta = FeatureViewMetaProto(materialization_intervals=[])
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+        for interval in self.materialization_intervals:
+            interval_proto = MaterializationIntervalProto()
+            interval_proto.start_time.FromDatetime(interval[0])
+            interval_proto.end_time.FromDatetime(interval[1])
+            meta.materialization_intervals.append(interval_proto)
+        return meta
+
+    def get_ttl_duration(self):
+        ttl_duration = None
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
+        return ttl_duration
 
     @classmethod
     def from_proto(cls, feature_view_proto: FeatureViewProto):
@@ -479,7 +400,7 @@ class FeatureView(BaseFeatureView):
             feature_view.stream_source = stream_source
 
         # This avoids the deprecation warning.
-        feature_view.entities = feature_view_proto.spec.entities
+        feature_view.entities = list(feature_view_proto.spec.entities)
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [
@@ -490,6 +411,12 @@ class FeatureView(BaseFeatureView):
             Field.from_proto(field_proto)
             for field_proto in feature_view_proto.spec.entity_columns
         ]
+
+        if len(feature_view.entities) != len(feature_view.entity_columns):
+            warnings.warn(
+                f"There are some mismatches in your feature view's registered entities. Please check if you have applied your entities correctly."
+                f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
+            )
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.

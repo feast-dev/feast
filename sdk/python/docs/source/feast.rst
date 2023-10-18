@@ -169,10 +169,10 @@ feast.field module
    :undoc-members:
    :show-inheritance:
 
-feast.flags module
-------------------
+feast.file\_utils module
+------------------------
 
-.. automodule:: feast.flags
+.. automodule:: feast.file_utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -225,26 +225,18 @@ feast.online\_response module
    :undoc-members:
    :show-inheritance:
 
+feast.project\_metadata module
+------------------------------
+
+.. automodule:: feast.project_metadata
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.proto\_json module
 ------------------------
 
 .. automodule:: feast.proto_json
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.registry module
----------------------
-
-.. automodule:: feast.registry
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.registry\_store module
-----------------------------
-
-.. automodule:: feast.registry_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -269,6 +261,14 @@ feast.repo\_operations module
 -----------------------------
 
 .. automodule:: feast.repo_operations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.repo\_upgrade module
+--------------------------
+
+.. automodule:: feast.repo_upgrade
    :members:
    :undoc-members:
    :show-inheritance:

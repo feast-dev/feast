@@ -22,12 +22,12 @@ const RootProjectSelectionPage = () => {
   useEffect(() => {
     if (data && data.default) {
       // If a default is set, redirect there.
-      navigate(`/p/${data.default}`);
+      navigate(`${process.env.PUBLIC_URL || ""}/p/${data.default}`);
     }
 
     if (data && data.projects.length === 1) {
       // If there is only one project, redirect there.
-      navigate(`/p/${data.projects[0].id}`);
+      navigate(`${process.env.PUBLIC_URL || ""}/p/${data.projects[0].id}`);
     }
   }, [data, navigate]);
 
@@ -39,7 +39,7 @@ const RootProjectSelectionPage = () => {
           title={`${item.name}`}
           description={item?.description || ""}
           onClick={() => {
-            navigate(`/p/${item.id}`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${item.id}`);
           }}
         />
       </EuiFlexItem>

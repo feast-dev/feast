@@ -2,9 +2,11 @@ package onlinestore
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,7 +14,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/proto"
 	"github.com/spaolacci/murmur3"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -36,13 +38,19 @@ type RedisOnlineStore struct {
 
 	// Redis client connector
 	client *redis.Client
+
+	config *registry.RepoConfig
 }
 
-func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
-	store := RedisOnlineStore{project: project}
+func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStoreConfig map[string]interface{}) (*RedisOnlineStore, error) {
+	store := RedisOnlineStore{
+		project: project,
+		config:  config,
+	}
 
 	var address []string
 	var password string
+	var tlsConfig *tls.Config
 	var db int // Default to 0
 
 	// Parse redis_type and write it into conf.t
@@ -69,8 +77,12 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 				if kv[0] == "password" {
 					password = kv[1]
 				} else if kv[0] == "ssl" {
-					// TODO (woop): Add support for TLS/SSL
-					// ssl = kv[1] == "true"
+					result, err := strconv.ParseBool(kv[1])
+					if err != nil {
+						return nil, err
+					} else if result {
+						tlsConfig = &tls.Config{}
+					}
 				} else if kv[0] == "db" {
 					db, err = strconv.Atoi(kv[1])
 					if err != nil {
@@ -87,9 +99,10 @@ func NewRedisOnlineStore(project string, onlineStoreConfig map[string]interface{
 
 	if t == redisNode {
 		store.client = redis.NewClient(&redis.Options{
-			Addr:     address[0],
-			Password: password, // No password set
-			DB:       db,
+			Addr:      address[0],
+			Password:  password, // No password set
+			DB:        db,
+			TLSConfig: tlsConfig,
 		})
 	} else {
 		return nil, errors.New("only single node Redis is supported at this time")
@@ -154,7 +167,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
 
-		var key, err = buildRedisKey(r.project, entityKeys[i])
+		var key, err = buildRedisKey(r.project, entityKeys[i], r.config.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -263,8 +276,8 @@ func (r *RedisOnlineStore) Destruct() {
 
 }
 
-func buildRedisKey(project string, entityKey *types.EntityKey) (*[]byte, error) {
-	serKey, err := serializeEntityKey(entityKey)
+func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializationVersion int64) (*[]byte, error) {
+	serKey, err := serializeEntityKey(entityKey, entityKeySerializationVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +285,7 @@ func buildRedisKey(project string, entityKey *types.EntityKey) (*[]byte, error) 
 	return &fullKey, nil
 }
 
-func serializeEntityKey(entityKey *types.EntityKey) (*[]byte, error) {
+func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersion int64) (*[]byte, error) {
 	// Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
 
 	// Ensure that we have the right amount of join keys and entity values
@@ -309,7 +322,7 @@ func serializeEntityKey(entityKey *types.EntityKey) (*[]byte, error) {
 		offset := (2 * len(keys)) + (i * 3)
 		value := m[keys[i]].GetVal()
 
-		valueBytes, valueTypeBytes, err := serializeValue(value)
+		valueBytes, valueTypeBytes, err := serializeValue(value, entityKeySerializationVersion)
 		if err != nil {
 			return valueBytes, err
 		}
@@ -334,7 +347,7 @@ func serializeEntityKey(entityKey *types.EntityKey) (*[]byte, error) {
 	return &entityKeyBuffer, nil
 }
 
-func serializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
+func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]byte, types.ValueType_Enum, error) {
 	// TODO: Implement support for other types (at least the major types like ints, strings, bytes)
 	switch x := (value).(type) {
 	case *types.Value_StringVal:
@@ -347,10 +360,16 @@ func serializeValue(value interface{}) (*[]byte, types.ValueType_Enum, error) {
 		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
 		return &valueBuffer, types.ValueType_INT32, nil
 	case *types.Value_Int64Val:
-		// TODO (woop): We unfortunately have to use 32 bit here for backward compatibility :(
-		valueBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int64Val))
-		return &valueBuffer, types.ValueType_INT64, nil
+		if entityKeySerializationVersion <= 1 {
+			//  We unfortunately have to use 32 bit here for backward compatibility :(
+			valueBuffer := make([]byte, 4)
+			binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int64Val))
+			return &valueBuffer, types.ValueType_INT64, nil
+		} else {
+			valueBuffer := make([]byte, 8)
+			binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
+			return &valueBuffer, types.ValueType_INT64, nil
+		}
 	case nil:
 		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
 	default:

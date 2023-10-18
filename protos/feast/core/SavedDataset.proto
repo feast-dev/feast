@@ -58,6 +58,8 @@ message SavedDatasetStorage {
     DataSource.SnowflakeOptions snowflake_storage = 7;
     DataSource.TrinoOptions trino_storage = 8;
     DataSource.SparkOptions spark_storage = 9;
+    DataSource.CustomSourceOptions custom_storage = 10;
+    DataSource.AthenaOptions athena_storage = 11;
   }
 }
 

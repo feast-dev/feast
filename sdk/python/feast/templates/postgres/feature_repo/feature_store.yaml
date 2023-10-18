@@ -1,0 +1,28 @@
+project: my_project
+provider: local
+registry:
+    registry_store_type: PostgreSQLRegistryStore
+    path: feast_registry
+    host: DB_HOST
+    port: DB_PORT
+    database: DB_NAME
+    db_schema: DB_SCHEMA
+    user: DB_USERNAME
+    password: DB_PASSWORD
+online_store:
+    type: postgres
+    host: DB_HOST
+    port: DB_PORT
+    database: DB_NAME
+    db_schema: DB_SCHEMA
+    user: DB_USERNAME
+    password: DB_PASSWORD
+offline_store:
+    type: postgres
+    host: DB_HOST
+    port: DB_PORT
+    database: DB_NAME
+    db_schema: DB_SCHEMA
+    user: DB_USERNAME
+    password: DB_PASSWORD
+entity_key_serialization_version: 2

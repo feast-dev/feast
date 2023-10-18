@@ -7,13 +7,14 @@ on:
 
 jobs:
   get-version:
+    if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
     outputs:
       release_version: ${{ steps.get_release_version.outputs.release_version }}
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get release version
         id: get_release_version
         run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
@@ -45,15 +46,15 @@ jobs:
 
   build-publish-docker-images:
     runs-on: ubuntu-latest
-    needs: get-version
+    needs: [get-version, publish-python-sdk]
     strategy:
       matrix:
-        component: [feature-server-python-aws, feature-server-java, feature-transformation-server]
+        component: [feature-server, feature-server-python-aws, feature-server-java, feature-transformation-server]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -63,20 +64,17 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
       - name: Use gcloud CLI
         run: gcloud info
       - run: gcloud auth configure-docker --quiet
-      - name: Get m2 cache
-        run: |
-          infra/scripts/download-maven-cache.sh \
-          --archive-uri ${MAVEN_CACHE} \
-          --output-dir .
       - name: Build image
         run: |
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
@@ -100,19 +98,22 @@ jobs:
           fi
 
   publish-helm-charts:
+    if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
     needs: get-version
     env:
       HELM_VERSION: v3.8.0
       VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: google-github-actions/setup-gcloud@v0
+      - uses: actions/checkout@v3
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
         with:
-          version: '290.0.1'
-          export_default_credentials: true
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - run: gcloud auth configure-docker --quiet
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
@@ -125,9 +126,13 @@ jobs:
       - name: Publish Helm charts
         run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
+  build_wheels:
+    uses: ./.github/workflows/build_wheels.yml
+
   publish-python-sdk:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: [verify-python-wheel]
+    needs: [build_wheels]
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -138,155 +143,13 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
 
-
-  verify-python-wheel:
-    runs-on: ${{ matrix.os }}
-    needs: [build-python-sdk, build-python-sdk-macos-py310]
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
-        python-version: [ "3.7", "3.8", "3.9", "3.10"]
-        from-source: [ True, False ]
-    env:
-      # this script is for testing servers
-      # it starts server with timeout and checks whether process killed by timeout (started healthy) or died by itself
-      TEST_SCRIPT: |
-        timeout 10s $@ & pid=$!
-        wait $pid
-        ret=$?
-        if [[ $ret -ne 124 ]]
-        then
-           exit $ret
-        else
-           echo "Succeeded!"
-        fi
-    steps:
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: x64
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '>=1.17.0'
-      - uses: actions/download-artifact@v2
-        with:
-          name: wheels
-          path: dist
-      - name: Install wheel
-        if: ${{ !matrix.from-source }}
-        # try to install all wheels; only the current platform wheel should be actually installed
-        run: |
-          cd dist/
-          pip install wheel
-          for f in *.whl; do pip install $f || true; done
-      - name: Install sdist
-        if: ${{ matrix.from-source }}
-        env:
-          COMPILE_GO: "True"
-        run: |
-          pip install 'grpcio-tools==1.44.0' 'pybindgen==0.22.0'
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
-          pip install dist/*tar.gz
-      - name: Install OS X dependencies
-        if: matrix.os == 'macos-10.15'
-        run: brew install coreutils
-      - name: Smoke test
-        run: |
-          feast init test_repo
-          cd test_repo/
-          feast apply
-          echo "$TEST_SCRIPT" > run-and-wait.sh
-          bash run-and-wait.sh feast serve
-          bash run-and-wait.sh feast ui
-          
-          pip install cffi
-          printf "\ngo_feature_retrieval: True" >> feature_store.yaml
-          bash run-and-wait.sh feast serve
-
-  build-python-sdk:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-10.15 ]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Build UI
-        run: make build-ui
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.4.0
-        env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* *-musllinux_x86_64 cp310-macosx_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            COMPILE_GO=True PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go version
-          CIBW_BEFORE_ALL_MACOS: |
-            curl -o python.pkg https://www.python.org/ftp/python/3.9.12/python-3.9.12-macosx10.9.pkg
-            sudo installer -pkg python.pkg -target /
-          CIBW_BEFORE_BUILD: |
-            make install-protoc-dependencies
-            make install-go-proto-dependencies
-            make install-go-ci-dependencies
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: ./wheelhouse/*.whl
-
-
-  build-python-sdk-macos-py310:
-    runs-on: macos-10.15
-    env:
-      COMPILE_GO: True
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-          architecture: x64
-      - name: Setup Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Build and install dependencies
-        run: |
-          pip install -U pip setuptools wheel twine
-          make install-protoc-dependencies
-          make install-go-proto-dependencies
-          make install-go-ci-dependencies
-          make build-ui
-      - name: Build
-        run: |
-          python3 setup.py sdist bdist_wheel
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: dist/*
-
-
   publish-java-sdk:
+    if: github.repository == 'feast-dev/feast'
     container: maven:3.6-jdk-11
     runs-on: ubuntu-latest
     needs: get-version
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -295,7 +158,7 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: '3.7'
           architecture: 'x64'
@@ -317,23 +180,3 @@ jobs:
           mkdir -p /root/.m2/
           echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
           infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root
-
-  publish-web-ui-npm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '17.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install yarn dependencies
-        working-directory: ./ui
-        run: yarn install
-      - name: Build yarn rollup
-        working-directory: ./ui
-        run: yarn build:lib
-      - name: Publish UI package
-        working-directory: ./ui
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

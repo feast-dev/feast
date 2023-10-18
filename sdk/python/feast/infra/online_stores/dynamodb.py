@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from pydantic import StrictStr
+from pydantic import StrictBool, StrictStr
 from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
@@ -30,10 +30,11 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 try:
     import boto3
+    from botocore.config import Config
     from botocore.exceptions import ClientError
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
@@ -62,10 +63,13 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     table_name_template: StrictStr = "{project}.{table_name}"
     """DynamoDB table name template"""
 
+    consistent_reads: StrictBool = False
+    """Whether to read from Dynamodb by forcing consistent reads"""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
-    Online feature store for AWS DynamoDB.
+    AWS DynamoDB implementation of the online store interface.
 
     Attributes:
         _dynamodb_client: Boto3 DynamoDB client.
@@ -188,7 +192,7 @@ class DynamoDBOnlineStore(OnlineStore):
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
         )
-        self._write_batch_non_duplicates(table_instance, data, progress)
+        self._write_batch_non_duplicates(table_instance, data, progress, config)
 
     @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
@@ -216,22 +220,32 @@ class DynamoDBOnlineStore(OnlineStore):
         )
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        entity_ids = [compute_entity_id(entity_key) for entity_key in entity_keys]
+        entity_ids = [
+            compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
         batch_size = online_config.batch_size
         entity_ids_iter = iter(entity_ids)
         while True:
             batch = list(itertools.islice(entity_ids_iter, batch_size))
+            batch_result: List[
+                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+            ] = []
             # No more items to insert
             if len(batch) == 0:
                 break
             batch_entity_ids = {
                 table_instance.name: {
-                    "Keys": [{"entity_id": entity_id} for entity_id in batch]
+                    "Keys": [{"entity_id": entity_id} for entity_id in batch],
+                    "ConsistentRead": online_config.consistent_reads,
                 }
             }
             with tracing_span(name="remote_call"):
                 response = dynamodb_resource.batch_get_item(
-                    RequestItems=batch_entity_ids
+                    RequestItems=batch_entity_ids,
                 )
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
@@ -243,20 +257,23 @@ class DynamoDBOnlineStore(OnlineStore):
                 for tbl_res in table_responses:
                     entity_id = tbl_res["entity_id"]
                     while entity_id != batch[entity_idx]:
-                        result.append((None, None))
+                        batch_result.append((None, None))
                         entity_idx += 1
                     res = {}
                     for feature_name, value_bin in tbl_res["values"].items():
                         val = ValueProto()
                         val.ParseFromString(value_bin.value)
                         res[feature_name] = val
-                    result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
+                    batch_result.append(
+                        (datetime.fromisoformat(tbl_res["event_ts"]), res)
+                    )
                     entity_idx += 1
 
             # Not all entities in a batch may have responses
             # Pad with remaining values in batch that were not found
-            batch_size_nones = ((None, None),) * (len(batch) - len(result))
-            result.extend(batch_size_nones)
+            batch_size_nones = ((None, None),) * (len(batch) - len(batch_result))
+            batch_result.extend(batch_size_nones)
+            result.extend(batch_result)
         return result
 
     def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
@@ -293,11 +310,15 @@ class DynamoDBOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
+        config: RepoConfig,
     ):
         """Deduplicate write batch request items on ``entity_id`` primary key."""
         with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
             for entity_key, features, timestamp, created_ts in data:
-                entity_id = compute_entity_id(entity_key)
+                entity_id = compute_entity_id(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 batch.put_item(
                     Item={
                         "entity_id": entity_id,  # PartitionKey
@@ -313,7 +334,12 @@ class DynamoDBOnlineStore(OnlineStore):
 
 
 def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None):
-    return boto3.client("dynamodb", region_name=region, endpoint_url=endpoint_url)
+    return boto3.client(
+        "dynamodb",
+        region_name=region,
+        endpoint_url=endpoint_url,
+        config=Config(user_agent=get_user_agent()),
+    )
 
 
 def _initialize_dynamodb_resource(region: str, endpoint_url: Optional[str] = None):
@@ -331,7 +357,8 @@ def _get_table_name(
 
 
 def _delete_table_idempotent(
-    dynamodb_resource, table_name: str,
+    dynamodb_resource,
+    table_name: str,
 ):
     try:
         table = dynamodb_resource.Table(table_name)
@@ -392,7 +419,8 @@ class DynamoDBTable(InfraObject):
     @staticmethod
     def from_proto(dynamodb_table_proto: DynamoDBTableProto) -> Any:
         return DynamoDBTable(
-            name=dynamodb_table_proto.name, region=dynamodb_table_proto.region,
+            name=dynamodb_table_proto.name,
+            region=dynamodb_table_proto.region,
         )
 
     def update(self):

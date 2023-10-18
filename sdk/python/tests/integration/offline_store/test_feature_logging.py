@@ -22,7 +22,7 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 from tests.integration.feature_repos.universal.feature_views import conv_rate_plus_100
-from tests.utils.logged_features import prepare_logs, to_logs_dataset
+from tests.utils.test_log_creator import prepare_logs, to_logs_dataset
 
 
 @pytest.mark.integration
@@ -65,12 +65,14 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
 
     with to_logs_dataset(first_batch, pass_as_path) as logs:
         store.write_logged_features(
-            source=feature_service, logs=logs,
+            source=feature_service,
+            logs=logs,
         )
 
     with to_logs_dataset(second_batch, pass_as_path) as logs:
         store.write_logged_features(
-            source=feature_service, logs=logs,
+            source=feature_service,
+            logs=logs,
         )
     expected_columns = list(set(logs_df.columns) - {LOG_DATE_FIELD})
 

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -7,14 +8,15 @@ import psycopg2
 import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
+from psycopg2.pool import SimpleConnectionPool
 from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.postgres.connection_utils import _get_conn
-from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
+from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
@@ -27,12 +29,21 @@ class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
 
 class PostgreSQLOnlineStore(OnlineStore):
     _conn: Optional[psycopg2._psycopg.connection] = None
+    _conn_pool: Optional[SimpleConnectionPool] = None
 
+    @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):
-        if not self._conn:
-            assert config.online_store.type == "postgres"
-            self._conn = _get_conn(config.online_store)
-        return self._conn
+        assert config.online_store.type == "postgres"
+        if config.online_store.conn_type == ConnectionType.pool:
+            if not self._conn_pool:
+                self._conn_pool = _get_connection_pool(config.online_store)
+            connection = self._conn_pool.getconn()
+            yield connection
+            self._conn_pool.putconn(connection)
+        else:
+            if not self._conn:
+                self._conn = _get_conn(config.online_store)
+            yield self._conn
 
     @log_exceptions_and_usage(online_store="postgres")
     def online_write_batch(
@@ -49,7 +60,10 @@ class PostgreSQLOnlineStore(OnlineStore):
         with self._get_conn(config) as conn, conn.cursor() as cur:
             insert_values = []
             for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(entity_key)
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 timestamp = _to_naive_utc(timestamp)
                 if created_ts is not None:
                     created_ts = _to_naive_utc(created_ts)
@@ -104,17 +118,37 @@ class PostgreSQLOnlineStore(OnlineStore):
             # to PostgreSQL
             keys = []
             for entity_key in entity_keys:
-                keys.append(serialize_entity_key(entity_key))
+                keys.append(
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                )
 
-            cur.execute(
-                sql.SQL(
-                    """
-                    SELECT entity_key, feature_name, value, event_ts
-                    FROM {} WHERE entity_key = ANY(%s);
-                    """
-                ).format(sql.Identifier(_table_id(project, table)),),
-                (keys,),
-            )
+            if not requested_features:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT entity_key, feature_name, value, event_ts
+                        FROM {} WHERE entity_key = ANY(%s);
+                        """
+                    ).format(
+                        sql.Identifier(_table_id(project, table)),
+                    ),
+                    (keys,),
+                )
+            else:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT entity_key, feature_name, value, event_ts
+                        FROM {} WHERE entity_key = ANY(%s) and feature_name = ANY(%s);
+                        """
+                    ).format(
+                        sql.Identifier(_table_id(project, table)),
+                    ),
+                    (keys, requested_features),
+                )
 
             rows = cur.fetchall()
 
@@ -228,7 +262,10 @@ def _drop_table_and_index(table_name):
         DROP TABLE IF EXISTS {};
         DROP INDEX IF EXISTS {};
         """
-    ).format(sql.Identifier(table_name), sql.Identifier(f"{table_name}_ek"),)
+    ).format(
+        sql.Identifier(table_name),
+        sql.Identifier(f"{table_name}_ek"),
+    )
 
 
 def _to_naive_utc(ts: datetime):

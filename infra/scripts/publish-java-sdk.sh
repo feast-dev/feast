@@ -69,4 +69,4 @@ gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/private-key
 echo "============================================================"
 echo "Deploying Java SDK with revision: $REVISION"
 echo "============================================================"
-mvn -f java/pom.xml --projects .,datatypes,sdk -Drevision=$REVISION --batch-mode clean deploy
+mvn -f java/pom.xml --projects .,datatypes,serving-client -Drevision=$REVISION --batch-mode clean deploy

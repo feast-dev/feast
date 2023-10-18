@@ -28,14 +28,6 @@ feast.infra.utils.hbase\_utils module
    :undoc-members:
    :show-inheritance:
 
-feast.infra.utils.snowflake\_utils module
------------------------------------------
-
-.. automodule:: feast.infra.utils.snowflake_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Module contents
 ---------------
 

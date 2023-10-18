@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 import glob
-import json
 import os
 import pathlib
 import re
@@ -21,143 +19,166 @@ import shutil
 import subprocess
 import sys
 from distutils.cmd import Command
-from distutils.dir_util import copy_tree
 from pathlib import Path
-from subprocess import CalledProcessError
 
-from setuptools import find_packages, Extension
+from setuptools import find_packages
 
 try:
     from setuptools import setup
-    from setuptools.command.build_py import build_py
     from setuptools.command.build_ext import build_ext as _build_ext
+    from setuptools.command.build_py import build_py
     from setuptools.command.develop import develop
     from setuptools.command.install import install
 
 except ImportError:
-    from distutils.command.build_py import build_py
     from distutils.command.build_ext import build_ext as _build_ext
+    from distutils.command.build_py import build_py
     from distutils.core import setup
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.7.0"
+REQUIRES_PYTHON = ">=3.8.0"
 
 REQUIRED = [
-    "click>=7.0.0,<8.0.2",
+    "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
-    "dill==0.3.*",
+    "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
-    "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos>=1.52.*,<2",
-    "grpcio>=1.34.0,<2",
-    "grpcio-reflection>=1.34.0,<2",
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
+    "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy<1.22,<2",
-    "pandas>=1,<2",
-    "pandavro==1.5.*",
-    "protobuf>=3.10,<3.20",
-    "proto-plus==1.20.*",
-    "pyarrow>=4,<7",
+    "numpy>=1.22,<1.25",
+    "pandas>=1.4.3,<2",
+    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
+    "pandavro~=1.5.0",
+    # Higher than 4.23.4 seems to cause a seg fault
+    "protobuf<4.23.4,>3.20",
+    "proto-plus>=1.20.0,<2",
+    "pyarrow>=4,<12",
     "pydantic>=1,<2",
-    "pygments==2.12.0",
-    "PyYAML>=5.4.*,<7",
+    "pygments>=2.12.0,<3",
+    "PyYAML>=5.4.0,<7",
+    "requests",
     "SQLAlchemy[mypy]>1,<2",
-    "tabulate==0.8.*",
+    "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
-    "toml==0.10.*",
-    "tqdm==4.*",
-    "fastapi>=0.68.0,<1",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
+    "typeguard==2.13.3",
+    "fastapi>=0.68.0,<0.100",
     "uvicorn[standard]>=0.14.0,<1",
-    "tensorflow-metadata>=1.0.0,<2.0.0",
-    "dask>=2021.*,<2022.02.0",
+    "gunicorn",
+    "dask>=2021.1.0",
+    "bowler",  # Needed for automatic repo upgrades
+    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7",
+    "importlib_metadata>=6.8.0,<7"
 ]
 
 GCP_REQUIRED = [
-    "google-cloud-bigquery>=2,<3",
+    "google-api-core>=1.23.0,<3",
+    "googleapis-common-protos>=1.52.0,<2",
+    "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore>=2.1.*,<3",
-    "google-cloud-storage>=1.34.*,<1.41",
-    "google-cloud-core>=1.4.0,<2.0.0",
+    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-storage>=1.34.0,<3",
+    "google-cloud-bigtable>=2.11.0,<3",
 ]
 
 REDIS_REQUIRED = [
-    "redis==4.2.2",
+    "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.01.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
+
+BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3,<=2.7.8",
+    "snowflake-connector-python[pandas]>=3,<4",
 ]
 
 SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
-TRINO_REQUIRED = [
-    "trino>=0.305.0,<0.400.0",
-]
+TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = [
-    "mysqlclient",
-]
+MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.14.0,<0.15.0"]
+CASSANDRA_REQUIRED = [
+    "cassandra-driver>=3.24.0,<4",
+]
 
-GO_REQUIRED = [
-    "cffi==1.15.*,<2",
+GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
+
+AZURE_REQUIRED = [
+    "azure-storage-blob>=0.37.0",
+    "azure-identity>=1.6.1",
+    "SQLAlchemy>=1.4.19",
+    "pyodbc>=4.0.30",
+    "pymssql",
+]
+
+ROCKSET_REQUIRED = [
+    "rockset>=1.0.3",
+]
+
+HAZELCAST_REQUIRED = [
+    "hazelcast-python-client>=5.1",
 ]
 
 CI_REQUIRED = (
     [
         "build",
-        "cryptography==35.0",
-        "flake8",
-        "black==19.10b0",
+        "virtualenv==20.23.0",
+        "cryptography>=35.0,<42",
+        "flake8>=6.0.0,<6.1.0",
+        "black>=22.6.0,<23",
         "isort>=5,<6",
-        "grpcio-tools==1.44.0",
-        "grpcio-testing==1.44.0",
+        "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
-        "mypy==0.931",
-        "mypy-protobuf==3.1",
+        "mypy>=0.981,<0.990",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
+        "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
         "pytest-cov",
         "pytest-xdist",
         "pytest-benchmark>=3.4.1,<4",
         "pytest-lazy-fixture==0.6.3",
         "pytest-timeout==1.4.2",
-        "pytest-ordering==0.6.*",
+        "pytest-ordering~=0.6.0",
         "pytest-mock==1.10.4",
-        "Sphinx!=4.0.0,<4.4.0",
-        "sphinx-rtd-theme",
+        "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
-        "firebase-admin==4.5.2",
-        "pre-commit",
+        "firebase-admin>=5.2.0,<6",
+        "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
         "pybindgen",
-        "types-protobuf",
+        "types-protobuf~=3.19.22",
         "types-python-dateutil",
         "types-pytz",
         "types-PyYAML",
@@ -165,10 +186,12 @@ CI_REQUIRED = (
         "types-requests",
         "types-setuptools",
         "types-tabulate",
+        "virtualenv<20.24.2"
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
     + AWS_REQUIRED
+    + BYTEWAX_REQUIRED
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
@@ -176,16 +199,20 @@ CI_REQUIRED = (
     + TRINO_REQUIRED
     + GE_REQUIRED
     + HBASE_REQUIRED
+    + CASSANDRA_REQUIRED
+    + AZURE_REQUIRED
+    + ROCKSET_REQUIRED
+    + HAZELCAST_REQUIRED
 )
 
 
 # rtd builds fail because of mysql not being installed in their environment.
 # We can add mysql there, but it's not strictly needed. This will be faster for builds.
-DOCS_REQUIRED = CI_REQUIRED
+DOCS_REQUIRED = CI_REQUIRED.copy()
 for _r in MYSQL_REQUIRED:
     DOCS_REQUIRED.remove(_r)
 
-DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing==1.*"] + CI_REQUIRED
+DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing~=1.0"] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
@@ -289,93 +316,11 @@ class BuildPythonProtosCommand(Command):
                     file.write(filedata)
 
 
-def _generate_path_with_gopath():
-    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
-    go_path = go_path.strip()
-    path_val = os.getenv("PATH")
-    path_val = f"{path_val}:{go_path}/bin"
-
-    return path_val
-
-
-def _ensure_go_and_proto_toolchain():
-    try:
-        version = subprocess.check_output(["go", "version"])
-    except Exception as e:
-        raise RuntimeError("Unable to find go toolchain") from e
-
-    semver_string = re.search(r"go[\S]+", str(version)).group().lstrip("go")
-    parts = semver_string.split(".")
-    if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
-        raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
-
-    path_val = _generate_path_with_gopath()
-
-    try:
-        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
-        subprocess.check_call(
-            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
-        )
-    except Exception as e:
-        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
-
-
-class BuildGoProtosCommand(Command):
-    description = "Builds the proto files into Go files."
-    user_options = []
-
-    def initialize_options(self):
-        self.go_protoc = [
-            sys.executable,
-            "-m",
-            "grpc_tools.protoc",
-        ]  # find_executable("protoc")
-        self.proto_folder = os.path.join(repo_root, "protos")
-        self.go_folder = os.path.join(repo_root, "go/protos")
-        self.sub_folders = PROTO_SUBDIRS
-        self.path_val = _generate_path_with_gopath()
-
-    def finalize_options(self):
-        pass
-
-    def _generate_go_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-
-        try:
-            subprocess.check_call(
-                self.go_protoc
-                + [
-                    "-I",
-                    self.proto_folder,
-                    "--go_out",
-                    self.go_folder,
-                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
-                    "--go-grpc_out",
-                    self.go_folder,
-                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
-                ]
-                + proto_files,
-                env={"PATH": self.path_val},
-            )
-        except CalledProcessError as e:
-            print(f"Stderr: {e.stderr}")
-            print(f"Stdout: {e.stdout}")
-
-    def run(self):
-        go_dir = Path(repo_root) / "go" / "protos"
-        go_dir.mkdir(exist_ok=True)
-        for sub_folder in self.sub_folders:
-            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
-
-
 class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
-            self.run_command("build_go_protos")
 
         self.run_command("build_ext")
         build_py.run(self)
@@ -387,75 +332,8 @@ class DevelopCommand(develop):
     def run(self):
         self.reinitialize_command("build_python_protos", inplace=1)
         self.run_command("build_python_protos")
-        if os.getenv("COMPILE_GO", "false").lower() == "true":
-            _ensure_go_and_proto_toolchain()
-            self.run_command("build_go_protos")
 
         develop.run(self)
-
-
-class build_ext(_build_ext):
-    def finalize_options(self) -> None:
-        super().finalize_options()
-        if os.getenv("COMPILE_GO", "false").lower() == "false":
-            self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
-
-    def _is_go_ext(self, ext: Extension):
-        return any(
-            source.endswith(".go") or source.startswith("github")
-            for source in ext.sources
-        )
-
-    def build_extension(self, ext: Extension):
-        if not self._is_go_ext(ext):
-            # the base class may mutate `self.compiler`
-            compiler = copy.deepcopy(self.compiler)
-            self.compiler, compiler = compiler, self.compiler
-            try:
-                return _build_ext.build_extension(self, ext)
-            finally:
-                self.compiler, compiler = compiler, self.compiler
-
-        bin_path = _generate_path_with_gopath()
-        go_env = json.loads(
-            subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
-        )
-
-        destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(["go", "install", "golang.org/x/tools/cmd/goimports"])
-        subprocess.check_call(["go", "install", "github.com/go-python/gopy"])
-        subprocess.check_call(
-            [
-                "gopy",
-                "build",
-                "-output",
-                destination,
-                "-vm",
-                sys.executable,
-                "-no-make",
-                *ext.sources,
-            ],
-            env={"PATH": bin_path, "CGO_LDFLAGS_ALLOW": ".*", **go_env,},
-        )
-
-    def copy_extensions_to_source(self):
-        build_py = self.get_finalized_command("build_py")
-        for ext in self.extensions:
-            fullname = self.get_ext_fullname(ext.name)
-            modpath = fullname.split(".")
-            package = ".".join(modpath[:-1])
-            package_dir = build_py.get_package_dir(package)
-
-            src_dir = dest_dir = package_dir
-
-            if src_dir.startswith(PYTHON_CODE_PREFIX):
-                src_dir = package_dir[len(PYTHON_CODE_PREFIX) :]
-            src_dir = src_dir.lstrip("/")
-
-            src_dir = os.path.join(self.build_lib, src_dir)
-
-            # copy whole directory
-            copy_tree(src_dir, dest_dir)
 
 
 setup(
@@ -478,16 +356,20 @@ setup(
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
+        "bytewax": BYTEWAX_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
+        "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
-        "go": GO_REQUIRED,
         "docs": DOCS_REQUIRED,
+        "cassandra": CASSANDRA_REQUIRED,
+        "hazelcast": HAZELCAST_REQUIRED,
+        "rockset": ROCKSET_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -503,23 +385,14 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio",
-        "grpcio-tools==1.44.0",
+        "grpcio>=1.56.2,<2",
+        "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "sphinx!=4.0.0",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
-        "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
-        "build_ext": build_ext,
     },
-    ext_modules=[
-        Extension(
-            "feast.embedded_go.lib._embedded",
-            ["github.com/feast-dev/feast/go/embedded"],
-        )
-    ],
 )

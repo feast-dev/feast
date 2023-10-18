@@ -2,7 +2,7 @@ import json
 import threading
 from typing import Callable, Optional
 
-import pkg_resources
+import importlib_resources
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,11 +13,9 @@ import feast
 
 def get_app(
     store: "feast.FeatureStore",
-    get_registry_dump: Callable,
     project_id: str,
     registry_ttl_secs: int,
-    host: str,
-    port: int,
+    root_path: str = "",
 ):
     app = FastAPI()
 
@@ -30,14 +28,14 @@ def get_app(
     )
 
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_json = ""
+    registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
     def async_refresh():
         store.refresh_registry()
-        nonlocal registry_json
-        registry_json = get_registry_dump(store.config, store.repo_path)
+        nonlocal registry_proto
+        registry_proto = store.registry.proto()
         if shutting_down:
             return
         nonlocal active_timer
@@ -53,29 +51,33 @@ def get_app(
 
     async_refresh()
 
-    ui_dir = pkg_resources.resource_filename(__name__, "ui/build/")
-    # Initialize with the projects-list.json file
-    with open(ui_dir + "projects-list.json", mode="w") as f:
-        projects_dict = {
-            "projects": [
-                {
-                    "name": "Project",
-                    "description": "Test project",
-                    "id": project_id,
-                    "registryPath": "/registry",
-                }
-            ]
-        }
-        f.write(json.dumps(projects_dict))
+    ui_dir_ref = importlib_resources.files(__name__) / "ui/build/"
+    with importlib_resources.as_file(ui_dir_ref) as ui_dir:
+        # Initialize with the projects-list.json file
+        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
+            projects_dict = {
+                "projects": [
+                    {
+                        "name": "Project",
+                        "description": "Test project",
+                        "id": project_id,
+                        "registryPath": f"{root_path}/registry",
+                    }
+                ]
+            }
+            f.write(json.dumps(projects_dict))
 
     @app.get("/registry")
     def read_registry():
-        return json.loads(registry_json)
+        return Response(
+            content=registry_proto.SerializeToString(),
+            media_type="application/octet-stream",
+        )
 
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
     def catch_all():
-        filename = ui_dir + "index.html"
+        filename = ui_dir.joinpath("index.html")
 
         with open(filename) as f:
             content = f.read()
@@ -83,7 +85,9 @@ def get_app(
         return Response(content, media_type="text/html")
 
     app.mount(
-        "/", StaticFiles(directory=ui_dir, html=True), name="site",
+        "/",
+        StaticFiles(directory=ui_dir, html=True),
+        name="site",
     )
 
     return app
@@ -96,6 +100,12 @@ def start_server(
     get_registry_dump: Callable,
     project_id: str,
     registry_ttl_sec: int,
+    root_path: str = "",
 ):
-    app = get_app(store, get_registry_dump, project_id, registry_ttl_sec, host, port)
+    app = get_app(
+        store,
+        project_id,
+        registry_ttl_sec,
+        root_path,
+    )
     uvicorn.run(app, host=host, port=port)

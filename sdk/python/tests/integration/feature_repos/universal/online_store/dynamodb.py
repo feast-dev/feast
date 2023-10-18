@@ -21,7 +21,7 @@ class DynamoDBOnlineStoreCreator(OnlineStoreCreator):
             "Initializing DynamoDB Local with the following configuration:"
         )
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=5
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         exposed_port = self.container.get_exposed_port("8000")
         return {

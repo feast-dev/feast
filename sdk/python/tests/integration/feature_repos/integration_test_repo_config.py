@@ -1,5 +1,6 @@
 import hashlib
 from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Optional, Type, Union
 
 from tests.integration.feature_repos.universal.data_source_creator import (
@@ -11,6 +12,11 @@ from tests.integration.feature_repos.universal.data_sources.file import (
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
+
+
+class RegistryLocation(Enum):
+    Local = 1
+    S3 = 2
 
 
 @dataclass(frozen=False)
@@ -25,10 +31,12 @@ class IntegrationTestRepoConfig:
     offline_store_creator: Type[DataSourceCreator] = FileDataSourceCreator
     online_store_creator: Optional[Type[OnlineStoreCreator]] = None
 
+    batch_engine: Optional[Union[str, Dict]] = "local"
+    registry_location: RegistryLocation = RegistryLocation.Local
+
     full_feature_names: bool = True
     infer_features: bool = False
     python_feature_server: bool = False
-    go_feature_retrieval: bool = False
 
     def __repr__(self) -> str:
         if not self.online_store_creator:
@@ -51,8 +59,7 @@ class IntegrationTestRepoConfig:
                 f"{self.provider.upper()}",
                 f"{self.offline_store_creator.__name__.split('.')[-1].replace('DataSourceCreator', '')}",
                 online_store_type,
-                f"python_fs={self.python_feature_server}",
-                f"go_fs={self.go_feature_retrieval}",
+                f"python_fs:{self.python_feature_server}",
             ]
         )
 
@@ -68,6 +75,5 @@ class IntegrationTestRepoConfig:
             and self.online_store == other.online_store
             and self.offline_store_creator == other.offline_store_creator
             and self.online_store_creator == other.online_store_creator
-            and self.go_feature_retrieval == other.go_feature_retrieval
             and self.python_feature_server == other.python_feature_server
         )

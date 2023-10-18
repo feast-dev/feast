@@ -1,3 +1,0 @@
-project: my_project
-registry: data/registry.db
-provider: gcp

@@ -82,6 +82,29 @@
         </configuration>
       </plugin>
 
+      <!-- Call feast apply before running integration tests -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.6.0</version>
+        <executions>
+          <execution>
+            <configuration>
+              <executable>python</executable>
+              <workingDirectory>src/test/resources/docker-compose/feast10/</workingDirectory>
+              <arguments>
+                <argument>setup_it.py</argument>
+              </arguments>
+              <skip>${skipITs}</skip>
+            </configuration>
+            <id>feast_test_apply</id>
+            <phase>process-test-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -89,24 +112,6 @@
     <dependency>
       <groupId>dev.feast</groupId>
       <artifactId>feast-datatypes</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-storage-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-storage-connector-redis</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -235,7 +240,13 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
-      <version>1.12.110</version>
+      <version>1.12.261</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-sts</artifactId>
+      <version>1.12.476</version>
     </dependency>
 
     <dependency>
@@ -263,7 +274,7 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>1.10.2</version>
+      <version>1.11.3</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-java-root -->
@@ -344,6 +355,16 @@
       <artifactId>okhttp</artifactId>
       <version>2.7.4</version>
       <scope>test</scope>
+    </dependency>
+      <dependency>
+          <groupId>io.lettuce</groupId>
+          <artifactId>lettuce-core</artifactId>
+          <version>6.0.2.RELEASE</version>
+      </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.10</version>
     </dependency>
   </dependencies>
 

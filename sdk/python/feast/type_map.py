@@ -15,6 +15,7 @@
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
@@ -31,7 +32,6 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-import pyarrow
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.protos.feast.types.Value_pb2 import (
@@ -45,6 +45,12 @@ from feast.protos.feast.types.Value_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, ValueType
+
+if TYPE_CHECKING:
+    import pyarrow
+
+# null timestamps get converted to -9223372036854775808
+NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
 
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
@@ -69,9 +75,18 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
 
     # Convert UNIX_TIMESTAMP values to `datetime`
     if val_attr == "unix_timestamp_list_val":
-        val = [datetime.fromtimestamp(v, tz=timezone.utc) for v in val]
+        val = [
+            datetime.fromtimestamp(v, tz=timezone.utc)
+            if v != NULL_TIMESTAMP_INT_VALUE
+            else None
+            for v in val
+        ]
     elif val_attr == "unix_timestamp_val":
-        val = datetime.fromtimestamp(val, tz=timezone.utc)
+        val = (
+            datetime.fromtimestamp(val, tz=timezone.utc)
+            if val != NULL_TIMESTAMP_INT_VALUE
+            else None
+        )
 
     return val
 
@@ -132,6 +147,7 @@ def python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
+        "boolean": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
@@ -216,6 +232,30 @@ def python_values_to_feast_value_type(
     return inferred_dtype
 
 
+def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
+    type_map = {
+        "UNKNOWN": ValueType.UNKNOWN,
+        "BYTES": ValueType.BYTES,
+        "STRING": ValueType.STRING,
+        "INT32": ValueType.INT32,
+        "INT64": ValueType.INT64,
+        "DOUBLE": ValueType.DOUBLE,
+        "FLOAT": ValueType.FLOAT,
+        "BOOL": ValueType.BOOL,
+        "NULL": ValueType.NULL,
+        "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
+        "BYTES_LIST": ValueType.BYTES_LIST,
+        "STRING_LIST": ValueType.STRING_LIST,
+        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT64_LIST": ValueType.INT64_LIST,
+        "DOUBLE_LIST": ValueType.DOUBLE_LIST,
+        "FLOAT_LIST": ValueType.FLOAT_LIST,
+        "BOOL_LIST": ValueType.BOOL_LIST,
+        "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    return type_map[type_str]
+
+
 def _type_err(item, dtype):
     raise TypeError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
@@ -260,7 +300,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
-    ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_}),
+    ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
 }
 
 
@@ -281,6 +321,8 @@ def _python_datetime_to_int_timestamp(
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
             int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))
+        elif isinstance(value, type(np.nan)):
+            int_timestamps.append(NULL_TIMESTAMP_INT_VALUE)
         else:
             int_timestamps.append(int(value))
     return int_timestamps
@@ -360,7 +402,17 @@ def _python_value_to_proto_value(
             valid_scalar_types,
         ) = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[feast_value_type]
         if valid_scalar_types:
-            assert type(sample) in valid_scalar_types
+            if (sample == 0 or sample == 0.0) and feast_value_type != ValueType.BOOL:
+                # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
+                # So, if value is 0, type validation must pass if scalar_types are either int or float.
+                allowed_types = {np.int64, int, np.float64, float}
+                assert (
+                    type(sample) in allowed_types
+                ), f"Type `{type(sample)}` not in {allowed_types}"
+            else:
+                assert (
+                    type(sample) in valid_scalar_types
+                ), f"Type `{type(sample)}` not in {valid_scalar_types}"
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
@@ -476,6 +528,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "INTEGER": ValueType.INT64,
+        "NUMERIC": ValueType.INT64,
         "INT64": ValueType.INT64,
         "STRING": ValueType.STRING,
         "FLOAT": ValueType.DOUBLE,
@@ -486,11 +539,79 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "NULL": ValueType.NULL,
     }
 
-    value_type = type_map[bq_type_as_str]
+    value_type = type_map.get(bq_type_as_str, ValueType.STRING)
+
     if is_list:
         value_type = ValueType[value_type.name + "_LIST"]
 
     return value_type
+
+
+def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
+    type_map = {
+        "bigint": ValueType.FLOAT,
+        "binary": ValueType.BYTES,
+        "bit": ValueType.BOOL,
+        "char": ValueType.STRING,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "float": ValueType.FLOAT,
+        "nchar": ValueType.STRING,
+        "nvarchar": ValueType.STRING,
+        "nvarchar(max)": ValueType.STRING,
+        "real": ValueType.FLOAT,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
+        "varbinary": ValueType.BYTES,
+        "varchar": ValueType.STRING,
+        "None": ValueType.NULL,
+        # skip date, geometry, hllsketch, time, timetz
+    }
+    if mssql_type_as_str.lower() not in type_map:
+        raise ValueError(f"Mssql type not supported by feast {mssql_type_as_str}")
+    return type_map[mssql_type_as_str.lower()]
+
+
+def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # MS Sql types: https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        if "tz=" in pa_type_as_str:
+            return "datetime2"
+        else:
+            return "datetime"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "None",
+        "bool": "bit",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "smallint",
+        "uint32": "int",
+        "uint64": "bigint",
+        "float": "float",
+        "double": "real",
+        "binary": "binary",
+        "string": "varchar",
+    }
+
+    if pa_type_as_str.lower() not in type_map:
+        raise ValueError(f"MS SQL Server type not supported by feast {pa_type_as_str}")
+
+    return type_map[pa_type_as_str]
 
 
 def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
@@ -513,30 +634,39 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
     return type_map[redshift_type_as_str.lower()]
 
 
-def snowflake_python_type_to_feast_value_type(
-    snowflake_python_type_as_str: str,
-) -> ValueType:
-
+def snowflake_type_to_feast_value_type(snowflake_type: str) -> ValueType:
     type_map = {
-        "str": ValueType.STRING,
-        "float64": ValueType.DOUBLE,
-        "int64": ValueType.INT64,
-        "uint64": ValueType.INT64,
-        "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
-        "int16": ValueType.INT32,
-        "uint16": ValueType.INT32,
-        "uint8": ValueType.INT32,
-        "int8": ValueType.INT32,
-        "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "object": ValueType.STRING,
-        "bool": ValueType.BOOL,
+        "BINARY": ValueType.BYTES,
+        "VARCHAR": ValueType.STRING,
+        "NUMBER32": ValueType.INT32,
+        "NUMBER64": ValueType.INT64,
+        "NUMBERwSCALE": ValueType.DOUBLE,
+        "DOUBLE": ValueType.DOUBLE,
+        "BOOLEAN": ValueType.BOOL,
+        "DATE": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_TZ": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_LTZ": ValueType.UNIX_TIMESTAMP,
+        "TIMESTAMP_NTZ": ValueType.UNIX_TIMESTAMP,
     }
+    return type_map[snowflake_type]
 
-    return type_map[snowflake_python_type_as_str.lower()]
+
+def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> str:
+    name_map = {
+        "BYTES": f"feast_{project_name}_snowflake_binary_to_bytes_proto",
+        "STRING": f"feast_{project_name}_snowflake_varchar_to_string_proto",
+        "INT32": f"feast_{project_name}_snowflake_number_to_int32_proto",
+        "INT64": f"feast_{project_name}_snowflake_number_to_int64_proto",
+        "DOUBLE": f"feast_{project_name}_snowflake_float_to_double_proto",
+        "FLOAT": f"feast_{project_name}_snowflake_float_to_double_proto",
+        "BOOL": f"feast_{project_name}_snowflake_boolean_to_bool_proto",
+        "UNIX_TIMESTAMP": f"feast_{project_name}_snowflake_timestamp_to_unix_timestamp_proto",
+    }
+    return name_map[value_name].upper()
 
 
-def pa_to_redshift_value_type(pa_type: pyarrow.DataType) -> str:
+def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
     # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
     # Redshift type: https://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html
     pa_type_as_str = str(pa_type).lower()
@@ -716,7 +846,11 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
     return value
 
 
-def feast_value_type_to_pa(feast_type: ValueType) -> pyarrow.DataType:
+def feast_value_type_to_pa(
+    feast_type: ValueType, timestamp_unit: str = "us"
+) -> "pyarrow.DataType":
+    import pyarrow
+
     type_map = {
         ValueType.INT32: pyarrow.int32(),
         ValueType.INT64: pyarrow.int64(),
@@ -725,7 +859,7 @@ def feast_value_type_to_pa(feast_type: ValueType) -> pyarrow.DataType:
         ValueType.STRING: pyarrow.string(),
         ValueType.BYTES: pyarrow.binary(),
         ValueType.BOOL: pyarrow.bool_(),
-        ValueType.UNIX_TIMESTAMP: pyarrow.timestamp("us"),
+        ValueType.UNIX_TIMESTAMP: pyarrow.timestamp(timestamp_unit),
         ValueType.INT32_LIST: pyarrow.list_(pyarrow.int32()),
         ValueType.INT64_LIST: pyarrow.list_(pyarrow.int64()),
         ValueType.DOUBLE_LIST: pyarrow.list_(pyarrow.float64()),
@@ -733,20 +867,33 @@ def feast_value_type_to_pa(feast_type: ValueType) -> pyarrow.DataType:
         ValueType.STRING_LIST: pyarrow.list_(pyarrow.string()),
         ValueType.BYTES_LIST: pyarrow.list_(pyarrow.binary()),
         ValueType.BOOL_LIST: pyarrow.list_(pyarrow.bool_()),
-        ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp("us")),
+        ValueType.UNIX_TIMESTAMP_LIST: pyarrow.list_(pyarrow.timestamp(timestamp_unit)),
         ValueType.NULL: pyarrow.null(),
     }
     return type_map[feast_type]
 
 
 def pg_type_code_to_pg_type(code: int) -> str:
-    return {
+    """Map the postgres type code a Feast type string
+
+    Rather than raise an exception on an unknown type, we return the
+    string representation of the type code. This way rather than raising
+    an exception on unknown types, Feast will just skip the problem columns.
+
+    Note that json and jsonb are not supported but this shows up in the
+    log as a warning. Since postgres allows custom types we return an unknown for those cases.
+
+    See: https://jdbc.postgresql.org/documentation/publicapi/index.html?constant-values.html
+    """
+    PG_TYPE_MAP = {
         16: "boolean",
         17: "bytea",
         20: "bigint",
         21: "smallint",
         23: "integer",
         25: "text",
+        114: "json",
+        199: "json[]",
         700: "real",
         701: "double precision",
         1000: "boolean[]",
@@ -772,10 +919,71 @@ def pg_type_code_to_pg_type(code: int) -> str:
         1700: "numeric",
         2950: "uuid",
         2951: "uuid[]",
-    }[code]
+        3802: "jsonb",
+        3807: "jsonb[]",
+    }
+
+    return PG_TYPE_MAP.get(code, "unknown")
 
 
 def pg_type_code_to_arrow(code: int) -> str:
     return feast_value_type_to_pa(
         pg_type_to_feast_value_type(pg_type_code_to_pg_type(code))
     )
+
+
+def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
+    # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    type_map = {
+        "null": ValueType.UNKNOWN,
+        "boolean": ValueType.BOOL,
+        "tinyint": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "int": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "double": ValueType.DOUBLE,
+        "float": ValueType.FLOAT,
+        "binary": ValueType.BYTES,
+        "char": ValueType.STRING,
+        "varchar": ValueType.STRING,
+        "string": ValueType.STRING,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        # skip date,decimal,array,map,struct
+    }
+    return type_map[athena_type_as_str.lower()]
+
+
+def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        return "timestamp"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("python_values_to_proto_values"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "null",
+        "bool": "boolean",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "tinyint",
+        "uint32": "tinyint",
+        "uint64": "tinyint",
+        "float": "float",
+        "double": "double",
+        "binary": "binary",
+        "string": "string",
+    }
+
+    return type_map[pa_type_as_str]

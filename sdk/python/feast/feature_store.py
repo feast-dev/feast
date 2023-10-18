@@ -19,7 +19,6 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -40,19 +39,26 @@ from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
-from feast import feature_server, flags, flags_helper, ui_server, utils
+from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource
+from feast.data_source import (
+    DataSource,
+    KafkaSource,
+    KinesisSource,
+    PushMode,
+    PushSource,
+)
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    DataSourceRepeatNamesException,
     EntityNotFoundException,
-    ExperimentalFeatureNotEnabled,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
 )
@@ -71,7 +77,9 @@ from feast.inference import (
 )
 from feast.infra.infra_object import Infra
 from feast.infra.provider import Provider, RetrievalJob, get_provider
-from feast.infra.registry_stores.sql import SqlRegistry
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
+from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -80,72 +88,88 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
-from feast.registry import BaseRegistry, Registry
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.type_map import (
-    feast_value_type_to_python_type,
-    python_values_to_proto_values,
-)
+from feast.type_map import python_values_to_proto_values
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
 
-if TYPE_CHECKING:
-    from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
-
 
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
 
-    Args:
-        repo_path (optional): Path to a `feature_store.yaml` used to configure the
-            feature store.
-        config (optional): Configuration object used to configure the feature store.
+    Attributes:
+        config: The config for the feature store.
+        repo_path: The path to the feature repo.
+        _registry: The registry for the feature store.
+        _provider: The provider for the feature store.
     """
 
     config: RepoConfig
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-    _go_server: "EmbeddedOnlineFeatureServer"
 
     @log_exceptions
     def __init__(
-        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
+        self,
+        repo_path: Optional[str] = None,
+        config: Optional[RepoConfig] = None,
+        fs_yaml_file: Optional[Path] = None,
     ):
         """
         Creates a FeatureStore object.
 
+        Args:
+            repo_path (optional): Path to the feature repo. Defaults to the current working directory.
+            config (optional): Configuration object used to configure the feature store.
+            fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
+                At most one of 'fs_yaml_file' and 'config' can be set.
+
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
         """
-        if repo_path is not None and config is not None:
-            raise ValueError("You cannot specify both repo_path and config.")
-        if config is not None:
-            self.repo_path = Path(os.getcwd())
-            self.config = config
-        elif repo_path is not None:
-            self.repo_path = Path(repo_path)
-            self.config = load_repo_config(Path(repo_path))
-        else:
-            raise ValueError("Please specify one of repo_path or config.")
+        if fs_yaml_file is not None and config is not None:
+            raise ValueError("You cannot specify both fs_yaml_file and config.")
 
-        registry_config = self.config.get_registry_config()
-        if registry_config.registry_type == "sql":
-            self._registry = SqlRegistry(registry_config, None)
+        if repo_path:
+            self.repo_path = Path(repo_path)
         else:
-            r = Registry(registry_config, repo_path=self.repo_path)
-            r._initialize_registry()
+            self.repo_path = Path(os.getcwd())
+
+        # If config is specified, or fs_yaml_file is specified, those take precedence over
+        # the default feature_store.yaml location under repo_path.
+        if config is not None:
+            self.config = config
+        elif fs_yaml_file is not None:
+            self.config = load_repo_config(self.repo_path, fs_yaml_file)
+        else:
+            self.config = load_repo_config(
+                self.repo_path, utils.get_default_yaml_file_path(self.repo_path)
+            )
+
+        registry_config = self.config.registry
+        if registry_config.registry_type == "sql":
+            self._registry = SqlRegistry(registry_config, self.config.project, None)
+        elif registry_config.registry_type == "snowflake.registry":
+            from feast.infra.registry.snowflake import SnowflakeRegistry
+
+            self._registry = SnowflakeRegistry(
+                registry_config, self.config.project, None
+            )
+        else:
+            r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
+            r._initialize_registry(self.config.project)
             self._registry = r
-        self._provider = get_provider(self.config, self.repo_path)
-        self._go_server = None
+
+        self._provider = get_provider(self.config)
 
     @log_exceptions
     def version(self) -> str:
@@ -181,9 +205,11 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
-        registry_config = self.config.get_registry_config()
-        registry = Registry(registry_config, repo_path=self.repo_path)
-        registry.refresh()
+        registry_config = self.config.registry
+        registry = Registry(
+            self.config.project, registry_config, repo_path=self.repo_path
+        )
+        registry.refresh(self.config.project)
 
         self._registry = registry
 
@@ -253,7 +279,9 @@ class FeatureStore:
         )
 
     def _list_feature_views(
-        self, allow_cache: bool = False, hide_dummy_entity: bool = True,
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
@@ -264,6 +292,21 @@ class FeatureStore:
                 fv.entity_columns = []
             feature_views.append(fv)
         return feature_views
+
+    def _list_stream_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+    ) -> List[StreamFeatureView]:
+        stream_feature_views = []
+        for sfv in self._registry.list_stream_feature_views(
+            self.project, allow_cache=allow_cache
+        ):
+            if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
+                sfv.entities = []
+                sfv.entity_columns = []
+            stream_feature_views.append(sfv)
+        return stream_feature_views
 
     @log_exceptions_and_usage
     def list_on_demand_feature_views(
@@ -289,9 +332,7 @@ class FeatureStore:
         Returns:
             A list of stream feature views.
         """
-        return self._registry.list_stream_feature_views(
-            self.project, allow_cache=allow_cache
-        )
+        return self._list_stream_feature_views(allow_cache)
 
     @log_exceptions_and_usage
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
@@ -469,7 +510,9 @@ class FeatureStore:
         return self._registry.delete_feature_service(name, self.project)
 
     def _get_features(
-        self, features: Union[List[str], FeatureService], allow_cache: bool = False,
+        self,
+        features: Union[List[str], FeatureService],
+        allow_cache: bool = False,
     ) -> List[str]:
         _features = features
 
@@ -483,8 +526,8 @@ class FeatureStore:
             )
             if feature_service_from_registry != _features:
                 warnings.warn(
-                    "The FeatureService object that has been passed in as an argument is"
-                    "inconsistent with the version from Registry. Potentially a newer version"
+                    "The FeatureService object that has been passed in as an argument is "
+                    "inconsistent with the version from the registry. Potentially a newer version "
                     "of the FeatureService has been applied to the registry."
                 )
             for projection in feature_service_from_registry.feature_view_projections:
@@ -500,8 +543,8 @@ class FeatureStore:
         return _feature_refs
 
     def _should_use_plan(self):
-        """Returns True if _plan and _apply_diffs should be used, False otherwise."""
-        # Currently only the local provider with sqlite online store supports _plan and _apply_diffs.
+        """Returns True if plan and _apply_diffs should be used, False otherwise."""
+        # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
         return self.config.provider == "local" and (
             self.config.online_store and self.config.online_store.type == "sqlite"
         )
@@ -514,14 +557,13 @@ class FeatureStore:
         sfvs_to_update: List[StreamFeatureView],
     ):
         """Validates all feature views."""
-        if (
-            not flags_helper.enable_on_demand_feature_views(self.config)
-            and len(odfvs_to_update) > 0
-        ):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
-
+        if len(odfvs_to_update) > 0 and not flags_helper.is_test():
+            warnings.warn(
+                "On demand feature view is an experimental feature. "
+                "This API is stable, but the functionality does not scale well for offline retrieval",
+                RuntimeWarning,
+            )
         set_usage_attribute("odfv", bool(odfvs_to_update))
-
         _validate_feature_views(
             [
                 *views_to_update,
@@ -558,6 +600,9 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             views_to_update, entities + entities_to_update, self.config
         )
+        update_feature_views_with_inferred_features_and_entities(
+            sfvs_to_update, entities + entities_to_update, self.config
+        )
         # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
             if not sfv.schema:
@@ -574,8 +619,56 @@ class FeatureStore:
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
+    def _get_feature_views_to_materialize(
+        self,
+        feature_views: Optional[List[str]],
+    ) -> List[FeatureView]:
+        """
+        Returns the list of feature views that should be materialized.
+
+        If no feature views are specified, all feature views will be returned.
+
+        Args:
+            feature_views: List of names of feature views to materialize.
+
+        Raises:
+            FeatureViewNotFoundException: One of the specified feature views could not be found.
+            ValueError: One of the specified feature views is not configured for materialization.
+        """
+        feature_views_to_materialize: List[FeatureView] = []
+
+        if feature_views is None:
+            feature_views_to_materialize = self._list_feature_views(
+                hide_dummy_entity=False
+            )
+            feature_views_to_materialize = [
+                fv for fv in feature_views_to_materialize if fv.online
+            ]
+            stream_feature_views_to_materialize = self._list_stream_feature_views(
+                hide_dummy_entity=False
+            )
+            feature_views_to_materialize += [
+                sfv for sfv in stream_feature_views_to_materialize if sfv.online
+            ]
+        else:
+            for name in feature_views:
+                try:
+                    feature_view = self._get_feature_view(name, hide_dummy_entity=False)
+                except FeatureViewNotFoundException:
+                    feature_view = self._get_stream_feature_view(
+                        name, hide_dummy_entity=False
+                    )
+
+                if not feature_view.online:
+                    raise ValueError(
+                        f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
+                feature_views_to_materialize.append(feature_view)
+
+        return feature_views_to_materialize
+
     @log_exceptions_and_usage
-    def _plan(
+    def plan(
         self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
         """Dry-run registering objects to metadata store.
@@ -596,10 +689,10 @@ class FeatureStore:
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from feast.feature_store import RepoContents
             >>> from datetime import timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     path="project/feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -607,9 +700,9 @@ class FeatureStore:
             ...     name="driver_hourly_stats",
             ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
-            ...     batch_source=driver_hourly_stats,
+            ...     source=driver_hourly_stats,
             ... )
-            >>> registry_diff, infra_diff, new_infra = fs._plan(RepoContents(
+            >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
             ...     data_sources=[driver_hourly_stats],
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
@@ -643,7 +736,7 @@ class FeatureStore:
 
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
-        self._registry.refresh()
+        self._registry.refresh(project=self.project)
         current_infra_proto = self._registry.proto().infra.__deepcopy__()
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
@@ -679,6 +772,7 @@ class FeatureStore:
             FeatureView,
             OnDemandFeatureView,
             RequestFeatureView,
+            BatchFeatureView,
             StreamFeatureView,
             FeatureService,
             ValidationReference,
@@ -709,10 +803,10 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
             >>> from datetime import timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="feature_repo/data/driver_stats.parquet",
+            ...     path="project/feature_repo/data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -720,7 +814,7 @@ class FeatureStore:
             ...     name="driver_hourly_stats",
             ...     entities=[driver],
             ...     ttl=timedelta(seconds=86400 * 1),
-            ...     batch_source=driver_hourly_stats,
+            ...     source=driver_hourly_stats,
             ... )
             >>> fs.apply([driver_hourly_stats_view, driver]) # register entity and feature view
         """
@@ -738,9 +832,9 @@ class FeatureStore:
             ob
             for ob in objects
             if (
-                isinstance(ob, FeatureView)
+                # BFVs are not handled separately from FVs right now.
+                (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
-                and not isinstance(ob, BatchFeatureView)
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
@@ -756,6 +850,18 @@ class FeatureStore:
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
 
+        batch_sources_to_add: List[DataSource] = []
+        for data_source in data_sources_set_to_update:
+            if (
+                isinstance(data_source, PushSource)
+                or isinstance(data_source, KafkaSource)
+                or isinstance(data_source, KinesisSource)
+            ):
+                assert data_source.batch_source
+                batch_sources_to_add.append(data_source.batch_source)
+        for batch_source in batch_sources_to_add:
+            data_sources_set_to_update.add(batch_source)
+
         for fv in itertools.chain(views_to_update, sfvs_to_update):
             data_sources_set_to_update.add(fv.batch_source)
             if fv.stream_source:
@@ -769,7 +875,7 @@ class FeatureStore:
             )
 
         for rfv in request_views_to_update:
-            data_sources_set_to_update.add(rfv.request_data_source)
+            data_sources_set_to_update.add(rfv.request_source)
 
         for odfv in odfvs_to_update:
             for v in odfv.source_request_sources.values():
@@ -811,13 +917,21 @@ class FeatureStore:
                 validation_references, project=self.project, commit=False
             )
 
+        entities_to_delete = []
+        views_to_delete = []
+        sfvs_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, Entity)
             ]
             views_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, FeatureView)
+                ob
+                for ob in objects_to_delete
+                if (
+                    (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
+                    and not isinstance(ob, StreamFeatureView)
+                )
             ]
             request_views_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
@@ -871,21 +985,19 @@ class FeatureStore:
                     validation_references.name, project=self.project, commit=False
                 )
 
+        tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
+
         self._get_provider().update_infra(
             project=self.project,
-            tables_to_delete=views_to_delete if not partial else [],
-            tables_to_keep=views_to_update,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
             entities_to_delete=entities_to_delete if not partial else [],
             entities_to_keep=entities_to_update,
             partial=partial,
         )
 
         self._registry.commit()
-
-        # go server needs to be reloaded to apply new configuration.
-        # we're stopping it here
-        # new server will be instantiated on the next online request
-        self._teardown_go_server()
 
     @log_exceptions_and_usage
     def teardown(self):
@@ -899,7 +1011,6 @@ class FeatureStore:
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
-        self._teardown_go_server()
 
     @log_exceptions_and_usage
     def get_historical_features(
@@ -944,7 +1055,7 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> import pandas as pd
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> entity_df = pd.DataFrame.from_dict(
             ...     {
             ...         "driver_id": [1001, 1002],
@@ -996,19 +1107,21 @@ class FeatureStore:
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
-            entity_pd_df = cast(pd.DataFrame, entity_df)
+            if self.config.coerce_tz_aware:
+                entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for fv in request_feature_views:
                 for feature in fv.features:
-                    if feature.name not in entity_pd_df.columns:
+                    if feature.name not in entity_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
                             feature_name=feature.name, feature_view_name=fv.name
                         )
             for odfv in on_demand_feature_views:
                 odfv_request_data_schema = odfv.get_request_data_schema()
                 for feature_name in odfv_request_data_schema.keys():
-                    if feature_name not in entity_pd_df.columns:
+                    if feature_name not in entity_df.columns:
                         raise RequestDataNotFoundInEntityDfException(
-                            feature_name=feature_name, feature_view_name=odfv.name,
+                            feature_name=feature_name,
+                            feature_view_name=odfv.name,
                         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
@@ -1037,6 +1150,7 @@ class FeatureStore:
         storage: SavedDatasetStorage,
         tags: Optional[Dict[str, str]] = None,
         feature_service: Optional[FeatureService] = None,
+        allow_overwrite: bool = False,
     ) -> SavedDataset:
         """
         Execute provided retrieval job and persist its outcome in given storage.
@@ -1045,23 +1159,31 @@ class FeatureStore:
         Name for the saved dataset should be unique within project, since it's possible to overwrite previously stored dataset
         with the same name.
 
+        Args:
+            from_: The retrieval job whose result should be persisted.
+            name: The name of the saved dataset.
+            storage: The saved dataset storage object indicating where the result should be persisted.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            feature_service (optional): The feature service that should be associated with this saved dataset.
+            allow_overwrite (optional): If True, the persisted result can overwrite an existing table or file.
+
         Returns:
             SavedDataset object with attached RetrievalJob
 
         Raises:
             ValueError if given retrieval job doesn't have metadata
         """
-        warnings.warn(
-            "Saving dataset is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Saving dataset is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         if not from_.metadata:
             raise ValueError(
-                "RetrievalJob must contains metadata. "
-                "Use RetrievalJob produced by get_historical_features"
+                f"The RetrievalJob {type(from_)} must implement the metadata property."
             )
 
         dataset = SavedDataset(
@@ -1077,7 +1199,7 @@ class FeatureStore:
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
         dataset.max_event_timestamp = from_.metadata.max_event_timestamp
 
-        from_.persist(storage)
+        from_.persist(storage=storage, allow_overwrite=allow_overwrite)
 
         dataset = dataset.with_retrieval_job(
             self._get_provider().retrieve_saved_dataset(
@@ -1104,12 +1226,13 @@ class FeatureStore:
         Raises:
             SavedDatasetNotFound
         """
-        warnings.warn(
-            "Retrieving datasets is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Retrieving datasets is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         dataset = self._registry.get_saved_dataset(name, self.project)
         provider = self._get_provider()
@@ -1121,7 +1244,9 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def materialize_incremental(
-        self, end_date: datetime, feature_views: Optional[List[str]] = None,
+        self,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -1145,29 +1270,15 @@ class FeatureStore:
 
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
             ...
         """
-        feature_views_to_materialize: List[FeatureView] = []
-        if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
-            )
-            feature_views_to_materialize = [
-                fv for fv in feature_views_to_materialize if fv.online
-            ]
-        else:
-            for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                if not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
-                feature_views_to_materialize.append(feature_view)
-
+        feature_views_to_materialize = self._get_feature_views_to_materialize(
+            feature_views
+        )
         _print_materialization_log(
             None,
             end_date,
@@ -1217,7 +1328,10 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date,
+                feature_view,
+                self.project,
+                start_date,
+                end_date,
             )
 
     @log_exceptions_and_usage
@@ -1245,7 +1359,7 @@ class FeatureStore:
             from 3 hours ago to 10 minutes ago.
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize(
             ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             ... )
@@ -1258,23 +1372,9 @@ class FeatureStore:
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
             )
 
-        feature_views_to_materialize: List[FeatureView] = []
-        if feature_views is None:
-            feature_views_to_materialize = self._list_feature_views(
-                hide_dummy_entity=False
-            )
-            feature_views_to_materialize = [
-                fv for fv in feature_views_to_materialize if fv.online
-            ]
-        else:
-            for name in feature_views:
-                feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                if not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
-                feature_views_to_materialize.append(feature_view)
-
+        feature_views_to_materialize = self._get_feature_views_to_materialize(
+            feature_views
+        )
         _print_materialization_log(
             start_date,
             end_date,
@@ -1303,30 +1403,33 @@ class FeatureStore:
             )
 
             self._registry.apply_materialization(
-                feature_view, self.project, start_date, end_date,
+                feature_view,
+                self.project,
+                start_date,
+                end_date,
             )
 
     @log_exceptions_and_usage
     def push(
-        self, push_source_name: str, df: pd.DataFrame, allow_registry_cache: bool = True
+        self,
+        push_source_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = True,
+        to: PushMode = PushMode.ONLINE,
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
 
         Args:
             push_source_name: The name of the push source we want to push data to.
-            df: the data being pushed.
-            allow_registry_cache: whether to allow cached versions of the registry.
+            df: The data being pushed.
+            allow_registry_cache: Whether to allow cached versions of the registry.
+            to: Whether to push to online or offline store. Defaults to online store only.
         """
-        warnings.warn(
-            "Push source is an experimental feature. "
-            "This API is unstable and it could and might change in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
         from feast.data_source import PushSource
 
         all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
+        all_fvs += self.list_stream_feature_views(allow_cache=allow_registry_cache)
 
         fvs_with_push_sources = {
             fv
@@ -1338,10 +1441,18 @@ class FeatureStore:
             )
         }
 
+        if not fvs_with_push_sources:
+            raise PushSourceNotFoundException(push_source_name)
+
         for fv in fvs_with_push_sources:
-            self.write_to_online_store(
-                fv.name, df, allow_registry_cache=allow_registry_cache
-            )
+            if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                self.write_to_online_store(
+                    fv.name, df, allow_registry_cache=allow_registry_cache
+                )
+            if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
+                self.write_to_offline_store(
+                    fv.name, df, allow_registry_cache=allow_registry_cache
+                )
 
     @log_exceptions_and_usage
     def write_to_online_store(
@@ -1351,7 +1462,12 @@ class FeatureStore:
         allow_registry_cache: bool = True,
     ):
         """
-        ingests data directly into the Online store
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
@@ -1362,13 +1478,51 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
-        entities = []
-        for entity_name in feature_view.entities:
-            entities.append(
-                self.get_entity(entity_name, allow_registry_cache=allow_registry_cache)
-            )
         provider = self._get_provider()
-        provider.ingest_df(feature_view, entities, df)
+        provider.ingest_df(feature_view, df)
+
+    @log_exceptions_and_usage
+    def write_to_offline_store(
+        self,
+        feature_view_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = True,
+        reorder_columns: bool = True,
+    ):
+        """
+        Persists the dataframe directly into the batch data source for the given feature view.
+
+        Fails if the dataframe columns do not match the columns of the batch data source. Optionally
+        reorders the columns of the dataframe to match.
+        """
+        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
+        try:
+            feature_view = self.get_stream_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+        except FeatureViewNotFoundException:
+            feature_view = self.get_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+
+        # Get columns of the batch source and the input dataframe.
+        column_names_and_types = (
+            feature_view.batch_source.get_table_column_names_and_types(self.config)
+        )
+        source_columns = [column for column, _ in column_names_and_types]
+        input_columns = df.columns.values.tolist()
+
+        if set(input_columns) != set(source_columns):
+            raise ValueError(
+                f"The input dataframe has columns {set(input_columns)} but the batch source has columns {set(source_columns)}."
+            )
+
+        if reorder_columns:
+            df = df.reindex(columns=source_columns)
+
+        table = pa.Table.from_pandas(df)
+        provider = self._get_provider()
+        provider.ingest_df_to_offline_store(feature_view, table)
 
     @log_exceptions_and_usage
     def get_online_features(
@@ -1407,7 +1561,7 @@ class FeatureStore:
             Retrieve online features from an online store.
 
             >>> from feast import FeatureStore, RepoConfig
-            >>> fs = FeatureStore(repo_path="feature_repo")
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> online_response = fs.get_online_features(
             ...     features=[
             ...         "driver_hourly_stats:conv_rate",
@@ -1433,18 +1587,6 @@ class FeatureStore:
             native_entity_values=True,
         )
 
-    def _lazy_init_go_server(self):
-        """Lazily initialize self._go_server if it hasn't been initialized before."""
-        from feast.embedded_go.online_features_service import (
-            EmbeddedOnlineFeatureServer,
-        )
-
-        # Lazily start the go server on the first request
-        if self._go_server is None:
-            self._go_server = EmbeddedOnlineFeatureServer(
-                str(self.repo_path.absolute()), self.config, self
-            )
-
     def _get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1459,35 +1601,6 @@ class FeatureStore:
             k: list(v) if isinstance(v, Sequence) else list(v.val)
             for k, v in entity_values.items()
         }
-
-        # If Go feature server is enabled, send request to it instead of going through regular Python logic
-        if self.config.go_feature_retrieval:
-            self._lazy_init_go_server()
-
-            entity_native_values: Dict[str, List[Any]]
-            if not native_entity_values:
-                # Convert proto types to native types since Go feature server currently
-                # only handles native types.
-                # TODO(felixwang9817): Remove this logic once native types are supported.
-                entity_native_values = {
-                    k: [
-                        feast_value_type_to_python_type(proto_value)
-                        for proto_value in v
-                    ]
-                    for k, v in entity_value_lists.items()
-                }
-            else:
-                entity_native_values = entity_value_lists
-
-            return self._go_server.get_online_features(
-                features_refs=features if isinstance(features, list) else [],
-                feature_service=features
-                if isinstance(features, FeatureService)
-                else None,
-                entities=entity_native_values,
-                request_data={},  # TODO: add request data parameter to public API
-                full_feature_names=full_feature_names,
-            )
 
         _feature_refs = self._get_features(features, allow_cache=True)
         (
@@ -1614,12 +1727,17 @@ class FeatureStore:
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
             table_entity_values, idxs = self._get_unique_entities(
-                table, join_key_values, entity_name_to_join_key_map,
+                table,
+                join_key_values,
+                entity_name_to_join_key_map,
             )
 
             # Fetch feature data for the minimum set of Entities.
             feature_data = self._read_from_online_store(
-                table_entity_values, provider, requested_features, table,
+                table_entity_values,
+                provider,
+                requested_features,
+                table,
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -1788,7 +1906,9 @@ class FeatureStore:
         """
         # Get the correct set of entity values with the correct join keys.
         table_entity_values = self._get_table_entity_values(
-            table, entity_name_to_join_key_map, join_key_values,
+            table,
+            entity_name_to_join_key_map,
+            join_key_values,
         )
 
         # Convert back to rowise.
@@ -1973,7 +2093,8 @@ class FeatureStore:
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
             transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df, full_feature_names,
+                initial_response_df,
+                full_feature_names,
             )
             selected_subset = [
                 f for f in transformed_features_df.columns if f in _feature_refs
@@ -2030,10 +2151,7 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> Tuple[
-        List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView],
-    ]:
-
+    ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
         fvs = {
             fv.name: fv
             for fv in [
@@ -2104,48 +2222,24 @@ class FeatureStore:
         type_: str,
         no_access_log: bool,
         no_feature_log: bool,
+        workers: int,
+        keep_alive_timeout: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
-        if self.config.go_feature_retrieval:
-            # Start go server instead of python if the flag is enabled
-            self._lazy_init_go_server()
-            enable_logging = (
-                self.config.feature_server
-                and self.config.feature_server.feature_logging
-                and self.config.feature_server.feature_logging.enabled
-                and not no_feature_log
+        if type_ != "http":
+            raise ValueError(
+                f"Python server only supports 'http'. Got '{type_}' instead."
             )
-            logging_options = (
-                self.config.feature_server.feature_logging
-                if enable_logging and self.config.feature_server
-                else None
-            )
-            if type_ == "http":
-                self._go_server.start_http_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            elif type_ == "grpc":
-                self._go_server.start_grpc_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            else:
-                raise ValueError(
-                    f"Unsupported server type '{type_}'. Must be one of 'http' or 'grpc'."
-                )
-        else:
-            if type_ != "http":
-                raise ValueError(
-                    f"Python server only supports 'http'. Got '{type_}' instead."
-                )
-            # Start the python server if go server isn't enabled
-            feature_server.start_server(self, host, port, no_access_log)
+        # Start the python server
+        feature_server.start_server(
+            self,
+            host=host,
+            port=port,
+            no_access_log=no_access_log,
+            workers=workers,
+            keep_alive_timeout=keep_alive_timeout,
+        )
 
     @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -2154,14 +2248,20 @@ class FeatureStore:
 
     @log_exceptions_and_usage
     def serve_ui(
-        self, host: str, port: int, get_registry_dump: Callable, registry_ttl_sec: int
+        self,
+        host: str,
+        port: int,
+        get_registry_dump: Callable,
+        registry_ttl_sec: int,
+        root_path: str = "",
     ) -> None:
         """Start the UI server locally"""
-        warnings.warn(
-            "The Feast UI is an experimental feature. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if flags_helper.is_test():
+            warnings.warn(
+                "The Feast UI is an experimental feature. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
         ui_server.start_server(
             self,
             host=host,
@@ -2169,24 +2269,25 @@ class FeatureStore:
             get_registry_dump=get_registry_dump,
             project_id=self.config.project,
             registry_ttl_sec=registry_ttl_sec,
+            root_path=root_path,
         )
 
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
-        if not flags_helper.enable_on_demand_feature_views(self.config):
-            raise ExperimentalFeatureNotEnabled(flags.FLAG_ON_DEMAND_TRANSFORM_NAME)
+        warnings.warn(
+            "On demand feature view is an experimental feature. "
+            "This API is stable, but the functionality does not scale well for offline retrieval",
+            RuntimeWarning,
+        )
 
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
 
-    def _teardown_go_server(self):
-        self._go_server = None
-
     @log_exceptions_and_usage
     def write_logged_features(
-        self, logs: Union[pa.Table, Path], source: Union[FeatureService]
+        self, logs: Union[pa.Table, Path], source: FeatureService
     ):
         """
         Write logs produced by a source (currently only feature service is supported as a source)
@@ -2215,7 +2316,7 @@ class FeatureStore:
     @log_exceptions_and_usage
     def validate_logged_features(
         self,
-        source: Union[FeatureService],
+        source: FeatureService,
         start: datetime,
         end: datetime,
         reference: ValidationReference,
@@ -2238,12 +2339,13 @@ class FeatureStore:
             or None if successful.
 
         """
-        warnings.warn(
-            "Logged features validation is an experimental feature. "
-            "This API is unstable and it could and most probably will be changed in the future. "
-            "We do not guarantee that future changes will maintain backward compatibility.",
-            RuntimeWarning,
-        )
+        if not flags_helper.is_test():
+            warnings.warn(
+                "Logged features validation is an experimental feature. "
+                "This API is unstable and it could and most probably will be changed in the future. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
@@ -2277,10 +2379,10 @@ class FeatureStore:
         self, name: str, allow_cache: bool = False
     ) -> ValidationReference:
         """
-            Retrieves a validation reference.
+        Retrieves a validation reference.
 
-            Raises:
-                ValidationReferenceNotFoundException: The validation reference could not be found.
+        Raises:
+            ValidationReferenceNotFoundException: The validation reference could not be found.
         """
         ref = self._registry.get_validation_reference(
             name, project=self.project, allow_cache=allow_cache
@@ -2438,19 +2540,12 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
 
 
 def _validate_data_sources(data_sources: List[DataSource]):
-    """Verify data sources have case-insensitively unique names"""
+    """Verify data sources have case-insensitively unique names."""
     ds_names = set()
     for ds in data_sources:
         case_insensitive_ds_name = ds.name.lower()
         if case_insensitive_ds_name in ds_names:
-            if case_insensitive_ds_name.strip():
-                warnings.warn(
-                    f"More than one data source with name {case_insensitive_ds_name} found. "
-                    f"Please ensure that all data source names are case-insensitively unique. "
-                    f"It may be necessary to ignore certain files in your feature repository by using a .feastignore "
-                    f"file. Starting in Feast 0.23, unique names (perhaps inferred from the table name) will be "
-                    f"required in data sources to encourage data source discovery"
-                )
+            raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
 

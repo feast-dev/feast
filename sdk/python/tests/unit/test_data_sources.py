@@ -1,13 +1,11 @@
 import pytest
 
-from feast import ValueType
 from feast.data_format import ProtoFormat
 from feast.data_source import (
     DataSource,
     KafkaSource,
     KinesisSource,
     PushSource,
-    RequestDataSource,
     RequestSource,
 )
 from feast.field import Field
@@ -20,7 +18,8 @@ from feast.types import Bool, Float32, Int64
 
 def test_push_with_batch():
     push_source = PushSource(
-        name="test", batch_source=BigQuerySource(table="test.test"),
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
     )
     push_source_proto = push_source.to_proto()
     assert push_source_proto.HasField("batch_source")
@@ -31,24 +30,17 @@ def test_push_with_batch():
     assert push_source.batch_source.name == push_source_unproto.batch_source.name
 
 
-def test_request_data_source_deprecation():
-    with pytest.warns(DeprecationWarning):
-        request_data_source = RequestDataSource(
-            name="vals_to_add",
-            schema={"val_to_add": ValueType.INT64, "val_to_add_2": ValueType.INT64},
-        )
-        request_data_source_proto = request_data_source.to_proto()
-        returned_request_source = RequestSource.from_proto(request_data_source_proto)
-        assert returned_request_source == request_data_source
-
-
 def test_request_source_primitive_type_to_proto():
     schema = [
         Field(name="f1", dtype=Float32),
         Field(name="f2", dtype=Bool),
     ]
     request_source = RequestSource(
-        name="source", schema=schema, description="desc", tags={}, owner="feast",
+        name="source",
+        schema=schema,
+        description="desc",
+        tags={},
+        owner="feast",
     )
     request_proto = request_source.to_proto()
     deserialized_request_source = RequestSource.from_proto(request_proto)
@@ -57,13 +49,16 @@ def test_request_source_primitive_type_to_proto():
 
 def test_hash():
     push_source_1 = PushSource(
-        name="test", batch_source=BigQuerySource(table="test.test"),
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
     )
     push_source_2 = PushSource(
-        name="test", batch_source=BigQuerySource(table="test.test"),
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
     )
     push_source_3 = PushSource(
-        name="test", batch_source=BigQuerySource(table="test.test2"),
+        name="test",
+        batch_source=BigQuerySource(table="test.test2"),
     )
     push_source_4 = PushSource(
         name="test",
@@ -82,73 +77,6 @@ def test_hash():
 
     s4 = {push_source_1, push_source_2, push_source_3, push_source_4}
     assert len(s4) == 3
-
-
-# TODO(kevjumba): Remove this test in feast 0.23 when positional arguments are removed.
-def test_default_data_source_kw_arg_warning():
-    # source_class = request.param
-    with pytest.warns(DeprecationWarning):
-        source = KafkaSource(
-            "name", "column", "bootstrap_servers", ProtoFormat("class_path"), "topic"
-        )
-        assert source.name == "name"
-        assert source.timestamp_field == "column"
-        assert source.kafka_options.bootstrap_servers == "bootstrap_servers"
-        assert source.kafka_options.topic == "topic"
-    with pytest.raises(ValueError):
-        KafkaSource("name", "column", "bootstrap_servers", topic="topic")
-
-    with pytest.warns(DeprecationWarning):
-        source = KinesisSource(
-            "name",
-            "column",
-            "c_column",
-            ProtoFormat("class_path"),
-            "region",
-            "stream_name",
-        )
-        assert source.name == "name"
-        assert source.timestamp_field == "column"
-        assert source.created_timestamp_column == "c_column"
-        assert source.kinesis_options.region == "region"
-        assert source.kinesis_options.stream_name == "stream_name"
-
-    with pytest.raises(ValueError):
-        KinesisSource(
-            "name", "column", "c_column", region="region", stream_name="stream_name"
-        )
-
-    with pytest.warns(DeprecationWarning):
-        source = RequestSource(
-            "name", [Field(name="val_to_add", dtype=Int64)], description="description"
-        )
-        assert source.name == "name"
-        assert source.description == "description"
-
-    with pytest.raises(ValueError):
-        RequestSource("name")
-
-    with pytest.warns(DeprecationWarning):
-        source = PushSource(
-            "name",
-            BigQuerySource(name="bigquery_source", table="table"),
-            description="description",
-        )
-        assert source.name == "name"
-        assert source.description == "description"
-        assert source.batch_source.name == "bigquery_source"
-
-    with pytest.raises(ValueError):
-        PushSource("name")
-
-    # No name warning for DataSource
-    with pytest.warns(UserWarning):
-        source = KafkaSource(
-            timestamp_field="column",
-            bootstrap_servers="bootstrap_servers",
-            message_format=ProtoFormat("class_path"),
-            topic="topic",
-        )
 
 
 def test_proto_conversion():
@@ -190,7 +118,6 @@ def test_proto_conversion():
     snowflake_source = SnowflakeSource(
         name="test_source",
         database="test_database",
-        warehouse="test_warehouse",
         schema="test_schema",
         table="test_table",
         timestamp_field="event_timestamp",
@@ -203,7 +130,7 @@ def test_proto_conversion():
 
     kafka_source = KafkaSource(
         name="test_source",
-        bootstrap_servers="test_servers",
+        kafka_bootstrap_servers="test_servers",
         message_format=ProtoFormat("class_path"),
         topic="test_topic",
         timestamp_field="event_timestamp",
@@ -253,3 +180,56 @@ def test_proto_conversion():
     assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
     assert DataSource.from_proto(push_source.to_proto()) == push_source
     assert DataSource.from_proto(request_source.to_proto()) == request_source
+
+
+def test_column_conflict():
+    with pytest.raises(ValueError):
+        _ = FileSource(
+            name="test_source",
+            path="test_path",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="event_timestamp",
+        )
+
+
+@pytest.mark.parametrize(
+    "source_kwargs,expected_name",
+    [
+        (
+            {
+                "database": "test_database",
+                "schema": "test_schema",
+                "table": "test_table",
+            },
+            "test_database.test_schema.test_table",
+        ),
+        (
+            {"database": "test_database", "table": "test_table"},
+            "test_database.public.test_table",
+        ),
+        ({"table": "test_table"}, "public.test_table"),
+        ({"database": "test_database", "table": "b.c"}, "test_database.b.c"),
+        ({"database": "test_database", "table": "a.b.c"}, "a.b.c"),
+        (
+            {
+                "database": "test_database",
+                "schema": "test_schema",
+                "query": "select * from abc",
+            },
+            "",
+        ),
+    ],
+)
+def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
+    redshift_source = RedshiftSource(
+        name="test_source",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        **source_kwargs,
+    )
+
+    assert redshift_source.redshift_options.fully_qualified_table_name == expected_name

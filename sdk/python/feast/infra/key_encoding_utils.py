@@ -6,7 +6,9 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.protos.feast.types.Value_pb2 import ValueType
 
 
-def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
+def _serialize_val(
+    value_type, v: ValueProto, entity_key_serialization_version=1
+) -> Tuple[bytes, int]:
     if value_type == "string_val":
         return v.string_val.encode("utf8"), ValueType.STRING
     elif value_type == "bytes_val":
@@ -14,14 +16,16 @@ def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:
     elif value_type == "int32_val":
         return struct.pack("<i", v.int32_val), ValueType.INT32
     elif value_type == "int64_val":
-        return struct.pack("<l", v.int64_val), ValueType.INT64
+        if 0 <= entity_key_serialization_version <= 1:
+            return struct.pack("<l", v.int64_val), ValueType.INT64
+        return struct.pack("<q", v.int64_val), ValueType.INT64
     else:
         raise ValueError(f"Value type not supported for Firestore: {v}")
 
 
 def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
     """
-    Serialize keys to a bytestring so it can be used to prefix-scan through items stored in the online store
+    Serialize keys to a bytestring, so it can be used to prefix-scan through items stored in the online store
     using serialize_entity_key.
 
     This encoding is a partial implementation of serialize_entity_key, only operating on the keys of entities,
@@ -35,7 +39,9 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
     return b"".join(output)
 
 
-def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
+def serialize_entity_key(
+    entity_key: EntityKeyProto, entity_key_serialization_version=1
+) -> bytes:
     """
     Serialize entity key to a bytestring so it can be used as a lookup key in a hash table.
 
@@ -54,7 +60,11 @@ def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
         output.append(struct.pack("<I", ValueType.STRING))
         output.append(k.encode("utf8"))
     for v in sorted_values:
-        val_bytes, value_type = _serialize_val(v.WhichOneof("val"), v)
+        val_bytes, value_type = _serialize_val(
+            v.WhichOneof("val"),
+            v,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
 
         output.append(struct.pack("<I", value_type))
 

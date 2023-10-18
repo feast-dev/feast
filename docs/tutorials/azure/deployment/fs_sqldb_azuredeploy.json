@@ -1,0 +1,340 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "administratorLoginPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The administrator password of the SQL logical server."
+            }
+        },
+        "principalId": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the principal ID assigned to the role. You can find in cloud shell using 'az ad signed-in-user show --query id -o tsv'"
+            }
+        },
+        "administratorLogin": {
+            "type": "string",
+            "metadata": {
+                "description": "The administrator username of the SQL logical server."
+            },
+            "defaultValue": "azureuser"
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            },
+            "defaultValue": "[resourceGroup().location]"
+        },
+        "registryBlobStore": {
+            "type": "string",
+            "metadata": {
+                "description": "Storage account to host the feast registry db"
+            },
+            "defaultValue": "[concat('fsregistry',uniqueString(resourceGroup().id))]"
+        },
+        "sqlServerName": {
+            "type": "string",
+            "metadata": {
+                "description": "The SQL Server Name"
+            },
+            "defaultValue": "[concat('fssqlsvr',uniqueString(resourceGroup().id))]"
+        },
+        "sqlDbName": {
+            "type": "string",
+            "metadata": {
+                "description": "SQL DB Name"
+            },
+            "defaultValue": "[concat('fsoffline',uniqueString(resourceGroup().id))]"
+        },
+        "redisCacheName": {
+            "type": "string",
+            "metadata": {
+                "description": "Redis Cache Name"
+            },
+            "defaultValue": "[concat('fsonline',uniqueString(resourceGroup().id))]"
+        },
+        "amlWorkspaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            },
+            "defaultValue": "[concat('mlws',uniqueString(resourceGroup().id))]"
+        },
+        "vmSize": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            },
+            "defaultValue": "Standard_DS3_v2"
+        },
+        "roleDefinitionID": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the role definition ID used in the role assignment."
+            },
+            "defaultValue": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+        }
+    },
+    "functions": [],
+    "variables": {
+        "tenantId": "[subscription().tenantId]",
+        "storageAccountName": "[concat('st', uniqueString(resourceGroup().id))]",
+        "keyVaultName": "[concat('kv-', uniqueString(resourceGroup().id))]",
+        "applicationInsightsName": "[concat('appi-', uniqueString(resourceGroup().id))]",
+        "containerRegistryName": "[concat('cr', uniqueString(resourceGroup().id))]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "registryAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('registryBlobStore'))]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
+        "containerRegistry": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+        "redisCache": "[resourceId('Microsoft.Cache/redis', parameters('redisCacheName'))]",
+        "roleAssignmentName": "[guid(parameters('principalId'), parameters('roleDefinitionID'), resourceGroup().id)]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-01-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard_RAGRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "encryption": {
+                    "services": {
+                        "blob": {
+                            "enabled": true
+                        },
+                        "file": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "supportsHttpsTrafficOnly": true
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2021-04-01-preview",
+            "name": "[variables('keyVaultName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "tenantId": "[variables('tenantId')]",
+                "sku": {
+                    "name": "standard",
+                    "family": "A"
+                },
+                "accessPolicies": [],
+                "enableSoftDelete": true
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.KeyVault/vaults/secrets",
+                    "name": "[concat(variables('keyVaultName'), '/FEAST-OFFLINE-STORE-CONN')]",
+                    "apiVersion": "2019-09-01",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "value": "[concat('mssql+pyodbc://',parameters('administratorLogin'),':',parameters('administratorLoginPassword'),'@', parameters('sqlServerName'),'.database.windows.net:1433/', parameters('sqlDbName'), '?driver=ODBC+Driver+17+for+SQL+Server&autocommit=True')]"
+                    },
+                    "dependsOn": [
+                        "[variables('keyVault')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[if(or(equals(parameters('location'),'eastus2'), equals(parameters('location'),'westcentralus')),'southcentralus',parameters('location'))]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web"
+            }
+        },
+        {
+            "type": "Microsoft.ContainerRegistry/registries",
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard"
+            },
+            "name": "[variables('containerRegistryName')]",
+            "apiVersion": "2019-12-01-preview",
+            "location": "[parameters('location')]",
+            "properties": {
+                "adminUserEnabled": true
+            }
+        },
+        {
+            "type": "Microsoft.MachineLearningServices/workspaces",
+            "apiVersion": "2021-04-01",
+            "name": "[parameters('amlWorkspaceName')]",
+            "location": "[resourceGroup().location]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "tags": {
+                "displayName": "Azure ML Workspace"
+            },
+            "dependsOn": [
+                "[variables('storageAccount')]",
+                "[variables('keyVault')]",
+                "[variables('applicationInsights')]",
+                "[variables('containerRegistry')]"
+            ],
+            "properties": {
+                "storageAccount": "[variables('storageAccount')]",
+                "keyVault": "[variables('keyVault')]",
+                "applicationInsights": "[variables('applicationInsights')]",
+                "containerRegistry": "[variables('containerRegistry')]"
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.MachineLearningServices/workspaces/computes",
+                    "name": "[concat(parameters('amlWorkspaceName'), '/', concat('ci-',uniqueString(resourceGroup().id)))]",
+                    "apiVersion": "2021-07-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.MachineLearningServices/workspaces', concat(parameters('amlWorkspaceName')))]"
+                    ],
+                    "location": "[parameters('location')]",
+                    "properties": {
+                        "computeType": "ComputeInstance",
+                        "properties": {
+                            "vmSize": "[parameters('vmSize')]",
+                            "setupScripts": {
+                                "scripts": {
+                                    "creationScript": {
+                                        "scriptSource": "inline",
+                                        "scriptData": "[base64('conda activate azureml_py38;pip install feast[azure];pip install pymssql')]"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "[parameters('registryBlobStore')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-04-01",
+            "tags": {
+                "displayName": "Feast Registry Store"
+            },
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "allowBlobPublicAccess": false
+            },
+            "resources": [
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2019-06-01",
+                    "name": "[concat('default/', 'fs-reg-container')]",
+                    "dependsOn": [
+                        "[variables('registryAccount')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "[parameters('sqlServerName')]",
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2014-04-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Feast Offline Store Server"
+            },
+            "properties": {
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]"
+            },
+            "resources": [
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2014-04-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', concat(parameters('sqlServerName')))]"
+                    ],
+                    "location": "[resourceGroup().location]",
+                    "name": "AllowAllWindowsAzureIps",
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "0.0.0.0"
+                    }
+                },
+                {
+                    "name": "[parameters('sqlDbName')]",
+                    "type": "databases",
+                    "apiVersion": "2021-02-01-preview",
+                    "location": "[resourceGroup().location]",
+                    "sku": {
+                        "tier": "Basic",
+                        "name": "Basic"
+                    },
+                    "tags": {
+                        "displayName": "Feast Offline Store"
+                    },
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', concat(parameters('sqlServerName')))]"
+                    ],
+                    "properties": {}
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Cache/redis",
+            "name": "[parameters('redisCacheName')]",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Feast Online Store"
+            },
+            "properties": {
+                "sku": {
+                    "name": "Basic",
+                    "family": "C",
+                    "capacity": 2
+                }
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.KeyVault/vaults/secrets",
+                    "name": "[concat(variables('keyVaultName'), '/FEAST-ONLINE-STORE-CONN')]",
+                    "apiVersion": "2019-09-01",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "value": "[concat(parameters('redisCacheName'),'.redis.cache.windows.net:6380,password=',listKeys(concat('Microsoft.Cache/redis/', parameters('redisCacheName')), providers('Microsoft.Cache', 'Redis').apiVersions[0]).primaryKey, ',ssl=True')]"
+                    },
+                    "dependsOn": [
+                        "[variables('keyVault')]",
+                        "[variables('redisCache')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[variables('roleAssignmentName')]",
+            "properties": {
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "scope": "[resourceGroup().id]"
+            },
+            "dependsOn": [
+                "[variables('registryAccount')]"
+            ]
+        }
+    ],
+    "outputs": {}
+}

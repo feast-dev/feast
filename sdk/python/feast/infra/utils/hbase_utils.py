@@ -167,13 +167,16 @@ def main():
     table = connection.table("test_hbase_driver_hourly_stats")
     row_keys = [
         serialize_entity_key(
-            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1004)])
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1004)]),
+            entity_key_serialization_version=2,
         ).hex(),
         serialize_entity_key(
-            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1005)])
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1005)]),
+            entity_key_serialization_version=2,
         ).hex(),
         serialize_entity_key(
-            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1024)])
+            EntityKey(join_keys=["driver_id"], entity_values=[Value(int64_val=1024)]),
+            entity_key_serialization_version=2,
         ).hex(),
     ]
     rows = table.rows(row_keys)

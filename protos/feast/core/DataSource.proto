@@ -23,6 +23,7 @@ option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
@@ -49,6 +50,7 @@ message DataSource {
     PUSH_SOURCE = 9;
     BATCH_TRINO = 10;
     BATCH_SPARK = 11;
+    BATCH_ATHENA = 12;
   }
 
   // Unique name of data source within the project
@@ -88,6 +90,12 @@ message DataSource {
   // Optional batch source for streaming sources for historical features and materialization.
   DataSource batch_source = 26;
 
+  SourceMeta meta = 50;
+
+  message SourceMeta {
+    google.protobuf.Timestamp earliestEventTimestamp = 1;
+    google.protobuf.Timestamp latestEventTimestamp = 2;
+  }
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
@@ -128,7 +136,7 @@ message DataSource {
   // Java Protobuf class at the given class path
   message KafkaOptions {
     // Comma separated list of Kafka bootstrap servers. Used for feature tables without a defined source host[:port]]
-    string bootstrap_servers = 1;
+    string kafka_bootstrap_servers = 1;
 
     // Kafka topic to collect feature data from.
     string topic = 2;
@@ -136,7 +144,8 @@ message DataSource {
     // Defines the stream data format encoding feature/entity data in Kafka messages.
     StreamFormat message_format = 3;
 
-    google.protobuf.Duration watermark = 4;
+    // Watermark delay threshold for stream data
+    google.protobuf.Duration watermark_delay_threshold = 4;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
@@ -170,8 +179,26 @@ message DataSource {
     string database = 4;
   }
 
+  // Defines options for DataSource that sources features from a Athena Query
+  message AthenaOptions {
+    // Athena table name
+    string table = 1;
+
+    // SQL query that returns a table containing feature data. Must contain an event_timestamp column, and respective
+    // entity columns
+    string query = 2;
+
+    // Athena database name
+    string database = 3;
+
+    // Athena schema name
+    string data_source = 4;
+  }
+
   // Defines options for DataSource that sources features from a Snowflake Query
   message SnowflakeOptions {
+    reserved 5; // Snowflake warehouse name
+
     // Snowflake table name
     string table = 1;
 
@@ -184,9 +211,6 @@ message DataSource {
 
     // Snowflake schema name
     string database = 4;
-
-    // Snowflake warehouse name
-    string warehouse = 5;
   }
 
   // Defines options for DataSource that sources features from a spark table/query
@@ -241,5 +265,6 @@ message DataSource {
     PushOptions push_options = 22;
     SparkOptions spark_options = 27;
     TrinoOptions trino_options = 30;
+    AthenaOptions athena_options = 35;
   }
 }

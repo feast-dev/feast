@@ -113,7 +113,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
-	arrowMemory := memory.NewGoAllocator()
+	arrowMemory := memory.NewCgoArrowAllocator()
 	featureViews := make([]*model.FeatureView, len(requestedFeatureViews))
 	index := 0
 	for _, featuresAndView := range requestedFeatureViews {
@@ -224,6 +224,14 @@ func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[strin
 		fvs[featureView.Base.Name] = featureView
 	}
 
+	streamFeatureViews, err := fs.ListStreamFeatureViews()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, streamFeatureView := range streamFeatureViews {
+		fvs[streamFeatureView.Base.Name] = streamFeatureView
+	}
+
 	onDemandFeatureViews, err := fs.registry.ListOnDemandFeatureViews(fs.config.Project)
 	if err != nil {
 		return nil, nil, err
@@ -240,6 +248,14 @@ func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
 		return featureViews, err
 	}
 	return featureViews, nil
+}
+
+func (fs *FeatureStore) ListStreamFeatureViews() ([]*model.FeatureView, error) {
+	streamFeatureViews, err := fs.registry.ListStreamFeatureViews(fs.config.Project)
+	if err != nil {
+		return streamFeatureViews, err
+	}
+	return streamFeatureViews, nil
 }
 
 func (fs *FeatureStore) ListEntities(hideDummyEntity bool) ([]*model.Entity, error) {

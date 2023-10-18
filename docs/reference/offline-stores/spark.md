@@ -1,20 +1,18 @@
-# Spark (contrib)
+# Spark offline store (contrib)
 
 ## Description
 
-The Spark offline store is an offline store currently in alpha development that provides support for reading [SparkSources](../data-sources/spark.md).
+The Spark offline store provides support for reading [SparkSources](../data-sources/spark.md).
+
+* Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
 
 ## Disclaimer
 
-This Spark offline store still does not achieve full test coverage and continues to fail some integration tests when integrating with the feast universal test suite. Please do NOT assume complete stability of the API.
+The Spark offline store does not achieve full test coverage.
+Please do not assume complete stability.
 
-* Spark tables and views are allowed as sources that are loaded in from some Spark store(e.g in Hive or in memory).
-* Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
-* A `SparkRetrievalJob` is returned when calling `get_historical_features()`.
-  * This allows you to call
-     * `to_df` to retrieve the pandas dataframe.
-     * `to_arrow` to retrieve the dataframe as a pyarrow Table.
-     * `to_spark_df` to retrieve the dataframe the spark.
+## Getting started
+In order to use this offline store, you'll need to run `pip install 'feast[spark]'`. You can get started by then running `feast init -t spark`.
 
 ## Example
 
@@ -36,3 +34,37 @@ online_store:
     path: data/online_store.db
 ```
 {% endcode %}
+
+The full set of configuration options is available in [SparkOfflineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStoreConfig).
+
+## Functionality Matrix
+
+The set of functionality supported by offline stores is described in detail [here](overview.md#functionality).
+Below is a matrix indicating which functionality is supported by the Spark offline store.
+
+|                                                                    | Spark |
+| :----------------------------------------------------------------- | :---- |
+| `get_historical_features` (point-in-time correct join)             | yes   |
+| `pull_latest_from_table_or_query` (retrieve latest feature values) | yes   |
+| `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes   |
+| `offline_write_batch` (persist dataframes to offline store)        | no    |
+| `write_logged_features` (persist logged features to offline store) | no    |
+
+Below is a matrix indicating which functionality is supported by `SparkRetrievalJob`.
+
+|                                                       | Spark |
+| ----------------------------------------------------- | ----- |
+| export to dataframe                                   | yes   |
+| export to arrow table                                 | yes   |
+| export to arrow batches                               | no    |
+| export to SQL                                         | no    |
+| export to data lake (S3, GCS, etc.)                   | no    |
+| export to data warehouse                              | no    |
+| export as Spark dataframe                             | yes   |
+| local execution of Python-based on-demand transforms  | no    |
+| remote execution of Python-based on-demand transforms | no    |
+| persist results in the offline store                  | yes   |
+| preview the query plan before execution               | yes   |
+| read partitioned data                                 | yes   |
+
+To compare this set of functionality against other offline stores, please see the full [functionality matrix](overview.md#functionality-matrix).

@@ -5,6 +5,7 @@ import pandas as pd
 import psycopg2
 import psycopg2.extras
 import pyarrow as pa
+from psycopg2.pool import SimpleConnectionPool
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.type_map import arrow_to_pg_type
@@ -22,8 +23,26 @@ def _get_conn(config: PostgreSQLConfig):
         sslcert=config.sslcert_path,
         sslrootcert=config.sslrootcert_path,
         options="-c search_path={}".format(config.db_schema or config.user),
+        keepalives_idle=config.keepalives_idle,
     )
     return conn
+
+
+def _get_connection_pool(config: PostgreSQLConfig):
+    return SimpleConnectionPool(
+        config.min_conn,
+        config.max_conn,
+        dbname=config.database,
+        host=config.host,
+        port=int(config.port),
+        user=config.user,
+        password=config.password,
+        sslmode=config.sslmode,
+        sslkey=config.sslkey_path,
+        sslcert=config.sslcert_path,
+        sslrootcert=config.sslrootcert_path,
+        options="-c search_path={}".format(config.db_schema or config.user),
+    )
 
 
 def _df_to_create_table_sql(entity_df, table_name) -> str:
@@ -64,5 +83,8 @@ def get_query_schema(config: PostgreSQLConfig, sql_query: str) -> Dict[str, np.d
     """
     with _get_conn(config) as conn:
         conn.set_session(readonly=True)
-        df = pd.read_sql(f"SELECT * FROM {sql_query} LIMIT 0", conn,)
+        df = pd.read_sql(
+            f"SELECT * FROM {sql_query} LIMIT 0",
+            conn,
+        )
         return dict(zip(df.columns, df.dtypes))

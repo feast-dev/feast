@@ -21,11 +21,11 @@ import (
 )
 
 /*
-	FeatureVector type represent result of retrieving single feature for multiple rows.
-	It can be imagined as a column in output dataframe / table.
-	It contains of feature name, list of values (across all rows),
-	list of statuses and list of timestamp. All these lists have equal length.
-	And this length is also equal to number of entity rows received in request.
+FeatureVector type represent result of retrieving single feature for multiple rows.
+It can be imagined as a column in output dataframe / table.
+It contains of feature name, list of values (across all rows),
+list of statuses and list of timestamp. All these lists have equal length.
+And this length is also equal to number of entity rows received in request.
 */
 type FeatureVector struct {
 	Name       string
@@ -40,11 +40,11 @@ type FeatureViewAndRefs struct {
 }
 
 /*
-	We group all features from a single request by entities they attached to.
-	Thus, we will be able to call online retrieval per entity and not per each feature View.
-	In this struct we collect all features and views that belongs to a group.
-	We also store here projected entity keys (only ones that needed to retrieve these features)
-	and indexes to map result of retrieval into output response.
+We group all features from a single request by entities they attached to.
+Thus, we will be able to call online retrieval per entity and not per each feature View.
+In this struct we collect all features and views that belongs to a group.
+We also store here projected entity keys (only ones that needed to retrieve these features)
+and indexes to map result of retrieval into output response.
 */
 type GroupedFeaturesPerEntitySet struct {
 	// A list of requested feature references of the form featureViewName:featureName that share this entity set
@@ -59,11 +59,12 @@ type GroupedFeaturesPerEntitySet struct {
 }
 
 /*
-	Return
-		(1) requested feature views and features grouped per View
-		(2) requested on demand feature views
-	existed in the registry
+Return
 
+	(1) requested feature views and features grouped per View
+	(2) requested on demand feature views
+
+existed in the registry
 */
 func GetFeatureViewsToUseByService(
 	featureService *model.FeatureService,
@@ -124,10 +125,12 @@ func GetFeatureViewsToUseByService(
 }
 
 /*
-	Return
-		(1) requested feature views and features grouped per View
-		(2) requested on demand feature views
-	existed in the registry
+Return
+
+	(1) requested feature views and features grouped per View
+	(2) requested on demand feature views
+
+existed in the registry
 */
 func GetFeatureViewsToUseByFeatureRefs(
 	features []string,
@@ -415,6 +418,8 @@ func KeepOnlyRequestedFeatures(
 	vectorsByName := make(map[string]*FeatureVector)
 	expectedVectors := make([]*FeatureVector, 0)
 
+	usedVectors := make(map[string]bool)
+
 	for _, vector := range vectors {
 		vectorsByName[vector.Name] = vector
 	}
@@ -438,6 +443,14 @@ func KeepOnlyRequestedFeatures(
 			return nil, fmt.Errorf("requested feature %s can't be retrieved", featureRef)
 		}
 		expectedVectors = append(expectedVectors, vectorsByName[qualifiedName])
+		usedVectors[qualifiedName] = true
+	}
+
+	// Free arrow arrays for vectors that were not used.
+	for _, vector := range vectors {
+		if _, ok := usedVectors[vector.Name]; !ok {
+			vector.Values.Release()
+		}
 	}
 
 	return expectedVectors, nil
@@ -620,6 +633,9 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 }
 
 func checkOutsideTtl(featureTimestamp *timestamppb.Timestamp, currentTimestamp *timestamppb.Timestamp, ttl *durationpb.Duration) bool {
+	if ttl.Seconds == 0 {
+		return false
+	}
 	return currentTimestamp.GetSeconds()-featureTimestamp.GetSeconds() > ttl.Seconds
 }
 

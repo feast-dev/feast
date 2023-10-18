@@ -1,0 +1,203 @@
+name: build_wheels
+
+# Call this workflow from other workflows in the repository by specifying "uses: ./.github/workflows/build_wheels.yml"
+# Developers who are starting a new release should use this workflow to ensure wheels will be built correctly.
+# Devs should check out their fork, add a tag to the last master commit on their fork, and run the release off of their fork on the added tag to ensure wheels will be built correctly.
+on:
+  workflow_dispatch:
+      tags:
+        - 'v*.*.*'
+  workflow_call:
+
+jobs:
+  get-version:
+    runs-on:  ubuntu-latest
+    outputs:
+      release_version: ${{ steps.get_release_version.outputs.release_version }}
+      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Get release version
+        id: get_release_version
+        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+      - name: Get release version without prefix
+        id: get_release_version_without_prefix
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
+      - name: Get highest semver
+        id: get_highest_semver
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        run: |
+          source infra/scripts/setup-common-functions.sh
+          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+          fi
+      - name: Check output
+        id: check_output
+        env:
+          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+        run: |
+          echo $RELEASE_VERSION
+          echo $VERSION_WITHOUT_PREFIX
+          echo $HIGHEST_SEMVER_TAG
+
+  build-python-wheel:
+    name: Build wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.8"
+          architecture: x64
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Build UI
+        run: make build-ui
+      - name: Build wheels
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir wheelhouse/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./wheelhouse/*.whl
+
+  build-source-distribution:
+    name: Build source distribution
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          architecture: x64
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Build and install dependencies
+        # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
+        run: |
+          pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
+          make build-ui
+          git status
+          git restore go.mod go.sum
+          git restore sdk/python/feast/ui/yarn.lock
+      - name: Build
+        run: |
+          python3 setup.py sdist
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist/*
+
+  # We add this step so the docker images can be built as part of the pre-release verification steps.
+  build-docker-images:
+    runs-on: ubuntu-latest
+    needs: get-version
+    strategy:
+      matrix:
+        component: [feature-server, feature-server-python-aws, feature-server-java, feature-transformation-server]
+    env:
+      REGISTRY: feastdev
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build image
+        run: |
+          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+
+  verify-python-wheels:
+    runs-on: ${{ matrix.os }}
+    needs: [build-python-wheel, build-source-distribution, get-version]
+    strategy:
+      matrix:
+        os: [ubuntu-latest,  macos-latest ]
+        python-version: [ "3.8", "3.9", "3.10"]
+        from-source: [ True, False ]
+    env:
+      # this script is for testing servers
+      # it starts server with timeout and checks whether process killed by timeout (started healthy) or died by itself
+      TEST_SCRIPT: |
+        timeout 10s $@ & pid=$!
+        wait $pid
+        ret=$?
+        if [[ $ret -ne 124 ]]
+        then
+           exit $ret
+        else
+           echo "Succeeded!"
+        fi
+      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+    steps:
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist
+      - name: Install OS X dependencies
+        if: matrix.os == 'macos-latest'
+        run: brew install coreutils
+      - name: Install wheel
+        if: ${{ !matrix.from-source }}
+        # try to install all wheels; only the current platform wheel should be actually installed
+        run: |
+          cd dist/
+          pip install wheel
+          for f in *.whl; do pip install $f || true; done
+      - name: Install sdist
+        # try to install the sdist
+        if: ${{ matrix.from-source }}
+        run: pip install dist/*tar.gz
+      # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
+      - name: Validate Feast Version
+        run: |
+          VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
+          OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
+          VERSION_OUTPUT=$(feast version)
+          VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
+          OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+          if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
+            echo "Correct Feast Version Installed"
+          else
+            echo "$VERSION_OUTPUT from installed wheel is not in the correct format or doesn't have the right version $VERSION."
+            exit 1
+          fi
+      # This is temporarily disabled.
+      # - name: Smoke test
+      #   run: |
+      #     feast init test_repo
+      #     cd test_repo/feature_repo
+      #     feast apply
+      #     echo "$TEST_SCRIPT" > run-and-wait.sh
+      #     bash run-and-wait.sh feast serve
+      #     bash run-and-wait.sh feast ui

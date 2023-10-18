@@ -106,8 +106,6 @@ spec:
           {{- end }}
 
         ports:
-        - name: http
-          containerPort: {{ .Values.service.http.targetPort }}
         - name: grpc
           containerPort: {{ .Values.service.grpc.targetPort }}
 

@@ -1,17 +1,15 @@
 name: unit-tests
 
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        python-version: [ "3.8", "3.9", "3.10" ]
         os: [ ubuntu-latest, macOS-latest ]
         exclude:
-          - os: macOS-latest
-            python-version: "3.8"
           - os: macOS-latest
             python-version: "3.9"
           - os: macOS-latest
@@ -20,26 +18,24 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.7
       - name: Install mysql on macOS
         if:  startsWith(matrix.os, 'macOS')
         run: |
           brew install mysql
           PATH=$PATH:/usr/local/mysql/bin
-      - name: Upgrade pip version
+      - name: Work around Homebrew MySQL being broken
+        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
+        if:  startsWith(matrix.os, 'macOS')
         run: |
-          pip install --upgrade "pip>=22.1,<23"
+          brew install zlib
+          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -54,49 +50,33 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        env:
-          IS_TEST: "True"
-          SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
-          SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
-          SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
-          SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
-          SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: FEAST_USAGE=False pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: unittests
-          env_vars: OS,PYTHON
-          fail_ci_if_error: true
-          verbose: true
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
 
-  unit-test-go:
+
+  unit-test-ui:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          python-version: "3.7"
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=22.1,<23"
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.7
-      - name: Install dependencies
-        run: make install-go-proto-dependencies
-      - name: Compile protos
-        run: make compile-protos-go
-      - name: Test
-        run: make test-go
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Run yarn tests
+        working-directory: ./ui
+        run: yarn test --watchAll=false

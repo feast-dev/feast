@@ -1,72 +1,47 @@
-import React, { useContext } from "react";
-import { EuiBasicTable, EuiLoadingSpinner, EuiBadge } from "@elastic/eui";
-import { FeastFeatureColumnType } from "../parsers/feastFeatureViews";
-import useLoadFeatureViewSummaryStatistics from "../queries/useLoadFeatureViewSummaryStatistics";
-import SparklineHistogram from "./SparklineHistogram";
-import FeatureFlagsContext from "../contexts/FeatureFlagsContext";
+import { EuiBasicTable } from "@elastic/eui";
+import EuiCustomLink from "./EuiCustomLink";
+import { feast } from "../protos";
 
 interface FeaturesListProps {
+  projectName: string;
   featureViewName: string;
-  features: FeastFeatureColumnType[];
+  features: feast.core.IFeatureSpecV2[];
+  link: boolean;
 }
 
-const FeaturesList = ({ featureViewName, features }: FeaturesListProps) => {
-  const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
-  const { isLoading, isError, isSuccess, data } =
-    useLoadFeatureViewSummaryStatistics(featureViewName);
-
+const FeaturesList = ({
+  projectName,
+  featureViewName,
+  features,
+  link,
+}: FeaturesListProps) => {
   let columns: { name: string; render?: any; field: any }[] = [
-    { name: "Name", field: "name" },
+    {
+      name: "Name",
+      field: "name",
+      render: (item: string) => (
+        <EuiCustomLink
+          href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
+          to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
+        >
+          {item}
+        </EuiCustomLink>
+      ),
+    },
     {
       name: "Value Type",
       field: "valueType",
+      render: (valueType: feast.types.ValueType.Enum) => {
+        return feast.types.ValueType.Enum[valueType];
+      },
     },
   ];
 
-  if (enabledFeatureStatistics) {
-    columns.push(
-      ...[
-        {
-          name: "Sample",
-          field: "",
-          render: (item: FeastFeatureColumnType) => {
-            const statistics =
-              isSuccess && data && data.columnsSummaryStatistics[item.name];
-
-            return (
-              <React.Fragment>
-                {isLoading && <EuiLoadingSpinner size="s" />}
-                {isError && (
-                  <EuiBadge color="warning">error loading samples</EuiBadge>
-                )}
-                {statistics && statistics.sampleValues.join(",")}
-              </React.Fragment>
-            );
-          },
-        },
-        {
-          name: "Sparklines",
-          field: "",
-          render: (item: FeastFeatureColumnType) => {
-            const statistics =
-              isSuccess && data && data.columnsSummaryStatistics[item.name];
-
-            if (
-              statistics &&
-              statistics.valueType === "INT64" &&
-              statistics.histogram
-            ) {
-              return <SparklineHistogram data={statistics.histogram} />;
-            } else {
-              return "";
-            }
-          },
-        },
-      ]
-    );
+  if (!link) {
+    columns[0].render = undefined;
   }
 
-  const getRowProps = (item: FeastFeatureColumnType) => {
+  const getRowProps = (item: feast.core.IFeatureSpecV2) => {
     return {
       "data-test-subj": `row-${item.name}`,
     };

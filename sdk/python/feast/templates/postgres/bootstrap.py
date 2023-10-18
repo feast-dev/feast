@@ -1,6 +1,7 @@
 import click
 import psycopg2
 
+from feast.file_utils import replace_str_in_file
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 
@@ -13,7 +14,7 @@ def bootstrap():
 
     from feast.driver_test_data import create_driver_hourly_stats_df
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     config_file = repo_path / "feature_store.yaml"
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
@@ -64,14 +65,6 @@ def bootstrap():
     replace_str_in_file(config_file, "DB_SCHEMA", postgres_schema)
     replace_str_in_file(config_file, "DB_USERNAME", postgres_user)
     replace_str_in_file(config_file, "DB_PASSWORD", postgres_password)
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 if __name__ == "__main__":

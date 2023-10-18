@@ -19,6 +19,7 @@ package feast.serving.util;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 
+// TODO: send these metrics either via Prometheus push gateway or StatsD
 public class Metrics {
 
   public static final Histogram requestLatency =

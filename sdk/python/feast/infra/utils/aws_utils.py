@@ -3,7 +3,7 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -21,7 +21,8 @@ from feast.errors import (
     RedshiftQueryError,
     RedshiftTableNameTooLong,
 )
-from feast.type_map import pa_to_redshift_value_type
+from feast.type_map import pa_to_athena_value_type, pa_to_redshift_value_type
+from feast.usage import get_user_agent
 
 try:
     import boto3
@@ -32,7 +33,6 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("aws", str(e))
 
-
 REDSHIFT_TABLE_NAME_MAX_LENGTH = 127
 
 
@@ -40,7 +40,10 @@ def get_redshift_data_client(aws_region: str):
     """
     Get the Redshift Data API Service client for the given AWS region.
     """
-    return boto3.client("redshift-data", config=Config(region_name=aws_region))
+    return boto3.client(
+        "redshift-data",
+        config=Config(region_name=aws_region, user_agent=get_user_agent()),
+    )
 
 
 def get_s3_resource(aws_region: str):
@@ -71,7 +74,12 @@ def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
     reraise=True,
 )
 def execute_redshift_statement_async(
-    redshift_data_client, cluster_id: str, database: str, user: str, query: str
+    redshift_data_client,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
+    database: str,
+    user: Optional[str],
+    query: str,
 ) -> dict:
     """Execute Redshift statement asynchronously. Does not wait for the query to finish.
 
@@ -80,6 +88,7 @@ def execute_redshift_statement_async(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         query: The SQL query to execute
@@ -88,9 +97,17 @@ def execute_redshift_statement_async(
 
     """
     try:
-        return redshift_data_client.execute_statement(
-            ClusterIdentifier=cluster_id, Database=database, DbUser=user, Sql=query,
-        )
+        rs_kwargs = {"Database": database, "Sql": query}
+
+        # Standard Redshift requires a ClusterId as well as DbUser.  RS Serverless instead requires a WorkgroupName.
+        if cluster_id and user:
+            rs_kwargs["ClusterIdentifier"] = cluster_id
+            rs_kwargs["DbUser"] = user
+        elif workgroup:
+            rs_kwargs["WorkgroupName"] = workgroup
+
+        return redshift_data_client.execute_statement(**rs_kwargs)
+
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationException":
             raise RedshiftCredentialsError() from e
@@ -127,7 +144,12 @@ def wait_for_redshift_statement(redshift_data_client, statement: dict) -> None:
 
 
 def execute_redshift_statement(
-    redshift_data_client, cluster_id: str, database: str, user: str, query: str
+    redshift_data_client,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
+    database: str,
+    user: Optional[str],
+    query: str,
 ) -> str:
     """Execute Redshift statement synchronously. Waits for the query to finish.
 
@@ -138,6 +160,7 @@ def execute_redshift_statement(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup:  Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         query: The SQL query to execute
@@ -146,7 +169,7 @@ def execute_redshift_statement(
 
     """
     statement = execute_redshift_statement_async(
-        redshift_data_client, cluster_id, database, user, query
+        redshift_data_client, cluster_id, workgroup, database, user, query
     )
     wait_for_redshift_statement(redshift_data_client, statement)
     return statement["Id"]
@@ -157,7 +180,11 @@ def get_redshift_statement_result(redshift_data_client, statement_id: str) -> di
     return redshift_data_client.get_statement_result(Id=statement_id)
 
 
-def upload_df_to_s3(s3_resource, s3_path: str, df: pd.DataFrame,) -> None:
+def upload_df_to_s3(
+    s3_resource,
+    s3_path: str,
+    df: pd.DataFrame,
+) -> None:
     """Uploads a Pandas DataFrame to S3 as a parquet file
 
     Args:
@@ -183,9 +210,10 @@ def upload_df_to_s3(s3_resource, s3_path: str, df: pd.DataFrame,) -> None:
 
 def upload_df_to_redshift(
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     s3_path: str,
     iam_role: str,
@@ -199,6 +227,7 @@ def upload_df_to_redshift(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         s3_resource: S3 Resource object
@@ -226,6 +255,7 @@ def upload_df_to_redshift(
         table,
         redshift_data_client,
         cluster_id=cluster_id,
+        workgroup=workgroup,
         database=database,
         user=user,
         s3_resource=s3_resource,
@@ -235,12 +265,32 @@ def upload_df_to_redshift(
     )
 
 
+def delete_redshift_table(
+    redshift_data_client,
+    cluster_id: str,
+    workgroup: str,
+    database: str,
+    user: str,
+    table_name: str,
+):
+    drop_query = f"DROP {table_name} IF EXISTS"
+    execute_redshift_statement(
+        redshift_data_client,
+        cluster_id,
+        workgroup,
+        database,
+        user,
+        drop_query,
+    )
+
+
 def upload_arrow_table_to_redshift(
     table: Union[pyarrow.Table, Path],
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_resource,
     iam_role: str,
     s3_path: str,
@@ -259,6 +309,7 @@ def upload_arrow_table_to_redshift(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless Workgroup
         database: Redshift Database Name
         user: Redshift username
         s3_resource: S3 Resource object
@@ -318,9 +369,10 @@ def upload_arrow_table_to_redshift(
         execute_redshift_statement(
             redshift_data_client,
             cluster_id,
+            workgroup,
             database,
             user,
-            f"{create_query}; {copy_query}",
+            f"{create_query}; {copy_query};",
         )
     finally:
         # Clean up S3 temporary data
@@ -332,6 +384,7 @@ def upload_arrow_table_to_redshift(
 def temporarily_upload_df_to_redshift(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -354,6 +407,7 @@ def temporarily_upload_df_to_redshift(
     upload_df_to_redshift(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_resource,
@@ -367,7 +421,66 @@ def temporarily_upload_df_to_redshift(
 
     # Clean up the uploaded Redshift table
     execute_redshift_statement(
-        redshift_data_client, cluster_id, database, user, f"DROP TABLE {table_name}",
+        redshift_data_client,
+        cluster_id,
+        workgroup,
+        database,
+        user,
+        f"DROP TABLE {table_name}",
+    )
+
+
+@contextlib.contextmanager
+def temporarily_upload_arrow_table_to_redshift(
+    table: Union[pyarrow.Table, Path],
+    redshift_data_client,
+    cluster_id: str,
+    workgroup: str,
+    database: str,
+    user: str,
+    s3_resource,
+    iam_role: str,
+    s3_path: str,
+    table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
+    fail_if_exists: bool = True,
+) -> Iterator[None]:
+    """Uploads a Arrow Table to Redshift as a new table with cleanup logic.
+
+    This is essentially the same as upload_arrow_table_to_redshift (check out its docstring for full details),
+    but unlike it this method is a generator and should be used with `with` block. For example:
+
+    >>> with temporarily_upload_arrow_table_to_redshift(...): # doctest: +SKIP
+    >>>     # Use `table_name` table in Redshift here
+    >>> # `table_name` will not exist at this point, since it's cleaned up by the `with` block
+
+    """
+    # Upload the dataframe to Redshift
+    upload_arrow_table_to_redshift(
+        table,
+        redshift_data_client,
+        cluster_id,
+        workgroup,
+        database,
+        user,
+        s3_resource,
+        s3_path,
+        iam_role,
+        table_name,
+        schema,
+        fail_if_exists,
+    )
+
+    yield
+
+    # Clean up the uploaded Redshift table
+    execute_redshift_statement(
+        redshift_data_client,
+        cluster_id,
+        workgroup,
+        database,
+        user,
+        f"DROP TABLE {table_name}",
     )
 
 
@@ -394,9 +507,10 @@ def delete_s3_directory(s3_resource, bucket: str, key: str):
 
 def execute_redshift_query_and_unload_to_s3(
     redshift_data_client,
-    cluster_id: str,
+    cluster_id: Optional[str],
+    workgroup: Optional[str],
     database: str,
-    user: str,
+    user: Optional[str],
     s3_path: str,
     iam_role: str,
     query: str,
@@ -406,6 +520,7 @@ def execute_redshift_query_and_unload_to_s3(
     Args:
         redshift_data_client: Redshift Data API Service client
         cluster_id: Redshift Cluster Identifier
+        workgroup: Redshift Serverless workgroup name
         database: Redshift Database Name
         user: Redshift username
         s3_path: S3 directory where the unloaded data is written
@@ -417,13 +532,16 @@ def execute_redshift_query_and_unload_to_s3(
     # Run the query, unload the results to S3
     unique_table_name = "_" + str(uuid.uuid4()).replace("-", "")
     query = f"CREATE TEMPORARY TABLE {unique_table_name} AS ({query});\n"
-    query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' PARQUET"
-    execute_redshift_statement(redshift_data_client, cluster_id, database, user, query)
+    query += f"UNLOAD ('SELECT * FROM {unique_table_name}') TO '{s3_path}/' IAM_ROLE '{iam_role}' FORMAT AS PARQUET"
+    execute_redshift_statement(
+        redshift_data_client, cluster_id, workgroup, database, user, query
+    )
 
 
 def unload_redshift_query_to_pa(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -435,7 +553,14 @@ def unload_redshift_query_to_pa(
     bucket, key = get_bucket_and_key(s3_path)
 
     execute_redshift_query_and_unload_to_s3(
-        redshift_data_client, cluster_id, database, user, s3_path, iam_role, query,
+        redshift_data_client,
+        cluster_id,
+        workgroup,
+        database,
+        user,
+        s3_path,
+        iam_role,
+        query,
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -447,6 +572,7 @@ def unload_redshift_query_to_pa(
 def unload_redshift_query_to_df(
     redshift_data_client,
     cluster_id: str,
+    workgroup: str,
     database: str,
     user: str,
     s3_resource,
@@ -458,6 +584,7 @@ def unload_redshift_query_to_df(
     table = unload_redshift_query_to_pa(
         redshift_data_client,
         cluster_id,
+        workgroup,
         database,
         user,
         s3_resource,
@@ -576,3 +703,369 @@ def delete_api_gateway(api_gateway_client, api_gateway_id: str) -> Dict:
 def get_account_id() -> str:
     """Get AWS Account ID"""
     return boto3.client("sts").get_caller_identity().get("Account")
+
+
+def list_s3_files(aws_region: str, path: str) -> List[str]:
+    s3 = boto3.client("s3", config=Config(region_name=aws_region))
+    if path.startswith("s3://"):
+        path = path[len("s3://") :]
+    bucket, prefix = path.split("/", 1)
+    objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    contents = objects["Contents"]
+    files = [f"s3://{bucket}/{content['Key']}" for content in contents]
+    return files
+
+
+# Athena utils
+
+
+def get_athena_data_client(aws_region: str):
+    """
+    Get the athena Data API Service client for the given AWS region.
+    """
+    return boto3.client(
+        "athena", config=Config(region_name=aws_region, user_agent=get_user_agent())
+    )
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, max=4),
+    retry=retry_if_exception_type(ConnectionClosedError),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+def execute_athena_query_async(
+    athena_data_client, data_source: str, database: str, workgroup: str, query: str
+) -> dict:
+    """Execute Athena statement asynchronously. Does not wait for the query to finish.
+
+    Raises AthenaCredentialsError if the statement couldn't be executed due to the validation error.
+
+    Args:
+        athena_data_client: Athena Data API Service client
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
+        query: The SQL query to execute
+
+    Returns: JSON response
+
+    """
+    try:
+        # return athena_data_client.execute_statement(
+        return athena_data_client.start_query_execution(
+            QueryString=query,
+            QueryExecutionContext={"Database": database, "Catalog": data_source},
+            WorkGroup=workgroup,
+        )
+
+    except ClientError as e:
+        raise AthenaQueryError(e)
+
+
+class AthenaStatementNotFinishedError(Exception):
+    pass
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, max=30),
+    retry=retry_if_exception_type(AthenaStatementNotFinishedError),
+    reraise=True,
+)
+def wait_for_athena_execution(athena_data_client, execution: dict) -> None:
+    """Waits for the Athena statement to finish. Raises AthenaQueryError if the statement didn't succeed.
+
+    We use exponential backoff for checking the query state until it's not running. The backoff starts with
+    0.1 seconds and doubles exponentially until reaching 30 seconds, at which point the backoff is fixed.
+
+    Args:
+        athena_data_client:  athena Service boto3 client
+        execution:  The athena execution to wait for (result of execute_athena_statement)
+
+    Returns: None
+
+    """
+    response = athena_data_client.get_query_execution(
+        QueryExecutionId=execution["QueryExecutionId"]
+    )
+    if response["QueryExecution"]["Status"]["State"] in ("QUEUED", "RUNNING"):
+        raise AthenaStatementNotFinishedError  # Retry
+    if response["QueryExecution"]["Status"]["State"] != "SUCCEEDED":
+        raise AthenaQueryError(response)  # Don't retry. Raise exception.
+
+
+def drop_temp_table(
+    athena_data_client, data_source: str, database: str, workgroup: str, temp_table: str
+):
+    query = f"DROP TABLE `{database}.{temp_table}`"
+    execute_athena_query_async(
+        athena_data_client, data_source, database, workgroup, query
+    )
+
+
+def execute_athena_query(
+    athena_data_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    query: str,
+    temp_table: str = None,
+) -> str:
+    """Execute athena statement synchronously. Waits for the query to finish.
+
+    Raises athenaCredentialsError if the statement couldn't be executed due to the validation error.
+    Raises athenaQueryError if the query runs but finishes with errors.
+
+
+    Args:
+        athena_data_client: Athena Data API Service client
+        data_source: Athena Data Source Name
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
+        query: The SQL query to execute
+        temp_table: Temp table name to be deleted after query execution.
+
+    Returns: Statement ID
+
+    """
+
+    execution = execute_athena_query_async(
+        athena_data_client, data_source, database, workgroup, query
+    )
+    wait_for_athena_execution(athena_data_client, execution)
+    if temp_table is not None:
+        drop_temp_table(
+            athena_data_client, data_source, database, workgroup, temp_table
+        )
+
+    return execution["QueryExecutionId"]
+
+
+def get_athena_query_result(athena_data_client, query_execution_id: str) -> dict:
+    """Get the athena query result"""
+    response = athena_data_client.get_query_results(QueryExecutionId=query_execution_id)
+    return response["ResultSet"]
+
+
+class AthenaError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Athena API failed. Details: {details}")
+
+
+class AthenaQueryError(Exception):
+    def __init__(self, details):
+        super().__init__(f"Athena SQL Query failed to finish. Details: {details}")
+
+
+class AthenaTableNameTooLong(Exception):
+    def __init__(self, table_name: str):
+        super().__init__(
+            f"Athena table(Data catalog) names have a maximum length of 255 characters, but the table name {table_name} has length {len(table_name)} characters."
+        )
+
+
+def unload_athena_query_to_pa(
+    athena_data_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    s3_resource,
+    s3_path: str,
+    query: str,
+    temp_table: str,
+) -> pa.Table:
+    """Unload Athena Query results to S3 and get the results in PyArrow Table format"""
+    bucket, key = get_bucket_and_key(s3_path)
+
+    execute_athena_query_and_unload_to_s3(
+        athena_data_client, data_source, database, workgroup, query, temp_table
+    )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        download_s3_directory(s3_resource, bucket, key, temp_dir)
+        delete_s3_directory(s3_resource, bucket, key)
+        return pq.read_table(temp_dir)
+
+
+def unload_athena_query_to_df(
+    athena_data_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    s3_resource,
+    s3_path: str,
+    query: str,
+    temp_table: str,
+) -> pd.DataFrame:
+    """Unload Athena Query results to S3 and get the results in Pandas DataFrame format"""
+    table = unload_athena_query_to_pa(
+        athena_data_client,
+        data_source,
+        database,
+        workgroup,
+        s3_resource,
+        s3_path,
+        query,
+        temp_table,
+    )
+    return table.to_pandas()
+
+
+def execute_athena_query_and_unload_to_s3(
+    athena_data_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    query: str,
+    temp_table: str,
+) -> None:
+    """Unload Athena Query results to S3
+
+    Args:
+        athena_data_client: Athena Data API Service client
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
+        query: The SQL query to execute
+        temp_table: temp table name to be deleted after query execution.
+
+    """
+
+    execute_athena_query(
+        athena_data_client=athena_data_client,
+        data_source=data_source,
+        database=database,
+        workgroup=workgroup,
+        query=query,
+        temp_table=temp_table,
+    )
+
+
+def upload_df_to_athena(
+    athena_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    s3_resource,
+    s3_path: str,
+    table_name: str,
+    df: pd.DataFrame,
+):
+    """Uploads a Pandas DataFrame to S3(Athena) as a new table.
+
+    The caller is responsible for deleting the table when no longer necessary.
+
+    Args:
+        athena_client: Athena API Service client
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
+        s3_resource: S3 Resource object
+        s3_path: S3 path where the Parquet file is temporarily uploaded
+        table_name: The name of the new Data Catalog table where we copy the dataframe
+        df: The Pandas DataFrame to upload
+
+    Raises:
+        AthenaTableNameTooLong: The specified table name is too long.
+    """
+
+    # Drop the index so that we dont have unnecessary columns
+    df.reset_index(drop=True, inplace=True)
+
+    # Convert Pandas DataFrame into PyArrow table and compile the Athena table schema.
+    # Note, if the underlying data has missing values,
+    # pandas will convert those values to np.nan if the dtypes are numerical (floats, ints, etc.) or boolean.
+    # If the dtype is 'object', then missing values are inferred as python `None`s.
+    # More details at:
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#values-considered-missing
+    table = pa.Table.from_pandas(df)
+    upload_arrow_table_to_athena(
+        table,
+        athena_client,
+        data_source=data_source,
+        database=database,
+        workgroup=workgroup,
+        s3_resource=s3_resource,
+        s3_path=s3_path,
+        table_name=table_name,
+    )
+
+
+def upload_arrow_table_to_athena(
+    table: Union[pyarrow.Table, Path],
+    athena_client,
+    data_source: str,
+    database: str,
+    workgroup: str,
+    s3_resource,
+    s3_path: str,
+    table_name: str,
+    schema: Optional[pyarrow.Schema] = None,
+    fail_if_exists: bool = True,
+):
+    """Uploads an Arrow Table to S3(Athena).
+
+    Here's how the upload process works:
+        1. PyArrow Table is serialized into a Parquet format on local disk
+        2. The Parquet file is uploaded to S3
+        3. an Athena(data catalog) table is created. the S3 directory(in number 2) will be set as an external location.
+        4. The local disk & s3 paths are cleaned up
+
+    Args:
+        table: The Arrow Table or Path to parquet dataset to upload
+        athena_client: Athena API Service client
+        data_source: Athena Data Source
+        database: Athena Database Name
+        workgroup: Athena Workgroup Name
+        s3_resource: S3 Resource object
+        s3_path: S3 path where the Parquet file is temporarily uploaded
+        table_name: The name of the new Athena table where we copy the dataframe
+        schema: (Optionally) client may provide arrow Schema which will be converted into Athena table schema
+        fail_if_exists: fail if table with such name exists or append data to existing table
+
+    Raises:
+        AthenaTableNameTooLong: The specified table name is too long.
+    """
+    DATA_CATALOG_TABLE_NAME_MAX_LENGTH = 255
+
+    if len(table_name) > DATA_CATALOG_TABLE_NAME_MAX_LENGTH:
+        raise AthenaTableNameTooLong(table_name)
+
+    if isinstance(table, pyarrow.Table) and not schema:
+        schema = table.schema
+
+    if not schema:
+        raise ValueError("Schema must be specified when data is passed as a Path")
+
+    bucket, key = get_bucket_and_key(s3_path)
+
+    column_query_list = ", ".join(
+        [f"`{field.name}` {pa_to_athena_value_type(field.type)}" for field in schema]
+    )
+
+    with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
+        pq.write_table(table, parquet_temp_file)
+        parquet_temp_file.seek(0)
+        s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
+
+    create_query = (
+        f"CREATE EXTERNAL TABLE {database}.{table_name} {'IF NOT EXISTS' if not fail_if_exists else ''}"
+        f"({column_query_list}) "
+        f"STORED AS PARQUET "
+        f"LOCATION '{s3_path[:s3_path.rfind('/')]}' "
+        f"TBLPROPERTIES('parquet.compress' = 'SNAPPY') "
+    )
+
+    try:
+        execute_athena_query(
+            athena_data_client=athena_client,
+            data_source=data_source,
+            database=database,
+            workgroup=workgroup,
+            query=f"{create_query}",
+        )
+    finally:
+        pass
+        # Clean up S3 temporary data
+        # for file_path in uploaded_files:
+        #     s3_resource.Object(bucket, file_path).delete()

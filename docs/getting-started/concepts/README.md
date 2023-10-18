@@ -1,15 +1,33 @@
 # Concepts
 
-{% page-ref page="overview.md" %}
+{% content-ref url="overview.md" %}
+[overview.md](overview.md)
+{% endcontent-ref %}
 
-{% page-ref page="data-source.md" %}
+{% content-ref url="data-ingestion.md" %}
+[data-ingestion.md](data-ingestion.md)
+{% endcontent-ref %}
 
-{% page-ref page="entity.md" %}
+{% content-ref url="entity.md" %}
+[entity.md](entity.md)
+{% endcontent-ref %}
 
-{% page-ref page="feature-view.md" %}
+{% content-ref url="feature-view.md" %}
+[feature-view.md](feature-view.md)
+{% endcontent-ref %}
 
-{% page-ref page="feature-retrieval.md" %}
+{% content-ref url="feature-retrieval.md" %}
+[feature-retrieval.md](feature-retrieval.md)
+{% endcontent-ref %}
 
-{% page-ref page="point-in-time-joins.md" %}
+{% content-ref url="point-in-time-joins.md" %}
+[point-in-time-joins.md](point-in-time-joins.md)
+{% endcontent-ref %}
 
-{% page-ref page="dataset.md" %}
+{% content-ref url="registry.md" %}
+[registry.md](registry.md)
+{% endcontent-ref %}
+
+{% content-ref url="dataset.md" %}
+[dataset.md](dataset.md)
+{% endcontent-ref %}

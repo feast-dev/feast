@@ -3,14 +3,12 @@ import hashlib
 import logging
 import os
 import uuid
-from datetime import datetime
-from pathlib import Path
-from tempfile import TemporaryFile
+import warnings
 from typing import Optional, Sequence
-from urllib.parse import urlparse
 
 from colorama import Fore, Style
 
+from feast import utils
 from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
@@ -22,22 +20,15 @@ from feast.entity import Entity
 from feast.errors import (
     AwsAPIGatewayDoesNotExist,
     AwsLambdaDoesNotExist,
-    ExperimentalFeatureNotEnabled,
     IncompatibleRegistryStoreClass,
     RepoConfigPathDoesNotExist,
-    S3RegistryBucketForbiddenAccess,
-    S3RegistryBucketNotExist,
 )
 from feast.feature_view import FeatureView
-from feast.flags import FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME
-from feast.flags_helper import enable_aws_lambda_feature_server
 from feast.infra.feature_servers.aws_lambda.config import AwsLambdaFeatureServerConfig
 from feast.infra.passthrough_provider import PassthroughProvider
+from feast.infra.registry.registry import get_registry_store_class_from_scheme
+from feast.infra.registry.s3 import S3RegistryStore
 from feast.infra.utils import aws_utils
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.registry import get_registry_store_class_from_scheme
-from feast.registry_store import RegistryStore
-from feast.repo_config import RegistryConfig
 from feast.usage import log_exceptions_and_usage
 from feast.version import get_version
 
@@ -74,8 +65,11 @@ class AwsProvider(PassthroughProvider):
             )
 
         if self.repo_config.feature_server and self.repo_config.feature_server.enabled:
-            if not enable_aws_lambda_feature_server(self.repo_config):
-                raise ExperimentalFeatureNotEnabled(FLAG_AWS_LAMBDA_FEATURE_SERVER_NAME)
+            warnings.warn(
+                "AWS Lambda based feature serving is an experimental feature. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
 
             # Since the AWS Lambda feature server will attempt to load the registry, we
             # only allow the registry to be in S3.
@@ -106,12 +100,24 @@ class AwsProvider(PassthroughProvider):
 
             self._deploy_feature_server(project, image_uri)
 
+        if self.batch_engine:
+            self.batch_engine.update(
+                project,
+                tables_to_delete,
+                tables_to_keep,
+                entities_to_delete,
+                entities_to_keep,
+            )
+
     def _deploy_feature_server(self, project: str, image_uri: str):
         _logger.info("Deploying feature server...")
 
         if not self.repo_config.repo_path:
             raise RepoConfigPathDoesNotExist()
-        with open(self.repo_config.repo_path / "feature_store.yaml", "rb") as f:
+
+        with open(
+            utils.get_default_yaml_file_path(self.repo_config.repo_path), "rb"
+        ) as f:
             config_bytes = f.read()
             config_base64 = base64.b64encode(config_bytes).decode()
 
@@ -196,10 +202,12 @@ class AwsProvider(PassthroughProvider):
 
     @log_exceptions_and_usage(provider="AwsProvider")
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ) -> None:
-        if self.online_store:
-            self.online_store.teardown(self.repo_config, tables, entities)
+        super(AwsProvider, self).teardown_infra(project, tables, entities)
 
         if (
             self.repo_config.feature_server is not None
@@ -350,64 +358,3 @@ def _get_docker_image_version() -> str:
                 "> pip install -e '.'"
             )
         return version
-
-
-class S3RegistryStore(RegistryStore):
-    def __init__(self, registry_config: RegistryConfig, repo_path: Path):
-        uri = registry_config.path
-        self._uri = urlparse(uri)
-        self._bucket = self._uri.hostname
-        self._key = self._uri.path.lstrip("/")
-
-        self.s3_client = boto3.resource(
-            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
-        )
-
-    @log_exceptions_and_usage(registry="s3")
-    def get_registry_proto(self):
-        file_obj = TemporaryFile()
-        registry_proto = RegistryProto()
-        try:
-            from botocore.exceptions import ClientError
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("aws", str(e))
-        try:
-            bucket = self.s3_client.Bucket(self._bucket)
-            self.s3_client.meta.client.head_bucket(Bucket=bucket.name)
-        except ClientError as e:
-            # If a client error is thrown, then check that it was a 404 error.
-            # If it was a 404 error, then the bucket does not exist.
-            error_code = int(e.response["Error"]["Code"])
-            if error_code == 404:
-                raise S3RegistryBucketNotExist(self._bucket)
-            else:
-                raise S3RegistryBucketForbiddenAccess(self._bucket) from e
-
-        try:
-            obj = bucket.Object(self._key)
-            obj.download_fileobj(file_obj)
-            file_obj.seek(0)
-            registry_proto.ParseFromString(file_obj.read())
-            return registry_proto
-        except ClientError as e:
-            raise FileNotFoundError(
-                f"Error while trying to locate Registry at path {self._uri.geturl()}"
-            ) from e
-
-    @log_exceptions_and_usage(registry="s3")
-    def update_registry_proto(self, registry_proto: RegistryProto):
-        self._write_registry(registry_proto)
-
-    def teardown(self):
-        self.s3_client.Object(self._bucket, self._key).delete()
-
-    def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
-        # we have already checked the bucket exists so no need to do it again
-        file_obj = TemporaryFile()
-        file_obj.write(registry_proto.SerializeToString())
-        file_obj.seek(0)
-        self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)

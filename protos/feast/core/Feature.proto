@@ -33,4 +33,8 @@ message FeatureSpecV2 {
 
     // Tags for user defined metadata on a feature
     map<string,string> tags = 3;
+
+    // Description of the feature.
+
+    string description = 4;
 }

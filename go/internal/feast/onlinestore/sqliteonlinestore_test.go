@@ -16,17 +16,18 @@ import (
 
 func TestSqliteAndFeatureRepoSetup(t *testing.T) {
 	dir := t.TempDir()
-	feature_repo_path := filepath.Join(dir, "feature_repo")
+	feature_repo_path := filepath.Join(dir, "my_project", "feature_repo")
+
 	err := test.SetupCleanFeatureRepo(dir)
 	assert.Nil(t, err)
-
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
-	assert.Equal(t, "feature_repo", config.Project)
+	assert.Equal(t, "my_project", config.Project)
 	assert.Equal(t, "data/registry.db", config.GetRegistryConfig().Path)
 	assert.Equal(t, "local", config.Provider)
 	assert.Equal(t, map[string]interface{}{
 		"path": "data/online_store.db",
+		"type": "sqlite",
 	}, config.OnlineStore)
 	assert.Empty(t, config.OfflineStore)
 	assert.Empty(t, config.FeatureServer)
@@ -35,12 +36,12 @@ func TestSqliteAndFeatureRepoSetup(t *testing.T) {
 
 func TestSqliteOnlineRead(t *testing.T) {
 	dir := t.TempDir()
-	feature_repo_path := filepath.Join(dir, "feature_repo")
+	feature_repo_path := filepath.Join(dir, "my_project", "feature_repo")
 	test.SetupCleanFeatureRepo(dir)
-
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
 	assert.Nil(t, err)
-	store, err := NewSqliteOnlineStore("feature_repo", config, config.OnlineStore)
+
+	store, err := NewSqliteOnlineStore("my_project", config, config.OnlineStore)
 	defer store.Destruct()
 	assert.Nil(t, err)
 	entity_key1 := types.EntityKey{

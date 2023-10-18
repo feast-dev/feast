@@ -6,23 +6,15 @@ jobs:
   lint-python:
     runs-on: [ubuntu-latest]
     env:
-      PYTHON: 3.7
+      PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
-          python-version: "3.7"
+          python-version: "3.8"
           architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.7
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -37,33 +29,13 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
         run: |
-          make compile-protos-go
           make install-python-ci-dependencies
       - name: Lint python
         run: make lint-python
-
-  lint-go:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17.7
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<22.1"
-      - name: Install dependencies
-        run:  make install-go-proto-dependencies
-      - name: Lint go
-        run: make lint-go

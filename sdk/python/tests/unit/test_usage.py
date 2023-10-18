@@ -234,4 +234,4 @@ def call_length_ms(call):
     return (
         datetime.datetime.fromisoformat(call["end"])
         - datetime.datetime.fromisoformat(call["start"])
-    ).total_seconds() * 10 ** 3
+    ).total_seconds() * 10**3

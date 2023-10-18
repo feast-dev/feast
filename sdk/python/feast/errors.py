@@ -2,6 +2,8 @@ from typing import Any, List, Set
 
 from colorama import Fore, Style
 
+from feast.field import Field
+
 
 class DataSourceNotFoundException(Exception):
     def __init__(self, path):
@@ -14,6 +16,13 @@ class DataSourceNoNameException(Exception):
     def __init__(self):
         super().__init__(
             "Unable to infer a name for this data source. Either table or name must be specified."
+        )
+
+
+class DataSourceRepeatNamesException(Exception):
+    def __init__(self, ds_name: str):
+        super().__init__(
+            f"Multiple data sources share the same case-insensitive name {ds_name}."
         )
 
 
@@ -115,6 +124,11 @@ class FeastProviderNotSetError(Exception):
         super().__init__("Provider is not set, but is required")
 
 
+class FeastRegistryNotSetError(Exception):
+    def __init__(self):
+        super().__init__("Registry is not set, but is required")
+
+
 class FeastFeatureServerTypeSetError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
@@ -126,6 +140,13 @@ class FeastFeatureServerTypeInvalidError(Exception):
     def __init__(self, feature_server_type: str):
         super().__init__(
             f"Feature server type was set to {feature_server_type}, but this type is invalid"
+        )
+
+
+class FeastRegistryTypeInvalidError(Exception):
+    def __init__(self, registry_type: str):
+        super().__init__(
+            f"Feature server type was set to {registry_type}, but this type is invalid"
         )
 
 
@@ -183,10 +204,27 @@ class FeatureNameCollisionError(Exception):
 
 
 class SpecifiedFeaturesNotPresentError(Exception):
-    def __init__(self, specified_features: List[str], feature_view_name: str):
-        features = ", ".join(specified_features)
+    def __init__(
+        self,
+        specified_features: List[Field],
+        inferred_features: List[Field],
+        feature_view_name: str,
+    ):
         super().__init__(
-            f"Explicitly specified features {features} not found in inferred list of features for '{feature_view_name}'"
+            f"Explicitly specified features {specified_features} not found in inferred list of features "
+            f"{inferred_features} for '{feature_view_name}'"
+        )
+
+
+class SavedDatasetLocationAlreadyExists(Exception):
+    def __init__(self, location: str):
+        super().__init__(f"Saved dataset location {location} already exists.")
+
+
+class FeastOfflineStoreInvalidName(Exception):
+    def __init__(self, offline_store_class_name: str):
+        super().__init__(
+            f"Offline Store Class '{offline_store_class_name}' should end with the string `OfflineStore`.'"
         )
 
 
@@ -289,6 +327,13 @@ class EntityTimestampInferenceException(Exception):
         )
 
 
+class FeatureViewMissingDuringFeatureServiceInference(Exception):
+    def __init__(self, feature_view_name: str, feature_service_name: str):
+        super().__init__(
+            f"Missing {feature_view_name} feature view during inference for {feature_service_name} feature service."
+        )
+
+
 class InvalidEntityType(Exception):
     def __init__(self, entity_type: type):
         super().__init__(
@@ -302,14 +347,6 @@ class ConflictingFeatureViewNames(Exception):
     def __init__(self, feature_view_name: str):
         super().__init__(
             f"The feature view name: {feature_view_name} refers to feature views of different types."
-        )
-
-
-class ExperimentalFeatureNotEnabled(Exception):
-    def __init__(self, feature_flag_name: str):
-        super().__init__(
-            f"You are attempting to use an experimental feature that is not enabled. Please run "
-            f"`feast alpha enable {feature_flag_name}` "
         )
 
 
@@ -359,3 +396,22 @@ class InvalidFeaturesParameterType(Exception):
         super().__init__(
             f"Invalid `features` parameter type {type(features)}. Expected one of List[str] and FeatureService."
         )
+
+
+class EntitySQLEmptyResults(Exception):
+    def __init__(self, entity_sql: str):
+        super().__init__(
+            f"No entity values found from the specified SQL query to generate the entity dataframe: {entity_sql}."
+        )
+
+
+class EntityDFNotDateTime(Exception):
+    def __init__(self):
+        super().__init__(
+            "The entity dataframe specified does not have the timestamp field as a datetime."
+        )
+
+
+class PushSourceNotFoundException(Exception):
+    def __init__(self, push_source_name: str):
+        super().__init__(f"Unable to find push source '{push_source_name}'.")

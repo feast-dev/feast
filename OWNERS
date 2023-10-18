@@ -3,20 +3,35 @@
 # More info at https://www.kubernetes.dev/docs/guide/owners/
 approvers:
   - woop
-  - tsotnet
   - achals
   - adchia
   - felixwang9817
-  - mavysavydav
   - MattDelac
   - kevjumba
+  - chhabrakadabra
+  - gbmarc1
+  - sfc-gh-madkins
+  - zhilingc
+  - whoahbot
+  - niklasvm
+  - toping4445
+  - DvirDukhan
+  - hemidactylus
 reviewers:
   - woop
-  - tsotnet
   - achals
   - tedhtchang
   - adchia
   - felixwang9817
-  - mavysavydav
   - MattDelac
   - kevjumba
+  - chhabrakadabra
+  - gbmarc1
+  - sfc-gh-madkins
+  - zhilingc
+  - whoahbot
+  - niklasvm
+  - toping4445
+  - DvirDukhan
+  - hemidactylus
+  

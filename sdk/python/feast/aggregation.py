@@ -2,10 +2,12 @@ from datetime import timedelta
 from typing import Optional
 
 from google.protobuf.duration_pb2 import Duration
+from typeguard import typechecked
 
 from feast.protos.feast.core.Aggregation_pb2 import Aggregation as AggregationProto
 
 
+@typechecked
 class Aggregation:
     """
     NOTE: Feast-handled aggregations are not yet supported. This class provides a way to register user-defined aggregations.

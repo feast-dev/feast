@@ -1,10 +1,10 @@
 import React, { useContext } from "react";
 
 import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-  EuiLoadingSpinner,
+    EuiPageHeader,
+    EuiPageContent,
+    EuiPageContentBody,
+    EuiLoadingSpinner, EuiFlexGroup, EuiFlexItem, EuiTitle, EuiFieldSearch, EuiSpacer,
 } from "@elastic/eui";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
@@ -13,6 +13,8 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
 import { DataSourceIcon32 } from "../../graphics/DataSourceIcon";
+import { useSearchQuery} from "../../hooks/useSearchInputWithTags";
+import { feast } from "../../protos";
 
 const useLoadDatasources = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -29,10 +31,31 @@ const useLoadDatasources = () => {
   };
 };
 
+const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
+  let filteredByTags = data;
+
+  if (searchTokens.length) {
+    return filteredByTags.filter((entry) => {
+      return searchTokens.find((token) => {
+        return token.length >= 3 && entry.name && entry.name.indexOf(token) >= 0;
+      });
+    });
+  }
+
+  return filteredByTags;
+};
+
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
 
   useDocumentTitle(`Data Sources | Feast`);
+
+  const { searchString, searchTokens, setSearchString } = useSearchQuery();
+
+    const filterResult = data
+    ? filterFn(data, searchTokens)
+    : data;
+
 
   return (
     <React.Fragment>
@@ -56,7 +79,26 @@ const Index = () => {
           )}
           {isError && <p>We encountered an error while loading.</p>}
           {isSuccess && !data && <DataSourceIndexEmptyState />}
-          {isSuccess && data && <DatasourcesListingTable dataSources={data} />}
+          {isSuccess && data && data.length > 0 && filterResult && (
+            <React.Fragment>
+              <EuiFlexGroup>
+                <EuiFlexItem grow={2}>
+                  <EuiTitle size="xs">
+                    <h2>Search</h2>
+                  </EuiTitle>
+                  <EuiFieldSearch
+                    value={searchString}
+                    fullWidth={true}
+                    onChange={(e) => {
+                      setSearchString(e.target.value);
+                    }}
+                  />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+              <EuiSpacer size="m" />
+              <DatasourcesListingTable dataSources={filterResult} />
+            </React.Fragment>
+          )}
         </EuiPageContentBody>
       </EuiPageContent>
     </React.Fragment>

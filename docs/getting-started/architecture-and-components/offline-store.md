@@ -1,15 +1,17 @@
 # Offline store
 
-Feast uses offline stores as storage and compute systems. Offline stores store historic time-series feature values. Feast does not generate these features, but instead uses the offline store as the interface for querying existing features in your organization.
+An offline store is an interface for working with historical time-series feature values that are stored in [data sources](../../getting-started/concepts/data-ingestion.md).
+The `OfflineStore` interface has several different implementations, such as the `BigQueryOfflineStore`, each of which is backed by a different storage and compute engine.
+For more details on which offline stores are supported, please see [Offline Stores](../../reference/offline-stores/).
 
-Offline stores are used primarily for two reasons
-
+Offline stores are primarily used for two reasons:
 1. Building training datasets from time-series features.
-2. Materializing \(loading\) features from the offline store into an online store in order to serve those features at low latency for prediction.
+2. Materializing \(loading\) features into an online store to serve those features at low-latency in a production setting.
 
-Offline stores are configured through the [feature\_store.yaml](../../reference/offline-stores/). When building training datasets or materializing features into an online store, Feast will use the configured offline store along with the data sources you have defined as part of feature views to execute the necessary data operations.
+Offline stores are configured through the [feature\_store.yaml](../../reference/offline-stores/).
+When building training datasets or materializing features into an online store, Feast will use the configured offline store with your configured data sources to execute the necessary data operations.
 
-It is not possible to query all data sources from all offline stores, and only a single offline store can be used at a time. For example, it is not possible to query a BigQuery table from a `File` offline store, nor is it possible for a `BigQuery` offline store to query files from your local file system.
+Only a single offline store can be used at a time.
+Moreover, offline stores are not compatible with all data sources; for example, the `BigQuery` offline store cannot be used to query a file-based data source.
 
-Please see the [Offline Stores](../../reference/offline-stores/) reference for more details on configuring offline stores.
-
+Please see [Push Source](../../reference/data-sources/push.md) for more details on how to push features directly to the offline store in your feature store.

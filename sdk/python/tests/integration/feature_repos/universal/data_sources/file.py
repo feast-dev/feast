@@ -5,6 +5,8 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -87,6 +89,39 @@ class FileDataSourceCreator(DataSourceCreator):
             shutil.rmtree(d)
 
 
+class FileParquetDatasetSourceCreator(FileDataSourceCreator):
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        timestamp_field="ts",
+        created_timestamp_column="created_ts",
+        field_mapping: Dict[str, str] = None,
+    ) -> DataSource:
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        dataset_path = tempfile.TemporaryDirectory(
+            prefix=f"{self.project_name}_{destination_name}"
+        )
+        table = pa.Table.from_pandas(df)
+        pq.write_to_dataset(
+            table,
+            base_dir=dataset_path.name,
+            compression="snappy",
+            format="parquet",
+            existing_data_behavior="overwrite_or_ignore",
+        )
+        self.files.append(dataset_path.name)
+        return FileSource(
+            file_format=ParquetFormat(),
+            path=dataset_path.name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+        )
+
+
 class S3FileDataSourceCreator(DataSourceCreator):
     f: Any
     minio: DockerContainer
@@ -124,7 +159,9 @@ class S3FileDataSourceCreator(DataSourceCreator):
         if not client.bucket_exists(self.bucket):
             client.make_bucket(self.bucket)
         client.fput_object(
-            self.bucket, file_name, self.f.name,
+            self.bucket,
+            file_name,
+            self.f.name,
         )
 
     def create_data_source(

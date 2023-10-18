@@ -22,6 +22,7 @@ from feast.infra.feature_servers.local_process.config import LocalFeatureServerC
 from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
+    RegistryLocation,
 )
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
@@ -50,6 +51,9 @@ from tests.integration.feature_repos.universal.feature_views import (
     create_order_feature_view,
     create_pushable_feature_view,
 )
+from tests.integration.feature_repos.universal.online_store.bigtable import (
+    BigtableOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.datastore import (
     DatastoreOnlineStoreCreator,
 )
@@ -64,14 +68,42 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-# Port 12345 will chosen as default for redis node configuration because Redis Cluster is started off of nodes
-# 6379 -> 6384. This causes conflicts in cli integration tests so we manually keep them separate.
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
     "redis_type": "redis_cluster",
     # Redis Cluster Port Forwarding is setup in "pr_integration_tests.yaml" under "Setup Redis Cluster".
     "connection_string": "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003",
+}
+
+SNOWFLAKE_CONFIG = {
+    "type": "snowflake.online",
+    "account": os.getenv("SNOWFLAKE_CI_DEPLOYMENT", ""),
+    "user": os.getenv("SNOWFLAKE_CI_USER", ""),
+    "password": os.getenv("SNOWFLAKE_CI_PASSWORD", ""),
+    "role": os.getenv("SNOWFLAKE_CI_ROLE", ""),
+    "warehouse": os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
+    "database": "FEAST",
+    "schema": "ONLINE",
+}
+
+BIGTABLE_CONFIG = {
+    "type": "bigtable",
+    "project_id": os.getenv("GCLOUD_PROJECT", "kf-feast"),
+    "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
+}
+
+ROCKSET_CONFIG = {
+    "type": "rockset",
+    "api_key": os.getenv("ROCKSET_APIKEY", ""),
+    "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
+}
+
+OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
+    "file": ("local", FileDataSourceCreator),
+    "bigquery": ("gcp", BigQueryDataSourceCreator),
+    "redshift": ("aws", RedshiftDataSourceCreator),
+    "snowflake": ("aws", SnowflakeDataSourceCreator),
 }
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
@@ -84,6 +116,7 @@ AVAILABLE_ONLINE_STORES: Dict[
     "sqlite": ({"type": "sqlite"}, None),
 }
 
+# Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_OFFLINE_STORES.extend(
         [
@@ -96,6 +129,13 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
+    AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
+    AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
+
+    # Uncomment to test using private Rockset account. Currently not enabled as
+    # there is no dedicated Rockset instance for CI testing and there is no
+    # containerized version of Rockset.
+    # AVAILABLE_ONLINE_STORES["rockset"] = (ROCKSET_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
@@ -134,6 +174,7 @@ if full_repo_configs_module is not None:
         }
 
 
+# Replace online stores with emulated online stores if we're running local integration tests
 if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
     replacements: Dict[
         str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
@@ -141,6 +182,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
+        "bigtable": ("bigtable", BigtableOnlineStoreCreator),
     }
 
     for key, replacement in replacements.items():
@@ -297,11 +339,12 @@ class UniversalFeatureViews:
 
 
 def construct_universal_feature_views(
-    data_sources: UniversalDataSources, with_odfv: bool = True,
+    data_sources: UniversalDataSources,
+    with_odfv: bool = True,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
-    driver_hourly_stats_base_feature_view = create_driver_hourly_stats_batch_feature_view(
-        data_sources.driver
+    driver_hourly_stats_base_feature_view = (
+        create_driver_hourly_stats_batch_feature_view(data_sources.driver)
     )
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
@@ -328,6 +371,7 @@ class Environment:
     python_feature_server: bool
     worker_id: str
     online_store_creator: Optional[OnlineStoreCreator] = None
+    fixture_request: Optional[pytest.FixtureRequest] = None
 
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
@@ -347,6 +391,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
+    entity_key_serialization_version: int = 2,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -372,8 +417,6 @@ def construct_test_environment(
         online_creator = None
         online_store = test_repo_config.online_store
 
-    repo_dir_name = tempfile.mkdtemp()
-
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
@@ -381,28 +424,43 @@ def construct_test_environment(
 
         feature_server = AwsLambdaFeatureServerConfig(
             enabled=True,
-            execution_role_name="arn:aws:iam::402087665549:role/lambda_execution_role",
+            execution_role_name=os.getenv(
+                "AWS_LAMBDA_ROLE",
+                "arn:aws:iam::402087665549:role/lambda_execution_role",
+            ),
         )
 
-        registry = (
-            f"s3://feast-integration-tests/registries/{project}/registry.db"
-        )  # type: Union[str, RegistryConfig]
     else:
         feature_server = LocalFeatureServerConfig(
             feature_logging=FeatureLoggingConfig(enabled=True)
         )
-        registry = RegistryConfig(
-            path=str(Path(repo_dir_name) / "registry.db"), cache_ttl_seconds=1,
+
+    repo_dir_name = tempfile.mkdtemp()
+    if (
+        test_repo_config.python_feature_server and test_repo_config.provider == "aws"
+    ) or test_repo_config.registry_location == RegistryLocation.S3:
+        aws_registry_path = os.getenv(
+            "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
         )
+        registry: Union[
+            str, RegistryConfig
+        ] = f"{aws_registry_path}/{project}/registry.db"
+    else:
+        registry = RegistryConfig(
+            path=str(Path(repo_dir_name) / "registry.db"),
+            cache_ttl_seconds=1,
+        )
+
     config = RepoConfig(
         registry=registry,
         project=project,
         provider=test_repo_config.provider,
         offline_store=offline_store_config,
         online_store=online_store,
+        batch_engine=test_repo_config.batch_engine,
         repo_path=repo_dir_name,
         feature_server=feature_server,
-        go_feature_retrieval=test_repo_config.go_feature_retrieval,
+        entity_key_serialization_version=entity_key_serialization_version,
     )
 
     # Create feature_store.yaml out of the config
@@ -412,7 +470,7 @@ def construct_test_environment(
     fs = FeatureStore(repo_dir_name)
     # We need to initialize the registry, because if nothing is applied in the test before tearing down
     # the feature store, that will cause the teardown method to blow up.
-    fs.registry._initialize_registry()
+    fs.registry._initialize_registry(project)
     environment = Environment(
         name=project,
         test_repo_config=test_repo_config,
@@ -421,6 +479,7 @@ def construct_test_environment(
         python_feature_server=test_repo_config.python_feature_server,
         worker_id=worker_id,
         online_store_creator=online_creator,
+        fixture_request=fixture_request,
     )
 
     return environment

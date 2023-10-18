@@ -15,6 +15,7 @@ import { useParams } from "react-router-dom";
 import DatasetFeaturesTable from "./DatasetFeaturesTable";
 import DatasetJoinKeysTable from "./DatasetJoinKeysTable";
 import useLoadDataset from "./useLoadDataset";
+import { toDate } from "../../utils/timestamp";
 
 const EntityOverviewTab = () => {
   let { datasetName } = useParams();
@@ -47,7 +48,7 @@ const EntityOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 <DatasetFeaturesTable
-                  features={data.spec.features.map((joinedName: string) => {
+                  features={data.spec?.features!.map((joinedName: string) => {
                     const [featureViewName, featureName] =
                       joinedName.split(":");
 
@@ -55,7 +56,7 @@ const EntityOverviewTab = () => {
                       featureViewName,
                       featureName,
                     };
-                  })}
+                  })!}
                 />
               </EuiPanel>
               <EuiSpacer size="m" />
@@ -65,9 +66,9 @@ const EntityOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 <DatasetJoinKeysTable
-                  joinKeys={data.spec.joinKeys.map((joinKey) => {
+                  joinKeys={data?.spec?.joinKeys!.map((joinKey) => {
                     return { name: joinKey };
-                  })}
+                  })!}
                 />
               </EuiPanel>
             </EuiFlexItem>
@@ -82,7 +83,7 @@ const EntityOverviewTab = () => {
                     Source Feature Service
                   </EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data.spec.featureService}
+                    {data?.spec?.featureServiceName!}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>
@@ -91,7 +92,7 @@ const EntityOverviewTab = () => {
                 <EuiDescriptionList>
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data.meta.createdTimestamp.toLocaleDateString("en-CA")}
+                    {toDate(data?.meta?.createdTimestamp!).toLocaleDateString("en-CA")}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>

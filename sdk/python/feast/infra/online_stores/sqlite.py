@@ -50,8 +50,7 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
 class SqliteOnlineStore(OnlineStore):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    SQLite implementation of the online store interface. Not recommended for production usage.
 
     Attributes:
         _conn: SQLite connection.
@@ -95,7 +94,10 @@ class SqliteOnlineStore(OnlineStore):
 
         with conn:
             for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(entity_key)
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
                     created_ts = to_naive_utc(created_ts)
@@ -153,7 +155,13 @@ class SqliteOnlineStore(OnlineStore):
                 f"FROM {_table_id(config.project, table)} "
                 f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
                 f"ORDER BY entity_key",
-                [serialize_entity_key(entity_key) for entity_key in entity_keys],
+                [
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    )
+                    for entity_key in entity_keys
+                ],
             )
             rows = cur.fetchall()
 
@@ -161,7 +169,10 @@ class SqliteOnlineStore(OnlineStore):
             k: list(group) for k, group in itertools.groupby(rows, key=lambda r: r[0])
         }
         for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(entity_key)
+            entity_key_bin = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             res = {}
             res_ts = None
             for _, feature_name, val_bin, ts in rows.get(entity_key_bin, []):
@@ -283,7 +294,10 @@ class SqliteTable(InfraObject):
 
     @staticmethod
     def from_proto(sqlite_table_proto: SqliteTableProto) -> Any:
-        return SqliteTable(path=sqlite_table_proto.path, name=sqlite_table_proto.name,)
+        return SqliteTable(
+            path=sqlite_table_proto.path,
+            name=sqlite_table_proto.name,
+        )
 
     def update(self):
         self.conn.execute(

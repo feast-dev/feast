@@ -1,6 +1,6 @@
-# Feast Helm Charts
+# Feast Java Helm Charts (alpha)
 
-This repo contains Helm charts for Feast components that are being installed on Kubernetes:
+This repo contains Helm charts for Feast Java components that are being installed on Kubernetes:
 * Feast (root chart): The complete Helm chart containing all Feast components and dependencies. Most users will use this chart, but can selectively enable/disable subcharts using the values.yaml file.
     * [Feature Server](charts/feature-server): High performant JVM-based implementation of feature server.
     * [Transformation Service](charts/transformation-service): Transformation server for calculating on-demand features
@@ -8,7 +8,7 @@ This repo contains Helm charts for Feast components that are being installed on 
    
 ## Chart: Feast
 
-Feature store for machine learning Current chart version is `0.21.0`
+Feature store for machine learning Current chart version is `0.34.0`
 
 ## Installation
 
@@ -43,20 +43,30 @@ feature-server:
               config:
                 host: localhost
                 port: 6379
+            entityKeySerializationVersion: 2
+
+global:
+  registry:
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
+    cache_ttl_seconds: 60
+  project: feast_java_demo
 
 ```
 
-For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast-java/blob/master/serving/src/main/resources/application.yml).
+For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml).
 
 For more details, please see: https://docs.feast.dev/how-to-guides/running-feast-in-production
+
+## Example
+See [here](https://github.com/feast-dev/feast/tree/master/examples/java-demo) for a sample tutorial on testing this helm chart with a demo feature repository and a local Redis instance.
 
 ## Requirements
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://charts.helm.sh/stable | redis | 10.5.6  |
-| https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.21.0  |
-| https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.21.0  |
+| https://charts.helm.sh/stable | redis | 10.5.6 |
+| https://feast-helm-charts.storage.googleapis.com | feature-server(feature-server) | 0.34.0 |
+| https://feast-helm-charts.storage.googleapis.com | transformation-service(transformation-service) | 0.34.0 |
 
 ## Values
 

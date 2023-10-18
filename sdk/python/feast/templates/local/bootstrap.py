@@ -1,3 +1,6 @@
+from feast.file_utils import replace_str_in_file
+
+
 def bootstrap():
     # Bootstrap() will automatically be called from the init_repo() during `feast init`
 
@@ -6,7 +9,7 @@ def bootstrap():
 
     from feast.driver_test_data import create_driver_hourly_stats_df
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     data_path = repo_path / "data"
     data_path.mkdir(exist_ok=True)
 
@@ -19,16 +22,8 @@ def bootstrap():
     driver_stats_path = data_path / "driver_stats.parquet"
     driver_df.to_parquet(path=str(driver_stats_path), allow_truncated_timestamps=True)
 
-    example_py_file = repo_path / "example.py"
+    example_py_file = repo_path / "example_repo.py"
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 if __name__ == "__main__":

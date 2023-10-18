@@ -5,6 +5,4 @@ online_store:
   type: redis
   connection_string: "redis:6379,password=testpw"
 offline_store: {}
-flags:
-  alpha_features: true
-  on_demand_transforms: true
+entity_key_serialization_version: 2

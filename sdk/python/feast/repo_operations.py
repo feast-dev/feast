@@ -1,9 +1,11 @@
+import base64
 import importlib
 import json
 import os
 import random
 import re
 import sys
+import tempfile
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from pathlib import Path
@@ -14,15 +16,17 @@ from click.exceptions import BadParameter
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
-from feast.data_source import DataSource, KafkaSource
+from feast.constants import FEATURE_STORE_YAML_ENV_NAME
+from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
+from feast.file_utils import replace_str_in_file
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.request_feature_view import RequestFeatureView
@@ -113,17 +117,30 @@ def parse_repo(repo_root: Path) -> RepoContents:
         request_feature_views=[],
     )
 
-    data_sources_set = set()
     for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file)
         module = importlib.import_module(module_path)
+
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
+
             if isinstance(obj, DataSource) and not any(
                 (obj is ds) for ds in res.data_sources
             ):
                 res.data_sources.append(obj)
-                data_sources_set.add(obj)
+
+                # Handle batch sources defined within stream sources.
+                if (
+                    isinstance(obj, PushSource)
+                    or isinstance(obj, KafkaSource)
+                    or isinstance(obj, KinesisSource)
+                ):
+                    batch_source = obj.batch_source
+
+                    if batch_source and not any(
+                        (batch_source is ds) for ds in res.data_sources
+                    ):
+                        res.data_sources.append(batch_source)
             if (
                 isinstance(obj, FeatureView)
                 and not any((obj is fv) for fv in res.feature_views)
@@ -131,26 +148,42 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 and not isinstance(obj, BatchFeatureView)
             ):
                 res.feature_views.append(obj)
-                if isinstance(obj.stream_source, PushSource) and not any(
-                    (obj is ds) for ds in res.data_sources
-                ):
-                    push_source_dep = obj.stream_source.batch_source
-                    # Don't add if the push source's batch source is a duplicate of an existing batch source
-                    if push_source_dep not in data_sources_set:
-                        res.data_sources.append(push_source_dep)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                assert batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                if obj.stream_source:
+                    stream_source = obj.stream_source
+                    if not any((stream_source is ds) for ds in res.data_sources):
+                        res.data_sources.append(stream_source)
             elif isinstance(obj, StreamFeatureView) and not any(
                 (obj is sfv) for sfv in res.stream_feature_views
             ):
                 res.stream_feature_views.append(obj)
-                if (
-                    isinstance(obj.stream_source, PushSource)
-                    or isinstance(obj.stream_source, KafkaSource)
-                    and not any((obj is ds) for ds in res.data_sources)
-                ):
-                    batch_source_dep = obj.stream_source.batch_source
-                    # Don't add if the push source's batch source is a duplicate of an existing batch source
-                    if batch_source_dep and batch_source_dep not in data_sources_set:
-                        res.data_sources.append(batch_source_dep)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                stream_source = obj.stream_source
+                assert stream_source
+                if not any((stream_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(stream_source)
+            elif isinstance(obj, BatchFeatureView) and not any(
+                (obj is bfv) for bfv in res.feature_views
+            ):
+                res.feature_views.append(obj)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
             ):
@@ -167,6 +200,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is rfv) for rfv in res.request_feature_views
             ):
                 res.request_feature_views.append(obj)
+
     res.entities.append(DUMMY_ENTITY)
     return res
 
@@ -183,7 +217,7 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, infra_diff, _ = store._plan(repo)
+    registry_diff, infra_diff, _ = store.plan(repo)
     click.echo(registry_diff.to_string())
     click.echo(infra_diff.to_string())
 
@@ -262,8 +296,6 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, infra_diff, new_infra = store._plan(repo)
-
     # For each object in the registry, determine whether it should be kept or deleted.
     (
         all_to_apply,
@@ -272,9 +304,10 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    click.echo(registry_diff.to_string())
-
     if store._should_use_plan():
+        registry_diff, infra_diff, new_infra = store.plan(repo)
+        click.echo(registry_diff.to_string())
+
         store._apply_diffs(registry_diff, infra_diff, new_infra)
         click.echo(infra_diff.to_string())
     else:
@@ -298,8 +331,28 @@ def log_infra_changes(
 
 
 @log_exceptions_and_usage
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+def create_feature_store(
+    ctx: click.Context,
+) -> FeatureStore:
+    repo = ctx.obj["CHDIR"]
+    # If we received a base64 encoded version of feature_store.yaml, use that
+    config_base64 = os.getenv(FEATURE_STORE_YAML_ENV_NAME)
+    if config_base64:
+        print("Received base64 encoded feature_store.yaml")
+        config_bytes = base64.b64decode(config_base64)
+        # Create a new unique directory for writing feature_store.yaml
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "wb") as f:
+            f.write(config_bytes)
+        return FeatureStore(repo_path=str(repo_path.resolve()))
+    else:
+        fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+        cli_check_repo(repo, fs_yaml_file)
+        return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
+
+@log_exceptions_and_usage
+def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
     apply_total_with_repo_instance(
@@ -317,20 +370,19 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 @log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
-    registry_config = repo_config.get_registry_config()
+    registry_config = repo_config.registry
     project = repo_config.project
-    registry = Registry(registry_config=registry_config, repo_path=repo_path)
+    registry = Registry(project, registry_config=registry_config, repo_path=repo_path)
     registry_dict = registry.to_dict(project=project)
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 
-def cli_check_repo(repo_path: Path):
+def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
     sys.path.append(str(repo_path))
-    config_path = repo_path / "feature_store.yaml"
-    if not config_path.exists():
+    if not fs_yaml_file.exists():
         print(
-            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running feast from an initialized "
-            f"feast repository. "
+            f"Can't find feature repo configuration file at {fs_yaml_file}. "
+            "Make sure you're running feast from an initialized feast repository."
         )
         sys.exit(1)
 
@@ -382,7 +434,7 @@ def init_repo(repo_name: str, template: str):
         os.remove(bootstrap_path)
 
     # Template the feature_store.yaml file
-    feature_store_yaml_path = repo_path / "feature_store.yaml"
+    feature_store_yaml_path = repo_path / "feature_repo" / "feature_store.yaml"
     replace_str_in_file(
         feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
     )
@@ -404,14 +456,6 @@ def init_repo(repo_name: str, template: str):
 def is_valid_name(name: str) -> bool:
     """A name should be alphanumeric values and underscores but not start with an underscore"""
     return not name.startswith("_") and re.compile(r"\W+").search(name) is None
-
-
-def replace_str_in_file(file_path, match_str, sub_str):
-    with open(file_path, "r") as f:
-        contents = f.read()
-    contents = contents.replace(match_str, sub_str)
-    with open(file_path, "wt") as f:
-        f.write(contents)
 
 
 def generate_project_name() -> str:
