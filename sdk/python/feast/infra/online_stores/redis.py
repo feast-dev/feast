@@ -74,20 +74,30 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
 
 class RedisOnlineStore(OnlineStore):
+    """
+    Redis implementation of the online store interface.
+
+    See https://github.com/feast-dev/feast/blob/master/docs/specs/online_store_format.md#redis-online-store-format
+    for more details about the data model for this implementation.
+
+    Attributes:
+        _client: Redis connection.
+    """
+
     _client: Optional[Union[Redis, RedisCluster]] = None
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0
-        pipeline = client.pipeline(transaction=False)
         prefix = _redis_key_prefix(join_keys)
 
-        for _k in client.scan_iter(
-            b"".join([prefix, b"*", config.project.encode("utf8")])
-        ):
-            pipeline.delete(_k)
-            deleted_count += 1
-        pipeline.execute()
+        with client.pipeline(transaction=False) as pipe:
+            for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
+                pipe.delete(_k)
+                deleted_count += 1
+            pipe.execute()
 
         logger.debug(f"Deleted {deleted_count} rows for entity {', '.join(join_keys)}")
 
@@ -199,7 +209,11 @@ class RedisOnlineStore(OnlineStore):
             # TODO: investigate if check and set is a better approach rather than pulling all entity ts and then setting
             # it may be significantly slower but avoids potential (rare) race conditions
             for entity_key, _, _, _ in data:
-                redis_key_bin = _redis_key(project, entity_key)
+                redis_key_bin = _redis_key(
+                    project,
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
                 keys.append(redis_key_bin)
                 pipe.hmget(redis_key_bin, ts_key)
             prev_event_timestamps = pipe.execute()
@@ -268,7 +282,11 @@ class RedisOnlineStore(OnlineStore):
 
         keys = []
         for entity_key in entity_keys:
-            redis_key_bin = _redis_key(project, entity_key)
+            redis_key_bin = _redis_key(
+                project,
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             keys.append(redis_key_bin)
         with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:

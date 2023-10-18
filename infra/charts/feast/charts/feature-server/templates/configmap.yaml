@@ -28,9 +28,6 @@ data:
         config:
           host: {{ .Release.Name }}-redis-master
           port: 6379
-    rest:
-      server: 
-        port: {{ .Values.service.http.targetPort }}
     grpc:
       server:
         port: {{ .Values.service.grpc.targetPort }}

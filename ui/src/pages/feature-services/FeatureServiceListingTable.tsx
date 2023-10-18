@@ -5,20 +5,18 @@ import {
   EuiTableFieldDataColumnType,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
-import {
-  FeastFeatureInServiceType,
-  FeastFeatureServiceType,
-} from "../../parsers/feastFeatureServices";
 import { useParams } from "react-router-dom";
+import { feast } from "../../protos";
+import { toDate } from "../../utils/timestamp";
 
 interface FeatureServiceListingTableProps {
   tagKeysSet: Set<string>;
-  featureServices: FeastFeatureServiceType[];
+  featureServices: feast.core.IFeatureService[];
 }
 
 type FeatureServiceTypeColumn =
-  | EuiTableFieldDataColumnType<FeastFeatureServiceType>
-  | EuiTableComputedColumnType<FeastFeatureServiceType>;
+  | EuiTableFieldDataColumnType<feast.core.IFeatureService>
+  | EuiTableComputedColumnType<feast.core.IFeatureService>;
 
 const FeatureServiceListingTable = ({
   tagKeysSet,
@@ -33,8 +31,8 @@ const FeatureServiceListingTable = ({
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`/p/${projectName}/feature-service/${name}`}
-            to={`/p/${projectName}/feature-service/${name}`}
+            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
+            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
           >
             {name}
           </EuiCustomLink>
@@ -44,19 +42,19 @@ const FeatureServiceListingTable = ({
     {
       name: "# of Features",
       field: "spec.features",
-      render: (featureViews: FeastFeatureInServiceType[]) => {
+      render: (featureViews: feast.core.IFeatureViewProjection[]) => {
         var numFeatures = 0;
         featureViews.forEach((featureView) => {
-          numFeatures += featureView.featureColumns.length;
+          numFeatures += featureView.featureColumns!.length;
         });
         return numFeatures;
       },
     },
     {
-      name: "Created at",
-      field: "meta.createdTimestamp",
-      render: (date: Date) => {
-        return date.toLocaleDateString("en-CA");
+      name: "Last updated",
+      field: "meta.lastUpdatedTimestamp",
+      render: (date: any) => {
+        return date ? toDate(date).toLocaleDateString("en-CA") : "n/a";
       },
     },
   ];
@@ -64,10 +62,10 @@ const FeatureServiceListingTable = ({
   tagKeysSet.forEach((key) => {
     columns.push({
       name: key,
-      render: (item: FeastFeatureServiceType) => {
+      render: (item: feast.core.IFeatureService) => {
         let tag = <span>n/a</span>;
 
-        const value = item.spec.tags ? item.spec.tags[key] : undefined;
+        const value = item?.spec?.tags ? item.spec.tags[key] : undefined;
 
         if (value) {
           tag = <span>{value}</span>;
@@ -78,9 +76,9 @@ const FeatureServiceListingTable = ({
     });
   });
 
-  const getRowProps = (item: FeastFeatureServiceType) => {
+  const getRowProps = (item: feast.core.IFeatureService) => {
     return {
-      "data-test-subj": `row-${item.spec.name}`,
+      "data-test-subj": `row-${item?.spec?.name}`,
     };
   };
 

@@ -60,7 +60,7 @@ const SideNav = () => {
       name: "Home",
       id: htmlIdGenerator("basicExample")(),
       onClick: () => {
-        navigate(`/p/${projectName}/`);
+        navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/`);
       },
       items: [
         {
@@ -68,7 +68,7 @@ const SideNav = () => {
           id: htmlIdGenerator("dataSources")(),
           icon: <EuiIcon type={DataSourceIcon16} />,
           onClick: () => {
-            navigate(`/p/${projectName}/data-source`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source`);
           },
           isSelected: useMatchSubpath("data-source"),
         },
@@ -77,7 +77,7 @@ const SideNav = () => {
           id: htmlIdGenerator("entities")(),
           icon: <EuiIcon type={EntityIcon16} />,
           onClick: () => {
-            navigate(`/p/${projectName}/entity`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity`);
           },
           isSelected: useMatchSubpath("entity"),
         },
@@ -86,7 +86,7 @@ const SideNav = () => {
           id: htmlIdGenerator("featureView")(),
           icon: <EuiIcon type={FeatureViewIcon16} />,
           onClick: () => {
-            navigate(`/p/${projectName}/feature-view`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view`);
           },
           isSelected: useMatchSubpath("feature-view"),
         },
@@ -95,7 +95,7 @@ const SideNav = () => {
           id: htmlIdGenerator("featureService")(),
           icon: <EuiIcon type={FeatureServiceIcon16} />,
           onClick: () => {
-            navigate(`/p/${projectName}/feature-service`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service`);
           },
           isSelected: useMatchSubpath("feature-service"),
         },
@@ -104,7 +104,7 @@ const SideNav = () => {
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon16} />,
           onClick: () => {
-            navigate(`/p/${projectName}/data-set`);
+            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set`);
           },
           isSelected: useMatchSubpath("data-set"),
         },

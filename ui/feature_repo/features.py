@@ -2,16 +2,18 @@ from datetime import timedelta
 
 import pandas as pd
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource, ValueType
+from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.data_source import RequestSource
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Bool, Int64, String
 
 zipcode = Entity(
     name="zipcode",
-    value_type=ValueType.INT64,
     description="A zipcode",
-    tags={"owner": "danny@tecton.ai", "team": "hack week",},
+    tags={
+        "owner": "danny@tecton.ai",
+        "team": "hack week",
+    },
 )
 
 zipcode_source = FileSource(
@@ -23,7 +25,7 @@ zipcode_source = FileSource(
 
 zipcode_features = FeatureView(
     name="zipcode_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="city", dtype=String),
@@ -32,6 +34,7 @@ zipcode_features = FeatureView(
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -44,7 +47,7 @@ zipcode_features = FeatureView(
 
 zipcode_features = FeatureView(
     name="zipcode_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="city", dtype=String),
@@ -53,6 +56,7 @@ zipcode_features = FeatureView(
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="population", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -65,11 +69,12 @@ zipcode_features = FeatureView(
 
 zipcode_money_features = FeatureView(
     name="zipcode_money_features",
-    entities=["zipcode"],
+    entities=[zipcode],
     ttl=timedelta(days=3650),
     schema=[
         Field(name="tax_returns_filed", dtype=Int64),
         Field(name="total_wages", dtype=Int64),
+        Field(name="zipcode", dtype=Int64),
     ],
     source=zipcode_source,
     tags={
@@ -82,9 +87,11 @@ zipcode_money_features = FeatureView(
 
 dob_ssn = Entity(
     name="dob_ssn",
-    value_type=ValueType.STRING,
     description="Date of birth and last four digits of social security number",
-    tags={"owner": "tony@tecton.ai", "team": "hack week",},
+    tags={
+        "owner": "tony@tecton.ai",
+        "team": "hack week",
+    },
 )
 
 credit_history_source = FileSource(
@@ -96,7 +103,7 @@ credit_history_source = FileSource(
 
 credit_history = FeatureView(
     name="credit_history",
-    entities=["dob_ssn"],
+    entities=[dob_ssn],
     ttl=timedelta(days=9000),
     schema=[
         Field(name="credit_card_due", dtype=Int64),
@@ -108,6 +115,7 @@ credit_history = FeatureView(
         Field(name="missed_payments_1y", dtype=Int64),
         Field(name="missed_payments_6m", dtype=Int64),
         Field(name="bankruptcies", dtype=Int64),
+        Field(name="dob_ssn", dtype=String),
     ],
     source=credit_history_source,
     tags={
@@ -121,14 +129,19 @@ credit_history = FeatureView(
 # Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestSource(
-    name="transaction", schema=[Field(name="transaction_amt", dtype=Int64),],
+    name="transaction",
+    schema=[
+        Field(name="transaction_amt", dtype=Int64),
+    ],
 )
 
 # Define an on demand feature view which can generate new features based on
 # existing feature views and RequestSource features
 @on_demand_feature_view(
     sources=[credit_history, input_request],
-    schema=[Field(name="transaction_gt_last_credit_card_due", dtype=Bool),],
+    schema=[
+        Field(name="transaction_gt_last_credit_card_due", dtype=Bool),
+    ],
 )
 def transaction_gt_last_credit_card_due(inputs: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -171,14 +184,18 @@ model_v3 = FeatureService(
 
 zipcode_model = FeatureService(
     name="zipcode_model",
-    features=[zipcode_features,],
+    features=[
+        zipcode_features,
+    ],
     tags={"owner": "amanda@tecton.ai", "stage": "dev"},
     description="Location model",
 )
 
 zipcode_model_v2 = FeatureService(
     name="zipcode_model_v2",
-    features=[zipcode_money_features,],
+    features=[
+        zipcode_money_features,
+    ],
     tags={"owner": "amanda@tecton.ai", "stage": "dev"},
     description="Location model",
 )

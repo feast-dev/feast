@@ -32,16 +32,17 @@ import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto;
+import feast.serving.connectors.Feature;
+import feast.serving.connectors.ProtoFeature;
+import feast.serving.connectors.redis.retriever.RedisOnlineRetriever;
 import feast.serving.registry.Registry;
 import feast.serving.registry.RegistryRepository;
-import feast.storage.api.retriever.Feature;
-import feast.storage.api.retriever.ProtoFeature;
-import feast.storage.connectors.redis.retriever.OnlineRetriever;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class OnlineServingServiceTest {
 
   @Mock Registry registry;
   @Mock Tracer tracer;
-  @Mock OnlineRetriever retrieverV2;
+  @Mock RedisOnlineRetriever retrieverV2;
   private String transformationServiceEndpoint;
 
   private OnlineServingServiceV2 onlineServingServiceV2;
@@ -73,7 +74,11 @@ public class OnlineServingServiceTest {
         new OnlineTransformationService(transformationServiceEndpoint, registryRepo);
     onlineServingServiceV2 =
         new OnlineServingServiceV2(
-            retrieverV2, tracer, registryRepo, onlineTransformationService, "feast_project");
+            retrieverV2,
+            registryRepo,
+            onlineTransformationService,
+            "feast_project",
+            Optional.of(tracer));
 
     mockedFeatureRows = new ArrayList<>();
     mockedFeatureRows.add(
@@ -170,6 +175,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(3).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -237,6 +244,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(0));
     when(registry.getFeatureSpec(mockedFeatureRows.get(1).getFeatureReference()))
         .thenReturn(featureSpecs.get(1));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -314,6 +323,8 @@ public class OnlineServingServiceTest {
         .thenReturn(featureSpecs.get(1));
     when(registry.getFeatureSpec(mockedFeatureRows.get(5).getFeatureReference()))
         .thenReturn(featureSpecs.get(0));
+    when(registry.getEntityJoinKey("entity1")).thenReturn("entity1");
+    when(registry.getEntityJoinKey("entity2")).thenReturn("entity2");
 
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -372,7 +383,7 @@ public class OnlineServingServiceTest {
             ServingAPIProto.FeatureList.newBuilder()
                 .addAllVal(
                     featureReferences.stream()
-                        .map(feast.common.models.Feature::getFeatureReference)
+                        .map(FeatureUtil::getFeatureReference)
                         .collect(Collectors.toList()))
                 .build())
         .putAllEntities(

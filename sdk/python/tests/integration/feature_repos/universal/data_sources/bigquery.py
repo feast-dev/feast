@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Dict, List, Optional
 
@@ -13,6 +14,7 @@ from feast.infra.offline_stores.bigquery_source import (
     BigQueryLoggingDestination,
     SavedDatasetBigQueryStorage,
 )
+from feast.utils import make_df_tzaware
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -51,7 +53,12 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         self.dataset = None
 
     def create_offline_store_config(self):
-        return BigQueryOfflineStoreConfig()
+        return BigQueryOfflineStoreConfig(
+            location=os.getenv("GCS_REGION", "US"),
+            gcs_staging_location=os.getenv(
+                "GCS_STAGING_LOCATION", "gs://feast-export/"
+            ),
+        )
 
     def create_data_source(
         self,
@@ -72,6 +79,10 @@ class BigQueryDataSourceCreator(DataSourceCreator):
                 f"{self.gcp_project}.{self.project_name}.{destination_name}"
             )
 
+        # Make all datetime columns timezone aware. This should be the behaviour of
+        # `BigQueryOfflineStore.offline_write_batch`, but since we're bypassing that API here, we should follow the same
+        # rule. The schema of this initial dataframe determines the schema in the newly created BigQuery table.
+        df = make_df_tzaware(df)
         job = self.client.load_table_from_dataframe(df, destination_name)
         job.result()
 

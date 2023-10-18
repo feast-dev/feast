@@ -1,14 +1,15 @@
-# \[Alpha\] Feast Web UI
+# \[Beta] Web UI
 
-**Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
+**Warning**: This is an _experimental_ feature. To our knowledge, this is stable, but there are still rough edges in the experience. Contributions are welcome!
 
 ## Overview
 
 The Feast Web UI allows users to explore their feature repository through a Web UI. It includes functionality such as:
-- Browsing Feast objects (feature views, entities, data sources, feature services, and saved datasets) and their relationships
-- Searching and filtering for Feast objects by tags
 
-![Sample UI](ui.png)
+* Browsing Feast objects (feature views, entities, data sources, feature services, and saved datasets) and their relationships
+* Searching and filtering for Feast objects by tags
+
+![Sample UI](../../ui/sample.png)
 
 ## Usage
 
@@ -19,6 +20,7 @@ There are several ways to use the Feast Web UI.
 The easiest way to get started is to run the `feast ui` command within a feature repository:
 
 Output of `feast ui --help`:
+
 ```bash
 Usage: feast ui [OPTIONS]
 
@@ -84,6 +86,7 @@ When you start the React app, it will look for `project-list.json` to find a lis
 ```
 
 Then start the React App
+
 ```bash
 yarn start
 ```
@@ -92,7 +95,7 @@ yarn start
 
 The advantage of importing Feast UI as a module is in the ease of customization. The `<FeastUI>` component exposes a `feastUIConfigs` prop thorough which you can customize the UI. Currently it supports a few parameters.
 
-##### Fetching the Project List
+**Fetching the Project List**
 
 You can use `projectListPromise` to provide a promise that overrides where the Feast UI fetches the project list from.
 
@@ -110,7 +113,7 @@ You can use `projectListPromise` to provide a promise that overrides where the F
 />
 ```
 
-##### Custom Tabs
+**Custom Tabs**
 
 You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
 
@@ -133,4 +136,3 @@ const tabsRegistry = {
 ```
 
 Examples of custom tabs can be found in the `ui/custom-tabs` folder.
-

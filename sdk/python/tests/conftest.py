@@ -13,36 +13,62 @@
 # limitations under the License.
 import logging
 import multiprocessing
-import socket
-from contextlib import closing
+import os
+import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
-from feast import FeatureStore
-from feast.wait import wait_retry_backoff
-from tests.data.data_creator import create_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+os.environ["FEAST_USAGE"] = "False"
+os.environ["IS_TEST"] = "True"
+from feast.feature_store import FeatureStore  # noqa: E402
+from feast.wait import wait_retry_backoff  # noqa: E402
+from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
+from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
     AVAILABLE_ONLINE_STORES,
+    OFFLINE_STORE_TO_PROVIDER_CONFIG,
     Environment,
     TestData,
     construct_test_environment,
+    construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
     FileDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.entities import (  # noqa: E402
+    customer,
+    driver,
+    location,
+)
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+level = logging.INFO
+logging.basicConfig(
+    format="%(asctime)s %(name)s %(levelname)s: %(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S %p",
+    level=level,
+)
+# Override the logging level for already created loggers (due to loggers being created at the import time)
+# Note, that format & datefmt does not need to be set, because by default child loggers don't override them
+
+# Also note, that mypy complains that logging.root doesn't have "manager" because of the way it's written.
+# So we have to put a type ignore hint for mypy.
+for logger_name in logging.root.manager.loggerDict:  # type: ignore
+    if "feast" in logger_name:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(level)
 
 
 def pytest_configure(config):
@@ -54,9 +80,6 @@ def pytest_configure(config):
         "markers", "integration: mark test that has external dependencies"
     )
     config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
-    config.addinivalue_line(
-        "markers", "goserver: mark tests that use the go feature server"
-    )
     config.addinivalue_line(
         "markers",
         "universal_online_stores: mark tests that can be run against different online stores",
@@ -75,20 +98,16 @@ def pytest_addoption(parser):
         help="Run tests with external dependencies",
     )
     parser.addoption(
-        "--benchmark", action="store_true", default=False, help="Run benchmark tests",
-    )
-    parser.addoption(
-        "--goserver",
+        "--benchmark",
         action="store_true",
         default=False,
-        help="Run tests that use the go feature server",
+        help="Run benchmark tests",
     )
 
 
 def pytest_collection_modifyitems(config, items: List[Item]):
     should_run_integration = config.getoption("--integration") is True
     should_run_benchmark = config.getoption("--benchmark") is True
-    should_run_goserver = config.getoption("--goserver") is True
 
     integration_tests = [t for t in items if "integration" in t.keywords]
     if not should_run_integration:
@@ -106,12 +125,6 @@ def pytest_collection_modifyitems(config, items: List[Item]):
     else:
         items.clear()
         for t in benchmark_tests:
-            items.append(t)
-
-    goserver_tests = [t for t in items if "goserver" in t.keywords]
-    if should_run_goserver:
-        items.clear()
-        for t in goserver_tests:
             items.append(t)
 
 
@@ -160,7 +173,7 @@ def start_test_local_server(repo_path: str, port: int):
     fs.serve("localhost", port, no_access_log=True)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def environment(request, worker_id):
     e = construct_test_environment(
         request.param, worker_id=worker_id, fixture_request=request
@@ -196,16 +209,24 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     """
     if "environment" in metafunc.fixturenames:
         markers = {m.name: m for m in metafunc.definition.own_markers}
-
+        offline_stores = None
         if "universal_offline_stores" in markers:
-            offline_stores = AVAILABLE_OFFLINE_STORES
+            # Offline stores can be explicitly requested
+            if "only" in markers["universal_offline_stores"].kwargs:
+                offline_stores = [
+                    OFFLINE_STORE_TO_PROVIDER_CONFIG.get(store_name)
+                    for store_name in markers["universal_offline_stores"].kwargs["only"]
+                    if store_name in OFFLINE_STORE_TO_PROVIDER_CONFIG
+                ]
+            else:
+                offline_stores = AVAILABLE_OFFLINE_STORES
         else:
             # default offline store for testing online store dimension
             offline_stores = [("local", FileDataSourceCreator)]
 
         online_stores = None
         if "universal_online_stores" in markers:
-            # Online stores are explicitly requested
+            # Online stores can be explicitly requested
             if "only" in markers["universal_online_stores"].kwargs:
                 online_stores = [
                     AVAILABLE_ONLINE_STORES.get(store_name)
@@ -236,51 +257,46 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                 ]
             )
 
-        if "goserver" in markers:
-            extra_dimensions.append({"go_feature_retrieval": True})
-
         configs = []
-        for provider, offline_store_creator in offline_stores:
-            for online_store, online_store_creator in online_stores:
-                for dim in extra_dimensions:
-                    config = {
-                        "provider": provider,
-                        "offline_store_creator": offline_store_creator,
-                        "online_store": online_store,
-                        "online_store_creator": online_store_creator,
-                        **dim,
-                    }
-                    # temporary Go works only with redis
-                    if config.get("go_feature_retrieval") and (
-                        not isinstance(online_store, dict)
-                        or online_store["type"] != "redis"
-                    ):
-                        continue
+        if offline_stores:
+            for provider, offline_store_creator in offline_stores:
+                for online_store, online_store_creator in online_stores:
+                    for dim in extra_dimensions:
+                        config = {
+                            "provider": provider,
+                            "offline_store_creator": offline_store_creator,
+                            "online_store": online_store,
+                            "online_store_creator": online_store_creator,
+                            **dim,
+                        }
 
-                    # aws lambda works only with dynamo
-                    if (
-                        config.get("python_feature_server")
-                        and config.get("provider") == "aws"
-                        and (
-                            not isinstance(online_store, dict)
-                            or online_store["type"] != "dynamodb"
-                        )
-                    ):
-                        continue
+                        # aws lambda works only with dynamo
+                        if (
+                            config.get("python_feature_server")
+                            and config.get("provider") == "aws"
+                            and (
+                                not isinstance(online_store, dict)
+                                or online_store["type"] != "dynamodb"
+                            )
+                        ):
+                            continue
 
-                    c = IntegrationTestRepoConfig(**config)
+                        c = IntegrationTestRepoConfig(**config)
 
-                    if c not in _config_cache:
-                        _config_cache[c] = c
+                        if c not in _config_cache:
+                            _config_cache[c] = c
 
-                    configs.append(_config_cache[c])
+                        configs.append(_config_cache[c])
+        else:
+            # No offline stores requested -> setting the default or first available
+            offline_stores = [("local", FileDataSourceCreator)]
 
         metafunc.parametrize(
             "environment", configs, indirect=True, ids=[str(c) for c in configs]
         )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def feature_server_endpoint(environment):
     if (
         not environment.python_feature_server
@@ -289,7 +305,7 @@ def feature_server_endpoint(environment):
         yield environment.feature_store.get_feature_server_endpoint()
         return
 
-    port = _free_port()
+    port = free_port()
 
     proc = Process(
         target=start_test_local_server,
@@ -302,7 +318,8 @@ def feature_server_endpoint(environment):
         proc.start()
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, _check_port_open("localhost", port)), timeout_secs=10,
+            lambda: (None, check_port_open("localhost", port)),
+            timeout_secs=10,
         )
 
     yield f"http://localhost:{port}"
@@ -314,33 +331,79 @@ def feature_server_endpoint(environment):
         wait_retry_backoff(
             lambda: (
                 None,
-                not _check_port_open("localhost", environment.get_local_server_port()),
+                not check_port_open("localhost", environment.get_local_server_port()),
             ),
             timeout_secs=30,
         )
 
 
-def _check_port_open(host, port) -> bool:
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        return sock.connect_ex((host, port)) == 0
-
-
-def _free_port():
-    sock = socket.socket()
-    sock.bind(("", 0))
-    return sock.getsockname()[1]
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 def universal_data_sources(environment) -> TestData:
     return construct_universal_test_data(environment)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def e2e_data_sources(environment: Environment):
-    df = create_dataset()
+    df = create_basic_driver_dataset()
     data_source = environment.data_source_creator.create_data_source(
-        df, environment.feature_store.project, field_mapping={"ts_1": "ts"},
+        df,
+        environment.feature_store.project,
+        field_mapping={"ts_1": "ts"},
     )
 
     return df, data_source
+
+
+@pytest.fixture
+def feature_store_for_online_retrieval(
+    environment, universal_data_sources
+) -> Tuple[FeatureStore, List[str], List[Dict[str, int]]]:
+    """
+    Returns a feature store that is ready for online retrieval, along with entity rows and feature
+    refs that can be used to query for online features.
+    """
+    fs = environment.feature_store
+    entities, datasets, data_sources = universal_data_sources
+    feature_views = construct_universal_feature_views(data_sources)
+
+    feast_objects = []
+    feast_objects.extend(feature_views.values())
+    feast_objects.extend([driver(), customer(), location()])
+    fs.apply(feast_objects)
+    fs.materialize(environment.start_date, environment.end_date)
+
+    sample_drivers = random.sample(entities.driver_vals, 10)
+    sample_customers = random.sample(entities.customer_vals, 10)
+
+    entity_rows = [
+        {"driver_id": d, "customer_id": c, "val_to_add": 50}
+        for (d, c) in zip(sample_drivers, sample_customers)
+    ]
+
+    feature_refs = [
+        "driver_stats:conv_rate",
+        "driver_stats:avg_daily_trips",
+        "customer_profile:current_balance",
+        "customer_profile:avg_passenger_count",
+        "customer_profile:lifetime_trip_count",
+        "conv_rate_plus_100:conv_rate_plus_100",
+        "conv_rate_plus_100:conv_rate_plus_val_to_add",
+        "global_stats:num_rides",
+        "global_stats:avg_ride_length",
+    ]
+
+    return fs, feature_refs, entity_rows
+
+
+@pytest.fixture
+def fake_ingest_data():
+    """Fake data to ingest into the feature store"""
+    data = {
+        "driver_id": [1],
+        "conv_rate": [0.5],
+        "acc_rate": [0.6],
+        "avg_daily_trips": [4],
+        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
+    }
+    return pd.DataFrame(data)

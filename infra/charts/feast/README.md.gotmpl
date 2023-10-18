@@ -1,8 +1,6 @@
-# Feast Helm Charts
+# Feast Java Helm Charts (alpha)
 
-> :warning: **Disclaimer**: Since Feast 0.10 our vision is to manage all infrastructure for feature store from one place - Feast SDK. But while this new paradigm is still in development, we are planning to support the installation of some Feast components (like Java feature server) through Helm chart presented in this repository. However, we do not expect helm chart to become a long-term solution for deploying Feast components to production, and some frictions still might exist. For example, you will need to manually sync some configurations from [feature_store.yaml](https://docs.feast.dev/reference/feature-repository/feature-store-yaml) into the chart context (like path to the registry file or project name).
-
-This repo contains Helm charts for Feast components that are being installed on Kubernetes:
+This repo contains Helm charts for Feast Java components that are being installed on Kubernetes:
 * Feast (root chart): The complete Helm chart containing all Feast components and dependencies. Most users will use this chart, but can selectively enable/disable subcharts using the values.yaml file.
     * [Feature Server](charts/feature-server): High performant JVM-based implementation of feature server. 
     * [Transformation Service](charts/transformation-service): Transformation server for calculating on-demand features
@@ -45,12 +43,23 @@ feature-server:
               config:
                 host: localhost
                 port: 6379
+            entityKeySerializationVersion: 2
+
+global:
+  registry:
+    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
+    cache_ttl_seconds: 60
+  project: feast_java_demo
 
 ```
 
-For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast-java/blob/master/serving/src/main/resources/application.yml).
+For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml).
 
 For more details, please see: https://docs.feast.dev/how-to-guides/running-feast-in-production
+
+## Example
+See [here](https://github.com/feast-dev/feast/tree/master/examples/java-demo) for a sample tutorial on testing this helm chart with a demo feature repository and a local Redis instance.
+
 
 {{ template "chart.requirementsSection" . }}
 

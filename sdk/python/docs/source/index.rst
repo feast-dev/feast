@@ -1,285 +1,462 @@
 Feast Python API Documentation
 ==============================
 
+..  We prefer 'autoclass' instead of 'autoclass' as 'autoclass' can specify a class, whereas
+    'autoclass' will pull in all public classes and methods from that module, which we typically
+    do not want.
 
 Feature Store
 ==================
 
-.. automodule:: feast.feature_store
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autoclass:: feast.feature_store.FeatureStore
+    :members:
 
 Config
 ==================
 
-.. automodule:: feast.repo_config
+.. autoclass:: feast.repo_config.RepoConfig
     :members:
-    :exclude-members: load_repo_config, FeastBaseModel
+
+.. autoclass:: feast.repo_config.RegistryConfig
+    :members:
 
 Data Source
 ==================
 
-.. automodule:: feast.data_source
-    :inherited-members:
+.. autoclass:: feast.data_source.DataSource
     :members:
-    :exclude-members: KafkaOptions, KafkaSource, KinesisOptions, KinesisSource, PushSource, RequestSource, RequestDataSource
-
-Request Source
-------------------
-
-.. automodule:: feast.data_source
-    :members: RequestSource
-
-Push Source
-------------------
-
-.. automodule:: feast.data_source
-    :members: PushSource
-
-BigQuery Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.bigquery_source
-    :members:
-    :exclude-members: BigQueryOptions
-
-Redshift Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.redshift_source
-    :members:
-    :exclude-members: RedshiftOptions
-
-Snowflake Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.snowflake_source
-    :members:
-    :exclude-members: SnowflakeOptions
-
-Spark Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark_source
-    :members:
-    :exclude-members: SparkOptions
-
-Trino Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino_source
-    :members:
-    :exclude-members: TrinoOptions
-
-PostgreSQL Source
-------------------
-
-.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source
-    :members:
-    :exclude-members: PostgreSQLOptions
 
 File Source
 ------------------
 
-.. automodule:: feast.infra.offline_stores.file_source
+.. autoclass:: feast.infra.offline_stores.file_source.FileSource
     :members:
-    :exclude-members: FileOptions
+
+Snowflake Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.snowflake_source.SnowflakeSource
+    :members:
+
+BigQuery Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.bigquery_source.BigQuerySource
+    :members:
+
+Redshift Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.redshift_source.RedshiftSource
+    :members:
+
+Spark Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource
+    :members:
+
+Trino Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource
+    :members:
+
+PostgreSQL Source
+------------------
+
+.. autoclass:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source.PostgreSQLSource
+    :members:
+
+Request Source
+------------------
+
+.. autoclass:: feast.data_source.RequestSource
+    :members:
+
+Push Source
+------------------
+
+.. autoclass:: feast.data_source.PushSource
+    :members:
+
+Kafka Source
+------------------
+
+.. autoclass:: feast.data_source.KafkaSource
+    :members:
+
+Kinesis Source
+------------------
+
+.. autoclass:: feast.data_source.KinesisSource
+    :members:
 
 Entity
 ==================
 
-.. automodule:: feast.entity
-    :inherited-members:
+.. autoclass:: feast.entity.Entity
     :members:
 
 Feature View
 ==================
 
-.. automodule:: feast.feature_view
+.. autoclass:: feast.base_feature_view.BaseFeatureView
+    :members:
+
+Feature View
+----------------------
+
+.. autoclass:: feast.feature_view.FeatureView
     :members:
 
 On Demand Feature View
 ----------------------
 
-.. automodule:: feast.on_demand_feature_view
+.. autoclass:: feast.on_demand_feature_view.OnDemandFeatureView
+    :members:
+
+Batch Feature View
+----------------------
+
+.. autoclass:: feast.batch_feature_view.BatchFeatureView
     :members:
 
 Stream Feature View
 ----------------------
 
-.. automodule:: feast.stream_feature_view
+.. autoclass:: feast.stream_feature_view.StreamFeatureView
     :members:
 
-Feature
+Field
 ==================
 
-.. automodule:: feast.feature
-    :inherited-members:
+.. autoclass:: feast.field.Field
     :members:
 
 Feature Service
 ==================
 
-.. automodule:: feast.feature_service
-    :inherited-members:
+.. autoclass:: feast.feature_service.FeatureService
     :members:
 
 Registry
 ==================
 
-.. automodule:: feast.registry
-    :inherited-members:
+.. autoclass:: feast.infra.registry.base_registry.BaseRegistry
+    :members:
+
+Registry
+----------------------
+
+.. autoclass:: feast.infra.registry.registry.Registry
+    :members:
+
+SQL Registry
+----------------------
+
+.. autoclass:: feast.infra.registry.sql.SqlRegistry
     :members:
 
 Registry Store
 ==================
 
-.. automodule:: feast.registry_store
-    :inherited-members:
+.. autoclass:: feast.infra.registry.registry_store.RegistryStore
     :members:
-    :exclude-members: NoopRegistryStore
 
-SQL Registry Store
+File Registry Store
 -----------------------
 
-.. automodule:: feast.infra.registry_stores.sql
+.. autoclass:: feast.infra.registry.file.FileRegistryStore
     :members:
-    :noindex:
+
+GCS Registry Store
+-----------------------
+
+.. autoclass:: feast.infra.registry.gcs.GCSRegistryStore
+    :members:
+
+S3 Registry Store
+-----------------------
+
+.. autoclass:: feast.infra.registry.s3.S3RegistryStore
+    :members:
 
 PostgreSQL Registry Store
 -----------------------
 
-.. automodule:: feast.infra.registry_stores.contrib.postgres.registry_store
+.. autoclass:: feast.infra.registry.contrib.postgres.postgres_registry_store.PostgreSQLRegistryStore
     :members:
-    :noindex:
-
 
 Provider
 ==================
 
-.. automodule:: feast.infra.provider
-    :inherited-members:
+.. autoclass:: feast.infra.provider.Provider
     :members:
 
 Passthrough Provider
 --------------------
 
-.. automodule:: feast.infra.passthrough_provider
+.. autoclass:: feast.infra.passthrough_provider.PassthroughProvider
     :members:
 
 Local Provider
 ------------------
 
-.. automodule:: feast.infra.local
+.. autoclass:: feast.infra.local.LocalProvider
     :members:
-    :exclude-members: LocalRegistryStore
 
 GCP Provider
 ------------------
 
-.. automodule:: feast.infra.gcp
+.. autoclass:: feast.infra.gcp.GcpProvider
     :members:
-    :exclude-members: GCSRegistryStore
 
 AWS Provider
 ------------------
 
-.. automodule:: feast.infra.aws
+.. autoclass:: feast.infra.aws.AwsProvider
     :members:
-    :exclude-members: S3RegistryStore
 
 Offline Store
 ==================
 
-.. automodule:: feast.infra.offline_stores.offline_store
+.. autoclass:: feast.infra.offline_stores.offline_store.OfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.offline_store.RetrievalJob
     :members:
 
 File Offline Store
 ------------------
 
-.. automodule:: feast.infra.offline_stores.file
+.. autoclass:: feast.infra.offline_stores.file.FileOfflineStore
     :members:
 
-BigQuery Offline Store
-----------------------
-
-.. automodule:: feast.infra.offline_stores.bigquery
+.. autoclass:: feast.infra.offline_stores.file.FileOfflineStoreConfig
     :members:
 
-Redshift Offline Store
-----------------------
-
-.. automodule:: feast.infra.offline_stores.redshift
+.. autoclass:: feast.infra.offline_stores.file.FileRetrievalJob
     :members:
 
 Snowflake Offline Store
 -----------------------
 
-.. automodule:: feast.infra.offline_stores.snowflake
+.. autoclass:: feast.infra.offline_stores.snowflake.SnowflakeOfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.snowflake.SnowflakeOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.snowflake.SnowflakeRetrievalJob
+    :members:
+
+BigQuery Offline Store
+----------------------
+
+.. autoclass:: feast.infra.offline_stores.bigquery.BigQueryOfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.bigquery.BigQueryOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.bigquery.BigQueryRetrievalJob
+    :members:
+
+Redshift Offline Store
+----------------------
+
+.. autoclass:: feast.infra.offline_stores.redshift.RedshiftOfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.redshift.RedshiftOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.redshift.RedshiftRetrievalJob
     :members:
 
 Spark Offline Store
 -------------------
 
-.. automodule:: feast.infra.offline_stores.contrib.spark_offline_store.spark
+.. autoclass:: feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkRetrievalJob
     :members:
 
 Trino Offline Store
 -------------------
 
-.. automodule:: feast.infra.offline_stores.contrib.trino_offline_store.trino
+.. autoclass:: feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoRetrievalJob
     :members:
 
 PostgreSQL Offline Store
 ------------------------
 
-.. automodule:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres
+.. autoclass:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore
     :members:
 
+.. autoclass:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStoreConfig
+    :members:
+
+.. autoclass:: feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLRetrievalJob
+    :members:
 
 Online Store
 ==================
 
-.. automodule:: feast.infra.online_stores.online_store
-    :inherited-members:
+.. autoclass:: feast.infra.online_stores.online_store.OnlineStore
     :members:
 
 Sqlite Online Store
 -------------------
 
-.. automodule:: feast.infra.online_stores.sqlite
+.. autoclass:: feast.infra.online_stores.sqlite.SqliteOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.sqlite.SqliteOnlineStoreConfig
     :members:
 
 Datastore Online Store
 ----------------------
 
-.. automodule:: feast.infra.online_stores.datastore
+.. autoclass:: feast.infra.online_stores.datastore.DatastoreOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.datastore.DatastoreOnlineStoreConfig
     :members:
 
 DynamoDB Online Store
 ---------------------
 
-.. automodule:: feast.infra.online_stores.dynamodb
+.. autoclass:: feast.infra.online_stores.dynamodb.DynamoDBOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.dynamodb.DynamoDBOnlineStoreConfig
     :members:
 
 Redis Online Store
 ------------------
 
-.. automodule:: feast.infra.online_stores.redis
+.. autoclass:: feast.infra.online_stores.redis.RedisOnlineStore
     :members:
-    :noindex:
+
+.. autoclass:: feast.infra.online_stores.redis.RedisOnlineStoreConfig
+    :members:
+
+Snowflake Online Store
+------------------
+
+.. autoclass:: feast.infra.online_stores.snowflake.SnowflakeOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.snowflake.SnowflakeOnlineStoreConfig
+    :members:
 
 PostgreSQL Online Store
 -----------------------
 
-.. automodule:: feast.infra.online_stores.contrib.postgres
+.. autoclass:: feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore
     :members:
-    :noindex:
+
+.. autoclass:: feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStoreConfig
+    :members:
 
 HBase Online Store
 -----------------------
 
-.. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
+.. autoclass:: feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore
     :members:
-    :noindex:
+
+.. autoclass:: feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStoreConfig
+    :members:
+
+Cassandra Online Store
+-----------------------
+
+.. autoclass:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore
+    :members:
+
+.. autoclass:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig
+    :members:
+
+Batch Materialization Engine
+============================
+
+.. autoclass:: feast.infra.materialization.batch_materialization_engine.BatchMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.batch_materialization_engine.MaterializationJob
+    :members:
+
+.. autoclass:: feast.infra.materialization.batch_materialization_engine.MaterializationTask
+    :members:
+
+Local Engine
+------------
+
+.. autoclass:: feast.infra.materialization.local_engine.LocalMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.local_engine.LocalMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.local_engine.LocalMaterializationJob
+    :members:
+
+Bytewax Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.bytewax.bytewax_materialization_job.BytewaxMaterializationJob
+    :members:
+
+Snowflake Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.snowflake_engine.SnowflakeMaterializationJob
+    :members:
+
+(Alpha) AWS Lambda Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationJob
+    :members:
+
+(Alpha) Spark Engine
+---------------------------
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngineConfig
+    :members:
+
+.. autoclass:: feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationJob
+    :members:

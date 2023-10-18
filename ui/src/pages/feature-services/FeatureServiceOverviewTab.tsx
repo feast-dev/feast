@@ -19,6 +19,7 @@ import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import useLoadFeatureService from "./useLoadFeatureService";
+import { toDate } from "../../utils/timestamp";
 
 const FeatureServiceOverviewTab = () => {
   let { featureServiceName, projectName } = useParams();
@@ -32,9 +33,9 @@ const FeatureServiceOverviewTab = () => {
   let numFeatures = 0;
   let numFeatureViews = 0;
   if (data) {
-    data.spec.features.forEach((featureView) => {
+    data?.spec?.features?.forEach((featureView) => {
       numFeatureViews += 1;
-      numFeatures += featureView.featureColumns.length;
+      numFeatures += featureView?.featureColumns!.length;
     });
   }
 
@@ -66,14 +67,20 @@ const FeatureServiceOverviewTab = () => {
                 description="Feature Views"
               />
             </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={`${data.meta.createdTimestamp.toLocaleDateString(
-                  "en-CA"
-                )}`}
-                description="Created"
-              />
-            </EuiFlexItem>
+            {data?.meta?.lastUpdatedTimestamp ? (
+              <EuiFlexItem>
+                <EuiStat
+                  title={`${toDate(data?.meta?.lastUpdatedTimestamp!).toLocaleDateString(
+                    "en-CA"
+                  )}`}
+                  description="Last updated"
+                />
+              </EuiFlexItem>
+            ) : (
+              <EuiText>
+                No last updated timestamp specified on this feature service.
+              </EuiText>
+            )}
           </EuiFlexGroup>
           <EuiFlexGroup>
             <EuiFlexItem grow={2}>
@@ -82,8 +89,8 @@ const FeatureServiceOverviewTab = () => {
                   <h2>Features</h2>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
-                {data.spec.features ? (
-                  <FeaturesInServiceList featureViews={data.spec.features} />
+                {data?.spec?.features ? (
+                  <FeaturesInServiceList featureViews={data?.spec?.features} />
                 ) : (
                   <EuiText>
                     No features specified for this feature service.
@@ -97,12 +104,12 @@ const FeatureServiceOverviewTab = () => {
                   <h3>Tags</h3>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
-                {data.spec.tags ? (
+                {data?.spec?.tags ? (
                   <TagsDisplay
                     tags={data.spec.tags}
                     createLink={(key, value) => {
                       return (
-                        `/p/${projectName}/feature-service?` +
+                        `${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service?` +
                         encodeSearchQueryString(`${key}:${value}`)
                       );
                     }}
@@ -126,7 +133,7 @@ const FeatureServiceOverviewTab = () => {
                             color="primary"
                             onClick={() => {
                               navigate(
-                                `/p/${projectName}/entity/${entity.name}`
+                                `${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${entity.name}`
                               );
                             }}
                             onClickAriaLabel={entity.name}
@@ -148,11 +155,11 @@ const FeatureServiceOverviewTab = () => {
                   <h3>All Feature Views</h3>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
-                {data.spec.features.length > 0 ? (
+                {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={data.spec.features.map((f) => {
-                      return f.featureViewName;
-                    })}
+                    fvNames={data?.spec?.features?.map((f) => {
+                      return f.featureViewName!;
+                    })!}
                   />
                 ) : (
                   <EuiText>No feature views in this feature service</EuiText>

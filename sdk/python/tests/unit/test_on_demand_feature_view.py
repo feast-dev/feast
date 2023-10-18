@@ -13,14 +13,12 @@
 # limitations under the License.
 
 import pandas as pd
-import pytest
 
-from feast import RequestSource
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
-from feast.types import Float32, String, UnixTimestamp
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.types import Float32
 
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -57,6 +55,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf1,
+        udf_string="udf1 source code",
     )
     on_demand_feature_view_2 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -66,6 +65,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf1,
+        udf_string="udf1 source code",
     )
     on_demand_feature_view_3 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -75,6 +75,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf2,
+        udf_string="udf2 source code",
     )
     on_demand_feature_view_4 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -84,6 +85,7 @@ def test_hash():
             Field(name="output2", dtype=Float32),
         ],
         udf=udf2,
+        udf_string="udf2 source code",
         description="test",
     )
 
@@ -103,62 +105,3 @@ def test_hash():
         on_demand_feature_view_4,
     }
     assert len(s4) == 3
-
-
-def test_inputs_parameter_deprecation_in_odfv():
-    date_request = RequestSource(
-        name="date_request", schema=[Field(name="some_date", dtype=UnixTimestamp)],
-    )
-    with pytest.warns(DeprecationWarning):
-
-        @on_demand_feature_view(
-            inputs={"date_request": date_request},
-            schema=[
-                Field(name="output", dtype=UnixTimestamp),
-                Field(name="string_output", dtype=String),
-            ],
-        )
-        def test_view(features_df: pd.DataFrame) -> pd.DataFrame:
-            data = pd.DataFrame()
-            data["output"] = features_df["some_date"]
-            data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
-            return data
-
-    odfv = test_view
-    assert odfv.name == "test_view"
-    assert len(odfv.source_request_sources) == 1
-    assert odfv.source_request_sources["date_request"].name == "date_request"
-    assert odfv.source_request_sources["date_request"].schema == date_request.schema
-
-    with pytest.raises(ValueError):
-
-        @on_demand_feature_view(
-            inputs={"date_request": date_request},
-            sources=[date_request],
-            schema=[
-                Field(name="output", dtype=UnixTimestamp),
-                Field(name="string_output", dtype=String),
-            ],
-        )
-        def incorrect_testview(features_df: pd.DataFrame) -> pd.DataFrame:
-            data = pd.DataFrame()
-            data["output"] = features_df["some_date"]
-            data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
-            return data
-
-    @on_demand_feature_view(
-        inputs={"odfv": date_request},
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="string_output", dtype=String),
-        ],
-    )
-    def test_correct_view(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        data["string_output"] = features_df["some_date"].astype(pd.StringDtype())
-        return data
-
-    odfv = test_correct_view
-    assert odfv.name == "test_correct_view"
-    assert odfv.source_request_sources["date_request"].schema == date_request.schema

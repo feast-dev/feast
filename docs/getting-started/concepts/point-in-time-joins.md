@@ -7,13 +7,15 @@ Feature values in Feast are modeled as time-series records. Below is an example 
 The above table can be registered with Feast through the following feature view:
 
 ```python
-from feast import FeatureView, Field, FileSource
+from feast import Entity, FeatureView, Field, FileSource
 from feast.types import Float32, Int64
 from datetime import timedelta
 
+driver = Entity(name="driver", join_keys=["driver_id"])
+
 driver_stats_fv = FeatureView(
     name="driver_hourly_stats",
-    entities=["driver"],
+    entities=[driver],
     schema=[
         Field(name="trips_today", dtype=Int64),
         Field(name="earnings_today", dtype=Float32),
@@ -46,7 +48,7 @@ training_df = store.get_historical_features(
 )
 ```
 
-For each row within the entity dataframe, Feast will query and join the selected features from the appropriate feature view data source. Feast will scan backward in time from the entity dataframe timestamp up to a maximum of the TTL time.
+For each row within the entity dataframe, Feast will query and join the selected features from the appropriate feature view data source. Feast will scan backward in time from the entity dataframe timestamp up to a maximum of the TTL time specified.
 
 ![](../../.gitbook/assets/image%20%2831%29.png)
 

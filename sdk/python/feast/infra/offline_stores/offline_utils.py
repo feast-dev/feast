@@ -5,9 +5,11 @@ from typing import Any, Dict, KeysView, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from pandas import Timestamp
 
+from feast.data_source import DataSource
 from feast.errors import (
     EntityTimestampInferenceException,
     FeastEntityDFMissingColumnsError,
@@ -15,9 +17,10 @@ from feast.errors import (
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
-from feast.infra.provider import _get_requested_feature_views_to_features_dict
-from feast.registry import BaseRegistry
-from feast.utils import to_naive_utc
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.repo_config import RepoConfig
+from feast.type_map import feast_value_type_to_pa
+from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -90,6 +93,9 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
     min_event_timestamp: Optional[str]
     max_event_timestamp: str
+    date_partition_column: Optional[
+        str
+    ]  # this attribute is added because partition pruning affects Athena's query performance.
 
 
 def get_feature_view_query_context(
@@ -139,6 +145,11 @@ def get_feature_view_query_context(
             feature_view.batch_source.created_timestamp_column,
         )
 
+        date_partition_column = reverse_field_mapping.get(
+            feature_view.batch_source.date_partition_column,
+            feature_view.batch_source.date_partition_column,
+        )
+
         max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
         min_event_timestamp = None
         if feature_view.ttl:
@@ -159,6 +170,7 @@ def get_feature_view_query_context(
             entity_selections=entity_selections,
             min_event_timestamp=min_event_timestamp,
             max_event_timestamp=max_event_timestamp,
+            date_partition_column=date_partition_column,
         )
         query_context.append(context)
 
@@ -217,3 +229,26 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
     class_name = qualified_name.replace("Config", "")
     offline_store_class = import_class(module_name, class_name, "OfflineStore")
     return offline_store_class()
+
+
+def get_pyarrow_schema_from_batch_source(
+    config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
+) -> Tuple[pa.Schema, List[str]]:
+    """Returns the pyarrow schema and column names for the given batch source."""
+    column_names_and_types = batch_source.get_table_column_names_and_types(config)
+
+    pa_schema = []
+    column_names = []
+    for column_name, column_type in column_names_and_types:
+        pa_schema.append(
+            (
+                column_name,
+                feast_value_type_to_pa(
+                    batch_source.source_datatype_to_feast_value_type()(column_type),
+                    timestamp_unit=timestamp_unit,
+                ),
+            )
+        )
+        column_names.append(column_name)
+
+    return pa.schema(pa_schema), column_names

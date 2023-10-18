@@ -1,38 +1,17 @@
 import React from "react";
 import {
-  EuiCodeBlock,
   EuiDescriptionList,
   EuiDescriptionListDescription,
   EuiDescriptionListTitle,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSpacer,
-  EuiTitle,
 } from "@elastic/eui";
+import { CopyBlock, atomOneDark } from "react-code-blocks";
+import { feast } from "../../protos";
+import { toDate } from "../../utils/timestamp";
 
 interface BatchSourcePropertiesViewProps {
-  batchSource: {
-    type?: string | undefined;
-    owner?: string | undefined;
-    description?: string | undefined;
-    dataSourceClassType?: string | undefined;
-    fileOptions?:
-      | {
-          uri?: string | undefined;
-        }
-      | undefined;
-    meta?:
-      | {
-          latestEventTimestamp?: Date | undefined;
-          earliestEventTimestamp?: Date | undefined;
-        }
-      | undefined;
-    bigqueryOptions?:
-      | {
-          dbtModelSerialized?: string | undefined;
-        }
-      | undefined;
-  };
+  batchSource: feast.core.IDataSource;
 }
 
 const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
@@ -49,7 +28,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   <EuiDescriptionListDescription>
                     {batchSource.dataSourceClassType.split(".").at(-1)}
                   </EuiDescriptionListDescription>
-                ) : batchSource.type ? (
+                ) : feast.core.DataSource.SourceType[batchSource.type!] ? (
                   <EuiDescriptionListDescription>
                     {batchSource.type}
                   </EuiDescriptionListDescription>
@@ -83,13 +62,31 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                 </EuiDescriptionListDescription>
               </React.Fragment>
             )}
+            {batchSource.bigqueryOptions && (
+              <React.Fragment>
+                <EuiDescriptionListTitle>Source {batchSource.bigqueryOptions.table ? "Table" : "Query"}</EuiDescriptionListTitle>
+                {batchSource.bigqueryOptions.table ? (
+                    <EuiDescriptionListDescription>
+                        {batchSource.bigqueryOptions.table}
+                    </EuiDescriptionListDescription>
+                ) : <CopyBlock
+                        text={batchSource.bigqueryOptions.query}
+                        language="sql"
+                        showLineNumbers={false}
+                        theme={atomOneDark}
+                        wrapLines
+                    />
+                }
+
+              </React.Fragment>
+            )}
             {batchSource.meta?.latestEventTimestamp && (
               <React.Fragment>
                 <EuiDescriptionListTitle>Latest Event</EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {batchSource.meta.latestEventTimestamp.toLocaleDateString(
-                    "en-CA"
-                  )}
+                  {toDate(
+                    batchSource.meta.latestEventTimestamp
+                  ).toLocaleDateString("en-CA")}
                 </EuiDescriptionListDescription>
               </React.Fragment>
             )}
@@ -99,35 +96,14 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                   Earliest Event
                 </EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
-                  {batchSource.meta.earliestEventTimestamp.toLocaleDateString(
-                    "en-CA"
-                  )}
+                  {toDate(
+                    batchSource.meta?.earliestEventTimestamp
+                  ).toLocaleDateString("en-CA")}
                 </EuiDescriptionListDescription>
               </React.Fragment>
             )}
           </EuiDescriptionList>
         </EuiFlexItem>
-
-        {batchSource.bigqueryOptions?.dbtModelSerialized && (
-          <EuiFlexItem grow={false}>
-            <EuiSpacer size="l" />
-          </EuiFlexItem>
-        )}
-        {batchSource.bigqueryOptions?.dbtModelSerialized && (
-          <EuiFlexItem>
-            <EuiTitle size="xs">
-              <h3>Dbt Transformation</h3>
-            </EuiTitle>
-            <EuiCodeBlock
-              language="sql"
-              fontSize="m"
-              paddingSize="m"
-              isCopyable
-            >
-              {batchSource.bigqueryOptions.dbtModelSerialized}
-            </EuiCodeBlock>
-          </EuiFlexItem>
-        )}
       </EuiFlexGroup>
     </React.Fragment>
   );

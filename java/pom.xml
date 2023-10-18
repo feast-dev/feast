@@ -29,16 +29,13 @@
 
     <modules>
         <module>datatypes</module>
-        <module>storage/api</module>
-        <module>storage/connectors</module>
         <module>serving</module>
-        <module>sdk</module>
-        <module>docs/coverage</module>
-        <module>common</module>
+        <module>serving-client</module>
+        <module>coverage</module>
     </modules>
 
     <properties>
-        <revision>0.21.0</revision>
+        <revision>0.34.0</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -70,7 +67,7 @@
         <javax.validation.version>2.0.1.Final</javax.validation.version>
         <google.auth.library.oauth2.http.version>0.21.0</google.auth.library.oauth2.http.version>
         <auto.value.version>1.6.6</auto.value.version>
-        <guava.version>29.0-jre</guava.version>
+        <guava.version>30.1-jre</guava.version>
 
         <license.content><![CDATA[
 /*
@@ -91,6 +88,7 @@
  */
 ]]>
         </license.content>
+        <!--suppress UnresolvedMavenProperty -->
         <parent.basedir>${maven.multiModuleProjectDirectory}</parent.basedir>
 
         <skipUTs>false</skipUTs>
@@ -143,6 +141,21 @@
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
+
+    <profiles>
+        <profile>
+            <id>apple-m1</id>
+            <properties>
+                <os.detected.classifier>osx-x86_64</os.detected.classifier>
+            </properties>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                    <family>mac</family>
+                </os>
+            </activation>
+        </profile>
+    </profiles>
 
     <dependencyManagement>
         <dependencies>

@@ -27,4 +27,10 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
 message Field {
   string name = 1;
   feast.types.ValueType.Enum value = 2;
+
+  // Tags for user defined metadata on a field
+  map<string,string> tags = 3;
+
+  // Description of the field.
+  string description = 4;
 }

@@ -21,8 +21,16 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     return online_store_class()
 
 
-def _redis_key(project: str, entity_key: EntityKeyProto) -> bytes:
-    key: List[bytes] = [serialize_entity_key(entity_key), project.encode("utf-8")]
+def _redis_key(
+    project: str, entity_key: EntityKeyProto, entity_key_serialization_version=1
+) -> bytes:
+    key: List[bytes] = [
+        serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=entity_key_serialization_version,
+        ),
+        project.encode("utf-8"),
+    ]
     return b"".join(key)
 
 
@@ -40,10 +48,17 @@ def _mmh3(key: str):
     return bytes.fromhex(struct.pack("<Q", key_hash).hex()[:8])
 
 
-def compute_entity_id(entity_key: EntityKeyProto) -> str:
+def compute_entity_id(
+    entity_key: EntityKeyProto, entity_key_serialization_version=1
+) -> str:
     """
     Compute Entity id given Feast Entity Key for online stores.
     Remember that Entity here refers to `EntityKeyProto` which is used in some online stores to encode the keys.
     It has nothing to do with the Entity concept we have in Feast.
     """
-    return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
+    return mmh3.hash_bytes(
+        serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
+    ).hex()

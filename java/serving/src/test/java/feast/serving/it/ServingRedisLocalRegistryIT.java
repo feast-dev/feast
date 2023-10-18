@@ -17,7 +17,7 @@
 package feast.serving.it;
 
 import feast.proto.core.RegistryProto;
-import feast.serving.config.ApplicationProperties;
+import feast.serving.service.config.ApplicationProperties;
 
 public class ServingRedisLocalRegistryIT extends ServingBaseTests {
   @Override

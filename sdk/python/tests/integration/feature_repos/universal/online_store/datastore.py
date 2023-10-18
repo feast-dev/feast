@@ -27,7 +27,7 @@ class DatastoreOnlineStoreCreator(OnlineStoreCreator):
         self.container.start()
         log_string_to_wait_for = r"\[datastore\] Dev App Server is now running"
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=5
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         exposed_port = self.container.get_exposed_port("8081")
         os.environ[datastore.client.DATASTORE_EMULATOR_HOST] = f"0.0.0.0:{exposed_port}"

@@ -29,17 +29,19 @@ from pathlib import Path
 
 import requests
 
+from feast import flags_helper
 from feast.constants import DEFAULT_FEAST_USAGE_VALUE, FEAST_USAGE
 from feast.version import get_version
 
 USAGE_ENDPOINT = "https://usage.feast.dev"
 
 _logger = logging.getLogger(__name__)
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 _is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
 
 _constant_attributes = {
+    "project_id": "",
     "session_id": str(uuid.uuid4()),
     "installation_id": None,
     "version": get_version(),
@@ -51,6 +53,17 @@ _constant_attributes = {
         ).encode()
     ).hexdigest(),
 }
+
+APPLICATION_NAME = "feast-dev/feast"
+USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+def get_user_agent():
+    return USER_AGENT
+
+
+def set_current_project_uuid(project_uuid: str):
+    _constant_attributes["project_id"] = project_uuid
 
 
 @dataclasses.dataclass
@@ -65,7 +78,7 @@ class FnCall:
 
 
 class Sampler:
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         raise NotImplementedError
 
     @property
@@ -74,7 +87,7 @@ class Sampler:
 
 
 class AlwaysSampler(Sampler):
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         return True
 
 
@@ -87,7 +100,7 @@ class RatioSampler(Sampler):
         self.total_counter = 0
         self.sampled_counter = 0
 
-    def should_record(self, event) -> bool:
+    def should_record(self) -> bool:
         self.total_counter += 1
         if self.total_counter == self.MAX_COUNTER:
             self.total_counter = 1
@@ -163,11 +176,14 @@ _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=30)
+    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=2)
 
 
 def _produce_event(ctx: UsageContext):
-    is_test = bool({"pytest", "unittest"} & sys.modules.keys())
+    if ctx.sampler and not ctx.sampler.should_record():
+        return
+    # Cannot check for unittest because typeguard pulls in unittest
+    is_test = flags_helper.is_test() or bool({"pytest"} & sys.modules.keys())
     event = {
         "timestamp": datetime.utcnow().isoformat(),
         "is_test": is_test,
@@ -190,10 +206,6 @@ def _produce_event(ctx: UsageContext):
         **_constant_attributes,
     }
     event.update(ctx.attributes)
-
-    if ctx.sampler and not ctx.sampler.should_record(event):
-        return
-
     _export(event)
 
 
@@ -248,6 +260,13 @@ def log_exceptions_and_usage(*args, **attrs):
     """
     sampler = attrs.pop("sampler", AlwaysSampler())
 
+    def clear_context(ctx):
+        _context.set(UsageContext())  # reset context to default values
+        # TODO: Figure out why without this, new contexts.get aren't reset
+        ctx.call_stack = []
+        ctx.completed_calls = []
+        ctx.attributes = {}
+
     def decorator(func):
         if not _is_enabled:
             return func
@@ -281,17 +300,22 @@ def log_exceptions_and_usage(*args, **attrs):
 
                 raise exc
             finally:
-                last_call = ctx.call_stack.pop(-1)
-                last_call.end = datetime.utcnow()
-                ctx.completed_calls.append(last_call)
                 ctx.sampler = (
                     sampler if sampler.priority > ctx.sampler.priority else ctx.sampler
                 )
+                last_call = ctx.call_stack.pop(-1)
+                last_call.end = datetime.utcnow()
+                ctx.completed_calls.append(last_call)
 
-                if not ctx.call_stack:
-                    # we reached the root of the stack
-                    _context.set(UsageContext())  # reset context to default values
+                if not ctx.call_stack or (
+                    len(ctx.call_stack) == 1
+                    and "feast.feature_store.FeatureStore.serve"
+                    in str(ctx.call_stack[0].fn_name)
+                ):
+                    # When running `feast serve`, the serve method never exits so it gets
+                    # stuck otherwise
                     _produce_event(ctx)
+                    clear_context(ctx)
 
         return wrapper
 

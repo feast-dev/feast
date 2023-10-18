@@ -1,10 +1,11 @@
-import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
+from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
+from feast.errors import FeatureViewMissingDuringFeatureServiceInference
 from feast.feature_logging import LoggingConfig
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
@@ -21,6 +22,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 from feast.usage import log_exceptions
 
 
+@typechecked
 class FeatureService:
     """
     A feature service defines a logical group of features from one or more feature views.
@@ -51,9 +53,9 @@ class FeatureService:
     @log_exceptions
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
-        features: Optional[List[Union[FeatureView, OnDemandFeatureView]]] = None,
+        *,
+        name: str,
+        features: List[Union[FeatureView, OnDemandFeatureView]],
         tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
@@ -62,39 +64,17 @@ class FeatureService:
         """
         Creates a FeatureService object.
 
-        Raises:
-            ValueError: If one of the specified features is not a valid type.
+        Args:
+            name: The unique name of the feature service.
+            feature_view_projections: A list containing feature views and feature view
+                projections, representing the features in the feature service.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the feature view, typically the email of the
+                primary maintainer.
         """
-        positional_attributes = ["name", "features"]
-        _name = name
-        _features = features
-        if args:
-            warnings.warn(
-                (
-                    "Feature service parameters should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct feature service"
-                ),
-                DeprecationWarning,
-            )
-            if len(args) > len(positional_attributes):
-                raise ValueError(
-                    f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                    f"feature service, for backwards compatibility."
-                )
-            if len(args) >= 1:
-                _name = args[0]
-            if len(args) >= 2:
-                _features = args[1]
-
-        if not _name:
-            raise ValueError("Feature service name needs to be specified")
-
-        if not _features:
-            # Technically, legal to create feature service with no feature views before.
-            _features = []
-
-        self.name = _name
-        self._features = _features
+        self.name = name
+        self._features = features
         self.feature_view_projections = []
         self.description = description
         self.tags = tags or {}
@@ -106,15 +86,29 @@ class FeatureService:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
 
-    def infer_features(self, fvs_to_update: Optional[Dict[str, FeatureView]] = None):
+    def infer_features(self, fvs_to_update: Dict[str, FeatureView]):
+        """
+        Infers the features for the projections of this feature service, and updates this feature
+        service in place.
+
+        This method is necessary since feature services may rely on feature views which require
+        feature inference.
+
+        Args:
+            fvs_to_update: A mapping of feature view names to corresponding feature views that
+                contains all the feature views necessary to run inference.
+        """
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
-                # For feature services that depend on an unspecified feature view, apply inferred schema
-                if fvs_to_update and feature_grouping.name in fvs_to_update:
-                    if feature_grouping.projection.desired_features:
-                        desired_features = set(
-                            feature_grouping.projection.desired_features
-                        )
+                projection = feature_grouping.projection
+
+                if projection.desired_features:
+                    # The projection wants to select a specific set of inferred features.
+                    # Example: FeatureService(features=[fv[["inferred_feature"]]]), where
+                    # 'fv' is a feature view that was defined without a schema.
+                    if feature_grouping.name in fvs_to_update:
+                        # First we validate that the selected features have actually been inferred.
+                        desired_features = set(projection.desired_features)
                         actual_features = set(
                             [
                                 f.name
@@ -122,16 +116,38 @@ class FeatureService:
                             ]
                         )
                         assert desired_features.issubset(actual_features)
-                        # We need to set the features for the projection at this point so we ensure we're starting with
-                        # an empty list.
-                        feature_grouping.projection.features = []
+
+                        # Then we extract the selected features and add them to the projection.
+                        projection.features = []
                         for f in fvs_to_update[feature_grouping.name].features:
                             if f.name in desired_features:
-                                feature_grouping.projection.features.append(f)
+                                projection.features.append(f)
                     else:
-                        feature_grouping.projection.features = fvs_to_update[
-                            feature_grouping.name
-                        ].features
+                        raise FeatureViewMissingDuringFeatureServiceInference(
+                            feature_view_name=feature_grouping.name,
+                            feature_service_name=self.name,
+                        )
+
+                    continue
+
+                if projection.features:
+                    # The projection has already selected features from a feature view with a
+                    # known schema, so no action needs to be taken.
+                    # Example: FeatureService(features=[fv[["existing_feature"]]]), where
+                    # 'existing_feature' was defined as part of the schema of 'fv'.
+                    # Example: FeatureService(features=[fv]), where 'fv' was defined with a schema.
+                    continue
+
+                # The projection wants to select all possible inferred features.
+                # Example: FeatureService(features=[fv]), where 'fv' is a feature view that
+                # was defined without a schema.
+                if feature_grouping.name in fvs_to_update:
+                    projection.features = fvs_to_update[feature_grouping.name].features
+                else:
+                    raise FeatureViewMissingDuringFeatureServiceInference(
+                        feature_view_name=feature_grouping.name,
+                        feature_service_name=self.name,
+                    )
             else:
                 raise ValueError(
                     f"The feature service {self.name} has been provided with an invalid type "

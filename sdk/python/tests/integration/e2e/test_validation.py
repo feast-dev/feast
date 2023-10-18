@@ -26,8 +26,8 @@ from tests.integration.feature_repos.universal.entities import (
     driver,
     location,
 )
-from tests.utils.cli_utils import CliRunner
-from tests.utils.logged_features import prepare_logs
+from tests.utils.cli_repo_creator import CliRunner
+from tests.utils.test_log_creator import prepare_logs
 
 _features = [
     "customer_profile:current_balance",
@@ -37,72 +37,6 @@ _features = [
     "global_stats:num_rides",
     "global_stats:avg_ride_length",
 ]
-
-
-@ge_profiler
-def configurable_profiler(dataset: PandasDataset) -> ExpectationSuite:
-    from great_expectations.profile.user_configurable_profiler import (
-        UserConfigurableProfiler,
-    )
-
-    return UserConfigurableProfiler(
-        profile_dataset=dataset,
-        ignored_columns=["event_timestamp"],
-        excluded_expectations=[
-            "expect_table_columns_to_match_ordered_list",
-            "expect_table_row_count_to_be_between",
-        ],
-        value_set_threshold="few",
-    ).build_suite()
-
-
-@ge_profiler(with_feature_metadata=True)
-def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
-    from great_expectations.profile.user_configurable_profiler import (
-        UserConfigurableProfiler,
-    )
-
-    # always present
-    dataset.expect_column_values_to_be_in_set(
-        "global_stats__avg_ride_length__status", {FieldStatus.PRESENT}
-    )
-
-    # present at least in 70% of rows
-    dataset.expect_column_values_to_be_in_set(
-        "customer_profile__current_balance__status", {FieldStatus.PRESENT}, mostly=0.7
-    )
-
-    return UserConfigurableProfiler(
-        profile_dataset=dataset,
-        ignored_columns=["event_timestamp"]
-        + [
-            c
-            for c in dataset.columns
-            if c.endswith("__timestamp") or c.endswith("__status")
-        ],
-        excluded_expectations=[
-            "expect_table_columns_to_match_ordered_list",
-            "expect_table_row_count_to_be_between",
-        ],
-        value_set_threshold="few",
-    ).build_suite()
-
-
-@ge_profiler
-def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
-    # need to create dataframe with corrupted data first
-    df = pd.DataFrame()
-    df["current_balance"] = [-100]
-    df["avg_passenger_count"] = [0]
-
-    other_ds = PandasDataset(df)
-    other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
-    other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
-
-    # this should pass
-    other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
-
-    return other_ds.get_expectation_suite()
 
 
 @pytest.mark.integration
@@ -118,15 +52,20 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
         columns=["order_id", "origin_id", "destination_id"]
     )
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
     )
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
+    )
 
     # Save dataset using reference job and retrieve it
     store.create_saved_dataset(
         from_=reference_job,
         name="my_training_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
     saved_dataset = store.get_saved_dataset("my_training_dataset")
 
@@ -149,16 +88,28 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     )
 
     reference_job = store.get_historical_features(
-        entity_df=entity_df, features=_features,
+        entity_df=entity_df,
+        features=_features,
     )
 
     store.create_saved_dataset(
         from_=reference_job,
         name="my_other_dataset",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
 
-    job = store.get_historical_features(entity_df=entity_df, features=_features,)
+    job = store.get_historical_features(
+        entity_df=entity_df,
+        features=_features,
+    )
+
+    ds = store.get_saved_dataset("my_other_dataset")
+    profiler_expectation_suite = ds.get_profile(
+        profiler=profiler_with_unrealistic_expectations
+    )
+
+    assert len(profiler_expectation_suite.expectation_suite["expectations"]) == 3
 
     with pytest.raises(ValidationFailed) as exc_info:
         job.to_df(
@@ -208,25 +159,33 @@ def test_logged_features_validation(environment, universal_data_sources):
 
     # add some non-existing entities to check NotFound feature handling
     for i in range(5):
-        entity_df = entity_df.append(
-            {
-                "customer_id": 2000 + i,
-                "driver_id": 6000 + i,
-                "event_timestamp": datetime.datetime.now(),
-            },
-            ignore_index=True,
+        entity_df = pd.concat(
+            [
+                entity_df,
+                pd.DataFrame.from_records(
+                    [
+                        {
+                            "customer_id": 2000 + i,
+                            "driver_id": 6000 + i,
+                            "event_timestamp": datetime.datetime.now(),
+                        }
+                    ]
+                ),
+            ]
         )
 
+    store_fs = store.get_feature_service(feature_service.name)
     reference_dataset = store.create_saved_dataset(
         from_=store.get_historical_features(
-            entity_df=entity_df, features=feature_service, full_feature_names=True
+            entity_df=entity_df, features=store_fs, full_feature_names=True
         ),
         name="reference_for_validating_logged_features",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
 
     log_source_df = store.get_historical_features(
-        entity_df=entity_df, features=feature_service, full_feature_names=False
+        entity_df=entity_df, features=store_fs, full_feature_names=False
     ).to_df()
     logs_df = prepare_logs(log_source_df, feature_service, store)
 
@@ -287,13 +246,16 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         columns=["order_id", "origin_id", "destination_id", "driver_id"]
     )
     retrieval_job = store.get_historical_features(
-        entity_df=entity_df, features=feature_service, full_feature_names=True
+        entity_df=entity_df,
+        features=store.get_feature_service(feature_service.name),
+        full_feature_names=True,
     )
     logs_df = prepare_logs(retrieval_job.to_df(), feature_service, store)
     saved_dataset = store.create_saved_dataset(
         from_=retrieval_job,
         name="reference_for_validating_logged_features",
         storage=environment.data_source_creator.create_saved_dataset_destination(),
+        allow_overwrite=True,
     )
     reference = saved_dataset.as_reference(
         name="test_reference", profiler=configurable_profiler
@@ -349,3 +311,75 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         p = runner.run(validate_args, cwd=local_repo.repo_path)
         assert p.returncode == 1, p.stdout.decode()
         assert "Validation failed" in p.stdout.decode(), p.stderr.decode()
+
+
+# Great expectations profilers created for testing
+
+
+@ge_profiler
+def configurable_profiler(dataset: PandasDataset) -> ExpectationSuite:
+    from great_expectations.profile.user_configurable_profiler import (
+        UserConfigurableProfiler,
+    )
+
+    return UserConfigurableProfiler(
+        profile_dataset=dataset,
+        ignored_columns=["event_timestamp"],
+        excluded_expectations=[
+            "expect_table_columns_to_match_ordered_list",
+            "expect_table_row_count_to_be_between",
+        ],
+        value_set_threshold="few",
+    ).build_suite()
+
+
+@ge_profiler(with_feature_metadata=True)
+def profiler_with_feature_metadata(dataset: PandasDataset) -> ExpectationSuite:
+    from great_expectations.profile.user_configurable_profiler import (
+        UserConfigurableProfiler,
+    )
+
+    # always present
+    dataset.expect_column_values_to_be_in_set(
+        "global_stats__avg_ride_length__status", {FieldStatus.PRESENT}
+    )
+
+    # present at least in 70% of rows
+    dataset.expect_column_values_to_be_in_set(
+        "customer_profile__current_balance__status", {FieldStatus.PRESENT}, mostly=0.7
+    )
+
+    return UserConfigurableProfiler(
+        profile_dataset=dataset,
+        ignored_columns=["event_timestamp"]
+        + [
+            c
+            for c in dataset.columns
+            if c.endswith("__timestamp") or c.endswith("__status")
+        ],
+        excluded_expectations=[
+            "expect_table_columns_to_match_ordered_list",
+            "expect_table_row_count_to_be_between",
+        ],
+        value_set_threshold="few",
+    ).build_suite()
+
+
+@ge_profiler
+def profiler_with_unrealistic_expectations(dataset: PandasDataset) -> ExpectationSuite:
+    # note: there are 4 expectations here and only 3 are returned from the profiler
+    # need to create dataframe with corrupted data first
+    df = pd.DataFrame()
+    df["current_balance"] = [-100]
+    df["avg_passenger_count"] = [0]
+
+    other_ds = PandasDataset(df)
+    other_ds.expect_column_max_to_be_between("current_balance", -1000, -100)
+    other_ds.expect_column_values_to_be_in_set("avg_passenger_count", value_set={0})
+
+    # this should pass
+    other_ds.expect_column_min_to_be_between("avg_passenger_count", 0, 1000)
+    # this should fail
+    other_ds.expect_column_to_exist("missing random column")
+
+    return other_ds.get_expectation_suite()

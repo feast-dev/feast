@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from pyspark.sql import SparkSession
 
+from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
@@ -41,46 +42,39 @@ class SparkSource(DataSource):
         event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
     ):
-        # If no name, use the table_ref as the default name
-        _name = name
-        if not _name:
-            if table:
-                _name = table
-            else:
-                raise DataSourceNoNameException()
-
-        if date_partition_column:
-            warnings.warn(
-                (
-                    "The argument 'date_partition_column' is not supported for Spark sources."
-                    "It will be removed in Feast 0.23+"
-                ),
-                DeprecationWarning,
-            )
+        # If no name, use the table as the default name.
+        if name is None and table is None:
+            raise DataSourceNoNameException()
+        name = name or table
+        assert name
 
         super().__init__(
-            name=_name,
-            event_timestamp_column=event_timestamp_column,
+            name=name,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
-        warnings.warn(
-            "The spark data source API is an experimental feature in alpha development. "
-            "This API is unstable and it could and most probably will be changed in the future.",
-            RuntimeWarning,
-        )
+
+        if not flags_helper.is_test():
+            warnings.warn(
+                "The spark data source API is an experimental feature in alpha development. "
+                "This API is unstable and it could and most probably will be changed in the future.",
+                RuntimeWarning,
+            )
+
         self.spark_options = SparkOptions(
-            table=table, query=query, path=path, file_format=file_format,
+            table=table,
+            query=query,
+            path=path,
+            file_format=file_format,
         )
 
     @property
@@ -165,16 +159,14 @@ class SparkSource(DataSource):
             store_config=config.offline_store
         )
         df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
-        return (
-            (fields["name"], fields["type"])
-            for fields in df.schema.jsonValue()["fields"]
-        )
+        return ((field.name, field.dataType.simpleString()) for field in df.schema)
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
         if self.table:
             # Backticks make sure that spark sql knows this a table reference.
-            return f"`{self.table}`"
+            table = ".".join([f"`{x}`" for x in self.table.split(".")])
+            return table
         if self.query:
             return f"({self.query})"
 
@@ -304,7 +296,10 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
         file_format: Optional[str] = None,
     ):
         self.spark_options = SparkOptions(
-            table=table, query=query, path=path, file_format=file_format,
+            table=table,
+            query=query,
+            path=path,
+            file_format=file_format,
         )
 
     @staticmethod

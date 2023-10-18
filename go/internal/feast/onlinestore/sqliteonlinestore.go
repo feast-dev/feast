@@ -16,7 +16,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"google.golang.org/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -24,15 +24,16 @@ import (
 
 type SqliteOnlineStore struct {
 	// Feast project name
-	project string
-	path    string
-	db      *sql.DB
-	db_mu   sync.Mutex
+	project    string
+	path       string
+	db         *sql.DB
+	db_mu      sync.Mutex
+	repoConfig *registry.RepoConfig
 }
 
 // Creates a new sqlite online store object. onlineStoreConfig should have relative path of database file with respect to repoConfig.repoPath.
 func NewSqliteOnlineStore(project string, repoConfig *registry.RepoConfig, onlineStoreConfig map[string]interface{}) (*SqliteOnlineStore, error) {
-	store := SqliteOnlineStore{project: project}
+	store := SqliteOnlineStore{project: project, repoConfig: repoConfig}
 	if db_path, ok := onlineStoreConfig["path"]; !ok {
 		return nil, fmt.Errorf("cannot find sqlite path %s", db_path)
 	} else {
@@ -69,7 +70,7 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	in_query := make([]string, len(entityKeys))
 	serialized_entities := make([]interface{}, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		serKey, err := serializeEntityKey(entityKeys[i])
+		serKey, err := serializeEntityKey(entityKeys[i], s.repoConfig.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}

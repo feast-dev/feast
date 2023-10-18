@@ -3,12 +3,13 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { EuiLoadingSpinner } from "@elastic/eui";
 
-import { FeastFeatureViewType } from "../../parsers/feastFeatureViews";
 import RegularFeatureInstance from "./RegularFeatureViewInstance";
 import { FEAST_FV_TYPES } from "../../parsers/mergedFVTypes";
-import { FeastODFVType } from "../../parsers/feastODFVS";
+
 import useLoadFeatureView from "./useLoadFeatureView";
 import OnDemandFeatureInstance from "./OnDemandFeatureViewInstance";
+import StreamFeatureInstance from "./StreamFeatureViewInstance";
+import { feast } from "../../protos";
 
 const FeatureViewInstance = () => {
   const { featureViewName } = useParams();
@@ -35,15 +36,20 @@ const FeatureViewInstance = () => {
 
   if (isSuccess && !isEmpty) {
     if (data.type === FEAST_FV_TYPES.regular) {
-      const fv: FeastFeatureViewType = data.object;
+      const fv: feast.core.IFeatureView = data.object;
 
       return <RegularFeatureInstance data={fv} />;
     }
 
     if (data.type === FEAST_FV_TYPES.ondemand) {
-      const odfv: FeastODFVType = data.object;
+      const odfv: feast.core.IOnDemandFeatureView = data.object;
 
       return <OnDemandFeatureInstance data={odfv} />;
+    }
+    if (data.type === FEAST_FV_TYPES.stream) {
+      const sfv: feast.core.IStreamFeatureView = data.object;
+
+      return <StreamFeatureInstance data={sfv} />;
     }
   }
 

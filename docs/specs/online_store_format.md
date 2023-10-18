@@ -92,6 +92,109 @@ Other types of entity keys are not supported in this version of the specificatio
 
 ![Datastore Online Example](datastore_online_example.png)
 
+## Google Bigtable Online Store Format
+
+[Bigtable storage model](https://cloud.google.com/bigtable/docs/overview#storage-model)
+consists of massively scalable tables, with each row keyed by a "row key". The rows in a
+table are stored lexicographically sorted by this row key.
+
+We use the following structure to store feature data in Bigtable:
+
+* All feature data for an entity or a specific group of entities is stored in the same
+  table. The table name is derived by concatenating the lexicographically sorted names
+  of entities.
+* This implementation only uses one column family per table, named `features`.
+* Each row key is created by concatenating a hash derived from the specific entity keys
+  and the name of the feature view. Each row only stores feature values for a specific
+  feature view. This arrangement also means that feature values for a given group of
+  entities are colocated.
+* The columns used in each row are named after the features in the feature view.
+  Bigtable is perfectly content being sparsely populated.
+* By default, we store 1 historical value of each feature value. This can be configured
+  using the `max_versions` setting in `BigtableOnlineStoreConfig`. This implementation
+  of the online store does not have the ability to revert any given value to its old
+  self. To use the historical version, you'll have to use custom code.
+
+## Cassandra/Astra DB Online Store Format
+
+### Overview
+
+Apache Cassandra™ is a table-oriented NoSQL distributed database. Astra DB is a managed database-as-a-service
+built on Cassandra, and will be assimilated to the former in what follows.
+
+In Cassandra, tables are grouped in _keyspaces_ (groups of related tables). Each table is comprised of
+_rows_, each containing data for a given set of _columns_. Moreover, rows are grouped in _partitions_ according
+to a _partition key_ (a portion of the uniqueness-defining _primary key_ set of columns), so that all rows
+with the same values for the partition key are guaranteed to be stored on the same Cassandra nodes, next to each other,
+which guarantees fast retrieval times.
+
+This architecture makes Cassandra a good fit for an online feature store in Feast.
+
+### Cassandra Online Store Format
+
+Each project (denoted by its name, called "feature store name" elsewhere) may contain an
+arbitrary number of `FeatureView`s: these correspond each to a specific table, and
+all tables for a project are to be contained in a single keyspace. The keyspace should
+have been created by the Feast user preliminarly and is to be specified in the feature store
+configuration `yaml`.
+
+The table for a project `project` and feature view `FeatureView` will have name
+`project_FeatureView` (e.g. `feature_repo_driver_hourly_stats`).
+
+All tables have the same structure. Cassandra is schemaful and the columns are strongly typed.
+In the following table schema (which also serves as Chebotko diagram) the Python
+and Cassandra data types are both specified:
+
+|Table:         |`<project>`_`<FeatureView>`  |  | _(Python type)_      |
+|---------------|-----------------------------|--|----------------------|
+|`entity_key`   |`TEXT`                       |K | `str`                |
+|`feature_name` |`TEXT`                       |C↑| `str`                |
+|`value`        |`BLOB`                       |  | `bytes`              |
+|`event_ts`     |`TIMESTAMP`                  |  | `datetime.datetime`  |
+|`created_ts`   |`TIMESTAMP`                  |  | `datetime.datetime`  |
+
+Each row in the table represents a single value for a feature in a feature view,
+thus associated to a specific entity. The choice of partitioning ensures that,
+within a given feature view (i.e. a single table), for a given entity any number
+of features can be retrieved with a single, best-practice-respecting query
+(which is what happens in the `online_read` method implementation).
+
+
+The `entity_key` column is computed as `serialize_entity_key(entityKey).hex()`,
+where `entityKey` is of type `feast.protos.feast.types.EntityKey_pb2.EntityKey`.
+
+The value of `feature_name` is the plain-text name of the feature as defined
+in the corresponding `FeatureView`.
+
+For `value`, the bytes from `[protoValue].SerializeToString()`
+are used, where `protoValue` is of type `feast.protos.feast.types.Value_pb2.Value`.
+
+Column `event_ts` stores the timestamp the feature value refers to, as passed
+to the store method. Conversely, column `created_ts`, meant to store the write
+time for the entry, is now being deprecated and will be never written by this
+online-store implementation. Thanks to the internal storage mechanism of Cassandra,
+this does not incur a noticeable performance penalty (hence, for the time being,
+the column can be maintained in the schema).
+
+### Example entry
+
+For a project `feature_repo` and feature view named `driver_hourly_stats`,
+a typical row in table `feature_repo_driver_hourly_stats` might look like:
+
+|Column         |content                                              | notes                                                             |
+|---------------|-----------------------------------------------------|-------------------------------------------------------------------|
+|`entity_key`   |`020000006472697665725f69640400000004000000ea030000` | from `"driver_id = 1002"`                                         |
+|`feature_name` |`conv_rate`                                          |                                                                   |
+|`value`        |`0x35f5696d3f`                                       | from `float_val: 0.9273980259895325`, i.e. `(b'5\xf5im?').hex()`  |
+|`event_ts`     |`2022-07-07 09:00:00.000000+0000`                    | from `datetime.datetime(2022, 7, 7, 9, 0)`                        |
+|`created_ts`   |`null`                                               | not explicitly written to avoid unnecessary tombstones            |
+
+### Known Issues
+
+If a `FeatureView` ever gets _re-defined_ in a schema-breaking way, the implementation is not able to rearrange the
+schema of the underlying table accordingly (neither dropping all data nor, even less so, keeping it somehow).
+This should never occur, lest one encounters all sorts of data-retrieval issues anywhere in Feast usage.
+
 # Appendix
 
 ##### Appendix A. Value proto format.

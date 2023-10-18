@@ -34,32 +34,9 @@ feast:
     # The service name identifier for the tracing data
     serviceName: feast_serving
 
-  logging:
-    # Audit logging provides a machine readable structured JSON log that can give better 
-    # insight into what is happening in Feast.
-    audit:
-      # Whether audit logging is enabled. 
-      enabled: true
-      # Whether to enable message level (ie request/response) audit logging
-      messageLogging:
-        enabled: false
-        # Logging forwarder currently provides a machine readable structured JSON log to an
-        # external fluentd service that can give better insight into what is happening in Feast.
-        # Accepts console / fluentd as destination
-        destination: console
-        fluentdHost: localhost
-        fluentdPort: 24224
-
 grpc:
   server:
     # The port number Feast Serving GRPC service should listen on
     # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
     # which defaults to port 6565
     port: 6566
-
-rest:
-  server:
-    # The port number on which the Tomcat webserver that serves REST API endpoints should listen
-    # It is set by default to 8081 so it does not conflict with Tomcat webserver on Feast Core
-    # if both Feast Core and Serving are running on the same machine
-    port: 8081

@@ -16,8 +16,8 @@ helm repo add feast-helm-chart-repo $bucket
 
 cd infra/charts
 helm package feast
-helm package feast-python-server
+helm package feast-feature-server
 
 helm gcs push --public feast-${1}.tgz feast-helm-chart-repo --force
-helm gcs push --public feast-python-server-${1}.tgz feast-helm-chart-repo --force
+helm gcs push --public feast-feature-server-${1}.tgz feast-helm-chart-repo --force
 rm -f ./*.tgz

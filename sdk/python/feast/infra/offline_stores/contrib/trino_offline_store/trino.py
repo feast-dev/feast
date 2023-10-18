@@ -1,12 +1,18 @@
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import StrictStr
-from trino.auth import Authentication
+from pydantic import Field, FilePath, SecretStr, StrictBool, StrictStr, root_validator
+from trino.auth import (
+    BasicAuthentication,
+    CertificateAuthentication,
+    JWTAuthentication,
+    KerberosAuthentication,
+    OAuth2Authentication,
+)
 
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
@@ -25,11 +31,92 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.registry import Registry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
+
+
+class BasicAuthModel(FeastConfigBaseModel):
+    username: StrictStr
+    password: SecretStr
+
+
+class KerberosAuthModel(FeastConfigBaseModel):
+    config: Optional[FilePath] = Field(default=None, alias="config-file")
+    service_name: Optional[StrictStr] = Field(default=None, alias="service-name")
+    mutual_authentication: StrictBool = Field(
+        default=False, alias="mutual-authentication"
+    )
+    force_preemptive: StrictBool = Field(default=False, alias="force-preemptive")
+    hostname_override: Optional[StrictStr] = Field(
+        default=None, alias="hostname-override"
+    )
+    sanitize_mutual_error_response: StrictBool = Field(
+        default=True, alias="sanitize-mutual-error-response"
+    )
+    principal: Optional[StrictStr]
+    delegate: StrictBool = False
+    ca_bundle: Optional[FilePath] = Field(default=None, alias="ca-bundle-file")
+
+
+class JWTAuthModel(FeastConfigBaseModel):
+    token: SecretStr
+
+
+class CertificateAuthModel(FeastConfigBaseModel):
+    cert: FilePath = Field(default=None, alias="cert-file")
+    key: FilePath = Field(default=None, alias="key-file")
+
+
+CLASSES_BY_AUTH_TYPE = {
+    "kerberos": {
+        "auth_model": KerberosAuthModel,
+        "trino_auth": KerberosAuthentication,
+    },
+    "basic": {
+        "auth_model": BasicAuthModel,
+        "trino_auth": BasicAuthentication,
+    },
+    "jwt": {
+        "auth_model": JWTAuthModel,
+        "trino_auth": JWTAuthentication,
+    },
+    "oauth2": {
+        "auth_model": None,
+        "trino_auth": OAuth2Authentication,
+    },
+    "certificate": {
+        "auth_model": CertificateAuthModel,
+        "trino_auth": CertificateAuthentication,
+    },
+}
+
+
+class AuthConfig(FeastConfigBaseModel):
+    type: Literal["kerberos", "basic", "jwt", "oauth2", "certificate"]
+    config: Optional[Dict[StrictStr, Any]]
+
+    @root_validator
+    def config_only_nullable_for_oauth2(cls, values):
+        auth_type = values["type"]
+        auth_config = values["config"]
+        if auth_type != "oauth2" and auth_config is None:
+            raise ValueError(f"config cannot be null for auth type '{auth_type}'")
+
+        return values
+
+    def to_trino_auth(self):
+        auth_type = self.type
+        trino_auth_cls = CLASSES_BY_AUTH_TYPE[auth_type]["trino_auth"]
+
+        if auth_type == "oauth2":
+            return trino_auth_cls()
+
+        model_cls = CLASSES_BY_AUTH_TYPE[auth_type]["auth_model"]
+        model = model_cls(**self.config)
+        return trino_auth_cls(**model.dict())
 
 
 class TrinoOfflineStoreConfig(FeastConfigBaseModel):
@@ -47,6 +134,23 @@ class TrinoOfflineStoreConfig(FeastConfigBaseModel):
     catalog: StrictStr
     """ Catalog of the Trino cluster """
 
+    user: StrictStr
+    """ User of the Trino cluster """
+
+    source: Optional[StrictStr] = "trino-python-client"
+    """ ID of the feast's Trino Python client, useful for debugging """
+
+    http_scheme: Literal["http", "https"] = Field(default="http", alias="http-scheme")
+    """ HTTP scheme that should be used while establishing a connection to the Trino cluster """
+
+    verify: StrictBool = Field(default=True, alias="ssl-verify")
+    """ Whether the SSL certificate emited by the Trino cluster should be verified or not """
+
+    extra_credential: Optional[StrictStr] = Field(
+        default=None, alias="x-trino-extra-credential-header"
+    )
+    """ Specifies the HTTP header X-Trino-Extra-Credential, e.g. user1=pwd1, user2=pwd2 """
+
     connector: Dict[str, str]
     """
     Trino connector to use as well as potential extra parameters.
@@ -58,6 +162,16 @@ class TrinoOfflineStoreConfig(FeastConfigBaseModel):
 
     dataset: StrictStr = "feast"
     """ (optional) Trino Dataset name for temporary tables """
+
+    auth: Optional[AuthConfig]
+    """
+    (optional) Authentication mechanism to use when connecting to Trino. Supported options are:
+        - kerberos
+        - basic
+        - jwt
+        - oauth2
+        - certificate
+    """
 
 
 class TrinoRetrievalJob(RetrievalJob):
@@ -74,7 +188,7 @@ class TrinoRetrievalJob(RetrievalJob):
         self._client = client
         self._config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
     @property
@@ -82,19 +196,19 @@ class TrinoRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously including on demand transforms"""
         results = self._client.execute_query(query_text=self._query)
         self.pyarrow_schema = results.pyarrow_schema
         return results.to_dataframe()
 
-    def _to_arrow_internal(self) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
         return pyarrow.Table.from_pandas(
-            self._to_df_internal(), schema=self.pyarrow_schema
+            self._to_df_internal(timeout=timeout), schema=self.pyarrow_schema
         )
 
     def to_sql(self) -> str:
@@ -126,7 +240,12 @@ class TrinoRetrievalJob(RetrievalJob):
         self._client.execute_query(query_text=query)
         return destination_table
 
-    def persist(self, storage: SavedDatasetStorage):
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
         """
         Run the retrieval and persist the results in the same offline store used for read.
         """
@@ -157,18 +276,9 @@ class TrinoOfflineStore(OfflineStore):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-        user: str = "user",
-        auth: Optional[Authentication] = None,
-        http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
-        if not isinstance(data_source, TrinoSource):
-            raise ValueError(
-                f"The data_source object is not a TrinoSource but is instead '{type(data_source)}'"
-            )
-        if not isinstance(config.offline_store, TrinoOfflineStoreConfig):
-            raise ValueError(
-                f"The config.offline_store object is not a TrinoOfflineStoreConfig but is instead '{type(config.offline_store)}'"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        assert isinstance(data_source, TrinoSource)
 
         from_expression = data_source.get_table_query_string()
 
@@ -182,10 +292,7 @@ class TrinoOfflineStore(OfflineStore):
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
-
-        client = _get_trino_client(
-            config=config, user=user, auth=auth, http_scheme=http_scheme
-        )
+        client = _get_trino_client(config=config)
 
         query = f"""
             SELECT
@@ -202,7 +309,10 @@ class TrinoOfflineStore(OfflineStore):
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return TrinoRetrievalJob(
-            query=query, client=client, config=config, full_feature_names=False,
+            query=query,
+            client=client,
+            config=config,
+            full_feature_names=False,
         )
 
     @staticmethod
@@ -215,18 +325,12 @@ class TrinoOfflineStore(OfflineStore):
         registry: Registry,
         project: str,
         full_feature_names: bool = False,
-        user: str = "user",
-        auth: Optional[Authentication] = None,
-        http_scheme: Optional[str] = None,
     ) -> TrinoRetrievalJob:
-        if not isinstance(config.offline_store, TrinoOfflineStoreConfig):
-            raise ValueError(
-                f"This function should be used with a TrinoOfflineStoreConfig object. Instead we have config.offline_store being '{type(config.offline_store)}'"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, TrinoSource)
 
-        client = _get_trino_client(
-            config=config, user=user, auth=auth, http_scheme=http_scheme
-        )
+        client = _get_trino_client(config=config)
 
         table_reference = _get_table_reference_for_new_entity(
             catalog=config.offline_store.catalog,
@@ -240,8 +344,10 @@ class TrinoOfflineStore(OfflineStore):
             connector=config.offline_store.connector,
         )
 
-        entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-            entity_schema=entity_schema
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(
+                entity_schema=entity_schema
+            )
         )
 
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
@@ -305,19 +411,12 @@ class TrinoOfflineStore(OfflineStore):
         timestamp_field: str,
         start_date: datetime,
         end_date: datetime,
-        user: str = "user",
-        auth: Optional[Authentication] = None,
-        http_scheme: Optional[str] = None,
     ) -> RetrievalJob:
-        if not isinstance(data_source, TrinoSource):
-            raise ValueError(
-                f"The data_source object is not a TrinoSource object but is instead a {type(data_source)}"
-            )
+        assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        assert isinstance(data_source, TrinoSource)
         from_expression = data_source.get_table_query_string()
 
-        client = _get_trino_client(
-            config=config, user=user, auth=auth, http_scheme=http_scheme
-        )
+        client = _get_trino_client(config=config)
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
         )
@@ -327,11 +426,17 @@ class TrinoOfflineStore(OfflineStore):
             WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}'  AND TIMESTAMP '{end_date}'
         """
         return TrinoRetrievalJob(
-            query=query, client=client, config=config, full_feature_names=False,
+            query=query,
+            client=client,
+            config=config,
+            full_feature_names=False,
         )
 
 
-def _get_table_reference_for_new_entity(catalog: str, dataset_name: str,) -> str:
+def _get_table_reference_for_new_entity(
+    catalog: str,
+    dataset_name: str,
+) -> str:
     """Gets the table_id for the new entity to be uploaded."""
     table_name = offline_utils.get_temp_entity_table_name()
     return f"{catalog}.{dataset_name}.{table_name}"
@@ -372,18 +477,22 @@ def _upload_entity_df_and_get_entity_schema(
     # TODO: Ensure that the table expires after some time
 
 
-def _get_trino_client(
-    config: RepoConfig, user: str, auth: Optional[Any], http_scheme: Optional[str]
-) -> Trino:
-    client = Trino(
-        user=user,
-        catalog=config.offline_store.catalog,
+def _get_trino_client(config: RepoConfig) -> Trino:
+    auth = None
+    if config.offline_store.auth is not None:
+        auth = config.offline_store.auth.to_trino_auth()
+
+    return Trino(
         host=config.offline_store.host,
         port=config.offline_store.port,
+        user=config.offline_store.user,
+        catalog=config.offline_store.catalog,
+        source=config.offline_store.source,
+        http_scheme=config.offline_store.http_scheme,
+        verify=config.offline_store.verify,
+        extra_credential=config.offline_store.extra_credential,
         auth=auth,
-        http_scheme=http_scheme,
     )
-    return client
 
 
 def _get_entity_df_event_timestamp_range(

@@ -1,3 +1,6 @@
+import os
+import shutil
+import tempfile
 import uuid
 from typing import Dict, List
 
@@ -48,11 +51,17 @@ class SparkDataSourceCreator(DataSourceCreator):
 
     def teardown(self):
         self.spark_session.stop()
+        for table in self.tables:
+            shutil.rmtree(table)
 
     def create_offline_store_config(self):
         self.spark_offline_store_config = SparkOfflineStoreConfig()
         self.spark_offline_store_config.type = "spark"
         self.spark_offline_store_config.spark_conf = self.spark_conf
+        self.spark_offline_store_config.staging_location = (
+            tempfile.TemporaryDirectory().name
+        )
+        self.spark_offline_store_config.region = "eu-west-1"
         return self.spark_offline_store_config
 
     def create_data_source(
@@ -86,14 +95,19 @@ class SparkDataSourceCreator(DataSourceCreator):
                 .appName("pytest-pyspark-local-testing")
                 .getOrCreate()
             )
-        self.spark_session.createDataFrame(df).createOrReplaceTempView(destination_name)
-        self.tables.append(destination_name)
 
+        temp_dir = tempfile.mkdtemp(prefix="spark_offline_store_test_data")
+
+        path = os.path.join(temp_dir, destination_name)
+        self.tables.append(path)
+
+        self.spark_session.createDataFrame(df).write.parquet(path)
         return SparkSource(
-            table=destination_name,
+            name=destination_name,
+            file_format="parquet",
+            path=path,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
-            date_partition_column="",
             field_mapping=field_mapping or {"ts_1": "ts"},
         )
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=60", "wheel", "setuptools_scm>=6.2", "grpcio", "grpcio-tools==1.44.0", "mypy-protobuf==3.1", "sphinx!=4.0.0"]
+requires = ["setuptools>=60", "wheel", "setuptools_scm>=6.2", "grpcio", "grpcio-tools>=1.47.0", "mypy-protobuf==3.1", "sphinx!=4.0.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -25,6 +25,7 @@ exclude = '''
     | pb2.py
     | \.pyi
     | protos
+    | sdk/python/feast/embedded_go/lib
   )/
 )
 '''

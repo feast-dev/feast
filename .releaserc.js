@@ -28,18 +28,26 @@ module.exports = {
             "releaseRules": [
                 {breaking: true, release: 'minor'},
                 {tag: 'Breaking', release: 'minor'},
-            ]
+                {type: '*!', release: 'minor'},
+            ],
+            // Ensure that the "BREAKING CHANGE" notes in commit footers are parsed
+            "parserOpts": {
+                "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
+            }
         }],
 
         ["@semantic-release/exec", {
             // Validate the type of release we are doing
             "verifyReleaseCmd": "./infra/scripts/validate-release.sh  ${nextRelease.type} " + current_branch,
 
-            // Bump all version files
-            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}"
+            // Bump all version files and build UI / update yarn.lock / helm charts
+            "prepareCmd": "python ./infra/scripts/release/bump_file_versions.py ${lastRelease.version} ${nextRelease.version}; make build-ui; make build-helm-docs"
         }],
 
-        "@semantic-release/release-notes-generator",
+        ["@semantic-release/release-notes-generator", {
+            // Ensure that a "Breaking Changes" section is added to the release notes
+            "preset": "angular"
+        }],
 
         // Update the changelog
         [
@@ -58,7 +66,9 @@ module.exports = {
                     "CHANGELOG.md",
                     "java/pom.xml",
                     "infra/charts/**/*.*",
-                    "ui/package.json"
+                    "ui/package.json",
+                    "sdk/python/feast/ui/package.json",
+                    "sdk/python/feast/ui/yarn.lock"
                 ],
                 message: "chore(release): release ${nextRelease.version}\n\n${nextRelease.notes}"
             }

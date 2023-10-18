@@ -1,17 +1,17 @@
 import React from "react";
 import { EuiBasicTable, EuiPanel, EuiText, EuiTitle } from "@elastic/eui";
 import { useParams } from "react-router-dom";
-import { RequestDataSourceType } from "../../../parsers/feastODFVS";
 import EuiCustomLink from "../../../components/EuiCustomLink";
+import { feast } from "../../../protos";
 
-interface RequestDataDisplayPanelProps extends RequestDataSourceType {}
+interface RequestDataDisplayPanelProps extends feast.core.IOnDemandSource { }
 
 const RequestDataDisplayPanel = ({
   requestDataSource,
 }: RequestDataDisplayPanelProps) => {
   const { projectName } = useParams();
 
-  const items = Object.entries(requestDataSource.requestDataOptions.schema).map(
+  const items = Object.entries(requestDataSource?.requestDataOptions?.schema!).map(
     ([key, type]) => {
       return {
         key,
@@ -38,10 +38,10 @@ const RequestDataDisplayPanel = ({
       </EuiText>
       <EuiTitle size="s">
         <EuiCustomLink
-          href={`/p/${projectName}/data-source/${requestDataSource.name}`}
-          to={`/p/${projectName}/data-source/${requestDataSource.name}`}
+          href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${requestDataSource?.name}`}
+          to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${requestDataSource?.name}`}
         >
-          {requestDataSource.name}
+          {requestDataSource?.name}
         </EuiCustomLink>
       </EuiTitle>
       <EuiBasicTable columns={columns} items={items} />

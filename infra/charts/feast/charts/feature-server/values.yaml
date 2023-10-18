@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image for Feature Server repository
   repository: feastdev/feature-server-java
   # image.tag -- Image tag
-  tag: 0.21.0
+  tag: 0.34.0
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -71,13 +71,6 @@ readinessProbe:
 service:
   # service.type -- Kubernetes service type
   type: ClusterIP
-  http:
-    # service.http.port -- Service port for HTTP requests
-    port: 80
-    # service.http.targetPort -- Container port serving HTTP requests and Prometheus metrics
-    targetPort: 8080
-    # service.http.nodePort -- Port number that each cluster node will listen to
-    nodePort:
   grpc:
     # service.grpc.port -- Service port for GRPC requests
     port: 6566

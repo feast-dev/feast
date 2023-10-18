@@ -1,38 +1,32 @@
 from datetime import timedelta
 
-from feast import BigQuerySource, Entity, FeatureService, FeatureView, Field, PushSource
+from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
 from feast.types import Float32, Int64, String
 
-driver_locations_source = BigQuerySource(
-    table="feast-oss.public.drivers",
+# Note that file source paths are not validated, so there doesn't actually need to be any data
+# at the paths for these file sources. Since these paths are effectively fake, this example
+# feature repo should not be used for historical retrieval.
+
+driver_locations_source = FileSource(
+    path="data/driver_locations.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
-driver_locations_source_query = BigQuerySource(
-    query="SELECT * from feast-oss.public.drivers",
-    timestamp_field="event_timestamp",
-    created_timestamp_column="created_timestamp",
-)
-
-driver_locations_source_query_2 = BigQuerySource(
-    query="SELECT lat * 2 FROM feast-oss.public.drivers",
-    timestamp_field="event_timestamp",
-    created_timestamp_column="created_timestamp",
-)
-
-customer_profile_source = BigQuerySource(
+customer_profile_source = FileSource(
     name="customer_profile_source",
-    table="feast-oss.public.customers",
+    path="data/customer_profiles.parquet",
     timestamp_field="event_timestamp",
 )
 
-customer_driver_combined_source = BigQuerySource(
-    table="feast-oss.public.customer_driver", timestamp_field="event_timestamp",
+customer_driver_combined_source = FileSource(
+    path="data/customer_driver_combined.parquet",
+    timestamp_field="event_timestamp",
 )
 
 driver_locations_push_source = PushSource(
-    name="driver_locations_push", batch_source=driver_locations_source,
+    name="driver_locations_push",
+    batch_source=driver_locations_source,
 )
 
 driver = Entity(
@@ -57,7 +51,7 @@ driver_locations = FeatureView(
         Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    batch_source=driver_locations_source,
+    source=driver_locations_source,
     tags={},
 )
 
@@ -71,7 +65,7 @@ pushed_driver_locations = FeatureView(
         Field(name="driver_id", dtype=Int64),
     ],
     online=True,
-    stream_source=driver_locations_push_source,
+    source=driver_locations_push_source,
     tags={},
 )
 
@@ -86,7 +80,7 @@ customer_profile = FeatureView(
         Field(name="customer_id", dtype=String),
     ],
     online=True,
-    batch_source=customer_profile_source,
+    source=customer_profile_source,
     tags={},
 )
 
@@ -100,7 +94,7 @@ customer_driver_combined = FeatureView(
         Field(name="customer_id", dtype=String),
     ],
     online=True,
-    batch_source=customer_driver_combined_source,
+    source=customer_driver_combined_source,
     tags={},
 )
 

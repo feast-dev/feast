@@ -35,11 +35,12 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage, tracing_span
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 LOGGER = logging.getLogger(__name__)
 
 try:
+    from google.api_core import client_info as http_client_info
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import datastore
     from google.cloud.datastore.client import Key
@@ -47,6 +48,10 @@ except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
     raise FeastExtrasDependencyImportError("gcp", str(e))
+
+
+def get_http_client_info():
+    return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
 ProtoBatch = Sequence[
@@ -75,8 +80,13 @@ class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
 
 class DatastoreOnlineStore(OnlineStore):
     """
-    OnlineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    Google Cloud Datastore implementation of the online store interface.
+
+    See https://github.com/feast-dev/feast/blob/master/docs/specs/online_store_format.md#google-datastore-online-store-format
+    for more details about the data model for this implementation.
+
+    Attributes:
+        _client: Datastore connection.
     """
 
     _client: Optional[datastore.Client] = None
@@ -162,7 +172,7 @@ class DatastoreOnlineStore(OnlineStore):
         with ThreadPool(processes=write_concurrency) as pool:
             pool.map(
                 lambda b: self._write_minibatch(
-                    client, feast_project, table, b, progress
+                    client, feast_project, table, b, progress, config
                 ),
                 self._to_minibatches(data, batch_size=write_batch_size),
             )
@@ -191,13 +201,22 @@ class DatastoreOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
+        config: RepoConfig,
     ):
         entities = []
         for entity_key, features, timestamp, created_ts in data:
-            document_id = compute_entity_id(entity_key)
+            document_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
 
             key = client.key(
-                "Project", project, "Table", table.name, "Row", document_id,
+                "Project",
+                project,
+                "Table",
+                table.name,
+                "Row",
+                document_id,
             )
 
             entity = datastore.Entity(
@@ -241,7 +260,10 @@ class DatastoreOnlineStore(OnlineStore):
         keys: List[Key] = []
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for entity_key in entity_keys:
-            document_id = compute_entity_id(entity_key)
+            document_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
             key = client.key(
                 "Project", feast_project, "Table", table.name, "Row", document_id
             )
@@ -318,7 +340,9 @@ def _initialize_client(
     project_id: Optional[str], namespace: Optional[str]
 ) -> datastore.Client:
     try:
-        client = datastore.Client(project=project_id, namespace=namespace,)
+        client = datastore.Client(
+            project=project_id, namespace=namespace, client_info=get_http_client_info()
+        )
         return client
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
@@ -394,7 +418,8 @@ class DatastoreTable(InfraObject):
     @staticmethod
     def from_proto(datastore_table_proto: DatastoreTableProto) -> Any:
         datastore_table = DatastoreTable(
-            project=datastore_table_proto.project, name=datastore_table_proto.name,
+            project=datastore_table_proto.project,
+            name=datastore_table_proto.name,
         )
 
         # Distinguish between null and empty string, since project_id and namespace are StringValues.

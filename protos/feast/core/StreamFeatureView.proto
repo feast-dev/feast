@@ -24,7 +24,6 @@ option java_package = "feast.proto.core";
 
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
@@ -34,7 +33,7 @@ import "feast/core/Aggregation.proto";
 message StreamFeatureView {
     // User-specified specifications of this feature view.
     StreamFeatureViewSpec spec = 1;
-    StreamFeatureViewMeta meta = 2;
+    FeatureViewMeta meta = 2;
 }
 
 // Next available id: 17
@@ -90,13 +89,3 @@ message StreamFeatureViewSpec {
     string timestamp_field = 16;
 }
 
-message StreamFeatureViewMeta {
-    // Time where this Feature View is created
-    google.protobuf.Timestamp created_timestamp = 1;
-
-    // Time where this Feature View is last updated
-    google.protobuf.Timestamp last_updated_timestamp = 2;
-
-    // List of pairs (start_time, end_time) for which this feature view has been materialized.
-    repeated MaterializationInterval materialization_intervals = 3;
-}

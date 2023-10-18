@@ -22,12 +22,6 @@ spec:
 {{ toYaml .Values.service.loadBalancerSourceRanges | indent 2 }}
   {{- end }}
   ports:
-  - name: http
-    port: {{ .Values.service.http.port }}
-    targetPort: {{ .Values.service.http.targetPort }}
-    {{- if .Values.service.http.nodePort }}
-    nodePort: {{ .Values.service.http.nodePort }}
-    {{- end }}
   - name: grpc
     port: {{ .Values.service.grpc.port }}
     targetPort: {{ .Values.service.grpc.targetPort }}

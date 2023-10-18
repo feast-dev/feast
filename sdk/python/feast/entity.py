@@ -11,11 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import warnings
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
+from typeguard import typechecked
 
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
@@ -24,6 +24,7 @@ from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
+@typechecked
 class Entity:
     """
     An entity defines a collection of entities for which features can be defined. An
@@ -31,7 +32,7 @@ class Entity:
 
     Attributes:
         name: The unique name of the entity.
-        value_type (deprecated): The type of the entity, such as string or float.
+        value_type: The type of the entity, such as string or float.
         join_key: A property that uniquely identifies different entities within the
             collection. The join_key property is typically used for joining entities
             with their associated features. If not specified, defaults to the name.
@@ -40,9 +41,6 @@ class Entity:
         owner: The owner of the entity, typically the email of the primary maintainer.
         created_timestamp: The time when the entity was created.
         last_updated_timestamp: The time when the entity was last updated.
-        join_keys: A list of properties that uniquely identifies different entities within the
-            collection. This is meant to replace the `join_key` parameter, but currently only
-            supports a list of size one.
     """
 
     name: str
@@ -53,95 +51,50 @@ class Entity:
     owner: str
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
-    join_keys: List[str]
 
     @log_exceptions
     def __init__(
         self,
-        *args,
-        name: Optional[str] = None,
+        *,
+        name: str,
+        join_keys: Optional[List[str]] = None,
         value_type: Optional[ValueType] = None,
         description: str = "",
-        join_key: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
-        join_keys: Optional[List[str]] = None,
     ):
         """
         Creates an Entity object.
 
         Args:
             name: The unique name of the entity.
-            value_type (deprecated): The type of the entity, such as string or float.
-            description: A human-readable description.
-            join_key (deprecated): A property that uniquely identifies different entities within the
-                collection. The join_key property is typically used for joining entities
-                with their associated features. If not specified, defaults to the name.
-            tags: A dictionary of key-value pairs to store arbitrary metadata.
-            owner: The owner of the entity, typically the email of the primary maintainer.
-            join_keys: A list of properties that uniquely identifies different entities within the
-                collection. This is meant to replace the `join_key` parameter, but currently only
-                supports a list of size one.
+            join_keys (optional): A list of properties that uniquely identifies different entities
+                within the collection. This currently only supports a list of size one, but is
+                intended to eventually support multiple join keys.
+            value_type (optional): The type of the entity, such as string or float. If not specified,
+                it will be inferred from the schema of the underlying data source.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the entity, typically the email of the primary maintainer.
 
         Raises:
             ValueError: Parameters are specified incorrectly.
         """
-        if len(args) == 1:
-            warnings.warn(
-                (
-                    "Entity name should be specified as a keyword argument instead of a positional arg."
-                    "Feast 0.23+ will not support positional arguments to construct Entities"
-                ),
-                DeprecationWarning,
-            )
-        if len(args) > 1:
-            raise ValueError(
-                "All arguments to construct an entity should be specified as keyword arguments only"
-            )
-
-        self.name = args[0] if len(args) > 0 else name
-
-        if not self.name:
-            raise ValueError("Name needs to be specified")
-
-        if value_type:
-            warnings.warn(
-                (
-                    "The `value_type` parameter is being deprecated. Instead, the type of an entity "
-                    "should be specified as a Field in the schema of a feature view. Feast 0.23 and "
-                    "onwards will not support the `value_type` parameter. The `entities` parameter of "
-                    "feature views should also be changed to a List[Entity] instead of a List[str]; if "
-                    "this is not done, entity columns will be mistakenly interpreted as feature columns."
-                ),
-                DeprecationWarning,
-            )
+        self.name = name
         self.value_type = value_type or ValueType.UNKNOWN
 
-        # For now, both the `join_key` and `join_keys` attributes are set correctly,
-        # so both are usable.
-        # TODO(felixwang9817): Remove the usage of `join_key` throughout the codebase
-        # when the usage of `join_key` as a parameter is removed.
-        if join_key:
-            warnings.warn(
-                (
-                    "The `join_key` parameter is being deprecated in favor of the `join_keys` parameter. "
-                    "Please switch from using `join_key` to `join_keys`. Feast 0.23 and onwards will not "
-                    "support the `join_key` parameter."
-                ),
-                DeprecationWarning,
-            )
-        self.join_keys = join_keys or []
         if join_keys and len(join_keys) > 1:
+            # TODO(felixwang9817): When multiple join keys are supported, add a `join_keys` attribute
+            # and deprecate the `join_key` attribute.
             raise ValueError(
-                "An entity may only have single join key. "
+                "An entity may only have a single join key. "
                 "Multiple join keys will be supported in the future."
             )
-        if join_keys and len(join_keys) == 1:
+        elif join_keys and len(join_keys) == 1:
             self.join_key = join_keys[0]
         else:
-            self.join_key = join_key if join_key else self.name
-        if not self.join_keys:
-            self.join_keys = [self.join_key]
+            self.join_key = self.name
+
         self.description = description
         self.tags = tags if tags is not None else {}
         self.owner = owner
@@ -201,7 +154,7 @@ class Entity:
             name=entity_proto.spec.name,
             join_keys=[entity_proto.spec.join_key],
             description=entity_proto.spec.description,
-            tags=entity_proto.spec.tags,
+            tags=dict(entity_proto.spec.tags),
             owner=entity_proto.spec.owner,
         )
 

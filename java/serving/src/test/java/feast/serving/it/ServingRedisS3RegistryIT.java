@@ -24,7 +24,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import feast.proto.core.RegistryProto;
-import feast.serving.config.ApplicationProperties;
+import feast.serving.service.config.ApplicationProperties;
 import java.io.ByteArrayInputStream;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.junit.jupiter.Container;

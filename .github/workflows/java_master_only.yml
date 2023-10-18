@@ -9,6 +9,7 @@ on:
 
 jobs:
   build-docker-images:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,21 +18,24 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
-      - uses: google-github-actions/setup-gcloud@v0
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        id: setup-python
         with:
-          version: '290.0.1'
-          export_default_credentials: true
+          python-version: "3.8"
+          architecture: x64
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - run: gcloud auth configure-docker --quiet
-      - name: Get m2 cache
-        run: |
-          infra/scripts/download-maven-cache.sh \
-          --archive-uri ${MAVEN_CACHE} \
-          --output-dir .
       - name: Get version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Build image
@@ -46,18 +50,20 @@ jobs:
           fi
 
   lint-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Lint java
         run: make lint-java
 
   unit-test-java:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -66,6 +72,12 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
+      - uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-it-maven-
       - uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -74,15 +86,18 @@ jobs:
             ${{ runner.os }}-ut-maven-
       - name: Test java
         run: make test-java-with-coverage
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: java-coverage-report
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
 
   integration-test:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
+    env:
+      PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -91,22 +106,47 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/setup-python@v2
+      - name: Setup Python (to call feast apply)
+        uses: actions/setup-python@v3
+        id: setup-python
         with:
-          python-version: '3.7'
-          architecture: 'x64'
+          python-version: 3.8
+          architecture: x64
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Install Python dependencies
+        run: make install-python-ci-dependencies
       - uses: actions/cache@v2
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-it-maven-
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v0
+        uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
       - name: Use gcloud CLI
         run: gcloud info
       - name: Set up AWS SDK

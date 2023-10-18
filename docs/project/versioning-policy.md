@@ -23,24 +23,18 @@ In general, unless you're committing code that only applies to a particular rele
 
 The following table shows the **status** \(stable, beta, or alpha\) of Feast components.
 
-Application status indicators for Feast:
+Component status indicators for Feast:
 
 * **Stable** means that the component has reached a sufficient level of stability and adoption that the Feast community has deemed the component stable. Please see the stability criteria below.
 * **Beta** means that the component is working towards a version 1.0 release. Beta does not mean a component is unstable, it simply means the component has not met the full criteria of stability.
 * **Alpha** means that the component is in the early phases of development and/or integration into Feast.
 
-| Application | Status | Notes |
-| :--- | :--- | :--- |
-| [Feast Serving](https://github.com/feast-dev/feast-java) | Beta | APIs are considered stable and will not have breaking changes within 3 minor versions. |
-| [Feast Core](https://github.com/feast-dev/feast-java) | Beta | At risk of deprecation |
-| [Feast Java Client](https://github.com/feast-dev/feast-java) | Beta |  |
-| [Feast Python SDK](https://github.com/feast-dev/feast) | Beta |  |
-| [Feast Go Client](https://github.com/feast-dev/feast) | Beta |  |
-| [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha |  |
-| [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha |  |
-| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | Scheduled for deprecation |
-| [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta |  |
-|  |  |  |
+| Component                                                                        | Status | Notes |
+|:---------------------------------------------------------------------------------|:-------| :--- |
+| [Feast Python SDK](https://github.com/feast-dev/feast/tree/master/sdk/python)    | Stable |  |
+| [Feast Go Feature Server](https://github.com/feast-dev/feast/tree/master/)       | Beta   |  |
+| [Feast Java Feature Server](https://github.com/feast-dev/feast/tree/master/java) | Alpha  |  |
+|                                                                                  |        |  |
 
 Criteria for reaching _**stable**_ status:
 

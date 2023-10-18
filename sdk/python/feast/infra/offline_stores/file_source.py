@@ -1,9 +1,9 @@
-import warnings
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
 from pyarrow.parquet import ParquetDataset
+from typeguard import typechecked
 
 from feast import type_map
 from feast.data_format import FileFormat, ParquetFormat
@@ -21,94 +21,62 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
 
 
+@typechecked
 class FileSource(DataSource):
     def __init__(
         self,
-        *args,
-        path: Optional[str] = None,
+        *,
+        path: str,
+        name: Optional[str] = "",
         event_timestamp_column: Optional[str] = "",
         file_format: Optional[FileFormat] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
         s3_endpoint_override: Optional[str] = None,
-        name: Optional[str] = "",
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
     ):
-        """Create a FileSource from a file containing feature data. Only Parquet format supported.
+        """
+        Creates a FileSource object.
 
         Args:
-
             path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
                 feature columns.
-            event_timestamp_column(optional): (Deprecated) Event timestamp column used for point in time joins of feature values.
+            name (optional): Name for the file source. Defaults to the path.
+            event_timestamp_column (optional): (Deprecated in favor of timestamp_field) Event
+                timestamp column used for point in time joins of feature values.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             file_format (optional): Explicitly set the file format. Allows Feast to bypass inferring the file format.
             field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
-            date_partition_column (optional): Timestamp column used for partitioning.
             s3_endpoint_override (optional): Overrides AWS S3 enpoint with custom S3 storage
-            name (optional): Name for the file source. Defaults to the path.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the file source, typically the email of the primary
                 maintainer.
-            timestamp_field (optional): Event timestamp foe;d used for point in time
+            timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
 
         Examples:
             >>> from feast import FileSource
             >>> file_source = FileSource(path="my_features.parquet", timestamp_field="event_timestamp")
         """
-        positional_attributes = ["path"]
-        _path = path
-        if args:
-            if args:
-                warnings.warn(
-                    (
-                        "File Source parameters should be specified as a keyword argument instead of a positional arg."
-                        "Feast 0.23+ will not support positional arguments to construct File sources"
-                    ),
-                    DeprecationWarning,
-                )
-                if len(args) > len(positional_attributes):
-                    raise ValueError(
-                        f"Only {', '.join(positional_attributes)} are allowed as positional args when defining "
-                        f"File sources, for backwards compatibility."
-                    )
-                if len(args) >= 1:
-                    _path = args[0]
-        if _path is None:
-            raise ValueError(
-                'No "path" argument provided. Please set "path" to the location of your file source.'
-            )
         self.file_options = FileOptions(
             file_format=file_format,
-            uri=_path,
+            uri=path,
             s3_endpoint_override=s3_endpoint_override,
         )
 
-        if date_partition_column:
-            warnings.warn(
-                (
-                    "The argument 'date_partition_column' is not supported for File sources."
-                    "It will be removed in Feast 0.23+"
-                ),
-                DeprecationWarning,
-            )
-
         super().__init__(
             name=name if name else path,
-            event_timestamp_column=event_timestamp_column,
+            timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
             tags=tags,
             owner=owner,
-            timestamp_field=timestamp_field,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -128,11 +96,19 @@ class FileSource(DataSource):
         )
 
     @property
-    def path(self):
-        """
-        Returns the path of this file data source.
-        """
+    def path(self) -> str:
+        """Returns the path of this file data source."""
         return self.file_options.uri
+
+    @property
+    def file_format(self) -> Optional[FileFormat]:
+        """Returns the file format of this file data source."""
+        return self.file_options.file_format
+
+    @property
+    def s3_endpoint_override(self) -> Optional[str]:
+        """Returns the s3 endpoint override of this file data source."""
+        return self.file_options.s3_endpoint_override
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -182,11 +158,15 @@ class FileSource(DataSource):
         # Adding support for different file format path
         # based on S3 filesystem
         if filesystem is None:
-            schema = ParquetDataset(path).schema.to_arrow_schema()
+            schema = ParquetDataset(path, use_legacy_dataset=False).schema
+            if hasattr(schema, "names") and hasattr(schema, "types"):
+                # Newer versions of pyarrow doesn't have this method,
+                # but this field is good enough.
+                pass
+            else:
+                schema = schema.to_arrow_schema()
         else:
-            schema = ParquetDataset(
-                filesystem.open_input_file(path), filesystem=filesystem
-            ).schema
+            schema = ParquetDataset(path, filesystem=filesystem).schema
 
         return zip(schema.names, map(str, schema.types))
 
@@ -209,24 +189,33 @@ class FileSource(DataSource):
 class FileOptions:
     """
     Configuration options for a file data source.
+
+    Attributes:
+        uri: File source url, e.g. s3:// or local file.
+        s3_endpoint_override: Custom s3 endpoint (used only with s3 uri).
+        file_format: File source format, e.g. parquet.
     """
+
+    uri: str
+    file_format: Optional[FileFormat]
+    s3_endpoint_override: str
 
     def __init__(
         self,
+        uri: str,
         file_format: Optional[FileFormat],
         s3_endpoint_override: Optional[str],
-        uri: Optional[str],
     ):
         """
         Initializes a FileOptions object.
 
         Args:
+            uri: File source url, e.g. s3:// or local file.
             file_format (optional): File source format, e.g. parquet.
             s3_endpoint_override (optional): Custom s3 endpoint (used only with s3 uri).
-            uri (optional): File source url, e.g. s3:// or local file.
         """
+        self.uri = uri
         self.file_format = file_format
-        self.uri = uri or ""
         self.s3_endpoint_override = s3_endpoint_override or ""
 
     @classmethod
@@ -299,6 +288,17 @@ class SavedDatasetFileStorage(SavedDatasetStorage):
             path=self.file_options.uri,
             file_format=self.file_options.file_format,
             s3_endpoint_override=self.file_options.s3_endpoint_override,
+        )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> "SavedDatasetStorage":
+        assert isinstance(data_source, FileSource)
+        return SavedDatasetFileStorage(
+            path=data_source.path,
+            file_format=data_source.file_format
+            if data_source.file_format
+            else ParquetFormat(),
+            s3_endpoint_override=data_source.s3_endpoint_override,
         )
 
 

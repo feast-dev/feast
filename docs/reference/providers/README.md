@@ -7,3 +7,5 @@ Please see [Provider](../../getting-started/architecture-and-components/provider
 {% page-ref page="google-cloud-platform.md" %}
 
 {% page-ref page="amazon-web-services.md" %}
+
+{% page-ref page="azure.md" %}

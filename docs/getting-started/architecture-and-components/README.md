@@ -1,16 +1,25 @@
 # Architecture
 
-{% page-ref page="overview.md" %}
+{% content-ref url="overview.md" %}
+[overview.md](overview.md)
+{% endcontent-ref %}
 
-{% page-ref page="feature-repository.md" %}
+{% content-ref url="registry.md" %}
+[registry.md](registry.md)
+{% endcontent-ref %}
 
-{% page-ref page="registry.md" %}
+{% content-ref url="offline-store.md" %}
+[offline-store.md](offline-store.md)
+{% endcontent-ref %}
 
-{% page-ref page="offline-store.md" %}
+{% content-ref url="online-store.md" %}
+[online-store.md](online-store.md)
+{% endcontent-ref %}
 
-{% page-ref page="online-store.md" %}
+{% content-ref url="batch-materialization-engine.md" %}
+[batch-materialization-engine.md](batch-materialization-engine.md)
+{% endcontent-ref %}
 
-{% page-ref page="provider.md" %}
-
-
-
+{% content-ref url="provider.md" %}
+[provider.md](provider.md)
+{% endcontent-ref %}

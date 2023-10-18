@@ -1,16 +1,17 @@
-# Spark (contrib)
+# Spark source (contrib)
 
 ## Description
 
-**NOTE**: Spark data source api is currently in alpha development and the API is not completely stable. The API may change or update in the future.
+Spark data sources are tables or files that can be loaded from some Spark store (e.g. Hive or in-memory). They can also be specified by a SQL query.
 
-The spark data source API allows for the retrieval of historical feature values from file/database sources for building training datasets as well as materializing features into an online store.
+## Disclaimer
 
-* Either a table name, a SQL query, or a file path can be provided.
+The Spark data source does not achieve full test coverage.
+Please do not assume complete stability.
 
 ## Examples
 
-Using a table reference from SparkSession(for example, either in memory or a Hive Metastore)
+Using a table reference from SparkSession (for example, either in-memory or a Hive Metastore):
 
 ```python
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -22,7 +23,7 @@ my_spark_source = SparkSource(
 )
 ```
 
-Using a query
+Using a query:
 
 ```python
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -35,7 +36,7 @@ my_spark_source = SparkSource(
 )
 ```
 
-Using a file reference
+Using a file reference:
 
 ```python
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
@@ -49,3 +50,10 @@ my_spark_source = SparkSource(
     created_timestamp_column="created",
 )
 ```
+
+The full set of configuration options is available [here](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource).
+
+## Supported Types
+
+Spark data sources support all eight primitive types and their corresponding array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

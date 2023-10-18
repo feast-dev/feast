@@ -1,14 +1,13 @@
-# Snowflake
+# Snowflake source
 
 ## Description
 
-Snowflake data sources allow for the retrieval of historical feature values from Snowflake for building training datasets as well as materializing features into an online store.
-
-* Either a table reference or a SQL query can be provided.
+Snowflake data sources are Snowflake tables or views.
+These can be specified either by a table reference or a SQL query.
 
 ## Examples
 
-Using a table reference
+Using a table reference:
 
 ```python
 from feast import SnowflakeSource
@@ -20,7 +19,7 @@ my_snowflake_source = SnowflakeSource(
 )
 ```
 
-Using a query
+Using a query:
 
 ```python
 from feast import SnowflakeSource
@@ -38,7 +37,14 @@ my_snowflake_source = SnowflakeSource(
 )
 ```
 
-One thing to remember is how Snowflake handles table and column name conventions.
-You can read more about quote identifiers [here](https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html)
+{% hint style="warning" %}
+Be careful about how Snowflake handles table and column name conventions.
+In particular, you can read more about quote identifiers [here](https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html).
+{% endhint %}
 
-Configuration options are available [here](https://rtd.feast.dev/en/latest/index.html#feast.data_source.SnowflakeSource).
+The full set of configuration options is available [here](https://rtd.feast.dev/en/latest/index.html#feast.infra.offline_stores.snowflake_source.SnowflakeSource).
+
+## Supported Types
+
+Snowflake data sources support all eight primitive types, but currently do not support array types.
+For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).

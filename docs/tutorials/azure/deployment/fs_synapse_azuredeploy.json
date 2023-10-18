@@ -1,0 +1,413 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "administratorLoginPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The administrator password of the SQL logical server."
+            }
+        },
+        "principalId": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the principal ID assigned to the role. You can find in cloud shell using 'az ad signed-in-user show --query id -o tsv'"
+            }
+        },
+        "sku": {
+            "type": "string",
+            "defaultValue": "DW100c",
+            "allowedValues": [
+                "DW100c",
+                "DW200c",
+                "DW300c",
+                "DW400c",
+                "DW500c",
+                "DW1000c",
+                "DW1500c",
+                "DW2000c",
+                "DW2500c",
+                "DW3000c"
+            ],
+            "metadata": {
+                "description": "Select the SKU of the SQL pool."
+            }
+        },
+        "allowAllConnections": {
+            "type": "string",
+            "allowedValues": [
+                "true",
+                "false"
+            ],
+            "defaultValue": "true",
+            "metadata": {
+                "description": "Specifies whether to allow client IPs to connect to Synapse"
+            }
+        },
+        "administratorLogin": {
+            "type": "string",
+            "metadata": {
+                "description": "The administrator username of the SQL logical server."
+            },
+            "defaultValue": "azureuser"
+        },
+        "vmSize": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            },
+            "defaultValue": "Standard_DS3_v2"
+        },
+        "roleDefinitionID": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the role definition ID used in the role assignment. Defaults to Storage Blob Data Contributor."
+            },
+            "defaultValue": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+        }
+    },
+    "functions": [],
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "tenantId": "[subscription().tenantId]",
+        "registryBlobStore": "[concat('fsregistry',uniqueString(resourceGroup().id))]",
+        "redisCacheName": "[concat('fsonline',uniqueString(resourceGroup().id))]",
+        "amlWorkspaceName": "[concat('ml',uniqueString(resourceGroup().id))]",
+        "synapseName": "[concat('sy',uniqueString(resourceGroup().id))]",
+        "storageAccountName": "[concat('st', uniqueString(resourceGroup().id))]",
+        "keyVaultName": "[concat('kv-', uniqueString(resourceGroup().id))]",
+        "applicationInsightsName": "[concat('appi-', uniqueString(resourceGroup().id))]",
+        "containerRegistryName": "[concat('cr', uniqueString(resourceGroup().id))]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "registryAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('registryBlobStore'))]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
+        "containerRegistry": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+        "redisCache": "[resourceId('Microsoft.Cache/redis', variables('redisCacheName'))]",
+        "roleAssignmentName": "[guid(parameters('principalId'), parameters('roleDefinitionID'), resourceGroup().id)]",
+        "sqlPoolName": "[toLower(concat(variables('workspaceName'),'p1'))]",
+        "workspaceName": "[toLower(concat(variables('synapseName'),'ws1'))]",
+        "dlsName": "[toLower(concat('dls',variables('synapseName')))]",
+        "dlsFsName": "[toLower(concat(variables('dlsName'),'fs1'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-01-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_RAGRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "encryption": {
+                    "services": {
+                        "blob": {
+                            "enabled": true
+                        },
+                        "file": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "supportsHttpsTrafficOnly": true
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2021-04-01-preview",
+            "name": "[variables('keyVaultName')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "tenantId": "[variables('tenantId')]",
+                "sku": {
+                    "name": "standard",
+                    "family": "A"
+                },
+                "accessPolicies": [],
+                "enableSoftDelete": true
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.KeyVault/vaults/secrets",
+                    "name": "[concat(variables('keyVaultName'), '/FEAST-OFFLINE-STORE-CONN')]",
+                    "apiVersion": "2019-09-01",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "value": "[concat('mssql+pyodbc://',parameters('administratorLogin'),':',parameters('administratorLoginPassword'),'@', variables('workspaceName'),'.database.windows.net:1433/', variables('sqlPoolName'), '?driver=ODBC+Driver+17+for+SQL+Server&autocommit=True')]"
+                    },
+                    "dependsOn": [
+                        "[variables('keyVault')]"
+                    ]
+                },
+                {
+                    "type": "Microsoft.KeyVault/vaults/secrets",
+                    "name": "[concat(variables('keyVaultName'), '/FEAST-REGISTRY-PATH')]",
+                    "apiVersion": "2019-09-01",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "value": "[concat('https://',variables('registryBlobStore'),'.blob.core.windows.net/fs-reg-container/registry.db')]"
+                    },
+                    "dependsOn": [
+                        "[variables('keyVault')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[if(or(equals(variables('location'),'eastus2'), equals(variables('location'),'westcentralus')),'southcentralus',variables('location'))]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web"
+            }
+        },
+        {
+            "type": "Microsoft.ContainerRegistry/registries",
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard"
+            },
+            "name": "[variables('containerRegistryName')]",
+            "apiVersion": "2019-12-01-preview",
+            "location": "[variables('location')]",
+            "properties": {
+                "adminUserEnabled": true
+            }
+        },
+        {
+            "type": "Microsoft.MachineLearningServices/workspaces",
+            "apiVersion": "2021-04-01",
+            "name": "[variables('amlWorkspaceName')]",
+            "location": "[resourceGroup().location]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "tags": {
+                "displayName": "Azure ML Workspace"
+            },
+            "dependsOn": [
+                "[variables('storageAccount')]",
+                "[variables('keyVault')]",
+                "[variables('applicationInsights')]",
+                "[variables('containerRegistry')]"
+            ],
+            "properties": {
+                "storageAccount": "[variables('storageAccount')]",
+                "keyVault": "[variables('keyVault')]",
+                "applicationInsights": "[variables('applicationInsights')]",
+                "containerRegistry": "[variables('containerRegistry')]"
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.MachineLearningServices/workspaces/computes",
+                    "name": "[concat(variables('amlWorkspaceName'), '/', concat('ci-',uniqueString(resourceGroup().id)))]",
+                    "apiVersion": "2021-07-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.MachineLearningServices/workspaces', concat(variables('amlWorkspaceName')))]"
+                    ],
+                    "location": "[variables('location')]",
+                    "properties": {
+                        "computeType": "ComputeInstance",
+                        "properties": {
+                            "vmSize": "[parameters('vmSize')]",
+                            "setupScripts": {
+                                "scripts": {
+                                    "creationScript": {
+                                        "scriptSource": "inline",
+                                        "scriptData": "[base64('conda activate azureml_py38;pip install feast[azure];pip install pymssql')]"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "[variables('registryBlobStore')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-04-01",
+            "tags": {
+                "displayName": "Feast Registry Store"
+            },
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "allowBlobPublicAccess": false
+            },
+            "resources": [
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2019-06-01",
+                    "name": "[concat('default/', 'fs-reg-container')]",
+                    "dependsOn": [
+                        "[variables('registryAccount')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Cache/redis",
+            "name": "[variables('redisCacheName')]",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "Feast Online Store"
+            },
+            "properties": {
+                "sku": {
+                    "name": "Basic",
+                    "family": "C",
+                    "capacity": 2
+                }
+            },
+            "resources": [
+                {
+                    "type": "Microsoft.KeyVault/vaults/secrets",
+                    "name": "[concat(variables('keyVaultName'), '/FEAST-ONLINE-STORE-CONN')]",
+                    "apiVersion": "2019-09-01",
+                    "location": "[resourceGroup().location]",
+                    "properties": {
+                        "value": "[concat(variables('redisCacheName'),'.redis.cache.windows.net:6380,password=',listKeys(concat('Microsoft.Cache/redis/', variables('redisCacheName')), providers('Microsoft.Cache', 'Redis').apiVersions[0]).primaryKey, ',ssl=True')]"
+                    },
+                    "dependsOn": [
+                        "[variables('keyVault')]",
+                        "[variables('redisCache')]"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[variables('roleAssignmentName')]",
+            "properties": {
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "scope": "[resourceGroup().id]"
+            },
+            "dependsOn": [
+                "[variables('registryAccount')]"
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('dlsName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "accessTier": "Hot",
+                "supportsHttpsTrafficOnly": true,
+                "isHnsEnabled": true
+            },
+            "resources": [
+                {
+                    "name": "[concat('default/', variables('dlsFsName'))]",
+                    "type": "blobServices/containers",
+                    "apiVersion": "2019-06-01",
+                    "dependsOn": [
+                        "[variables('dlsName')]"
+                    ],
+                    "properties": {
+                        "publicAccess": "None"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Synapse/workspaces",
+            "apiVersion": "2019-06-01-preview",
+            "name": "[variables('workspaceName')]",
+            "location": "[variables('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "dependsOn": [
+                "[variables('dlsName')]",
+                "[variables('dlsFsName')]"
+            ],
+            "properties": {
+                "defaultDataLakeStorage": {
+                    "accountUrl": "[reference(variables('dlsName')).primaryEndpoints.dfs]",
+                    "filesystem": "[variables('dlsFsName')]"
+                },
+                "sqlAdministratorLogin": "[parameters('administratorLogin')]",
+                "sqlAdministratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "managedVirtualNetwork": "default"
+            },
+            "resources": [
+                {
+                    "condition": "[equals(parameters('allowAllConnections'),'true')]",
+                    "type": "firewallrules",
+                    "apiVersion": "2019-06-01-preview",
+                    "name": "allowAll",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[variables('workspaceName')]"
+                    ],
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "255.255.255.255"
+                    }
+                },
+                {
+                    "type": "firewallrules",
+                    "apiVersion": "2019-06-01-preview",
+                    "name": "AllowAllWindowsAzureIps",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[variables('workspaceName')]"
+                    ],
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "0.0.0.0"
+                    }
+                },
+                {
+                    "type": "managedIdentitySqlControlSettings",
+                    "apiVersion": "2019-06-01-preview",
+                    "name": "default",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[variables('workspaceName')]"
+                    ],
+                    "properties": {
+                        "grantSqlControlToManagedIdentity": {
+                            "desiredState": "Enabled"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Synapse/workspaces/sqlPools",
+            "apiVersion": "2019-06-01-preview",
+            "name": "[concat(variables('workspaceName'), '/', variables('sqlPoolName'))]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "[parameters('sku')]"
+            },
+            "dependsOn": [
+                "[variables('workspaceName')]"
+            ],
+            "properties": {
+                "createMode": "Default",
+                "collation": "SQL_Latin1_General_CP1_CI_AS"
+            }
+        }
+    ],
+    "outputs": {}
+}

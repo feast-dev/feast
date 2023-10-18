@@ -10,20 +10,17 @@ import {
 } from "@elastic/eui";
 import React from "react";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
-import {
-  FeastODFVType,
-  RequestDataSourceType,
-  FeatureViewProjectionType,
-} from "../../parsers/feastODFVS";
+import { useParams } from "react-router-dom";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import FeatureViewProjectionDisplayPanel from "./components/FeatureViewProjectionDisplayPanel";
 import RequestDataDisplayPanel from "./components/RequestDataDisplayPanel";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
+import { feast } from "../../protos";
 
 interface OnDemandFeatureViewOverviewTabProps {
-  data: FeastODFVType;
+  data: feast.core.IOnDemandFeatureView;
 }
 
 const whereFSconsumesThisFv = (fvName: string) => {
@@ -38,12 +35,13 @@ const whereFSconsumesThisFv = (fvName: string) => {
 const OnDemandFeatureViewOverviewTab = ({
   data,
 }: OnDemandFeatureViewOverviewTabProps) => {
-  const inputs = Object.entries(data.spec.sources);
+  const inputs = Object.entries(data?.spec?.sources!);
+  const { projectName } = useParams();
 
   const relationshipQuery = useLoadRelationshipData();
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data
-        .filter(whereFSconsumesThisFv(data.spec.name))
+        .filter(whereFSconsumesThisFv(data?.spec?.name!))
         .map((fs) => {
           return fs.target.name;
         })
@@ -59,7 +57,7 @@ const OnDemandFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <EuiCodeBlock language="py" fontSize="m" paddingSize="m">
-              {data.spec.userDefinedFunction.body}
+              {data?.spec?.userDefinedFunction?.bodyText}
             </EuiCodeBlock>
           </EuiPanel>
         </EuiFlexItem>
@@ -68,13 +66,15 @@ const OnDemandFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
             <EuiTitle size="xs">
-              <h3>Features ({data.spec.features.length})</h3>
+              <h3>Features ({data?.spec?.features!.length})</h3>
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
-            {data.spec.features ? (
+            {projectName && data?.spec?.features ? (
               <FeaturesListDisplay
-                featureViewName={data.spec.name}
+                projectName={projectName}
+                featureViewName={data?.spec?.name!}
                 features={data.spec.features}
+                link={false}
               />
             ) : (
               <EuiText>No Tags sepcified on this feature view.</EuiText>
@@ -89,21 +89,26 @@ const OnDemandFeatureViewOverviewTab = ({
             <EuiHorizontalRule margin="xs" />
             <EuiFlexGroup direction="column">
               {inputs.map(([key, inputGroup]) => {
-                if ((inputGroup as RequestDataSourceType).requestDataSource) {
+                if (
+                  (inputGroup as feast.core.IOnDemandSource).requestDataSource
+                ) {
                   return (
                     <EuiFlexItem key={key}>
                       <RequestDataDisplayPanel
-                        {...(inputGroup as RequestDataSourceType)}
+                        {...(inputGroup as feast.core.IOnDemandSource)}
                       />
                     </EuiFlexItem>
                   );
                 }
 
-                if (inputGroup as FeatureViewProjectionType) {
+                if (
+                  (inputGroup as feast.core.IOnDemandSource)
+                    .featureViewProjection
+                ) {
                   return (
                     <EuiFlexItem key={key}>
                       <FeatureViewProjectionDisplayPanel
-                        {...(inputGroup as FeatureViewProjectionType)}
+                        {...(inputGroup.featureViewProjection as feast.core.IFeatureViewProjection)}
                       />
                     </EuiFlexItem>
                   );

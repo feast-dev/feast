@@ -2,15 +2,24 @@
 
 ### Overview
 This guide is targeted at developers looking to contribute to Feast Serving:
-- [Building and running Feast Serving locally](#building-and-running-feast-serving-locally)
+- [Getting Started Guide for Feast Serving Developers](#getting-started-guide-for-feast-serving-developers)
+  - [Overview](#overview)
+  - [Building and running Feast Serving locally:](#building-and-running-feast-serving-locally)
+    - [Pre-requisites](#pre-requisites)
+    - [Steps](#steps)
+    - [Debugging Feast Serving](#debugging-feast-serving)
+  - [Unit / Integration Tests](#unit--integration-tests)
+  - [Developing against Feast Helm charts](#developing-against-feast-helm-charts)
 
-### Pre-requisites:
+### Building and running Feast Serving locally:
+
+#### Pre-requisites
 
 - [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
 - A Feast feature repo (e.g. https://github.com/feast-dev/feast-demo)
 - A running Store instance e.g. local Redis instance with `redis-server`
 
-### Building and running Feast Serving locally: 
+#### Steps
 From the Feast GitHub root, run:
 
 1. `mvn -f java/pom.xml install -Dmaven.test.skip=true`
@@ -21,12 +30,14 @@ From the Feast GitHub root, run:
     feast:
       project: feast_demo
       registry: /Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db
+      entityKeySerializationVersion: 2
     ```
    2. An example of if you're using Redis with a remote registry:
       ```yaml
       feast:
         project: feast_java_demo
         registry: gs://[YOUR BUCKET]/demo-repo/registry.db
+        entityKeySerializationVersion: 2
         activeStore: online
         stores:
         - name: online
@@ -41,12 +52,12 @@ From the Feast GitHub root, run:
    java \
      -Xms1g \
      -Xmx4g \
-     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     -jar java/serving/target/feast-serving-[YOUR VERSION]-jar-with-dependencies.jar \
      classpath:/application.yml,file:./application-override.yaml
    ```
 5. Now you have a Feast Serving gRPC service running on port 6566 locally!
 
-### Running test queries
+#### Running test queries
 If you have [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) installed, you can check that Feast Serving is running
 ```
 grpc_cli ls localhost:6566
@@ -116,7 +127,7 @@ results {
 Rpc succeeded with OK status
 ```
 
-### Debugging Feast Serving
+#### Debugging Feast Serving
 You can debug this like any other Java executable. Swap the java command above with:
 ```
    java \
@@ -124,7 +135,7 @@ You can debug this like any other Java executable. Swap the java command above w
      -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y \
      -Xms1g \
      -Xmx4g \
-     -jar java/serving/target/feast-serving-0.17.1-SNAPSHOT-jar-with-dependencies.jar \
+     -jar java/serving/target/feast-serving-[YOUR VERSION]-jar-with-dependencies.jar \
      classpath:/application.yml,file:./application-override.yaml
    ```
 Now you can attach e.g. a Remote debugger in IntelliJ to port 5005 to debug / make breakpoints.
@@ -136,4 +147,10 @@ Unit &amp; Integration Tests can be used to verify functionality:
 mvn test -pl serving --also-make
 # run integration tests
 mvn verify -pl serving --also-make
+# run integration tests with debugger
+mvn -Dmaven.failsafe.debug verify -pl serving --also-make
 ```
+
+### Developing against Feast Helm charts
+Look at [java-demo](../../examples/java-demo) for steps on how to update the helm chart or java logic and test their
+interactions.

@@ -172,5 +172,35 @@ abstract class ServingBaseTests extends ServingEnvironment {
     }
   }
 
+  @Test
+  public void shouldGetOnlineFeaturesFromAllFeatureViews() {
+    Map<String, ValueProto.RepeatedValue> entityRows =
+        ImmutableMap.of(
+            "entity",
+                ValueProto.RepeatedValue.newBuilder()
+                    .addVal(DataGenerator.createStrValue("key-1"))
+                    .build(),
+            "driver_id",
+                ValueProto.RepeatedValue.newBuilder()
+                    .addVal(DataGenerator.createInt64Value(1005))
+                    .build());
+
+    ImmutableList<String> featureReferences =
+        ImmutableList.of(
+            "feature_view_0:feature_0",
+            "feature_view_0:feature_1",
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:avg_daily_trips");
+
+    ServingAPIProto.GetOnlineFeaturesRequest req =
+        TestUtils.createOnlineFeatureRequest(featureReferences, entityRows);
+
+    ServingAPIProto.GetOnlineFeaturesResponse resp = servingStub.getOnlineFeatures(req);
+
+    for (final int featureIdx : List.of(0, 1, 2, 3)) {
+      assertEquals(FieldStatus.PRESENT, resp.getResults(featureIdx).getStatuses(0));
+    }
+  }
+
   abstract void updateRegistryFile(RegistryProto.Registry registry);
 }

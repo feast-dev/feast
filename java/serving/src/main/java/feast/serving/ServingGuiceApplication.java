@@ -18,7 +18,7 @@ package feast.serving;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import feast.serving.config.*;
+import feast.serving.service.config.*;
 import io.grpc.Server;
 import java.io.IOException;
 
@@ -32,9 +32,9 @@ public class ServingGuiceApplication {
 
     final Injector i =
         Guice.createInjector(
-            new ServingServiceConfigV2(),
-            new RegistryConfig(),
-            new InstrumentationConfig(),
+            new ServingServiceV2Module(),
+            new RegistryConfigModule(),
+            new InstrumentationConfigModule(),
             new ServerModule(),
             new ApplicationPropertiesModule(args));
 

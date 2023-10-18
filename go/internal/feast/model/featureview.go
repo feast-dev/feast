@@ -24,7 +24,24 @@ type FeatureView struct {
 
 func NewFeatureViewFromProto(proto *core.FeatureView) *FeatureView {
 	featureView := &FeatureView{Base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
-		Ttl: &(*proto.Spec.Ttl),
+		Ttl: proto.Spec.Ttl,
+	}
+	if len(proto.Spec.Entities) == 0 {
+		featureView.EntityNames = []string{DUMMY_ENTITY_NAME}
+	} else {
+		featureView.EntityNames = proto.Spec.Entities
+	}
+	entityColumns := make([]*Field, len(proto.Spec.EntityColumns))
+	for i, entityColumn := range proto.Spec.EntityColumns {
+		entityColumns[i] = NewFieldFromProto(entityColumn)
+	}
+	featureView.EntityColumns = entityColumns
+	return featureView
+}
+
+func NewFeatureViewFromStreamFeatureViewProto(proto *core.StreamFeatureView) *FeatureView {
+	featureView := &FeatureView{Base: NewBaseFeatureView(proto.Spec.Name, proto.Spec.Features),
+		Ttl: proto.Spec.Ttl,
 	}
 	if len(proto.Spec.Entities) == 0 {
 		featureView.EntityNames = []string{DUMMY_ENTITY_NAME}

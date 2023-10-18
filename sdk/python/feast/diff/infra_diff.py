@@ -126,7 +126,8 @@ def diff_infra_protos(
             infra_objects_to_delete,
             infra_objects_to_add,
         ) = tag_infra_proto_objects_for_keep_delete_add(
-            current_infra_objects, new_infra_objects,
+            current_infra_objects,
+            new_infra_objects,
         )
 
         for e in infra_objects_to_add:
@@ -199,5 +200,10 @@ def diff_between(
                     )
                 )
     return InfraObjectDiff(
-        new.name, infra_object_type, current, new, property_diffs, transition,
+        new.name,
+        infra_object_type,
+        current,
+        new,
+        property_diffs,
+        transition,
     )

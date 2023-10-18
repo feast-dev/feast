@@ -8,6 +8,8 @@ from feast.entity import Entity
 from feast.feast_object import FeastObject, FeastObjectSpecProto
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -17,6 +19,7 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from feast.protos.feast.core.RequestFeatureView_pb2 import (
     RequestFeatureView as RequestFeatureViewProto,
 )
@@ -26,7 +29,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from feast.registry import FEAST_OBJECT_TYPES, BaseRegistry, FeastObjectType
 from feast.repo_contents import RepoContents
 
 
@@ -67,7 +69,7 @@ class RegistryDiff:
             if feast_object_diff.transition_type == TransitionType.UNCHANGED:
                 continue
             if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
-                # TODO(adchia): Print statements out starting in Feast 0.23
+                # TODO(adchia): Print statements out starting in Feast 0.24
                 continue
             action, color = message_action_map[feast_object_diff.transition_type]
             log_string += f"{action} {feast_object_diff.feast_object_type.value} {Style.BRIGHT + color}{feast_object_diff.name}{Style.RESET_ALL}\n"
@@ -137,19 +139,39 @@ def diff_registry_objects(
     else:
         current_spec = current_proto.spec
         new_spec = new_proto.spec
-    if current_spec != new_spec:
+    if current != new:
         for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            if getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                transition = TransitionType.UPDATE
-                property_diffs.append(
-                    PropertyDiff(
-                        _field.name,
-                        getattr(current_spec, _field.name),
-                        getattr(new_spec, _field.name),
+            elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
+                if _field.name == "user_defined_function":
+                    current_spec = cast(OnDemandFeatureViewSpec, current_spec)
+                    new_spec = cast(OnDemandFeatureViewSpec, new_spec)
+                    current_udf = current_spec.user_defined_function
+                    new_udf = new_spec.user_defined_function
+                    for _udf_field in current_udf.DESCRIPTOR.fields:
+                        if _udf_field.name == "body":
+                            continue
+                        if getattr(current_udf, _udf_field.name) != getattr(
+                            new_udf, _udf_field.name
+                        ):
+                            transition = TransitionType.UPDATE
+                            property_diffs.append(
+                                PropertyDiff(
+                                    _field.name + "." + _udf_field.name,
+                                    getattr(current_udf, _udf_field.name),
+                                    getattr(new_udf, _udf_field.name),
+                                )
+                            )
+                else:
+                    transition = TransitionType.UPDATE
+                    property_diffs.append(
+                        PropertyDiff(
+                            _field.name,
+                            getattr(current_spec, _field.name),
+                            getattr(new_spec, _field.name),
+                        )
                     )
-                )
     return FeastObjectDiff(
         name=new_spec.name,
         feast_object_type=object_type,
@@ -161,7 +183,9 @@ def diff_registry_objects(
 
 
 def extract_objects_for_keep_delete_update_add(
-    registry: BaseRegistry, current_project: str, desired_repo_contents: RepoContents,
+    registry: BaseRegistry,
+    current_project: str,
+    desired_repo_contents: RepoContents,
 ) -> Tuple[
     Dict[FeastObjectType, Set[FeastObject]],
     Dict[FeastObjectType, Set[FeastObject]],
@@ -208,7 +232,9 @@ def extract_objects_for_keep_delete_update_add(
 
 
 def diff_between(
-    registry: BaseRegistry, current_project: str, desired_repo_contents: RepoContents,
+    registry: BaseRegistry,
+    current_project: str,
+    desired_repo_contents: RepoContents,
 ) -> RegistryDiff:
     """
     Returns the difference between the current and desired repo states.
@@ -305,12 +331,16 @@ def apply_diff_to_registry(
                     BaseFeatureView, feast_object_diff.current_feast_object
                 )
                 registry.delete_feature_view(
-                    feature_view_obj.name, project, commit=False,
+                    feature_view_obj.name,
+                    project,
+                    commit=False,
                 )
             elif feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
                 ds_obj = cast(DataSource, feast_object_diff.current_feast_object)
                 registry.delete_data_source(
-                    ds_obj.name, project, commit=False,
+                    ds_obj.name,
+                    project,
+                    commit=False,
                 )
 
         if feast_object_diff.transition_type in [

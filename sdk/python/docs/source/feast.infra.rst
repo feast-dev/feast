@@ -9,7 +9,8 @@ Subpackages
 
    feast.infra.offline_stores
    feast.infra.online_stores
-   feast.infra.registry_stores
+   feast.infra.registry
+   feast.infra.transformation_servers
    feast.infra.utils
 
 Submodules

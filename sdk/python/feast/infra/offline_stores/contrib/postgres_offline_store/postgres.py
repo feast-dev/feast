@@ -5,6 +5,7 @@ from typing import (
     Any,
     Callable,
     ContextManager,
+    Dict,
     Iterator,
     KeysView,
     List,
@@ -13,6 +14,7 @@ from typing import (
     Union,
 )
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
@@ -24,11 +26,15 @@ from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
+from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
+    SavedDatasetPostgreSQLStorage,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.registry.registry import Registry
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
     df_to_postgres_table,
@@ -36,7 +42,6 @@ from feast.infra.utils.postgres.connection_utils import (
 )
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
@@ -62,6 +67,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
@@ -112,24 +118,27 @@ class PostgreSQLOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        for fv in feature_views:
+            assert isinstance(fv.batch_source, PostgreSQLSource)
+
+        entity_schema = _get_entity_schema(entity_df, config)
+
+        entity_df_event_timestamp_col = (
+            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
+        )
+
+        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+            entity_df,
+            entity_df_event_timestamp_col,
+            config,
+        )
+
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
-            table_name = None
-            if isinstance(entity_df, pd.DataFrame):
-                table_name = offline_utils.get_temp_entity_table_name()
-                entity_schema = df_to_postgres_table(
-                    config.offline_store, entity_df, table_name
-                )
-                df_query = table_name
-            elif isinstance(entity_df, str):
-                df_query = f"({entity_df}) AS sub"
-                entity_schema = get_query_schema(config.offline_store, df_query)
-            else:
-                raise TypeError(entity_df)
+            table_name = offline_utils.get_temp_entity_table_name()
 
-            entity_df_event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
-                entity_schema
-            )
+            _upload_entity_df(config, entity_df, table_name)
 
             expected_join_keys = offline_utils.get_expected_join_keys(
                 project, feature_views, registry
@@ -137,10 +146,6 @@ class PostgreSQLOfflineStore(OfflineStore):
 
             offline_utils.assert_expected_columns_in_entity_df(
                 entity_schema, expected_join_keys, entity_df_event_timestamp_col
-            )
-
-            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-                entity_df, entity_df_event_timestamp_col, config, df_query,
             )
 
             query_context = offline_utils.get_feature_view_query_context(
@@ -162,7 +167,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             try:
                 yield build_point_in_time_query(
                     query_context_dict,
-                    left_table_query_string=df_query,
+                    left_table_query_string=table_name,
                     entity_df_event_timestamp_col=entity_df_event_timestamp_col,
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
@@ -186,6 +191,12 @@ class PostgreSQLOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            metadata=RetrievalMetadata(
+                features=feature_refs,
+                keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
+                min_event_timestamp=entity_df_event_timestamp_range[0],
+                max_event_timestamp=entity_df_event_timestamp_range[1],
+            ),
         )
 
     @staticmethod
@@ -199,6 +210,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
@@ -211,7 +223,7 @@ class PostgreSQLOfflineStore(OfflineStore):
 
         query = f"""
             SELECT {field_string}
-            FROM {from_expression}
+            FROM {from_expression} AS paftoq_alias
             WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
         """
 
@@ -229,7 +241,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         query: Union[str, Callable[[], ContextManager[str]]],
         config: RepoConfig,
         full_feature_names: bool,
-        on_demand_feature_views: Optional[List[OnDemandFeatureView]],
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
         if not isinstance(query, str):
@@ -244,7 +256,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
             self._query_generator = query_generator
         self.config = config
         self._full_feature_names = full_feature_names
-        self._on_demand_feature_views = on_demand_feature_views
+        self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
     @property
@@ -252,10 +264,10 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         return self._full_feature_names
 
     @property
-    def on_demand_feature_views(self) -> Optional[List[OnDemandFeatureView]]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    def _to_df_internal(self) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         # We use arrow format because it gives better control of the table schema
         return self._to_arrow_internal().to_pandas()
 
@@ -263,7 +275,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
         with self._query_generator() as query:
             return query
 
-    def _to_arrow_internal(self) -> pa.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             with _get_conn(self.config.offline_store) as conn, conn.cursor() as cur:
                 conn.set_session(readonly=True)
@@ -290,15 +302,25 @@ class PostgreSQLRetrievalJob(RetrievalJob):
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
 
-    def persist(self, storage: SavedDatasetStorage):
-        pass
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
+        assert isinstance(storage, SavedDatasetPostgreSQLStorage)
+
+        df_to_postgres_table(
+            config=self.config.offline_store,
+            df=self.to_df(),
+            table_name=storage.postgres_options._table,
+        )
 
 
 def _get_entity_df_event_timestamp_range(
     entity_df: Union[pd.DataFrame, str],
     entity_df_event_timestamp_col: str,
     config: RepoConfig,
-    table_name: str,
 ) -> Tuple[datetime, datetime]:
     if isinstance(entity_df, pd.DataFrame):
         entity_df_event_timestamp = entity_df.loc[
@@ -309,15 +331,15 @@ def _get_entity_df_event_timestamp_range(
                 entity_df_event_timestamp, utc=True
             )
         entity_df_event_timestamp_range = (
-            entity_df_event_timestamp.min(),
-            entity_df_event_timestamp.max(),
+            entity_df_event_timestamp.min().to_pydatetime(),
+            entity_df_event_timestamp.max().to_pydatetime(),
         )
     elif isinstance(entity_df, str):
         # If the entity_df is a string (SQL query), determine range
         # from table
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
             cur.execute(
-                f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM {table_name}"
+                f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM ({entity_df}) as tmp_alias"
             ),
             res = cur.fetchone()
         entity_df_event_timestamp_range = (res[0], res[1])
@@ -369,6 +391,34 @@ def build_point_in_time_query(
 
     query = template.render(template_context)
     return query
+
+
+def _upload_entity_df(
+    config: RepoConfig, entity_df: Union[pd.DataFrame, str], table_name: str
+):
+    if isinstance(entity_df, pd.DataFrame):
+        # If the entity_df is a pandas dataframe, upload it to Postgres
+        df_to_postgres_table(config.offline_store, entity_df, table_name)
+    elif isinstance(entity_df, str):
+        # If the entity_df is a string (SQL query), create a Postgres table out of it
+        with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {table_name} AS ({entity_df})")
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+
+def _get_entity_schema(
+    entity_df: Union[pd.DataFrame, str],
+    config: RepoConfig,
+) -> Dict[str, np.dtype]:
+    if isinstance(entity_df, pd.DataFrame):
+        return dict(zip(entity_df.columns, entity_df.dtypes))
+
+    elif isinstance(entity_df, str):
+        df_query = f"({entity_df}) AS sub"
+        return get_query_schema(config.offline_store, df_query)
+    else:
+        raise InvalidEntityType(type(entity_df))
 
 
 # Copied from the Feast Redshift offline store implementation

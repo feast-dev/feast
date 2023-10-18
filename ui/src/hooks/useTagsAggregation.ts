@@ -1,8 +1,7 @@
 import { useContext, useMemo } from "react";
 import RegistryPathContext from "../contexts/RegistryPathContext";
-import { FeastFeatureServiceType } from "../parsers/feastFeatureServices";
-import { FeastFeatureViewType } from "../parsers/feastFeatureViews";
 import useLoadRegistry from "../queries/useLoadRegistry";
+import { feast } from "../protos";
 
 // Usage of generic type parameter T
 // https://stackoverflow.com/questions/53203409/how-to-tell-typescript-that-im-returning-an-array-of-arrays-of-the-input-type
@@ -44,12 +43,12 @@ const useFeatureViewTagsAggregation = () => {
 
   const data = useMemo(() => {
     return query.data && query.data.objects && query.data.objects.featureViews
-      ? buildTagCollection<FeastFeatureViewType>(
-          query.data.objects.featureViews,
-          (fv) => {
-            return fv.spec.tags;
-          }
-        )
+      ? buildTagCollection<feast.core.IFeatureView>(
+        query.data.objects.featureViews!,
+        (fv) => {
+          return fv.spec?.tags!;
+        }
+      )
       : undefined;
   }, [query.data]);
 
@@ -67,12 +66,12 @@ const useFeatureServiceTagsAggregation = () => {
     return query.data &&
       query.data.objects &&
       query.data.objects.featureServices
-      ? buildTagCollection<FeastFeatureServiceType>(
-          query.data.objects.featureServices,
-          (fs) => {
-            return fs.spec.tags;
-          }
-        )
+      ? buildTagCollection<feast.core.IFeatureService>(
+        query.data.objects.featureServices,
+        (fs) => {
+          return fs.spec?.tags!;
+        }
+      )
       : undefined;
   }, [query.data]);
 

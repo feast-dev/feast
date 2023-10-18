@@ -45,12 +45,17 @@ class EmbeddedOnlineFeatureServer:
         self._transformation_callback = partial(transformation_callback, feature_store)
         self._logging_callback = partial(logging_callback, feature_store)
 
+        self._config = OnlineFeatureServiceConfig(
+            RepoPath=repo_path, RepoConfig=repo_config.json()
+        )
+
         self._service = NewOnlineFeatureService(
-            OnlineFeatureServiceConfig(
-                RepoPath=repo_path, RepoConfig=repo_config.json()
-            ),
+            self._config,
             self._transformation_callback,
         )
+
+        # This should raise an exception if there were any errors in NewOnlineFeatureService.
+        self._service.CheckForInstantiationError()
 
     def get_online_features(
         self,
@@ -143,6 +148,7 @@ class EmbeddedOnlineFeatureServer:
             features_ptr_array, features_ptr_schema
         )
         resp = record_batch_to_online_response(record_batch)
+        del record_batch
         return OnlineResponse(resp)
 
     def start_grpc_server(
@@ -242,6 +248,10 @@ def transformation_callback(
 
     input_record = pa.RecordBatch._import_from_c(input_arr_ptr, input_schema_ptr)
 
+    # For some reason, the callback is called with `full_feature_names` as a 1 if True or 0 if false. This handles
+    # the typeguard requirement.
+    full_feature_names = bool(full_feature_names)
+
     output = odfv.get_transformed_features_df(
         input_record.to_pandas(), full_feature_names=full_feature_names
     )
@@ -254,7 +264,9 @@ def transformation_callback(
 
 
 def logging_callback(
-    fs: "FeatureStore", feature_service_name: str, dataset_dir: str,
+    fs: "FeatureStore",
+    feature_service_name: str,
+    dataset_dir: str,
 ) -> bytes:
     feature_service = fs.get_feature_service(feature_service_name, allow_cache=True)
     try:

@@ -1,7 +1,9 @@
 import {
   useLoadOnDemandFeatureView,
+  useLoadStreamFeatureView,
   useLoadRegularFeatureView,
 } from "../pages/feature-views/useLoadFeatureView";
+import useLoadFeature from "../pages/features/useLoadFeature";
 import useLoadFeatureService from "../pages/feature-services/useLoadFeatureService";
 import useLoadDataSource from "../pages/data-sources/useLoadDataSource";
 import useLoadEntity from "../pages/entities/useLoadEntity";
@@ -47,7 +49,24 @@ interface OnDemandFeatureViewCustomTabRegistrationInterface
   }: OnDemandFeatureViewCustomTabProps) => JSX.Element;
 }
 
-// Type for Feature Service Custom Tabs
+// Type for Stream Feature View Custom Tabs
+type StreamFeatureViewQueryReturnType = ReturnType<
+  typeof useLoadStreamFeatureView
+>;
+interface StreamFeatureViewCustomTabProps {
+  id: string | undefined;
+  feastObjectQuery: StreamFeatureViewQueryReturnType;
+}
+interface StreamFeatureViewCustomTabRegistrationInterface
+  extends CustomTabRegistrationInterface {
+  Component: ({
+    id,
+    feastObjectQuery,
+    ...args
+  }: StreamFeatureViewCustomTabProps) => JSX.Element;
+}
+
+// Type for Entity Custom Tabs
 interface EntityCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadEntity>;
@@ -60,6 +79,21 @@ interface EntityCustomTabRegistrationInterface
     ...args
   }: EntityCustomTabProps) => JSX.Element;
 }
+
+// Type for Feature Custom Tabs
+interface FeatureCustomTabProps {
+  id: string | undefined;
+  feastObjectQuery: ReturnType<typeof useLoadFeature>;
+}
+interface FeatureCustomTabRegistrationInterface
+  extends CustomTabRegistrationInterface {
+  Component: ({
+    id,
+    feastObjectQuery,
+    ...args
+  }: FeatureCustomTabProps) => JSX.Element;
+}
+
 
 // Type for Feature Service Custom Tabs
 interface FeatureServiceCustomTabProps {
@@ -111,12 +145,17 @@ export type {
   OnDemandFeatureViewQueryReturnType,
   OnDemandFeatureViewCustomTabProps,
   OnDemandFeatureViewCustomTabRegistrationInterface,
+  StreamFeatureViewQueryReturnType,
+  StreamFeatureViewCustomTabProps,
+  StreamFeatureViewCustomTabRegistrationInterface,
   FeatureServiceCustomTabRegistrationInterface,
   FeatureServiceCustomTabProps,
   DataSourceCustomTabRegistrationInterface,
   DataSourceCustomTabProps,
   EntityCustomTabRegistrationInterface,
   EntityCustomTabProps,
+  FeatureCustomTabRegistrationInterface,
+  FeatureCustomTabProps,
   DatasetCustomTabRegistrationInterface,
   DatasetCustomTabProps,
 };

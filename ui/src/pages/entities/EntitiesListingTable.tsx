@@ -1,12 +1,12 @@
 import React from "react";
 import { EuiBasicTable } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
-import { FeastEntityType } from "../../parsers/feastEntities";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import { useParams } from "react-router-dom";
+import { feast } from "../../protos";
 
 interface EntitiesListingTableProps {
-  entities: FeastEntityType[];
+  entities: feast.core.IEntity[];
 }
 
 const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
@@ -21,8 +21,8 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`/p/${projectName}/entity/${name}`}
-            to={`/p/${projectName}/entity/${name}`}
+            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${name}`}
+            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${name}`}
           >
             {name}
           </EuiCustomLink>
@@ -33,15 +33,15 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: string) => {
-        return valueType;
+      render: (valueType: feast.types.ValueType.Enum) => {
+        return feast.types.ValueType.Enum[valueType];
       },
     },
     {
       name: "# of FVs",
-      render: (item: FeastEntityType) => {
+      render: (item: feast.core.IEntity) => {
         if (isSuccess && data) {
-          return data[item.spec.name] ? data[item.spec.name].length : "0";
+          return data[item?.spec?.name!] ? data[item?.spec?.name!].length : "0";
         } else {
           return ".";
         }
@@ -49,9 +49,9 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
     },
   ];
 
-  const getRowProps = (item: FeastEntityType) => {
+  const getRowProps = (item: feast.core.IEntity) => {
     return {
-      "data-test-subj": `row-${item.spec.name}`,
+      "data-test-subj": `row-${item?.spec?.name}`,
     };
   };
 

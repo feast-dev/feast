@@ -1,43 +1,45 @@
-import abc
-from collections import defaultdict
+from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import dask.dataframe as dd
-import pandas
+import pandas as pd
 import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureService, errors
 from feast.entity import Entity
-from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
+from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
-from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
-from feast.type_map import python_values_to_proto_values
-from feast.value_type import ValueType
 
 PROVIDERS_CLASS_FOR_TYPE = {
     "gcp": "feast.infra.gcp.GcpProvider",
     "aws": "feast.infra.aws.AwsProvider",
     "local": "feast.infra.local.LocalProvider",
+    "azure": "feast.infra.contrib.azure_provider.AzureProvider",
 }
 
 
-class Provider(abc.ABC):
-    @abc.abstractmethod
-    def __init__(self, config: RepoConfig):
-        ...
+class Provider(ABC):
+    """
+    A provider defines an implementation of a feature store object. It orchestrates the various
+    components of a feature store, such as the offline store, online store, and materialization
+    engine. It is configured through a RepoConfig object.
+    """
 
-    @abc.abstractmethod
+    @abstractmethod
+    def __init__(self, config: RepoConfig):
+        pass
+
+    @abstractmethod
     def update_infra(
         self,
         project: str,
@@ -48,22 +50,20 @@ class Provider(abc.ABC):
         partial: bool,
     ):
         """
-        Reconcile cloud resources with the objects declared in the feature repo.
+        Reconciles cloud resources with the specified set of Feast objects.
 
         Args:
-            project: Project to which tables belong
-            tables_to_delete: Tables that were deleted from the feature repo, so provider needs to
-                clean up the corresponding cloud resources.
-            tables_to_keep: Tables that are still in the feature repo. Depending on implementation,
-                provider may or may not need to update the corresponding resources.
-            entities_to_delete: Entities that were deleted from the feature repo, so provider needs to
-                clean up the corresponding cloud resources.
-            entities_to_keep: Entities that are still in the feature repo. Depending on implementation,
-                provider may or may not need to update the corresponding resources.
-            partial: if true, then tables_to_delete and tables_to_keep are *not* exhaustive lists.
-                There may be other tables that are not touched by this update.
+            project: Feast project to which the objects belong.
+            tables_to_delete: Feature views whose corresponding infrastructure should be deleted.
+            tables_to_keep: Feature views whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+            entities_to_delete: Entities whose corresponding infrastructure should be deleted.
+            entities_to_keep: Entities whose corresponding infrastructure should not be deleted, and
+                may need to be updated.
+            partial: If true, tables_to_delete and tables_to_keep are not exhaustive lists, so
+                infrastructure corresponding to other feature views should be not be touched.
         """
-        ...
+        pass
 
     def plan_infra(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -77,21 +77,24 @@ class Provider(abc.ABC):
         """
         return Infra()
 
-    @abc.abstractmethod
+    @abstractmethod
     def teardown_infra(
-        self, project: str, tables: Sequence[FeatureView], entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
-        Tear down all cloud resources for a repo.
+        Tears down all cloud resources for the specified set of Feast objects.
 
         Args:
-            project: Feast project to which tables belong
-            tables: Tables that are declared in the feature repo.
-            entities: Entities that are declared in the feature repo.
+            project: Feast project to which the objects belong.
+            tables: Feature views whose corresponding infrastructure should be deleted.
+            entities: Entities whose corresponding infrastructure should be deleted.
         """
-        ...
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -102,31 +105,50 @@ class Provider(abc.ABC):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
-        Write a batch of feature rows to the online store. This is a low level interface, not
-        expected to be used by the users directly.
+        Writes a batch of feature rows to the online store.
 
         If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
 
         Args:
-            config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView
-            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
-                a dict containing feature values, an event timestamp for the row, and
-                the created timestamp for the row if it exists.
-            progress: Optional function to be called once every mini-batch of rows is written to
-                the online store. Can be used to display progress.
-        """
-        ...
-
-    def ingest_df(
-        self, feature_view: FeatureView, entities: List[Entity], df: pandas.DataFrame,
-    ):
-        """
-        Ingests a DataFrame directly into the online store
+            config: The config for the current feature store.
+            table: Feature view to which these feature rows correspond.
+            data: A list of quadruplets containing feature data. Each quadruplet contains an entity
+                key, a dict containing feature values, an event timestamp for the row, and the created
+                timestamp for the row if it exists.
+            progress: Function to be called once a batch of rows is written to the online store, used
+                to show progress.
         """
         pass
 
-    @abc.abstractmethod
+    def ingest_df(
+        self,
+        feature_view: FeatureView,
+        df: pd.DataFrame,
+    ):
+        """
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+        """
+        pass
+
+    def ingest_df_to_offline_store(
+        self,
+        feature_view: FeatureView,
+        df: pyarrow.Table,
+    ):
+        """
+        Persists a dataframe to the offline store.
+
+        Args:
+            feature_view: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+        """
+        pass
+
+    @abstractmethod
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
@@ -137,22 +159,53 @@ class Provider(abc.ABC):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
+        """
+        Writes latest feature values in the specified time range to the online store.
+
+        Args:
+            config: The config for the current feature store.
+            feature_view: The feature view to materialize.
+            start_date: The start of the time range.
+            end_date: The end of the time range.
+            registry: The registry for the current feature store.
+            project: Feast project to which the objects belong.
+            tqdm_builder: A function to monitor the progress of materialization.
+        """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_historical_features(
         self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
+        entity_df: Union[pd.DataFrame, str],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
+        """
+        Retrieves the point-in-time correct historical feature values for the specified entity rows.
+
+        Args:
+            config: The config for the current feature store.
+            feature_views: A list containing all feature views that are referenced in the entity rows.
+            feature_refs: The features to be retrieved.
+            entity_df: A collection of rows containing all entity columns on which features need to be joined,
+                as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
+                provided or a SQL query.
+            registry: The registry for the current feature store.
+            project: Feast project to which the feature views belong.
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
+
+        Returns:
+            A RetrievalJob that can be executed to get the features.
+        """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def online_read(
         self,
         config: RepoConfig,
@@ -161,32 +214,38 @@ class Provider(abc.ABC):
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
-        Read feature values given an Entity Key. This is a low level interface, not
-        expected to be used by the users directly.
+        Reads features values for the given entity keys.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            entity_keys: The list of entity keys for which feature values should be read.
+            requested_features: The list of features that should be read.
 
         Returns:
-            Data is returned as a list, one item per entity key. Each item in the list is a tuple
-            of event_ts for the row, and the feature data as a dict from feature names to values.
-            Values are returned as Value proto message.
+            A list of the same length as entity_keys. Each item in the list is a tuple where the first
+            item is the event timestamp for the row, and the second item is a dict mapping feature names
+            to values, which are returned in proto format.
         """
-        ...
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
         """
-        Read saved dataset from offline store.
-        All parameters for retrieval (like path, datetime boundaries, column names for both keys and features, etc)
-        are determined from SavedDataset object.
+        Reads a saved dataset.
+
+        Args:
+            config: The config for the current feature store.
+            dataset: A SavedDataset object containing all parameters necessary for retrieving the dataset.
 
         Returns:
-             RetrievalJob object, which is lazy wrapper for actual query performed under the hood.
-
+            A RetrievalJob that can be executed to get the saved dataset.
         """
-        ...
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
@@ -195,16 +254,20 @@ class Provider(abc.ABC):
         registry: BaseRegistry,
     ):
         """
-        Write features and entities logged by a feature server to an offline store.
+        Writes features and entities logged by a feature server to the offline store.
 
-        Schema of logs table is being inferred from the provided feature service.
-        Only feature services with configured logging are accepted.
+        The schema of the logs table is inferred from the specified feature service. Only feature
+        services with configured logging are accepted.
 
-        Logs dataset can be passed as Arrow Table or path to parquet directory.
+        Args:
+            feature_service: The feature service to be logged.
+            logs: The logs, either as an arrow table or as a path to a parquet directory.
+            config: The config for the current feature store.
+            registry: The registry for the current feature store.
         """
-        ...
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,
@@ -214,21 +277,26 @@ class Provider(abc.ABC):
         registry: BaseRegistry,
     ) -> RetrievalJob:
         """
-        Read logged features from an offline store for a given time window [from, to).
-        Target table is determined based on logging configuration from the feature service.
+        Reads logged features for the specified time window.
+
+        Args:
+            feature_service: The feature service whose logs should be retrieved.
+            start_date: The start of the window.
+            end_date: The end of the window.
+            config: The config for the current feature store.
+            registry: The registry for the current feature store.
 
         Returns:
-             RetrievalJob object, which wraps the query to the offline store.
-
+            A RetrievalJob that can be executed to get the feature service logs.
         """
-        ...
+        pass
 
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return None
 
 
-def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
+def get_provider(config: RepoConfig) -> Provider:
     if "." not in config.provider:
         if config.provider not in PROVIDERS_CLASS_FOR_TYPE:
             raise errors.FeastProviderNotImplementedError(config.provider)
@@ -244,198 +312,3 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     cls = import_class(module_name, class_name, "Provider")
 
     return cls(config)
-
-
-def _get_requested_feature_views_to_features_dict(
-    feature_refs: List[str],
-    feature_views: List[FeatureView],
-    on_demand_feature_views: List[OnDemandFeatureView],
-) -> Tuple[Dict[FeatureView, List[str]], Dict[OnDemandFeatureView, List[str]]]:
-    """Create a dict of FeatureView -> List[Feature] for all requested features.
-    Set full_feature_names to True to have feature names prefixed by their feature view name."""
-
-    feature_views_to_feature_map: Dict[FeatureView, List[str]] = defaultdict(list)
-    on_demand_feature_views_to_feature_map: Dict[
-        OnDemandFeatureView, List[str]
-    ] = defaultdict(list)
-
-    for ref in feature_refs:
-        ref_parts = ref.split(":")
-        feature_view_from_ref = ref_parts[0]
-        feature_from_ref = ref_parts[1]
-
-        found = False
-        for fv in feature_views:
-            if fv.projection.name_to_use() == feature_view_from_ref:
-                found = True
-                feature_views_to_feature_map[fv].append(feature_from_ref)
-        for odfv in on_demand_feature_views:
-            if odfv.projection.name_to_use() == feature_view_from_ref:
-                found = True
-                on_demand_feature_views_to_feature_map[odfv].append(feature_from_ref)
-
-        if not found:
-            raise ValueError(f"Could not find feature view from reference {ref}")
-
-    return feature_views_to_feature_map, on_demand_feature_views_to_feature_map
-
-
-def _get_column_names(
-    feature_view: FeatureView, entities: List[Entity]
-) -> Tuple[List[str], List[str], str, Optional[str]]:
-    """
-    If a field mapping exists, run it in reverse on the join keys,
-    feature names, event timestamp column, and created timestamp column
-    to get the names of the relevant columns in the offline feature store table.
-
-    Returns:
-        Tuple containing the list of reverse-mapped join_keys,
-        reverse-mapped feature names, reverse-mapped event timestamp column,
-        and reverse-mapped created timestamp column that will be passed into
-        the query to the offline store.
-    """
-    # if we have mapped fields, use the original field names in the call to the offline store
-    timestamp_field = feature_view.batch_source.timestamp_field
-    feature_names = [feature.name for feature in feature_view.features]
-    created_timestamp_column = feature_view.batch_source.created_timestamp_column
-    join_keys = [
-        entity.join_key for entity in entities if entity.join_key != DUMMY_ENTITY_ID
-    ]
-    if feature_view.batch_source.field_mapping is not None:
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.batch_source.field_mapping.items()
-        }
-        timestamp_field = (
-            reverse_field_mapping[timestamp_field]
-            if timestamp_field in reverse_field_mapping.keys()
-            else timestamp_field
-        )
-        created_timestamp_column = (
-            reverse_field_mapping[created_timestamp_column]
-            if created_timestamp_column
-            and created_timestamp_column in reverse_field_mapping.keys()
-            else created_timestamp_column
-        )
-        join_keys = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in join_keys
-        ]
-        feature_names = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in feature_names
-        ]
-
-    # We need to exclude join keys and timestamp columns from the list of features, after they are mapped to
-    # their final column names via the `field_mapping` field of the source.
-    feature_names = [
-        name
-        for name in feature_names
-        if name not in join_keys
-        and name != timestamp_field
-        and name != created_timestamp_column
-    ]
-    return (
-        join_keys,
-        feature_names,
-        timestamp_field,
-        created_timestamp_column,
-    )
-
-
-def _run_field_mapping(
-    table: pyarrow.Table, field_mapping: Dict[str, str],
-) -> pyarrow.Table:
-    # run field mapping in the forward direction
-    cols = table.column_names
-    mapped_cols = [
-        field_mapping[col] if col in field_mapping.keys() else col for col in cols
-    ]
-    table = table.rename_columns(mapped_cols)
-    return table
-
-
-def _run_dask_field_mapping(
-    table: dd.DataFrame, field_mapping: Dict[str, str],
-):
-    if field_mapping:
-        # run field mapping in the forward direction
-        table = table.rename(columns=field_mapping)
-        table = table.persist()
-
-    return table
-
-
-def _coerce_datetime(ts):
-    """
-    Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
-    timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
-    (for microsecond resolution).
-    While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
-    same way. We convert it to normal datetime so that consumers downstream don't have to deal
-    with these quirks.
-    """
-    if isinstance(ts, pandas.Timestamp):
-        return ts.to_pydatetime()
-    else:
-        return ts
-
-
-def _convert_arrow_to_proto(
-    table: Union[pyarrow.Table, pyarrow.RecordBatch],
-    feature_view: FeatureView,
-    join_keys: Dict[str, ValueType],
-) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarentees `zero_copy_only` availiable.
-    if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
-
-    columns = [
-        (field.name, field.dtype.to_value_type()) for field in feature_view.features
-    ] + list(join_keys.items())
-
-    proto_values_by_column = {
-        column: python_values_to_proto_values(
-            table.column(column).to_numpy(zero_copy_only=False), value_type
-        )
-        for column, value_type in columns
-    }
-
-    entity_keys = [
-        EntityKeyProto(
-            join_keys=join_keys,
-            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
-        )
-        for idx in range(table.num_rows)
-    ]
-
-    # Serialize the features per row
-    feature_dict = {
-        feature.name: proto_values_by_column[feature.name]
-        for feature in feature_view.features
-    }
-    features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
-
-    # Convert event_timestamps
-    event_timestamps = [
-        _coerce_datetime(val)
-        for val in pandas.to_datetime(
-            table.column(feature_view.batch_source.timestamp_field).to_numpy(
-                zero_copy_only=False
-            )
-        )
-    ]
-
-    # Convert created_timestamps if they exist
-    if feature_view.batch_source.created_timestamp_column:
-        created_timestamps = [
-            _coerce_datetime(val)
-            for val in pandas.to_datetime(
-                table.column(
-                    feature_view.batch_source.created_timestamp_column
-                ).to_numpy(zero_copy_only=False)
-            )
-        ]
-    else:
-        created_timestamps = [None] * table.num_rows
-
-    return list(zip(entity_keys, features, event_timestamps, created_timestamps))

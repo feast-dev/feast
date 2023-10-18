@@ -18,7 +18,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 
 if TYPE_CHECKING:
     from feast.feature_service import FeatureService
-    from feast.registry import BaseRegistry
+    from feast.infra.registry.base_registry import BaseRegistry
 
 
 REQUEST_ID_FIELD = "__request_id"
@@ -34,12 +34,12 @@ class LoggingSource:
 
     @abc.abstractmethod
     def get_schema(self, registry: "BaseRegistry") -> pa.Schema:
-        """ Generate schema for logs destination. """
+        """Generate schema for logs destination."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_log_timestamp_column(self) -> str:
-        """ Return timestamp column that must exist in generated schema. """
+        """Return timestamp column that must exist in generated schema."""
         raise NotImplementedError
 
 

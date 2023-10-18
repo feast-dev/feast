@@ -8,7 +8,7 @@ def bootstrap():
         create_driver_hourly_stats_df,
     )
 
-    repo_path = pathlib.Path(__file__).parent.absolute()
+    repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     data_path = repo_path / "data"
     data_path.mkdir(exist_ok=True)
 
