@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow.parquet
-from pydantic import StrictStr, validator
+from pydantic import ConstrainedStr, StrictStr, validator
 from pydantic.typing import Literal
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
@@ -72,6 +72,13 @@ def get_http_client_info():
     return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
+class BigQueryTableCreateDisposition(ConstrainedStr):
+    """Custom constraint for table_create_disposition. To understand more, see:
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition"""
+
+    values = {"CREATE_NEVER", "CREATE_IF_NEEDED"}
+
+
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for GCP BigQuery"""
 
@@ -94,6 +101,9 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
     gcs_staging_location: Optional[str] = None
     """ (optional) GCS location used for offloading BigQuery results as parquet files."""
+
+    table_create_disposition: Optional[BigQueryTableCreateDisposition] = None
+    """ (optional) Specifies whether the job is allowed to create new tables. The default value is CREATE_IF_NEEDED."""
 
     @validator("billing_project_id")
     def project_id_exists(cls, v, values, **kwargs):
@@ -324,6 +334,7 @@ class BigQueryOfflineStore(OfflineStore):
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(source.get_schema(registry)),
+            create_disposition=config.offline_store.table_create_disposition,
             time_partitioning=bigquery.TimePartitioning(
                 type_=bigquery.TimePartitioningType.DAY,
                 field=source.get_log_timestamp_column(),
@@ -384,6 +395,7 @@ class BigQueryOfflineStore(OfflineStore):
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(pa_schema),
+            create_disposition=config.offline_store.table_create_disposition,
             write_disposition="WRITE_APPEND",  # Default but included for clarity
         )
 
@@ -577,7 +589,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
-        prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 

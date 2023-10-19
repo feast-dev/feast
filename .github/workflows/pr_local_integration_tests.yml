@@ -38,9 +38,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -55,6 +52,9 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies
