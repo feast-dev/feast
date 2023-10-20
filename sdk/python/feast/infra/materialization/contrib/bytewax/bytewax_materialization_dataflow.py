@@ -2,7 +2,6 @@ from typing import List
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import s3fs
 from bytewax.dataflow import Dataflow  # type: ignore
 from bytewax.execution import cluster_main
 from bytewax.inputs import ManualInputConfig, distribute
@@ -29,8 +28,7 @@ class BytewaxMaterializationDataflow:
         self._run_dataflow()
 
     def process_path(self, path):
-        fs = s3fs.S3FileSystem()
-        dataset = pq.ParquetDataset(path, filesystem=fs, use_legacy_dataset=False)
+        dataset = pq.ParquetDataset(path, use_legacy_dataset=False)
         batches = []
         for fragment in dataset.fragments:
             for batch in fragment.to_table().to_batches():
