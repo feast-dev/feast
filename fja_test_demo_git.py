@@ -3,11 +3,14 @@
 # MAGIC pip install feast -U -q
 # MAGIC pip install Pygments -q
 # MAGIC echo "Please restart your runtime now (Runtime -> Restart runtime). This ensures that the correct dependencies are loaded."
-# MAGIC
 
 # COMMAND ----------
 
 !feast init feature_repo
+
+# COMMAND ----------
+
+! pip3 install feast
 
 # COMMAND ----------
 
