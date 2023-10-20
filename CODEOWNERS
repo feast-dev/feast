@@ -34,6 +34,7 @@
 
 # HBase
 /sdk/python/feast/infra/online_stores/hbase.py @sudohainguyen
+/sdk/python/feast/infra/online_stores/contrib/hbase_online_store     @sudohainguyen
 
 # Redis
 /sdk/python/feast/infra/online_stores/redis.py @DvirDukhan
