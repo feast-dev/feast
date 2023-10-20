@@ -8,7 +8,7 @@ from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.hbase_utils import HbaseConstants, HbaseUtils
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -108,10 +108,11 @@ class HbaseOnlineStore(OnlineStore):
 
         b = hbase.batch(table_name)
         for entity_key, values, timestamp, created_ts in data:
-            row_key = serialize_entity_key(
+            row_key = self._hbase_row_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
+                feature_view_name=table.name,
+                config=config,
+            )
             values_dict = {}
             for feature_name, val in values.items():
                 values_dict[
@@ -157,10 +158,11 @@ class HbaseOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         row_keys = [
-            serialize_entity_key(
+            self._hbase_row_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
+                feature_view_name=table.name,
+                config=config,
+            )
             for entity_key in entity_keys
         ]
         rows = hbase.rows(table_name, row_keys=row_keys)
@@ -233,6 +235,34 @@ class HbaseOnlineStore(OnlineStore):
         for table in tables:
             table_name = _table_id(project, table)
             hbase.delete_table(table_name)
+
+    def _hbase_row_key(
+        self,
+        entity_key: EntityKeyProto,
+        feature_view_name: str,
+        config: RepoConfig,
+    ) -> bytes:
+        """
+        Computes the HBase row key for a given entity key and feature view name.
+
+        Args:
+            entity_key (EntityKeyProto): The entity key to compute the row key for.
+            feature_view_name (str): The name of the feature view to compute the row key for.
+            config (RepoConfig): The configuration for the Feast repository.
+
+        Returns:
+            bytes: The HBase row key for the given entity key and feature view name.
+        """
+        entity_id = compute_entity_id(
+            entity_key,
+            entity_key_serialization_version=config.entity_key_serialization_version,
+        )
+        # Even though `entity_id` uniquely identifies an entity, we use the same table
+        # for multiple feature_views with the same set of entities.
+        # To uniquely identify the row for a feature_view, we suffix the name of the feature_view itself.
+        # This also ensures that features for entities from various feature_views are
+        # colocated.
+        return f"{entity_id}#{feature_view_name}".encode()
 
 
 def _table_id(project: str, table: FeatureView) -> str:
