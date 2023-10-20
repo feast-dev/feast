@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import pyarrow as pa
@@ -10,6 +11,8 @@ from tqdm import tqdm
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
+
+DEFAULT_BATCH_SIZE = 1000
 
 
 class BytewaxMaterializationDataflow:
@@ -44,6 +47,11 @@ class BytewaxMaterializationDataflow:
         return
 
     def output_builder(self, worker_index, worker_count):
+        def yield_batch(iterable, batch_size):
+            """Yield mini-batches from an iterable."""
+            for i in range(0, len(iterable), batch_size):
+                yield iterable[i : i + batch_size]
+
         def output_fn(batch):
             table = pa.Table.from_batches([batch])
 
@@ -62,12 +70,17 @@ class BytewaxMaterializationDataflow:
             )
             provider = self.feature_store._get_provider()
             with tqdm(total=len(rows_to_write)) as progress:
-                provider.online_write_batch(
-                    config=self.config,
-                    table=self.feature_view,
-                    data=rows_to_write,
-                    progress=progress.update,
+                # break rows_to_write to mini-batches
+                batch_size = int(
+                    os.getenv("BYTEWAX_MINI_BATCH_SIZE", DEFAULT_BATCH_SIZE)
                 )
+                for mini_batch in yield_batch(rows_to_write, batch_size):
+                    provider.online_write_batch(
+                        config=self.config,
+                        table=self.feature_view,
+                        data=mini_batch,
+                        progress=progress.update,
+                    )
 
         return output_fn
 
