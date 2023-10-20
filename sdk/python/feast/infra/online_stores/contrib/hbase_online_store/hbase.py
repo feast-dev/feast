@@ -104,7 +104,7 @@ class HbaseOnlineStore(OnlineStore):
 
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
-        table_name = _table_id(project, table)
+        table_name = self._table_id(project, table)
 
         b = hbase.batch(table_name)
         for entity_key, values, timestamp, created_ts in data:
@@ -134,6 +134,9 @@ class HbaseOnlineStore(OnlineStore):
             b.put(row_key, values_dict)
         b.send()
 
+        if progress:
+            progress(len(data))
+
     @log_exceptions_and_usage(online_store="hbase")
     def online_read(
         self,
@@ -153,7 +156,7 @@ class HbaseOnlineStore(OnlineStore):
         """
         hbase = HbaseUtils(self._get_conn(config))
         project = config.project
-        table_name = _table_id(project, table)
+        table_name = self._table_id(project, table)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
@@ -208,12 +211,12 @@ class HbaseOnlineStore(OnlineStore):
 
         # We don't create any special state for the entites in this implementation.
         for table in tables_to_keep:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             if not hbase.check_if_table_exist(table_name):
                 hbase.create_table_with_default_cf(table_name)
 
         for table in tables_to_delete:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             hbase.delete_table(table_name)
 
     def teardown(
@@ -233,7 +236,7 @@ class HbaseOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             hbase.delete_table(table_name)
 
     def _hbase_row_key(
@@ -264,13 +267,12 @@ class HbaseOnlineStore(OnlineStore):
         # colocated.
         return f"{entity_id}#{feature_view_name}".encode()
 
+    def _table_id(self, project: str, table: FeatureView) -> str:
+        """
+        Returns table name given the project_name and the feature_view.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    """
-    Returns table name given the project_name and the feature_view.
-
-    Args:
-        project: Name of the feast project.
-        table: Feast FeatureView.
-    """
-    return f"{project}_{table.name}"
+        Args:
+            project: Name of the feast project.
+            table: Feast FeatureView.
+        """
+        return f"{project}:{table.name}"
