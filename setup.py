@@ -159,6 +159,7 @@ CI_REQUIRED = (
         "moto",
         "mypy>=0.981,<0.990",
         "avro==1.10.0",
+        "gcsfs",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
