@@ -91,6 +91,7 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
+    "gcsfs",
 ]
 
 REDIS_REQUIRED = [
@@ -158,7 +159,6 @@ CI_REQUIRED = (
         "moto",
         "mypy>=0.981,<0.990",
         "avro==1.10.0",
-        "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
