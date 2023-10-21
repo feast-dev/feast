@@ -25,7 +25,7 @@ class HbaseConstants:
         return HbaseConstants.DEFAULT_COLUMN_FAMILY + ":" + feature
 
 
-class HbaseUtils:
+class HBaseConnector:
     """
     Utils class to manage different Hbase operations.
 
