@@ -3,7 +3,7 @@ import struct
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from happybase import Connection
+from happybase import Connection, ConnectionPool
 from pydantic.typing import Literal
 
 from feast import Entity
@@ -28,6 +28,9 @@ class HbaseOnlineStoreConfig(FeastConfigBaseModel):
 
     port: str
     """Port in which Hbase Thrift server is running"""
+
+    connection_pool_size: int = 4
+    """Number of connections to Hbase Thrift server to keep in the connection pool"""
 
 
 class HbaseConnection:
@@ -62,7 +65,7 @@ class HbaseOnlineStore(OnlineStore):
         _conn: Happybase Connection to connect to hbase thrift server.
     """
 
-    _conn: Connection = None
+    _conn: ConnectionPool = None
 
     def _get_conn(self, config: RepoConfig):
         """
@@ -76,7 +79,11 @@ class HbaseOnlineStore(OnlineStore):
         assert isinstance(store_config, HbaseOnlineStoreConfig)
 
         if not self._conn:
-            self._conn = Connection(host=store_config.host, port=int(store_config.port))
+            self._conn = ConnectionPool(
+                host=store_config.host,
+                port=int(store_config.port),
+                size=int(store_config.connection_pool_size),
+            )
         return self._conn
 
     @log_exceptions_and_usage(online_store="hbase")
