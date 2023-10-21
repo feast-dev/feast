@@ -3,14 +3,16 @@ import struct
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from happybase import Connection
+from happybase import ConnectionPool
+from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
+from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.hbase_utils import HbaseConstants, HbaseUtils
+from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -23,35 +25,20 @@ class HbaseOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["hbase"] = "hbase"
     """Online store type selector"""
 
-    host: str
+    host: StrictStr
     """Hostname of Hbase Thrift server"""
 
-    port: str
+    port: StrictStr
     """Port in which Hbase Thrift server is running"""
 
+    connection_pool_size: int = 4
+    """Number of connections to Hbase Thrift server to keep in the connection pool"""
 
-class HbaseConnection:
-    """
-    Hbase connecttion to connect to hbase.
+    protocol: StrictStr = DEFAULT_PROTOCOL
+    """Protocol used to communicate with Hbase Thrift server"""
 
-    Attributes:
-        store_config: Online store config for Hbase store.
-    """
-
-    def __init__(self, store_config: HbaseOnlineStoreConfig):
-        self._store_config = store_config
-        self._real_conn = Connection(
-            host=store_config.host, port=int(store_config.port)
-        )
-
-    @property
-    def real_conn(self) -> Connection:
-        """Stores the real happybase Connection to connect to hbase."""
-        return self._real_conn
-
-    def close(self) -> None:
-        """Close the happybase connection."""
-        self.real_conn.close()
+    transport: StrictStr = DEFAULT_TRANSPORT
+    """Transport used to communicate with Hbase Thrift server"""
 
 
 class HbaseOnlineStore(OnlineStore):
@@ -62,7 +49,7 @@ class HbaseOnlineStore(OnlineStore):
         _conn: Happybase Connection to connect to hbase thrift server.
     """
 
-    _conn: Connection = None
+    _conn: ConnectionPool = None
 
     def _get_conn(self, config: RepoConfig):
         """
@@ -76,7 +63,13 @@ class HbaseOnlineStore(OnlineStore):
         assert isinstance(store_config, HbaseOnlineStoreConfig)
 
         if not self._conn:
-            self._conn = Connection(host=store_config.host, port=int(store_config.port))
+            self._conn = ConnectionPool(
+                host=store_config.host,
+                port=int(store_config.port),
+                size=int(store_config.connection_pool_size),
+                protocol=store_config.protocol,
+                transport=store_config.transport,
+            )
         return self._conn
 
     @log_exceptions_and_usage(online_store="hbase")
@@ -102,7 +95,7 @@ class HbaseOnlineStore(OnlineStore):
             the online store. Can be used to display progress.
         """
 
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
         table_name = self._table_id(project, table)
 
@@ -154,7 +147,7 @@ class HbaseOnlineStore(OnlineStore):
             entity_keys: a list of entity keys that should be read from the FeatureStore.
             requested_features: a list of requested feature names.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
         table_name = self._table_id(project, table)
 
@@ -206,7 +199,7 @@ class HbaseOnlineStore(OnlineStore):
             tables_to_delete: Tables to delete from the Hbase Online Store.
             tables_to_keep: Tables to keep in the Hbase Online Store.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
 
         # We don't create any special state for the entites in this implementation.
@@ -232,7 +225,7 @@ class HbaseOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             tables: Tables to delete from the feature repo.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
 
         for table in tables:
