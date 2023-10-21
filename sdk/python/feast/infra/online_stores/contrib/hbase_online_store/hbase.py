@@ -4,13 +4,15 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from happybase import ConnectionPool
+from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
+from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.hbase_utils import HbaseConstants, HBaseConnector
+from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -23,14 +25,20 @@ class HbaseOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["hbase"] = "hbase"
     """Online store type selector"""
 
-    host: str
+    host: StrictStr
     """Hostname of Hbase Thrift server"""
 
-    port: str
+    port: StrictStr
     """Port in which Hbase Thrift server is running"""
 
     connection_pool_size: int = 4
     """Number of connections to Hbase Thrift server to keep in the connection pool"""
+
+    protocol: StrictStr = DEFAULT_PROTOCOL
+    """Protocol used to communicate with Hbase Thrift server"""
+
+    transport: StrictStr = DEFAULT_TRANSPORT
+    """Transport used to communicate with Hbase Thrift server"""
 
 
 class HbaseOnlineStore(OnlineStore):
@@ -59,6 +67,8 @@ class HbaseOnlineStore(OnlineStore):
                 host=store_config.host,
                 port=int(store_config.port),
                 size=int(store_config.connection_pool_size),
+                protocol=store_config.protocol,
+                transport=store_config.transport,
             )
         return self._conn
 
