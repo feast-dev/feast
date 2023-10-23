@@ -317,9 +317,7 @@ class TestElasticsearchOnlineStore:
                         "index": True,
                         "similarity": "l2_norm",
                     },
-                    "id": {
-                        "type": "keyword"
-                    }
+                    "id": {"type": "keyword"},
                 }
             }
             es.indices.create(index=index_name, mappings=mapping)

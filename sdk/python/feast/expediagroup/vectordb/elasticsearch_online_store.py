@@ -141,9 +141,7 @@ class ElasticsearchOnlineStore(OnlineStore):
                     "index": True,
                     "similarity": metric_type,
                 }
-                index_params = json.loads(
-                    feature.tags.get("index_params", "{}")
-                )
+                index_params = json.loads(feature.tags.get("index_params", "{}"))
                 if len(index_params) > 0:
                     index_params["type"] = feature.tags.get(
                         "index_type", "hnsw"
@@ -156,9 +154,7 @@ class ElasticsearchOnlineStore(OnlineStore):
                 t = "keyword" if is_primary and t == "text" else t
                 index_mapping["properties"][feature.name] = {"type": t}
                 if is_primary:
-                    index_mapping["properties"][feature.name][
-                        "index"
-                    ] = True
+                    index_mapping["properties"][feature.name]["index"] = True
         es.indices.create(index=fv.name, mappings=index_mapping)
 
     def teardown(
