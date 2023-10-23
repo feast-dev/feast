@@ -1,7 +1,325 @@
+import json
 import logging
+import random
+from datetime import datetime
+
+import pytest
+
+from feast import FeatureView
+from feast.entity import Entity
+from feast.expediagroup.vectordb.elasticsearch_online_store import (
+    ElasticsearchConnectionManager,
+    ElasticsearchOnlineStore,
+    ElasticsearchOnlineStoreConfig,
+)
+from feast.field import Field
+from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.file_source import FileSource
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.repo_config import RepoConfig
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
+from tests.expediagroup.elasticsearch_online_store_creator import (
+    ElasticsearchOnlineCreator,
+)
 
 logging.basicConfig(level=logging.INFO)
 
+REGISTRY = "s3://test_registry/registry.db"
+PROJECT = "test_aws"
+PROVIDER = "aws"
+REGION = "us-west-2"
+SOURCE = FileSource(path="some path")
 
-class TestElasticSearchOnlineStore:
-    pass
+
+@pytest.fixture(scope="session")
+def repo_config(embedded_elasticsearch):
+    return RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=ElasticsearchOnlineStoreConfig(
+            endpoint=f"http://{embedded_elasticsearch['host']}:{embedded_elasticsearch['port']}",
+            username=embedded_elasticsearch["username"],
+            password=embedded_elasticsearch["password"],
+            token=embedded_elasticsearch["token"],
+        ),
+        offline_store=FileOfflineStoreConfig(),
+        entity_key_serialization_version=2,
+    )
+
+
+@pytest.fixture(scope="session")
+def embedded_elasticsearch():
+    online_store_creator = ElasticsearchOnlineCreator(PROJECT, 9200)
+    online_store_config = online_store_creator.create_online_store()
+
+    yield online_store_config
+
+    online_store_creator.teardown()
+
+
+class TestElasticsearchOnlineStore:
+    index_to_write = "index_write"
+    index_to_delete = "index_delete"
+    unavailable_index = "abc"
+
+    @pytest.fixture(autouse=True)
+    def setup_method(self, repo_config):
+        # Ensuring that the indexes created are dropped before the tests are run
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            # Dropping indexes if they exist
+            if es.indices.exists(index=self.index_to_delete):
+                es.indices.delete(index=self.index_to_delete)
+            if es.indices.exists(index=self.index_to_write):
+                es.indices.delete(index=self.index_to_write)
+            if es.indices.exists(index=self.unavailable_index):
+                es.indices.delete(index=self.unavailable_index)
+
+        yield
+
+    def create_n_customer_test_samples_elasticsearch_online_read(self, n=10):
+        return [
+            (
+                EntityKeyProto(
+                    join_keys=["film_id"],
+                    entity_values=[ValueProto(int64_val=i)],
+                ),
+                {
+                    "films": ValueProto(
+                        float_list_val=FloatList(
+                            val=[random.random() for _ in range(2)]
+                        )
+                    ),
+                    "film_date": ValueProto(int64_val=n),
+                    "film_id": ValueProto(int64_val=n),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
+
+    index_param_list = [
+        {"index_type": "HNSW", "index_params": {"m": 16, "ef_construction": 100}},
+        {"index_type": "HNSW"},
+    ]
+
+    @pytest.mark.parametrize("index_params", index_param_list)
+    def test_elasticsearch_update_add_index(self, repo_config, caplog, index_params):
+        dimensions = 16
+        vector_type = Float32
+        vector_tags = {
+            "is_primary": "False",
+            "description": vector_type.name,
+            "dimensions": dimensions,
+            "index_type": index_params["index_type"],
+        }
+        if "index_params" in index_params:
+            vector_tags["index_params"] = json.dumps(
+                index_params.get("index_params", {})
+            )
+        entity = Entity(name="feature2")
+        feast_schema = [
+            Field(
+                name="feature1",
+                dtype=Array(vector_type),
+                tags=vector_tags,
+            ),
+            Field(
+                name="feature2",
+                dtype=String,
+            ),
+            Field(name="feature3", dtype=String),
+            Field(name="feature4", dtype=Bytes),
+            Field(name="feature5", dtype=Int32),
+            Field(name="feature6", dtype=Int64),
+            Field(name="feature7", dtype=Float32),
+            Field(name="feature8", dtype=Float64),
+            Field(name="feature9", dtype=Bool),
+            Field(name="feature10", dtype=UnixTimestamp),
+        ]
+        ElasticsearchOnlineStore().update(
+            config=repo_config.online_store,
+            tables_to_delete=[],
+            tables_to_keep=[
+                FeatureView(
+                    name=self.index_to_write,
+                    entities=[entity],
+                    schema=feast_schema,
+                    source=SOURCE,
+                )
+            ],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=False,
+        )
+
+        mapping = {
+            "properties": {
+                "feature1": {
+                    "type": "dense_vector",
+                    "dims": 16,
+                    "index": True,
+                    "similarity": "l2_norm",
+                },
+                "feature2": {"type": "keyword"},
+                "feature3": {"type": "text"},
+                "feature4": {"type": "binary"},
+                "feature5": {"type": "integer"},
+                "feature6": {"type": "long"},
+                "feature7": {"type": "float"},
+                "feature8": {"type": "double"},
+                "feature9": {"type": "boolean"},
+                "feature10": {"type": "date_nanos"},
+            }
+        }
+        if "index_params" in index_params:
+            mapping["properties"]["feature1"]["index_options"] = {
+                "type": index_params["index_type"].lower(),
+                **index_params["index_params"],
+            }
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            created_index = es.indices.get(index=self.index_to_write)
+            assert created_index.body[self.index_to_write]["mappings"] == mapping
+
+    def test_elasticsearch_update_add_existing_index(self, repo_config, caplog):
+        entity = Entity(name="id")
+        feast_schema = [
+            Field(
+                name="vector",
+                dtype=Array(Float32),
+                tags={
+                    "description": "float32",
+                    "dimensions": "10",
+                    "index_type": "HNSW",
+                },
+            ),
+            Field(
+                name="id",
+                dtype=String,
+            ),
+        ]
+        self._create_index_in_es(self.index_to_write, repo_config)
+        ElasticsearchOnlineStore().update(
+            config=repo_config.online_store,
+            tables_to_delete=[],
+            tables_to_keep=[
+                FeatureView(
+                    name=self.index_to_write,
+                    entities=[entity],
+                    schema=feast_schema,
+                    source=SOURCE,
+                )
+            ],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=False,
+        )
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            assert es.indices.exists(index=self.index_to_write).body is True
+
+    def test_elasticsearch_update_delete_index(self, repo_config, caplog):
+        entity = Entity(name="id")
+        feast_schema = [
+            Field(
+                name="vector",
+                dtype=Array(Float32),
+                tags={
+                    "description": "float32",
+                    "dimensions": "10",
+                    "index_type": "HNSW",
+                },
+            ),
+            Field(
+                name="id",
+                dtype=String,
+            ),
+        ]
+        self._create_index_in_es(self.index_to_delete, repo_config)
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            assert es.indices.exists(index=self.index_to_delete).body is True
+
+        ElasticsearchOnlineStore().update(
+            config=repo_config.online_store,
+            tables_to_delete=[
+                FeatureView(
+                    name=self.index_to_delete,
+                    entities=[entity],
+                    schema=feast_schema,
+                    source=SOURCE,
+                )
+            ],
+            tables_to_keep=[],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=False,
+        )
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            assert es.indices.exists(index=self.index_to_delete).body is False
+
+    def test_elasticsearch_update_delete_unavailable_index(self, repo_config, caplog):
+        entity = Entity(name="id")
+        feast_schema = [
+            Field(
+                name="vector",
+                dtype=Array(Float32),
+                tags={
+                    "description": "float32",
+                    "dimensions": "10",
+                    "index_type": "HNSW",
+                },
+            ),
+            Field(
+                name="id",
+                dtype=String,
+            ),
+        ]
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            assert es.indices.exists(index=self.index_to_delete).body is False
+
+        ElasticsearchOnlineStore().update(
+            config=repo_config.online_store,
+            tables_to_delete=[
+                FeatureView(
+                    name=self.index_to_delete,
+                    entities=[entity],
+                    schema=feast_schema,
+                    source=SOURCE,
+                )
+            ],
+            tables_to_keep=[],
+            entities_to_delete=[],
+            entities_to_keep=[],
+            partial=False,
+        )
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            assert es.indices.exists(index=self.index_to_delete).body is False
+
+    def _create_index_in_es(self, index_name, repo_config):
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            mapping = {
+                "properties": {
+                    "vector": {
+                        "type": "dense_vector",
+                        "dims": 10,
+                        "index": True,
+                        "similarity": "l2_norm",
+                    },
+                    "id": {
+                        "type": "keyword"
+                    }
+                }
+            }
+            es.indices.create(index=index_name, mappings=mapping)

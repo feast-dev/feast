@@ -153,6 +153,11 @@ MILVUS_REQUIRED = [
     "bidict==0.22.1"
 ]
 
+ELASTICSEARCH_REQUIRED = [
+    "elasticsearch==8.8",
+    "bidict==0.22.1",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -213,6 +218,7 @@ CI_REQUIRED = (
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + MILVUS_REQUIRED
+    + ELASTICSEARCH_REQUIRED
 )
 
 
@@ -546,6 +552,7 @@ setup(
         "rockset": ROCKSET_REQUIRED,
         "milvus": MILVUS_REQUIRED,
         "go": GO_REQUIRED,
+        "elasticsearch": ELASTICSEARCH_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
