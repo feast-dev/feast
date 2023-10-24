@@ -94,28 +94,6 @@ class TestElasticsearchOnlineStore:
 
         yield
 
-    def create_n_customer_test_samples_elasticsearch_online_read(self, n=10):
-        return [
-            (
-                EntityKeyProto(
-                    join_keys=["film_id"],
-                    entity_values=[ValueProto(int64_val=i)],
-                ),
-                {
-                    "films": ValueProto(
-                        float_list_val=FloatList(
-                            val=[random.random() for _ in range(2)]
-                        )
-                    ),
-                    "film_date": ValueProto(int64_val=n),
-                    "film_id": ValueProto(int64_val=n),
-                },
-                datetime.utcnow(),
-                None,
-            )
-            for i in range(n)
-        ]
-
     @pytest.mark.parametrize("index_params", index_param_list)
     def test_elasticsearch_update_add_index(self, repo_config, caplog, index_params):
         dimensions = 16
@@ -307,6 +285,28 @@ class TestElasticsearchOnlineStore:
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_delete).body is False
 
+    def test_elasticsearch_online_write_batch(self, repo_config, caplog):
+        total_rows_to_write = 100
+        (
+            feature_view,
+            data,
+        ) = self._create_n_customer_test_samples_elasticsearch_online_read(
+            n=total_rows_to_write
+        )
+        ElasticsearchOnlineStore().online_write_batch(
+            config=repo_config.online_store,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            res = es.cat.count(index=self.index_to_write, params={"format": "json"})
+            assert res[0]["count"] == "100"
+            doc = es.get(index=self.index_to_write, id="0")["_source"]["doc"]
+            for feature in feature_view.schema:
+                assert feature.name in doc
+
     def _create_index_in_es(self, index_name, repo_config):
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             mapping = {
@@ -321,3 +321,85 @@ class TestElasticsearchOnlineStore:
                 }
             }
             es.indices.create(index=index_name, mappings=mapping)
+
+    def _create_n_customer_test_samples_elasticsearch_online_read(self, n=10):
+        fv = FeatureView(
+            name=self.index_to_write,
+            source=SOURCE,
+            entities=[Entity(name="id")],
+            schema=[
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    tags={
+                        "description": "float32",
+                        "dimensions": "10",
+                        "index_type": "HNSW",
+                    },
+                ),
+                Field(
+                    name="id",
+                    dtype=String,
+                ),
+                Field(
+                    name="text",
+                    dtype=String,
+                ),
+                Field(
+                    name="int",
+                    dtype=Int32,
+                ),
+                Field(
+                    name="long",
+                    dtype=Int64,
+                ),
+                Field(
+                    name="float",
+                    dtype=Float32,
+                ),
+                Field(
+                    name="double",
+                    dtype=Float64,
+                ),
+                Field(
+                    name="binary",
+                    dtype=Bytes,
+                ),
+                Field(
+                    name="bool",
+                    dtype=Bool,
+                ),
+                Field(
+                    name="timestamp",
+                    dtype=UnixTimestamp,
+                ),
+            ],
+        )
+        return fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "vector": ValueProto(
+                        float_list_val=FloatList(
+                            val=[random.random() for _ in range(10)]
+                        )
+                    ),
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(int32_val=n),
+                    "long": ValueProto(int64_val=n),
+                    "float": ValueProto(float_val=n * 0.3),
+                    "double": ValueProto(double_val=n * 1.2),
+                    "binary": ValueProto(bytes_val=b"binary"),
+                    "bool": ValueProto(bool_val=True),
+                    "timestamp": ValueProto(
+                        unix_timestamp_val=int(datetime.utcnow().timestamp() * 1000)
+                    ),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
