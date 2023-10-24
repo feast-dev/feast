@@ -128,10 +128,10 @@ class ElasticsearchOnlineStore(OnlineStore):
                     self._create_index(es, fv)
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         pass
 

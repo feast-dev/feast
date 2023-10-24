@@ -47,6 +47,7 @@ index_param_list = [
     {"index_type": "HNSW"},
 ]
 
+
 @pytest.fixture(scope="session")
 def repo_config(embedded_elasticsearch):
     return RepoConfig(
