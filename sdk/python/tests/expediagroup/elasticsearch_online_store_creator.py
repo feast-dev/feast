@@ -1,6 +1,5 @@
 import logging
 
-from elasticsearch import Elasticsearch
 from testcontainers.elasticsearch import ElasticSearchContainer
 
 from tests.integration.feature_repos.universal.online_store_creator import (

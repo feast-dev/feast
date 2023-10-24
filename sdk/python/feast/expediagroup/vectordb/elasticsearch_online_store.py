@@ -96,7 +96,7 @@ class ElasticsearchOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        with ElasticsearchConnectionManager(config) as es:
+        with ElasticsearchConnectionManager(config):
             pass
 
     def online_read(
