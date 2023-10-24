@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Mapping
 
 from bidict import bidict
 from elasticsearch import Elasticsearch
@@ -22,7 +22,7 @@ from feast.types import (
     Int64,
     Invalid,
     String,
-    UnixTimestamp,
+    UnixTimestamp, ComplexFeastType,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,6 @@ TYPE_MAPPING = bidict(
         Bool: "boolean",
         String: "text",
         UnixTimestamp: "date_nanos",
-        Invalid: None,
     }
 )
 
@@ -166,4 +165,6 @@ class ElasticsearchOnlineStore(OnlineStore):
         pass
 
     def get_data_type(self, t: FeastType) -> str:
+        if isinstance(t, ComplexFeastType):
+            return "text"
         return TYPE_MAPPING.get(t, "text")
