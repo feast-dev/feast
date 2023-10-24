@@ -200,6 +200,10 @@ docker==6.1.3
     #   testcontainers
 docutils==0.19
     # via sphinx
+elastic-transport==8.4.1
+    # via elasticsearch
+elasticsearch==8.8.0
+    # via eg-feast (setup.py)
 entrypoints==0.4
     # via altair
 exceptiongroup==1.1.1
