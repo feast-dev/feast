@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Mapping
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from bidict import bidict
 from elasticsearch import Elasticsearch
@@ -15,14 +15,14 @@ from feast.repo_config import FeastConfigBaseModel
 from feast.types import (
     Bool,
     Bytes,
+    ComplexFeastType,
     FeastType,
     Float32,
     Float64,
     Int32,
     Int64,
-    Invalid,
     String,
-    UnixTimestamp, ComplexFeastType,
+    UnixTimestamp,
 )
 
 logger = logging.getLogger(__name__)
