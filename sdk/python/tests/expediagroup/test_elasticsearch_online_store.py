@@ -42,6 +42,10 @@ PROVIDER = "aws"
 REGION = "us-west-2"
 SOURCE = FileSource(path="some path")
 
+index_param_list = [
+    {"index_type": "HNSW", "index_params": {"m": 16, "ef_construction": 100}},
+    {"index_type": "HNSW"},
+]
 
 @pytest.fixture(scope="session")
 def repo_config(embedded_elasticsearch):
@@ -110,11 +114,6 @@ class TestElasticsearchOnlineStore:
             )
             for i in range(n)
         ]
-
-    index_param_list = [
-        {"index_type": "HNSW", "index_params": {"m": 16, "ef_construction": 100}},
-        {"index_type": "HNSW"},
-    ]
 
     @pytest.mark.parametrize("index_params", index_param_list)
     def test_elasticsearch_update_add_index(self, repo_config, caplog, index_params):

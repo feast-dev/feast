@@ -127,6 +127,14 @@ class ElasticsearchOnlineStore(OnlineStore):
                 if not resp.body:
                     self._create_index(es, fv)
 
+    def teardown(
+            self,
+            config: RepoConfig,
+            tables: Sequence[FeatureView],
+            entities: Sequence[Entity],
+    ):
+        pass
+
     def _create_index(self, es, fv):
         index_mapping = {"properties": {}}
         for feature in fv.schema:
@@ -149,22 +157,14 @@ class ElasticsearchOnlineStore(OnlineStore):
                         "index_options"
                     ] = index_params
             else:
-                t = self.get_data_type(feature.dtype)
+                t = self._get_data_type(feature.dtype)
                 t = "keyword" if is_primary and t == "text" else t
                 index_mapping["properties"][feature.name] = {"type": t}
                 if is_primary:
                     index_mapping["properties"][feature.name]["index"] = True
         es.indices.create(index=fv.name, mappings=index_mapping)
 
-    def teardown(
-        self,
-        config: RepoConfig,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
-    ):
-        pass
-
-    def get_data_type(self, t: FeastType) -> str:
+    def _get_data_type(self, t: FeastType) -> str:
         if isinstance(t, ComplexFeastType):
             return "text"
         return TYPE_MAPPING.get(t, "text")
