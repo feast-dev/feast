@@ -166,4 +166,4 @@ class ElasticsearchOnlineStore(OnlineStore):
         pass
 
     def get_data_type(self, t: FeastType) -> str:
-        return TYPE_MAPPING.get(t)
+        return TYPE_MAPPING.get(t, "text")
