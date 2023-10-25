@@ -301,6 +301,7 @@ class TestElasticsearchOnlineStore:
         )
 
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            es.indices.refresh(index=self.index_to_write)
             res = es.cat.count(index=self.index_to_write, params={"format": "json"})
             assert res[0]["count"] == "100"
             doc = es.get(index=self.index_to_write, id="0")["_source"]["doc"]

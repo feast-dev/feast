@@ -111,8 +111,10 @@ class ElasticsearchOnlineStore(OnlineStore):
                     {"_index": table.name, "_id": id_val, "doc": document}
                 )
 
-            helpers.bulk(client=es, actions=bulk_documents)
-            es.indices.refresh(index=table.name)
+            successes, errors = helpers.bulk(client=es, actions=bulk_documents)
+            logger.info(f"bulk write completed with {successes} successes")
+            if errors:
+                logger.error(f"bulk write return errors: {errors}")
 
     def online_read(
         self,
@@ -178,6 +180,7 @@ class ElasticsearchOnlineStore(OnlineStore):
                 if is_primary:
                     index_mapping["properties"][feature.name]["index"] = True
         es.indices.create(index=fv.name, mappings=index_mapping)
+        logger.info(f"Index {fv.name} created")
 
     def _get_data_type(self, t: FeastType) -> str:
         if isinstance(t, ComplexFeastType):
