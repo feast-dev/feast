@@ -5,7 +5,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from bytewax.dataflow import Dataflow  # type: ignore
 from bytewax.execution import cluster_main
-from bytewax.inputs import ManualInputConfig, distribute
+from bytewax.inputs import ManualInputConfig
 from bytewax.outputs import ManualOutputConfig
 from tqdm import tqdm
 
@@ -21,11 +21,13 @@ class BytewaxMaterializationDataflow:
         config: RepoConfig,
         feature_view: FeatureView,
         paths: List[str],
+        worker_index: int,
     ):
         self.config = config
         self.feature_store = FeatureStore(config=config)
 
         self.feature_view = feature_view
+        self.worker_index = worker_index
         self.paths = paths
 
         self._run_dataflow()
@@ -40,11 +42,7 @@ class BytewaxMaterializationDataflow:
         return batches
 
     def input_builder(self, worker_index, worker_count, _state):
-        worker_paths = distribute(self.paths, worker_index, worker_count)
-        for path in worker_paths:
-            yield None, path
-
-        return
+        return [(None, self.paths[self.worker_index])]
 
     def output_builder(self, worker_index, worker_count):
         def yield_batch(iterable, batch_size):
