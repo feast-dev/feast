@@ -39,11 +39,11 @@ REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
-    "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
-    "grpcio-reflection>=1.56.2,<2",
-    "grpcio-health-checking>=1.56.2,<2",
-    "mypy-protobuf==3.1",
+    "grpcio>=1.47.0,<2",
+    "grpcio-reflection>=1.47.0,<2",
+    "grpcio-reflection<2",
+    "grpcio-health-checking<2",
+    "mypy-protobuf<=3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -51,8 +51,7 @@ REQUIRED = [
     "pandas>=1.4.3,<2",
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro~=1.5.0",
-    # Higher than 4.23.4 seems to cause a seg fault
-    "protobuf<4.23.4,>3.20",
+    "protobuf<3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4,<12",
     "pydantic>=1,<2",
@@ -363,11 +362,11 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio>=1.56.2,<2",
-        "grpcio-tools>=1.56.2,<2",
+        "grpcio>=1.47.0,<2",
+        "grpcio-tools>=1.47.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
-        "protobuf<3.20"
+        "protobuf<4.23.4"
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,

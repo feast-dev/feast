@@ -157,7 +157,7 @@ test-python-universal-mssql:
  	 sdk/python/tests
 
 
-# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
+# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS.
 # https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
 # Modify environment variables ATHENA_REGION, ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_WORKGROUP or
 # ATHENA_S3_BUCKET_NAME according to your needs. If tests fail with the pytest -n 8 option, change the number to 1.
@@ -353,7 +353,7 @@ kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
 
 install-protoc-dependencies:
-	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf grpcio-tools==1.47.0 mypy-protobuf==3.1.0
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
