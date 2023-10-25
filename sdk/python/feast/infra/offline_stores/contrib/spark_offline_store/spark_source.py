@@ -187,6 +187,7 @@ class SparkSource(DataSource):
 
     # Note: Python requires redefining hash in child classes that override __eq__
     def __hash__(self):
+
         return super().__hash__()
 
     def __eq__(self, other):

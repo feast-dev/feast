@@ -270,3 +270,4 @@ def test_spark_source_equality(test_data, are_equal):
         assert default == test_data
     else:
         assert default != test_data
+
