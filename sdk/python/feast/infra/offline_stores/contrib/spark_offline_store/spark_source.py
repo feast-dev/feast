@@ -191,11 +191,10 @@ class SparkSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, SparkSource):
-            raise TypeError("Comparisons should only involve SparkSource class objects.")
-        return (
-            super().__eq__(other)
-            and self.spark_options == other.spark_options
-        )
+            raise TypeError(
+                "Comparisons should only involve SparkSource class objects."
+            )
+        return super().__eq__(other) and self.spark_options == other.spark_options
 
 
 class SparkOptions:
@@ -296,7 +295,9 @@ class SparkOptions:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, SparkOptions):
-            raise TypeError("Comparisons should only involve SparkOptions class objects.")
+            raise TypeError(
+                "Comparisons should only involve SparkOptions class objects."
+            )
 
         return (
             self.table == other.table
