@@ -185,6 +185,18 @@ class SparkSource(DataSource):
 
         return f"`{tmp_table_name}`"
 
+    # Note: Python requires redefining hash in child classes that override __eq__
+    def __hash__(self):
+        return super().__hash__()
+
+    def __eq__(self, other):
+        if not isinstance(other, SparkSource):
+            raise TypeError("Comparisons should only involve SparkSource class objects.")
+        return (
+            super().__eq__(other)
+            and self.spark_options == other.spark_options
+        )
+
 
 class SparkOptions:
     allowed_formats = [format.value for format in SparkSourceFormat]
@@ -281,6 +293,17 @@ class SparkOptions:
         )
 
         return spark_options_proto
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SparkOptions):
+            raise TypeError("Comparisons should only involve SparkOptions class objects.")
+
+        return (
+            self.table == other.table
+            and self.query == other.query
+            and self.path == other.path
+            and self.file_format == other.file_format
+        )
 
 
 class SavedDatasetSparkStorage(SavedDatasetStorage):

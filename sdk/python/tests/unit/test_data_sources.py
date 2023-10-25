@@ -13,6 +13,7 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
 from feast.types import Bool, Float32, Int64
 
 
@@ -233,3 +234,55 @@ def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
     )
 
     assert redshift_source.redshift_options.fully_qualified_table_name == expected_name
+
+@pytest.mark.parameterize(
+        "test_data,are_equal",
+        [
+            (
+                SparkSource(
+                    name='name',
+                    table='table',
+                    query='query',
+                    file_format='file_format'
+                ),
+                True
+            ),
+            (
+                SparkSource(
+                    table='table',
+                    query='query',
+                    file_format='file_format'
+                ),
+                False
+            ),
+            (
+                SparkSource(
+                    name='name',
+                    table='table',
+                    query='query',
+                    file_format='file_format1'
+                ),
+                False
+            ),
+            (
+                SparkSource(
+                    name='name',
+                    table='table',
+                    query='query1',
+                    file_format='file_format'
+                ),
+                True
+            ),
+        ]
+)
+def test_spark_source_equality(test_data, are_equal):
+    default = SparkSource(
+        name='name',
+        table='table1',
+        query='query',
+        file_format='file_format'
+    )
+    if are_equal:
+        assert default == test_data
+    else:
+        assert default != test_data
