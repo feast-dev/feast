@@ -1,10 +1,11 @@
+import base64
 import json
 import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from bidict import bidict
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, helpers
 from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig
@@ -96,8 +97,24 @@ class ElasticsearchOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        with ElasticsearchConnectionManager(config):
-            pass
+        with ElasticsearchConnectionManager(config) as es:
+            resp = es.indices.exists(index=table.name)
+            if not resp.body:
+                self._create_index(es, table)
+            bulk_documents = []
+            for entity_key, values, timestamp, created_ts in data:
+                id_val = self._get_value_from_value_proto(entity_key.entity_values[0])
+                document = {entity_key.join_keys[0]: id_val}
+                for feature_name, val in values.items():
+                    document[feature_name] = self._get_value_from_value_proto(val)
+                bulk_documents.append(
+                    {"_index": table.name, "_id": id_val, "doc": document}
+                )
+
+            successes, errors = helpers.bulk(client=es, actions=bulk_documents)
+            logger.info(f"bulk write completed with {successes} successes")
+            if errors:
+                logger.error(f"bulk write return errors: {errors}")
 
     def online_read(
         self,
@@ -163,8 +180,28 @@ class ElasticsearchOnlineStore(OnlineStore):
                 if is_primary:
                     index_mapping["properties"][feature.name]["index"] = True
         es.indices.create(index=fv.name, mappings=index_mapping)
+        logger.info(f"Index {fv.name} created")
 
     def _get_data_type(self, t: FeastType) -> str:
         if isinstance(t, ComplexFeastType):
             return "text"
         return TYPE_MAPPING.get(t, "text")
+
+    def _get_value_from_value_proto(self, proto: ValueProto):
+        """
+        Get the raw value from a value proto.
+
+        Parameters:
+        value (ValueProto): the value proto that contains the data.
+
+        Returns:
+        value (Any): the extracted value.
+        """
+        val_type = proto.WhichOneof("val")
+        value = getattr(proto, val_type)  # type: ignore
+        if val_type == "bytes_val":
+            value = base64.b64encode(value).decode()
+        if val_type == "float_list_val":
+            value = list(value.val)
+
+        return value
