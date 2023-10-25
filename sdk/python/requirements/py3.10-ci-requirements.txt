@@ -1058,7 +1058,7 @@ websocket-client==1.6.2
     #   kubernetes
 websockets==11.0.3
     # via uvicorn
-werkzeug==2.3.7
+werkzeug==3.0.1
     # via moto
 wheel==0.41.2
     # via pip-tools
