@@ -248,9 +248,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 f"(of {total_pods}) complete with status {job.status()}"
             )
         except BaseException as e:
-            if self.batch_engine_config.print_pod_logs_on_failure:
-                self._print_pod_logs(job.job_id(), feature_view, batch_start)
-
             logger.info(f"Deleting job {job.job_id()}")
             try:
                 self.batch_v1.delete_namespaced_job(job.job_id(), self.namespace)
@@ -267,6 +264,12 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 logger.warning(
                     f"Could not delete configmap due to API Error: {ae.body}"
                 )
+
+            if (
+                job.status() == MaterializationJobStatus.ERROR
+                and self.batch_engine_config.print_pod_logs_on_failure
+            ):
+                self._print_pod_logs(job.job_id(), feature_view, batch_start)
 
         return job
 
