@@ -216,7 +216,10 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                     total_pods,
                 )
                 offset += batch_size
-                if offset >= total_pods:
+                if (
+                    offset >= total_pods
+                    or job.status() == MaterializationJobStatus.ERROR
+                ):
                     break
         else:
             job_id = str(uuid.uuid4())
