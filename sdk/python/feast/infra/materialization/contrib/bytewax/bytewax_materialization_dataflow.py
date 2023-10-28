@@ -1,16 +1,18 @@
+import os
 from typing import List
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import s3fs
 from bytewax.dataflow import Dataflow  # type: ignore
 from bytewax.execution import cluster_main
-from bytewax.inputs import ManualInputConfig, distribute
+from bytewax.inputs import ManualInputConfig
 from bytewax.outputs import ManualOutputConfig
 from tqdm import tqdm
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
+
+DEFAULT_BATCH_SIZE = 1000
 
 
 class BytewaxMaterializationDataflow:
@@ -19,18 +21,19 @@ class BytewaxMaterializationDataflow:
         config: RepoConfig,
         feature_view: FeatureView,
         paths: List[str],
+        worker_index: int,
     ):
         self.config = config
         self.feature_store = FeatureStore(config=config)
 
         self.feature_view = feature_view
+        self.worker_index = worker_index
         self.paths = paths
 
         self._run_dataflow()
 
     def process_path(self, path):
-        fs = s3fs.S3FileSystem()
-        dataset = pq.ParquetDataset(path, filesystem=fs, use_legacy_dataset=False)
+        dataset = pq.ParquetDataset(path, use_legacy_dataset=False)
         batches = []
         for fragment in dataset.fragments:
             for batch in fragment.to_table().to_batches():
@@ -39,13 +42,14 @@ class BytewaxMaterializationDataflow:
         return batches
 
     def input_builder(self, worker_index, worker_count, _state):
-        worker_paths = distribute(self.paths, worker_index, worker_count)
-        for path in worker_paths:
-            yield None, path
-
-        return
+        return [(None, self.paths[self.worker_index])]
 
     def output_builder(self, worker_index, worker_count):
+        def yield_batch(iterable, batch_size):
+            """Yield mini-batches from an iterable."""
+            for i in range(0, len(iterable), batch_size):
+                yield iterable[i : i + batch_size]
+
         def output_fn(batch):
             table = pa.Table.from_batches([batch])
 
@@ -64,12 +68,17 @@ class BytewaxMaterializationDataflow:
             )
             provider = self.feature_store._get_provider()
             with tqdm(total=len(rows_to_write)) as progress:
-                provider.online_write_batch(
-                    config=self.config,
-                    table=self.feature_view,
-                    data=rows_to_write,
-                    progress=progress.update,
+                # break rows_to_write to mini-batches
+                batch_size = int(
+                    os.getenv("BYTEWAX_MINI_BATCH_SIZE", DEFAULT_BATCH_SIZE)
                 )
+                for mini_batch in yield_batch(rows_to_write, batch_size):
+                    provider.online_write_batch(
+                        config=self.config,
+                        table=self.feature_view,
+                        data=mini_batch,
+                        progress=progress.update,
+                    )
 
         return output_fn
 

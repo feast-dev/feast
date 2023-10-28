@@ -287,7 +287,11 @@ class FeatureStore:
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
-            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
                 fv.entities = []
                 fv.entity_columns = []
             feature_views.append(fv)

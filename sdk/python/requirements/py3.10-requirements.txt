@@ -204,7 +204,7 @@ typing-extensions==4.7.1
     #   pydantic
     #   sqlalchemy2-stubs
     #   uvicorn
-urllib3==2.0.4
+urllib3==1.26.18
     # via requests
 uvicorn[standard]==0.23.2
     # via feast (setup.py)
