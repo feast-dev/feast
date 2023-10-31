@@ -1,4 +1,5 @@
 import contextlib
+import sys
 from dataclasses import asdict
 from datetime import datetime
 from typing import (
@@ -16,7 +17,13 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+import pyarrow
 import pyarrow as pa
+
+try:
+    from adbc_driver_postgresql.dbapi import connect
+except ImportError:
+    pass
 from jinja2 import BaseLoader, Environment
 from psycopg2 import sql
 from pydantic.typing import Literal
@@ -233,6 +240,40 @@ class PostgreSQLOfflineStore(OfflineStore):
             full_feature_names=False,
             on_demand_feature_views=None,
         )
+
+    if "adbc_driver_postgresql" in sys.modules:
+
+        @staticmethod
+        @log_exceptions_and_usage(offline_store="postgres")
+        def offline_write_batch(
+            config: RepoConfig,
+            feature_view: FeatureView,
+            table: pyarrow.Table,
+            progress: Optional[Callable[[int], Any]],
+        ):
+            assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+            assert isinstance(feature_view.batch_source, PostgreSQLSource)
+
+            (
+                pa_schema,
+                column_names,
+            ) = offline_utils.get_pyarrow_schema_from_batch_source(
+                config, feature_view.batch_source
+            )
+            if column_names != table.column_names:
+                raise ValueError(
+                    f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                    f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+                )
+
+            if table.schema != pa_schema:
+                table = table.cast(pa_schema)
+
+            uri = f"postgresql://{config.offline_store.user}:{config.offline_store.password}@{config.offline_store.host}:{config.offline_store.port}/{config.offline_store.database}"
+            conn = connect(uri)
+            with conn.cursor() as cur:
+                cur.adbc_ingest(feature_view.batch_source.name, table, mode="append")
+            conn.commit()
 
 
 class PostgreSQLRetrievalJob(RetrievalJob):

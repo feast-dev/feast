@@ -6,6 +6,10 @@
 #
 adal==1.2.7
     # via msrestazure
+adbc-driver-manager==0.6.0
+    # via feast (setup.py)
+adbc-driver-postgresql==0.6.0
+    # via feast (setup.py)
 adlfs==0.5.9
     # via feast (setup.py)
 aiohttp==3.8.5
