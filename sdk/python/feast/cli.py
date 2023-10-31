@@ -663,6 +663,14 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
     help="Timeout for keep alive",
 )
+@click.option(
+    "--registry_ttl_sec",
+    "-r",
+    help="Number of seconds after which the registry is refreshed",
+    type=click.INT,
+    default=5,
+    show_default=True,
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -673,6 +681,7 @@ def serve_command(
     no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
+    registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
     store = create_feature_store(ctx)
@@ -685,6 +694,7 @@ def serve_command(
         no_feature_log=no_feature_log,
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
+        registry_ttl_sec=registry_ttl_sec,
     )
 
 

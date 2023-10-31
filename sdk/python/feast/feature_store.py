@@ -2228,6 +2228,7 @@ class FeatureStore:
         no_feature_log: bool,
         workers: int,
         keep_alive_timeout: int,
+        registry_ttl_sec: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2243,6 +2244,7 @@ class FeatureStore:
             no_access_log=no_access_log,
             workers=workers,
             keep_alive_timeout=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
         )
 
     @log_exceptions_and_usage
