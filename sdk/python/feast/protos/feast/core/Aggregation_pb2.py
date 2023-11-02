@@ -4,9 +4,8 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
-from google.protobuf import message as _message
-from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
+from google.protobuf.internal import builder as _builder
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -17,20 +16,12 @@ from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x66\x65\x61st/core/Aggregation.proto\x12\nfeast.core\x1a\x1egoogle/protobuf/duration.proto\"\x92\x01\n\x0b\x41ggregation\x12\x0e\n\x06\x63olumn\x18\x01 \x01(\t\x12\x10\n\x08\x66unction\x18\x02 \x01(\t\x12.\n\x0btime_window\x18\x03 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\x31\n\x0eslide_interval\x18\x04 \x01(\x0b\x32\x19.google.protobuf.DurationBU\n\x10\x66\x65\x61st.proto.coreB\x10\x41ggregationProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
-
-
-_AGGREGATION = DESCRIPTOR.message_types_by_name['Aggregation']
-Aggregation = _reflection.GeneratedProtocolMessageType('Aggregation', (_message.Message,), {
-  'DESCRIPTOR' : _AGGREGATION,
-  '__module__' : 'feast.core.Aggregation_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.Aggregation)
-  })
-_sym_db.RegisterMessage(Aggregation)
-
+_globals = globals()
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.core.Aggregation_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\020feast.proto.coreB\020AggregationProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
-  _AGGREGATION._serialized_start=77
-  _AGGREGATION._serialized_end=223
+  _globals['_AGGREGATION']._serialized_start=77
+  _globals['_AGGREGATION']._serialized_end=223
 # @@protoc_insertion_point(module_scope)
