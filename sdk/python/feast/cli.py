@@ -663,6 +663,14 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
     help="Timeout for keep alive",
 )
+@click.option(
+    "--registry_ttl_sec",
+    "-r",
+    help="Number of seconds after which the registry is refreshed",
+    type=click.INT,
+    default=5,
+    show_default=True,
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -673,6 +681,7 @@ def serve_command(
     no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
+    registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
     store = create_feature_store(ctx)
@@ -685,6 +694,7 @@ def serve_command(
         no_feature_log=no_feature_log,
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
+        registry_ttl_sec=registry_ttl_sec,
     )
 
 
@@ -705,15 +715,24 @@ def serve_command(
     show_default=False,
     help="The maximum number of threads that can be used to execute the gRPC calls",
 )
+@click.option(
+    "--registry_ttl_sec",
+    "-r",
+    help="Number of seconds after which the registry is refreshed",
+    type=click.INT,
+    default=5,
+    show_default=True,
+)
 @click.pass_context
 def listen_command(
     ctx: click.Context,
     address: str,
     max_workers: int,
+    registry_ttl_sec: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
     store = create_feature_store(ctx)
-    server = get_grpc_server(address, store, max_workers)
+    server = get_grpc_server(address, store, max_workers, registry_ttl_sec)
     server.start()
     server.wait_for_termination()
 
