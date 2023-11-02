@@ -187,13 +187,9 @@ class RedisOnlineStore(OnlineStore):
                 sentinel_hosts = []
 
                 for item in startup_nodes:
-                    sentinel_hosts.append((item['host'], int(item['port'])))
+                    sentinel_hosts.append((item["host"], int(item["port"])))
 
-                sentinel = Sentinel( 
-                    sentinel_hosts,
-                    **kwargs
-                )
-                                    
+                sentinel = Sentinel(sentinel_hosts, **kwargs)
                 master = sentinel.master_for(online_store_config.sentinel_master)
                 self._client = master
             else:
