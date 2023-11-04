@@ -1,3 +1,4 @@
+import logging
 import os
 
 import yaml
@@ -8,6 +9,8 @@ from feast.infra.materialization.contrib.bytewax.bytewax_materialization_dataflo
 )
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     with open("/var/feast/feature_store.yaml") as f:
         feast_config = yaml.safe_load(f)
 

@@ -82,6 +82,12 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     mini_batch_size: int = 1000
     """ (optional) Number of rows to process per write operation (default 1000)"""
 
+    bytewax_replicas: int = 5
+    """ (optional) Number of process to spawn in each pods to handle a file in parallel"""
+
+    bytewax_worker_per_process: int = 1
+    """ (optional) Number of threads as worker per bytewax process"""
+
     active_deadline_seconds: int = 86400
     """ (optional) Maximum amount of time a materialization job is allowed to run"""
 
@@ -111,7 +117,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.offline_store = offline_store
         self.online_store = online_store
 
-        # TODO: Configure k8s here
         k8s_config.load_config()
 
         self.k8s_client = client.api_client.ApiClient()
@@ -299,6 +304,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 len(paths),  # Create a pod for each parquet file
                 self.batch_engine_config.env,
             )
+            logger.info(
+                f"Created job `dataflow-{job_id}` on namespace `{self.namespace}`"
+            )
         except FailToCreateError as failures:
             return BytewaxMaterializationJob(job_id, self.namespace, error=failures)
 
@@ -348,7 +356,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             {"name": "BYTEWAX_WORKDIR", "value": "/bytewax"},
             {
                 "name": "BYTEWAX_WORKERS_PER_PROCESS",
-                "value": "1",
+                "value": f"{self.batch_engine_config.bytewax_worker_per_process}",
             },
             {
                 "name": "BYTEWAX_POD_NAME",
@@ -361,7 +369,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             {
                 "name": "BYTEWAX_REPLICAS",
-                "value": f"{pods}",
+                "value": f"{self.batch_engine_config.bytewax_replicas}",
             },
             {
                 "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
