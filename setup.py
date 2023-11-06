@@ -155,7 +155,6 @@ MILVUS_REQUIRED = [
 
 ELASTICSEARCH_REQUIRED = [
     "elasticsearch==8.8",
-    "bidict==0.22.1",
 ]
 
 CI_REQUIRED = (

@@ -20,6 +20,16 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
+      - name: Increase swapfile
+        # Increase ubuntu's swapfile to avoid running out of resources which causes the action to terminate
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
       - uses: actions/checkout@v2
       - name: Setup Python
         id: setup-python
@@ -80,7 +90,9 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
+        run: |
+          pytest -n 1 --cov=./ --cov-report=xml --color=yes sdk/python/tests/expediagroup
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
 
   unit-test-go:
     runs-on: ubuntu-latest

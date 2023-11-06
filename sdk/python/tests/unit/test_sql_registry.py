@@ -81,7 +81,7 @@ def pg_registry():
 @pytest.fixture(scope="session")
 def mysql_registry():
     container = (
-        DockerContainer("mysql:latest")
+        DockerContainer("mysql:8.1.0")
         .with_exposed_ports(3306)
         .with_env("MYSQL_RANDOM_ROOT_PASSWORD", "true")
         .with_env("MYSQL_USER", POSTGRES_USER)

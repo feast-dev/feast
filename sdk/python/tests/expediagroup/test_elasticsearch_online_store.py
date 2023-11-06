@@ -16,7 +16,7 @@ from feast.field import Field
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import FloatList
+from feast.protos.feast.types.Value_pb2 import BytesList, FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import (
@@ -31,7 +31,7 @@ from feast.types import (
     UnixTimestamp,
 )
 from tests.expediagroup.elasticsearch_online_store_creator import (
-    ElasticsearchOnlineCreator,
+    ElasticsearchOnlineStoreCreator,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -67,7 +67,7 @@ def repo_config(embedded_elasticsearch):
 
 @pytest.fixture(scope="session")
 def embedded_elasticsearch():
-    online_store_creator = ElasticsearchOnlineCreator(PROJECT, 9200)
+    online_store_creator = ElasticsearchOnlineStoreCreator(PROJECT)
     online_store_config = online_store_creator.create_online_store()
 
     yield online_store_config
@@ -78,6 +78,7 @@ def embedded_elasticsearch():
 class TestElasticsearchOnlineStore:
     index_to_write = "index_write"
     index_to_delete = "index_delete"
+    index_to_read = "index_read"
     unavailable_index = "abc"
 
     @pytest.fixture(autouse=True)
@@ -89,6 +90,8 @@ class TestElasticsearchOnlineStore:
                 es.indices.delete(index=self.index_to_delete)
             if es.indices.exists(index=self.index_to_write):
                 es.indices.delete(index=self.index_to_write)
+            if es.indices.exists(index=self.index_to_read):
+                es.indices.delete(index=self.index_to_read)
             if es.indices.exists(index=self.unavailable_index):
                 es.indices.delete(index=self.unavailable_index)
 
@@ -168,6 +171,7 @@ class TestElasticsearchOnlineStore:
                 "type": index_params["index_type"].lower(),
                 **index_params["index_params"],
             }
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             created_index = es.indices.get(index=self.index_to_write)
             assert created_index.body[self.index_to_write]["mappings"] == mapping
@@ -205,6 +209,7 @@ class TestElasticsearchOnlineStore:
             entities_to_keep=[],
             partial=False,
         )
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_write).body is True
 
@@ -226,6 +231,7 @@ class TestElasticsearchOnlineStore:
             ),
         ]
         self._create_index_in_es(self.index_to_delete, repo_config)
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_delete).body is True
 
@@ -244,6 +250,7 @@ class TestElasticsearchOnlineStore:
             entities_to_keep=[],
             partial=False,
         )
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_delete).body is False
 
@@ -264,6 +271,7 @@ class TestElasticsearchOnlineStore:
                 dtype=String,
             ),
         ]
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_delete).body is False
 
@@ -282,16 +290,18 @@ class TestElasticsearchOnlineStore:
             entities_to_keep=[],
             partial=False,
         )
+
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             assert es.indices.exists(index=self.index_to_delete).body is False
 
     def test_elasticsearch_online_write_batch(self, repo_config, caplog):
-        total_rows_to_write = 100
+        total_rows_to_write = 10
         (
             feature_view,
             data,
         ) = self._create_n_customer_test_samples_elasticsearch_online_read(
-            n=total_rows_to_write
+            name=self.index_to_write,
+            n=total_rows_to_write,
         )
         ElasticsearchOnlineStore().online_write_batch(
             config=repo_config.online_store,
@@ -303,10 +313,92 @@ class TestElasticsearchOnlineStore:
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             es.indices.refresh(index=self.index_to_write)
             res = es.cat.count(index=self.index_to_write, params={"format": "json"})
-            assert res[0]["count"] == "100"
-            doc = es.get(index=self.index_to_write, id="0")["_source"]["doc"]
+            assert res[0]["count"] == f"{total_rows_to_write}"
+            doc = es.get(index=self.index_to_write, id="0")["_source"]
             for feature in feature_view.schema:
                 assert feature.name in doc
+
+    def test_elasticsearch_online_read(self, repo_config, caplog):
+        n = 10
+        (
+            feature_view,
+            data,
+        ) = self._create_n_customer_test_samples_elasticsearch_online_read(
+            name=self.index_to_read, n=n
+        )
+        ids = [
+            EntityKeyProto(
+                join_keys=["id"], entity_values=[ValueProto(string_val=str(i))]
+            )
+            for i in range(n)
+        ]
+        store = ElasticsearchOnlineStore()
+        store.online_write_batch(
+            config=repo_config.online_store,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            es.indices.refresh(index=self.index_to_read)
+
+        result = store.online_read(
+            config=repo_config.online_store,
+            table=feature_view,
+            entity_keys=ids,
+        )
+
+        assert result is not None
+        assert len(result) == n
+        for dt, doc in result:
+            assert doc is not None
+            assert len(doc) == len(feature_view.schema)
+            for field in feature_view.schema:
+                assert field.name in doc
+
+    def test_elasticsearch_online_read_with_requested_features(
+        self, repo_config, caplog
+    ):
+        n = 10
+        requested_features = ["int", "vector", "id"]
+        (
+            feature_view,
+            data,
+        ) = self._create_n_customer_test_samples_elasticsearch_online_read(
+            name=self.index_to_read, n=n
+        )
+        ids = [
+            EntityKeyProto(
+                join_keys=["id"], entity_values=[ValueProto(string_val=str(i))]
+            )
+            for i in range(n)
+        ]
+        store = ElasticsearchOnlineStore()
+        store.online_write_batch(
+            config=repo_config.online_store,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+
+        with ElasticsearchConnectionManager(repo_config.online_store) as es:
+            es.indices.refresh(index=self.index_to_read)
+
+        result = store.online_read(
+            config=repo_config.online_store,
+            table=feature_view,
+            entity_keys=ids,
+            requested_features=requested_features,
+        )
+
+        assert result is not None
+        assert len(result) == n
+        for dt, doc in result:
+            assert doc is not None
+            assert len(doc) == 3
+            for field in requested_features:
+                assert field in doc
 
     def _create_index_in_es(self, index_name, repo_config):
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
@@ -323,9 +415,9 @@ class TestElasticsearchOnlineStore:
             }
             es.indices.create(index=index_name, mappings=mapping)
 
-    def _create_n_customer_test_samples_elasticsearch_online_read(self, n=10):
+    def _create_n_customer_test_samples_elasticsearch_online_read(self, name, n=10):
         fv = FeatureView(
-            name=self.index_to_write,
+            name=name,
             source=SOURCE,
             entities=[Entity(name="id")],
             schema=[
@@ -374,6 +466,10 @@ class TestElasticsearchOnlineStore:
                     name="timestamp",
                     dtype=UnixTimestamp,
                 ),
+                Field(
+                    name="byte_list",
+                    dtype=Array(Bytes),
+                ),
             ],
         )
         return fv, [
@@ -397,6 +493,9 @@ class TestElasticsearchOnlineStore:
                     "bool": ValueProto(bool_val=True),
                     "timestamp": ValueProto(
                         unix_timestamp_val=int(datetime.utcnow().timestamp() * 1000)
+                    ),
+                    "byte_list": ValueProto(
+                        bytes_list_val=BytesList(val=[b"a", b"b", b"c"])
                     ),
                 },
                 datetime.utcnow(),

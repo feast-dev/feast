@@ -65,6 +65,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "milvus": "feast.expediagroup.vectordb.milvus_online_store.MilvusOnlineStore",
+    "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
