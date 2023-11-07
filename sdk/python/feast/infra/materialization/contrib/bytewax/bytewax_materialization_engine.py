@@ -1,11 +1,14 @@
+import logging
 import uuid
 from datetime import datetime
+from time import sleep
 from typing import Callable, List, Literal, Sequence, Union
 
 import yaml
 from kubernetes import client
 from kubernetes import config as k8s_config
 from kubernetes import utils
+from kubernetes.client.exceptions import ApiException
 from kubernetes.utils import FailToCreateError
 from pydantic import StrictStr
 from tqdm import tqdm
@@ -16,6 +19,7 @@ from feast.entity import Entity
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
+    MaterializationJobStatus,
     MaterializationTask,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore
@@ -26,6 +30,8 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names, get_default_yaml_file_path
 
 from .bytewax_materialization_job import BytewaxMaterializationJob
+
+logger = logging.getLogger(__name__)
 
 
 class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
@@ -61,6 +67,30 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     include_security_context_capabilities: bool = True
     """ (optional)  Include security context capabilities in the init and job container spec """
 
+    labels: dict = {}
+    """ (optional) additional labels to append to kubernetes objects """
+
+    max_parallelism: int = 10
+    """ (optional) Maximum number of pods allowed to run in parallel"""
+
+    synchronous: bool = False
+    """ (optional) If true, wait for materialization for one feature to complete before moving to the next """
+
+    retry_limit: int = 2
+    """ (optional) Maximum number of times to retry a materialization worker pod"""
+
+    mini_batch_size: int = 1000
+    """ (optional) Number of rows to process per write operation (default 1000)"""
+
+    active_deadline_seconds: int = 86400
+    """ (optional) Maximum amount of time a materialization job is allowed to run"""
+
+    job_batch_size: int = 100
+    """ (optional) Maximum number of pods to process per job.  Only applies to synchronous materialization"""
+
+    print_pod_logs_on_failure: bool = True
+    """(optional) Print pod logs on job failure.  Only applies to synchronous materialization"""
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -82,7 +112,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.online_store = online_store
 
         # TODO: Configure k8s here
-        k8s_config.load_kube_config()
+        k8s_config.load_config()
 
         self.k8s_client = client.api_client.ApiClient()
         self.v1 = client.CoreV1Api(self.k8s_client)
@@ -164,8 +194,98 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         )
 
         paths = offline_job.to_remote_storage()
+        if self.batch_engine_config.synchronous:
+            offset = 0
+            total_pods = len(paths)
+            batch_size = self.batch_engine_config.job_batch_size
+            if batch_size < 1:
+                raise ValueError("job_batch_size must be a value greater than 0")
+            if batch_size < self.batch_engine_config.max_parallelism:
+                logger.warning(
+                    "job_batch_size is less than max_parallelism. Setting job_batch_size = max_parallelism"
+                )
+                batch_size = self.batch_engine_config.max_parallelism
+
+            while True:
+                next_offset = min(offset + batch_size, total_pods)
+                job = self._await_path_materialization(
+                    paths[offset:next_offset],
+                    feature_view,
+                    offset,
+                    next_offset,
+                    total_pods,
+                )
+                offset += batch_size
+                if (
+                    offset >= total_pods
+                    or job.status() == MaterializationJobStatus.ERROR
+                ):
+                    break
+        else:
+            job_id = str(uuid.uuid4())
+            job = self._create_kubernetes_job(job_id, paths, feature_view)
+
+        return job
+
+    def _await_path_materialization(
+        self, paths, feature_view, batch_start, batch_end, total_pods
+    ):
         job_id = str(uuid.uuid4())
-        return self._create_kubernetes_job(job_id, paths, feature_view)
+        job = self._create_kubernetes_job(job_id, paths, feature_view)
+
+        try:
+            while job.status() in (
+                MaterializationJobStatus.WAITING,
+                MaterializationJobStatus.RUNNING,
+            ):
+                logger.info(
+                    f"{feature_view.name} materialization for pods {batch_start}-{batch_end} "
+                    f"(of {total_pods}) running..."
+                )
+                sleep(30)
+            logger.info(
+                f"{feature_view.name} materialization for pods {batch_start}-{batch_end} "
+                f"(of {total_pods}) complete with status {job.status()}"
+            )
+        except BaseException as e:
+            logger.info(f"Deleting job {job.job_id()}")
+            try:
+                self.batch_v1.delete_namespaced_job(job.job_id(), self.namespace)
+            except ApiException as ae:
+                logger.warning(f"Could not delete job due to API Error: {ae.body}")
+            raise e
+        finally:
+            logger.info(f"Deleting configmap {self._configmap_name(job_id)}")
+            try:
+                self.v1.delete_namespaced_config_map(
+                    self._configmap_name(job_id), self.namespace
+                )
+            except ApiException as ae:
+                logger.warning(
+                    f"Could not delete configmap due to API Error: {ae.body}"
+                )
+
+            if (
+                job.status() == MaterializationJobStatus.ERROR
+                and self.batch_engine_config.print_pod_logs_on_failure
+            ):
+                self._print_pod_logs(job.job_id(), feature_view, batch_start)
+
+        return job
+
+    def _print_pod_logs(self, job_id, feature_view, offset=0):
+        pods_list = self.v1.list_namespaced_pod(
+            namespace=self.namespace,
+            label_selector=f"job-name={job_id}",
+        ).items
+        for i, pod in enumerate(pods_list):
+            logger.info(f"Logging output for {feature_view.name} pod {offset+i}")
+            try:
+                logger.info(
+                    self.v1.read_namespaced_pod_log(pod.metadata.name, self.namespace)
+                )
+            except ApiException as e:
+                logger.warning(f"Could not retrieve pod logs due to: {e.body}")
 
     def _create_kubernetes_job(self, job_id, paths, feature_view):
         try:
@@ -196,14 +316,13 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             {"paths": paths, "feature_view": feature_view.name}
         )
 
+        labels = {"feast-bytewax-materializer": "configmap"}
         configmap_manifest = {
             "kind": "ConfigMap",
             "apiVersion": "v1",
             "metadata": {
-                "name": f"feast-{job_id}",
-                "labels": {
-                    "feast-bytewax-materializer": "configmap",
-                },
+                "name": self._configmap_name(job_id),
+                "labels": {**labels, **self.batch_engine_config.labels},
             },
             "data": {
                 "feature_store.yaml": feature_store_configuration,
@@ -215,7 +334,10 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             body=configmap_manifest,
         )
 
-    def _create_job_definition(self, job_id, namespace, pods, env):
+    def _configmap_name(self, job_id):
+        return f"feast-{job_id}"
+
+    def _create_job_definition(self, job_id, namespace, pods, env, index_offset=0):
         """Create a kubernetes job definition."""
         job_env = [
             {"name": "RUST_BACKTRACE", "value": "full"},
@@ -249,6 +371,10 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "name": "BYTEWAX_STATEFULSET_NAME",
                 "value": f"dataflow-{job_id}",
             },
+            {
+                "name": "BYTEWAX_MINI_BATCH_SIZE",
+                "value": str(self.batch_engine_config.mini_batch_size),
+            },
         ]
         # Add any Feast configured environment variables
         job_env.extend(env)
@@ -260,27 +386,27 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "drop": ["ALL"],
             }
 
+        job_labels = {"feast-bytewax-materializer": "job"}
+        pod_labels = {"feast-bytewax-materializer": "pod"}
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
                 "name": f"dataflow-{job_id}",
                 "namespace": namespace,
-                "labels": {
-                    "feast-bytewax-materializer": "job",
-                },
+                "labels": {**job_labels, **self.batch_engine_config.labels},
             },
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
+                "backoffLimit": self.batch_engine_config.retry_limit,
                 "completions": pods,
-                "parallelism": pods,
+                "parallelism": min(pods, self.batch_engine_config.max_parallelism),
+                "activeDeadlineSeconds": self.batch_engine_config.active_deadline_seconds,
                 "completionMode": "Indexed",
                 "template": {
                     "metadata": {
                         "annotations": self.batch_engine_config.annotations,
-                        "labels": {
-                            "feast-bytewax-materializer": "pod",
-                        },
+                        "labels": {**pod_labels, **self.batch_engine_config.labels},
                     },
                     "spec": {
                         "restartPolicy": "Never",
@@ -314,7 +440,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                     },
                                     {
                                         "mountPath": "/var/feast/",
-                                        "name": f"feast-{job_id}",
+                                        "name": self._configmap_name(job_id),
                                     },
                                 ],
                             }
@@ -345,7 +471,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                     {"mountPath": "/etc/bytewax", "name": "hostfile"},
                                     {
                                         "mountPath": "/var/feast/",
-                                        "name": f"feast-{job_id}",
+                                        "name": self._configmap_name(job_id),
                                     },
                                 ],
                             }
@@ -355,13 +481,13 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                             {
                                 "configMap": {
                                     "defaultMode": 420,
-                                    "name": f"feast-{job_id}",
+                                    "name": self._configmap_name(job_id),
                                 },
                                 "name": "python-files",
                             },
                             {
-                                "configMap": {"name": f"feast-{job_id}"},
-                                "name": f"feast-{job_id}",
+                                "configMap": {"name": self._configmap_name(job_id)},
+                                "name": self._configmap_name(job_id),
                             },
                         ],
                     },

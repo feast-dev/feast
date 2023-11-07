@@ -158,7 +158,7 @@ class FileSource(DataSource):
         # Adding support for different file format path
         # based on S3 filesystem
         if filesystem is None:
-            schema = ParquetDataset(path).schema
+            schema = ParquetDataset(path, use_legacy_dataset=False).schema
             if hasattr(schema, "names") and hasattr(schema, "types"):
                 # Newer versions of pyarrow doesn't have this method,
                 # but this field is good enough.

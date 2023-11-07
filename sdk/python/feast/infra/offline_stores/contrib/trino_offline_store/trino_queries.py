@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import os
 import signal
 from dataclasses import dataclass
 from enum import Enum
@@ -30,33 +29,26 @@ class QueryStatus(Enum):
 class Trino:
     def __init__(
         self,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        user: Optional[str] = None,
-        catalog: Optional[str] = None,
-        auth: Optional[Any] = None,
-        http_scheme: Optional[str] = None,
-        source: Optional[str] = None,
-        extra_credential: Optional[str] = None,
+        host: str,
+        port: int,
+        user: str,
+        catalog: str,
+        source: Optional[str],
+        http_scheme: str,
+        verify: bool,
+        extra_credential: Optional[str],
+        auth: Optional[trino.Authentication],
     ):
-        self.host = host or os.getenv("TRINO_HOST")
-        self.port = port or os.getenv("TRINO_PORT")
-        self.user = user or os.getenv("TRINO_USER")
-        self.catalog = catalog or os.getenv("TRINO_CATALOG")
-        self.auth = auth or os.getenv("TRINO_AUTH")
-        self.http_scheme = http_scheme or os.getenv("TRINO_HTTP_SCHEME")
-        self.source = source or os.getenv("TRINO_SOURCE")
-        self.extra_credential = extra_credential or os.getenv("TRINO_EXTRA_CREDENTIAL")
+        self.host = host
+        self.port = port
+        self.user = user
+        self.catalog = catalog
+        self.source = source
+        self.http_scheme = http_scheme
+        self.verify = verify
+        self.extra_credential = extra_credential
+        self.auth = auth
         self._cursor: Optional[Cursor] = None
-
-        if self.host is None:
-            raise ValueError("TRINO_HOST must be set if not passed in")
-        if self.port is None:
-            raise ValueError("TRINO_PORT must be set if not passed in")
-        if self.user is None:
-            raise ValueError("TRINO_USER must be set if not passed in")
-        if self.catalog is None:
-            raise ValueError("TRINO_CATALOG must be set if not passed in")
 
     def _get_cursor(self) -> Cursor:
         if self._cursor is None:
@@ -70,9 +62,10 @@ class Trino:
                 port=self.port,
                 user=self.user,
                 catalog=self.catalog,
-                auth=self.auth,
-                http_scheme=self.http_scheme,
                 source=self.source,
+                http_scheme=self.http_scheme,
+                verify=self.verify,
+                auth=self.auth,
                 http_headers=headers,
             ).cursor()
 

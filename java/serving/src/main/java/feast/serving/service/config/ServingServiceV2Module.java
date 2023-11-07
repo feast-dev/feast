@@ -54,7 +54,6 @@ public class ServingServiceV2Module extends AbstractModule {
         break;
       case REDIS:
         RedisClientAdapter redisClient = RedisClient.create(store.getRedisConfig());
-        log.info("Created EntityKeySerializerV2");
         retriever =
             new RedisOnlineRetriever(
                 applicationProperties.getFeast().getProject(),
@@ -68,8 +67,6 @@ public class ServingServiceV2Module extends AbstractModule {
                 "Unable to identify online store type: %s for Registry Backed Serving Service",
                 store.getType()));
     }
-
-    log.info("Working Directory = " + System.getProperty("user.dir"));
 
     final OnlineTransformationService onlineTransformationService =
         new OnlineTransformationService(

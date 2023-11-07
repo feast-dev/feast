@@ -57,7 +57,7 @@ Many companies have used Feast to power real-world ML use cases such as:
 ## How can I get started?
 
 {% hint style="info" %}
-The best way to learn Feast is to use it. Join our [Slack channel](http://slack.feast.dev) and head over to our [Quickstart](getting-started/quickstart.md) and try it out!
+The best way to learn Feast is to use it. Head over to our [Quickstart](getting-started/quickstart.md) and try it out!
 {% endhint %}
 
 Explore the following resources to get started with Feast:

@@ -3,14 +3,16 @@ import struct
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from happybase import Connection
+from happybase import ConnectionPool
+from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
+from pydantic import StrictStr
 from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.hbase_utils import HbaseConstants, HbaseUtils
+from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -23,35 +25,20 @@ class HbaseOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["hbase"] = "hbase"
     """Online store type selector"""
 
-    host: str
+    host: StrictStr
     """Hostname of Hbase Thrift server"""
 
-    port: str
+    port: StrictStr
     """Port in which Hbase Thrift server is running"""
 
+    connection_pool_size: int = 4
+    """Number of connections to Hbase Thrift server to keep in the connection pool"""
 
-class HbaseConnection:
-    """
-    Hbase connecttion to connect to hbase.
+    protocol: StrictStr = DEFAULT_PROTOCOL
+    """Protocol used to communicate with Hbase Thrift server"""
 
-    Attributes:
-        store_config: Online store config for Hbase store.
-    """
-
-    def __init__(self, store_config: HbaseOnlineStoreConfig):
-        self._store_config = store_config
-        self._real_conn = Connection(
-            host=store_config.host, port=int(store_config.port)
-        )
-
-    @property
-    def real_conn(self) -> Connection:
-        """Stores the real happybase Connection to connect to hbase."""
-        return self._real_conn
-
-    def close(self) -> None:
-        """Close the happybase connection."""
-        self.real_conn.close()
+    transport: StrictStr = DEFAULT_TRANSPORT
+    """Transport used to communicate with Hbase Thrift server"""
 
 
 class HbaseOnlineStore(OnlineStore):
@@ -62,7 +49,7 @@ class HbaseOnlineStore(OnlineStore):
         _conn: Happybase Connection to connect to hbase thrift server.
     """
 
-    _conn: Connection = None
+    _conn: ConnectionPool = None
 
     def _get_conn(self, config: RepoConfig):
         """
@@ -76,7 +63,13 @@ class HbaseOnlineStore(OnlineStore):
         assert isinstance(store_config, HbaseOnlineStoreConfig)
 
         if not self._conn:
-            self._conn = Connection(host=store_config.host, port=int(store_config.port))
+            self._conn = ConnectionPool(
+                host=store_config.host,
+                port=int(store_config.port),
+                size=int(store_config.connection_pool_size),
+                protocol=store_config.protocol,
+                transport=store_config.transport,
+            )
         return self._conn
 
     @log_exceptions_and_usage(online_store="hbase")
@@ -102,16 +95,17 @@ class HbaseOnlineStore(OnlineStore):
             the online store. Can be used to display progress.
         """
 
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
-        table_name = _table_id(project, table)
+        table_name = self._table_id(project, table)
 
         b = hbase.batch(table_name)
         for entity_key, values, timestamp, created_ts in data:
-            row_key = serialize_entity_key(
+            row_key = self._hbase_row_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
+                feature_view_name=table.name,
+                config=config,
+            )
             values_dict = {}
             for feature_name, val in values.items():
                 values_dict[
@@ -133,6 +127,9 @@ class HbaseOnlineStore(OnlineStore):
             b.put(row_key, values_dict)
         b.send()
 
+        if progress:
+            progress(len(data))
+
     @log_exceptions_and_usage(online_store="hbase")
     def online_read(
         self,
@@ -150,17 +147,18 @@ class HbaseOnlineStore(OnlineStore):
             entity_keys: a list of entity keys that should be read from the FeatureStore.
             requested_features: a list of requested feature names.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
-        table_name = _table_id(project, table)
+        table_name = self._table_id(project, table)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         row_keys = [
-            serialize_entity_key(
+            self._hbase_row_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
+                feature_view_name=table.name,
+                config=config,
+            )
             for entity_key in entity_keys
         ]
         rows = hbase.rows(table_name, row_keys=row_keys)
@@ -201,17 +199,17 @@ class HbaseOnlineStore(OnlineStore):
             tables_to_delete: Tables to delete from the Hbase Online Store.
             tables_to_keep: Tables to keep in the Hbase Online Store.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
 
         # We don't create any special state for the entites in this implementation.
         for table in tables_to_keep:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             if not hbase.check_if_table_exist(table_name):
                 hbase.create_table_with_default_cf(table_name)
 
         for table in tables_to_delete:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             hbase.delete_table(table_name)
 
     def teardown(
@@ -227,20 +225,47 @@ class HbaseOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             tables: Tables to delete from the feature repo.
         """
-        hbase = HbaseUtils(self._get_conn(config))
+        hbase = HBaseConnector(self._get_conn(config))
         project = config.project
 
         for table in tables:
-            table_name = _table_id(project, table)
+            table_name = self._table_id(project, table)
             hbase.delete_table(table_name)
 
+    def _hbase_row_key(
+        self,
+        entity_key: EntityKeyProto,
+        feature_view_name: str,
+        config: RepoConfig,
+    ) -> bytes:
+        """
+        Computes the HBase row key for a given entity key and feature view name.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    """
-    Returns table name given the project_name and the feature_view.
+        Args:
+            entity_key (EntityKeyProto): The entity key to compute the row key for.
+            feature_view_name (str): The name of the feature view to compute the row key for.
+            config (RepoConfig): The configuration for the Feast repository.
 
-    Args:
-        project: Name of the feast project.
-        table: Feast FeatureView.
-    """
-    return f"{project}_{table.name}"
+        Returns:
+            bytes: The HBase row key for the given entity key and feature view name.
+        """
+        entity_id = compute_entity_id(
+            entity_key,
+            entity_key_serialization_version=config.entity_key_serialization_version,
+        )
+        # Even though `entity_id` uniquely identifies an entity, we use the same table
+        # for multiple feature_views with the same set of entities.
+        # To uniquely identify the row for a feature_view, we suffix the name of the feature_view itself.
+        # This also ensures that features for entities from various feature_views are
+        # colocated.
+        return f"{entity_id}#{feature_view_name}".encode()
+
+    def _table_id(self, project: str, table: FeatureView) -> str:
+        """
+        Returns table name given the project_name and the feature_view.
+
+        Args:
+            project: Name of the feast project.
+            table: Feast FeatureView.
+        """
+        return f"{project}:{table.name}"
