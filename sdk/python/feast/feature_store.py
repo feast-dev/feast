@@ -2100,9 +2100,11 @@ class FeatureStore:
                 f for f in transformed_features_df.columns if f in _feature_refs
             ]
 
+            feature_dtypes = {f"{odfv.name}__{f.name}": f.dtype for f in odfv.features}
+
             proto_values = [
                 python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+                    transformed_features_df[feature].values, feature_dtypes[feature].to_value_type()
                 )
                 for feature in selected_subset
             ]
