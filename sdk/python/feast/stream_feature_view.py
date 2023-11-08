@@ -62,7 +62,7 @@ class StreamFeatureView(FeatureView):
     schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
-    online: bool
+    online: Optional[str]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -81,7 +81,7 @@ class StreamFeatureView(FeatureView):
         entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
-        online: Optional[bool] = True,
+        online: Optional[str] = None,
         description: Optional[str] = "",
         owner: Optional[str] = "",
         schema: Optional[List[Field]] = None,

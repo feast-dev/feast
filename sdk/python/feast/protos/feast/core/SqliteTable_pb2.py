@@ -4,9 +4,8 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
-from google.protobuf import message as _message
-from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
+from google.protobuf.internal import builder as _builder
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -16,20 +15,12 @@ _sym_db = _symbol_database.Default()
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x66\x65\x61st/core/SqliteTable.proto\x12\nfeast.core\")\n\x0bSqliteTable\x12\x0c\n\x04path\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\tBU\n\x10\x66\x65\x61st.proto.coreB\x10SqliteTableProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
-
-
-_SQLITETABLE = DESCRIPTOR.message_types_by_name['SqliteTable']
-SqliteTable = _reflection.GeneratedProtocolMessageType('SqliteTable', (_message.Message,), {
-  'DESCRIPTOR' : _SQLITETABLE,
-  '__module__' : 'feast.core.SqliteTable_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.SqliteTable)
-  })
-_sym_db.RegisterMessage(SqliteTable)
-
+_globals = globals()
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.core.SqliteTable_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\020feast.proto.coreB\020SqliteTableProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
-  _SQLITETABLE._serialized_start=44
-  _SQLITETABLE._serialized_end=85
+  _globals['_SQLITETABLE']._serialized_start=44
+  _globals['_SQLITETABLE']._serialized_end=85
 # @@protoc_insertion_point(module_scope)

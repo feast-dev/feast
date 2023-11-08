@@ -30,11 +30,11 @@ jobs:
       next_version: ${{ steps.get_versions.outputs.next_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -59,8 +59,8 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -100,8 +100,8 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
@@ -133,11 +133,11 @@ jobs:
       GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
     - name: Setup Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: '18.x'
         registry-url: 'https://registry.npmjs.org'

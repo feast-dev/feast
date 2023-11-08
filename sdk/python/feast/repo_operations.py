@@ -296,8 +296,6 @@ def apply_total_with_repo_instance(
         for data_source in data_sources:
             data_source.validate(store.config)
 
-    registry_diff, infra_diff, new_infra = store.plan(repo)
-
     # For each object in the registry, determine whether it should be kept or deleted.
     (
         all_to_apply,
@@ -306,9 +304,10 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project, registry, repo)
 
-    click.echo(registry_diff.to_string())
-
     if store._should_use_plan():
+        registry_diff, infra_diff, new_infra = store.plan(repo)
+        click.echo(registry_diff.to_string())
+
         store._apply_diffs(registry_diff, infra_diff, new_infra)
         click.echo(infra_diff.to_string())
     else:

@@ -41,10 +41,13 @@ REQUIRED = [
     "fastavro>=1.1.0,<2",
     "grpcio>=1.47.0,<2",
     "grpcio-reflection>=1.47.0,<2",
+    "grpcio-reflection<2",
+    "grpcio-health-checking<2",
+    "mypy-protobuf<=3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<3",
+    "numpy>=1.22,<1.25",
     "pandas>=1.4.3,<2",
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro~=1.5.0",
@@ -61,12 +64,14 @@ REQUIRED = [
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
     "typeguard==2.13.3",
-    "fastapi>=0.68.0,<1",
+    "fastapi>=0.68.0,<0.100",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7",
+    "importlib_metadata>=6.8.0,<7"
 ]
 
 GCP_REQUIRED = [
@@ -80,11 +85,11 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis==4.2.2",
+    "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
@@ -137,17 +142,16 @@ UPGRADES_REQUIRED = [
 CI_REQUIRED = (
     [
         "build",
+        "virtualenv==20.23.0",
         "cryptography>=35.0,<42",
-        "flake8",
+        "flake8>=6.0.0,<6.1.0",
         "black>=22.6.0,<23",
         "isort>=5,<6",
-        "grpcio-tools>=1.47.0",
-        "grpcio-testing>=1.47.0",
+        "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
         "mypy>=0.981,<0.990",
-        "mypy-protobuf==3.1",
         "avro==1.10.0",
         "gcsfs>=0.4.0,<=2022.01.0",
         "urllib3>=1.25.4,<2",
@@ -165,7 +169,7 @@ CI_REQUIRED = (
         "testcontainers>=3.5,<4",
         "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
-        "pre-commit",
+        "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
         "pybindgen",
@@ -177,6 +181,7 @@ CI_REQUIRED = (
         "types-requests",
         "types-setuptools",
         "types-tabulate",
+        "virtualenv<20.24.2"
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -355,7 +360,14 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
-    setup_requires=["setuptools-scm"],
+    setup_requires=[
+        "setuptools_scm",
+        "grpcio>=1.47.0,<2",
+        "grpcio-tools>=1.47.0",
+        "mypy-protobuf==3.1",
+        "pybindgen==0.22.0",
+        "protobuf<4.23.4"
+    ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
     },
