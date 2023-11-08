@@ -82,12 +82,6 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     mini_batch_size: int = 1000
     """ (optional) Number of rows to process per write operation (default 1000)"""
 
-    bytewax_replicas: int = 5
-    """ (optional) Number of process to spawn in each pods to handle a file in parallel"""
-
-    bytewax_worker_per_process: int = 1
-    """ (optional) Number of threads as worker per bytewax process"""
-
     active_deadline_seconds: int = 86400
     """ (optional) Maximum amount of time a materialization job is allowed to run"""
 
@@ -353,7 +347,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             {"name": "BYTEWAX_WORKDIR", "value": "/bytewax"},
             {
                 "name": "BYTEWAX_WORKERS_PER_PROCESS",
-                "value": f"{self.batch_engine_config.bytewax_worker_per_process}",
+                "value": "1",
             },
             {
                 "name": "BYTEWAX_POD_NAME",
@@ -366,7 +360,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             {
                 "name": "BYTEWAX_REPLICAS",
-                "value": f"{self.batch_engine_config.bytewax_replicas}",
+                "value": "1",
             },
             {
                 "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
