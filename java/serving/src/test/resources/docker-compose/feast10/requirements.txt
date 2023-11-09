@@ -1,5 +1,5 @@
 # for source generation
-pyarrow==6.0.0
+pyarrow==14.0.1
 
 # temp fixes
 proto-plus
