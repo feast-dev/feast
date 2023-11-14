@@ -142,7 +142,7 @@ protobuf==4.23.3
     #   grpcio-tools
     #   mypy-protobuf
     #   proto-plus
-pyarrow==11.0.0
+pyarrow==14.0.1
     # via feast (setup.py)
 pydantic==1.10.13
     # via
