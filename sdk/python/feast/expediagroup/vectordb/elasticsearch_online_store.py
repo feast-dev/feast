@@ -72,9 +72,6 @@ class ElasticsearchOnlineStoreConfig(FeastConfigBaseModel):
     password: str
     """ password to connect to Elasticsearch """
 
-    token: str
-    """ bearer token for authentication """
-
 
 class ElasticsearchConnectionManager:
     def __init__(self, online_config: RepoConfig):
@@ -85,15 +82,10 @@ class ElasticsearchConnectionManager:
         logger.info(
             f"Connecting to Elasticsearch with endpoint {self.online_config.endpoint}"
         )
-        if len(self.online_config.token) > 0:
-            self.client = Elasticsearch(
-                self.online_config.endpoint, bearer_auth=self.online_config.token
-            )
-        else:
-            self.client = Elasticsearch(
-                self.online_config.endpoint,
-                basic_auth=(self.online_config.username, self.online_config.password),
-            )
+        self.client = Elasticsearch(
+            self.online_config.endpoint,
+            basic_auth=(self.online_config.username, self.online_config.password),
+        )
         return self.client
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -112,7 +104,7 @@ class ElasticsearchOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        with ElasticsearchConnectionManager(config) as es:
+        with ElasticsearchConnectionManager(config.online_store) as es:
             resp = es.indices.exists(index=table.name)
             if not resp.body:
                 self._create_index(es, table)
@@ -138,7 +130,7 @@ class ElasticsearchOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        with ElasticsearchConnectionManager(config) as es:
+        with ElasticsearchConnectionManager(config.online_store) as es:
             id_list = []
             for entity in entity_keys:
                 for val in entity.entity_values:
@@ -191,7 +183,7 @@ class ElasticsearchOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        with ElasticsearchConnectionManager(config) as es:
+        with ElasticsearchConnectionManager(config.online_store) as es:
             for fv in tables_to_delete:
                 resp = es.indices.exists(index=fv.name)
                 if resp.body:

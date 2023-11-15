@@ -58,7 +58,6 @@ def repo_config(embedded_elasticsearch):
             endpoint=f"http://{embedded_elasticsearch['host']}:{embedded_elasticsearch['port']}",
             username=embedded_elasticsearch["username"],
             password=embedded_elasticsearch["password"],
-            token=embedded_elasticsearch["token"],
         ),
         offline_store=FileOfflineStoreConfig(),
         entity_key_serialization_version=2,
@@ -132,7 +131,7 @@ class TestElasticsearchOnlineStore:
             Field(name="feature10", dtype=UnixTimestamp),
         ]
         ElasticsearchOnlineStore().update(
-            config=repo_config.online_store,
+            config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
                 FeatureView(
@@ -195,7 +194,7 @@ class TestElasticsearchOnlineStore:
         ]
         self._create_index_in_es(self.index_to_write, repo_config)
         ElasticsearchOnlineStore().update(
-            config=repo_config.online_store,
+            config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
                 FeatureView(
@@ -236,7 +235,7 @@ class TestElasticsearchOnlineStore:
             assert es.indices.exists(index=self.index_to_delete).body is True
 
         ElasticsearchOnlineStore().update(
-            config=repo_config.online_store,
+            config=repo_config,
             tables_to_delete=[
                 FeatureView(
                     name=self.index_to_delete,
@@ -276,7 +275,7 @@ class TestElasticsearchOnlineStore:
             assert es.indices.exists(index=self.index_to_delete).body is False
 
         ElasticsearchOnlineStore().update(
-            config=repo_config.online_store,
+            config=repo_config,
             tables_to_delete=[
                 FeatureView(
                     name=self.index_to_delete,
@@ -304,7 +303,7 @@ class TestElasticsearchOnlineStore:
             n=total_rows_to_write,
         )
         ElasticsearchOnlineStore().online_write_batch(
-            config=repo_config.online_store,
+            config=repo_config,
             table=feature_view,
             data=data,
             progress=None,
@@ -334,7 +333,7 @@ class TestElasticsearchOnlineStore:
         ]
         store = ElasticsearchOnlineStore()
         store.online_write_batch(
-            config=repo_config.online_store,
+            config=repo_config,
             table=feature_view,
             data=data,
             progress=None,
@@ -344,7 +343,7 @@ class TestElasticsearchOnlineStore:
             es.indices.refresh(index=self.index_to_read)
 
         result = store.online_read(
-            config=repo_config.online_store,
+            config=repo_config,
             table=feature_view,
             entity_keys=ids,
         )
@@ -376,7 +375,7 @@ class TestElasticsearchOnlineStore:
         ]
         store = ElasticsearchOnlineStore()
         store.online_write_batch(
-            config=repo_config.online_store,
+            config=repo_config,
             table=feature_view,
             data=data,
             progress=None,
@@ -386,7 +385,7 @@ class TestElasticsearchOnlineStore:
             es.indices.refresh(index=self.index_to_read)
 
         result = store.online_read(
-            config=repo_config.online_store,
+            config=repo_config,
             table=feature_view,
             entity_keys=ids,
             requested_features=requested_features,
