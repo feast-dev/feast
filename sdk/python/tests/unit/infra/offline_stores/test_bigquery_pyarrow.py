@@ -10,7 +10,6 @@ def test_write_to_bigquery():
     now = datetime.utcnow()
     ts = pd.Timestamp(now).round("ms")
 
-    # This dataframe has columns in the wrong order.
     df_to_write = pd.DataFrame.from_dict(
         {
             "avg_daily_trips": [random.randint(0, 10), random.randint(0, 10)],
@@ -22,7 +21,7 @@ def test_write_to_bigquery():
         },
     )
 
-    # From line 1527 of feature_store.py
+    # From line 1527 of feature_store.py as for v0.34.1
     table = pa.Table.from_pandas(df_to_write)
 
     with tempfile.TemporaryFile() as parquet_temp_file:
