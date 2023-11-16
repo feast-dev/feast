@@ -36,6 +36,30 @@ def create_test_table(project, tbl_name, region):
     )
 
 
+def create_test_table_global(project, tbl_name, region, global_table_region):
+    client = boto3.client("dynamodb", region_name=region)
+    client.create_table(
+        TableName=f"{project}.{tbl_name}",
+        KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "entity_id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+        StreamSpecification={
+            "StreamEnabled": True,
+            "StreamViewType": "NEW_AND_OLD_IMAGES",
+        },
+    )
+    client.update_table(
+        TableName=f"{project}.{tbl_name}",
+        ReplicaUpdates=[
+            {
+                "Create": {
+                    "RegionName": global_table_region,
+                }
+            }
+        ],
+    )
+
+
 def delete_test_table(project, tbl_name, region):
     client = boto3.client("dynamodb", region_name=region)
     client.delete_table(TableName=f"{project}.{tbl_name}")
