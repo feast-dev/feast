@@ -400,7 +400,9 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=table, where=parquet_temp_file)
+            pyarrow.parquet.write_table(
+                table=table, where=parquet_temp_file, coerce_timestamps="ms"
+            )
 
             parquet_temp_file.seek(0)
 
