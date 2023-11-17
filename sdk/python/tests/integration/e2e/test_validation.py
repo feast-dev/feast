@@ -73,6 +73,10 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
     reference = saved_dataset.as_reference(name="ref", profiler=configurable_profiler)
     job.to_df(validation_reference=reference)
 
+    # debug
+    # fail on purpose to see the stdout!
+    assert False
+
 
 @pytest.mark.integration
 def test_historical_retrieval_fails_on_validation(environment, universal_data_sources):
