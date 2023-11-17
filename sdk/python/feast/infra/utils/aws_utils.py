@@ -566,7 +566,17 @@ def unload_redshift_query_to_pa(
     with tempfile.TemporaryDirectory() as temp_dir:
         download_s3_directory(s3_resource, bucket, key, temp_dir)
         delete_s3_directory(s3_resource, bucket, key)
-        return pq.read_table(temp_dir)
+
+        # Debug
+        print("debug temp file. ")
+        parquet_file = pq.ParquetFile(temp_dir)
+        parquet_file.read()
+
+        print("transfer to table.")
+        table = pq.read_table(temp_dir)
+        print(table)
+
+        return table
 
 
 def unload_redshift_query_to_df(
