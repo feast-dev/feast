@@ -569,8 +569,9 @@ def unload_redshift_query_to_pa(
 
         # Debug
         print("debug temp file. ")
-        parquet_file = pq.ParquetFile(temp_dir)
-        parquet_file.read()
+        parquet_file = pq.ParquetDataset(temp_dir)
+        df = parquet_file.read().to_pandas()
+        print(df)
 
         print("transfer to table.")
         table = pq.read_table(temp_dir)
