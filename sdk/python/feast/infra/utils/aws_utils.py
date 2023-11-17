@@ -568,9 +568,10 @@ def unload_redshift_query_to_pa(
         delete_s3_directory(s3_resource, bucket, key)
 
         # Debug
-        print("debug temp file. ")
-        parquet_file = pq.ParquetDataset(temp_dir)
-        df = parquet_file.read().to_pandas()
+        print("debug temp file using pandas. ")
+        df = pd.read_parquet(temp_dir)
+        # parquet_file = pq.ParquetDataset(temp_dir)
+        # df = parquet_file.read().to_pandas()
         print(df)
 
         print("transfer to table.")
