@@ -7,7 +7,9 @@ The [DynamoDB](https://aws.amazon.com/dynamodb/) online store provides support f
 ## Getting started
 In order to use this online store, you'll need to run `pip install 'feast[aws]'`. You can then get started with the command `feast init REPO_NAME -t aws`.
 
-## Example
+## Examples
+
+### Single-Region
 
 {% code title="feature_store.yaml" %}
 ```yaml
@@ -20,6 +22,20 @@ online_store:
 ```
 {% endcode %}
 
+### Global Tables
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: aws
+online_store:
+  type: dynamodb
+  region: us-west-2
+  global_table_region: us-east-1
+```
+{% endcode %}
+
 The full set of configuration options is available in [DynamoDBOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.dynamodb.DynamoDBOnlineStoreConfig).
 
 ## Permissions
@@ -29,10 +45,12 @@ Feast requires the following permissions in order to execute commands for Dynamo
 | **Command**             | Permissions                                                                         | Resources                                         |
 | ----------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
 | **Apply**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:DeleteTable</p> | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
+| **Apply with global tables: Source Table**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:DeleteTable</p><p>dynamodb:UpdateTable</p> | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
+| **Apply with global tables: Destination Table**               | <p>dynamodb:CreateTable</p><p>dynamodb:DescribeTable</p><p>dynamodb:CreateTableReplica</p><p>dynamodb:Scan</p><p>dynamodb:Query</p><p>dynamodb:UpdateItem</p><p>dynamodb:PutItem</p><p>dynamodb:GetItem</p><p>dynamodb:DeleteItem</p><p>dynamodb:BatchWriteItem</p><p>dynamodb:DeleteTable</p><p>dynamodb:DeleteTableReplica</p> | arn:aws:dynamodb:\<backup_region>:\<account_id>:table/\* |
 | **Materialize**         | dynamodb.BatchWriteItem                                                             | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 | **Get Online Features** | dynamodb.BatchGetItem                                                               | arn:aws:dynamodb:\<region>:\<account_id>:table/\* |
 
-The following inline policy can be used to grant Feast the necessary permissions:
+For single-region tables, the following inline policy can be used to grant Feast the necessary permissions:
 
 ```javascript
 {
@@ -48,6 +66,50 @@ The following inline policy can be used to grant Feast the necessary permissions
             "Effect": "Allow",
             "Resource": [
                 "arn:aws:dynamodb:<region>:<account_id>:table/*"
+            ]
+        }
+    ],
+    "Version": "2012-10-17"
+}
+```
+
+For multi-region tables, the following inline policy can be used to grant Feast the necessary permissions:
+
+```javascript
+{
+    "Statement": [
+        {
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:BatchGetItem"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:dynamodb:<region>:<account_id>:table/*"
+            ]
+        },
+        {
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:CreateTableReplica",
+                "dynamodb:Scan",
+                "dynamodb:Query",
+                "dynamodb:UpdateItem",
+                "dynamodb:PutItem",
+                "dynamodb:GetItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:DeleteTableReplica",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:BatchGetItem"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:dynamodb:<backup_region>:<account_id>:table/*"
             ]
         }
     ],
