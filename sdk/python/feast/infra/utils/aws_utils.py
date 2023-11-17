@@ -351,7 +351,7 @@ def upload_arrow_table_to_redshift(
     else:
         # Write the PyArrow Table on disk in Parquet format and upload it to S3
         with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
-            pq.write_table(table, parquet_temp_file)
+            pq.write_table(table, parquet_temp_file, coerce_timestamps="us")
             parquet_temp_file.seek(0)
             s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
 
