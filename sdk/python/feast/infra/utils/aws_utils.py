@@ -168,9 +168,6 @@ def execute_redshift_statement(
     Returns: Statement ID
 
     """
-    # debug
-    print("Redshift querystring: {}".format(query))
-
     statement = execute_redshift_statement_async(
         redshift_data_client, cluster_id, workgroup, database, user, query
     )
@@ -595,6 +592,12 @@ def unload_redshift_query_to_df(
         iam_role,
         query,
     )
+
+    # Debug
+    print("Debug ------")
+    print(table.schema)
+    print(table)
+    print("Debug ++++++")
     return table.to_pandas()
 
 
