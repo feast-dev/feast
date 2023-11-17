@@ -111,7 +111,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         for table_instance in tables_to_keep:
             try:
-                dynamodb_resource.create_table(
+                table = dynamodb_resource.create_table(
                     TableName=_get_table_name(online_config, config, table_instance),
                     KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
@@ -128,10 +128,7 @@ class DynamoDBOnlineStore(OnlineStore):
                     },
                 )
                 if online_config.global_table_region:
-                    dynamodb_resource.update_table(
-                        TableName=_get_table_name(
-                            online_config, config, table_instance
-                        ),
+                    table.update(
                         ReplicaUpdates=[
                             {
                                 "Create": {
@@ -460,7 +457,7 @@ class DynamoDBTable(InfraObject):
         dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
 
         try:
-            dynamodb_resource.create_table(
+            table = dynamodb_resource.create_table(
                 TableName=f"{self.name}",
                 KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                 AttributeDefinitions=[
@@ -477,8 +474,7 @@ class DynamoDBTable(InfraObject):
                 },
             )
             if self.global_table_region:
-                dynamodb_resource.update_table(
-                    TableName=f"{self.name}",
+                table.update(
                     ReplicaUpdates=[
                         {
                             "Create": {
