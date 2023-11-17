@@ -168,6 +168,9 @@ def execute_redshift_statement(
     Returns: Statement ID
 
     """
+    # debug
+    print("Redshift querystring: {}".format(query))
+
     statement = execute_redshift_statement_async(
         redshift_data_client, cluster_id, workgroup, database, user, query
     )
