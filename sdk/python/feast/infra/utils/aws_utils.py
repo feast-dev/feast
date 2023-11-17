@@ -598,7 +598,11 @@ def unload_redshift_query_to_df(
     print(table.schema)
     print(table)
     print("Debug ++++++")
-    return table.to_pandas()
+
+    df = table.to_pandas()
+    print(df)
+    print("Debug ++++++")
+    return df
 
 
 def get_lambda_function(lambda_client, function_name: str) -> Optional[Dict]:
