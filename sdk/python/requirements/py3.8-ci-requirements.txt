@@ -630,7 +630,7 @@ py-cpuinfo==9.0.0
     # via pytest-benchmark
 py4j==0.10.9.7
     # via pyspark
-pyarrow==14.0.1
+pyarrow==10.0.1
     # via
     #   db-dtypes
     #   feast (setup.py)
