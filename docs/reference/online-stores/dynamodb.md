@@ -81,6 +81,7 @@ For multi-region tables, the following inline policy can be used to grant Feast 
         {
             "Action": [
                 "dynamodb:CreateTable",
+                "dynamodb:UpdateTable",
                 "dynamodb:DescribeTable",
                 "dynamodb:DeleteTable",
                 "dynamodb:BatchWriteItem",
