@@ -36,7 +36,7 @@ cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2023.10.1
+dask==2023.11.0
     # via feast (setup.py)
 dill==0.3.7
     # via feast (setup.py)
@@ -72,7 +72,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.1
+httpcore==1.0.2
     # via httpx
 httptools==0.6.1
     # via uvicorn
@@ -91,9 +91,9 @@ importlib-resources==6.1.1
     # via feast (setup.py)
 jinja2==3.1.2
     # via feast (setup.py)
-jsonschema==4.19.2
+jsonschema==4.20.0
     # via feast (setup.py)
-jsonschema-specifications==2023.7.1
+jsonschema-specifications==2023.11.1
     # via jsonschema
 locket==1.0.0
     # via partd
@@ -103,7 +103,7 @@ mmh3==4.0.1
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-mypy==1.6.1
+mypy==1.7.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
@@ -137,7 +137,7 @@ protobuf==4.23.3
     #   grpcio-tools
     #   mypy-protobuf
     #   proto-plus
-pyarrow==11.0.0
+pyarrow==14.0.1
     # via feast (setup.py)
 pydantic==1.10.13
     # via
@@ -156,13 +156,13 @@ pyyaml==6.0.1
     #   dask
     #   feast (setup.py)
     #   uvicorn
-referencing==0.30.2
+referencing==0.31.0
     # via
     #   jsonschema
     #   jsonschema-specifications
 requests==2.31.0
     # via feast (setup.py)
-rpds-py==0.12.0
+rpds-py==0.13.0
     # via
     #   jsonschema
     #   referencing
@@ -175,8 +175,10 @@ sniffio==1.3.0
     #   anyio
     #   httpx
 sqlalchemy[mypy]==1.4.50
-    # via feast (setup.py)
-sqlalchemy2-stubs==0.0.2a36
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
+sqlalchemy2-stubs==0.0.2a37
     # via sqlalchemy
 starlette==0.27.0
     # via fastapi
@@ -205,10 +207,12 @@ typing-extensions==4.8.0
     #   pydantic
     #   sqlalchemy2-stubs
     #   uvicorn
-urllib3==2.0.7
+urllib3==2.1.0
     # via requests
 uvicorn[standard]==0.24.0.post1
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   uvicorn
 uvloop==0.19.0
     # via uvicorn
 volatile==2.1.0

@@ -353,7 +353,11 @@ class BigQueryOfflineStore(OfflineStore):
             return
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=data, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=data, where=parquet_temp_file, coerce_timestamps="us"
+            )
 
             parquet_temp_file.seek(0)
 
@@ -400,7 +404,11 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=table, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=table, where=parquet_temp_file, coerce_timestamps="us"
+            )
 
             parquet_temp_file.seek(0)
 

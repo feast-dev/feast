@@ -63,11 +63,11 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
-boto3==1.28.80
+boto3==1.29.2
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.31.80
+botocore==1.32.2
     # via
     #   boto3
     #   moto
@@ -127,7 +127,9 @@ comm==0.2.0
     #   ipykernel
     #   ipywidgets
 coverage[toml]==7.3.2
-    # via pytest-cov
+    # via
+    #   coverage
+    #   pytest-cov
 cryptography==41.0.5
     # via
     #   azure-identity
@@ -182,7 +184,7 @@ fastavro==1.9.0
     # via
     #   feast (setup.py)
     #   pandavro
-fastjsonschema==2.18.1
+fastjsonschema==2.19.0
     # via nbformat
 filelock==3.13.1
     # via
@@ -204,7 +206,7 @@ geojson==2.5.0
     # via rockset
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.13.0
+google-api-core[grpc]==2.14.0
     # via
     #   feast (setup.py)
     #   firebase-admin
@@ -216,7 +218,7 @@ google-api-core[grpc]==2.13.0
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.107.0
+google-api-python-client==2.108.0
     # via firebase-admin
 google-auth==2.23.4
     # via
@@ -229,7 +231,9 @@ google-auth==2.23.4
 google-auth-httplib2==0.1.1
     # via google-api-python-client
 google-cloud-bigquery[pandas]==3.12.0
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   google-cloud-bigquery
 google-cloud-bigquery-storage==2.22.0
     # via feast (setup.py)
 google-cloud-bigtable==2.21.0
@@ -267,7 +271,7 @@ great-expectations==0.15.50
     # via feast (setup.py)
 greenlet==3.0.1
     # via sqlalchemy
-grpc-google-iam-v1==0.12.6
+grpc-google-iam-v1==0.12.7
     # via google-cloud-bigtable
 grpcio==1.59.2
     # via
@@ -303,7 +307,7 @@ hazelcast-python-client==5.3.0
     # via feast (setup.py)
 hiredis==2.2.3
     # via feast (setup.py)
-httpcore==1.0.1
+httpcore==1.0.2
     # via httpx
 httplib2==0.22.0
     # via
@@ -384,7 +388,7 @@ jsonpointer==2.4
     # via
     #   jsonpatch
     #   jsonschema
-jsonschema[format-nongpl]==4.19.2
+jsonschema[format-nongpl]==4.20.0
     # via
     #   altair
     #   feast (setup.py)
@@ -392,7 +396,7 @@ jsonschema[format-nongpl]==4.19.2
     #   jupyter-events
     #   jupyterlab-server
     #   nbformat
-jsonschema-specifications==2023.7.1
+jsonschema-specifications==2023.11.1
     # via jsonschema
 jupyter-client==8.6.0
     # via
@@ -412,7 +416,7 @@ jupyter-events==0.9.0
     # via jupyter-server
 jupyter-lsp==2.2.0
     # via jupyterlab
-jupyter-server==2.10.0
+jupyter-server==2.10.1
     # via
     #   jupyter-lsp
     #   jupyterlab
@@ -425,7 +429,7 @@ jupyterlab==4.0.8
     # via notebook
 jupyterlab-pygments==0.2.2
     # via nbconvert
-jupyterlab-server==2.25.0
+jupyterlab-server==2.25.1
     # via
     #   jupyterlab
     #   notebook
@@ -435,7 +439,7 @@ kubernetes==20.13.0
     # via feast (setup.py)
 locket==1.0.0
     # via partd
-makefun==1.15.1
+makefun==1.15.2
     # via great-expectations
 markupsafe==2.1.3
     # via
@@ -462,7 +466,7 @@ mock==2.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-moto==4.2.7
+moto==4.2.9
     # via feast (setup.py)
 msal==1.25.0
     # via
@@ -584,7 +588,7 @@ pre-commit==3.3.1
     # via feast (setup.py)
 prometheus-client==0.18.0
     # via jupyter-server
-prompt-toolkit==3.0.39
+prompt-toolkit==3.0.41
     # via ipython
 proto-plus==1.22.3
     # via
@@ -630,7 +634,7 @@ py-cpuinfo==9.0.0
     # via pytest-benchmark
 py4j==0.10.9.7
     # via pyspark
-pyarrow==10.0.1
+pyarrow==14.0.1
     # via
     #   db-dtypes
     #   feast (setup.py)
@@ -703,7 +707,7 @@ pytest-ordering==0.6
     # via feast (setup.py)
 pytest-timeout==1.4.2
     # via feast (setup.py)
-pytest-xdist==3.3.1
+pytest-xdist==3.4.0
     # via feast (setup.py)
 python-dateutil==2.8.2
     # via
@@ -744,7 +748,7 @@ pyzmq==25.1.1
     #   jupyter-server
 redis==4.6.0
     # via feast (setup.py)
-referencing==0.30.2
+referencing==0.31.0
     # via
     #   jsonschema
     #   jsonschema-specifications
@@ -772,7 +776,7 @@ requests==2.31.0
     #   trino
 requests-oauthlib==1.3.1
     # via kubernetes
-responses==0.24.0
+responses==0.24.1
     # via moto
 rfc3339-validator==0.1.4
     # via
@@ -784,7 +788,7 @@ rfc3986-validator==0.1.1
     #   jupyter-events
 rockset==2.1.0
     # via feast (setup.py)
-rpds-py==0.12.0
+rpds-py==0.13.0
     # via
     #   jsonschema
     #   referencing
@@ -821,8 +825,10 @@ sniffio==1.3.0
     #   httpx
 snowballstemmer==2.2.0
     # via sphinx
-snowflake-connector-python[pandas]==3.4.0
-    # via feast (setup.py)
+snowflake-connector-python[pandas]==3.5.0
+    # via
+    #   feast (setup.py)
+    #   snowflake-connector-python
 sortedcontainers==2.4.0
     # via snowflake-connector-python
 soupsieve==2.5
@@ -842,8 +848,10 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
     # via sphinx
 sqlalchemy[mypy]==1.4.50
-    # via feast (setup.py)
-sqlalchemy2-stubs==0.0.2a36
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
+sqlalchemy2-stubs==0.0.2a37
     # via sqlalchemy
 stack-data==0.6.3
     # via ipython
@@ -853,7 +861,7 @@ tabulate==0.9.0
     # via feast (setup.py)
 tenacity==8.2.3
     # via feast (setup.py)
-terminado==0.17.1
+terminado==0.18.0
     # via
     #   jupyter-server
     #   jupyter-server-terminals
@@ -875,7 +883,7 @@ tomli==2.0.1
     #   pip-tools
     #   pyproject-hooks
     #   pytest
-tomlkit==0.12.2
+tomlkit==0.12.3
     # via snowflake-connector-python
 toolz==0.12.0
     # via
@@ -933,7 +941,7 @@ types-redis==4.6.0.10
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
-types-setuptools==68.2.0.0
+types-setuptools==68.2.0.1
     # via feast (setup.py)
 types-tabulate==0.9.0.3
     # via feast (setup.py)
@@ -975,7 +983,9 @@ urllib3==1.26.18
     #   rockset
     #   snowflake-connector-python
 uvicorn[standard]==0.24.0.post1
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   uvicorn
 uvloop==0.19.0
     # via uvicorn
 virtualenv==20.23.0
@@ -986,7 +996,7 @@ volatile==2.1.0
     # via bowler
 watchfiles==0.21.0
     # via uvicorn
-wcwidth==0.2.9
+wcwidth==0.2.10
     # via prompt-toolkit
 webcolors==1.13
     # via jsonschema
@@ -1007,7 +1017,7 @@ wheel==0.41.3
     # via pip-tools
 widgetsnbextension==4.0.9
     # via ipywidgets
-wrapt==1.15.0
+wrapt==1.16.0
     # via testcontainers
 xmltodict==0.13.0
     # via moto
