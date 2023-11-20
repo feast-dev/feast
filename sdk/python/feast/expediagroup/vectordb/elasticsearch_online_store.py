@@ -207,18 +207,17 @@ class ElasticsearchOnlineStore(OnlineStore):
             is_primary = True if feature.name in fv.join_keys else False
             if "index_type" in feature.tags:
                 dimensions = int(feature.tags.get("dimensions", "0"))
-                metric_type = feature.tags.get("metric_type", "l2_norm")
+                index_type = feature.tags.get("index_type", "hnsw").lower()
+                metric_type = feature.tags.get("metric_type", "l2_norm").lower()
                 index_mapping["properties"][feature.name] = {
                     "type": "dense_vector",
                     "dims": dimensions,
-                    "index": True,
+                    "index": index_type == "hnsw",
                     "similarity": metric_type,
                 }
                 index_params = json.loads(feature.tags.get("index_params", "{}"))
                 if len(index_params) > 0:
-                    index_params["type"] = feature.tags.get(
-                        "index_type", "hnsw"
-                    ).lower()
+                    index_params["type"] = index_type
                     index_mapping["properties"][feature.name][
                         "index_options"
                     ] = index_params
