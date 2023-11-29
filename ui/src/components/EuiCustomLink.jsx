@@ -34,8 +34,16 @@ export default function EuiCustomLink({ to, ...rest }) {
     // Prevent regular link behavior, which causes a browser refresh.
     event.preventDefault();
 
+    // As of a few versions ago, react navigate expects search terms to be separate
+    const searchIdentifierIdx = to.indexOf('?')
+    const search = to.substring(searchIdentifierIdx + 1);
+    const pathTo = to.subscring(0, searchIdentifierIdx);
+
     // Push the route to the history.
-    navigate(to);
+    navigate({
+      pathname: pathTo,
+      search: search
+    });
   }
 
   // Generate the correct link href (with basename accounted for)
