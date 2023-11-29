@@ -35,7 +35,11 @@ export default function EuiCustomLink({ to, ...rest }) {
     event.preventDefault();
 
     // Push the route to the history.
-    navigate(to);
+    const returnToUrl = new URL(to, window.location.origin);
+    navigate({
+        pathname: returnToUrl.pathname,
+        search: returnToUrl.searchParams.toString()
+    });
   }
 
   // Generate the correct link href (with basename accounted for)
