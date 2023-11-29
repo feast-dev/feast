@@ -38,6 +38,11 @@ class EntityNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Entity {name} does not exist")
 
 
+class EntityNameCollisionException(Exception):
+    def __init__(self, entity_name: str, project: str) -> None:
+        super(EntityNameCollisionException, self).__init__(f"Duplicate entity {entity_name} for project {project}.")
+
+
 class FeatureServiceNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
@@ -46,6 +51,13 @@ class FeatureServiceNotFoundException(FeastObjectNotFoundException):
             )
         else:
             super().__init__(f"Feature service {name} does not exist")
+
+
+class FeatureServiceNameCollisionException(Exception):
+    def __init__(self, service_name: str, project: str) -> None:
+        super(FeatureServiceNameCollisionException, self).__init__(
+            f"Duplicate feature service {service_name} for project {project}."
+        )
 
 
 class FeatureViewNotFoundException(FeastObjectNotFoundException):
@@ -111,10 +123,22 @@ class SavedDatasetNotFound(FeastObjectNotFoundException):
         super().__init__(f"Saved dataset {name} does not exist in project {project}")
 
 
+class SavedDatasetCollisionException(Exception):
+    def __init__(self, project: str, name: str) -> None:
+        super(SavedDatasetCollisionException, self).__init__(f"Duplicated saved dataset {name} for project {project}")
+
+
 class ValidationReferenceNotFound(FeastObjectNotFoundException):
     def __init__(self, name: str, project: str):
         super().__init__(
             f"Validation reference {name} does not exist in project {project}"
+        )
+
+
+class DuplicateValidationReference(Exception):
+    def __init__(self, name: str, project) -> None:
+        super(DuplicateValidationReference, self).__init__(
+            f"Duplication validation reference {name} for project {project}."
         )
 
 
@@ -279,6 +303,11 @@ class RegistryInferenceFailure(Exception):
         )
 
 
+class RegistryNotBuiltException(Exception):
+    def __init__(self, registry_name: str) -> None:
+        super(RegistryNotBuiltException, self).__init__(f"Registry {registry_name} must be built before being queried.")
+
+
 class BigQueryJobStillRunning(Exception):
     def __init__(self, job_id):
         super().__init__(f"The BigQuery job with ID '{job_id}' is still running.")
@@ -377,6 +406,11 @@ class FeastInvalidInfraObjectType(Exception):
         super().__init__("Could not identify the type of the InfraObject.")
 
 
+class MissingInfraObjectException(Exception):
+    def __init__(self, project: str) -> None:
+        super(MissingInfraObjectException, self).__init__(f"No infra objects found for project {project}.")
+
+
 class SnowflakeIncompleteConfig(Exception):
     def __init__(self, e: KeyError):
         super().__init__(f"{e} not defined in a config file or feature_store.yaml file")
@@ -411,3 +445,7 @@ class EntityDFNotDateTime(Exception):
 class PushSourceNotFoundException(Exception):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
+
+class MissingProjectMetadataException(Exception):
+    def __init__(self, project: str) -> None:
+        super(MissingProjectMetadataException, self).__init__(f"No project metadata for project {project}")

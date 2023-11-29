@@ -165,6 +165,9 @@ class RepoConfig(FeastBaseModel):
     coerce_tz_aware: Optional[bool] = True
     """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
 
+    ignore_infra_changes: bool = False
+    """ Signals whether to apply infrastructure changes during Registry creation """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
