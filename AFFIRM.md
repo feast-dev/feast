@@ -2,7 +2,7 @@
 
 1. Clone the repo
 2. Install poetry 1.4.1
-3. Set poetry env: poetry env use 3.7.13
+3. Set poetry env: poetry env use 3.9.17
 4. Run: poetry install
 5. Run: poetry shell
 6. Create venv: python3 -m venv venv/
