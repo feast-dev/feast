@@ -13,9 +13,10 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from feast.expediagroup.pydantic_models.data_source_model import (
-    AnyDataSource,
+    AnyBatchDataSource,
     RequestSourceModel,
     SparkSourceModel,
+    KafkaSourceModel,
 )
 from feast.expediagroup.pydantic_models.entity_model import EntityModel
 from feast.expediagroup.pydantic_models.field_model import FieldModel
@@ -23,7 +24,9 @@ from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
 
-SUPPORTED_DATA_SOURCES = [RequestSourceModel, SparkSourceModel]
+# TO DO: Supported batch and supported streaming
+SUPPORTED_BATCH_DATA_SOURCES = [RequestSourceModel, SparkSourceModel]
+SUPPORTED_STREAM_DATA_SOURCES = [KafkaSourceModel]
 
 
 class BaseFeatureViewModel(BaseModel):
@@ -60,8 +63,8 @@ class FeatureViewModel(BaseFeatureViewModel):
     original_entities: List[EntityModel] = []
     original_schema: Optional[List[FieldModel]]
     ttl: Optional[timedelta]
-    batch_source: AnyDataSource
-    stream_source: Optional[AnyDataSource]
+    batch_source: AnyBatchDataSource
+    stream_source: Optional[KafkaSourceModel]
     online: bool
     description: str
     tags: Optional[Dict[str, str]]
@@ -124,22 +127,17 @@ class FeatureViewModel(BaseFeatureViewModel):
                 sys.modules[__name__],
                 type(feature_view.batch_source).__name__ + "Model",
             )
-            if class_ not in SUPPORTED_DATA_SOURCES:
+            if class_ not in SUPPORTED_BATCH_DATA_SOURCES:
                 raise ValueError(
                     "Batch source type is not a supported data source type."
                 )
             batch_source = class_.from_data_source(feature_view.batch_source)
+        # For the time being, Pydantic models only support KafkaSource for streaming source,
+        # so it is no longer necessary to dynamically create the stream_source model based
+        # on a parameter.
         stream_source = None
         if feature_view.stream_source:
-            class_ = getattr(
-                sys.modules[__name__],
-                type(feature_view.stream_source).__name__ + "Model",
-            )
-            if class_ not in SUPPORTED_DATA_SOURCES:
-                raise ValueError(
-                    "Stream source type is not a supported data source type."
-                )
-            stream_source = class_.from_data_source(feature_view.stream_source)
+            stream_source = KafkaSourceModel.from_data_source(feature_view.stream_source)
         return cls(
             name=feature_view.name,
             original_entities=[
