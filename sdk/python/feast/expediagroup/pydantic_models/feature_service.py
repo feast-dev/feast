@@ -53,7 +53,6 @@ class FeatureServiceModel(BaseModel):
         cls,
         feature_service: FeatureService,
     ) -> Self:  # type: ignore
-
         features = []
         for feature in feature_service._features:
             class_ = getattr(
