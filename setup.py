@@ -97,7 +97,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.17.2"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3,<4",
