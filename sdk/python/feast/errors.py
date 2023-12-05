@@ -138,7 +138,7 @@ class ValidationReferenceNotFound(FeastObjectNotFoundException):
 class DuplicateValidationReference(Exception):
     def __init__(self, name: str, project) -> None:
         super(DuplicateValidationReference, self).__init__(
-            f"Duplication validation reference {name} for project {project}."
+            f"Duplicate validation reference {name} for project {project}."
         )
 
 
