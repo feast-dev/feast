@@ -1,4 +1,5 @@
 import copy
+from collections import defaultdict
 from typing import Optional, Dict, List, Any, TypeVar, Union
 from pathlib import Path
 from datetime import datetime
@@ -61,14 +62,6 @@ ProjectKey = str
 RegistryDict = Dict[ProjectKey, Dict[str, T]]
 
 
-def _get_resource_registry(project: str, registry_dict: RegistryDict[FeastResource]) -> Dict[str, FeastResource]:
-    return registry_dict.setdefault(project, {})
-
-
-def _list_registry(project: str, registry_dict: RegistryDict[FeastResource]) -> List[FeastResource]:
-    return list(_get_resource_registry(project, registry_dict).values())
-
-
 class InMemoryRegistry(BaseRegistry):
     def __init__(
         self,
@@ -85,18 +78,18 @@ class InMemoryRegistry(BaseRegistry):
         self.is_feast_apply = is_feast_apply
 
         self.infra: Dict[ProjectKey, Infra] = {}
-        self.entities: RegistryDict[Entity] = {}
-        self.feature_services: RegistryDict[FeatureService] = {}
+        self.entities: RegistryDict[Entity] = defaultdict(dict)
+        self.feature_services: RegistryDict[FeatureService] = defaultdict(dict)
         self.project_metadata: Dict[str, ProjectMetadata] = {}
-        self.validation_references: RegistryDict[ValidationReference] = {}
+        self.validation_references: RegistryDict[ValidationReference] = defaultdict(dict)
 
-        self.data_sources: RegistryDict[DataSource] = {}
-        self.saved_datasets: RegistryDict[SavedDataset] = {}
+        self.data_sources: RegistryDict[DataSource] = defaultdict(dict)
+        self.saved_datasets: RegistryDict[SavedDataset] = defaultdict(dict)
 
-        self.stream_feature_views: RegistryDict[StreamFeatureView] = {}
-        self.feature_views: RegistryDict[FeatureView] = {}
-        self.on_demand_feature_views: RegistryDict[OnDemandFeatureView] = {}
-        self.request_feature_views: RegistryDict[RequestFeatureView] = {}
+        self.stream_feature_views: RegistryDict[StreamFeatureView] = defaultdict(dict)
+        self.feature_views: RegistryDict[FeatureView] = defaultdict(dict)
+        self.on_demand_feature_views: RegistryDict[OnDemandFeatureView] = defaultdict(dict)
+        self.request_feature_views: RegistryDict[RequestFeatureView] = defaultdict(dict)
 
         self.feature_view_registries = [
             self.stream_feature_views,
@@ -129,13 +122,13 @@ class InMemoryRegistry(BaseRegistry):
     def _get_feature_view_registry(self, project: str, feature_view: BaseFeatureView) -> Dict[str, BaseFeatureView]:
         # returns the sub-registry that aligns with `type(feature_view)`, or an exception if the type is unknown
         if isinstance(feature_view, StreamFeatureView):
-            return _get_resource_registry(project, self.stream_feature_views)
+            return self.stream_feature_views[project]
         if isinstance(feature_view, FeatureView):
-            return _get_resource_registry(project, self.feature_views)
+            return self.feature_views[project]
         if isinstance(feature_view, OnDemandFeatureView):
-            return _get_resource_registry(project, self.on_demand_feature_views)
+            return self.on_demand_feature_views[project]
         if isinstance(feature_view, RequestFeatureView):
-            return _get_resource_registry(project, self.request_feature_views)
+            return self.request_feature_views[project]
         raise FeatureViewNotFoundException(feature_view)
 
     def _maybe_init_project_metadata(self, project: str) -> None:
@@ -147,11 +140,6 @@ class InMemoryRegistry(BaseRegistry):
         # set cached proto registry to `None` if write operation is applied and registry is built
         if self.is_built:
             self.cached_proto = None
-
-    def _apply_project(self, project: str) -> None:
-        for res in self._registry_resources:
-            if project not in res:
-                res[project] = {}
 
     def _delete_object(
         self, name: str, project: str, registry: Dict[str, FeastResource], on_miss_exc: Exception
@@ -193,10 +181,9 @@ class InMemoryRegistry(BaseRegistry):
             commit: Whether the change should be persisted immediately
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
 
         entity.is_valid()
-        key, registry = entity.name, _get_resource_registry(project, self.entities)
+        key, registry = entity.name, self.entities[project]
         if key in registry and registry[key] != entity:
             raise EntityNameCollisionException(key, project)
 
@@ -215,7 +202,7 @@ class InMemoryRegistry(BaseRegistry):
         self._delete_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.entities),
+            registry=self.entities[project],
             on_miss_exc=EntityNotFoundException(name, project)
         )
 
@@ -236,7 +223,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.entities),
+            registry=self.entities[project],
             on_miss_exc=exc
         )
 
@@ -251,7 +238,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of entities
         """
-        return _list_registry(project, self.entities)
+        return list(self.entities[project].values())
 
     def apply_data_source(self, data_source: DataSource, project: str, commit: bool = True) -> None:
         """
@@ -263,8 +250,7 @@ class InMemoryRegistry(BaseRegistry):
             commit: Whether to immediately commit to the registry
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
-        key, registry = data_source.name, _get_resource_registry(project, self.data_sources)
+        key, registry = data_source.name, self.data_sources[project]
         if key in registry and registry[key] != data_source:
             raise DataSourceRepeatNamesException(data_source.name)
         registry[key] = data_source
@@ -283,7 +269,7 @@ class InMemoryRegistry(BaseRegistry):
         self._delete_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.data_sources),
+            registry=self.data_sources[project],
             on_miss_exc=exc
         )
 
@@ -303,7 +289,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.data_sources),
+            registry=self.data_sources[project],
             on_miss_exc=exc
         )
 
@@ -318,7 +304,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of data sources
         """
-        return _list_registry(project, self.data_sources)
+        return list(self.data_sources[project].values())
 
     def apply_feature_service(self, feature_service: FeatureService, project: str, commit: bool = True) -> None:
         """
@@ -329,8 +315,7 @@ class InMemoryRegistry(BaseRegistry):
             project: Feast project that this entity belongs to
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
-        key, registry = feature_service.name, _get_resource_registry(project, self.feature_services)
+        key, registry = feature_service.name, self.feature_services[project]
         if key in registry and registry[key] != feature_service:
             raise FeatureServiceNameCollisionException(service_name=key, project=project)
         registry[key] = self._update_object_ts(feature_service)
@@ -349,7 +334,7 @@ class InMemoryRegistry(BaseRegistry):
         self._delete_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.feature_services),
+            registry=self.feature_services[project],
             on_miss_exc=exc
         )
 
@@ -370,7 +355,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.feature_services),
+            registry=self.feature_services[project],
             on_miss_exc=exc
         )
 
@@ -385,7 +370,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of feature services
         """
-        return _list_registry(project, self.feature_services)
+        return list(self.feature_services[project].values())
 
     def apply_feature_view(self, feature_view: BaseFeatureView, project: str, commit: bool = True) -> None:
         """
@@ -397,7 +382,6 @@ class InMemoryRegistry(BaseRegistry):
             commit: Whether the change should be persisted immediately
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
         feature_view.ensure_valid()
 
         key, registry = feature_view.name, self._get_feature_view_registry(project, feature_view)
@@ -417,9 +401,8 @@ class InMemoryRegistry(BaseRegistry):
         """
         self._maybe_init_project_metadata(project=project)
         for registry_dict in self.feature_view_registries:
-            registry = _get_resource_registry(project, registry_dict)
-            if name in registry:
-                del registry[name]
+            if name in registry_dict[project]:
+                del registry_dict[project][name]
                 self._maybe_reset_proto_registry()
                 return
         raise FeatureViewNotFoundException(name=name, project=project)
@@ -441,7 +424,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.stream_feature_views),
+            registry=self.stream_feature_views[project],
             on_miss_exc=exc
         )
 
@@ -459,7 +442,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of stream feature views
         """
-        return _list_registry(project, self.stream_feature_views)
+        return list(self.stream_feature_views[project].values())
 
     def get_on_demand_feature_view(self, name: str, project: str, allow_cache: bool = False) -> OnDemandFeatureView:
         """
@@ -478,7 +461,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.on_demand_feature_views),
+            registry=self.on_demand_feature_views[project],
             on_miss_exc=exc
         )
 
@@ -496,7 +479,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of on demand feature views
         """
-        return _list_registry(project, self.on_demand_feature_views)
+        return list(self.on_demand_feature_views[project].values())
 
     def get_feature_view(self, name: str, project: str, allow_cache: bool = False) -> FeatureView:
         """
@@ -515,7 +498,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.feature_views),
+            registry=self.feature_views[project],
             on_miss_exc=exc
         )
 
@@ -530,7 +513,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of feature views
         """
-        return _list_registry(project, self.feature_views)
+        return list(self.feature_views[project].values())
 
     def get_request_feature_view(self, name: str, project: str) -> RequestFeatureView:
         """
@@ -549,7 +532,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.request_feature_views),
+            registry=self.request_feature_views[project],
             on_miss_exc=exc
         )
 
@@ -564,7 +547,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of request feature views
         """
-        return _list_registry(project, self.request_feature_views)
+        return list(self.request_feature_views[project].values())
 
     def apply_materialization(
         self,
@@ -576,11 +559,7 @@ class InMemoryRegistry(BaseRegistry):
     ) -> None:
         self._maybe_init_project_metadata(project)
         key = feature_view.name
-        registries = [
-            _get_resource_registry(project, self.feature_views),
-            _get_resource_registry(project, self.stream_feature_views)
-        ]
-        for registry in registries:
+        for registry in [self.feature_views[project], self.stream_feature_views[project]]:
             if key in registry:
                 fv = registry[key]
                 fv.materialization_intervals.append((start_date, end_date))
@@ -604,8 +583,7 @@ class InMemoryRegistry(BaseRegistry):
             commit: Whether the change should be persisted immediately
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
-        key, registry = saved_dataset.name, _get_resource_registry(project, self.saved_datasets)
+        key, registry = saved_dataset.name, self.saved_datasets[project]
         if key in registry and registry[key] != saved_dataset:
             raise SavedDatasetCollisionException(project=project, name=saved_dataset.name)
         registry[key] = self._update_object_ts(saved_dataset)
@@ -630,7 +608,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.saved_datasets),
+            registry=self.saved_datasets[project],
             on_miss_exc=exc
         )
 
@@ -651,7 +629,7 @@ class InMemoryRegistry(BaseRegistry):
         self._delete_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.saved_datasets),
+            registry=self.saved_datasets[project],
             on_miss_exc=exc
         )
 
@@ -666,7 +644,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             Returns the list of SavedDatasets
         """
-        return _list_registry(project, self.saved_datasets)
+        return list(self.saved_datasets[project].values())
 
     def apply_validation_reference(
         self,
@@ -683,8 +661,7 @@ class InMemoryRegistry(BaseRegistry):
             commit: Whether the change should be persisted immediately
         """
         self._maybe_init_project_metadata(project)
-        self._apply_project(project)
-        key, registry = validation_reference.name, _get_resource_registry(project, self.validation_references)
+        key, registry = validation_reference.name, self.validation_references[project]
         if key in registry and registry[key] != validation_reference:
             raise DuplicateValidationReference(name=validation_reference.name, project=project)
         registry[key] = validation_reference
@@ -703,7 +680,7 @@ class InMemoryRegistry(BaseRegistry):
         self._delete_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.validation_references),
+            registry=self.validation_references[project],
             on_miss_exc=exc
         )
 
@@ -726,7 +703,7 @@ class InMemoryRegistry(BaseRegistry):
         return self._get_object(
             name=name,
             project=project,
-            registry=_get_resource_registry(project, self.validation_references),
+            registry=self.validation_references[project],
             on_miss_exc=exc
         )
 
@@ -741,7 +718,7 @@ class InMemoryRegistry(BaseRegistry):
         Returns:
             List of request feature views
         """
-        return _list_registry(project, self.validation_references)
+        return list(self.validation_references[project].values())
 
     def list_project_metadata(self, project: str, allow_cache: bool = False) -> List[ProjectMetadata]:
         """

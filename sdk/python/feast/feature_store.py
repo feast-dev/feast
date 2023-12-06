@@ -1012,7 +1012,8 @@ x
         tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
-        if not self.config.ignore_infra_changes:
+        # apply infra if ignore_infra_changes is not set or we're not using an in-memory registry
+        if not self.config.ignore_infra_changes or not isinstance(self._registry, InMemoryRegistry):
             self._get_provider().update_infra(
                 project=self.project,
                 tables_to_delete=tables_to_delete,
