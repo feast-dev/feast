@@ -111,7 +111,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.offline_store = offline_store
         self.online_store = online_store
 
-        # TODO: Configure k8s here
         k8s_config.load_config()
 
         self.k8s_client = client.api_client.ApiClient()
@@ -299,6 +298,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 len(paths),  # Create a pod for each parquet file
                 self.batch_engine_config.env,
             )
+            logger.info(
+                f"Created job `dataflow-{job_id}` on namespace `{self.namespace}`"
+            )
         except FailToCreateError as failures:
             return BytewaxMaterializationJob(job_id, self.namespace, error=failures)
 
@@ -358,7 +360,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             {
                 "name": "BYTEWAX_REPLICAS",
-                "value": f"{pods}",
+                "value": "1",
             },
             {
                 "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
