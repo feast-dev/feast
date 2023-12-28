@@ -26,6 +26,11 @@
    export PKG_CONFIG_PATH="$(brew --prefix)/opt/mysql-client/lib/pkgconfig"
    pip install mysqlclient
     ```
+   - If you failed to build wheel for pymssql, you can try running the following
+   ```
+   brew install freetds
+   pip install pymssql
+   ```
 10. Build python protos into package:
   - # READ THIS: uncomment line "build_python_protos": BuildPythonProtosCommand in setup.py
   - make compile-protos-python
@@ -36,6 +41,7 @@ pip install grpcio-tools==1.48.2 &&  pip install mypy-protobuf==3.1.0
   - # READ THIS: recomment line "build_python_protos": BuildPythonProtosCommand in setup.py
 10. Install additional dependencies (Optional, Only if you want to build golang):
   - `brew install golang`
+  - `brew install protobuf`
   - And run `make protos` to build golang and python protos into package
 
 To run unit tests: make `test-python`
