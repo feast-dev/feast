@@ -364,7 +364,7 @@ def _python_value_to_proto_value(
                 if isinstance(json_value, list):
                     if feast_value_type == ValueType.BOOL_LIST:
                         json_value = [bool(item) for item in json_value]
-                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]
+                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
                 raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
