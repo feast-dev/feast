@@ -4,8 +4,6 @@ import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from pyspark.sql import SparkSession
-
 from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
@@ -163,6 +161,13 @@ class SparkSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
+        try:
+            from pyspark.sql import SparkSession
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("spark", str(e))
+
         if self.table:
             # Backticks make sure that spark sql knows this a table reference.
             table = ".".join([f"`{x}`" for x in self.table.split(".")])
