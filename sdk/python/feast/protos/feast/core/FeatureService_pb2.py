@@ -4,8 +4,9 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf.internal import builder as _builder
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -17,38 +18,142 @@ from feast.protos.feast.core import FeatureViewProjection_pb2 as feast_dot_core_
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1f\x66\x65\x61st/core/FeatureService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&feast/core/FeatureViewProjection.proto\"l\n\x0e\x46\x65\x61tureService\x12,\n\x04spec\x18\x01 \x01(\x0b\x32\x1e.feast.core.FeatureServiceSpec\x12,\n\x04meta\x18\x02 \x01(\x0b\x32\x1e.feast.core.FeatureServiceMeta\"\xa4\x02\n\x12\x46\x65\x61tureServiceSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\x12\x33\n\x08\x66\x65\x61tures\x18\x03 \x03(\x0b\x32!.feast.core.FeatureViewProjection\x12\x36\n\x04tags\x18\x04 \x03(\x0b\x32(.feast.core.FeatureServiceSpec.TagsEntry\x12\x13\n\x0b\x64\x65scription\x18\x05 \x01(\t\x12\r\n\x05owner\x18\x06 \x01(\t\x12\x31\n\x0elogging_config\x18\x07 \x01(\x0b\x32\x19.feast.core.LoggingConfig\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x87\x01\n\x12\x46\x65\x61tureServiceMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x9a\x07\n\rLoggingConfig\x12\x13\n\x0bsample_rate\x18\x01 \x01(\x02\x12\x45\n\x10\x66ile_destination\x18\x03 \x01(\x0b\x32).feast.core.LoggingConfig.FileDestinationH\x00\x12M\n\x14\x62igquery_destination\x18\x04 \x01(\x0b\x32-.feast.core.LoggingConfig.BigQueryDestinationH\x00\x12M\n\x14redshift_destination\x18\x05 \x01(\x0b\x32-.feast.core.LoggingConfig.RedshiftDestinationH\x00\x12O\n\x15snowflake_destination\x18\x06 \x01(\x0b\x32..feast.core.LoggingConfig.SnowflakeDestinationH\x00\x12I\n\x12\x63ustom_destination\x18\x07 \x01(\x0b\x32+.feast.core.LoggingConfig.CustomDestinationH\x00\x12I\n\x12\x61thena_destination\x18\x08 \x01(\x0b\x32+.feast.core.LoggingConfig.AthenaDestinationH\x00\x1aS\n\x0f\x46ileDestination\x12\x0c\n\x04path\x18\x01 \x01(\t\x12\x1c\n\x14s3_endpoint_override\x18\x02 \x01(\t\x12\x14\n\x0cpartition_by\x18\x03 \x03(\t\x1a(\n\x13\x42igQueryDestination\x12\x11\n\ttable_ref\x18\x01 \x01(\t\x1a)\n\x13RedshiftDestination\x12\x12\n\ntable_name\x18\x01 \x01(\t\x1a\'\n\x11\x41thenaDestination\x12\x12\n\ntable_name\x18\x01 \x01(\t\x1a*\n\x14SnowflakeDestination\x12\x12\n\ntable_name\x18\x01 \x01(\t\x1a\x99\x01\n\x11\x43ustomDestination\x12\x0c\n\x04kind\x18\x01 \x01(\t\x12G\n\x06\x63onfig\x18\x02 \x03(\x0b\x32\x37.feast.core.LoggingConfig.CustomDestination.ConfigEntry\x1a-\n\x0b\x43onfigEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\r\n\x0b\x64\x65stinationBX\n\x10\x66\x65\x61st.proto.coreB\x13\x46\x65\x61tureServiceProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
-_globals = globals()
-_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.core.FeatureService_pb2', _globals)
+
+
+_FEATURESERVICE = DESCRIPTOR.message_types_by_name['FeatureService']
+_FEATURESERVICESPEC = DESCRIPTOR.message_types_by_name['FeatureServiceSpec']
+_FEATURESERVICESPEC_TAGSENTRY = _FEATURESERVICESPEC.nested_types_by_name['TagsEntry']
+_FEATURESERVICEMETA = DESCRIPTOR.message_types_by_name['FeatureServiceMeta']
+_LOGGINGCONFIG = DESCRIPTOR.message_types_by_name['LoggingConfig']
+_LOGGINGCONFIG_FILEDESTINATION = _LOGGINGCONFIG.nested_types_by_name['FileDestination']
+_LOGGINGCONFIG_BIGQUERYDESTINATION = _LOGGINGCONFIG.nested_types_by_name['BigQueryDestination']
+_LOGGINGCONFIG_REDSHIFTDESTINATION = _LOGGINGCONFIG.nested_types_by_name['RedshiftDestination']
+_LOGGINGCONFIG_ATHENADESTINATION = _LOGGINGCONFIG.nested_types_by_name['AthenaDestination']
+_LOGGINGCONFIG_SNOWFLAKEDESTINATION = _LOGGINGCONFIG.nested_types_by_name['SnowflakeDestination']
+_LOGGINGCONFIG_CUSTOMDESTINATION = _LOGGINGCONFIG.nested_types_by_name['CustomDestination']
+_LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY = _LOGGINGCONFIG_CUSTOMDESTINATION.nested_types_by_name['ConfigEntry']
+FeatureService = _reflection.GeneratedProtocolMessageType('FeatureService', (_message.Message,), {
+  'DESCRIPTOR' : _FEATURESERVICE,
+  '__module__' : 'feast.core.FeatureService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.FeatureService)
+  })
+_sym_db.RegisterMessage(FeatureService)
+
+FeatureServiceSpec = _reflection.GeneratedProtocolMessageType('FeatureServiceSpec', (_message.Message,), {
+
+  'TagsEntry' : _reflection.GeneratedProtocolMessageType('TagsEntry', (_message.Message,), {
+    'DESCRIPTOR' : _FEATURESERVICESPEC_TAGSENTRY,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.FeatureServiceSpec.TagsEntry)
+    })
+  ,
+  'DESCRIPTOR' : _FEATURESERVICESPEC,
+  '__module__' : 'feast.core.FeatureService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.FeatureServiceSpec)
+  })
+_sym_db.RegisterMessage(FeatureServiceSpec)
+_sym_db.RegisterMessage(FeatureServiceSpec.TagsEntry)
+
+FeatureServiceMeta = _reflection.GeneratedProtocolMessageType('FeatureServiceMeta', (_message.Message,), {
+  'DESCRIPTOR' : _FEATURESERVICEMETA,
+  '__module__' : 'feast.core.FeatureService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.FeatureServiceMeta)
+  })
+_sym_db.RegisterMessage(FeatureServiceMeta)
+
+LoggingConfig = _reflection.GeneratedProtocolMessageType('LoggingConfig', (_message.Message,), {
+
+  'FileDestination' : _reflection.GeneratedProtocolMessageType('FileDestination', (_message.Message,), {
+    'DESCRIPTOR' : _LOGGINGCONFIG_FILEDESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.FileDestination)
+    })
+  ,
+
+  'BigQueryDestination' : _reflection.GeneratedProtocolMessageType('BigQueryDestination', (_message.Message,), {
+    'DESCRIPTOR' : _LOGGINGCONFIG_BIGQUERYDESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.BigQueryDestination)
+    })
+  ,
+
+  'RedshiftDestination' : _reflection.GeneratedProtocolMessageType('RedshiftDestination', (_message.Message,), {
+    'DESCRIPTOR' : _LOGGINGCONFIG_REDSHIFTDESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.RedshiftDestination)
+    })
+  ,
+
+  'AthenaDestination' : _reflection.GeneratedProtocolMessageType('AthenaDestination', (_message.Message,), {
+    'DESCRIPTOR' : _LOGGINGCONFIG_ATHENADESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.AthenaDestination)
+    })
+  ,
+
+  'SnowflakeDestination' : _reflection.GeneratedProtocolMessageType('SnowflakeDestination', (_message.Message,), {
+    'DESCRIPTOR' : _LOGGINGCONFIG_SNOWFLAKEDESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.SnowflakeDestination)
+    })
+  ,
+
+  'CustomDestination' : _reflection.GeneratedProtocolMessageType('CustomDestination', (_message.Message,), {
+
+    'ConfigEntry' : _reflection.GeneratedProtocolMessageType('ConfigEntry', (_message.Message,), {
+      'DESCRIPTOR' : _LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY,
+      '__module__' : 'feast.core.FeatureService_pb2'
+      # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.CustomDestination.ConfigEntry)
+      })
+    ,
+    'DESCRIPTOR' : _LOGGINGCONFIG_CUSTOMDESTINATION,
+    '__module__' : 'feast.core.FeatureService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig.CustomDestination)
+    })
+  ,
+  'DESCRIPTOR' : _LOGGINGCONFIG,
+  '__module__' : 'feast.core.FeatureService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.LoggingConfig)
+  })
+_sym_db.RegisterMessage(LoggingConfig)
+_sym_db.RegisterMessage(LoggingConfig.FileDestination)
+_sym_db.RegisterMessage(LoggingConfig.BigQueryDestination)
+_sym_db.RegisterMessage(LoggingConfig.RedshiftDestination)
+_sym_db.RegisterMessage(LoggingConfig.AthenaDestination)
+_sym_db.RegisterMessage(LoggingConfig.SnowflakeDestination)
+_sym_db.RegisterMessage(LoggingConfig.CustomDestination)
+_sym_db.RegisterMessage(LoggingConfig.CustomDestination.ConfigEntry)
+
 if _descriptor._USE_C_DESCRIPTORS == False:
+
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\020feast.proto.coreB\023FeatureServiceProtoZ/github.com/feast-dev/feast/go/protos/feast/core'
   _FEATURESERVICESPEC_TAGSENTRY._options = None
   _FEATURESERVICESPEC_TAGSENTRY._serialized_options = b'8\001'
   _LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY._options = None
   _LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY._serialized_options = b'8\001'
-  _globals['_FEATURESERVICE']._serialized_start=120
-  _globals['_FEATURESERVICE']._serialized_end=228
-  _globals['_FEATURESERVICESPEC']._serialized_start=231
-  _globals['_FEATURESERVICESPEC']._serialized_end=523
-  _globals['_FEATURESERVICESPEC_TAGSENTRY']._serialized_start=480
-  _globals['_FEATURESERVICESPEC_TAGSENTRY']._serialized_end=523
-  _globals['_FEATURESERVICEMETA']._serialized_start=526
-  _globals['_FEATURESERVICEMETA']._serialized_end=661
-  _globals['_LOGGINGCONFIG']._serialized_start=664
-  _globals['_LOGGINGCONFIG']._serialized_end=1586
-  _globals['_LOGGINGCONFIG_FILEDESTINATION']._serialized_start=1162
-  _globals['_LOGGINGCONFIG_FILEDESTINATION']._serialized_end=1245
-  _globals['_LOGGINGCONFIG_BIGQUERYDESTINATION']._serialized_start=1247
-  _globals['_LOGGINGCONFIG_BIGQUERYDESTINATION']._serialized_end=1287
-  _globals['_LOGGINGCONFIG_REDSHIFTDESTINATION']._serialized_start=1289
-  _globals['_LOGGINGCONFIG_REDSHIFTDESTINATION']._serialized_end=1330
-  _globals['_LOGGINGCONFIG_ATHENADESTINATION']._serialized_start=1332
-  _globals['_LOGGINGCONFIG_ATHENADESTINATION']._serialized_end=1371
-  _globals['_LOGGINGCONFIG_SNOWFLAKEDESTINATION']._serialized_start=1373
-  _globals['_LOGGINGCONFIG_SNOWFLAKEDESTINATION']._serialized_end=1415
-  _globals['_LOGGINGCONFIG_CUSTOMDESTINATION']._serialized_start=1418
-  _globals['_LOGGINGCONFIG_CUSTOMDESTINATION']._serialized_end=1571
-  _globals['_LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY']._serialized_start=1526
-  _globals['_LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY']._serialized_end=1571
+  _FEATURESERVICE._serialized_start=120
+  _FEATURESERVICE._serialized_end=228
+  _FEATURESERVICESPEC._serialized_start=231
+  _FEATURESERVICESPEC._serialized_end=523
+  _FEATURESERVICESPEC_TAGSENTRY._serialized_start=480
+  _FEATURESERVICESPEC_TAGSENTRY._serialized_end=523
+  _FEATURESERVICEMETA._serialized_start=526
+  _FEATURESERVICEMETA._serialized_end=661
+  _LOGGINGCONFIG._serialized_start=664
+  _LOGGINGCONFIG._serialized_end=1586
+  _LOGGINGCONFIG_FILEDESTINATION._serialized_start=1162
+  _LOGGINGCONFIG_FILEDESTINATION._serialized_end=1245
+  _LOGGINGCONFIG_BIGQUERYDESTINATION._serialized_start=1247
+  _LOGGINGCONFIG_BIGQUERYDESTINATION._serialized_end=1287
+  _LOGGINGCONFIG_REDSHIFTDESTINATION._serialized_start=1289
+  _LOGGINGCONFIG_REDSHIFTDESTINATION._serialized_end=1330
+  _LOGGINGCONFIG_ATHENADESTINATION._serialized_start=1332
+  _LOGGINGCONFIG_ATHENADESTINATION._serialized_end=1371
+  _LOGGINGCONFIG_SNOWFLAKEDESTINATION._serialized_start=1373
+  _LOGGINGCONFIG_SNOWFLAKEDESTINATION._serialized_end=1415
+  _LOGGINGCONFIG_CUSTOMDESTINATION._serialized_start=1418
+  _LOGGINGCONFIG_CUSTOMDESTINATION._serialized_end=1571
+  _LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY._serialized_start=1526
+  _LOGGINGCONFIG_CUSTOMDESTINATION_CONFIGENTRY._serialized_end=1571
 # @@protoc_insertion_point(module_scope)

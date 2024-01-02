@@ -1,5 +1,15 @@
 [build-system]
-requires = ["setuptools>=60", "wheel", "setuptools_scm>=6.2", "sphinx!=4.0.0"]
+requires = [
+  "setuptools_scm>=6.2",
+  "sphinx!=4.0.0",
+
+  "setuptools>=60",
+  "wheel",
+  "grpcio==1.48.1",
+  "grpcio-tools==1.48.1",
+  "mypy-protobuf==1.24",
+  "protobuf<3.20",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]

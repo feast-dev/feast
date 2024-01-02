@@ -4,8 +4,9 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf.internal import builder as _builder
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -15,27 +16,78 @@ _sym_db = _symbol_database.Default()
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1e\x66\x65\x61st/serving/GrpcServer.proto\"\xb3\x01\n\x0bPushRequest\x12,\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x1a.PushRequest.FeaturesEntry\x12\x1b\n\x13stream_feature_view\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x12\n\n\x02to\x18\x04 \x01(\t\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x1e\n\x0cPushResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\"\xc1\x01\n\x19WriteToOnlineStoreRequest\x12:\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32(.WriteToOnlineStoreRequest.FeaturesEntry\x12\x19\n\x11\x66\x65\x61ture_view_name\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\",\n\x1aWriteToOnlineStoreResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x32\x89\x01\n\x11GrpcFeatureServer\x12%\n\x04Push\x12\x0c.PushRequest\x1a\r.PushResponse\"\x00\x12M\n\x12WriteToOnlineStore\x12\x1a.WriteToOnlineStoreRequest\x1a\x1b.WriteToOnlineStoreResponseb\x06proto3')
 
-_globals = globals()
-_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.serving.GrpcServer_pb2', _globals)
+
+
+_PUSHREQUEST = DESCRIPTOR.message_types_by_name['PushRequest']
+_PUSHREQUEST_FEATURESENTRY = _PUSHREQUEST.nested_types_by_name['FeaturesEntry']
+_PUSHRESPONSE = DESCRIPTOR.message_types_by_name['PushResponse']
+_WRITETOONLINESTOREREQUEST = DESCRIPTOR.message_types_by_name['WriteToOnlineStoreRequest']
+_WRITETOONLINESTOREREQUEST_FEATURESENTRY = _WRITETOONLINESTOREREQUEST.nested_types_by_name['FeaturesEntry']
+_WRITETOONLINESTORERESPONSE = DESCRIPTOR.message_types_by_name['WriteToOnlineStoreResponse']
+PushRequest = _reflection.GeneratedProtocolMessageType('PushRequest', (_message.Message,), {
+
+  'FeaturesEntry' : _reflection.GeneratedProtocolMessageType('FeaturesEntry', (_message.Message,), {
+    'DESCRIPTOR' : _PUSHREQUEST_FEATURESENTRY,
+    '__module__' : 'feast.serving.GrpcServer_pb2'
+    # @@protoc_insertion_point(class_scope:PushRequest.FeaturesEntry)
+    })
+  ,
+  'DESCRIPTOR' : _PUSHREQUEST,
+  '__module__' : 'feast.serving.GrpcServer_pb2'
+  # @@protoc_insertion_point(class_scope:PushRequest)
+  })
+_sym_db.RegisterMessage(PushRequest)
+_sym_db.RegisterMessage(PushRequest.FeaturesEntry)
+
+PushResponse = _reflection.GeneratedProtocolMessageType('PushResponse', (_message.Message,), {
+  'DESCRIPTOR' : _PUSHRESPONSE,
+  '__module__' : 'feast.serving.GrpcServer_pb2'
+  # @@protoc_insertion_point(class_scope:PushResponse)
+  })
+_sym_db.RegisterMessage(PushResponse)
+
+WriteToOnlineStoreRequest = _reflection.GeneratedProtocolMessageType('WriteToOnlineStoreRequest', (_message.Message,), {
+
+  'FeaturesEntry' : _reflection.GeneratedProtocolMessageType('FeaturesEntry', (_message.Message,), {
+    'DESCRIPTOR' : _WRITETOONLINESTOREREQUEST_FEATURESENTRY,
+    '__module__' : 'feast.serving.GrpcServer_pb2'
+    # @@protoc_insertion_point(class_scope:WriteToOnlineStoreRequest.FeaturesEntry)
+    })
+  ,
+  'DESCRIPTOR' : _WRITETOONLINESTOREREQUEST,
+  '__module__' : 'feast.serving.GrpcServer_pb2'
+  # @@protoc_insertion_point(class_scope:WriteToOnlineStoreRequest)
+  })
+_sym_db.RegisterMessage(WriteToOnlineStoreRequest)
+_sym_db.RegisterMessage(WriteToOnlineStoreRequest.FeaturesEntry)
+
+WriteToOnlineStoreResponse = _reflection.GeneratedProtocolMessageType('WriteToOnlineStoreResponse', (_message.Message,), {
+  'DESCRIPTOR' : _WRITETOONLINESTORERESPONSE,
+  '__module__' : 'feast.serving.GrpcServer_pb2'
+  # @@protoc_insertion_point(class_scope:WriteToOnlineStoreResponse)
+  })
+_sym_db.RegisterMessage(WriteToOnlineStoreResponse)
+
+_GRPCFEATURESERVER = DESCRIPTOR.services_by_name['GrpcFeatureServer']
 if _descriptor._USE_C_DESCRIPTORS == False:
+
   DESCRIPTOR._options = None
   _PUSHREQUEST_FEATURESENTRY._options = None
   _PUSHREQUEST_FEATURESENTRY._serialized_options = b'8\001'
   _WRITETOONLINESTOREREQUEST_FEATURESENTRY._options = None
   _WRITETOONLINESTOREREQUEST_FEATURESENTRY._serialized_options = b'8\001'
-  _globals['_PUSHREQUEST']._serialized_start=35
-  _globals['_PUSHREQUEST']._serialized_end=214
-  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_start=167
-  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_end=214
-  _globals['_PUSHRESPONSE']._serialized_start=216
-  _globals['_PUSHRESPONSE']._serialized_end=246
-  _globals['_WRITETOONLINESTOREREQUEST']._serialized_start=249
-  _globals['_WRITETOONLINESTOREREQUEST']._serialized_end=442
-  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_start=167
-  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_end=214
-  _globals['_WRITETOONLINESTORERESPONSE']._serialized_start=444
-  _globals['_WRITETOONLINESTORERESPONSE']._serialized_end=488
-  _globals['_GRPCFEATURESERVER']._serialized_start=491
-  _globals['_GRPCFEATURESERVER']._serialized_end=628
+  _PUSHREQUEST._serialized_start=35
+  _PUSHREQUEST._serialized_end=214
+  _PUSHREQUEST_FEATURESENTRY._serialized_start=167
+  _PUSHREQUEST_FEATURESENTRY._serialized_end=214
+  _PUSHRESPONSE._serialized_start=216
+  _PUSHRESPONSE._serialized_end=246
+  _WRITETOONLINESTOREREQUEST._serialized_start=249
+  _WRITETOONLINESTOREREQUEST._serialized_end=442
+  _WRITETOONLINESTOREREQUEST_FEATURESENTRY._serialized_start=167
+  _WRITETOONLINESTOREREQUEST_FEATURESENTRY._serialized_end=214
+  _WRITETOONLINESTORERESPONSE._serialized_start=444
+  _WRITETOONLINESTORERESPONSE._serialized_end=488
+  _GRPCFEATURESERVER._serialized_start=491
+  _GRPCFEATURESERVER._serialized_end=628
 # @@protoc_insertion_point(module_scope)
