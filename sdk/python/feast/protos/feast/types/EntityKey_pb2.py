@@ -4,8 +4,9 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf.internal import builder as _builder
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -16,12 +17,20 @@ from feast.protos.feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/types/EntityKey.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\"I\n\tEntityKey\x12\x11\n\tjoin_keys\x18\x01 \x03(\t\x12)\n\rentity_values\x18\x02 \x03(\x0b\x32\x12.feast.types.ValueBU\n\x11\x66\x65\x61st.proto.typesB\x0e\x45ntityKeyProtoZ0github.com/feast-dev/feast/go/protos/feast/typesb\x06proto3')
 
-_globals = globals()
-_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feast.types.EntityKey_pb2', _globals)
+
+
+_ENTITYKEY = DESCRIPTOR.message_types_by_name['EntityKey']
+EntityKey = _reflection.GeneratedProtocolMessageType('EntityKey', (_message.Message,), {
+  'DESCRIPTOR' : _ENTITYKEY,
+  '__module__' : 'feast.types.EntityKey_pb2'
+  # @@protoc_insertion_point(class_scope:feast.types.EntityKey)
+  })
+_sym_db.RegisterMessage(EntityKey)
+
 if _descriptor._USE_C_DESCRIPTORS == False:
+
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\021feast.proto.typesB\016EntityKeyProtoZ0github.com/feast-dev/feast/go/protos/feast/types'
-  _globals['_ENTITYKEY']._serialized_start=69
-  _globals['_ENTITYKEY']._serialized_end=142
+  _ENTITYKEY._serialized_start=69
+  _ENTITYKEY._serialized_end=142
 # @@protoc_insertion_point(module_scope)
