@@ -1,6 +1,7 @@
 package transformation
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -32,11 +33,13 @@ Python function is expected to return number of rows added to the output record 
 type TransformationCallback func(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int
 
 func AugmentResponseWithOnDemandTransforms(
+	ctx context.Context,
 	onDemandFeatureViews []*model.OnDemandFeatureView,
 	requestData map[string]*prototypes.RepeatedValue,
 	entityRows map[string]*prototypes.RepeatedValue,
 	features []*onlineserving.FeatureVector,
 	transformationCallback TransformationCallback,
+	transformationService *GrpcTransformationService,
 	arrowMemory memory.Allocator,
 	numRows int,
 	fullFeatureNames bool,
@@ -68,17 +71,33 @@ func AugmentResponseWithOnDemandTransforms(
 			retrievedFeatures[vector.Name] = vector.Values
 		}
 
-		onDemandFeatures, err := CallTransformations(
-			odfv,
-			retrievedFeatures,
-			requestContextArrow,
-			transformationCallback,
-			numRows,
-			fullFeatureNames,
-		)
-		if err != nil {
-			ReleaseArrowContext(requestContextArrow)
-			return nil, err
+		var onDemandFeatures []*onlineserving.FeatureVector
+		if transformationService != nil {
+			onDemandFeatures, err = transformationService.GetTransformation(
+				ctx,
+				odfv,
+				retrievedFeatures,
+				requestContextArrow,
+				numRows,
+				fullFeatureNames,
+			)
+			if err != nil {
+				ReleaseArrowContext(requestContextArrow)
+				return nil, err
+			}
+		} else {
+			onDemandFeatures, err = CallTransformations(
+				odfv,
+				retrievedFeatures,
+				requestContextArrow,
+				transformationCallback,
+				numRows,
+				fullFeatureNames,
+			)
+			if err != nil {
+				ReleaseArrowContext(requestContextArrow)
+				return nil, err
+			}
 		}
 		result = append(result, onDemandFeatures...)
 

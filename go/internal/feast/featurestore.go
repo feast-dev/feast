@@ -3,6 +3,9 @@ package feast
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 
 	"github.com/apache/arrow/go/v8/arrow/memory"
 
@@ -20,6 +23,7 @@ type FeatureStore struct {
 	registry               *registry.Registry
 	onlineStore            onlinestore.OnlineStore
 	transformationCallback transformation.TransformationCallback
+	transformationService  *transformation.GrpcTransformationService
 }
 
 // A Features struct specifies a list of features to be retrieved from the online store. These features
@@ -54,12 +58,17 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	if err != nil {
 		return nil, err
 	}
+  sanitizedProjectName := strings.Replace(config.Project, "_", "-", -1)
+  productName := os.Getenv("PRODUCT")
+  endpoint := fmt.Sprintf("%s-transformations.%s.svc.cluster.local:80", sanitizedProjectName, productName)
+  transformationService, _ := transformation.NewGrpcTransformationService(config, endpoint)
 
 	return &FeatureStore{
 		config:                 config,
 		registry:               registry,
 		onlineStore:            onlineStore,
 		transformationCallback: callback,
+		transformationService:  transformationService,
 	}, nil
 }
 
@@ -116,7 +125,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
-	arrowMemory := memory.NewCgoArrowAllocator()
+	arrowMemory := memory.NewGoAllocator()
 	featureViews := make([]*model.FeatureView, len(requestedFeatureViews))
 	index := 0
 	for _, featuresAndView := range requestedFeatureViews {
@@ -164,13 +173,15 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		result = append(result, vectors...)
 	}
 
-	if fs.transformationCallback != nil {
+	if fs.transformationCallback != nil || fs.transformationService != nil {
 		onDemandFeatures, err := transformation.AugmentResponseWithOnDemandTransforms(
+			ctx,
 			requestedOnDemandFeatureViews,
 			requestData,
 			joinKeyToEntityValues,
 			result,
 			fs.transformationCallback,
+			fs.transformationService,
 			arrowMemory,
 			numRows,
 			fullFeatureNames,
