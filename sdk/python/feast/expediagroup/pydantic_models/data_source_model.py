@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydanticField
 from typing_extensions import Annotated, Self
 
-from feast.data_source import KafkaSource, RequestSource
+from feast.data_source import KafkaSource, PushSource, RequestSource
 from feast.expediagroup.pydantic_models.field_model import FieldModel
 from feast.expediagroup.pydantic_models.stream_format_model import (
     AnyStreamFormat,
@@ -170,6 +170,65 @@ AnyBatchDataSource = Annotated[
 ]
 
 
+SUPPORTED_PUSH_BATCH_SOURCES = [SparkSourceModel]
+
+
+class PushSourceModel(DataSourceModel):
+    """
+    Pydantic Model of a Feast PushSource.
+    """
+    name: str
+    model_type: Literal["PushSourceModel"] = "PushSourceModel"
+    batch_source: AnyBatchDataSource = None
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = None
+    owner: Optional[str] = ""
+
+    def to_data_source(self) -> PushSource:
+        """
+        Given a Pydantic PushSourceModel, create and return a PushSource.
+
+        Returns:
+            A SparkSource.
+        """
+        return PushSource(
+            name=self.name,
+            batch_source=self.batch_source.to_data_source(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
+        )
+
+    @classmethod
+    def from_data_source(
+        cls,
+        data_source,
+    ) -> Self:  # type: ignore
+        """
+        Converts a PushSource object to its pydantic model representation.
+
+        Returns:
+            A PushSourceModel.
+        """
+        class_ = getattr(
+            sys.modules[__name__],
+            type(data_source.batch_source).__name__ + "Model",
+        )
+        if class_ not in SUPPORTED_PUSH_BATCH_SOURCES:
+            raise ValueError(
+                "Push Source's batch source type is not a supported data source type."
+            )
+        batch_source = class_.from_data_source(data_source.batch_source)
+
+        return cls(
+            name=data_source.name,
+            batch_source=batch_source,
+            description=data_source.description,
+            tags=data_source.tags,
+            owner=data_source.owner,
+        )
+
+
 SUPPORTED_MESSAGE_FORMATS = [AvroFormatModel, JsonFormatModel, ProtoFormatModel]
 SUPPORTED_KAFKA_BATCH_SOURCES = [RequestSourceModel, SparkSourceModel]
 
@@ -278,6 +337,6 @@ class KafkaSourceModel(DataSourceModel):
 # https://blog.devgenius.io/deserialize-child-classes-with-pydantic-that-gonna-work-784230e1cf83
 # This lets us discriminate child classes of DataSourceModel with type hints.
 AnyDataSource = Annotated[
-    Union[RequestSourceModel, SparkSourceModel, KafkaSourceModel],
+    Union[RequestSourceModel, SparkSourceModel, KafkaSourceModel, PushSourceModel],
     PydanticField(discriminator="model_type"),
 ]

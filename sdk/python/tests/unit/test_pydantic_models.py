@@ -19,11 +19,12 @@ import pandas as pd
 from pydantic import BaseModel
 
 from feast.data_format import AvroFormat
-from feast.data_source import KafkaSource, RequestSource
+from feast.data_source import KafkaSource, PushSource, RequestSource
 from feast.entity import Entity
 from feast.expediagroup.pydantic_models.data_source_model import (
     AnyDataSource,
     KafkaSourceModel,
+    PushSourceModel,
     RequestSourceModel,
     SparkSourceModel,
 )
@@ -207,6 +208,38 @@ def test_idempotent_sparksource_conversion():
 
     pydantic_json = pydantic_obj.dict()
     assert pydantic_obj == SparkSourceModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_pushsource_conversion():
+    spark_source = SparkSource(
+        name="spark-source",
+        table="thingy",
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+
+    python_obj = PushSource(
+        name="push-source",
+        batch_source=spark_source,
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+
+    pydantic_obj = PushSourceModel.from_data_source(python_obj)
+    converted_python_obj = pydantic_obj.to_data_source()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = PushSource.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == PushSourceModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == PushSourceModel.parse_obj(pydantic_json)
 
 
 def test_idempotent_kafkasource_conversion():
