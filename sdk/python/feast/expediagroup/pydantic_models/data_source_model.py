@@ -177,6 +177,7 @@ class PushSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast PushSource.
     """
+
     name: str
     model_type: Literal["PushSourceModel"] = "PushSourceModel"
     batch_source: AnyBatchDataSource
