@@ -11,7 +11,7 @@ from pydantic import StrictStr
 
 from feast import usage
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, RequestSource
+from feast.data_source import DataSource, PushSource, RequestSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
@@ -21,6 +21,7 @@ from feast.errors import (
     ProjectMetadataNotFoundException,
 )
 from feast.expediagroup.pydantic_models.data_source_model import (
+    PushSourceModel,
     RequestSourceModel,
     SparkSourceModel,
 )
@@ -222,6 +223,10 @@ class HttpRegistry(BaseRegistry):
                 data = RequestSourceModel.from_data_source(data_source).json()
                 response_data = self._send_request("PUT", url, params=params, data=data)
                 return RequestSourceModel.parse_obj(response_data).to_data_source()
+            elif isinstance(data_source, PushSource):
+                data = PushSourceModel.from_data_source(data_source).json()
+                response_data = self._send_request("PUT", url, params=params, data=data)
+                return PushSourceModel.parse_obj(response_data).to_data_source()
             else:
                 raise TypeError(
                     "Unsupported DataSource type. Please use either SparkSource or RequestSource only"
