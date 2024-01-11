@@ -21,8 +21,8 @@ from feast.errors import (
     ProjectMetadataNotFoundException,
 )
 from feast.expediagroup.pydantic_models.data_source_model import (
-    RequestSourceModel,
     PushSourceModel,
+    RequestSourceModel,
     SparkSourceModel,
 )
 from feast.expediagroup.pydantic_models.entity_model import EntityModel
