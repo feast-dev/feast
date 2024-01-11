@@ -179,7 +179,7 @@ class PushSourceModel(DataSourceModel):
     """
     name: str
     model_type: Literal["PushSourceModel"] = "PushSourceModel"
-    batch_source: AnyBatchDataSource = None
+    batch_source: AnyBatchDataSource
     description: Optional[str] = ""
     tags: Optional[Dict[str, str]] = None
     owner: Optional[str] = ""
