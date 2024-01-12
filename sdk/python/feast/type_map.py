@@ -298,7 +298,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
