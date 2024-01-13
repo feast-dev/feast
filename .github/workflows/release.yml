@@ -36,8 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "lts/*"
       - name: Release (Dry Run)
         id: get_versions
         run: |
@@ -60,10 +59,10 @@ jobs:
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "lts/*"
       - name: Bump file versions
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
@@ -101,10 +100,10 @@ jobs:
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "lts/*"
       - name: Bump file versions (temporarily for Web UI publish)
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
@@ -139,8 +138,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18.x'
-        registry-url: 'https://registry.npmjs.org'
+        node-version: "lts/*"
     - name: Set up Homebrew
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@master
