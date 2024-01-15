@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -297,7 +298,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
@@ -352,6 +353,19 @@ def _python_value_to_proto_value(
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
             ]
+
+            # Bytes to array type conversion
+            if isinstance(sample, (bytes, bytearray)):
+                # Bytes of an array containing elements of bytes not supported
+                if feast_value_type == ValueType.BYTES_LIST:
+                    raise _type_err(sample, ValueType.BYTES_LIST)
+
+                json_value = json.loads(sample)
+                if isinstance(json_value, list):
+                    if feast_value_type == ValueType.BOOL_LIST:
+                        json_value = [bool(item) for item in json_value]
+                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
+                raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
                 type(item) in valid_types for item in sample
@@ -631,6 +645,7 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
+        "super": ValueType.BYTES,
         # skip date, geometry, hllsketch, time, timetz
     }
 
