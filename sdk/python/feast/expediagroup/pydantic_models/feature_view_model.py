@@ -6,7 +6,7 @@ Author: matcarlin@expediagroup.com
 """
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import dill
 from pydantic import BaseModel
@@ -64,7 +64,7 @@ class FeatureViewModel(BaseFeatureViewModel):
     original_entities: List[EntityModel] = []
     original_schema: Optional[List[FieldModel]]
     ttl: Optional[timedelta]
-    batch_source: AnyBatchDataSource
+    batch_source: Union[AnyBatchDataSource, PushSourceModel]
     stream_source: Optional[KafkaSourceModel]
     online: bool
     description: str
