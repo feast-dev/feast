@@ -9,9 +9,6 @@ In alphabetical order
 | Name           | GitHub Username  | Email                       | Organization       |
 | -------------- | ---------------- |-----------------------------| ------------------ |
 | Achal Shah     | `achals`         | achals@gmail.com            | Tecton             |
-| Felix Wang     | `felixwang9817`  | wangfelix98@gmail.com       | Tecton             |
-| Kevin Zhang    | `kevjumba`       | kevin.zhang.13499@gmail.com | Tecton             |
-| Miles Adkins   | `sfc-gh-madkins` | miles.adkins@snowflake.com  | Snowflake          |
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Tecton             |
 | Zhiling Chen   | `zhilingc`       | chnzhlng@gmail.com          | GetGround          |
 
@@ -29,3 +26,6 @@ In alphabetical order
 | Danny Chiao         | adchia          | danny@tecton.ai             | Tecton            |
 | David Liu           | mavysavydav     | davidyliuliu@gmail.com      | Twitter           |
 | Matt Delacour       | MattDelac       | mdelacour@hey.com           | Shopify           |
+| Miles Adkins        | sfc-gh-madkins  | miles.adkins@snowflake.com | Snowflake        |
+| Felix Wang     | `felixwang9817`  | wangfelix98@gmail.com       | Tecton             |
+| Kevin Zhang    | `kevjumba`       | kevin.zhang.13499@gmail.com | Tecton             |
