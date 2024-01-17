@@ -356,7 +356,7 @@ isort==5.12.0
     # via feast (setup.py)
 jedi==0.19.1
     # via ipython
-jinja2==3.1.2
+jinja2==3.1.3
     # via
     #   altair
     #   feast (setup.py)
@@ -407,7 +407,7 @@ jupyter-events==0.9.0
     # via jupyter-server
 jupyter-lsp==2.2.0
     # via jupyterlab
-jupyter-server==2.10.1
+jupyter-server==2.11.2
     # via
     #   jupyter-lsp
     #   jupyterlab
