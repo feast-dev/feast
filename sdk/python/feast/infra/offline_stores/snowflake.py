@@ -588,8 +588,10 @@ class SnowflakeRetrievalJob(RetrievalJob):
         file_name_column_index = [
             idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
         ][0]
+        # s3gov schema is used by Snowflake in AWS govcloud regions
+        native_export_path = self.export_path.replace("s3gov://", "s3://")
         return [
-            f"{self.export_path}/{row[file_name_column_index]}"
+            f"{native_export_path}/{row[file_name_column_index]}"
             for row in cursor.fetchall()
         ]
 
