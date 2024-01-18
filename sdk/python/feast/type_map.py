@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -297,7 +298,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
@@ -352,6 +353,19 @@ def _python_value_to_proto_value(
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
             ]
+
+            # Bytes to array type conversion
+            if isinstance(sample, (bytes, bytearray)):
+                # Bytes of an array containing elements of bytes not supported
+                if feast_value_type == ValueType.BYTES_LIST:
+                    raise _type_err(sample, ValueType.BYTES_LIST)
+
+                json_value = json.loads(sample)
+                if isinstance(json_value, list):
+                    if feast_value_type == ValueType.BOOL_LIST:
+                        json_value = [bool(item) for item in json_value]
+                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
+                raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
                 type(item) in valid_types for item in sample
@@ -428,12 +442,15 @@ def _python_value_to_proto_value(
                 for value in values
             ]
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
-            return [
-                ProtoValue(**{field_name: func(value)})
-                if not pd.isnull(value)
-                else ProtoValue()
-                for value in values
-            ]
+            out = []
+            for value in values:
+                if isinstance(value, ProtoValue):
+                    out.append(value)
+                elif not pd.isnull(value):
+                    out.append(ProtoValue(**{field_name: func(value)}))
+                else:
+                    out.append(ProtoValue())
+            return out
 
     raise Exception(f"Unsupported data type: ${str(type(values[0]))}")
 
@@ -528,6 +545,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "INTEGER": ValueType.INT64,
+        "NUMERIC": ValueType.INT64,
         "INT64": ValueType.INT64,
         "STRING": ValueType.STRING,
         "FLOAT": ValueType.DOUBLE,
@@ -627,6 +645,7 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
+        "super": ValueType.BYTES,
         # skip date, geometry, hllsketch, time, timetz
     }
 
@@ -745,7 +764,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
     # TODO: Find better way of doing this.
-    if type(spark_type_as_str) != str or spark_type_as_str not in type_map:
+    if not isinstance(spark_type_as_str, str) or spark_type_as_str not in type_map:
         return ValueType.NULL
     return type_map[spark_type_as_str.lower()]
 
@@ -873,13 +892,26 @@ def feast_value_type_to_pa(
 
 
 def pg_type_code_to_pg_type(code: int) -> str:
-    return {
+    """Map the postgres type code a Feast type string
+
+    Rather than raise an exception on an unknown type, we return the
+    string representation of the type code. This way rather than raising
+    an exception on unknown types, Feast will just skip the problem columns.
+
+    Note that json and jsonb are not supported but this shows up in the
+    log as a warning. Since postgres allows custom types we return an unknown for those cases.
+
+    See: https://jdbc.postgresql.org/documentation/publicapi/index.html?constant-values.html
+    """
+    PG_TYPE_MAP = {
         16: "boolean",
         17: "bytea",
         20: "bigint",
         21: "smallint",
         23: "integer",
         25: "text",
+        114: "json",
+        199: "json[]",
         700: "real",
         701: "double precision",
         1000: "boolean[]",
@@ -905,7 +937,11 @@ def pg_type_code_to_pg_type(code: int) -> str:
         1700: "numeric",
         2950: "uuid",
         2951: "uuid[]",
-    }[code]
+        3802: "jsonb",
+        3807: "jsonb[]",
+    }
+
+    return PG_TYPE_MAP.get(code, "unknown")
 
 
 def pg_type_code_to_arrow(code: int) -> str:

@@ -67,6 +67,11 @@ class TrinoSourceCreator(DataSourceCreator):
             catalog="memory",
             host="localhost",
             port=self.exposed_port,
+            source="trino-python-client",
+            http_scheme="http",
+            verify=False,
+            extra_credential=None,
+            auth=None,
         )
 
     def teardown(self):

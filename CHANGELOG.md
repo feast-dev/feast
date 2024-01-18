@@ -1,5 +1,75 @@
 # Changelog
 
+# [0.35.0](https://github.com/feast-dev/feast/compare/v0.34.0...v0.35.0) (2024-01-13)
+
+
+### Bug Fixes
+
+* Add async refresh to prevent synchronous refresh in main thread ([#3812](https://github.com/feast-dev/feast/issues/3812)) ([9583ed6](https://github.com/feast-dev/feast/commit/9583ed6b4ae8d3b97934bf0c80ecb236ed1e2895))
+* Adopt connection pooling for HBase ([#3793](https://github.com/feast-dev/feast/issues/3793)) ([b3852bf](https://github.com/feast-dev/feast/commit/b3852bfb8b27bf07736935f465da3067fcbac0ae))
+* Bytewax engine create configmap from object ([#3821](https://github.com/feast-dev/feast/issues/3821)) ([25e9775](https://github.com/feast-dev/feast/commit/25e97756adedfd1227d591ae74bdf60655f9067e))
+* Fix warnings from deprecated paths and update default log level ([#3757](https://github.com/feast-dev/feast/issues/3757)) ([68a8737](https://github.com/feast-dev/feast/commit/68a87379c42567f338d86cb2be90520cc6d4bfb6))
+* improve parsing bytewax job status ([5983f40](https://github.com/feast-dev/feast/commit/5983f40f8f5df5dbbcd2640f83ef82c19cdb4d19))
+* make bytewax settings unexposed ([ae1bb8b](https://github.com/feast-dev/feast/commit/ae1bb8bdd1b9e293809519971935c93c2214d791))
+* Make generated temp table name escaped ([#3797](https://github.com/feast-dev/feast/issues/3797)) ([175d796](https://github.com/feast-dev/feast/commit/175d7969b1f75ab797aff9c92a70d845297444ad))
+* Pin numpy version to avoid spammy deprecation messages ([774ed33](https://github.com/feast-dev/feast/commit/774ed33a067bf9bf087520325b72f4f4d194106a))
+* Redundant feature materialization and premature incremental materialization timestamp updates ([#3789](https://github.com/feast-dev/feast/issues/3789)) ([417b16b](https://github.com/feast-dev/feast/commit/417b16b57af7b38fbd0708b9a0c5d5035ed021fd)), closes [#6](https://github.com/feast-dev/feast/issues/6) [#7](https://github.com/feast-dev/feast/issues/7)
+* Resolve hbase hotspot issue when materializing ([#3790](https://github.com/feast-dev/feast/issues/3790)) ([7376db8](https://github.com/feast-dev/feast/commit/7376db8dbd1d3168a1262fbbc0ce3899be8d0c34))
+* Set keepalives_idle None by default ([#3756](https://github.com/feast-dev/feast/issues/3756)) ([8717e9b](https://github.com/feast-dev/feast/commit/8717e9bf0fd253454982b9c9e9527c4d41906e9c))
+* Set upper bound for bigquery client due to its breaking changes ([2151c39](https://github.com/feast-dev/feast/commit/2151c39d1a8d8eba114306411dd4bd91ac0ce3f6))
+* UI project cannot handle fallback routes ([#3766](https://github.com/feast-dev/feast/issues/3766)) ([96ece0f](https://github.com/feast-dev/feast/commit/96ece0fe94a07cc6f1dabf5d6c9b061b48b06d67))
+* update dependencies versions due to conflicts ([5dc0b24](https://github.com/feast-dev/feast/commit/5dc0b241ec68aa10fd783569bf0ae12c5752f20f))
+* Update jackson and remove unnecessary logging ([#3809](https://github.com/feast-dev/feast/issues/3809)) ([018d0ea](https://github.com/feast-dev/feast/commit/018d0eab69dde63266f2c56813045ea5c5523f76))
+* upgrade the pyarrow to latest v14.0.1 for CVE-2023-47248. ([052182b](https://github.com/feast-dev/feast/commit/052182bcca046e35456674fc7d524825882f4b35))
+
+
+### Features
+
+* Add get online feature rpc to gprc server ([#3815](https://github.com/feast-dev/feast/issues/3815)) ([01db8cc](https://github.com/feast-dev/feast/commit/01db8cce6f82d4c6e496041351fb6b56eb2645b0))
+* Add materialize and materialize-incremental rest endpoints ([#3761](https://github.com/feast-dev/feast/issues/3761)) ([fa600fe](https://github.com/feast-dev/feast/commit/fa600fe3c4b1d5fdd383a9367511ac5616ee7a32)), closes [#3760](https://github.com/feast-dev/feast/issues/3760)
+* add redis sentinel support ([3387a15](https://github.com/feast-dev/feast/commit/3387a15d2b7e8dea430a271570be5a19b32bd3fe))
+* add redis sentinel support ([4337c89](https://github.com/feast-dev/feast/commit/4337c89083a3cfca21ee1beef473fda13b0e9014))
+* add redis sentinel support format lint ([aad8718](https://github.com/feast-dev/feast/commit/aad8718d24d893b3ff8c5864c5b8d210cfcdb22f))
+* Add support for `table_create_disposition` in bigquery job for offline store ([#3762](https://github.com/feast-dev/feast/issues/3762)) ([6a728fe](https://github.com/feast-dev/feast/commit/6a728fe66db0286ea10301d1fe693d6dcba4e4f4))
+* Add support for in_cluster config and additional labels for bytewax materialization ([#3754](https://github.com/feast-dev/feast/issues/3754)) ([2192e65](https://github.com/feast-dev/feast/commit/2192e6527fa10f1580e4dd8f350e05e45af981b7))
+* Apply cache to load proto registry for performance ([#3702](https://github.com/feast-dev/feast/issues/3702)) ([709c709](https://github.com/feast-dev/feast/commit/709c7098dc28a35dd488f5079d3787cf1f74ec03))
+* Make bytewax job write as mini-batches ([#3777](https://github.com/feast-dev/feast/issues/3777)) ([9b0e5ce](https://github.com/feast-dev/feast/commit/9b0e5ce2d1b617fcdcf0699c8b0cf8549a5e5ac5))
+* Optimize bytewax pod resource with zero-copy ([9cf9d96](https://github.com/feast-dev/feast/commit/9cf9d965a5566a87bb7419f2e8509666076f035f))
+* Support GCS filesystem for bytewax engine ([#3774](https://github.com/feast-dev/feast/issues/3774)) ([fb6b807](https://github.com/feast-dev/feast/commit/fb6b807f8b32776d388757ca431d290c03170c66))
+
+# [0.34.0](https://github.com/feast-dev/feast/compare/v0.33.0...v0.34.0) (2023-09-07)
+
+
+### Bug Fixes
+
+* Add NUMERIC to bq_to_feast type map ([#3719](https://github.com/feast-dev/feast/issues/3719)) ([6474b4b](https://github.com/feast-dev/feast/commit/6474b4b0169dc9b3df8e8daecded2b1fad5ead58))
+* Fix python unit tests ([#3734](https://github.com/feast-dev/feast/issues/3734)) ([e81684d](https://github.com/feast-dev/feast/commit/e81684d4f7916c986fa8e6cf06c2918951469799))
+* Handle unknown postgres source types gracefully ([#3634](https://github.com/feast-dev/feast/issues/3634)) ([d7041f4](https://github.com/feast-dev/feast/commit/d7041f4cce813d349e9016da55d65a65c1ec2355))
+* Pin protobuf version to avoid seg fault on some machines ([028cc20](https://github.com/feast-dev/feast/commit/028cc20a28118bd31deca8965782d5ad25f74300))
+* Remove unwanted excessive splitting of gcs path, so expected gcs parquet paths are returned from BigQueryRetrievalJob.to_remote_storage() ([#3730](https://github.com/feast-dev/feast/issues/3730)) ([f2c5988](https://github.com/feast-dev/feast/commit/f2c59885e31f3f238dbd9c13cd1ba168e3233a9d))
+* Run store.plan() only when need it. ([#3708](https://github.com/feast-dev/feast/issues/3708)) ([7bc7c47](https://github.com/feast-dev/feast/commit/7bc7c47b4507310850474290131c03fb6d480834))
+* Saved datasets no longer break CLI registry-dump command ([#3717](https://github.com/feast-dev/feast/issues/3717)) ([f28ccc2](https://github.com/feast-dev/feast/commit/f28ccc2b8f42bcca943d498ad583337d4cd70383))
+* Update py3.8 ci requirements for cython 3.0 release ([#3735](https://github.com/feast-dev/feast/issues/3735)) ([1695c13](https://github.com/feast-dev/feast/commit/1695c13fa8f48fdc2b5e627837043c5eea0914a9))
+
+
+### Features
+
+* Enhance customization of Trino connections when using Trino-based Offline Stores ([#3699](https://github.com/feast-dev/feast/issues/3699)) ([ed7535e](https://github.com/feast-dev/feast/commit/ed7535e23d490249ca7d224fb88e53b98d496ec0))
+* Implement gRPC server to ingest streaming features ([#3687](https://github.com/feast-dev/feast/issues/3687)) ([a3fcd1f](https://github.com/feast-dev/feast/commit/a3fcd1f369bdf07174b5ecf2a49ca9864cf145d4))
+
+# [0.33.0](https://github.com/feast-dev/feast/compare/v0.32.0...v0.33.0) (2023-08-14)
+
+
+### Bug Fixes
+
+* Add aws-sts dependency in java sdk so that S3 client acquires IRSA role ([#3696](https://github.com/feast-dev/feast/issues/3696)) ([c75a01f](https://github.com/feast-dev/feast/commit/c75a01fce2d52cd18479ace748b8eb2e6c81c988))
+* Redshift push ignores schema ([#3671](https://github.com/feast-dev/feast/issues/3671)) ([76270f6](https://github.com/feast-dev/feast/commit/76270f66b3d98b0119b70927c06908f9834b6120))
+
+
+### Features
+
+* Add possibility to save dataset as table, when spark config has remote warehouse info ([#3645](https://github.com/feast-dev/feast/issues/3645)) ([22c109b](https://github.com/feast-dev/feast/commit/22c109bc088d093a7c81c59e11490a9a21f82309))
+
 # [0.32.0](https://github.com/feast-dev/feast/compare/v0.31.0...v0.32.0) (2023-07-17)
 
 

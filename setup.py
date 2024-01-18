@@ -31,7 +31,6 @@ try:
     from setuptools.command.install import install
 
 except ImportError:
-    from distutils.command.build_ext import build_ext as _build_ext
     from distutils.command.build_py import build_py
     from distutils.core import setup
 
@@ -46,18 +45,22 @@ REQUIRED = [
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
     "fastavro>=1.1.0,<2",
-    "grpcio>=1.47.0,<2",
-    "grpcio-reflection>=1.47.0,<2",
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
+    "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<3",
+    "numpy>=1.22,<1.25",
     "pandas>=1.4.3,<2",
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro~=1.5.0",
-    "protobuf<5,>3.20",
+    # Higher than 4.23.4 seems to cause a seg fault
+    "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<12",
+    "pyarrow>=4",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -68,31 +71,34 @@ REQUIRED = [
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
     "typeguard==2.13.3",
-    "fastapi>=0.68.0,<1",
+    "fastapi>=0.68.0,<0.100",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7",
+    "importlib_metadata>=6.8.0,<7",
 ]
 
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
-    "google-cloud-bigquery[pandas]>=2,<4",
+    "google-cloud-bigquery[pandas]>=2,<3.13.0",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
+    "fsspec<2023.10.0",
 ]
 
 REDIS_REQUIRED = [
-    "redis==4.2.2",
+    "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<2023.10.0"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
@@ -141,20 +147,19 @@ HAZELCAST_REQUIRED = [
 CI_REQUIRED = (
     [
         "build",
+        "virtualenv==20.23.0",
         "cryptography>=35.0,<42",
-        "flake8",
+        "flake8>=6.0.0,<6.1.0",
         "black>=22.6.0,<23",
         "isort>=5,<6",
-        "grpcio-tools>=1.47.0",
-        "grpcio-testing>=1.47.0",
+        "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto",
         "mypy>=0.981,<0.990",
-        "mypy-protobuf==3.1",
         "avro==1.10.0",
-        "gcsfs>=0.4.0,<=2022.01.0",
-        "urllib3>=1.25.4,<2",
+        "fsspec<2023.10.0",
+        "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
@@ -167,9 +172,8 @@ CI_REQUIRED = (
         "pytest-mock==1.10.4",
         "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
-        "adlfs==0.5.9",
         "firebase-admin>=5.2.0,<6",
-        "pre-commit",
+        "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
         "pybindgen",
@@ -178,9 +182,10 @@ CI_REQUIRED = (
         "types-pytz",
         "types-PyYAML",
         "types-redis",
-        "types-requests",
+        "types-requests<2.31.0",
         "types-setuptools",
         "types-tabulate",
+        "virtualenv<20.24.2",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -379,8 +384,8 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "setuptools_scm",
-        "grpcio>=1.47.0",
-        "grpcio-tools>=1.47.0",
+        "grpcio>=1.56.2,<2",
+        "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
     ],

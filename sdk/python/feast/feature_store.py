@@ -287,7 +287,11 @@ class FeatureStore:
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
-            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
                 fv.entities = []
                 fv.entity_columns = []
             feature_views.append(fv)
@@ -2224,6 +2228,7 @@ class FeatureStore:
         no_feature_log: bool,
         workers: int,
         keep_alive_timeout: int,
+        registry_ttl_sec: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2239,6 +2244,7 @@ class FeatureStore:
             no_access_log=no_access_log,
             workers=workers,
             keep_alive_timeout=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
         )
 
     @log_exceptions_and_usage

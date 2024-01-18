@@ -27,6 +27,47 @@ offline_store:
     catalog: memory
     connector:
         type: memory
+    user: trino
+    source: feast-trino-offline-store
+    http-scheme: https
+    ssl-verify: false
+    x-trino-extra-credential-header: foo=bar, baz=qux
+
+    # enables authentication in Trino connections, pick the one you need
+    # if you don't need authentication, you can safely remove the whole auth block
+    auth:
+        # Basic Auth
+        type: basic
+        config:
+            username: foo
+            password: $FOO
+
+        # Certificate
+        type: certificate
+        config:
+            cert-file: /path/to/cert/file
+            key-file: /path/to/key/file
+
+        # JWT
+        type: jwt
+        config:
+            token: $JWT_TOKEN
+
+        # OAuth2 (no config required)
+        type: oauth2
+
+        # Kerberos
+        type: kerberos
+        config:
+            config-file: /path/to/kerberos/config/file
+            service-name: foo
+            mutual-authentication: true
+            force-preemptive: true
+            hostname-override: custom-hostname
+            sanitize-mutual-error-response: true
+            principal: principal-name
+            delegate: true
+            ca_bundle: /path/to/ca/bundle/file
 online_store:
     path: data/online_store.db
 ```
