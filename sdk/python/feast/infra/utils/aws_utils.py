@@ -353,7 +353,12 @@ def upload_arrow_table_to_redshift(
         with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
             # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
             # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
-            pq.write_table(table, parquet_temp_file, coerce_timestamps="us")
+            pq.write_table(
+                table,
+                parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
+            )
             parquet_temp_file.seek(0)
             s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
 
