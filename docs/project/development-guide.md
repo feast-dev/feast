@@ -154,6 +154,12 @@ pip install -e ".[dev]"
 
 This will allow the installed feast version to automatically reflect changes to your local development version of Feast without needing to reinstall everytime you make code changes.
 
+10. Compile the protubufs
+```sh
+make compile-protos-python
+```
+
+
 ### Code Style & Linting
 Feast Python SDK / CLI codebase:
 - Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
