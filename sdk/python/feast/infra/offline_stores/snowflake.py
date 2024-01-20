@@ -589,7 +589,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         native_export_path = self.export_path.replace("s3gov://", "s3://")
         return self._get_file_names_from_copy_into(cursor, native_export_path)
 
-
     def _get_file_names_from_copy_into(self, cursor, native_export_path) -> List[str]:
         file_name_column_index = [
             idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
