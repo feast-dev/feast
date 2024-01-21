@@ -159,6 +159,10 @@ This will allow the installed feast version to automatically reflect changes to 
 make compile-protos-python
 ```
 
+11. Spin up Docker Image
+```sh
+docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .
+```
 
 ### Code Style & Linting
 Feast Python SDK / CLI codebase:
