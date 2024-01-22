@@ -495,7 +495,7 @@ nest-asyncio==1.5.8
     # via ipykernel
 nodeenv==1.8.0
     # via pre-commit
-notebook==7.0.6
+notebook==7.0.7
     # via great-expectations
 notebook-shim==0.2.3
     # via
