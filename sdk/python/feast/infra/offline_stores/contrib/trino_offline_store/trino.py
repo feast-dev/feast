@@ -40,7 +40,7 @@ from feast.usage import log_exceptions_and_usage
 
 class BasicAuthModel(FeastConfigBaseModel):
     username: StrictStr
-    password: StrictStr  # original: SecretStr
+    password: StrictStr
 
 
 class KerberosAuthModel(FeastConfigBaseModel):
