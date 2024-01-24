@@ -4,7 +4,7 @@ set -e
 
 # feast root directory is expected to be mounted (eg, by docker compose)
 cd /mnt/feast
-pip install -e '.[redis]'
+pip install -e '.[grpcio,redis]'
 
 cd /app
 python materialize.py
