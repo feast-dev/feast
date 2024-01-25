@@ -1,6 +1,7 @@
 import sys
 from binascii import unhexlify
 
+import numpy as np
 import pandas
 from _snowflake import vectorized
 
@@ -54,6 +55,180 @@ def feast_snowflake_varchar_to_string_proto(df):
         map(
             ValueProto.SerializeToString,
             python_values_to_proto_values(df[0].to_numpy(), ValueType.STRING),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_bytes_to_list_bytes_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_bytes_to_list_bytes_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+# ValueType.STRING_LIST = 12
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_bytes_to_list_bytes_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    # Sometimes bytes come in as strings so we need to convert back to float
+    numpy_arrays = np.asarray(df[0].to_list()).astype(bytes)
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(numpy_arrays, ValueType.BYTES_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_varchar_to_list_string_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_varchar_to_list_string_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_varchar_to_list_string_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(df[0].to_numpy(), ValueType.STRING_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_number_to_list_int32_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_number_to_list_int32_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_number_to_list_int32_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(df[0].to_numpy(), ValueType.INT32_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_number_to_list_int64_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_number_to_list_int64_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_number_to_list_int64_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(df[0].to_numpy(), ValueType.INT64_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_float_to_list_double_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_float_to_list_double_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_float_to_list_double_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    numpy_arrays = np.asarray(df[0].to_list()).astype(float)
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(numpy_arrays, ValueType.DOUBLE_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_boolean_to_list_bool_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_boolean_to_list_bool_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_boolean_to_list_bool_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(df[0].to_numpy(), ValueType.BOOL_LIST),
+        )
+    )
+    return df
+
+
+"""
+CREATE OR REPLACE FUNCTION feast_snowflake_array_timestamp_to_list_unix_timestamp_proto(df ARRAY)
+  RETURNS BINARY
+  LANGUAGE PYTHON
+  RUNTIME_VERSION = '3.8'
+  PACKAGES = ('protobuf', 'pandas')
+  HANDLER = 'feast.infra.utils.snowflake.snowpark.snowflake_udfs.feast_snowflake_array_timestamp_to_list_unix_timestamp_proto'
+  IMPORTS = ('@feast_stage/feast.zip');
+"""
+
+
+@vectorized(input=pandas.DataFrame)
+def feast_snowflake_array_timestamp_to_list_unix_timestamp_proto(df):
+    sys._xoptions["snowflake_partner_attribution"].append("feast")
+
+    numpy_arrays = np.asarray(df[0].to_list()).astype(np.datetime64)
+
+    df = list(
+        map(
+            ValueProto.SerializeToString,
+            python_values_to_proto_values(numpy_arrays, ValueType.UNIX_TIMESTAMP_LIST),
         )
     )
     return df
