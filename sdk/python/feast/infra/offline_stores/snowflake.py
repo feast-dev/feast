@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import uuid
 import warnings
@@ -51,6 +52,17 @@ from feast.infra.utils.snowflake.snowflake_utils import (
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
 from feast.usage import log_exceptions_and_usage
 
 try:
@@ -320,6 +332,7 @@ class SnowflakeOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            feature_views=feature_views,
             metadata=RetrievalMetadata(
                 features=feature_refs,
                 keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
@@ -398,9 +411,12 @@ class SnowflakeRetrievalJob(RetrievalJob):
         config: RepoConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        feature_views: Optional[List[FeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
 
+        if feature_views is None:
+            feature_views = []
         if not isinstance(query, str):
             self._query_generator = query
         else:
@@ -416,6 +432,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self.config = config
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
+        self._feature_views = feature_views
         self._metadata = metadata
         self.export_path: Optional[str]
         if self.config.offline_store.blob_export_location:
@@ -435,6 +452,20 @@ class SnowflakeRetrievalJob(RetrievalJob):
         df = execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
         ).fetch_pandas_all()
+
+        for feature_view in self._feature_views:
+            for feature in feature_view.features:
+                if feature.dtype in [
+                    Array(String),
+                    Array(Bytes),
+                    Array(Int32),
+                    Array(Int64),
+                    Array(UnixTimestamp),
+                    Array(Float64),
+                    Array(Float32),
+                    Array(Bool),
+                ]:
+                    df[feature.name] = [json.loads(x) for x in df[feature.name]]
 
         return df
 
