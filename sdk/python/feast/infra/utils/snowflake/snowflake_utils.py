@@ -49,19 +49,19 @@ class GetSnowflakeConnection:
 
     def __enter__(self):
 
-        assert self.config.type in {
+        assert self.config.type in [
             "snowflake.registry",
             "snowflake.offline",
             "snowflake.engine",
             "snowflake.online",
-        }
+        ]
 
         if self.config.type not in _cache:
             if self.config.type == "snowflake.registry":
                 config_header = "connections.feast_registry"
             elif self.config.type == "snowflake.offline":
                 config_header = "connections.feast_offline_store"
-            elif self.config.type == "snowflake.engine":
+            if self.config.type == "snowflake.engine":
                 config_header = "connections.feast_batch_engine"
             elif self.config.type == "snowflake.online":
                 config_header = "connections.feast_online_store"
@@ -113,11 +113,11 @@ class GetSnowflakeConnection:
 
 def assert_snowflake_feature_names(feature_view: FeatureView) -> None:
     for feature in feature_view.features:
-        assert feature.name not in {
+        assert feature.name not in [
             "entity_key",
             "feature_name",
             "feature_value",
-        }, f"Feature Name: {feature.name} is a protected name to ensure query stability"
+        ], f"Feature Name: {feature.name} is a protected name to ensure query stability"
     return None
 
 
