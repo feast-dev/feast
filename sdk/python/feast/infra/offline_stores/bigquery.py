@@ -356,7 +356,10 @@ class BigQueryOfflineStore(OfflineStore):
             # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
             # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
             pyarrow.parquet.write_table(
-                table=data, where=parquet_temp_file, coerce_timestamps="us"
+                table=data,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
             )
 
             parquet_temp_file.seek(0)
@@ -407,7 +410,10 @@ class BigQueryOfflineStore(OfflineStore):
             # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
             # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
             pyarrow.parquet.write_table(
-                table=table, where=parquet_temp_file, coerce_timestamps="us"
+                table=table,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
             )
 
             parquet_temp_file.seek(0)

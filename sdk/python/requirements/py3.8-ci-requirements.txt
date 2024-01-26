@@ -130,7 +130,7 @@ coverage[toml]==7.3.2
     # via
     #   coverage
     #   pytest-cov
-cryptography==41.0.5
+cryptography==41.0.6
     # via
     #   azure-identity
     #   azure-storage-blob
@@ -414,7 +414,7 @@ jupyter-core==5.5.0
     #   nbformat
 jupyter-events==0.9.0
     # via jupyter-server
-jupyter-lsp==2.2.0
+jupyter-lsp==2.2.2
     # via jupyterlab
 jupyter-server==2.11.2
     # via
