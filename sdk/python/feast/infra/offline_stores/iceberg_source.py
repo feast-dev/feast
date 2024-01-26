@@ -1,72 +1,68 @@
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Optional, Dict, Set, Tuple
+from feast import BigQuerySource
+from feast.data_source import DataSourceProto
 
-from typeguard import typechecked
-
-from feast import type_map
-from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
-from feast.feature_logging import LoggingDestination
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.FeatureService_pb2 import (
-    LoggingConfig as LoggingConfigProto,
-)
-from feast.protos.feast.core.SavedDataset_pb2 import (
-    SavedDatasetStorage as SavedDatasetStorageProto,
-)
-from feast.repo_config import RepoConfig
-from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import get_user_agent
-from feast.value_type import ValueType
-
- 
-from typing import Optional
-from feast import BigQuerySource, DataSourceProto
 
 class IcebergSource(BigQuerySource):
     """
-    IcebergSource is a variant of BigQuerySource that connects to Iceberg tables through BigQuery.
+    IcebergSource is an extension of BigQuerySource that includes additional parameters specific to Iceberg.
     """
 
     def __init__(
         self,
-        table: Optional[str] = None,
-        query: Optional[str] = None,
-        event_timestamp_column: Optional[str] = None,
-        created_timestamp_column: Optional[str] = None,
-        date_partition_column: Optional[str] = None,
-        field_mapping: Optional[dict] = None,
+        *,
+        eventTypes: Optional[Set[str]] = None,
+        dateRange: Optional[Tuple[str, str]] = None,
+        isStreaming: Optional[bool] = None,
+        useEventTimeAligner: Optional[bool] = None,
+        **kwargs,
     ):
-        super().__init__(
-            table_ref=table,
-            query=query,
-            event_timestamp_column=event_timestamp_column,
-            created_timestamp_column=created_timestamp_column,
-            date_partition_column=date_partition_column,
-            field_mapping=field_mapping,
+        """
+        Create an IcebergSource from an existing table or query.
+
+        Args:
+            eventTypes (optional): Set of event types to be included.
+            dateRange (optional): Tuple of start and end dates for the data range.
+            isStreaming (optional): Boolean flag indicating if the source is streaming.
+            useEventTimeAligner (optional): Boolean flag indicating if event time aligner is used.
+            **kwargs: Other arguments inherited from BigQuerySource.
+        """
+        super().__init__(**kwargs)
+        self.eventTypes = eventTypes
+        self.dateRange = dateRange
+        self.isStreaming = isStreaming
+        self.useEventTimeAligner = useEventTimeAligner
+
+    @staticmethod
+    def from_proto(data_source: DataSourceProto):
+        """
+        Create an IcebergSource from a protobuf representation.
+
+        Args:
+            data_source (DataSourceProto): Protobuf representation of a data source.
+
+        Returns:
+            IcebergSource: A new IcebergSource object.
+        """
+        return IcebergSource(
+            eventTypes=set(data_source.iceberg_options.eventTypes),
+            dateRange=(data_source.iceberg_options.dateRangeStart, data_source.iceberg_options.dateRangeEnd),
+            isStreaming=data_source.iceberg_options.isStreaming,
+            useEventTimeAligner=data_source.iceberg_options.useEventTimeAligner,
+            **BigQuerySource.from_proto(data_source)
         )
 
-    @classmethod
-    def from_proto(cls, data_source: DataSourceProto.DataSource):
-        return cls(
-            table=data_source.bigquery_options.table_ref,
-            query=data_source.bigquery_options.query,
-            event_timestamp_column=data_source.event_timestamp_column,
-            created_timestamp_column=data_source.created_timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-            field_mapping=dict(data_source.field_mapping),
-        )
+    def to_proto(self) -> DataSourceProto:
+        """
+        Convert the IcebergSource to its protobuf representation.
 
-    def to_proto(self) -> DataSourceProto.DataSource:
-        data_source_proto = DataSourceProto.DataSource(
-            type=DataSourceProto.DataSource.BIGQUERY,
-            bigquery_options=DataSourceProto.DataSource.BigQueryOptions(
-                table_ref=self.table_ref,
-                query=self.query,
-            ),
-            event_timestamp_column=self.event_timestamp_column,
-            created_timestamp_column=self.created_timestamp_column,
-            date_partition_column=self.date_partition_column,
-            field_mapping=self.field_mapping,
-        )
+        Returns:
+            DataSourceProto: Protobuf representation of the IcebergSource.
+        """
+        data_source_proto = super().to_proto()
+        data_source_proto.iceberg_options.eventTypes.extend(self.eventTypes)
+        data_source_proto.iceberg_options.dateRangeStart, data_source_proto.iceberg_options.dateRangeEnd = self.dateRange
+        data_source_proto.iceberg_options.isStreaming = self.isStreaming
+        data_source_proto.iceberg_options.useEventTimeAligner = self.useEventTimeAligner
 
         return data_source_proto
