@@ -41,7 +41,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <grpc.version>1.30.2</grpc.version>
+        <grpc.version>1.55.1</grpc.version>
         <protoc.version>3.12.2</protoc.version>
         <protobuf.version>3.16.1</protobuf.version>
         <com.google.cloud.version>1.111.1</com.google.cloud.version>
@@ -255,7 +255,7 @@
                         <excludes>
                             <exclude>src/main/java/**/BatchLoadsWithResult.java</exclude>
                         </excludes>
-                        <removeUnusedImports />
+                        <removeUnusedImports/>
                     </java>
                     <scala>
                         <licenseHeader>
@@ -320,7 +320,7 @@
                                 <requireJavaVersion>
                                     <version>[11.0,)</version>
                                 </requireJavaVersion>
-                                <reactorModuleConvergence />
+                                <reactorModuleConvergence/>
                             </rules>
                         </configuration>
                     </execution>
@@ -331,7 +331,7 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <banDuplicatePomDependencyVersions />
+                                <banDuplicatePomDependencyVersions/>
                             </rules>
                         </configuration>
                     </execution>
