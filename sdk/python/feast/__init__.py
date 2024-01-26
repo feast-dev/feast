@@ -54,4 +54,5 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
+    "IcebergSource"
 ]
