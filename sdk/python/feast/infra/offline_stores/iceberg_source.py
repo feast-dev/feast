@@ -2,7 +2,7 @@ from typing import Optional, Dict, Set, Tuple
 from feast import BigQuerySource
 from feast.data_source import DataSourceProto
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
-from bigquery_source import BigQueryOptions
+from feast.infra.offline_stores.bigquery_source import BigQueryOptions
 
 
 class IcebergSource(BigQuerySource):
@@ -59,14 +59,16 @@ class IcebergSource(BigQuerySource):
             raise ValueError('No "table" or "query" argument provided.')
 
         self.bigquery_options = BigQueryOptions(table=table, query=query)
-        # self.iceberg_options = IcebergOptions(eventTypes = eventTypes, dateRange = dateRange,
-        #                                     isStreaming = isStreaming,useEventTimeAligner = useEventTimeAligner)
 
         # If no name, use the table as the default name.
         if name is None and table is None:
             raise DataSourceNoNameException()
         name = name or table
         assert name
+
+        self.bigquery_options = BigQueryOptions(table=table, query=query)
+        # self.iceberg_options = IcebergOptions(eventTypes = eventTypes, dateRange = dateRange,
+        #                                     isStreaming = isStreaming,useEventTimeAligner = useEventTimeAligner)
 
         super().__init__(
             name=name,
@@ -76,6 +78,8 @@ class IcebergSource(BigQuerySource):
             description=description,
             tags=tags,
             owner=owner,
+            table=table,
+            query=query
         )
     
 
