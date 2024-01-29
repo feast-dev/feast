@@ -32,6 +32,7 @@ class IcebergSource(BigQuerySource):
         self.dateRange = dateRange
         self.isStreaming = isStreaming
         self.useEventTimeAligner = useEventTimeAligner
+    
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -66,3 +67,35 @@ class IcebergSource(BigQuerySource):
         data_source_proto.iceberg_options.useEventTimeAligner = self.useEventTimeAligner
 
         return data_source_proto
+
+# TODO create iceberg options, using this to test
+class IcebergOptions:
+    """
+    Configuration options for a Iceberg data source.
+    """
+
+    def __init__(
+        self,
+        table: Optional[str],
+        query: Optional[str],
+    ):
+        self.table = table or ""
+        self.query = query or ""
+
+    @classmethod
+    def from_proto(cls, bigquery_options_proto: DataSourceProto.BigQueryOptions):
+        """
+        Creates a BigQueryOptions from a protobuf representation of a BigQuery option
+
+        Args:
+            bigquery_options_proto: A protobuf representation of a DataSource
+
+        Returns:
+            Returns a BigQueryOptions object based on the bigquery_options protobuf
+        """
+        bigquery_options = cls(
+            table=bigquery_options_proto.table,
+            query=bigquery_options_proto.query,
+        )
+
+        return bigquery_options
