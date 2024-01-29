@@ -91,7 +91,7 @@ class IcebergSource(BigQuerySource):
             IcebergSource: A new IcebergSource object.
         """
         assert data_source.HasField("bigquery_options")
-        assert data_source.HasField("iceberg_options")
+        #assert data_source.HasField("iceberg_options")
 
         return IcebergSource(
             name=data_source.name,
