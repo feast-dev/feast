@@ -11,6 +11,7 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena_source impor
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.infra.offline_stores.iceberg_source import IcebergSource
 
 from .batch_feature_view import BatchFeatureView
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
@@ -54,5 +55,5 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
-    "IcebergSource"
+    "IcebergSource",
 ]
