@@ -3,7 +3,6 @@ from feast import BigQuerySource
 from feast.data_source import DataSourceProto
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from bigquery_source import BigQueryOptions
-from iceberg_source import IcebergOptions
 
 
 class IcebergSource(BigQuerySource):
@@ -23,10 +22,10 @@ class IcebergSource(BigQuerySource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        eventTypes: Optional[Set[str]] = None,
-        dateRange: Optional[Tuple[str, str]] = None,
-        isStreaming: Optional[bool] = None,
-        useEventTimeAligner: Optional[bool] = None,
+        # eventTypes: Optional[Set[str]] = None,
+        # dateRange: Optional[Tuple[str, str]] = None,
+        # isStreaming: Optional[bool] = None,
+        # useEventTimeAligner: Optional[bool] = None,
         **kwargs,
     ):
         """
@@ -60,8 +59,8 @@ class IcebergSource(BigQuerySource):
             raise ValueError('No "table" or "query" argument provided.')
 
         self.bigquery_options = BigQueryOptions(table=table, query=query)
-        self.iceberg_options = IcebergOptions(eventTypes = eventTypes, dateRange = dateRange,
-                                            isStreaming = isStreaming,useEventTimeAligner = useEventTimeAligner)
+        # self.iceberg_options = IcebergOptions(eventTypes = eventTypes, dateRange = dateRange,
+        #                                     isStreaming = isStreaming,useEventTimeAligner = useEventTimeAligner)
 
         # If no name, use the table as the default name.
         if name is None and table is None:
@@ -104,10 +103,10 @@ class IcebergSource(BigQuerySource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            eventTypes=data_source.iceberg_options.eventTypes,
-            dateRange=data_source.iceberg_options.dateRange,
-            isStreaming=data_source.iceberg_options.isStreaming,
-            useEventTimeAligner=data_source.iceberg_options.useEventTimeAligner,
+            # eventTypes=data_source.iceberg_options.eventTypes,
+            # dateRange=data_source.iceberg_options.dateRange,
+            # isStreaming=data_source.iceberg_options.isStreaming,
+            # useEventTimeAligner=data_source.iceberg_options.useEventTimeAligner,
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -129,22 +128,22 @@ class IcebergSource(BigQuerySource):
             created_timestamp_column=self.created_timestamp_column,
         )
 
-# TODO implement to_proto and from_proto
-class IcebergOptions:
-    """
-    Configuration options for a Iceberg data source.
-    """
+# # TODO implement to_proto and from_proto
+# class IcebergOptions:
+#     """
+#     Configuration options for a Iceberg data source.
+#     """
 
-    def __init__(
-        self,
-        eventTypes: Optional[Set[str]],
-        dateRange: Optional[Tuple[str, str]],
-        isStreaming: Optional[bool],
-        useEventTimeAligner: Optional[bool],
-    ):
-        self.eventTypes = eventTypes or ""
-        self.dateRange = dateRange or Tuple("", "")
-        self.isStreaming = isStreaming or False
-        self.useEventTimeAligner = useEventTimeAligner or False
+#     def __init__(
+#         self,
+#         eventTypes: Optional[Set[str]],
+#         dateRange: Optional[Tuple[str, str]],
+#         isStreaming: Optional[bool],
+#         useEventTimeAligner: Optional[bool],
+#     ):
+#         self.eventTypes = eventTypes or ""
+#         self.dateRange = dateRange or Tuple("", "")
+#         self.isStreaming = isStreaming or False
+#         self.useEventTimeAligner = useEventTimeAligner or False
 
     
