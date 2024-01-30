@@ -11,7 +11,7 @@ In alphabetical order
 | Achal Shah     | `achals`         | achals@gmail.com            | Tecton             |
 | Edson Tirelli   | `etirelli`       | ed.tirelli@gmail.com          | Red Hat          |
 | Francisco Javier Arceo   | `franciscojavierarceo`       | arceofrancisco@gmail.com          | Affirm          |
-| Hao Xu   | `hao-affirm`       | sduxuhao@gmail.com          | JPMorgan          |
+| Hao Xu   | `HaoXuAI`       | sduxuhao@gmail.com          | JPMorgan          |
 | Jeremy Ary   | `jeremyary`       | jeremy.ary@gmail.com          | Red Hat          |
 | Shuchu Han  | `shuchu`       | shuchu.han@gmail.com          | Independent          |
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
