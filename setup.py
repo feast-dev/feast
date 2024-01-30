@@ -60,7 +60,7 @@ REQUIRED = [
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<12",
+    "pyarrow>=4,<=15",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
