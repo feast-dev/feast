@@ -4,6 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 # Including this section is comparable to supplying use_scm_version=True in setup.py.
+version_scheme = "no-guess-dev"
+root = "."
+relative_to = "setup.py"
 
 [tool.black]
 line-length = 88
