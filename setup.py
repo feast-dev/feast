@@ -81,6 +81,7 @@ REQUIRED = [
     "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
+    "s3fs==2023.12.2",
 ]
 
 GCP_REQUIRED = [
