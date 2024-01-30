@@ -81,7 +81,7 @@ REQUIRED = [
     "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
-    "s3fs==2023.12.2",
+    "s3fs",
 ]
 
 GCP_REQUIRED = [
@@ -99,7 +99,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
