@@ -11,7 +11,7 @@ const ProfilingReportTab = () => {
         title="html"
         width="100%"
         height="100%"
-        src={`https://mlops.mservice.io/dqm/profiling-reports/common/${featureServiceName}.html`}
+        src={`${process.env.PROFILING_URL || ""}/${featureServiceName}.html`}
       />
     </React.Fragment>
   );
