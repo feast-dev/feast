@@ -105,7 +105,9 @@ const FeatureServiceOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 <EuiLink
-                  href={`https://mlops.mservice.io/dqm/profiling-reports/common/${featureServiceName}.html`}
+                  href={`${
+                    process.env.PROFILING_URL || ""
+                  }/${featureServiceName}.html`}
                   target="_blank"
                 >
                   {featureServiceName}
