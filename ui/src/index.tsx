@@ -19,7 +19,7 @@ import DataTab from "./custom-tabs/data-tab/DataTab";
 import RFVDemoCustomTab from "./custom-tabs/reguar-fv-demo-tab/DemoCustomTab";
 import ODFVDemoCustomTab from "./custom-tabs/ondemand-fv-demo-tab/DemoCustomTab";
 import SFVDemoCustomTab from "./custom-tabs/stream-fv-demo-tab/DemoCustomTab";
-import FSDemoCustomTab from "./custom-tabs/feature-service-demo-tab/DemoCustomTab";
+import FSReportTab from "./custom-tabs/feature-service-report-tab/ProfilingReportTab";
 import DSDemoCustomTab from "./custom-tabs/data-source-demo-tab/DemoCustomTab";
 import EntDemoCustomTab from "./custom-tabs/entity-demo-tab/DemoCustomTab";
 import DatasetDemoCustomTab from "./custom-tabs/dataset-demo-tab/DemoCustomTab";
@@ -56,9 +56,9 @@ const tabsRegistry = {
   ],
   FeatureServiceCustomTabs: [
     {
-      label: "Custom Tab Demo",
-      path: "fs-demo-tab",
-      Component: FSDemoCustomTab,
+      label: "Profiling Report",
+      path: "profiling-report",
+      Component: FSReportTab,
     },
   ],
   DataSourceCustomTabs: [
@@ -97,13 +97,16 @@ ReactDOM.render(
       reactQueryClient={queryClient}
       feastUIConfigs={{
         tabsRegistry: tabsRegistry,
-        projectListPromise: fetch((process.env.PUBLIC_URL || "") + "/projects-list.json", {
+        projectListPromise: fetch(
+          (process.env.PUBLIC_URL || "") + "/projects-list.json",
+          {
             headers: {
               "Content-Type": "application/json",
             },
-          }).then((res) => {
-            return res.json();
-          })
+          }
+        ).then((res) => {
+          return res.json();
+        }),
       }}
     />
   </React.StrictMode>,

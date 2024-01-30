@@ -20,7 +20,7 @@ import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import useLoadFeatureService from "./useLoadFeatureService";
 import { toDate } from "../../utils/timestamp";
-
+import { EuiLink } from "@elastic/eui";
 const FeatureServiceOverviewTab = () => {
   let { featureServiceName, projectName } = useParams();
 
@@ -70,9 +70,9 @@ const FeatureServiceOverviewTab = () => {
             {data?.meta?.lastUpdatedTimestamp ? (
               <EuiFlexItem>
                 <EuiStat
-                  title={`${toDate(data?.meta?.lastUpdatedTimestamp!).toLocaleDateString(
-                    "en-CA"
-                  )}`}
+                  title={`${toDate(
+                    data?.meta?.lastUpdatedTimestamp!
+                  ).toLocaleDateString("en-CA")}`}
                   description="Last updated"
                 />
               </EuiFlexItem>
@@ -99,6 +99,20 @@ const FeatureServiceOverviewTab = () => {
               </EuiPanel>
             </EuiFlexItem>
             <EuiFlexItem grow={1}>
+              <EuiPanel hasBorder={true}>
+                <EuiTitle size="xs">
+                  <h3>Profiling Reports</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                <EuiLink
+                  href={`https://mlops.mservice.io/dqm/profiling-reports/common/${featureServiceName}.html`}
+                  target="_blank"
+                >
+                  {featureServiceName}
+                </EuiLink>
+              </EuiPanel>
+              <EuiSpacer size="m" />
+
               <EuiPanel hasBorder={true} grow={false}>
                 <EuiTitle size="xs">
                   <h3>Tags</h3>
@@ -109,7 +123,9 @@ const FeatureServiceOverviewTab = () => {
                     tags={data.spec.tags}
                     createLink={(key, value) => {
                       return (
-                        `${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service?` +
+                        `${
+                          process.env.PUBLIC_URL || ""
+                        }/p/${projectName}/feature-service?` +
                         encodeSearchQueryString(`${key}:${value}`)
                       );
                     }}
@@ -133,7 +149,9 @@ const FeatureServiceOverviewTab = () => {
                             color="primary"
                             onClick={() => {
                               navigate(
-                                `${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${entity.name}`
+                                `${
+                                  process.env.PUBLIC_URL || ""
+                                }/p/${projectName}/entity/${entity.name}`
                               );
                             }}
                             onClickAriaLabel={entity.name}
@@ -157,9 +175,11 @@ const FeatureServiceOverviewTab = () => {
                 <EuiHorizontalRule margin="xs" />
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={data?.spec?.features?.map((f) => {
-                      return f.featureViewName!;
-                    })!}
+                    fvNames={
+                      data?.spec?.features?.map((f) => {
+                        return f.featureViewName!;
+                      })!
+                    }
                   />
                 ) : (
                   <EuiText>No feature views in this feature service</EuiText>
