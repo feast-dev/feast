@@ -570,7 +570,7 @@ class HttpRegistry(BaseRegistry):
             if isinstance(feature_view, FeatureView):
                 feature_view.materialization_intervals.append((start_date, end_date))
                 params = {"commit": commit}
-                headers = {client_id: self.client_id}
+                headers = {"client_id": self.client_id}
                 url = f"{self.base_url}/projects/{project}/feature_views"
                 data = FeatureViewModel.from_feature_view(feature_view).json()
                 response_data = self._send_request("PUT", url, params=params, data=data, headers=headers)
