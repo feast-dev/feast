@@ -718,15 +718,19 @@ class HttpRegistry(BaseRegistry):
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
             expired = (
-                              self.cached_registry_proto is None
-                              or self.cached_registry_proto_created is None
-                      ) or (
-                              self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
-                              and (
-                                      datetime.utcnow()
-                                      > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
-                              )
-                      )
+                self.cached_registry_proto is None
+                or self.cached_registry_proto_created is None
+            ) or (
+                self.cached_registry_proto_ttl.total_seconds()
+                > 0  # 0 ttl means infinity
+                and (
+                    datetime.utcnow()
+                    > (
+                        self.cached_registry_proto_created
+                        + self.cached_registry_proto_ttl
+                    )
+                )
+            )
 
             if expired:
                 logger.info("Registry cache expired, so refreshing")
@@ -734,17 +738,17 @@ class HttpRegistry(BaseRegistry):
 
     def _check_if_registry_refreshed(self):
         if (
-                self.cached_registry_proto is None
-                or self.cached_registry_proto_created is None
+            self.cached_registry_proto is None
+            or self.cached_registry_proto_created is None
         ) or (
-                self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
-                and (
-                        datetime.utcnow()
-                        > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
-                )
+            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
+            and (
+                datetime.utcnow()
+                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+            )
         ):
             seconds_since_last_refresh = (
-                    datetime.utcnow() - self.cached_registry_proto_created
+                datetime.utcnow() - self.cached_registry_proto_created
             ).total_seconds()
             if seconds_since_last_refresh > CACHE_REFRESH_THRESHOLD_SECONDS:
                 logger.warning(
