@@ -61,7 +61,7 @@ class HttpRegistryConfig(RegistryConfig):
     """ str: Endpoint of Feature registry.
     If registry_type is 'http', then this is a endpoint of Feature Registry """
 
-    clint_id: StrictStr = "Unknown"
+    clint_id: Optional[StrictStr] = "Unknown"
 
 
 CACHE_REFRESH_THRESHOLD_SECONDS = 300
