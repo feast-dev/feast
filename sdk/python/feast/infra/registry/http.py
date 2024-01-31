@@ -123,7 +123,7 @@ class HttpRegistry(BaseRegistry):
         logger.exception("Request failed with exception: %s", str(exception))
         raise httpx.HTTPError("Request failed with exception: " + str(exception))
 
-    def _send_request(self, method: str, url: str, params=None, data=None, headers= None):
+    def _send_request(self, method: str, url: str, params=None, data=None, headers=None):
         try:
             request = httpx.Request(method=method, url=url, params=params, data=data, headers=headers)
             response = self.http_client.send(request)
@@ -139,7 +139,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects"
             params = {"project": project, "commit": commit}
             headers = {"client_id": self.client_id}
-            response_data = self._send_request("PUT", url, params=params, headers = headers)
+            response_data = self._send_request("PUT", url, params=params, headers=headers)
             return ProjectMetadataModel.parse_obj(response_data)
         except Exception as exception:
             self._handle_exception(exception)
@@ -160,7 +160,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/entities/{name}"
             params = {"commit": commit}
             headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers= headers)
+            self._send_request("DELETE", url, params=params, headers=headers)
             logger.info(f"Deleted Entity {name} from project {project}")
         except EntityNotFoundException as exception:
             logger.error(
@@ -248,7 +248,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/data_sources/{name}"
             params = {"commit": commit}
             headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers = headers)
+            self._send_request("DELETE", url, params=params, headers=headers)
             logger.info(f"Deleted Datasource {name} from project {project}")
         except DataSourceObjectNotFoundException as exception:
             logger.error(
@@ -273,7 +273,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/data_sources/{name}"
             params = {"allow_cache": True}
             headers = {"client_id": self.client_id}
-            response_data = self._send_request("GET", url, params=params, headers =headers)
+            response_data = self._send_request("GET", url, params=params, headers=headers)
             if "model_type" in response_data:
                 if response_data["model_type"] == "RequestSourceModel":
                     return RequestSourceModel.parse_obj(response_data).to_data_source()
@@ -340,7 +340,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/feature_services/{name}"
             params = {"commit": commit}
             headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers = headers)
+            self._send_request("DELETE", url, params=params, headers=headers)
             logger.info(f"Deleted FeatureService {name} from project {project}")
         except FeatureServiceNotFoundException as exception:
             logger.error(
@@ -366,7 +366,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/feature_services/{name}"
             params = {"allow_cache": True}
             headers = {"client_id": self.client_id}
-            response_data = self._send_request("GET", url, params=params, headers= headers)
+            response_data = self._send_request("GET", url, params=params, headers=headers)
             return FeatureServiceModel.parse_obj(response_data).to_feature_service()
         except FeatureServiceNotFoundException as exception:
             logger.error(
@@ -721,14 +721,10 @@ class HttpRegistry(BaseRegistry):
                               self.cached_registry_proto is None
                               or self.cached_registry_proto_created is None
                       ) or (
-                              self.cached_registry_proto_ttl.total_seconds()
-                              > 0  # 0 ttl means infinity
+                              self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
                               and (
                                       datetime.utcnow()
-                                      > (
-                                              self.cached_registry_proto_created
-                                              + self.cached_registry_proto_ttl
-                                      )
+                                      > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
                               )
                       )
 
