@@ -551,9 +551,9 @@ class HttpRegistry(BaseRegistry):
         raise NotImplementedError("Method not implemented")
 
     def list_request_feature_views(
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[RequestFeatureView]:
         # TODO: Implement listing Request Feature Views
         return []
