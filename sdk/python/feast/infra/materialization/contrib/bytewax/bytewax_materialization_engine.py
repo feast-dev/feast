@@ -421,7 +421,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                     }
                                 ],
                                 "image": "busybox",
-                                "imagePullPolicy": "Always",
+                                "imagePullPolicy": "IfNotPresent",
                                 "name": "init-hostfile",
                                 "resources": {},
                                 "securityContext": {
