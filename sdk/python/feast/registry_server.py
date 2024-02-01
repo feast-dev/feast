@@ -1,17 +1,10 @@
 from concurrent import futures
-from datetime import datetime
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
 
 from feast import FeatureStore
-from feast.data_source import DataSource
-from feast.entity import Entity
-from feast.feature_service import FeatureService
-from feast.feature_view import FeatureView
-from feast.infra.infra_object import Infra
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
-from feast.saved_dataset import SavedDataset, ValidationReference
 
 
 class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):

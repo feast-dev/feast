@@ -3,9 +3,8 @@ import grpc_testing
 import pytest
 from google.protobuf.empty_pb2 import Empty
 
-from feast import Entity, FeatureStore, RepoConfig
-from feast.protos.feast.core import Entity_pb2
-from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
+from feast import Entity, FeatureStore
+from feast.protos.feast.registry import RegistryServer_pb2
 from feast.registry_server import RegistryServer
 
 
