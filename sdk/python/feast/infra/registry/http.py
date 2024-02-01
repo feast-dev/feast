@@ -125,13 +125,9 @@ class HttpRegistry(BaseRegistry):
         logger.exception("Request failed with exception: %s", str(exception))
         raise httpx.HTTPError("Request failed with exception: " + str(exception))
 
-    def _send_request(
-        self, method: str, url: str, params=None, data=None
-    ):
+    def _send_request(self, method: str, url: str, params=None, data=None):
         try:
-            request = httpx.Request(
-                method=method, url=url, params=params, data=data
-            )
+            request = httpx.Request(method=method, url=url, params=params, data=data)
             response = self.http_client.send(request)
             response.raise_for_status()
             return response.json()
