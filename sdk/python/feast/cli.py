@@ -25,7 +25,10 @@ from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+from feast.constants import (
+    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_REGISTRY_SERVER_PORT,
+)
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.contrib.grpc_server import get_grpc_server
@@ -751,6 +754,22 @@ def serve_transformations_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_transformations(port)
+
+
+@cli.command("serve_registry")
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_REGISTRY_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_registry_command(ctx: click.Context, port: int):
+    """Start a registry server locally on a given port."""
+    store = create_feature_store(ctx)
+
+    store.serve_registry(port)
 
 
 @cli.command("validate")
