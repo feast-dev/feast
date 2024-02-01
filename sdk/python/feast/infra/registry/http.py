@@ -61,7 +61,7 @@ class HttpRegistryConfig(RegistryConfig):
     """ str: Endpoint of Feature registry.
     If registry_type is 'http', then this is a endpoint of Feature Registry """
 
-    clint_id: Optional[StrictStr] = "Unknown"
+    client_id: Optional[StrictStr] = "Unknown"
 
 
 CACHE_REFRESH_THRESHOLD_SECONDS = 300
@@ -79,11 +79,10 @@ class HttpRegistry(BaseRegistry):
         timeout = httpx.Timeout(5.0, connect=60.0)
         transport = httpx.HTTPTransport(retries=3, verify=False)
         self.base_url = registry_config.path
-        self.client_id = registry_config.clint_id
         self.http_client = httpx.Client(
             timeout=timeout,
             transport=transport,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "client_id": registry_config.clint_id},
         )
         self.project = project
         self.apply_project(self.project)
@@ -142,9 +141,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects"
             params = {"project": project, "commit": commit}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "PUT", url, params=params, headers=headers
+                "PUT", url, params=params
             )
             return ProjectMetadataModel.parse_obj(response_data)
         except Exception as exception:
@@ -155,9 +153,9 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/entities"
             data = EntityModel.from_entity(entity).json()
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
+
             response_data = self._send_request(
-                "PUT", url, params=params, data=data, headers=headers
+                "PUT", url, params=params, data=data
             )
             return EntityModel.parse_obj(response_data).to_entity()
         except Exception as exception:
@@ -167,8 +165,7 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/entities/{name}"
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers=headers)
+            self._send_request("DELETE", url, params=params)
             logger.info(f"Deleted Entity {name} from project {project}")
         except EntityNotFoundException as exception:
             logger.error(
@@ -192,9 +189,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/entities/{name}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             return EntityModel.parse_obj(response_data).to_entity()
         except EntityNotFoundException as exception:
@@ -218,9 +214,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/entities"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -235,11 +230,10 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/data_sources"
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
             if isinstance(data_source, SparkSource):
                 data = SparkSourceModel.from_data_source(data_source).json()
                 response_data = self._send_request(
-                    "PUT", url, params=params, data=data, headers=headers
+                    "PUT", url, params=params, data=data
                 )
                 return SparkSourceModel.parse_obj(response_data).to_data_source()
             elif isinstance(data_source, RequestSource):
@@ -261,8 +255,7 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/data_sources/{name}"
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers=headers)
+            self._send_request("DELETE", url, params=params)
             logger.info(f"Deleted Datasource {name} from project {project}")
         except DataSourceObjectNotFoundException as exception:
             logger.error(
@@ -286,9 +279,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/data_sources/{name}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             if "model_type" in response_data:
                 if response_data["model_type"] == "RequestSourceModel":
@@ -319,9 +311,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/data_sources"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             response_list = response_data if isinstance(response_data, list) else []
             data_source_list = []
@@ -347,9 +338,8 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/feature_services"
             data = FeatureServiceModel.from_feature_service(feature_service).json()
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "PUT", url, params=params, data=data, headers=headers
+                "PUT", url, params=params, data=data
             )
             return FeatureServiceModel.parse_obj(response_data).to_feature_service()
         except Exception as exception:
@@ -359,8 +349,7 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_services/{name}"
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers=headers)
+            self._send_request("DELETE", url, params=params)
             logger.info(f"Deleted FeatureService {name} from project {project}")
         except FeatureServiceNotFoundException as exception:
             logger.error(
@@ -385,9 +374,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_services/{name}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             return FeatureServiceModel.parse_obj(response_data).to_feature_service()
         except FeatureServiceNotFoundException as exception:
@@ -409,9 +397,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_services"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -426,19 +413,18 @@ class HttpRegistry(BaseRegistry):
     ):
         try:
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
             if isinstance(feature_view, FeatureView):
                 url = f"{self.base_url}/projects/{project}/feature_views"
                 data = FeatureViewModel.from_feature_view(feature_view).json()
                 response_data = self._send_request(
-                    "PUT", url, params=params, data=data, headers=headers
+                    "PUT", url, params=params, data=data
                 )
                 return FeatureViewModel.parse_obj(response_data).to_feature_view()
             elif isinstance(feature_view, OnDemandFeatureView):
                 url = f"{self.base_url}/projects/{project}/on_demand_feature_views"
                 data = OnDemandFeatureViewModel.from_feature_view(feature_view).json()
                 response_data = self._send_request(
-                    "PUT", url, params=params, data=data, headers=headers
+                    "PUT", url, params=params, data=data
                 )
                 return OnDemandFeatureViewModel.parse_obj(
                     response_data
@@ -454,8 +440,7 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_views/{name}"
             params = {"commit": commit}
-            headers = {"client_id": self.client_id}
-            self._send_request("DELETE", url, params=params, headers=headers)
+            self._send_request("DELETE", url, params=params)
             logger.info(f"Deleted FeatureView {name} from project {project}")
         except FeatureViewNotFoundException as exception:
             logger.error(
@@ -480,9 +465,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_views/{name}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             return FeatureViewModel.parse_obj(response_data).to_feature_view()
         except FeatureViewNotFoundException as exception:
@@ -504,9 +488,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/feature_views"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -527,9 +510,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/on_demand_feature_views/{name}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             return OnDemandFeatureViewModel.parse_obj(response_data).to_feature_view()
         except FeatureViewNotFoundException as exception:
@@ -551,9 +533,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}/on_demand_feature_views"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             response_list = response_data if isinstance(response_data, list) else []
             return [
@@ -606,11 +587,10 @@ class HttpRegistry(BaseRegistry):
             if isinstance(feature_view, FeatureView):
                 feature_view.materialization_intervals.append((start_date, end_date))
                 params = {"commit": commit}
-                headers = {"client_id": self.client_id}
                 url = f"{self.base_url}/projects/{project}/feature_views"
                 data = FeatureViewModel.from_feature_view(feature_view).json()
                 response_data = self._send_request(
-                    "PUT", url, params=params, data=data, headers=headers
+                    "PUT", url, params=params, data=data
                 )
                 return FeatureViewModel.parse_obj(response_data).to_feature_view()
             else:
@@ -796,8 +776,7 @@ class HttpRegistry(BaseRegistry):
     def _get_all_projects(self) -> Set[str]:  # type: ignore[return]
         try:
             url = f"{self.base_url}/projects"
-            headers = {"client_id": self.client_id}
-            projects = self._send_request("GET", url, headers=headers)
+            projects = self._send_request("GET", url)
             return {project["project_name"] for project in projects}
         except Exception as exception:
             self._handle_exception(exception)
@@ -805,8 +784,7 @@ class HttpRegistry(BaseRegistry):
     def _get_last_updated_metadata(self, project: str):
         try:
             url = f"{self.base_url}/projects/{project}"
-            headers = {"client_id": self.client_id}
-            response_data = self._send_request("GET", url, headers=headers)
+            response_data = self._send_request("GET", url)
             return datetime.strptime(
                 response_data["last_updated_timestamp"], "%Y-%m-%dT%H:%M:%S"
             )
@@ -824,9 +802,8 @@ class HttpRegistry(BaseRegistry):
         try:
             url = f"{self.base_url}/projects/{project}"
             params = {"allow_cache": True}
-            headers = {"client_id": self.client_id}
             response_data = self._send_request(
-                "GET", url, params=params, headers=headers
+                "GET", url, params=params
             )
             return [ProjectMetadataModel.parse_obj(response_data).to_project_metadata()]
         except ProjectMetadataNotFoundException as exception:
