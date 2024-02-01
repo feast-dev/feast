@@ -81,7 +81,7 @@ class HttpRegistry(BaseRegistry):
         self.base_url = registry_config.path
         headers = [
             ("Content-Type", "application/json"),
-            ("client_id", registry_config.client_id),
+            ("Client-Id", registry_config.client_id),
         ]
 
         self.http_client = httpx.Client(
