@@ -69,10 +69,10 @@ CACHE_REFRESH_THRESHOLD_SECONDS = 300
 
 class HttpRegistry(BaseRegistry):
     def __init__(
-            self,
-            registry_config: Optional[Union[RegistryConfig, HttpRegistryConfig]],
-            project: str,
-            repo_path: Optional[Path],
+        self,
+        registry_config: Optional[Union[RegistryConfig, HttpRegistryConfig]],
+        project: str,
+        repo_path: Optional[Path],
     ):
         assert registry_config is not None, "HTTPRegistry needs a valid registry_config"
         # Timeouts in seconds
@@ -171,10 +171,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_entity(  # type: ignore[return]
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> Entity:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -196,9 +196,9 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_entities(  # type: ignore[return]
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[Entity]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -218,7 +218,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def apply_data_source(
-            self, data_source: DataSource, project: str, commit: bool = True
+        self, data_source: DataSource, project: str, commit: bool = True
     ):
         try:
             url = f"{self.base_url}/projects/{project}/data_sources"
@@ -259,10 +259,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_data_source(  # type: ignore[return]
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> DataSource:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -291,9 +291,9 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_data_sources(  # type: ignore[return]
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[DataSource]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -323,7 +323,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def apply_feature_service(
-            self, feature_service: FeatureService, project: str, commit: bool = True
+        self, feature_service: FeatureService, project: str, commit: bool = True
     ):
         try:
             url = f"{self.base_url}/projects/{project}/feature_services"
@@ -352,10 +352,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_feature_service(  # type: ignore[return]
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> FeatureService:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -377,7 +377,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_services(  # type: ignore[return]
-            self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[FeatureService]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -398,7 +398,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def apply_feature_view(
-            self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
         try:
             params = {"commit": commit}
@@ -439,10 +439,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_feature_view(  # type: ignore[return]
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> FeatureView:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -464,7 +464,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_views(  # type: ignore[return]
-            self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[FeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -485,7 +485,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_on_demand_feature_view(  # type: ignore[return]
-            self, name: str, project: str, allow_cache: bool = False
+        self, name: str, project: str, allow_cache: bool = False
     ) -> OnDemandFeatureView:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -507,7 +507,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_on_demand_feature_views(  # type: ignore[return]
-            self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -528,25 +528,25 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def get_stream_feature_view(
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ):
         raise NotImplementedError("Method not implemented")
 
     def list_stream_feature_views(
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[StreamFeatureView]:
         # TODO: Implement listing Stream Feature Views
         return []
 
     def get_request_feature_view(
-            self,
-            name: str,
-            project: str,
+        self,
+        name: str,
+        project: str,
     ) -> RequestFeatureView:
         raise NotImplementedError("Method not implemented")
 
@@ -559,12 +559,12 @@ class HttpRegistry(BaseRegistry):
         return []
 
     def apply_materialization(
-            self,
-            feature_view: FeatureView,
-            project: str,
-            start_date: datetime,
-            end_date: datetime,
-            commit: bool = True,
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+        commit: bool = True,
     ):
         try:
             if isinstance(feature_view, FeatureView):
@@ -583,30 +583,30 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def apply_saved_dataset(
-            self, saved_dataset: SavedDataset, project: str, commit: bool = True
+        self, saved_dataset: SavedDataset, project: str, commit: bool = True
     ):
         raise NotImplementedError("Method not implemented")
 
     def get_saved_dataset(
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> SavedDataset:
         raise NotImplementedError("Method not implemented")
 
     def list_saved_datasets(
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[SavedDataset]:
         pass
 
     def apply_validation_reference(
-            self,
-            validation_reference: ValidationReference,
-            project: str,
-            commit: bool = True,
+        self,
+        validation_reference: ValidationReference,
+        project: str,
+        commit: bool = True,
     ):
         raise NotImplementedError("Method not implemented")
 
@@ -614,10 +614,10 @@ class HttpRegistry(BaseRegistry):
         raise NotImplementedError("Method not implemented")
 
     def get_validation_reference(
-            self,
-            name: str,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
     ) -> ValidationReference:
         raise NotImplementedError("Method not implemented")
 
@@ -625,30 +625,30 @@ class HttpRegistry(BaseRegistry):
         raise NotImplementedError("Method not implemented")
 
     def get_infra(
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> Infra:
         # TODO: Need to implement this when necessary
         return Infra()
 
     def apply_user_metadata(
-            self,
-            project: str,
-            feature_view: BaseFeatureView,
-            metadata_bytes: Optional[bytes],
+        self,
+        project: str,
+        feature_view: BaseFeatureView,
+        metadata_bytes: Optional[bytes],
     ):
         raise NotImplementedError("Method not implemented")
 
     def get_user_metadata(
-            self, project: str, feature_view: BaseFeatureView
+        self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]:
         raise NotImplementedError("Method not implemented")
 
     def list_validation_references(
-            self,
-            project: str,
-            allow_cache: bool = False,
+        self,
+        project: str,
+        allow_cache: bool = False,
     ) -> List[ValidationReference]:
         pass
 
@@ -776,7 +776,7 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_project_metadata(  # type: ignore[return]
-            self, project: str, allow_cache: bool = False
+        self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         if allow_cache:
             self._check_if_registry_refreshed()
