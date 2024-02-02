@@ -80,10 +80,8 @@ class HttpRegistry(BaseRegistry):
         transport = httpx.HTTPTransport(retries=3, verify=False)
         self.base_url = registry_config.path
         headers = {
-            "Content-Type",
-            "application/json",
-            "Client-Id",
-            registry_config.client_id,
+            "Content-Type": "application/json",
+            "Client-Id": registry_config.client_id,
         }
         self.http_client = httpx.Client(
             timeout=timeout, transport=transport, headers=headers
