@@ -186,7 +186,7 @@ class TransformationServer(TransformationServiceServicer):
     def TransformFeatures(self, request, context):
         try:
             odfv = self.fs.get_on_demand_feature_view(
-                request.on_demand_feature_view_name
+                name=request.on_demand_feature_view_name, allow_cache=True
             )
         except OnDemandFeatureViewNotFoundException:
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
@@ -210,6 +210,7 @@ class TransformationServer(TransformationServiceServicer):
 
 def start_server(store: FeatureStore, port: int):
     log.info("Starting server..")
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     add_TransformationServiceServicer_to_server(TransformationServer(store), server)
 
