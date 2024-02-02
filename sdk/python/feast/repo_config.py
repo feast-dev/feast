@@ -131,6 +131,7 @@ class RegistryConfig(FeastBaseModel):
 
     s3_additional_kwargs: Optional[Dict[str, str]]
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
+    client_id: Optional[StrictStr] = "Unknown"
 
 
 class RepoConfig(FeastBaseModel):

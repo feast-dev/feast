@@ -61,6 +61,8 @@ class HttpRegistryConfig(RegistryConfig):
     """ str: Endpoint of Feature registry.
     If registry_type is 'http', then this is a endpoint of Feature Registry """
 
+    client_id: Optional[StrictStr] = "Unknown"
+
 
 CACHE_REFRESH_THRESHOLD_SECONDS = 300
 
@@ -77,10 +79,16 @@ class HttpRegistry(BaseRegistry):
         timeout = httpx.Timeout(5.0, connect=60.0)
         transport = httpx.HTTPTransport(retries=3, verify=False)
         self.base_url = registry_config.path
+        headers_dict = {
+            "Content-Type": "application/json",
+            "Client-Id": registry_config.client_id,
+        }
+        headers = httpx.Headers(
+            {k: str(v) for k, v in headers_dict.items() if v is not None}
+        )
+
         self.http_client = httpx.Client(
-            timeout=timeout,
-            transport=transport,
-            headers={"Content-Type": "application/json"},
+            timeout=timeout, transport=transport, headers=headers
         )
         self.project = project
         self.apply_project(self.project)
@@ -145,6 +153,7 @@ class HttpRegistry(BaseRegistry):
             url = f"{self.base_url}/projects/{project}/entities"
             data = EntityModel.from_entity(entity).json()
             params = {"commit": commit}
+
             response_data = self._send_request("PUT", url, params=params, data=data)
             return EntityModel.parse_obj(response_data).to_entity()
         except Exception as exception:
