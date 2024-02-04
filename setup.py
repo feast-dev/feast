@@ -54,7 +54,9 @@ REQUIRED = [
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<1.25",
-    "pandas>=1.4.3,<3",
+    # only accept pandas versions 2.2.0 and above
+    # for python 3.8, it must be less than 2.0.0
+    "pandas>=1.4.3,<3,!=2.0.*,!=2.1.*",
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro~=1.5.0",
     # Higher than 4.23.4 seems to cause a seg fault
