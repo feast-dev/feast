@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import boto3
 import pytest
-from moto import mock_dynamodb
+from moto import mock_dynamodb2 as mock_dynamodb
 
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import (
