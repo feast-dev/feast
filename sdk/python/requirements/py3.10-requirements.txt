@@ -121,7 +121,7 @@ packaging==23.2
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
+pandas==2.2.0
     # via
     #   feast (setup.py)
     #   pandavro
