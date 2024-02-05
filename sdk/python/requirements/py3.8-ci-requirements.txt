@@ -919,7 +919,7 @@ traitlets==5.14.1
     #   nbformat
 trino==0.327.0
     # via feast (setup.py)
-typeguard==2.13.3
+typeguard==4.1.5
     # via feast (setup.py)
 types-protobuf==3.19.22
     # via

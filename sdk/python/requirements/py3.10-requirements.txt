@@ -200,7 +200,7 @@ toolz==0.12.1
     #   partd
 tqdm==4.66.2
     # via feast (setup.py)
-typeguard==2.13.3
+typeguard==4.1.5
     # via feast (setup.py)
 types-protobuf==4.24.0.20240129
     # via mypy-protobuf

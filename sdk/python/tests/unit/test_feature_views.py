@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from typeguard import TypeCheckError
 
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
@@ -278,7 +279,7 @@ def test_hash():
 
 
 def test_field_types():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         Field(name="name", dtype=ValueType.INT32)
 
 
