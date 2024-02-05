@@ -15,7 +15,6 @@ from typing_extensions import Self
 from feast.expediagroup.pydantic_models.data_source_model import (
     AnyBatchDataSource,
     KafkaSourceModel,
-    PushSourceModel,
     RequestSourceModel,
     SparkSourceModel,
 )
@@ -26,7 +25,7 @@ from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import OnDemandFeatureView
 
 # TO DO: Supported batch and supported streaming
-SUPPORTED_BATCH_DATA_SOURCES = [RequestSourceModel, SparkSourceModel, PushSourceModel]
+SUPPORTED_BATCH_DATA_SOURCES = [RequestSourceModel, SparkSourceModel]
 SUPPORTED_STREAM_DATA_SOURCES = [KafkaSourceModel]
 
 
@@ -64,7 +63,7 @@ class FeatureViewModel(BaseFeatureViewModel):
     original_entities: List[EntityModel] = []
     original_schema: Optional[List[FieldModel]]
     ttl: Optional[timedelta]
-    batch_source: Union[AnyBatchDataSource, PushSourceModel]
+    batch_source: Union[AnyBatchDataSource]
     stream_source: Optional[KafkaSourceModel]
     online: bool
     description: str
