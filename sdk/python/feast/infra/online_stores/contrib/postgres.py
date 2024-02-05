@@ -99,6 +99,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     cur_batch,
                     page_size=batch_size,
                 )
+                conn.commit()
                 if progress:
                     progress(len(cur_batch))
 
