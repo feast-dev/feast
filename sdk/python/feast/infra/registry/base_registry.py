@@ -329,7 +329,9 @@ class BaseRegistry(ABC):
 
     # request feature view operations
     @abstractmethod
-    def get_request_feature_view(self, name: str, project: str) -> RequestFeatureView:
+    def get_request_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> RequestFeatureView:
         """
         Retrieves a request feature view.
 
