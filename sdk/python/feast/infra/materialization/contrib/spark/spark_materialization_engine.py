@@ -180,9 +180,8 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 )
 
             spark_df.mapInPandas(
-                lambda x: _map_by_partition(x, spark_serialized_artifacts),
-                "status int"
-            ).count()
+                lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
+            ).count()  # dummy action to force evaluation
 
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
@@ -235,8 +234,11 @@ def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArti
 
         table = pyarrow.Table.from_pandas(pdf)
 
-        # unserialize artifacts
-        feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
+        (
+            feature_view,
+            online_store,
+            repo_config,
+        ) = spark_serialized_artifacts.unserialize()
 
         if feature_view.batch_source.field_mapping is not None:
             table = _run_pyarrow_field_mapping(
@@ -248,7 +250,9 @@ def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArti
             for entity in feature_view.entity_columns
         }
 
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
+        rows_to_write = _convert_arrow_to_proto(
+            table, feature_view, join_key_to_value_type
+        )
         online_store.online_write_batch(
             repo_config,
             feature_view,
@@ -256,4 +260,6 @@ def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArti
             lambda x: None,
         )
 
-    yield pd.DataFrame([pd.Series(range(1, 2))])  # dummy result because mapInPandas needs to return something
+    yield pd.DataFrame(
+        [pd.Series(range(1, 2))]
+    )  # dummy result because mapInPandas needs to return something

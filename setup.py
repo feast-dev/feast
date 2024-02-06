@@ -155,7 +155,7 @@ CI_REQUIRED = (
         "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
+        "moto<5",
         "mypy>=0.981,<0.990",
         "avro==1.10.0",
         "fsspec<2023.10.0",
