@@ -116,7 +116,7 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
+MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",

@@ -680,6 +680,14 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "FLOAT": f"feast_{project_name}_snowflake_float_to_double_proto",
         "BOOL": f"feast_{project_name}_snowflake_boolean_to_bool_proto",
         "UNIX_TIMESTAMP": f"feast_{project_name}_snowflake_timestamp_to_unix_timestamp_proto",
+        "BYTES_LIST": f"feast_{project_name}_snowflake_array_bytes_to_list_bytes_proto",
+        "STRING_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "INT32_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int32_proto",
+        "INT64_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int64_proto",
+        "DOUBLE_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "FLOAT_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "BOOL_LIST": f"feast_{project_name}_snowflake_array_boolean_to_list_bool_proto",
+        "UNIX_TIMESTAMP_LIST": f"feast_{project_name}_snowflake_array_timestamp_to_list_unix_timestamp_proto",
     }
     return name_map[value_name].upper()
 
