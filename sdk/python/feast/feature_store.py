@@ -2279,6 +2279,13 @@ class FeatureStore:
         )
 
     @log_exceptions_and_usage
+    def serve_registry(self, port: int) -> None:
+        """Start registry server locally on a given port."""
+        from feast import registry_server
+
+        registry_server.start_server(self, port)
+
+    @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
         warnings.warn(

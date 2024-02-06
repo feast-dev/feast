@@ -528,8 +528,12 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.list_feature_views(registry_proto, project)
 
-    def get_request_feature_view(self, name: str, project: str):
-        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
+    def get_request_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         return proto_registry_utils.get_request_feature_view(
             registry_proto, name, project
         )
