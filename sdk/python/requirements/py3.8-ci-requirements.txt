@@ -130,7 +130,7 @@ coverage[toml]==7.3.2
     # via
     #   coverage
     #   pytest-cov
-cryptography==41.0.6
+cryptography==42.0.0
     # via
     #   azure-identity
     #   azure-storage-blob
@@ -178,7 +178,7 @@ execnet==2.0.2
     # via pytest-xdist
 executing==2.0.1
     # via stack-data
-fastapi==0.99.1
+fastapi==0.109.1
     # via feast (setup.py)
 fastavro==1.9.0
     # via
@@ -502,7 +502,7 @@ nest-asyncio==1.5.8
     # via ipykernel
 nodeenv==1.8.0
     # via pre-commit
-notebook==7.0.6
+notebook==7.0.7
     # via great-expectations
 notebook-shim==0.2.3
     # via
@@ -853,7 +853,7 @@ sqlalchemy2-stubs==0.0.2a37
     # via sqlalchemy
 stack-data==0.6.3
     # via ipython
-starlette==0.27.0
+starlette==0.36.2
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
