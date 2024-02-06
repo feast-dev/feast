@@ -130,7 +130,7 @@ coverage[toml]==7.3.2
     # via
     #   coverage
     #   pytest-cov
-cryptography==41.0.6
+cryptography==42.0.0
     # via
     #   azure-identity
     #   azure-storage-blob
