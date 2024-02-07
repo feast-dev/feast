@@ -169,7 +169,7 @@ class FeatureStore:
         registry_config = self.config.registry
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, self.config.project, None)
-        if registry_config.registry_type == "http":
+        elif registry_config.registry_type == "http":
             self._registry = HttpRegistry(registry_config, self.config.project, None)
         elif registry_config.registry_type == "snowflake.registry":
             from feast.infra.registry.snowflake import SnowflakeRegistry
