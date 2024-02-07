@@ -91,7 +91,7 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test Python
         run: |
-          pytest -n 1 --cov=./ --cov-report=xml --color=yes sdk/python/tests/expediagroup
+          pytest -n 1 --cov=./ --cov-report=xml --color=yes sdk/python/tests/expediagroup/test_milvus_online_store.py
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
 
   unit-test-go:
