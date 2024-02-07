@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "feast-affirm"
-version = "0.28+affirm182"
+version = "0.28+affirm186"
 description = "Feast - Affirm"
 authors = ["Francisco Arceo", "Ross Briden", "Maks Stachowiak"]
 readme = "README.md"
@@ -59,7 +59,7 @@ pyasn1 = "0.4.8"
 pyasn1-modules = "0.3.0"
 pydantic = "1.10.12"
 pygments = "2.15.1"
-pymysql = "0.9.3"
+pymysql = "^0.10"
 pyparsing = "3.0.9"
 pyrsistent = "0.19.3"
 pyspark = "3.0.2"
