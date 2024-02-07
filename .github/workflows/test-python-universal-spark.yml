@@ -1,0 +1,25 @@
+name: Makefile CI
+
+on:
+  repository_dispatch:
+    branches: [ "master", "confluent_avro_changes" ]
+  workflow_dispatch:
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: configure
+      run: ./configure
+
+    - name: Install dependencies
+      run: make install-python-ci-dependencies
+
+    - name: Test spark
+      run: make test-python-universal-spark
+
