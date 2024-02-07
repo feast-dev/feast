@@ -3,7 +3,7 @@
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas
@@ -11,7 +11,6 @@ import pyarrow
 import pyarrow as pa
 import sqlalchemy
 from pydantic.types import StrictStr
-from pydantic.typing import Literal
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker

@@ -1,12 +1,11 @@
 import calendar
 import struct
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from happybase import ConnectionPool
 from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
 from pydantic import StrictStr
-from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
