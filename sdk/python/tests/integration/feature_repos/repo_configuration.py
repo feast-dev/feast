@@ -465,7 +465,7 @@ def construct_test_environment(
 
     # Create feature_store.yaml out of the config
     with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
-        yaml.safe_dump(json.loads(config.json()), f)
+        yaml.safe_dump(json.loads(config.model_dump_json(by_alias=True)), f)
 
     fs = FeatureStore(repo_dir_name)
     # We need to initialize the registry, because if nothing is applied in the test before tearing down
