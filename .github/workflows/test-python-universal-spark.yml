@@ -4,6 +4,7 @@ on:
   repository_dispatch:
     branches: [ "master", "confluent_avro_changes" ]
   workflow_dispatch:
+    branches: [ "master", "confluent_avro_changes" ]
 
 
 jobs:
