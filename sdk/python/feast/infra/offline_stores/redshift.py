@@ -9,6 +9,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -19,8 +20,7 @@ import pandas as pd
 import pyarrow
 import pyarrow as pa
 from dateutil import parser
-from pydantic import StrictStr, root_validator
-from pydantic.typing import Literal
+from pydantic import StrictStr, model_validator
 from pytz import utc
 
 from feast import OnDemandFeatureView, RedshiftSource
@@ -72,16 +72,16 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     iam_role: StrictStr
     """ IAM Role for Redshift, granting it access to S3 """
 
-    @root_validator
-    def require_cluster_and_user_or_workgroup(cls, values):
+    @model_validator(mode="after")
+    def require_cluster_and_user_or_workgroup(self):
         """
         Provisioned Redshift clusters:  Require cluster_id and user, ignore workgroup
         Serverless Redshift:  Require workgroup, ignore cluster_id and user
         """
         cluster_id, user, workgroup = (
-            values.get("cluster_id"),
-            values.get("user"),
-            values.get("workgroup"),
+            self.cluster_id,
+            self.user,
+            self.workgroup,
         )
         if not (cluster_id and user) and not workgroup:
             raise ValueError(
@@ -90,7 +90,7 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
         elif cluster_id and workgroup:
             raise ValueError("cannot specify both cluster_id and workgroup")
 
-        return values
+        return self
 
 
 class RedshiftOfflineStore(OfflineStore):

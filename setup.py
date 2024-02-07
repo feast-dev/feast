@@ -61,7 +61,7 @@ REQUIRED = [
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
-    "pydantic>=1,<2",
+    "pydantic>=1",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -126,7 +126,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
+GE_REQUIRED = ["great_expectations>=0.15.41"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",

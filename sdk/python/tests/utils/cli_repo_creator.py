@@ -11,6 +11,8 @@ from typing import List, Tuple
 from feast import cli
 from feast.feature_store import FeatureStore
 
+#debug
+import inspect
 
 def get_example_repo(example_repo_py) -> str:
     parent = Path(__file__).parent
