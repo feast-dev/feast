@@ -1,11 +1,11 @@
 import importlib
+from typing import Optional
 
 from feast.errors import (
     FeastClassImportError,
     FeastInvalidBaseClass,
     FeastModuleImportError,
 )
-from typing import Optional
 
 
 def import_class(module_name: str, class_name: str, class_type: Optional[str] = None):
