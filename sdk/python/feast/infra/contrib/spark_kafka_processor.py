@@ -5,6 +5,7 @@ import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
+from pyspark.sql.streaming import StreamingQuery
 
 from feast.data_format import AvroFormat, JsonFormat
 from feast.data_source import KafkaSource, PushMode
@@ -63,7 +64,11 @@ class SparkKafkaProcessor(StreamProcessor):
         self.join_keys = [fs.get_entity(entity).join_key for entity in sfv.entities]
         super().__init__(fs=fs, sfv=sfv, data_source=sfv.stream_source)
 
-    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
+        # Type hinting for data_source type.
+        # data_source type has been checked to be an instance of KafkaSource.
+        self.data_source: KafkaSource = self.data_source  # type: ignore
+
+    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> StreamingQuery:
         ingested_stream_df = self._ingest_stream_data()
         transformed_df = self._construct_transformation_plan(ingested_stream_df)
         online_store_query = self._write_stream_data(transformed_df, to)
@@ -122,7 +127,7 @@ class SparkKafkaProcessor(StreamProcessor):
     def _construct_transformation_plan(self, df: StreamTable) -> StreamTable:
         return self.sfv.udf.__call__(df) if self.sfv.udf else df
 
-    def _write_stream_data(self, df: StreamTable, to: PushMode):
+    def _write_stream_data(self, df: StreamTable, to: PushMode) -> StreamingQuery:
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
         def batch_write(row: DataFrame, batch_id: int):
             rows: pd.DataFrame = row.toPandas()

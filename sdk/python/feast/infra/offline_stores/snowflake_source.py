@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, Optional, Tuple, Any
 
 from typeguard import typechecked
 
@@ -223,7 +223,7 @@ class SnowflakeSource(DataSource):
             query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
             cursor = execute_snowflake_statement(conn, query)
 
-            metadata = [
+            metadata: list[dict[str, Any]] = [
                 {
                     "column_name": column.name,
                     "type_code": column.type_code,
