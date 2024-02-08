@@ -150,7 +150,7 @@ class RetrievalJob(ABC):
         """
         Return RetrievalJob generated SQL statement if applicable.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:

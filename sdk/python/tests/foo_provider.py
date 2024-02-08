@@ -7,7 +7,6 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import Entity, FeatureService, FeatureView, RepoConfig
-from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -70,7 +69,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-    ) -> RetrievalJob:
+    ):
         pass
 
     def online_read(
@@ -78,8 +77,8 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        requested_features: Optional[List[str]] = None,
+    ):
         pass
 
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
@@ -101,5 +100,5 @@ class FooProvider(Provider):
         end_date: datetime,
         config: RepoConfig,
         registry: BaseRegistry,
-    ) -> RetrievalJob:
+    ):
         pass

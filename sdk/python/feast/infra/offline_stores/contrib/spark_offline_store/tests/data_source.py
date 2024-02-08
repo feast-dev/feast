@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 import uuid
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from pyspark import SparkConf
@@ -68,10 +68,10 @@ class SparkDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
-        **kwargs,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         if timestamp_field in df:
             df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True)

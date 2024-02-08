@@ -180,7 +180,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []

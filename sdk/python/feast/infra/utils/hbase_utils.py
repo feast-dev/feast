@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from happybase import ConnectionPool
 
@@ -39,8 +39,8 @@ class HBaseConnector:
     def __init__(
         self,
         pool: ConnectionPool = None,
-        host: str = None,
-        port: int = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
         connection_pool_size: int = 4,
     ):
         if pool is None:

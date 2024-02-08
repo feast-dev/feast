@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 import pytest
@@ -64,10 +64,10 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
-        **kwargs,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         # Make sure the field mapping is correct and convert the datetime datasources.
         if timestamp_field in df:
@@ -99,7 +99,7 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        pass
+        raise NotImplementedError
 
     def get_prefixed_table_name(self, destination_name: str) -> str:
         return f"{self.project_name}_{destination_name}"

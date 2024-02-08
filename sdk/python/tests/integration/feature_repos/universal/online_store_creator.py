@@ -1,14 +1,14 @@
-from abc import ABC
-
-from feast.repo_config import FeastConfigBaseModel
+from abc import ABC, abstractmethod
 
 
 class OnlineStoreCreator(ABC):
     def __init__(self, project_name: str, **kwargs):
         self.project_name = project_name
 
-    def create_online_store(self) -> FeastConfigBaseModel:
+    @abstractmethod
+    def create_online_store(self):
         ...
 
+    @abstractmethod
     def teardown(self):
         ...
