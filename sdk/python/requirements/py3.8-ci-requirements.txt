@@ -469,7 +469,7 @@ mock==2.0.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-moto==5.0.1
+moto==4.2.14
     # via feast (setup.py)
 msal==1.26.0
     # via
