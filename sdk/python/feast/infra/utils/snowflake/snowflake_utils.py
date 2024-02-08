@@ -22,8 +22,6 @@ from tenacity import (
 import feast
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.snowflake import SnowflakeOfflineStoreConfig
-from feast.infra.online_stores.snowflake import SnowflakeOnlineStoreConfig
 from feast.repo_config import RepoConfig
 
 try:
@@ -47,7 +45,7 @@ _cache = {}
 class GetSnowflakeConnection:
     def __init__(
         self,
-        config: SnowflakeOfflineStoreConfig | SnowflakeOnlineStoreConfig,
+        config: str,
         autocommit=True,
     ):
         self.config = config
