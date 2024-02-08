@@ -51,7 +51,7 @@ jobs:
           brew install mysql
           PATH=$PATH:/usr/local/mysql/bin
       - name: Work around Homebrew MySQL being broken
-        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
+        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details. 
         if: startsWith(matrix.os, 'macOS')
         run: |
           brew install zlib
