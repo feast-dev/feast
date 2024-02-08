@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union

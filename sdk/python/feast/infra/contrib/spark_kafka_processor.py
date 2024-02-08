@@ -68,7 +68,9 @@ class SparkKafkaProcessor(StreamProcessor):
         # data_source type has been checked to be an instance of KafkaSource.
         self.data_source: KafkaSource = self.data_source  # type: ignore
 
-    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> StreamingQuery:
+    def ingest_stream_feature_view(
+        self, to: PushMode = PushMode.ONLINE
+    ) -> StreamingQuery:
         ingested_stream_df = self._ingest_stream_data()
         transformed_df = self._construct_transformation_plan(ingested_stream_df)
         online_store_query = self._write_stream_data(transformed_df, to)

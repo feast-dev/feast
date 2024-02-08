@@ -45,7 +45,11 @@ _cache = {}
 
 
 class GetSnowflakeConnection:
-    def __init__(self, config: SnowflakeOfflineStoreConfig | SnowflakeOnlineStoreConfig, autocommit=True):
+    def __init__(
+        self,
+        config: SnowflakeOfflineStoreConfig | SnowflakeOnlineStoreConfig,
+        autocommit=True,
+    ):
         self.config = config
         self.autocommit = autocommit
 
