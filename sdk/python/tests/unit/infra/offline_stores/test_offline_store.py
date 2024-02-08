@@ -1,4 +1,4 @@
-from typing import List, Optional, no_type_check
+from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -57,15 +57,13 @@ class MockRetrievalJob(RetrievalJob):
         """
         pass
 
-    @no_type_check
     @property
-    def full_feature_names(self) -> bool:
+    def full_feature_names(self) -> bool:  # type: ignore
         """Returns True if full feature names should be applied to the results of the query."""
         pass
 
-    @no_type_check
     @property
-    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:  # type: ignore
         """Returns a list containing all the on demand feature views to be handled."""
         pass
 

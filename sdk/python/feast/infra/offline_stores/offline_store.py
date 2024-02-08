@@ -146,11 +146,11 @@ class RetrievalJob(ABC):
 
         return pyarrow.Table.from_pandas(features_df)
 
-    def to_sql(self) -> str:
+    def to_sql(self) -> str:  # type: ignore
         """
         Return RetrievalJob generated SQL statement if applicable.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
