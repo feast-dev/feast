@@ -1,6 +1,6 @@
 from abc import ABC
 from types import MethodType
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, TypeAlias
 
 from pyspark.sql import DataFrame
 
@@ -17,7 +17,7 @@ STREAM_PROCESSOR_CLASS_FOR_TYPE = {
 }
 
 # TODO: support more types other than just Spark.
-StreamTable = DataFrame
+StreamTable: TypeAlias = DataFrame
 
 
 class ProcessorConfig(FeastConfigBaseModel):
