@@ -51,7 +51,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         suffix: Optional[str] = None,
         timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
     ) -> DataSource:
 
         table_name = destination_name

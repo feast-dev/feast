@@ -5,9 +5,10 @@ from feast.errors import (
     FeastInvalidBaseClass,
     FeastModuleImportError,
 )
+from typing import Optional
 
 
-def import_class(module_name: str, class_name: str, class_type: str = None):
+def import_class(module_name: str, class_name: str, class_type: Optional[str] = None):
     """
     Dynamically loads and returns a class from a module.
 

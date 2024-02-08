@@ -56,7 +56,7 @@ class FeatureService:
         *,
         name: str,
         features: List[Union[FeatureView, OnDemandFeatureView]],
-        tags: Dict[str, str] = None,
+        tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,

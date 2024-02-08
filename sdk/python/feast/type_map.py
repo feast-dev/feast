@@ -114,7 +114,7 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
 
 
 def python_type_to_feast_value_type(
-    name: str, value: Any = None, recurse: bool = True, type_name: Optional[str] = None
+    name: str, value: Optional[Any] = None, recurse: bool = True, type_name: Optional[str] = None
 ) -> ValueType:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
