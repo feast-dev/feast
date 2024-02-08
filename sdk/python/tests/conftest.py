@@ -18,7 +18,7 @@ import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, no_type_check
 
 import pandas as pd
 import pytest
@@ -187,9 +187,10 @@ def environment(request, worker_id):
         e.online_store_creator.teardown()
 
 
-_config_cache = {}
+_config_cache: Any = {}
 
 
+@no_type_check
 def pytest_generate_tests(metafunc: pytest.Metafunc):
     """
     This function receives each test function (wrapped in Metafunc)

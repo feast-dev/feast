@@ -68,10 +68,10 @@ class SparkDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
-        **kwargs,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         if timestamp_field in df:
             df[timestamp_field] = pd.to_datetime(df[timestamp_field], utc=True)
