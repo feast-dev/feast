@@ -31,7 +31,7 @@ from feast.infra.offline_stores.offline_utils import (
 from feast.infra.provider import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.repo_config import FeastBaseModel, RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pa_to_mssql_type
 from feast.usage import log_exceptions_and_usage
@@ -42,7 +42,7 @@ warnings.simplefilter("once", RuntimeWarning)
 EntitySchema = Dict[str, np.dtype]
 
 
-class MsSqlServerOfflineStoreConfig(FeastBaseModel):
+class MsSqlServerOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for SQL Server"""
 
     type: Literal["mssql"] = "mssql"

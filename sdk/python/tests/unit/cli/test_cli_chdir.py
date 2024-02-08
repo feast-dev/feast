@@ -18,14 +18,16 @@ def test_cli_chdir() -> None:
         repo_path = temp_path / "my_project" / "feature_repo"
         assert result.returncode == 0
 
-        result = runner.run(["--chdir", repo_path, "apply"], cwd=temp_path)
-        assert result.returncode == 0
-
-        result = runner.run(["--chdir", repo_path, "entities", "list"], cwd=temp_path)
+        result = runner.run(["--chdir", str(repo_path), "apply"], cwd=temp_path)
         assert result.returncode == 0
 
         result = runner.run(
-            ["--chdir", repo_path, "feature-views", "list"], cwd=temp_path
+            ["--chdir", str(repo_path), "entities", "list"], cwd=temp_path
+        )
+        assert result.returncode == 0
+
+        result = runner.run(
+            ["--chdir", str(repo_path), "feature-views", "list"], cwd=temp_path
         )
         assert result.returncode == 0
 
@@ -34,7 +36,7 @@ def test_cli_chdir() -> None:
         result = runner.run(
             [
                 "--chdir",
-                repo_path,
+                str(repo_path),
                 "materialize",
                 start_date.isoformat(),
                 end_date.isoformat(),
@@ -44,13 +46,18 @@ def test_cli_chdir() -> None:
         assert result.returncode == 0
 
         result = runner.run(
-            ["--chdir", repo_path, "materialize-incremental", end_date.isoformat()],
+            [
+                "--chdir",
+                str(repo_path),
+                "materialize-incremental",
+                end_date.isoformat(),
+            ],
             cwd=temp_path,
         )
         assert result.returncode == 0
 
-        result = runner.run(["--chdir", repo_path, "registry-dump"], cwd=temp_path)
+        result = runner.run(["--chdir", str(repo_path), "registry-dump"], cwd=temp_path)
         assert result.returncode == 0
 
-        result = runner.run(["--chdir", repo_path, "teardown"], cwd=temp_path)
+        result = runner.run(["--chdir", str(repo_path), "teardown"], cwd=temp_path)
         assert result.returncode == 0

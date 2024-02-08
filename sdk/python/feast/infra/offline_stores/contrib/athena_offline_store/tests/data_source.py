@@ -43,15 +43,16 @@ class AthenaDataSourceCreator(DataSourceCreator):
             workgroup=workgroup,
             s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
+        self,
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
 
         table_name = destination_name

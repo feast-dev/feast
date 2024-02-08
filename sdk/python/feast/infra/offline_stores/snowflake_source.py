@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type_check
 
 from typeguard import typechecked
 
@@ -202,6 +202,7 @@ class SnowflakeSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.snowflake_type_to_feast_value_type
 
+    @no_type_check
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
@@ -279,12 +280,12 @@ class SnowflakeSource(DataSource):
                 else:
                     row["snowflake_type"] = "NUMBERwSCALE"
 
-            elif row["type_code"] in [5, 9, 12]:
+            elif row["type_code"] in {5, 9, 12}:
                 error = snowflake_unsupported_map[row["type_code"]]
                 raise NotImplementedError(
                     f"The following Snowflake Data Type is not supported: {error}"
                 )
-            elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 10, 11, 13]:
+            elif row["type_code"] in {1, 2, 3, 4, 6, 7, 8, 10, 11, 13}:
                 row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
             else:
                 raise NotImplementedError(
@@ -292,7 +293,8 @@ class SnowflakeSource(DataSource):
                 )
 
         return [
-            (column["column_name"], column["snowflake_type"]) for column in metadata
+            (str(column["column_name"]), str(column["snowflake_type"]))
+            for column in metadata
         ]
 
 

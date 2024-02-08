@@ -7,7 +7,6 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import Entity, FeatureService, FeatureView, RepoConfig
-from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto

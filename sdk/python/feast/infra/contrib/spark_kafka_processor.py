@@ -1,5 +1,5 @@
 from types import MethodType
-from typing import List, Optional
+from typing import List, Optional, no_type_check
 
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
@@ -76,6 +76,8 @@ class SparkKafkaProcessor(StreamProcessor):
         online_store_query = self._write_stream_data(transformed_df, to)
         return online_store_query
 
+    # In the line 64 of __init__(), the "data_source" is assigned a stream_source (and has to be KafkaSource as in line 40).
+    @no_type_check
     def _ingest_stream_data(self) -> StreamTable:
         """Only supports json and avro formats currently."""
         if self.format == "json":
