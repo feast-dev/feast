@@ -155,7 +155,7 @@ CI_REQUIRED = (
         "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
+        "moto<5",
         "mypy>=1.4.1",
         "avro==1.10.0",
         "fsspec<2023.10.0",
@@ -234,7 +234,7 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
