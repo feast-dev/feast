@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -61,6 +62,7 @@ class FooProvider(Provider):
     ) -> None:
         pass
 
+    @abstractmethod
     def get_historical_features(
         self,
         config: RepoConfig,
@@ -73,6 +75,7 @@ class FooProvider(Provider):
     ) -> RetrievalJob:
         pass
 
+    @abstractmethod
     def online_read(
         self,
         config: RepoConfig,
@@ -82,9 +85,11 @@ class FooProvider(Provider):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         pass
 
+    @abstractmethod
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
         pass
 
+    @abstractmethod
     def write_feature_service_logs(
         self,
         feature_service: FeatureService,
@@ -94,6 +99,7 @@ class FooProvider(Provider):
     ):
         pass
 
+    @abstractmethod
     def retrieve_feature_service_logs(
         self,
         feature_service: FeatureService,

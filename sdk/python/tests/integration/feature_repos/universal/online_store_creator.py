@@ -8,7 +8,7 @@ class OnlineStoreCreator(ABC):
         self.project_name = project_name
 
     def create_online_store(self) -> FeastConfigBaseModel:
-        ...
+        raise NotImplementedError
 
     def teardown(self):
-        ...
+        raise NotImplementedError

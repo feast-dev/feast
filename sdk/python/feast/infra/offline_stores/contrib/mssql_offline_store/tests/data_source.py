@@ -99,10 +99,10 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        pass
+        raise NotImplementedError
 
     def get_prefixed_table_name(self, destination_name: str) -> str:
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
-        pass
+        raise NotImplementedError

@@ -54,13 +54,13 @@ class StreamProcessor(ABC):
         Ingests data from the stream source attached to the stream feature view; transforms the data
         and then persists it to the online store and/or offline store, depending on the 'to' parameter.
         """
-        pass
+        raise NotImplementedError
 
     def _ingest_stream_data(self) -> StreamTable:
         """
         Ingests data into a StreamTable.
         """
-        pass
+        raise NotImplementedError
 
     def _construct_transformation_plan(self, table: StreamTable) -> StreamTable:
         """
@@ -68,14 +68,14 @@ class StreamProcessor(ABC):
         evaluation, the StreamTable will not be materialized until it is actually evaluated.
         For example: df.collect() in spark or tbl.execute() in Flink.
         """
-        pass
+        raise NotImplementedError
 
     def _write_stream_data(self, table: StreamTable, to: PushMode) -> None:
         """
         Launches a job to persist stream data to the online store and/or offline store, depending
         on the 'to' parameter, and returns a handle for the job.
         """
-        pass
+        raise NotImplementedError
 
 
 def get_stream_processor_object(

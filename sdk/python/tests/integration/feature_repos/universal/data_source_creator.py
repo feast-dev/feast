@@ -53,7 +53,7 @@ class DataSourceCreator(ABC):
         ...
 
     def create_logged_features_destination(self) -> LoggingDestination:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def teardown(self):

@@ -46,7 +46,7 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_df` should be used.
         """
-        pass
+        raise NotImplementedError
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """
@@ -55,17 +55,17 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_arrow` should be used.
         """
-        pass
+        raise NotImplementedError
 
     @property
     def full_feature_names(self) -> bool:
         """Returns True if full feature names should be applied to the results of the query."""
-        pass
+        raise NotImplementedError
 
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
-        pass
+        raise NotImplementedError
 
     def persist(
         self,
@@ -87,7 +87,7 @@ class MockRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         """Returns metadata about the retrieval job."""
-        pass
+        raise NotImplementedError
 
 
 # Since RetreivalJob are not really tested for subclasses we add some tests here.

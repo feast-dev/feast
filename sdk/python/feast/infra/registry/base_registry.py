@@ -501,7 +501,9 @@ class BaseRegistry(ABC):
         Returns:
             List of request feature views
         """
+        raise NotImplementedError
 
+    @abstractmethod
     def list_project_metadata(
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
