@@ -1,8 +1,9 @@
 from abc import ABC
 from types import MethodType
-from typing import TYPE_CHECKING, Optional, TypeAlias
+from typing import TYPE_CHECKING, Optional
 
 from pyspark.sql import DataFrame
+from typing_extensions import TypeAlias
 
 from feast.data_source import DataSource, PushMode
 from feast.importer import import_class
