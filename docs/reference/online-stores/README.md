@@ -54,4 +54,6 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [hazelcast.md](hazelcast.md)
 {% endcontent-ref %}
 
-
+{% content-ref url="scylladb.md" %}
+[scylladb.md](scylladb.md)
+{% endcontent-ref %}
