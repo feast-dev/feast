@@ -39,6 +39,9 @@ from feast.saved_dataset import SavedDatasetStorage
 
 
 class MockRetrievalJob(RetrievalJob):
+    def to_sql(self) -> str:
+        return ""
+
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """
         Synchronously executes the underlying query and returns the result as a pandas dataframe.
@@ -46,7 +49,7 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_df` should be used.
         """
-        raise NotImplementedError
+        return pd.DataFrame()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """
@@ -55,17 +58,17 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_arrow` should be used.
         """
-        raise NotImplementedError
+        return pyarrow.Table()
 
     @property
     def full_feature_names(self) -> bool:
         """Returns True if full feature names should be applied to the results of the query."""
-        raise NotImplementedError
+        return False
 
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
-        raise NotImplementedError
+        return []
 
     def persist(
         self,
@@ -208,7 +211,7 @@ def retrieval_job(request, environment):
 
 
 def test_to_sql():
-    assert MockRetrievalJob().to_sql() is None
+    assert MockRetrievalJob().to_sql() == ""
 
 
 @pytest.mark.parametrize("timeout", (None, 30))
