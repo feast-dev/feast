@@ -66,7 +66,7 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         destination_name: str,
         timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> DataSource:
 

@@ -418,7 +418,7 @@ class SnowflakeRegistry(BaseRegistry):
             """
             cursor = execute_snowflake_statement(conn, query)
 
-            if cursor.rowcount < 1 and not_found_exception:
+            if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(datetime.utcnow(), project)
 
