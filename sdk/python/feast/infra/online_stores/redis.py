@@ -133,7 +133,7 @@ class RedisOnlineStore(OnlineStore):
                 if len(_tables) == 1:
                     pipe.delete(_k)
                 else:
-                    pipe.hdel(_k, redis_hash_keys)
+                    pipe.hdel(_k, *redis_hash_keys)
                 deleted_count += 1
             pipe.execute()
 
