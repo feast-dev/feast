@@ -1,6 +1,6 @@
 import pathlib
 import uuid
-from typing import Dict, List, Optional
+from typing import List
 
 import pandas as pd
 import pytest

@@ -1,7 +1,6 @@
 import logging
 import random
 import string
-from typing import Any, Dict
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs

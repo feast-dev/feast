@@ -5,7 +5,6 @@ import pandas as pd
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.avro.functions import from_avro
 from pyspark.sql.functions import col, from_json
-from pyspark.sql.streaming import StreamingQuery
 
 from feast.data_format import AvroFormat, JsonFormat
 from feast.data_source import KafkaSource, PushMode

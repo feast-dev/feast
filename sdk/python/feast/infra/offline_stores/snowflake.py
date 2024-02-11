@@ -1,6 +1,5 @@
 import contextlib
 import json
-import os
 import uuid
 import warnings
 from datetime import datetime
@@ -23,7 +22,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, StrictStr
 from pydantic.typing import Literal
 from pytz import utc
 
@@ -51,7 +49,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     write_pandas,
     write_parquet,
 )
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.types import (
     Array,

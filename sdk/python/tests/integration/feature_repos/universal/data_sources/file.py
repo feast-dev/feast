@@ -2,7 +2,7 @@ import os.path
 import shutil
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 import pandas as pd
 import pyarrow as pa

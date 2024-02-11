@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 import uuid
-from typing import Dict, List, Optional
+from typing import List
 
 import pandas as pd
 from pyspark import SparkConf

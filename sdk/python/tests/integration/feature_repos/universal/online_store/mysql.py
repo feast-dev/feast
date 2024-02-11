@@ -1,5 +1,3 @@
-from typing import Dict
-
 from testcontainers.mysql import MySqlContainer
 
 from feast.repo_config import FeastConfigBaseModel
