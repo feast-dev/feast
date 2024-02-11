@@ -66,10 +66,11 @@ def pg_registry():
     )
     logger.info("Waited for %s seconds until postgres container was up", waited)
     container_port = container.get_exposed_port(5432)
+    container_host = container.get_container_host_ip()
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -100,10 +101,11 @@ def mysql_registry():
     )
     logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
+    container_host = container.get_container_host_ip()
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"mysql+pymysql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        path=f"mysql+pymysql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
     )
 
     yield SqlRegistry(registry_config, "project", None)
