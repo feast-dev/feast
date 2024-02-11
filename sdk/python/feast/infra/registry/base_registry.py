@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -20,13 +22,13 @@ from typing import Any, Dict, List, Optional
 from google.protobuf.json_format import MessageToJson
 from proto import Message
 
+import feast.feature_service
+import feast.on_demand_feature_view
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.request_feature_view import RequestFeatureView
@@ -150,7 +152,10 @@ class BaseRegistry(ABC):
     # Feature service operations
     @abstractmethod
     def apply_feature_service(
-        self, feature_service: FeatureService, project: str, commit: bool = True
+        self,
+        feature_service: feast.feature_service.FeatureService,
+        project: str,
+        commit: bool = True,
     ):
         """
         Registers a single feature service with Feast
@@ -174,7 +179,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureService:
+    ) -> feast.feature_service.FeatureService:
         """
         Retrieves a feature service.
 
@@ -191,7 +196,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def list_feature_services(
         self, project: str, allow_cache: bool = False
-    ) -> List[FeatureService]:
+    ) -> List[feast.feature_service.FeatureService]:
         """
         Retrieve a list of feature services from the registry
 
@@ -265,7 +270,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def get_on_demand_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> OnDemandFeatureView:
+    ) -> feast.on_demand_feature_view.OnDemandFeatureView:
         """
         Retrieves an on demand feature view.
 
@@ -282,7 +287,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def list_on_demand_feature_views(
         self, project: str, allow_cache: bool = False
-    ) -> List[OnDemandFeatureView]:
+    ) -> List[feast.on_demand_feature_view.OnDemandFeatureView]:
         """
         Retrieve a list of on demand feature views from the registry
 
