@@ -17,11 +17,7 @@ class DataSourceCreator(ABC):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: str,
-        event_timestamp_column="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = None,
+        **kwargs,
     ) -> DataSource:
         """
         Create a data source based on the dataframe. Implementing this method requires the underlying implementation to
@@ -30,13 +26,7 @@ class DataSourceCreator(ABC):
 
         Args:
             df: The dataframe to be used to create the data source.
-            destination_name: This str is used by the implementing classes to
-                isolate the multiple dataframes from each other.
-            event_timestamp_column: (Deprecated) Pass through for the underlying data source.
-            created_timestamp_column: Pass through for the underlying data source.
-            field_mapping: Pass through for the underlying data source.
-            timestamp_field: Pass through for the underlying data source.
-
+            kwargs: Additional arguments to be passed to the underlying data source.
 
         Returns:
             A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the

@@ -3,6 +3,7 @@ from typing import Dict
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -15,7 +16,7 @@ class DynamoDBOnlineStoreCreator(OnlineStoreCreator):
             "amazon/dynamodb-local:latest"
         ).with_exposed_ports("8000")
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         log_string_to_wait_for = (
             "Initializing DynamoDB Local with the following configuration:"
@@ -24,11 +25,11 @@ class DynamoDBOnlineStoreCreator(OnlineStoreCreator):
             container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         exposed_port = self.container.get_exposed_port("8000")
-        return {
-            "type": "dynamodb",
-            "endpoint_url": f"http://localhost:{exposed_port}",
-            "region": "us-west-2",
-        }
+        return FeastConfigBaseModel(
+            type="dynamodb",
+            endpoint_url=f"http://localhost:{exposed_port}",
+            region="us-west-2",
+        )
 
     def teardown(self):
         self.container.stop()

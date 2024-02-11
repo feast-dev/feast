@@ -5,6 +5,7 @@ from google.cloud import datastore
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -23,7 +24,7 @@ class DatastoreOnlineStoreCreator(OnlineStoreCreator):
             .with_exposed_ports("8081")
         )
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         log_string_to_wait_for = r"\[datastore\] Dev App Server is now running"
         wait_for_logs(
@@ -31,7 +32,7 @@ class DatastoreOnlineStoreCreator(OnlineStoreCreator):
         )
         exposed_port = self.container.get_exposed_port("8081")
         os.environ[datastore.client.DATASTORE_EMULATOR_HOST] = f"0.0.0.0:{exposed_port}"
-        return {"type": "datastore", "project_id": "test-project"}
+        return FeastConfigBaseModel(type="datastore", project_id="test-project")
 
     def teardown(self):
         del os.environ[datastore.client.DATASTORE_EMULATOR_HOST]

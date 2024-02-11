@@ -81,12 +81,15 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> DataSource:
+        destination_name = kwargs.get("destination_name")
+        if not destination_name:
+            raise ValueError("destination_name is required")
+        timestamp_field = kwargs.get("timestamp_field", "ts")
+        created_timestamp_column = kwargs.get("created_timestamp_column", "created_ts")
+        field_mapping = kwargs.get("field_mapping", None)
+
         destination_name = self.get_prefixed_table_name(destination_name)
 
         if self.offline_store_config:

@@ -47,12 +47,14 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> DataSource:
+        destination_name = kwargs.get("destination_name")
+        if not destination_name:
+            raise ValueError("destination_name is required")
+        timestamp_column = kwargs.get("timestamp_column", "ts")
+        created_timestamp_column = kwargs.get("created_timestamp_column", "created_ts")
+        field_mapping = kwargs.get("field_mapping", None)
 
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -63,7 +65,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
         return SnowflakeSource(
             table=destination_name,
-            timestamp_field=timestamp_field,
+            timestamp_field=timestamp_column,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping or {"ts_1": "ts"},
         )

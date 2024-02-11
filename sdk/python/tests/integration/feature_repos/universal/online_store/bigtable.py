@@ -1,10 +1,10 @@
 import os
-from typing import Dict
 
 from google.cloud import bigtable
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -28,7 +28,7 @@ class BigtableOnlineStoreCreator(OnlineStoreCreator):
             .with_exposed_ports(self.port)
         )
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         log_string_to_wait_for = r"\[bigtable\] Cloud Bigtable emulator running"
         wait_for_logs(
@@ -36,11 +36,11 @@ class BigtableOnlineStoreCreator(OnlineStoreCreator):
         )
         exposed_port = self.container.get_exposed_port(self.port)
         os.environ[bigtable.client.BIGTABLE_EMULATOR] = f"{self.host}:{exposed_port}"
-        return {
-            "type": "bigtable",
-            "project_id": self.gcp_project,
-            "instance": self.bt_instance,
-        }
+        return FeastConfigBaseModel(
+            type="bigtable",
+            project_id=self.gcp_project,
+            instance=self.bt_instance,
+        )
 
     def teardown(self):
         del os.environ[bigtable.client.BIGTABLE_EMULATOR]

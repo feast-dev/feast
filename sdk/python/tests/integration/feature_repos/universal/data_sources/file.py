@@ -38,11 +38,14 @@ class FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: str,
-        timestamp_field="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> DataSource:
+        destination_name = kwargs.get("destination_name")
+        if not destination_name:
+            raise ValueError("destination_name is required")
+        timestamp_field = kwargs.get("timestamp_field", "ts")
+        created_timestamp_column = kwargs.get("created_timestamp_column", "created_ts")
+        field_mapping = kwargs.get("field_mapping", None)
 
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -93,11 +96,14 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: str,
-        timestamp_field="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> DataSource:
+        destination_name = kwargs.get("destination_name")
+        if not destination_name:
+            raise ValueError("destination_name is required")
+        timestamp_field = kwargs.get("timestamp_field", "ts")
+        created_timestamp_column = kwargs.get("created_timestamp_column", "created_ts")
+        field_mapping = kwargs.get("field_mapping", None)
 
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -167,12 +173,15 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: Optional[str] = None,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> DataSource:
+        destination_name = kwargs.get("destination_name")
+        if not destination_name:
+            raise ValueError("destination_name is required")
+        timestamp_field = kwargs.get("timestamp_field", "ts")
+        created_timestamp_column = kwargs.get("created_timestamp_column", "created_ts")
+        field_mapping = kwargs.get("field_mapping", None)
+
         filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
         host = self.minio.get_container_host_ip()
