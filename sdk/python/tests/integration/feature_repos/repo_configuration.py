@@ -99,14 +99,14 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
-OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
+OFFLINE_STORE_TO_PROVIDER_CONFIG = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
     "snowflake": ("aws", SnowflakeDataSourceCreator),
 }
 
-AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
+AVAILABLE_OFFLINE_STORES: List[Tuple[str, Any]] = [
     ("local", FileDataSourceCreator),
 ]
 
@@ -118,13 +118,10 @@ AVAILABLE_ONLINE_STORES: Dict[
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
-    AVAILABLE_OFFLINE_STORES.extend(
-        [
-            ("gcp", BigQueryDataSourceCreator),
-            ("aws", RedshiftDataSourceCreator),
-            ("aws", SnowflakeDataSourceCreator),
-        ]
-    )
+
+    AVAILABLE_OFFLINE_STORES.append(("gcp", BigQueryDataSourceCreator))
+    AVAILABLE_OFFLINE_STORES.append(("aws", RedshiftDataSourceCreator))
+    AVAILABLE_OFFLINE_STORES.append(("aws", SnowflakeDataSourceCreator))
 
     AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
