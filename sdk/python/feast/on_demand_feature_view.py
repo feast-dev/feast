@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import copy
 import functools
 import warnings
 from datetime import datetime
 from types import FunctionType
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -16,6 +18,7 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -335,14 +338,14 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
         return df_with_transformed_features.rename(columns=rename_columns)
 
-    def infer_features(self):
+    def infer_features(self) -> None:
         """
         Infers the set of features associated to this feature view from the input source.
 
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
-        rand_df_value: Dict[str, Any] = {
+        rand_df_value = {
             "float": 1.0,
             "int": 1,
             "str": "hello world",
@@ -365,7 +368,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
                 sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
                 df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
-        output_df: pd.DataFrame = self.udf.__call__(df)
+        output_df = self.udf.__call__(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
             inferred_features.append(
@@ -396,11 +399,11 @@ class OnDemandFeatureView(BaseFeatureView):
             )
 
     @staticmethod
-    def get_requested_odfvs(feature_refs, project, registry):
+    def get_requested_odfvs(feature_refs: List[str], project: str, registry: BaseRegistry) -> List[OnDemandFeatureView]:
         all_on_demand_feature_views = registry.list_on_demand_feature_views(
             project, allow_cache=True
         )
-        requested_on_demand_feature_views: List[OnDemandFeatureView] = []
+        requested_on_demand_feature_views = []
         for odfv in all_on_demand_feature_views:
             for feature in odfv.features:
                 if f"{odfv.name}:{feature.name}" in feature_refs:
