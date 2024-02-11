@@ -20,6 +20,7 @@ from typing import Dict
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -32,7 +33,7 @@ class CassandraOnlineStoreCreator(OnlineStoreCreator):
             "9042"
         )
 
-    def create_online_store(self) -> Dict[str, object]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         log_string_to_wait_for = "Startup complete"
         # on a modern machine it takes about 45-60 seconds for the container
@@ -45,12 +46,12 @@ class CassandraOnlineStoreCreator(OnlineStoreCreator):
         self.container.exec(f'cqlsh -e "{keyspace_creation_command}"')
         time.sleep(2)
         exposed_port = int(self.container.get_exposed_port("9042"))
-        return {
-            "type": "cassandra",
-            "hosts": ["127.0.0.1"],
-            "port": exposed_port,
-            "keyspace": keyspace_name,
-        }
+        return FeastConfigBaseModel(
+            type="cassandra",
+            hosts=["127.0.0.1"],
+            port=exposed_port,
+            keyspace=keyspace_name,
+        )
 
     def teardown(self):
         self.container.stop()

@@ -14,6 +14,7 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,
 )
+from feast.repo_config import FeastConfigBaseModel
 from feast.saved_dataset import SavedDatasetStorage
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,

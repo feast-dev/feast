@@ -2,6 +2,7 @@ from typing import Dict
 
 from testcontainers.mysql import MySqlContainer
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -18,16 +19,16 @@ class MySQLOnlineStoreCreator(OnlineStoreCreator):
             .with_env("MYSQL_DATABASE", "test")
         )
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         exposed_port = self.container.get_exposed_port(3306)
-        return {
-            "type": "mysql",
-            "user": "root",
-            "password": "test",
-            "database": "test",
-            "port": exposed_port,
-        }
+        return FeastConfigBaseModel(
+            type="mysql",
+            user="root",
+            password="test",
+            database="test",
+            port=exposed_port,
+        )
 
     def teardown(self):
         self.container.stop()

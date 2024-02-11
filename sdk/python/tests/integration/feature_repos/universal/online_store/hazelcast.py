@@ -6,6 +6,7 @@ from typing import Any, Dict
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
+from feast.repo_config import FeastConfigBaseModel
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -29,7 +30,7 @@ class HazelcastOnlineStoreCreator(OnlineStoreCreator):
             .with_exposed_ports(5701)
         )
 
-    def create_online_store(self) -> Dict[str, Any]:
+    def create_online_store(self) -> FeastConfigBaseModel:
         self.container.start()
         cluster_member = (
             self.container.get_container_host_ip()
@@ -38,11 +39,11 @@ class HazelcastOnlineStoreCreator(OnlineStoreCreator):
         )
         log_string_to_wait_for = r"Cluster name: " + self.cluster_name
         wait_for_logs(self.container, predicate=log_string_to_wait_for, timeout=10)
-        return {
-            "type": "hazelcast",
-            "cluster_name": self.cluster_name,
-            "cluster_members": [cluster_member],
-        }
+        return FeastConfigBaseModel(
+            type="hazelcast",
+            cluster_name=self.cluster_name,
+            cluster_members=[cluster_member],
+        )
 
     def teardown(self):
         self.container.stop()
