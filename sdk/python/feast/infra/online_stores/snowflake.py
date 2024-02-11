@@ -1,11 +1,9 @@
 import itertools
-import os
 from binascii import hexlify
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
-from pydantic import Field, StrictStr
 from pydantic.schema import Literal
 
 from feast.entity import Entity
@@ -14,52 +12,23 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
+    SnowflakeStoreConfig,
     execute_snowflake_statement,
     get_snowflake_online_store_path,
     write_pandas_binary,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
 from feast.utils import to_naive_utc
 
 
-class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
+class SnowflakeOnlineStoreConfig(SnowflakeStoreConfig):
     """Online store config for Snowflake"""
 
     type: Literal["snowflake.online"] = "snowflake.online"
     """ Online store type selector """
-
-    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
-    """ Snowflake config path -- absolute path required (Can't use ~)"""
-
-    account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
-
-    user: Optional[str] = None
-    """ Snowflake user name """
-
-    password: Optional[str] = None
-    """ Snowflake password """
-
-    role: Optional[str] = None
-    """ Snowflake role name """
-
-    warehouse: Optional[str] = None
-    """ Snowflake warehouse name """
-
-    authenticator: Optional[str] = None
-    """ Snowflake authenticator name """
-
-    database: StrictStr
-    """ Snowflake database name """
-
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
-    """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
 
 
 class SnowflakeOnlineStore(OnlineStore):

@@ -399,7 +399,9 @@ class OnDemandFeatureView(BaseFeatureView):
             )
 
     @staticmethod
-    def get_requested_odfvs(feature_refs: List[str], project: str, registry: BaseRegistry) -> List[OnDemandFeatureView]:
+    def get_requested_odfvs(
+        feature_refs: List[str], project: str, registry: BaseRegistry
+    ) -> List[OnDemandFeatureView]:
         all_on_demand_feature_views = registry.list_on_demand_feature_views(
             project, allow_cache=True
         )

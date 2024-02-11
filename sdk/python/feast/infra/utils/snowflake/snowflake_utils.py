@@ -12,6 +12,7 @@ import pandas as pd
 import pyarrow
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from pydantic import Field, StrictStr
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -22,7 +23,7 @@ from tenacity import (
 import feast
 from feast.errors import SnowflakeIncompleteConfig, SnowflakeQueryUnknownError
 from feast.feature_view import FeatureView
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 try:
     import snowflake.connector
@@ -33,7 +34,6 @@ except ImportError as e:
 
     raise FeastExtrasDependencyImportError("snowflake", str(e))
 
-
 getLogger("snowflake.connector.cursor").disabled = True
 getLogger("snowflake.connector.connection").disabled = True
 getLogger("snowflake.connector.network").disabled = True
@@ -42,10 +42,56 @@ logger = getLogger(__name__)
 _cache = {}
 
 
+class SnowflakeStoreConfig(FeastConfigBaseModel):
+    """Store config for Snowflake"""
+
+    type: str
+    """ Online or Offine store type selector """
+
+    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
+    """ Snowflake config path -- absolute path required (Cant use ~)"""
+
+    account: Optional[str] = None
+    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
+
+    user: Optional[str] = None
+    """ Snowflake user name """
+
+    password: Optional[str] = None
+    """ Snowflake password """
+
+    role: Optional[str] = None
+    """ Snowflake role name """
+
+    warehouse: Optional[str] = None
+    """ Snowflake warehouse name """
+
+    authenticator: Optional[str] = None
+    """ Snowflake authenticator name """
+
+    database: StrictStr
+    """ Snowflake database name """
+
+    schema_: Optional[str] = Field("PUBLIC", alias="schema")
+    """ Snowflake schema name """
+
+    storage_integration_name: Optional[str] = None
+    """ Storage integration name in snowflake """
+
+    blob_export_location: Optional[str] = None
+    """ Location (in S3, Google storage or Azure storage) where data is offloaded """
+
+    convert_timestamp_columns: Optional[bool] = None
+    """ Convert timestamp columns on export to a Parquet-supported format """
+
+    class Config:
+        allow_population_by_field_name = True
+
+
 class GetSnowflakeConnection:
     def __init__(
         self,
-        config: str,
+        config: SnowflakeStoreConfig,
         autocommit=True,
     ):
         self.config = config
@@ -516,7 +562,6 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(key_path: str, private_key_passphrase: str) -> bytes:
-
     with open(key_path, "rb") as key:
         p_key = serialization.load_pem_private_key(
             key.read(),

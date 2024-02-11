@@ -46,6 +46,7 @@ from feast.infra.offline_stores.snowflake_source import (
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
+    SnowflakeStoreConfig,
     execute_snowflake_statement,
     write_pandas,
     write_parquet,
@@ -78,50 +79,11 @@ if TYPE_CHECKING:
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
+class SnowflakeOfflineStoreConfig(SnowflakeStoreConfig):
     """Offline store config for Snowflake"""
 
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector """
-
-    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
-    """ Snowflake config path -- absolute path required (Cant use ~)"""
-
-    account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
-
-    user: Optional[str] = None
-    """ Snowflake user name """
-
-    password: Optional[str] = None
-    """ Snowflake password """
-
-    role: Optional[str] = None
-    """ Snowflake role name """
-
-    warehouse: Optional[str] = None
-    """ Snowflake warehouse name """
-
-    authenticator: Optional[str] = None
-    """ Snowflake authenticator name """
-
-    database: StrictStr
-    """ Snowflake database name """
-
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
-    """ Snowflake schema name """
-
-    storage_integration_name: Optional[str] = None
-    """ Storage integration name in snowflake """
-
-    blob_export_location: Optional[str] = None
-    """ Location (in S3, Google storage or Azure storage) where data is offloaded """
-
-    convert_timestamp_columns: Optional[bool] = None
-    """ Convert timestamp columns on export to a Parquet-supported format """
-
-    class Config:
-        allow_population_by_field_name = True
 
 
 class SnowflakeOfflineStore(OfflineStore):
