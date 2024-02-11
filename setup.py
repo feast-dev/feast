@@ -61,7 +61,7 @@ REQUIRED = [
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
-    "pydantic>=1",
+    "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",

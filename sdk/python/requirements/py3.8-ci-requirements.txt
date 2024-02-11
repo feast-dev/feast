@@ -65,11 +65,11 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
-boto3==1.34.37
+boto3==1.34.39
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.34.37
+botocore==1.34.39
     # via
     #   boto3
     #   moto
@@ -149,7 +149,7 @@ dask==2023.5.0
     # via feast (setup.py)
 db-dtypes==1.2.0
     # via google-cloud-bigquery
-debugpy==1.8.0
+debugpy==1.8.1
     # via ipykernel
 decorator==5.1.1
     # via ipython
@@ -208,7 +208,7 @@ geojson==2.5.0
     # via rockset
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.16.2
+google-api-core[grpc]==2.17.0
     # via
     #   feast (setup.py)
     #   firebase-admin
@@ -220,7 +220,7 @@ google-api-core[grpc]==2.16.2
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.116.0
+google-api-python-client==2.117.0
     # via firebase-admin
 google-auth==2.27.0
     # via
@@ -318,10 +318,8 @@ httplib2==0.22.0
 httptools==0.6.1
     # via uvicorn
 httpx==0.26.0
-    # via
-    #   feast (setup.py)
-    #   jupyterlab
-identify==2.5.33
+    # via feast (setup.py)
+identify==2.5.34
     # via pre-commit
 idna==3.6
     # via
@@ -358,7 +356,7 @@ ipython==8.12.3
     #   great-expectations
     #   ipykernel
     #   ipywidgets
-ipywidgets==8.1.1
+ipywidgets==8.1.2
     # via great-expectations
 isodate==0.6.1
     # via azure-storage-blob
@@ -428,7 +426,7 @@ jupyter-server==2.12.5
     #   notebook-shim
 jupyter-server-terminals==0.5.2
     # via jupyter-server
-jupyterlab==4.1.0
+jupyterlab==4.0.12
     # via notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
@@ -436,7 +434,7 @@ jupyterlab-server==2.25.2
     # via
     #   jupyterlab
     #   notebook
-jupyterlab-widgets==3.0.9
+jupyterlab-widgets==3.0.10
     # via ipywidgets
 kubernetes==20.13.0
     # via feast (setup.py)
@@ -481,7 +479,7 @@ msgpack==1.0.7
     # via cachecontrol
 multiprocess==0.70.16
     # via bytewax
-mypy==1.1.1
+mypy==1.8.0
     # via
     #   feast (setup.py)
     #   sqlalchemy
@@ -505,7 +503,7 @@ nest-asyncio==1.6.0
     # via ipykernel
 nodeenv==1.8.0
     # via pre-commit
-notebook==7.0.7
+notebook==7.0.8
     # via great-expectations
 notebook-shim==0.2.3
     # via
@@ -901,7 +899,7 @@ tornado==6.4
     #   jupyterlab
     #   notebook
     #   terminado
-tqdm==4.66.1
+tqdm==4.66.2
     # via
     #   feast (setup.py)
     #   great-expectations
@@ -988,7 +986,7 @@ urllib3==1.26.18
     #   responses
     #   rockset
     #   snowflake-connector-python
-uvicorn[standard]==0.27.0.post1
+uvicorn[standard]==0.27.1
     # via
     #   feast (setup.py)
     #   uvicorn
@@ -1020,7 +1018,7 @@ werkzeug==3.0.1
     # via moto
 wheel==0.42.0
     # via pip-tools
-widgetsnbextension==4.0.9
+widgetsnbextension==4.0.10
     # via ipywidgets
 wrapt==1.16.0
     # via testcontainers

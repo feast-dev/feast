@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, List, Iterable, Optional, Tuple, no_type_check
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type_check
 
 from typeguard import typechecked
 

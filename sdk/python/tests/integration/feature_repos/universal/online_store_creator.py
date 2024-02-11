@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from feast.repo_config import FeastConfigBaseModel
 
 
