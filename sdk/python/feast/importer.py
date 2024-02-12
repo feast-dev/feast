@@ -1,5 +1,4 @@
 import importlib
-from typing import Optional
 
 from feast.errors import (
     FeastClassImportError,

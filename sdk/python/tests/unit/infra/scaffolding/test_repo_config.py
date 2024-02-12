@@ -45,7 +45,7 @@ def test_nullable_online_store_aws():
         entity_key_serialization_version: 2
         """
         ),
-        expect_error="7 validation errors for RepoConfig\ncluster_id\n  Field required",
+        expect_error="4 validation errors for RepoConfig\nregion\n  Field required",
     )
 
 
