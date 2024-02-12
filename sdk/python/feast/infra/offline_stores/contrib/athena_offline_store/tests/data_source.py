@@ -43,7 +43,6 @@ class AthenaDataSourceCreator(DataSourceCreator):
             workgroup=workgroup,
             s3_staging_location=f"s3://{bucket_name}/test_dir",
         )
-        self,
 
     def create_data_source(
         self,
