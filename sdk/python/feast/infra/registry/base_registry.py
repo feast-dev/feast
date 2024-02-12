@@ -629,7 +629,7 @@ class BaseRegistry(ABC):
 
             odfv_dict["spec"]["userDefinedFunction"][
                 "body"
-            ] = on_demand_feature_view.udf_string
+            ] = on_demand_feature_view.transformation.udf_string
             registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
