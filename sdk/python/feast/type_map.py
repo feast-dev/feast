@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 # null timestamps get converted to -9223372036854775808
-NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
+NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
@@ -114,7 +114,10 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
 
 
 def python_type_to_feast_value_type(
-    name: str, value: Any = None, recurse: bool = True, type_name: Optional[str] = None
+    name: str,
+    value: Optional[Any] = None,
+    recurse: bool = True,
+    type_name: Optional[str] = None,
 ) -> ValueType:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
@@ -321,7 +324,7 @@ def _python_datetime_to_int_timestamp(
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
-            int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))
+            int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))  # type: ignore[attr-defined]
         elif isinstance(value, type(np.nan)):
             int_timestamps.append(NULL_TIMESTAMP_INT_VALUE)
         else:

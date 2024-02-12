@@ -71,7 +71,7 @@ REQUIRED = [
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
     "typeguard==2.13.3",
-    "fastapi>=0.68.0,<0.100",
+    "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",
@@ -116,7 +116,7 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
+MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
@@ -155,8 +155,8 @@ CI_REQUIRED = (
         "grpcio-testing>=1.56.2,<2",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
-        "mypy>=0.981,<0.990",
+        "moto<5",
+        "mypy>=1.4.1",
         "avro==1.10.0",
         "fsspec<2023.10.0",
         "urllib3>=1.25.4,<3",
@@ -234,7 +234,7 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 

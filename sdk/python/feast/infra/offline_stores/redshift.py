@@ -51,13 +51,13 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["redshift"] = "redshift"
     """ Offline store type selector"""
 
-    cluster_id: Optional[StrictStr]
+    cluster_id: Optional[StrictStr] = None
     """ Redshift cluster identifier, for provisioned clusters """
 
-    user: Optional[StrictStr]
+    user: Optional[StrictStr] = None
     """ Redshift user name, only required for provisioned clusters """
 
-    workgroup: Optional[StrictStr]
+    workgroup: Optional[StrictStr] = None
     """ Redshift workgroup identifier, for serverless """
 
     region: StrictStr

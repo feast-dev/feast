@@ -51,7 +51,7 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         suffix: Optional[str] = None,
         timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
     ) -> DataSource:
 
         destination_name = self.get_prefixed_table_name(destination_name)

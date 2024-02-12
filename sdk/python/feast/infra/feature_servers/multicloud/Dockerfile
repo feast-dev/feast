@@ -4,7 +4,6 @@ RUN apt update && \
         apt install -y \
         jq \
         python3-dev \
-        default-libmysqlclient-dev \
         build-essential
 
 RUN pip install pip --upgrade
