@@ -347,7 +347,7 @@ def e2e_data_sources(environment: Environment):
     df = create_basic_driver_dataset()
     data_source = environment.data_source_creator.create_data_source(
         df,
-        environment.feature_store.project,
+        destination_name=environment.feature_store.project,
         field_mapping={"ts_1": "ts"},
     )
 

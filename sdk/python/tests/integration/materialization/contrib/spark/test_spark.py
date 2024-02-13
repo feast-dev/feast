@@ -38,7 +38,7 @@ def test_spark_materialization_consistency():
 
     ds = spark_environment.data_source_creator.create_data_source(
         df,
-        spark_environment.feature_store.project,
+        destination_name=spark_environment.feature_store.project,
         field_mapping={"ts_1": "ts"},
     )
 
