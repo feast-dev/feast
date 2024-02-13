@@ -103,7 +103,7 @@ class FeastConfigBaseModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
-        extra = "forbid"
+        extra = "allow"
 
 
 class RegistryConfig(FeastBaseModel):
