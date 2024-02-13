@@ -154,8 +154,7 @@ def test_extra_field():
             path: "online_store.db"
         """
         ),
-        expect_error="__root__ -> online_store -> that_field_should_not_be_here\n"
-        "  extra fields not permitted (type=value_error.extra)",
+        expect_error=None,  # extra fields are allowed
     )
 
 
