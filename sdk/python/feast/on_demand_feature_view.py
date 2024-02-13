@@ -2,6 +2,7 @@ import copy
 import functools
 import warnings
 from datetime import datetime
+from types import FunctionType
 from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
@@ -77,7 +78,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 FeatureViewProjection,
             ]
         ],
-        transformation: Union[OnDemandPandasTransformation],
+        udf: Optional[FunctionType] = None,
+        udf_string: str = "",
+        transformation: Optional[Union[OnDemandPandasTransformation]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -92,6 +95,9 @@ class OnDemandFeatureView(BaseFeatureView):
             sources: A map from input source names to the actual input sources, which may be
                 feature views, or request data sources. These sources serve as inputs to the udf,
                 which will refer to them by name.
+            udf (deprecated): The user defined transformation function, which must take pandas
+                dataframes as inputs.
+            udf_string (deprecated): The source code version of the udf (for diffing and displaying in Web UI)
             transformation: The user defined transformation.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
@@ -105,6 +111,18 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=tags,
             owner=owner,
         )
+
+        if not transformation:
+            if udf:
+                warnings.warn(
+                    "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) instead.",
+                    DeprecationWarning,
+                )
+                transformation = OnDemandPandasTransformation(udf, udf_string)
+            else:
+                raise Exception(
+                    "OnDemandFeatureView needs to be initialized with either transformation or udf arguments"
+                )
 
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}

@@ -95,16 +95,15 @@ def test_hash():
         ),
         description="test",
     )
-    on_demand_feature_view_4 = OnDemandFeatureView(
+    on_demand_feature_view_5 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
         sources=sources,
         schema=[
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf2, udf_string="udf2 source code"
-        ),
+        udf=udf2,
+        udf_string="udf2 source code",
         description="test",
     )
 
@@ -124,3 +123,7 @@ def test_hash():
         on_demand_feature_view_4,
     }
     assert len(s4) == 3
+
+    assert on_demand_feature_view_5.transformation == OnDemandPandasTransformation(
+        udf2, "udf2 source code"
+    )
