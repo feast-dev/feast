@@ -1,3 +1,4 @@
+import copy
 from datetime import timedelta
 
 import pytest
@@ -299,3 +300,22 @@ def test_stream_feature_view_proto_type():
         aggregations=[],
     )
     assert sfv.proto_class is StreamFeatureViewProto
+
+
+def test_stream_feature_view_copy():
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+    sfv = StreamFeatureView(
+        name="test stream featureview proto class",
+        entities=[],
+        ttl=timedelta(days=30),
+        source=stream_source,
+        aggregations=[],
+    )
+    assert sfv == copy.copy(sfv)
