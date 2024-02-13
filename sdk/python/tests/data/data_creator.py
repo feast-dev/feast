@@ -9,7 +9,7 @@ from feast.types import FeastType, Float32, Int32, Int64, String
 
 def create_basic_driver_dataset(
     entity_type: FeastType = Int32,
-    feature_dtype: str = None,
+    feature_dtype: Optional[str] = None,
     feature_is_list: bool = False,
     list_has_empty_list: bool = False,
 ) -> pd.DataFrame:

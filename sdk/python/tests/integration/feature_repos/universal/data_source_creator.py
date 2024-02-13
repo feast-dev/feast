@@ -20,7 +20,7 @@ class DataSourceCreator(ABC):
         destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = None,
     ) -> DataSource:
         """
@@ -53,7 +53,7 @@ class DataSourceCreator(ABC):
         ...
 
     def create_logged_features_destination(self) -> LoggingDestination:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def teardown(self):

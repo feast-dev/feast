@@ -43,7 +43,11 @@ _cache = {}
 
 
 class GetSnowflakeConnection:
-    def __init__(self, config: str, autocommit=True):
+    def __init__(
+        self,
+        config: str,
+        autocommit=True,
+    ):
         self.config = config
         self.autocommit = autocommit
 

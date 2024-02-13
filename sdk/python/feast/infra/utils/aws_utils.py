@@ -816,7 +816,7 @@ def execute_athena_query(
     database: str,
     workgroup: str,
     query: str,
-    temp_table: str = None,
+    temp_table: Optional[str] = None,
 ) -> str:
     """Execute athena statement synchronously. Waits for the query to finish.
 
