@@ -280,12 +280,12 @@ class SnowflakeSource(DataSource):
                 else:
                     row["snowflake_type"] = "NUMBERwSCALE"
 
-            elif row["type_code"] in {5, 9, 12}:
+            elif row["type_code"] in [5, 9, 12]:
                 error = snowflake_unsupported_map[row["type_code"]]
                 raise NotImplementedError(
                     f"The following Snowflake Data Type is not supported: {error}"
                 )
-            elif row["type_code"] in {1, 2, 3, 4, 6, 7, 8, 10, 11, 13}:
+            elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 10, 11, 13]:
                 row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
             else:
                 raise NotImplementedError(

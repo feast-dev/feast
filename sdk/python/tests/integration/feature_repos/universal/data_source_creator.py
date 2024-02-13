@@ -42,15 +42,15 @@ class DataSourceCreator(ABC):
             A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
             test.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_offline_store_config(self) -> FeastConfigBaseModel:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_logged_features_destination(self) -> LoggingDestination:
@@ -58,4 +58,4 @@ class DataSourceCreator(ABC):
 
     @abstractmethod
     def teardown(self):
-        pass
+        raise NotImplementedError
