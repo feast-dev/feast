@@ -10,9 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/rs/zerolog/log"
 )
-
-const BUFFER_SIZE = 8192 // Adjust buffer size as needed
 
 type HttpRegistryStore struct {
 	project  string
@@ -112,6 +111,9 @@ func (r *HttpRegistryStore) loadEntities(registry *core.Registry) error {
 		if err := proto.Unmarshal(data, entity_list); err != nil {
 			return err
 		}
+		if len(entity_list.GetEntities()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated Entities for project %s.", r.project))
+		}
 		registry.Entities = append(registry.Entities, entity_list.GetEntities()...)
 		return nil
 	})
@@ -123,6 +125,9 @@ func (r *HttpRegistryStore) loadDatasources(registry *core.Registry) error {
 		data_source_list := &core.DataSourceList{}
 		if err := proto.Unmarshal(data, data_source_list); err != nil {
 			return err
+		}
+		if len(data_source_list.GetDatasources()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated Datasources for project %s.", r.project))
 		}
 		registry.DataSources = append(registry.DataSources, data_source_list.GetDatasources()...)
 		return nil
@@ -136,6 +141,9 @@ func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
 		if err := proto.Unmarshal(data, feature_view_list); err != nil {
 			return err
 		}
+		if len(feature_view_list.GetFeatureviews()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated FeatureViews for project %s.", r.project))
+		}
 		registry.FeatureViews = append(registry.FeatureViews, feature_view_list.GetFeatureviews()...)
 		return nil
 	})
@@ -148,6 +156,9 @@ func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) er
 		if err := proto.Unmarshal(data, od_feature_view_list); err != nil {
 			return err
 		}
+		if len(od_feature_view_list.GetOndemandfeatureviews()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated Ondemandfeatureviews for project %s.", r.project))
+		}
 		registry.OnDemandFeatureViews = append(registry.OnDemandFeatureViews, od_feature_view_list.GetOndemandfeatureviews()...)
 		return nil
 	})
@@ -159,6 +170,9 @@ func (r *HttpRegistryStore) loadFeatureServices(registry *core.Registry) error {
 		feature_service_list := &core.FeatureServiceList{}
 		if err := proto.Unmarshal(data, feature_service_list); err != nil {
 			return err
+		}
+		if len(feature_service_list.GetFeatureservices()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated FeatureServices for project %s.", r.project))
 		}
 		registry.FeatureServices = append(registry.FeatureServices, feature_service_list.GetFeatureservices()...)
 		return nil

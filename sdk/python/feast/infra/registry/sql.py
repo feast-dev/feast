@@ -221,9 +221,11 @@ class SqlRegistry(BaseRegistry):
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
-            seconds=registry_config.cache_ttl_seconds
-            if registry_config.cache_ttl_seconds is not None
-            else 0
+            seconds=(
+                registry_config.cache_ttl_seconds
+                if registry_config.cache_ttl_seconds is not None
+                else 0
+            )
         )
         self.stop_thread = False
         self.refresh_cache_thread = threading.Thread(target=self._refresh_cache)
@@ -233,7 +235,10 @@ class SqlRegistry(BaseRegistry):
     def _refresh_cache(self):
         while not self.stop_thread:
             try:
+                start_time = time.time()
                 self.refresh()
+                end_time = time.time()
+                logger.info("Registry refresh took %.2f seconds", end_time - start_time)
             except Exception as e:
                 logger.error(f"Registry refresh failed with exception: {e}")
             # Sleep for cached_registry_proto_ttl - 10 seconds
