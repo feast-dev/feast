@@ -4,11 +4,12 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.9-ci-requirements.txt
 #
-
 alabaster==0.7.16
     # via sphinx
-altair==4.2.0
+altair==4.2.2
     # via great-expectations
+annotated-types==0.6.0
+    # via pydantic
 anyio==4.2.0
     # via
     #   httpx
@@ -225,6 +226,10 @@ google-auth==2.27.0
 google-auth-httplib2==0.2.0
     # via google-api-python-client
 google-cloud-bigquery[pandas]==3.12.0
+    # via
+    #   feast (setup.py)
+    #   google-cloud-bigquery
+google-cloud-bigquery-storage==2.24.0
     # via feast (setup.py)
 google-cloud-bigquery-storage==2.24.0
     # via feast (setup.py)
@@ -259,7 +264,7 @@ googleapis-common-protos[grpc]==1.62.0
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-great-expectations==0.15.50
+great-expectations==0.18.8
     # via feast (setup.py)
 greenlet==3.0.3
     # via sqlalchemy
@@ -327,7 +332,6 @@ importlib-metadata==6.11.0
     #   build
     #   dask
     #   feast (setup.py)
-    #   great-expectations
     #   jupyter-client
     #   jupyter-lsp
     #   jupyterlab
@@ -637,11 +641,13 @@ pycodestyle==2.10.0
     # via flake8
 pycparser==2.21
     # via cffi
-pydantic==1.10.14
+pydantic==2.6.1
     # via
     #   fastapi
     #   feast (setup.py)
     #   great-expectations
+pydantic-core==2.16.2
+    # via pydantic
 pyflakes==3.0.1
     # via flake8
 pygments==2.17.2
@@ -938,6 +944,7 @@ typing-extensions==4.9.0
     #   ipython
     #   mypy
     #   pydantic
+    #   pydantic-core
     #   snowflake-connector-python
     #   sqlalchemy2-stubs
     #   starlette

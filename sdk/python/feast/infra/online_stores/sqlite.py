@@ -16,10 +16,9 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from pydantic import StrictStr
-from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView

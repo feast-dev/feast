@@ -193,7 +193,7 @@ def make_feature_store_yaml(
         repo_path=str(Path(repo_dir_name)),
         entity_key_serialization_version=2,
     )
-    config_dict = config.dict()
+    config_dict = config.model_dump(by_alias=True)
     if (
         isinstance(config_dict["online_store"], dict)
         and "redis_type" in config_dict["online_store"]

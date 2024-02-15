@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pymysql
 import pytz
@@ -23,7 +23,7 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     NOTE: The class *must* end with the `OnlineStoreConfig` suffix.
     """
 
-    type = "mysql"
+    type: Literal["mysql"] = "mysql"
 
     host: Optional[StrictStr] = None
     user: Optional[StrictStr] = None

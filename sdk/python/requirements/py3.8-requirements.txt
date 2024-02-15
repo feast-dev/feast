@@ -4,7 +4,8 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.8-requirements.txt
 #
-
+annotated-types==0.6.0
+    # via pydantic
 anyio==4.2.0
     # via
     #   httpx
@@ -145,10 +146,12 @@ protobuf==4.23.3
     #   proto-plus
 pyarrow==15.0.0
     # via feast (setup.py)
-pydantic==1.10.14
+pydantic==2.6.1
     # via
     #   fastapi
     #   feast (setup.py)
+pydantic-core==2.16.2
+    # via pydantic
 pygments==2.17.2
     # via feast (setup.py)
 python-dateutil==2.8.2
@@ -210,13 +213,16 @@ typing-extensions==4.9.0
     #   fastapi
     #   mypy
     #   pydantic
+    #   pydantic-core
     #   sqlalchemy2-stubs
     #   starlette
     #   uvicorn
 urllib3==2.2.0
     # via requests
 uvicorn[standard]==0.27.1
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   uvicorn
 uvloop==0.19.0
     # via uvicorn
 volatile==2.1.0

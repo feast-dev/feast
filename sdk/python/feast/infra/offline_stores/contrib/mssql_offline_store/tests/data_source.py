@@ -64,10 +64,10 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
-        **kwargs,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         # Make sure the field mapping is correct and convert the datetime datasources.
         if timestamp_field in df:

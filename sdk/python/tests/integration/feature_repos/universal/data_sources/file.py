@@ -39,9 +39,9 @@ class FileDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
 
         destination_name = self.get_prefixed_table_name(destination_name)
@@ -94,9 +94,9 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
 
         destination_name = self.get_prefixed_table_name(destination_name)
@@ -167,11 +167,10 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: Optional[str] = None,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        destination_name: str,
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")

@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type_check
 
 from typeguard import typechecked
 
@@ -202,6 +202,7 @@ class SnowflakeSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.snowflake_type_to_feast_value_type
 
+    @no_type_check
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
@@ -292,7 +293,8 @@ class SnowflakeSource(DataSource):
                 )
 
         return [
-            (column["column_name"], column["snowflake_type"]) for column in metadata
+            (str(column["column_name"]), str(column["snowflake_type"]))
+            for column in metadata
         ]
 
 

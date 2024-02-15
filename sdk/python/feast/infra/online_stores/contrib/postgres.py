@@ -2,14 +2,13 @@ import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import psycopg2
 import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 from psycopg2.pool import SimpleConnectionPool
-from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView

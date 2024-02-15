@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
@@ -10,7 +10,6 @@ import pyarrow
 import pyarrow.dataset
 import pyarrow.parquet
 import pytz
-from pydantic.typing import Literal
 
 from feast.data_source import DataSource
 from feast.errors import (
