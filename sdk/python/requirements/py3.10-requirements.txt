@@ -46,7 +46,7 @@ exceptiongroup==1.2.0
     # via anyio
 fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.9.3
+fastavro==1.9.4
     # via
     #   feast (setup.py)
     #   pandavro
@@ -74,7 +74,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.2
+httpcore==1.0.3
     # via httpx
 httptools==0.6.1
     # via uvicorn
@@ -166,7 +166,7 @@ referencing==0.33.0
     #   jsonschema-specifications
 requests==2.31.0
     # via feast (setup.py)
-rpds-py==0.17.1
+rpds-py==0.18.0
     # via
     #   jsonschema
     #   referencing

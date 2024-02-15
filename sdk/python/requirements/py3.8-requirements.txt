@@ -46,7 +46,7 @@ exceptiongroup==1.2.0
     # via anyio
 fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.9.3
+fastavro==1.9.4
     # via
     #   feast (setup.py)
     #   pandavro
@@ -74,7 +74,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.2
+httpcore==1.0.3
     # via httpx
 httptools==0.6.1
     # via uvicorn
@@ -171,7 +171,7 @@ referencing==0.33.0
     #   jsonschema-specifications
 requests==2.31.0
     # via feast (setup.py)
-rpds-py==0.17.1
+rpds-py==0.18.0
     # via
     #   jsonschema
     #   referencing
@@ -184,9 +184,7 @@ sniffio==1.3.0
     #   anyio
     #   httpx
 sqlalchemy[mypy]==1.4.51
-    # via
-    #   feast (setup.py)
-    #   sqlalchemy
+    # via feast (setup.py)
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 starlette==0.36.3
@@ -211,7 +209,6 @@ types-protobuf==4.24.0.20240129
     # via mypy-protobuf
 typing-extensions==4.9.0
     # via
-    #   annotated-types
     #   anyio
     #   fastapi
     #   mypy

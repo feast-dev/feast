@@ -90,7 +90,7 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
-    "fsspec<2023.10.0",
+    "fsspec<=2024.1.0",
 ]
 
 REDIS_REQUIRED = [
@@ -98,7 +98,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<2023.10.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
@@ -158,7 +158,6 @@ CI_REQUIRED = (
         "moto<5",
         "mypy>=1.4.1",
         "avro==1.10.0",
-        "fsspec<2023.10.0",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
