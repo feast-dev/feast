@@ -346,6 +346,7 @@ class RepoConfig(FeastBaseModel):
         return values
 
     @model_validator(mode="before")
+    @classmethod
     def _validate_offline_store_config(cls, values: Any) -> Any:
         # Set empty offline_store config if it isn't set explicitly
         if "offline_store" not in values:
@@ -382,6 +383,7 @@ class RepoConfig(FeastBaseModel):
         return values
 
     @model_validator(mode="before")
+    @classmethod
     def _validate_feature_server_config(cls, values: Any) -> Any:
         # Having no feature server is the default.
         if "feature_server" not in values:
@@ -414,6 +416,7 @@ class RepoConfig(FeastBaseModel):
         return values
 
     @field_validator("project")
+    @classmethod
     def _validate_project_name(cls, v: str) -> str:
         from feast.repo_operations import is_valid_name
 
@@ -425,6 +428,7 @@ class RepoConfig(FeastBaseModel):
         return v
 
     @field_validator("flags")
+    @classmethod
     def _validate_flags(cls, v: Optional[dict]) -> Optional[dict]:
         if not isinstance(v, dict):
             return v
