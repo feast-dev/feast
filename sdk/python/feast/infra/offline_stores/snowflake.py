@@ -470,9 +470,18 @@ class SnowflakeRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         pa_table = execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all(force_return_table=True)
+        ).fetch_arrow_all(force_return_table=False)
 
-        return pa_table
+        if pa_table:
+            return pa_table
+        else:
+            empty_result = execute_snowflake_statement(
+                self.snowflake_conn, self.to_sql()
+            )
+
+            return pyarrow.Table.from_pandas(
+                pd.DataFrame(columns=[md.name for md in empty_result.description])
+            )
 
     def to_sql(self) -> str:
         """
