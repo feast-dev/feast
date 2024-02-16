@@ -190,8 +190,8 @@ class SqlRegistryConfig(RegistryConfig):
     """ str: Path to metadata store.
     If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
 
-    sqlalchemy_config_kwargs: Optional[Dict[str, str]] = {"echo": False}
-    """ Dict[str, str]: Extra arguments to pass to SQLAlchemy.create_engine. """
+    sqlalchemy_config_kwargs: Optional[Dict[str, Any]] = {"echo": False}
+    """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
 
 class SqlRegistry(BaseRegistry):
