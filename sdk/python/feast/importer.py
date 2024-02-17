@@ -1,5 +1,4 @@
 import importlib
-from typing import Optional
 
 from feast.errors import (
     FeastClassImportError,
@@ -8,7 +7,7 @@ from feast.errors import (
 )
 
 
-def import_class(module_name: str, class_name: str, class_type: Optional[str] = None):
+def import_class(module_name: str, class_name: str, class_type: str = ""):
     """
     Dynamically loads and returns a class from a module.
 
