@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from types import MethodType
 from typing import TYPE_CHECKING, Optional
 
@@ -50,6 +50,7 @@ class StreamProcessor(ABC):
         self.sfv = sfv
         self.data_source = data_source
 
+    @abstractmethod
     def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
         """
         Ingests data from the stream source attached to the stream feature view; transforms the data
@@ -57,12 +58,14 @@ class StreamProcessor(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def _ingest_stream_data(self) -> StreamTable:
         """
         Ingests data into a StreamTable.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def _construct_transformation_plan(self, table: StreamTable) -> StreamTable:
         """
         Applies transformations on top of StreamTable object. Since stream engines use lazy
@@ -71,6 +74,7 @@ class StreamProcessor(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def _write_stream_data(self, table: StreamTable, to: PushMode) -> None:
         """
         Launches a job to persist stream data to the online store and/or offline store, depending

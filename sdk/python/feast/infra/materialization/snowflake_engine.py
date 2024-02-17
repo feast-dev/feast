@@ -7,7 +7,7 @@ from typing import Callable, List, Literal, Optional, Sequence, Union
 import click
 import pandas as pd
 from colorama import Fore, Style
-from pydantic import Field, StrictStr
+from pydantic import ConfigDict, Field, StrictStr
 from pytz import utc
 from tqdm import tqdm
 
@@ -72,9 +72,7 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 @dataclass

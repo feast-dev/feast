@@ -61,12 +61,12 @@ class MockRetrievalJob(RetrievalJob):
         return pyarrow.Table()
 
     @property
-    def full_feature_names(self) -> bool:
+    def full_feature_names(self) -> bool:  # type: ignore
         """Returns True if full feature names should be applied to the results of the query."""
         return False
 
     @property
-    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:  # type: ignore
         """Returns a list containing all the on demand feature views to be handled."""
         return []
 
@@ -118,6 +118,7 @@ def retrieval_job(request, environment):
             database="feast",
             s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
             iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
+            workgroup="",
         )
         environment.test_repo_config.offline_store = offline_store_config
         return RedshiftRetrievalJob(

@@ -31,6 +31,7 @@ def test_offline_write_batch(
             user="user",
             iam_role="abcdef",
             s3_staging_location="s3://bucket/path",
+            workgroup="",
         ),
     )
 

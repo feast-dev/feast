@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, FilePath, SecretStr, StrictBool, StrictStr, root_validator
+from pydantic import Field, FilePath, SecretStr, StrictBool, StrictStr, model_validator
 from trino.auth import (
     BasicAuthentication,
     CertificateAuthentication,
@@ -98,14 +98,14 @@ class AuthConfig(FeastConfigBaseModel):
     type: Literal["kerberos", "basic", "jwt", "oauth2", "certificate"]
     config: Optional[Dict[StrictStr, Any]]
 
-    @root_validator
-    def config_only_nullable_for_oauth2(cls, values):
-        auth_type = values["type"]
-        auth_config = values["config"]
+    @model_validator(mode="after")
+    def config_only_nullable_for_oauth2(self):
+        auth_type = self.type
+        auth_config = self.config
         if auth_type != "oauth2" and auth_config is None:
             raise ValueError(f"config cannot be null for auth type '{auth_type}'")
 
-        return values
+        return self
 
     def to_trino_auth(self):
         auth_type = self.type
