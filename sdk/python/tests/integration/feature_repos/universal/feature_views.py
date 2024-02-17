@@ -14,8 +14,8 @@ from feast import (
     StreamFeatureView,
 )
 from feast.data_source import DataSource, RequestSource
-from feast.on_demand_feature_view import OnDemandPandasTransformation
 from feast.feature_view_projection import FeatureViewProjection
+from feast.on_demand_feature_view import OnDemandPandasTransformation
 from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import (
     customer,
