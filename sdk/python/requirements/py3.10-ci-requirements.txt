@@ -37,7 +37,7 @@ attrs==23.1.0
     #   bowler
     #   jsonschema
     #   referencing
-avro==1.10.0
+avro==1.11.3
     # via feast (setup.py)
 azure-core==1.29.5
     # via
@@ -124,7 +124,7 @@ coverage[toml]==7.3.2
     # via
     #   coverage
     #   pytest-cov
-cryptography==42.0.0
+cryptography==42.0.2
     # via
     #   azure-identity
     #   azure-storage-blob
@@ -173,7 +173,7 @@ execnet==2.0.2
     # via pytest-xdist
 executing==2.0.1
     # via stack-data
-fastapi==0.109.1
+fastapi==0.109.2
     # via feast (setup.py)
 fastavro==1.9.0
     # via
