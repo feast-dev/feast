@@ -340,6 +340,11 @@ def test_historical_features_with_entities_from_query(
 
     table_from_sql_entities = job_from_sql.to_arrow().to_pandas()
     for col in table_from_sql_entities.columns:
+        # check if col dtype is timezone naive
+        if pd.api.types.is_datetime64_dtype(table_from_sql_entities[col]):
+            table_from_sql_entities[col] = table_from_sql_entities[col].dt.tz_localize(
+                "UTC"
+            )
         expected_df_query[col] = expected_df_query[col].astype(
             table_from_sql_entities[col].dtype
         )
@@ -515,7 +520,7 @@ def test_historical_features_with_no_ttl(
 @pytest.mark.universal_offline_stores
 @pytest.mark.skipif(
     pd.__version__ < "2.2.0" and pd.__version__ >= "2.0.0",
-    reason="Requires pandas version 2.2.0 or higher",
+    reason="Skip test due to pandas issue 55730 for pandas version 2.0.0 - 2.1.0",
     # https://github.com/pandas-dev/pandas/issues/55730
 )
 def test_historical_features_from_bigquery_sources_containing_backfills(environment):
