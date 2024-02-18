@@ -28,6 +28,11 @@ from tests.utils.test_log_creator import prepare_logs, to_logs_dataset
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("pass_as_path", [True, False], ids=lambda v: str(v))
+@pytest.mark.skipif(
+    pd.__version__ < "2.2.0" and pd.__version__ >= "2.0.0",
+    reason="Requires pandas version 2.2.0 or higher",
+    # https://github.com/pandas-dev/pandas/issues/55730
+)
 def test_feature_service_logging(environment, universal_data_sources, pass_as_path):
     store = environment.feature_store
 
