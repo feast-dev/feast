@@ -568,7 +568,7 @@ pandas==1.5.3
     #   ibis-framework
     #   pandavro
     #   snowflake-connector-python
-pandavro==1.5.2
+pandavro==1.8.0
     # via feast (setup.py)
 pandocfilters==1.5.1
     # via nbconvert
@@ -998,6 +998,8 @@ typing-extensions==4.9.0
     #   starlette
     #   typeguard
     #   uvicorn
+tzdata==2024.1
+    # via pandas
 tzlocal==5.2
     # via
     #   great-expectations

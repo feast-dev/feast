@@ -121,11 +121,11 @@ packaging==23.2
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
+pandas==2.2.0
     # via
     #   feast (setup.py)
     #   pandavro
-pandavro==1.5.2
+pandavro==1.8.0
     # via feast (setup.py)
 partd==1.4.1
     # via dask
@@ -171,9 +171,7 @@ rpds-py==0.18.0
     #   jsonschema
     #   referencing
 six==1.16.0
-    # via
-    #   pandavro
-    #   python-dateutil
+    # via python-dateutil
 sniffio==1.3.0
     # via
     #   anyio
