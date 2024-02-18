@@ -9,6 +9,7 @@ from pydantic import StrictStr
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.errors import ReadOnlyRegistryException
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -43,10 +44,10 @@ class RemoteRegistry(BaseRegistry):
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         request = RegistryServer_pb2.GetEntityRequest(
@@ -69,10 +70,10 @@ class RemoteRegistry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
@@ -101,10 +102,10 @@ class RemoteRegistry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
@@ -134,10 +135,10 @@ class RemoteRegistry(BaseRegistry):
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
@@ -247,7 +248,7 @@ class RemoteRegistry(BaseRegistry):
         end_date: datetime,
         commit: bool = True,
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def apply_saved_dataset(
         self,
@@ -255,10 +256,10 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_saved_dataset(self, name: str, project: str, allow_cache: bool = False):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
@@ -291,10 +292,10 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
@@ -333,7 +334,7 @@ class RemoteRegistry(BaseRegistry):
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         request = RegistryServer_pb2.GetInfraRequest(
@@ -361,7 +362,7 @@ class RemoteRegistry(BaseRegistry):
         return self.stub.Proto(Empty())
 
     def commit(self):
-        raise Exception("Unimplemented: remote registry is read-only")
+        raise ReadOnlyRegistryException()
 
     def refresh(self, project: Optional[str] = None):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
