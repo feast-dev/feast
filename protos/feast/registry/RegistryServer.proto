@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package feast.registry;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "feast/core/Registry.proto";
 import "feast/core/Entity.proto";
