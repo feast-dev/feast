@@ -46,10 +46,6 @@ exceptiongroup==1.2.0
     # via anyio
 fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.9.4
-    # via
-    #   feast (setup.py)
-    #   pandavro
 fissix==21.11.13
     # via bowler
 fsspec==2024.2.0
@@ -119,17 +115,12 @@ numpy==1.24.4
     # via
     #   feast (setup.py)
     #   pandas
-    #   pandavro
     #   pyarrow
 packaging==23.2
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
-    # via
-    #   feast (setup.py)
-    #   pandavro
-pandavro==1.8.0
+pandas==2.0.3
     # via feast (setup.py)
 partd==1.4.1
     # via dask
