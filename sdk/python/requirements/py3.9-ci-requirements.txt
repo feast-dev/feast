@@ -546,7 +546,7 @@ packaging==23.2
     #   pytest
     #   snowflake-connector-python
     #   sphinx
-pandas==2.1.4
+pandas==2.2.0
     # via
     #   altair
     #   db-dtypes

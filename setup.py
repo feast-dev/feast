@@ -187,6 +187,7 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
         "virtualenv<20.24.2",
+        "pandas>=1.4.3,<2; python_version < '3.9'",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED

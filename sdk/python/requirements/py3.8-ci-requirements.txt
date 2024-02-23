@@ -553,7 +553,7 @@ packaging==23.2
     #   pytest
     #   snowflake-connector-python
     #   sphinx
-pandas==2.0.3
+pandas==1.5.3 ; python_version < "3.9"
     # via
     #   altair
     #   db-dtypes
@@ -989,8 +989,6 @@ typing-extensions==4.9.0
     #   starlette
     #   typeguard
     #   uvicorn
-tzdata==2024.1
-    # via pandas
 tzlocal==5.2
     # via
     #   great-expectations
