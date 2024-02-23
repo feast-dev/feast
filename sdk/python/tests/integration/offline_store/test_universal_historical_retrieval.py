@@ -518,11 +518,6 @@ def test_historical_features_with_no_ttl(
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-@pytest.mark.skipif(
-    pd.__version__ < "2.2.0" and pd.__version__ >= "2.0.0",
-    reason="Skip test due to pandas issue 55730 for pandas version 2.0.0 - 2.1.0",
-    # https://github.com/pandas-dev/pandas/issues/55730
-)
 def test_historical_features_from_bigquery_sources_containing_backfills(environment):
     store = environment.feature_store
 
