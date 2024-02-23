@@ -148,7 +148,7 @@ CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<42",
+        "cryptography>=35.0,<43",
         "flake8>=6.0.0,<6.1.0",
         "black>=22.6.0,<23",
         "isort>=5,<6",
