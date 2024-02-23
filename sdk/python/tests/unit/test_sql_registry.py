@@ -91,7 +91,7 @@ def mysql_registry():
     container.start()
 
     # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
+    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '(\d+(\.\d+){1,2})'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"  # noqa: W605
     waited = wait_for_logs(
         container=container,
         predicate=log_string_to_wait_for,
@@ -103,7 +103,7 @@ def mysql_registry():
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"mysql+mysqldb://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        path=f"mysql+pymysql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
     )
 
     yield SqlRegistry(registry_config, "project", None)

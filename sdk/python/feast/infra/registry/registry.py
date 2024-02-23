@@ -178,10 +178,6 @@ class Registry(BaseRegistry):
             from feast.infra.registry.snowflake import SnowflakeRegistry
 
             return SnowflakeRegistry(registry_config, project, repo_path)
-        elif registry_config and registry_config.registry_type == "remote":
-            from feast.infra.registry.remote import RemoteRegistry
-
-            return RemoteRegistry(registry_config, project, repo_path)
         else:
             return super(Registry, cls).__new__(cls)
 
@@ -532,8 +528,12 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.list_feature_views(registry_proto, project)
 
-    def get_request_feature_view(self, name: str, project: str):
-        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
+    def get_request_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
         return proto_registry_utils.get_request_feature_view(
             registry_proto, name, project
         )

@@ -17,7 +17,7 @@ jobs:
     outputs:
       WAS_EDITED: ${{ steps.check_date.outputs.WAS_EDITED }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
       - id: check_date
@@ -27,13 +27,13 @@ jobs:
   cleanup_dynamo_tables:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    name: Cleanup dynamo tables which can fail to cleanup
+    name: Cleanup Bigtable / Dynamo tables which can fail to cleanup
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: "3.8"
@@ -47,9 +47,20 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install boto3
+          pip install google-cloud-bigtable
           pip install tqdm
-      - name: Run DynamoDB cleanup script
-        run: python infra/scripts/cleanup_dynamo_ci.py
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Use gcloud CLI
+        run: gcloud info
+      - name: Run DynamoDB / Bigtable cleanup script
+        run: python infra/scripts/cleanup_ci.py
   build-docker-image:
     if: github.repository == 'feast-dev/feast'
     needs: [check_date]
@@ -129,12 +140,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
           submodules: recursive
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -162,9 +173,6 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -179,6 +187,9 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install apache-arrow on ubuntu

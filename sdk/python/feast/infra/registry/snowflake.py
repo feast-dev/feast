@@ -5,10 +5,9 @@ from binascii import hexlify
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, List, Optional, Set, Union
+from typing import Any, Callable, List, Literal, Optional, Set, Union
 
-from pydantic import Field, StrictStr
-from pydantic.schema import Literal
+from pydantic import ConfigDict, Field, StrictStr
 
 import feast
 from feast import usage
@@ -103,9 +102,7 @@ class SnowflakeRegistryConfig(RegistryConfig):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeRegistry(BaseRegistry):
@@ -418,7 +415,7 @@ class SnowflakeRegistry(BaseRegistry):
             """
             cursor = execute_snowflake_statement(conn, query)
 
-            if cursor.rowcount < 1 and not_found_exception:
+            if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(datetime.utcnow(), project)
 

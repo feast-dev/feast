@@ -36,8 +36,8 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
             password=os.environ["SNOWFLAKE_CI_PASSWORD"],
             role=os.environ["SNOWFLAKE_CI_ROLE"],
             warehouse=os.environ["SNOWFLAKE_CI_WAREHOUSE"],
-            database="FEAST",
-            schema="OFFLINE",
+            database=os.environ.get("SNOWFLAKE_CI_DATABASE", "FEAST"),
+            schema=os.environ.get("SNOWFLAKE_CI_SCHEMA_OFFLINE", "OFFLINE"),
             storage_integration_name=os.getenv("BLOB_EXPORT_STORAGE_NAME", "FEAST_S3"),
             blob_export_location=os.getenv(
                 "BLOB_EXPORT_URI", "s3://feast-snowflake-offload/export"
@@ -48,10 +48,10 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
 
         destination_name = self.get_prefixed_table_name(destination_name)

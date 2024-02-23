@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -8,7 +8,8 @@ class OnlineStoreCreator(ABC):
         self.project_name = project_name
 
     def create_online_store(self) -> FeastConfigBaseModel:
-        ...
+        raise NotImplementedError
 
+    @abstractmethod
     def teardown(self):
-        ...
+        raise NotImplementedError

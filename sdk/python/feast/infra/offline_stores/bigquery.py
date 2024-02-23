@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -19,8 +20,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow.parquet
-from pydantic import StrictStr, validator
-from pydantic.typing import Literal
+from pydantic import StrictStr, field_validator
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import flags_helper
@@ -95,7 +95,15 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     gcs_staging_location: Optional[str] = None
     """ (optional) GCS location used for offloading BigQuery results as parquet files."""
 
-    @validator("billing_project_id")
+    table_create_disposition: Literal[
+        "CREATE_NEVER", "CREATE_IF_NEEDED"
+    ] = "CREATE_IF_NEEDED"
+    """ (optional) Specifies whether the job is allowed to create new tables. The default value is CREATE_IF_NEEDED.
+    Custom constraint for table_create_disposition. To understand more, see:
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition
+    """
+
+    @field_validator("billing_project_id")
     def project_id_exists(cls, v, values, **kwargs):
         if v and not values["project_id"]:
             raise ValueError(
@@ -324,6 +332,7 @@ class BigQueryOfflineStore(OfflineStore):
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(source.get_schema(registry)),
+            create_disposition=config.offline_store.table_create_disposition,
             time_partitioning=bigquery.TimePartitioning(
                 type_=bigquery.TimePartitioningType.DAY,
                 field=source.get_log_timestamp_column(),
@@ -342,7 +351,14 @@ class BigQueryOfflineStore(OfflineStore):
             return
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=data, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=data,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
+            )
 
             parquet_temp_file.seek(0)
 
@@ -384,11 +400,19 @@ class BigQueryOfflineStore(OfflineStore):
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             schema=arrow_schema_to_bq_schema(pa_schema),
+            create_disposition=config.offline_store.table_create_disposition,
             write_disposition="WRITE_APPEND",  # Default but included for clarity
         )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=table, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=table,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
+            )
 
             parquet_temp_file.seek(0)
 
@@ -503,7 +527,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                 temp_dest_table = f"{tmp_dest['projectId']}.{tmp_dest['datasetId']}.{tmp_dest['tableId']}"
 
                 # persist temp table
-                sql = f"CREATE TABLE `{dest}` AS SELECT * FROM {temp_dest_table}"
+                sql = f"CREATE TABLE `{dest}` AS SELECT * FROM `{temp_dest_table}`"
                 self._execute_query(sql, timeout=timeout)
 
             print(f"Done writing to '{dest}'.")
@@ -577,7 +601,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
-        prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 
@@ -693,7 +716,7 @@ def _get_entity_schema(
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, str):
         entity_df_sample = (
-            client.query(f"SELECT * FROM ({entity_df}) LIMIT 1").result().to_dataframe()
+            client.query(f"SELECT * FROM ({entity_df}) LIMIT 0").result().to_dataframe()
         )
 
         entity_schema = dict(zip(entity_df_sample.columns, entity_df_sample.dtypes))

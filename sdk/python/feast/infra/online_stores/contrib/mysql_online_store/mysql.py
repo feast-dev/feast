@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pymysql
 import pytz
@@ -23,7 +23,7 @@ class MySQLOnlineStoreConfig(FeastConfigBaseModel):
     NOTE: The class *must* end with the `OnlineStoreConfig` suffix.
     """
 
-    type = "mysql"
+    type: Literal["mysql"] = "mysql"
 
     host: Optional[StrictStr] = None
     user: Optional[StrictStr] = None
@@ -178,8 +178,11 @@ class MySQLOnlineStore(OnlineStore):
 
         # We don't create any special state for the entities in this implementation.
         for table in tables_to_keep:
+
+            table_name = _table_id(project, table)
+            index_name = f"{table_name}_ek"
             cur.execute(
-                f"""CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key VARCHAR(512),
+                f"""CREATE TABLE IF NOT EXISTS {table_name} (entity_key VARCHAR(512),
                 feature_name VARCHAR(256),
                 value BLOB,
                 event_ts timestamp NULL DEFAULT NULL,
@@ -187,9 +190,16 @@ class MySQLOnlineStore(OnlineStore):
                 PRIMARY KEY(entity_key, feature_name))"""
             )
 
-            cur.execute(
-                f"ALTER TABLE {_table_id(project, table)} ADD INDEX {_table_id(project, table)}_ek (entity_key);"
+            index_exists = cur.execute(
+                f"""
+                SELECT 1 FROM information_schema.statistics
+                WHERE table_schema = DATABASE() AND table_name = '{table_name}' AND index_name = '{index_name}'
+                """
             )
+            if not index_exists:
+                cur.execute(
+                    f"ALTER TABLE {table_name} ADD INDEX {index_name} (entity_key);"
+                )
 
         for table in tables_to_delete:
             _drop_table_and_index(cur, project, table)

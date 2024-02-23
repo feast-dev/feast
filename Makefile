@@ -186,6 +186,28 @@ test-python-universal-athena:
 			not test_snowflake" \
 	sdk/python/tests
 
+test-python-universal-duckdb:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.duckdb_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.duckdb_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
+ 	python -m pytest -n 8 --integration \
+		-k "not test_historical_features_persisting and \
+			not test_historical_retrieval_fails_on_validation and \
+			not test_historical_retrieval_with_validation and \
+			not test_feature_logging and \
+			not test_logged_features_validation and \
+			not test_lambda_materialization_consistency and \
+			not test_offline_write and \
+			not test_push_features_to_offline_store.py and \
+			not test_nullable_online_store and \
+			not gcs_registry and \
+			not s3_registry and \
+			not test_snowflake and \
+			not bigquery and \
+			not test_spark_materialization_consistency" \
+ 	 sdk/python/tests
+
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
@@ -310,7 +332,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; python -m mypy
+	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
 	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
@@ -353,7 +375,7 @@ kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
 
 install-protoc-dependencies:
-	pip install --ignore-installed protobuf grpcio-tools==1.47.0 mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"

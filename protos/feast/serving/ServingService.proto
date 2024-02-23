@@ -105,6 +105,8 @@ message GetOnlineFeaturesResponse {
         repeated FieldStatus statuses = 2;
         repeated google.protobuf.Timestamp event_timestamps = 3;
     }
+
+    bool status = 3;
 }
 
 message GetOnlineFeaturesResponseMetadata {

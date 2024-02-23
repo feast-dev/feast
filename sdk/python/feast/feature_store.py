@@ -164,10 +164,6 @@ class FeatureStore:
             self._registry = SnowflakeRegistry(
                 registry_config, self.config.project, None
             )
-        elif registry_config and registry_config.registry_type == "remote":
-            from feast.infra.registry.remote import RemoteRegistry
-
-            self._registry = RemoteRegistry(registry_config, self.config.project, None)
         else:
             r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
             r._initialize_registry(self.config.project)
@@ -291,7 +287,11 @@ class FeatureStore:
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
-            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
                 fv.entities = []
                 fv.entity_columns = []
             feature_views.append(fv)
@@ -2228,6 +2228,7 @@ class FeatureStore:
         no_feature_log: bool,
         workers: int,
         keep_alive_timeout: int,
+        registry_ttl_sec: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2243,6 +2244,7 @@ class FeatureStore:
             no_access_log=no_access_log,
             workers=workers,
             keep_alive_timeout=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
         )
 
     @log_exceptions_and_usage
@@ -2275,6 +2277,13 @@ class FeatureStore:
             registry_ttl_sec=registry_ttl_sec,
             root_path=root_path,
         )
+
+    @log_exceptions_and_usage
+    def serve_registry(self, port: int) -> None:
+        """Start registry server locally on a given port."""
+        from feast import registry_server
+
+        registry_server.start_server(self, port)
 
     @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:

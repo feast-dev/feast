@@ -14,10 +14,9 @@
 import itertools
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictBool, StrictStr
-from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -288,12 +287,12 @@ class DynamoDBOnlineStore(OnlineStore):
             )
         return self._dynamodb_resource
 
-    def _sort_dynamodb_response(self, responses: list, order: list):
+    def _sort_dynamodb_response(self, responses: list, order: list) -> Any:
         """DynamoDB Batch Get Item doesn't return items in a particular order."""
         # Assign an index to order
         order_with_index = {value: idx for idx, value in enumerate(order)}
         # Sort table responses by index
-        table_responses_ordered = [
+        table_responses_ordered: Any = [
             (order_with_index[tbl_res["entity_id"]], tbl_res) for tbl_res in responses
         ]
         table_responses_ordered = sorted(

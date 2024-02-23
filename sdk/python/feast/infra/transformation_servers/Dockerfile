@@ -15,7 +15,7 @@ COPY README.md README.md
 
 
 # Install dependencies
-RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir -e '.[gcp,aws]'
+RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir '.[gcp,aws]'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]

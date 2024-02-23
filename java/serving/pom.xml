@@ -244,6 +244,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-sts</artifactId>
+      <version>1.12.476</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.adobe.testing</groupId>
       <artifactId>s3mock-testcontainers</artifactId>
       <version>2.2.3</version>
@@ -268,7 +274,7 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>1.10.2</version>
+      <version>1.11.3</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-java-root -->

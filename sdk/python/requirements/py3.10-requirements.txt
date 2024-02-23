@@ -4,142 +4,172 @@
 #
 #    pip-compile --output-file=sdk/python/requirements/py3.10-requirements.txt
 #
-anyio==3.7.0
+annotated-types==0.6.0
+    # via pydantic
+anyio==4.2.0
     # via
-    #   httpcore
+    #   httpx
     #   starlette
     #   watchfiles
 appdirs==1.4.4
     # via fissix
-attrs==23.1.0
+attrs==23.2.0
     # via
     #   bowler
     #   jsonschema
+    #   referencing
 bowler==0.9.0
     # via feast (setup.py)
-certifi==2023.5.7
+certifi==2024.2.2
     # via
     #   httpcore
     #   httpx
     #   requests
-charset-normalizer==3.1.0
+charset-normalizer==3.3.2
     # via requests
-click==8.1.3
+click==8.1.7
     # via
     #   bowler
     #   dask
     #   feast (setup.py)
     #   moreorless
     #   uvicorn
-cloudpickle==2.2.1
+cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2023.5.1
+dask==2024.2.0
     # via feast (setup.py)
-dill==0.3.6
+dill==0.3.8
     # via feast (setup.py)
-exceptiongroup==1.1.1
+exceptiongroup==1.2.0
     # via anyio
-fastapi==0.95.2
+fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.7.4
+fastavro==1.9.4
     # via
     #   feast (setup.py)
     #   pandavro
 fissix==21.11.13
     # via bowler
-fsspec==2023.5.0
+fsspec==2024.2.0
     # via dask
-greenlet==2.0.2
+greenlet==3.0.3
     # via sqlalchemy
-grpcio==1.54.2
+grpcio==1.60.1
     # via
     #   feast (setup.py)
+    #   grpcio-health-checking
     #   grpcio-reflection
-grpcio-reflection==1.54.2
+    #   grpcio-tools
+grpcio-health-checking==1.60.1
     # via feast (setup.py)
-gunicorn==20.1.0
+grpcio-reflection==1.60.1
+    # via feast (setup.py)
+grpcio-tools==1.60.1
+    # via feast (setup.py)
+gunicorn==21.2.0
     # via feast (setup.py)
 h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==0.17.2
+httpcore==1.0.3
     # via httpx
-httptools==0.5.0
+httptools==0.6.1
     # via uvicorn
-httpx==0.24.1
+httpx==0.26.0
     # via feast (setup.py)
-idna==3.4
+idna==3.6
     # via
     #   anyio
     #   httpx
     #   requests
-importlib-metadata==6.6.0
-    # via dask
-jinja2==3.1.2
+importlib-metadata==6.11.0
+    # via
+    #   dask
+    #   feast (setup.py)
+importlib-resources==6.1.1
     # via feast (setup.py)
-jsonschema==4.17.3
+jinja2==3.1.3
     # via feast (setup.py)
+jsonschema==4.21.1
+    # via feast (setup.py)
+jsonschema-specifications==2023.12.1
+    # via jsonschema
 locket==1.0.0
     # via partd
-markupsafe==2.1.3
+markupsafe==2.1.5
     # via jinja2
-mmh3==4.0.0
+mmh3==4.1.0
     # via feast (setup.py)
 moreorless==0.4.0
     # via bowler
-mypy==1.3.0
+mypy==1.8.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-numpy==1.24.3
+mypy-protobuf==3.1.0
+    # via feast (setup.py)
+numpy==1.24.4
     # via
     #   feast (setup.py)
     #   pandas
     #   pandavro
     #   pyarrow
-packaging==23.1
-    # via dask
+packaging==23.2
+    # via
+    #   dask
+    #   gunicorn
 pandas==1.5.3
     # via
     #   feast (setup.py)
     #   pandavro
 pandavro==1.5.2
     # via feast (setup.py)
-partd==1.4.0
+partd==1.4.1
     # via dask
-proto-plus==1.22.2
+proto-plus==1.23.0
     # via feast (setup.py)
-protobuf==4.23.2
+protobuf==4.23.3
     # via
     #   feast (setup.py)
+    #   grpcio-health-checking
     #   grpcio-reflection
+    #   grpcio-tools
+    #   mypy-protobuf
     #   proto-plus
-pyarrow==11.0.0
+pyarrow==15.0.0
     # via feast (setup.py)
-pydantic==1.10.8
+pydantic==2.6.1
     # via
     #   fastapi
     #   feast (setup.py)
-pygments==2.15.1
+pydantic-core==2.16.2
+    # via pydantic
+pygments==2.17.2
     # via feast (setup.py)
-pyrsistent==0.19.3
-    # via jsonschema
 python-dateutil==2.8.2
     # via pandas
-python-dotenv==1.0.0
+python-dotenv==1.0.1
     # via uvicorn
-pytz==2023.3
+pytz==2024.1
     # via pandas
-pyyaml==6.0
+pyyaml==6.0.1
     # via
     #   dask
     #   feast (setup.py)
     #   uvicorn
+referencing==0.33.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 requests==2.31.0
     # via feast (setup.py)
+rpds-py==0.18.0
+    # via
+    #   jsonschema
+    #   referencing
 six==1.16.0
     # via
     #   pandavro
@@ -147,46 +177,58 @@ six==1.16.0
 sniffio==1.3.0
     # via
     #   anyio
-    #   httpcore
     #   httpx
-sqlalchemy[mypy]==1.4.48
-    # via feast (setup.py)
-sqlalchemy2-stubs==0.0.2a34
+sqlalchemy[mypy]==1.4.51
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
+sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
-starlette==0.27.0
+starlette==0.36.3
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
-tenacity==8.2.2
+tenacity==8.2.3
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
 tomli==2.0.1
     # via mypy
-toolz==0.12.0
+toolz==0.12.1
     # via
     #   dask
     #   partd
-tqdm==4.65.0
+tqdm==4.66.2
     # via feast (setup.py)
-typeguard==2.13.3
+typeguard==4.1.5
     # via feast (setup.py)
-typing-extensions==4.6.3
+types-protobuf==4.24.0.20240129
+    # via mypy-protobuf
+typing-extensions==4.9.0
     # via
+    #   anyio
+    #   fastapi
     #   mypy
     #   pydantic
+    #   pydantic-core
     #   sqlalchemy2-stubs
-urllib3==2.0.2
+    #   uvicorn
+urllib3==2.2.0
     # via requests
-uvicorn[standard]==0.22.0
-    # via feast (setup.py)
-uvloop==0.17.0
+uvicorn[standard]==0.27.1
+    # via
+    #   feast (setup.py)
+    #   uvicorn
+uvloop==0.19.0
     # via uvicorn
 volatile==2.1.0
     # via bowler
-watchfiles==0.19.0
+watchfiles==0.21.0
     # via uvicorn
-websockets==11.0.3
+websockets==12.0
     # via uvicorn
-zipp==3.15.0
+zipp==3.17.0
     # via importlib-metadata
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

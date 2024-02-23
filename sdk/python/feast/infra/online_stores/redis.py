@@ -21,6 +21,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -30,7 +31,6 @@ from typing import (
 import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
-from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
@@ -43,6 +43,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 try:
     from redis import Redis
     from redis.cluster import ClusterNode, RedisCluster
+    from redis.sentinel import Sentinel
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -54,6 +55,7 @@ logger = logging.getLogger(__name__)
 class RedisType(str, Enum):
     redis = "redis"
     redis_cluster = "redis_cluster"
+    redis_sentinel = "redis_sentinel"
 
 
 class RedisOnlineStoreConfig(FeastConfigBaseModel):
@@ -64,6 +66,9 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
     redis_type: RedisType = RedisType.redis
     """Redis type: redis or redis_cluster"""
+
+    sentinel_master: StrictStr = "mymaster"
+    """Sentinel's master name"""
 
     connection_string: StrictStr = "localhost:6379"
     """Connection string containing the host, port, and configuration parameters for Redis
@@ -89,15 +94,15 @@ class RedisOnlineStore(OnlineStore):
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
         deleted_count = 0
-        pipeline = client.pipeline(transaction=False)
         prefix = _redis_key_prefix(join_keys)
 
-        for _k in client.scan_iter(
-            b"".join([prefix, b"*", config.project.encode("utf8")])
-        ):
-            pipeline.delete(_k)
-            deleted_count += 1
-        pipeline.execute()
+        with client.pipeline(transaction=False) as pipe:
+            for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
+                pipe.delete(_k)
+                deleted_count += 1
+            pipe.execute()
 
         logger.debug(f"Deleted {deleted_count} rows for entity {', '.join(join_keys)}")
 
@@ -178,6 +183,15 @@ class RedisOnlineStore(OnlineStore):
                     ClusterNode(**node) for node in startup_nodes
                 ]
                 self._client = RedisCluster(**kwargs)
+            elif online_store_config.redis_type == RedisType.redis_sentinel:
+                sentinel_hosts = []
+
+                for item in startup_nodes:
+                    sentinel_hosts.append((item["host"], int(item["port"])))
+
+                sentinel = Sentinel(sentinel_hosts, **kwargs)
+                master = sentinel.master_for(online_store_config.sentinel_master)
+                self._client = master
             else:
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]
