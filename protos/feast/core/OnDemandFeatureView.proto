@@ -48,7 +48,9 @@ message OnDemandFeatureViewSpec {
     // Map of sources for this feature view.
     map<string, OnDemandSource> sources = 4;
 
-    UserDefinedFunction user_defined_function = 5;
+    oneof transformation {
+        UserDefinedFunction user_defined_function = 5;
+    }
 
     // Description of the on demand feature view.
     string description = 6;
