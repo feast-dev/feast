@@ -100,7 +100,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.18.2", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3,<4",
@@ -142,6 +142,11 @@ ROCKSET_REQUIRED = [
 
 HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
+]
+
+IBIS_REQUIRED = [
+    "ibis-framework",
+    "ibis-substrait"
 ]
 
 CI_REQUIRED = (
@@ -201,6 +206,7 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + IBIS_REQUIRED
 )
 
 
@@ -368,6 +374,7 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "ibis": IBIS_REQUIRED
     },
     include_package_data=True,
     license="Apache",

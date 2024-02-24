@@ -50,6 +50,7 @@ message OnDemandFeatureViewSpec {
 
     oneof transformation {
         UserDefinedFunction user_defined_function = 5;
+        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9;
     }
 
     // Description of the on demand feature view.
@@ -88,4 +89,8 @@ message UserDefinedFunction {
 
     // The string representation of the udf
     string body_text = 3;
+}
+
+message OnDemandSubstraitTransformation {
+    bytes substrait_plan = 1;
 }
