@@ -58,7 +58,7 @@ REQUIRED = [
     # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
     "pandavro~=1.5.0",
     # Higher than 4.23.4 seems to cause a seg fault
-    "protobuf<4.23.4,>3.20",
+    "protobuf<=4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
     "pydantic>=2.0.0",
@@ -100,7 +100,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
+BYTEWAX_REQUIRED = ["bytewax==0.18.2", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3,<4",
