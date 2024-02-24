@@ -1,5 +1,6 @@
 import copy
 import functools
+import inspect
 import warnings
 from datetime import datetime
 from types import FunctionType
@@ -17,6 +18,7 @@ from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
 from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
+from feast.on_demand_substrait_transformation import OnDemandSubstraitTransformation
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -210,6 +212,9 @@ class OnDemandFeatureView(BaseFeatureView):
             user_defined_function=self.transformation.to_proto()
             if type(self.transformation) == OnDemandPandasTransformation
             else None,
+            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
+            if type(self.transformation) == OnDemandSubstraitTransformation
+            else None,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -254,6 +259,13 @@ class OnDemandFeatureView(BaseFeatureView):
         ):
             transformation = OnDemandPandasTransformation.from_proto(
                 on_demand_feature_view_proto.spec.user_defined_function
+            )
+        elif (
+            on_demand_feature_view_proto.spec.WhichOneof("transformation")
+            == "on_demand_substrait_transformation"
+        ):
+            transformation = OnDemandSubstraitTransformation.from_proto(
+                on_demand_feature_view_proto.spec.on_demand_substrait_transformation
             )
         else:
             raise Exception("At least one transformation type needs to be provided")
@@ -460,10 +472,47 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-        udf_string = dill.source.getsource(user_function)
-        mainify(user_function)
+        return_annotation = inspect.signature(user_function).return_annotation
+        if (
+            return_annotation
+            and return_annotation.__module__ == "ibis.expr.types.relations"
+            and return_annotation.__name__ == "Table"
+        ):
+            import ibis
+            import ibis.expr.datatypes as dt
+            from ibis_substrait.compiler.core import SubstraitCompiler
 
-        transformation = OnDemandPandasTransformation(user_function, udf_string)
+            compiler = SubstraitCompiler()
+
+            input_fields: Field = []
+
+            for s in sources:
+                if type(s) == FeatureView:
+                    fields = s.projection.features
+                else:
+                    fields = s.features
+
+                input_fields.extend(
+                    [
+                        (
+                            f.name,
+                            dt.dtype(
+                                feast_value_type_to_pandas_type(f.dtype.to_value_type())
+                            ),
+                        )
+                        for f in fields
+                    ]
+                )
+
+            expr = user_function(ibis.table(input_fields, "t"))
+
+            transformation = OnDemandSubstraitTransformation(
+                substrait_plan=compiler.compile(expr).SerializeToString()
+            )
+        else:
+            udf_string = dill.source.getsource(user_function)
+            mainify(user_function)
+            transformation = OnDemandPandasTransformation(user_function, udf_string)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,

@@ -144,6 +144,11 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
+IBIS_REQUIRED = [
+    "ibis-framework",
+    "ibis-substrait"
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -201,6 +206,7 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + IBIS_REQUIRED
 )
 
 
@@ -368,6 +374,7 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "ibis": IBIS_REQUIRED
     },
     include_package_data=True,
     license="Apache",
