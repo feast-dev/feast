@@ -3,19 +3,18 @@ package registry
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"time"
-
-	"google.golang.org/protobuf/proto"
-
-	"github.com/feast-dev/feast/go/protos/feast/core"
-	"github.com/rs/zerolog/log"
 )
 
 type HttpRegistryStore struct {
 	project  string
 	endpoint string
+	clientId string
 	client   http.Client
 }
 
@@ -38,6 +37,7 @@ func NewHttpRegistryStore(config *RegistryConfig, project string) (*HttpRegistry
 	hrs := &HttpRegistryStore{
 		project:  project,
 		endpoint: config.Path,
+		clientId: config.ClientId,
 		client: http.Client{
 			Transport: tr,
 			Timeout:   5 * time.Second,
@@ -72,6 +72,7 @@ func (r *HttpRegistryStore) makeHttpRequest(url string) (*http.Response, error) 
 	}
 
 	req.Header.Add("Accept", "application/x-protobuf")
+	req.Header.Add("Client-Id", r.clientId)
 
 	resp, err := r.client.Do(req)
 	if err != nil {

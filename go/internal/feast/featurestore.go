@@ -49,8 +49,11 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	if err != nil {
 		return nil, err
 	}
-
-	registry, err := registry.NewRegistry(config.GetRegistryConfig(), config.RepoPath, config.Project)
+	registryConfig, err := config.GetRegistryConfig()
+	if err != nil {
+		return nil, err
+	}
+	registry, err := registry.NewRegistry(registryConfig, config.RepoPath, config.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +61,10 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	if err != nil {
 		return nil, err
 	}
-  sanitizedProjectName := strings.Replace(config.Project, "_", "-", -1)
-  productName := os.Getenv("PRODUCT")
-  endpoint := fmt.Sprintf("%s-transformations.%s.svc.cluster.local:80", sanitizedProjectName, productName)
-  transformationService, _ := transformation.NewGrpcTransformationService(config, endpoint)
+	sanitizedProjectName := strings.Replace(config.Project, "_", "-", -1)
+	productName := os.Getenv("PRODUCT")
+	endpoint := fmt.Sprintf("%s-transformations.%s.svc.cluster.local:80", sanitizedProjectName, productName)
+	transformationService, _ := transformation.NewGrpcTransformationService(config, endpoint)
 
 	return &FeatureStore{
 		config:                 config,
