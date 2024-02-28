@@ -70,6 +70,8 @@ class FeatureViewModel(BaseFeatureViewModel):
     tags: Optional[Dict[str, str]]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]] = []
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     def to_feature_view(self) -> FeatureView:
         """
@@ -107,6 +109,8 @@ class FeatureViewModel(BaseFeatureViewModel):
             owner=self.owner,
         )
         feature_view.materialization_intervals = self.materialization_intervals
+        feature_view.created_timestamp = self.created_timestamp
+        feature_view.last_updated_timestamp = self.last_updated_timestamp
 
         return feature_view
 
@@ -160,6 +164,8 @@ class FeatureViewModel(BaseFeatureViewModel):
             tags=feature_view.tags if feature_view.tags else None,
             owner=feature_view.owner,
             materialization_intervals=feature_view.materialization_intervals,
+            created_timestamp=feature_view.created_timestamp,
+            last_updated_timestamp=feature_view.last_updated_timestamp,
         )
 
 
@@ -214,6 +220,8 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
     description: str
     tags: Dict[str, str]
     owner: str
+    created_timestamp: Optional[datetime] = None
+    last_updated_timestamp: Optional[datetime] = None
 
     def to_feature_view(self) -> OnDemandFeatureView:
         source_request_sources = dict()
@@ -231,7 +239,7 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
                     key
                 ] = feature_view_projection.to_feature_view_projection()
 
-        return OnDemandFeatureView(
+        odfv = OnDemandFeatureView(
             name=self.name,
             schema=[sch.to_field() for sch in self.features],
             sources=list(source_feature_view_projections.values())
@@ -242,6 +250,9 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
             tags=self.tags,
             owner=self.owner,
         )
+        odfv.created_timestamp = self.created_timestamp
+        odfv.last_updated_timestamp = self.last_updated_timestamp
+        return odfv
 
     @classmethod
     def from_feature_view(
@@ -283,4 +294,6 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
             description=on_demand_feature_view.description,
             tags=on_demand_feature_view.tags,
             owner=on_demand_feature_view.owner,
+            created_timestamp=on_demand_feature_view.created_timestamp,
+            last_updated_timestamp=on_demand_feature_view.last_updated_timestamp,
         )

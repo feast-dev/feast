@@ -314,6 +314,15 @@ def test_idempotent_featureview_conversion():
     feature_view_model = FeatureViewModel.from_feature_view(feature_view)
     feature_view_b = feature_view_model.to_feature_view()
     assert feature_view == feature_view_b
+    assert feature_view_model.created_timestamp == feature_view.created_timestamp
+    assert (
+        feature_view_model.last_updated_timestamp == feature_view.last_updated_timestamp
+    )
+    assert feature_view_b.created_timestamp == feature_view_model.created_timestamp
+    assert (
+        feature_view_b.last_updated_timestamp
+        == feature_view_model.last_updated_timestamp
+    )
 
     spark_source = SparkSource(
         name="sparky_sparky_boom_man",
@@ -386,6 +395,15 @@ def test_idempotent_featureview_with_streaming_source_conversion():
     feature_view_model = FeatureViewModel.from_feature_view(feature_view)
     feature_view_b = feature_view_model.to_feature_view()
     assert feature_view == feature_view_b
+    assert feature_view_model.created_timestamp == feature_view.created_timestamp
+    assert (
+        feature_view_model.last_updated_timestamp == feature_view.last_updated_timestamp
+    )
+    assert feature_view_b.created_timestamp == feature_view_model.created_timestamp
+    assert (
+        feature_view_b.last_updated_timestamp
+        == feature_view_model.last_updated_timestamp
+    )
 
     spark_source = SparkSource(
         name="sparky_sparky_boom_man",
@@ -595,6 +613,13 @@ def test_idempotent_on_demand_feature_view_conversion():
     pydantic_obj = OnDemandFeatureViewModel.from_feature_view(python_obj)
     converted_python_obj = pydantic_obj.to_feature_view()
     assert python_obj == converted_python_obj
+    assert pydantic_obj.created_timestamp == python_obj.created_timestamp
+    assert pydantic_obj.last_updated_timestamp == python_obj.last_updated_timestamp
+    assert converted_python_obj.created_timestamp == pydantic_obj.created_timestamp
+    assert (
+        converted_python_obj.last_updated_timestamp
+        == pydantic_obj.last_updated_timestamp
+    )
 
     feast_proto = converted_python_obj.to_proto()
     python_obj_from_proto = OnDemandFeatureView.from_proto(feast_proto)
