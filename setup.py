@@ -70,7 +70,7 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard==2.13.3",
+    "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
@@ -144,11 +144,16 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
+IBIS_REQUIRED = [
+    "ibis-framework",
+    "ibis-substrait"
+]
+
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<42",
+        "cryptography>=35.0,<43",
         "flake8>=6.0.0,<6.1.0",
         "black>=22.6.0,<23",
         "isort>=5,<6",
@@ -201,6 +206,7 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + IBIS_REQUIRED
 )
 
 
@@ -368,6 +374,7 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "ibis": IBIS_REQUIRED
     },
     include_package_data=True,
     license="Apache",

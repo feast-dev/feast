@@ -463,14 +463,16 @@ class SnowflakeRetrievalJob(RetrievalJob):
                     Array(Float32),
                     Array(Bool),
                 ]:
-                    df[feature.name] = [json.loads(x) for x in df[feature.name]]
+                    df[feature.name] = [
+                        json.loads(x) if x else None for x in df[feature.name]
+                    ]
 
         return df
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         pa_table = execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all()
+        ).fetch_arrow_all(force_return_table=False)
 
         if pa_table:
             return pa_table

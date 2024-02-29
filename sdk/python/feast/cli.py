@@ -76,6 +76,7 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--feature-store-yaml",
+    "-f",
     help="Override the directory where the CLI should look for the feature_store.yaml file.",
 )
 @click.pass_context
