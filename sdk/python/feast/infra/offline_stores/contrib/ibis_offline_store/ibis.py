@@ -205,7 +205,7 @@ class IbisOfflineStore(OfflineStore):
         r = ibis.literal("")
 
         for e in set(all_entities):
-            r = r.concat(entity_table[e].cast("string"))
+            r = r.concat(entity_table[e].cast("string")) # type: ignore
 
         entity_table = entity_table.mutate(entity_row_id=r)
 
