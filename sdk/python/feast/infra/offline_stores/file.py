@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
+import dask
 import dask.dataframe as dd
 import pandas as pd
 import pyarrow
@@ -41,6 +42,11 @@ from feast.utils import (
     _get_requested_feature_views_to_features_dict,
     _run_dask_field_mapping,
 )
+
+# FileRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
+# This is not the desired behavior for our use case, so we set the convert-string option to False
+# See (https://github.com/dask/dask/issues/10881#issuecomment-1923327936)
+dask.config.set({"dataframe.convert-string": False})
 
 
 class FileOfflineStoreConfig(FeastConfigBaseModel):
@@ -365,8 +371,6 @@ class FileOfflineStore(OfflineStore):
             else:
                 source_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
-
-            source_df = source_df.persist()
 
             return source_df[list(columns_to_extract)].persist()
 
