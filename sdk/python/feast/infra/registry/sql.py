@@ -19,6 +19,8 @@ from sqlalchemy import (  # type: ignore
     insert,
     select,
     update,
+    inspect,
+    schema
 )
 from sqlalchemy.engine import Engine
 
@@ -67,121 +69,124 @@ from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
-metadata = MetaData()
 
-entities = Table(
-    "entities",
-    metadata,
-    Column("entity_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("entity_proto", LargeBinary, nullable=False),
-)
+def get_registry_tables(metadata : MetaData = MetaData()):
 
-data_sources = Table(
-    "data_sources",
-    metadata,
-    Column("data_source_name", String(255), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("data_source_proto", LargeBinary, nullable=False),
-)
+    entities = Table(
+        "entities",
+        metadata,
+        Column("entity_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("entity_proto", LargeBinary, nullable=False),
+    )
 
-feature_views = Table(
-    "feature_views",
-    metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("materialized_intervals", LargeBinary, nullable=True),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
-)
+    data_sources = Table(
+        "data_sources",
+        metadata,
+        Column("data_source_name", String(255), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("data_source_proto", LargeBinary, nullable=False),
+    )
 
-request_feature_views = Table(
-    "request_feature_views",
-    metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
-)
+    feature_views = Table(
+        "feature_views",
+        metadata,
+        Column("feature_view_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("materialized_intervals", LargeBinary, nullable=True),
+        Column("feature_view_proto", LargeBinary, nullable=False),
+        Column("user_metadata", LargeBinary, nullable=True),
+    )
 
-stream_feature_views = Table(
-    "stream_feature_views",
-    metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
-)
+    request_feature_views = Table(
+        "request_feature_views",
+        metadata,
+        Column("feature_view_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("feature_view_proto", LargeBinary, nullable=False),
+        Column("user_metadata", LargeBinary, nullable=True),
+    )
 
-on_demand_feature_views = Table(
-    "on_demand_feature_views",
-    metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
-)
+    stream_feature_views = Table(
+        "stream_feature_views",
+        metadata,
+        Column("feature_view_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("feature_view_proto", LargeBinary, nullable=False),
+        Column("user_metadata", LargeBinary, nullable=True),
+    )
 
-feature_services = Table(
-    "feature_services",
-    metadata,
-    Column("feature_service_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_service_proto", LargeBinary, nullable=False),
-)
+    on_demand_feature_views = Table(
+        "on_demand_feature_views",
+        metadata,
+        Column("feature_view_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("feature_view_proto", LargeBinary, nullable=False),
+        Column("user_metadata", LargeBinary, nullable=True),
+    )
 
-saved_datasets = Table(
-    "saved_datasets",
-    metadata,
-    Column("saved_dataset_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("saved_dataset_proto", LargeBinary, nullable=False),
-)
+    feature_services = Table(
+        "feature_services",
+        metadata,
+        Column("feature_service_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("feature_service_proto", LargeBinary, nullable=False),
+    )
 
-validation_references = Table(
-    "validation_references",
-    metadata,
-    Column("validation_reference_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("validation_reference_proto", LargeBinary, nullable=False),
-)
+    saved_datasets = Table(
+        "saved_datasets",
+        metadata,
+        Column("saved_dataset_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("saved_dataset_proto", LargeBinary, nullable=False),
+    )
 
-managed_infra = Table(
-    "managed_infra",
-    metadata,
-    Column("infra_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("infra_proto", LargeBinary, nullable=False),
-)
+    validation_references = Table(
+        "validation_references",
+        metadata,
+        Column("validation_reference_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("validation_reference_proto", LargeBinary, nullable=False),
+    )
 
+    managed_infra = Table(
+        "managed_infra",
+        metadata,
+        Column("infra_name", String(50), primary_key=True),
+        Column("project_id", String(50), primary_key=True),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+        Column("infra_proto", LargeBinary, nullable=False),
+    )
 
+    feast_metadata = Table(
+        "feast_metadata",
+        metadata,
+        Column("project_id", String(50), primary_key=True),
+        Column("metadata_key", String(50), primary_key=True),
+        Column("metadata_value", String(50), nullable=False),
+        Column("last_updated_timestamp", BigInteger, nullable=False),
+    )
+    
+    return entities, data_sources, feature_views, request_feature_views, \
+        stream_feature_views, on_demand_feature_views, feature_services, \
+        saved_datasets, validation_references, managed_infra, feast_metadata
+    
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
     PROJECT_UUID = "project_uuid"
-
-
-feast_metadata = Table(
-    "feast_metadata",
-    metadata,
-    Column("project_id", String(50), primary_key=True),
-    Column("metadata_key", String(50), primary_key=True),
-    Column("metadata_value", String(50), nullable=False),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
-)
-
+    
 logger = logging.getLogger(__name__)
 
-
+metadata = MetaData()
 class SqlRegistryConfig(RegistryConfig):
     registry_type: StrictStr = "sql"
     """ str: Provider name or a class name that implements Registry."""
@@ -189,7 +194,6 @@ class SqlRegistryConfig(RegistryConfig):
     path: StrictStr = ""
     """ str: Path to metadata store.
     If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
-
 
 class SqlRegistry(BaseRegistry):
     def __init__(
@@ -200,9 +204,22 @@ class SqlRegistry(BaseRegistry):
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
         self.engine: Engine = create_engine(registry_config.path, echo=False)
+        # check if schema exists else create 
+        if 'registry_schema' in registry_config.__dict__:
+            inspector = inspect(self.engine)
+            if registry_config.registry_schema in inspector.get_schema_names():
+                print(f"Registry Schema [{registry_config.registry_schema}] already exists.")
+            else:
+                self.engine.execute(schema.CreateSchema(registry_config.registry_schema))
+                print(f"Registry Schema [{registry_config.registry_schema}] created.")
+        
+        metadata = MetaData(schema=registry_config.registry_schema if 'registry_schema' in registry_config.__dict__ else None)
+        
+        self.entities, self.data_sources, self.feature_views, self.request_feature_views, self.stream_feature_views, \
+            self.on_demand_feature_views, self.feature_services, self.saved_datasets, self.validation_references, \
+                self.managed_infra, self.feast_metadata = get_registry_tables(metadata)
         metadata.create_all(self.engine)
         self.cached_registry_proto = self.proto()
-        proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -213,15 +230,15 @@ class SqlRegistry(BaseRegistry):
         self.project = project
 
     def teardown(self):
-        for t in {
-            entities,
-            data_sources,
-            feature_views,
-            feature_services,
-            on_demand_feature_views,
-            request_feature_views,
-            saved_datasets,
-            validation_references,
+        for t in  {
+            self.entities,
+            self.data_sources,
+            self.feature_views,
+            self.feature_services,
+            self.on_demand_feature_views,
+            self.request_feature_views,
+            self.saved_datasets,
+            self.validation_references,
         }:
             with self.engine.connect() as conn:
                 stmt = delete(t)
@@ -271,7 +288,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=stream_feature_views,
+            table=self.stream_feature_views,
             name=name,
             project=project,
             proto_class=StreamFeatureViewProto,
@@ -290,7 +307,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            stream_feature_views,
+            self.stream_feature_views,
             project,
             StreamFeatureViewProto,
             StreamFeatureView,
@@ -299,7 +316,7 @@ class SqlRegistry(BaseRegistry):
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         return self._apply_object(
-            table=entities,
+            table=self.entities,
             project=project,
             id_field_name="entity_name",
             obj=entity,
@@ -313,7 +330,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=entities,
+            table=self.entities,
             name=name,
             project=project,
             proto_class=EntityProto,
@@ -332,7 +349,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=feature_views,
+            table=self.feature_views,
             name=name,
             project=project,
             proto_class=FeatureViewProto,
@@ -351,7 +368,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=on_demand_feature_views,
+            table=self.on_demand_feature_views,
             name=name,
             project=project,
             proto_class=OnDemandFeatureViewProto,
@@ -370,7 +387,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=request_feature_views,
+            table=self.request_feature_views,
             name=name,
             project=project,
             proto_class=RequestFeatureViewProto,
@@ -389,7 +406,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=feature_services,
+            table=self.feature_services,
             name=name,
             project=project,
             proto_class=FeatureServiceProto,
@@ -408,7 +425,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=saved_datasets,
+            table=self.saved_datasets,
             name=name,
             project=project,
             proto_class=SavedDatasetProto,
@@ -427,7 +444,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=validation_references,
+            table=self.validation_references,
             name=name,
             project=project,
             proto_class=ValidationReferenceProto,
@@ -446,7 +463,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            table=validation_references,
+            table=self.validation_references,
             project=project,
             proto_class=ValidationReferenceProto,
             python_class=ValidationReference,
@@ -460,21 +477,21 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            entities, project, EntityProto, Entity, "entity_proto"
+            self.entities, project, EntityProto, Entity, "entity_proto"
         )
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
-            entities, name, project, "entity_name", EntityNotFoundException
+            self.entities, name, project, "entity_name", EntityNotFoundException
         )
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         deleted_count = 0
         for table in {
-            feature_views,
-            request_feature_views,
-            on_demand_feature_views,
-            stream_feature_views,
+            self.feature_views,
+            self.request_feature_views,
+            self.on_demand_feature_views,
+            self.stream_feature_views,
         }:
             deleted_count += self._delete_object(
                 table, name, project, "feature_view_name", None
@@ -484,7 +501,7 @@ class SqlRegistry(BaseRegistry):
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
-            feature_services,
+            self.feature_services,
             name,
             project,
             "feature_service_name",
@@ -500,7 +517,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, name, project
             )
         return self._get_object(
-            table=data_sources,
+            table=self.data_sources,
             name=name,
             project=project,
             proto_class=DataSourceProto,
@@ -519,14 +536,14 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            data_sources, project, DataSourceProto, DataSource, "data_source_proto"
+            self.data_sources, project, DataSourceProto, DataSource, "data_source_proto"
         )
 
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
         return self._apply_object(
-            data_sources, project, "data_source_name", data_source, "data_source_proto"
+            self.data_sources, project, "data_source_name", data_source, "data_source_proto"
         )
 
     def apply_feature_view(
@@ -542,7 +559,7 @@ class SqlRegistry(BaseRegistry):
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
         return self._apply_object(
-            feature_services,
+            self.feature_services,
             project,
             "feature_service_name",
             feature_service,
@@ -551,9 +568,9 @@ class SqlRegistry(BaseRegistry):
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         with self.engine.connect() as conn:
-            stmt = delete(data_sources).where(
-                data_sources.c.data_source_name == name,
-                data_sources.c.project_id == project,
+            stmt = delete(self.data_sources).where(
+                self.data_sources.c.data_source_name == name,
+                self.data_sources.c.project_id == project,
             )
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
@@ -584,7 +601,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            feature_views, project, FeatureViewProto, FeatureView, "feature_view_proto"
+            self.feature_views, project, FeatureViewProto, FeatureView, "feature_view_proto"
         )
 
     def list_saved_datasets(
@@ -596,7 +613,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            saved_datasets,
+            self.saved_datasets,
             project,
             SavedDatasetProto,
             SavedDataset,
@@ -612,7 +629,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            request_feature_views,
+            self.request_feature_views,
             project,
             RequestFeatureViewProto,
             RequestFeatureView,
@@ -628,7 +645,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            on_demand_feature_views,
+            self.on_demand_feature_views,
             project,
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
@@ -644,8 +661,8 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.project_id == project,
+            stmt = select(self.feast_metadata).where(
+                self.feast_metadata.c.project_id == project,
             )
             rows = conn.execute(stmt).all()
             if rows:
@@ -665,7 +682,7 @@ class SqlRegistry(BaseRegistry):
         commit: bool = True,
     ):
         return self._apply_object(
-            saved_datasets,
+            self.saved_datasets,
             project,
             "saved_dataset_name",
             saved_dataset,
@@ -679,7 +696,7 @@ class SqlRegistry(BaseRegistry):
         commit: bool = True,
     ):
         return self._apply_object(
-            validation_references,
+            self.validation_references,
             project,
             "validation_reference_name",
             validation_reference,
@@ -718,7 +735,7 @@ class SqlRegistry(BaseRegistry):
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         self._delete_object(
-            validation_references,
+            self.validation_references,
             name,
             project,
             "validation_reference_name",
@@ -727,7 +744,7 @@ class SqlRegistry(BaseRegistry):
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         self._apply_object(
-            table=managed_infra,
+            table=self.managed_infra,
             project=project,
             id_field_name="infra_name",
             obj=infra,
@@ -737,7 +754,7 @@ class SqlRegistry(BaseRegistry):
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         infra_object = self._get_object(
-            table=managed_infra,
+            table=self.managed_infra,
             name="infra_obj",
             project=project,
             proto_class=InfraProto,
@@ -788,13 +805,13 @@ class SqlRegistry(BaseRegistry):
 
     def _infer_fv_table(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):
-            table = stream_feature_views
+            table = self.stream_feature_views
         elif isinstance(feature_view, FeatureView):
-            table = feature_views
+            table = self.feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
-            table = on_demand_feature_views
+            table = self.on_demand_feature_views
         elif isinstance(feature_view, RequestFeatureView):
-            table = request_feature_views
+            table = self.request_feature_views
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return table
@@ -930,9 +947,9 @@ class SqlRegistry(BaseRegistry):
         with self.engine.connect() as conn:
             update_datetime = datetime.utcnow()
             update_time = int(update_datetime.timestamp())
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value,
-                feast_metadata.c.project_id == project,
+            stmt = select(self.feast_metadata).where(
+                self.feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value,
+                self.feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()
             if row:
@@ -945,7 +962,7 @@ class SqlRegistry(BaseRegistry):
                     "last_updated_timestamp": update_time,
                     "project_id": project,
                 }
-                insert_stmt = insert(feast_metadata).values(values)
+                insert_stmt = insert(self.feast_metadata).values(values)
                 conn.execute(insert_stmt)
                 usage.set_current_project_uuid(new_project_uuid)
 
@@ -1017,10 +1034,10 @@ class SqlRegistry(BaseRegistry):
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key
+            stmt = select(self.feast_metadata).where(
+                self.feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                feast_metadata.c.project_id == project,
+                self.feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()
 
@@ -1034,27 +1051,27 @@ class SqlRegistry(BaseRegistry):
             }
             if row:
                 update_stmt = (
-                    update(feast_metadata)
+                    update(self.feast_metadata)
                     .where(
-                        feast_metadata.c.metadata_key
+                        self.feast_metadata.c.metadata_key
                         == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                        feast_metadata.c.project_id == project,
+                        self.feast_metadata.c.project_id == project,
                     )
                     .values(values)
                 )
                 conn.execute(update_stmt)
             else:
-                insert_stmt = insert(feast_metadata).values(
+                insert_stmt = insert(self.feast_metadata).values(
                     values,
                 )
                 conn.execute(insert_stmt)
 
     def _get_last_updated_metadata(self, project: str):
         with self.engine.connect() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key
+            stmt = select(self.feast_metadata).where(
+                self.feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                feast_metadata.c.project_id == project,
+                self.feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()
             if not row:
@@ -1067,12 +1084,12 @@ class SqlRegistry(BaseRegistry):
         projects = set()
         with self.engine.connect() as conn:
             for table in {
-                entities,
-                data_sources,
-                feature_views,
-                request_feature_views,
-                on_demand_feature_views,
-                stream_feature_views,
+                self.entities,
+                self.data_sources,
+                self.feature_views,
+                self.request_feature_views,
+                self.on_demand_feature_views,
+                self.stream_feature_views,
             }:
                 stmt = select(table)
                 rows = conn.execute(stmt).all()
