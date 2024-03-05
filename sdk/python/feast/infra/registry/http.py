@@ -95,9 +95,11 @@ class HttpRegistry(BaseRegistry):
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
-            seconds=registry_config.cache_ttl_seconds
-            if registry_config.cache_ttl_seconds is not None
-            else 0
+            seconds=(
+                registry_config.cache_ttl_seconds
+                if registry_config.cache_ttl_seconds is not None
+                else 0
+            )
         )
         self.cached_registry_proto = self.proto()
         self.stop_thread = False
@@ -125,8 +127,10 @@ class HttpRegistry(BaseRegistry):
         self.close()
 
     def _handle_exception(self, exception: Exception):
-        logger.exception("Request failed with exception: %s", str(exception))
-        raise httpx.HTTPError("Request failed with exception: " + str(exception))
+        logger.exception("Request failed with exception: %s", repr(exception))
+        raise httpx.HTTPError(
+            "Request failed with exception: " + repr(exception)
+        ) from exception
 
     def _send_request(self, method: str, url: str, params=None, data=None):
         try:
