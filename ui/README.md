@@ -61,7 +61,7 @@ When you start the React app, it will look for `projects-list.json` to find a li
 }
 ```
 
-* **Note** - `registryPath` only supports a file location or an url.
+* **Note** - `registryPath` only supports a file location or a url.
 
 ```
 // Start the React App
