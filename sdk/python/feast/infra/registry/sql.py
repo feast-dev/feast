@@ -17,10 +17,10 @@ from sqlalchemy import (  # type: ignore
     create_engine,
     delete,
     insert,
+    inspect,
+    schema,
     select,
     update,
-    inspect,
-    schema
 )
 from sqlalchemy.engine import Engine
 
