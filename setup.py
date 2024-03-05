@@ -146,6 +146,10 @@ IBIS_REQUIRED = [
     "ibis-substrait"
 ]
 
+DUCKDB_REQUIRED = [
+    "ibis-framework[duckdb]"
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -372,7 +376,8 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
-        "ibis": IBIS_REQUIRED
+        "ibis": IBIS_REQUIRED,
+        "duckdb": DUCKDB_REQUIRED
     },
     include_package_data=True,
     license="Apache",
