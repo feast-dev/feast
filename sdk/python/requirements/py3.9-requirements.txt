@@ -6,7 +6,7 @@
 #
 annotated-types==0.6.0
     # via pydantic
-anyio==4.2.0
+anyio==4.3.0
     # via
     #   httpx
     #   starlette
@@ -38,7 +38,7 @@ cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2024.2.0
+dask==2024.2.1
     # via feast (setup.py)
 dill==0.3.8
     # via feast (setup.py)
@@ -46,27 +46,23 @@ exceptiongroup==1.2.0
     # via anyio
 fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.9.4
-    # via
-    #   feast (setup.py)
-    #   pandavro
 fissix==21.11.13
     # via bowler
 fsspec==2024.2.0
     # via dask
 greenlet==3.0.3
     # via sqlalchemy
-grpcio==1.60.1
+grpcio==1.62.0
     # via
     #   feast (setup.py)
     #   grpcio-health-checking
     #   grpcio-reflection
     #   grpcio-tools
-grpcio-health-checking==1.60.1
+grpcio-health-checking==1.62.0
     # via feast (setup.py)
-grpcio-reflection==1.60.1
+grpcio-reflection==1.62.0
     # via feast (setup.py)
-grpcio-tools==1.60.1
+grpcio-tools==1.62.0
     # via feast (setup.py)
 gunicorn==21.2.0
     # via feast (setup.py)
@@ -74,11 +70,11 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.3
+httpcore==1.0.4
     # via httpx
 httptools==0.6.1
     # via uvicorn
-httpx==0.26.0
+httpx==0.27.0
     # via feast (setup.py)
 idna==3.6
     # via
@@ -89,6 +85,7 @@ importlib-metadata==6.11.0
     # via
     #   dask
     #   feast (setup.py)
+    #   typeguard
 importlib-resources==6.1.1
     # via feast (setup.py)
 jinja2==3.1.3
@@ -115,23 +112,18 @@ numpy==1.24.4
     # via
     #   feast (setup.py)
     #   pandas
-    #   pandavro
     #   pyarrow
 packaging==23.2
     # via
     #   dask
     #   gunicorn
-pandas==1.5.3
-    # via
-    #   feast (setup.py)
-    #   pandavro
-pandavro==1.5.2
+pandas==2.2.0
     # via feast (setup.py)
 partd==1.4.1
     # via dask
 proto-plus==1.23.0
     # via feast (setup.py)
-protobuf==4.23.3
+protobuf==4.23.4
     # via
     #   feast (setup.py)
     #   grpcio-health-checking
@@ -141,11 +133,11 @@ protobuf==4.23.3
     #   proto-plus
 pyarrow==15.0.0
     # via feast (setup.py)
-pydantic==2.6.1
+pydantic==2.6.2
     # via
     #   fastapi
     #   feast (setup.py)
-pydantic-core==2.16.2
+pydantic-core==2.16.3
     # via pydantic
 pygments==2.17.2
     # via feast (setup.py)
@@ -171,15 +163,15 @@ rpds-py==0.18.0
     #   jsonschema
     #   referencing
 six==1.16.0
-    # via
-    #   pandavro
-    #   python-dateutil
+    # via python-dateutil
 sniffio==1.3.0
     # via
     #   anyio
     #   httpx
 sqlalchemy[mypy]==1.4.51
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 starlette==0.36.3
@@ -211,8 +203,9 @@ typing-extensions==4.9.0
     #   pydantic-core
     #   sqlalchemy2-stubs
     #   starlette
+    #   typeguard
     #   uvicorn
-urllib3==2.2.0
+urllib3==2.2.1
     # via requests
 uvicorn[standard]==0.27.1
     # via feast (setup.py)

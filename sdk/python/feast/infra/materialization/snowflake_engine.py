@@ -14,7 +14,7 @@ from tqdm import tqdm
 import feast
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
@@ -274,7 +274,11 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
             fv_latest_values_sql = offline_job.to_sql()
 
-            if feature_view.entity_columns:
+            if (
+                feature_view.entity_columns[0].name == DUMMY_ENTITY_ID
+            ):  # entityless Feature View's placeholder entity
+                entities_to_write = 1
+            else:
                 join_keys = [entity.name for entity in feature_view.entity_columns]
                 unique_entities = '"' + '", "'.join(join_keys) + '"'
 
@@ -287,10 +291,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
                 with GetSnowflakeConnection(self.repo_config.offline_store) as conn:
                     entities_to_write = conn.cursor().execute(query).fetchall()[0][0]
-            else:
-                entities_to_write = (
-                    1  # entityless feature view has a placeholder entity
-                )
 
             if feature_view.batch_source.field_mapping is not None:
                 fv_latest_mapped_values_sql = _run_snowflake_field_mapping(
