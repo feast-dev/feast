@@ -174,7 +174,11 @@ class SparkSource(DataSource):
         if spark_session is None:
             raise AssertionError("Could not find an active spark session.")
         try:
-            df = spark_session.read.format(self.file_format).load(self.path)
+            df = (
+                spark_session.read.option("recursiveFileLookup", "true")
+                .format(self.file_format)
+                .load(self.path)
+            )
         except Exception:
             logger.exception(
                 "Spark read of file source failed.\n" + traceback.format_exc()
