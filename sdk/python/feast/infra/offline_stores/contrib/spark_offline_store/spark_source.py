@@ -8,7 +8,7 @@ from pyspark.sql import SparkSession
 
 from feast import flags_helper
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -183,6 +183,7 @@ class SparkSource(DataSource):
             logger.exception(
                 "Spark read of file source failed.\n" + traceback.format_exc()
             )
+            raise DataSourceNotFoundException(path=self.path)
         tmp_table_name = get_temp_entity_table_name()
         df.createOrReplaceTempView(tmp_table_name)
 
