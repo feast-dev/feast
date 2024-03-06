@@ -6,8 +6,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from bytewax.dataflow import Dataflow  # type: ignore
 from bytewax.execution import cluster_main
-from bytewax.inputs import ManualInputConfig
-from bytewax.outputs import ManualOutputConfig
+from bytewax.inputs import DynamicSource
+from bytewax.outputs import DynamicSink
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
@@ -77,7 +77,7 @@ class BytewaxMaterializationDataflow:
 
     def _run_dataflow(self):
         flow = Dataflow()
-        flow.input("inp", ManualInputConfig(self.input_builder))
+        flow.input("inp", DynamicSource(self.input_builder))
         flow.flat_map(self.process_path)
-        flow.capture(ManualOutputConfig(self.output_builder))
+        flow.output(DynamicSink(self.output_builder))
         cluster_main(flow, [], 0)
