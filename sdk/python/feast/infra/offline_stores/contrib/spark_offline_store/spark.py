@@ -529,6 +529,7 @@ def _upload_entity_df(
         return
     elif isinstance(entity_df, str):
         spark_session.sql(entity_df).createOrReplaceTempView(table_name)
+        return
     elif isinstance(entity_df, pyspark.sql.DataFrame):
         entity_df.createOrReplaceTempView(table_name)
         return
