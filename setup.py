@@ -44,10 +44,6 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
-    "grpcio-reflection>=1.56.2,<2",
-    "grpcio-health-checking>=1.56.2,<2",
     "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
@@ -143,7 +139,14 @@ HAZELCAST_REQUIRED = [
 
 IBIS_REQUIRED = [
     "ibis-framework",
-    "ibis-substrait"
+    "ibis-substrait",
+]
+
+GRPCIO_REQUIRED = [
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
 ]
 
 DUCKDB_REQUIRED = [
@@ -209,6 +212,7 @@ CI_REQUIRED = (
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
+    + GRPCIO_REQUIRED
 )
 
 
@@ -375,6 +379,7 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED
