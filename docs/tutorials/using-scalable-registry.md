@@ -30,6 +30,7 @@ registry:
     path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
+        echo: false
         pool_pre_ping: true
 ```
 
