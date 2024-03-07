@@ -128,6 +128,10 @@ class RegistryConfig(FeastBaseModel):
 
     s3_additional_kwargs: Optional[Dict[str, str]]
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
+    
+    registry_schema: StrictStr = ""
+    """ str: database schema to registry.
+    If registry_type is 'sql', then this is a database schema"""
 
 
 class RepoConfig(FeastBaseModel):
