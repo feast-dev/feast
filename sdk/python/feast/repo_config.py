@@ -39,6 +39,7 @@ REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+    "remote": "feast.infra.registry.remote.RemoteRegistry",
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {

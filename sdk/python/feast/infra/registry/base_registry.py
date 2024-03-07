@@ -246,7 +246,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ):
+    ) -> StreamFeatureView:
         """
         Retrieves a stream feature view.
 
