@@ -415,3 +415,8 @@ class EntityDFNotDateTime(Exception):
 class PushSourceNotFoundException(Exception):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
+
+
+class ReadOnlyRegistryException(Exception):
+    def __init__(self):
+        super().__init__("Registry implementation is read-only.")
