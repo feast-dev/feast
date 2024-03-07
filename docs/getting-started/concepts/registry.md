@@ -57,6 +57,8 @@ registry:
     registry_type: sql
     path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
     cache_ttl_seconds: 60
+    sqlalchemy_config_kwargs:
+        pool_pre_ping: true
 ```
 
 This supports any SQLAlchemy compatible database as a backend. The exact schema can be seen in [sql.py](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/registry/sql.py)
