@@ -87,7 +87,6 @@ func (r *Registry) RefreshRegistryOnInterval() {
 		err := r.refresh()
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("Registry refresh Failed")
-			return
 		}
 	}
 }
@@ -104,7 +103,7 @@ func (r *Registry) getRegistryProto() (*core.Registry, error) {
 	}
 	registryProto, err := r.registryStore.GetRegistryProto()
 	if err != nil {
-		return registryProto, err
+		return nil, err
 	}
 	r.load(registryProto)
 	return registryProto, nil
