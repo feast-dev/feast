@@ -194,6 +194,10 @@ class SqlRegistryConfig(RegistryConfig):
     path: StrictStr = ""
     """ str: Path to metadata store.
     If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
+    
+    registry_schema: StrictStr = ""
+    """ str: database schema to registry.
+    If registry_type is 'sql', then this is a database schema"""
 
 class SqlRegistry(BaseRegistry):
     def __init__(
@@ -585,7 +589,7 @@ class SqlRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_objects(
-            feature_services,
+            self.feature_services,
             project,
             FeatureServiceProto,
             FeatureService,
