@@ -16,9 +16,10 @@ from datetime import datetime, timedelta
 from typing import List
 
 import pandas as pd
+import pytest
 from pydantic import BaseModel
 
-from feast.data_format import AvroFormat
+from feast.data_format import AvroFormat, ConfluentAvroFormat
 from feast.data_source import KafkaSource, PushSource, RequestSource
 from feast.entity import Entity
 from feast.expediagroup.pydantic_models.data_source_model import (
@@ -242,7 +243,7 @@ def test_idempotent_pushsource_conversion():
     assert pydantic_obj == PushSourceModel.parse_obj(pydantic_json)
 
 
-def test_idempotent_kafkasource_conversion():
+def test_idempotent_kafkasource_avroformat_conversion():
     schema = [
         Field(name="f1", dtype=Float32),
         Field(name="f2", dtype=Bool),
@@ -266,8 +267,40 @@ def test_idempotent_kafkasource_conversion():
         topic="ad_spam",
         created_timestamp_column="created",
         field_mapping={"source_thing": "thing_val"},
-        owner="bdodla@expediagroup.com",
+        owner="test@mail.com",
         watermark_delay_threshold=timedelta(days=1),
+    )
+
+    with pytest.raises(ValueError) as exceptionInfo:
+        KafkaSourceModel.from_data_source(python_obj)
+
+    assert (
+        str(exceptionInfo.value)
+        == "Kafka Source's batch source type is not a supported data source type."
+    )
+
+
+def test_idempotent_kafkasource_confluentavroformat_conversion():
+    batch_source = SparkSource(
+        name="source",
+        table="thingy",
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+
+    python_obj = KafkaSource(
+        name="kafka_source",
+        timestamp_field="whatevs, just a string",
+        message_format=ConfluentAvroFormat(
+            record_name="record_name", record_namespace="com.unittest"
+        ),
+        batch_source=batch_source,
+        description="Bob's used message formats emporium is open 24/7",
+        tags={"source_thing": "thing_val"},
+        topic="ad_spam",
+        created_timestamp_column="created",
+        owner="test@mail.com",
     )
 
     pydantic_obj = KafkaSourceModel.from_data_source(python_obj)
@@ -360,25 +393,100 @@ def test_idempotent_featureview_conversion():
 
 
 def test_idempotent_featureview_with_streaming_source_conversion():
-    schema = [
-        Field(name="f1", dtype=Float32),
-        Field(name="f2", dtype=Bool),
-    ]
     user_entity = Entity(
         name="user1", join_keys=["user_id"], value_type=ValueType.INT64
     )
-    request_source = RequestSource(
-        name="source",
-        schema=schema,
-        description="desc",
-        tags={},
-        owner="feast",
+    spark_source = SparkSource(
+        name="sparky_sparky_boom_man",
+        path="/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
     )
     kafka_source = KafkaSource(
         name="kafka_source",
         timestamp_field="whatevs, just a string",
         message_format=AvroFormat(schema_json="whatevs, also just a string"),
-        batch_source=request_source,
+        batch_source=spark_source,
+        description="Bob's used message formats emporium is open 24/7",
+    )
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[user_entity],
+        schema=[
+            Field(name="user1", dtype=Int64),
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=kafka_source,
+        ttl=timedelta(days=0),
+    )
+    feature_view_model = FeatureViewModel.from_feature_view(feature_view)
+    feature_view_b = feature_view_model.to_feature_view()
+    assert feature_view == feature_view_b
+    assert feature_view_model.created_timestamp == feature_view.created_timestamp
+    assert (
+        feature_view_model.last_updated_timestamp == feature_view.last_updated_timestamp
+    )
+    assert feature_view_b.created_timestamp == feature_view_model.created_timestamp
+    assert (
+        feature_view_b.last_updated_timestamp
+        == feature_view_model.last_updated_timestamp
+    )
+
+    spark_source = SparkSource(
+        name="sparky_sparky_boom_man",
+        path="/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    python_obj = FeatureView(
+        name="my-feature-view",
+        entities=[user_entity],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=spark_source,
+    )
+    python_obj.materialization_intervals = [
+        (datetime.now() - timedelta(days=10), datetime.now() - timedelta(days=9)),
+        (datetime.now(), datetime.now()),
+    ]
+    pydantic_obj = FeatureViewModel.from_feature_view(python_obj)
+    converted_python_obj = pydantic_obj.to_feature_view()
+    assert python_obj == converted_python_obj
+
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = FeatureView.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+
+    pydantic_json = pydantic_obj.json()
+    assert pydantic_obj == FeatureViewModel.parse_raw(pydantic_json)
+
+    pydantic_json = pydantic_obj.dict()
+    assert pydantic_obj == FeatureViewModel.parse_obj(pydantic_json)
+
+
+def test_idempotent_featureview_with_confluent_streaming_source_conversion():
+    user_entity = Entity(
+        name="user1", join_keys=["user_id"], value_type=ValueType.INT64
+    )
+    spark_source = SparkSource(
+        name="sparky_sparky_boom_man",
+        path="/data/driver_hourly_stats",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    kafka_source = KafkaSource(
+        name="kafka_source",
+        timestamp_field="whatevs, just a string",
+        message_format=ConfluentAvroFormat(
+            record_name="record_name", record_namespace="com.unittest"
+        ),
+        batch_source=spark_source,
         description="Bob's used message formats emporium is open 24/7",
     )
     feature_view = FeatureView(

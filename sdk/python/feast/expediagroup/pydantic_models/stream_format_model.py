@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydanticField
 from typing_extensions import Annotated, Self
 
-from feast.data_format import AvroFormat, JsonFormat, ProtoFormat
+from feast.data_format import AvroFormat, ConfluentAvroFormat, JsonFormat, ProtoFormat
 
 
 class StreamFormatModel(BaseModel):
@@ -38,7 +38,7 @@ class AvroFormatModel(StreamFormatModel):
     """
 
     format: Literal["AvroFormatModel"] = "AvroFormatModel"
-    schoma: str
+    schema_str: str
 
     def to_stream_format(self) -> AvroFormat:
         """
@@ -47,7 +47,7 @@ class AvroFormatModel(StreamFormatModel):
         Returns:
             An AvroFormat.
         """
-        return AvroFormat(schema_json=self.schoma)
+        return AvroFormat(schema_json=self.schema_str)
 
     @classmethod
     def from_stream_format(
@@ -60,7 +60,7 @@ class AvroFormatModel(StreamFormatModel):
         Returns:
             An AvroFormatModel.
         """
-        return cls(schoma=avro_format.schema_json)
+        return cls(schema_str=avro_format.schema_json)
 
 
 class JsonFormatModel(StreamFormatModel):
@@ -69,7 +69,7 @@ class JsonFormatModel(StreamFormatModel):
     """
 
     format: Literal["JsonFormatModel"] = "JsonFormatModel"
-    schoma: str
+    schema_str: str
 
     def to_stream_format(self) -> JsonFormat:
         """
@@ -78,7 +78,7 @@ class JsonFormatModel(StreamFormatModel):
         Returns:
             A JsonFormat.
         """
-        return JsonFormat(schema_json=self.schoma)
+        return JsonFormat(schema_json=self.schema_str)
 
     @classmethod
     def from_stream_format(
@@ -91,7 +91,7 @@ class JsonFormatModel(StreamFormatModel):
         Returns:
             A JsonFormatModel.
         """
-        return cls(schoma=json_format.schema_json)
+        return cls(schema_str=json_format.schema_json)
 
 
 class ProtoFormatModel(StreamFormatModel):
@@ -125,9 +125,46 @@ class ProtoFormatModel(StreamFormatModel):
         return cls(class_path=proto_format.class_path)
 
 
+class ConfluentAvroFormatModel(StreamFormatModel):
+    """
+    Pydantic Model of a Feast ProtoFormat.
+    """
+
+    format: Literal["ConfluentAvroFormatModel"] = "ConfluentAvroFormatModel"
+    record_name: str
+    record_namespace: str
+
+    def to_stream_format(self) -> ConfluentAvroFormat:
+        """
+        Given a Pydantic ProtoFormatModel, create and return a ProtoFormat.
+
+        Returns:
+            A ProtoFormat.
+        """
+        return ConfluentAvroFormat(
+            record_name=self.record_name, record_namespace=self.record_namespace
+        )
+
+    @classmethod
+    def from_stream_format(
+        cls,
+        confluent_avro_format,
+    ) -> Self:  # type: ignore
+        """
+        Converts a ProtoFormat object to its pydantic model representation.
+
+        Returns:
+            A ProtoFormatModel.
+        """
+        return cls(
+            record_name=confluent_avro_format.record_name,
+            record_namespace=confluent_avro_format.record_namespace,
+        )
+
+
 # https://blog.devgenius.io/deserialize-child-classes-with-pydantic-that-gonna-work-784230e1cf83
 # This lets us discriminate child classes of DataSourceModel with type hints.
 AnyStreamFormat = Annotated[
-    Union[AvroFormatModel, JsonFormatModel, ProtoFormatModel],
+    Union[AvroFormatModel, JsonFormatModel, ProtoFormatModel, ConfluentAvroFormatModel],
     PydanticField(discriminator="format"),
 ]

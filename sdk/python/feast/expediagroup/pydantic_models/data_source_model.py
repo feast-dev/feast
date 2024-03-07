@@ -4,6 +4,7 @@ Pydantic Model for Data Source
 Copyright 2023 Expedia Group
 Author: matcarlin@expediagroup.com
 """
+
 import sys
 from datetime import timedelta
 from typing import Dict, List, Literal, Optional, Union
@@ -17,6 +18,7 @@ from feast.expediagroup.pydantic_models.field_model import FieldModel
 from feast.expediagroup.pydantic_models.stream_format_model import (
     AnyStreamFormat,
     AvroFormatModel,
+    ConfluentAvroFormatModel,
     JsonFormatModel,
     ProtoFormatModel,
 )
@@ -230,8 +232,13 @@ class PushSourceModel(DataSourceModel):
         )
 
 
-SUPPORTED_MESSAGE_FORMATS = [AvroFormatModel, JsonFormatModel, ProtoFormatModel]
-SUPPORTED_KAFKA_BATCH_SOURCES = [RequestSourceModel, SparkSourceModel]
+SUPPORTED_MESSAGE_FORMATS = [
+    AvroFormatModel,
+    JsonFormatModel,
+    ProtoFormatModel,
+    ConfluentAvroFormatModel,
+]
+SUPPORTED_KAFKA_BATCH_SOURCES = [SparkSourceModel]
 
 
 class KafkaSourceModel(DataSourceModel):
@@ -271,9 +278,9 @@ class KafkaSourceModel(DataSourceModel):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-            batch_source=self.batch_source.to_data_source()
-            if self.batch_source
-            else None,
+            batch_source=(
+                self.batch_source.to_data_source() if self.batch_source else None
+            ),
             watermark_delay_threshold=self.watermark_delay_threshold,
         )
 
@@ -317,16 +324,20 @@ class KafkaSourceModel(DataSourceModel):
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
             message_format=message_format,
-            kafka_bootstrap_servers=data_source.kafka_options.kafka_bootstrap_servers
-            if data_source.kafka_options.kafka_bootstrap_servers
-            else "",
-            topic=data_source.kafka_options.topic
-            if data_source.kafka_options.topic
-            else "",
+            kafka_bootstrap_servers=(
+                data_source.kafka_options.kafka_bootstrap_servers
+                if data_source.kafka_options.kafka_bootstrap_servers
+                else ""
+            ),
+            topic=(
+                data_source.kafka_options.topic
+                if data_source.kafka_options.topic
+                else ""
+            ),
             created_timestamp_column=data_source.created_timestamp_column,
-            field_mapping=data_source.field_mapping
-            if data_source.field_mapping
-            else None,
+            field_mapping=(
+                data_source.field_mapping if data_source.field_mapping else None
+            ),
             description=data_source.description,
             tags=data_source.tags if data_source.tags else None,
             owner=data_source.owner,
