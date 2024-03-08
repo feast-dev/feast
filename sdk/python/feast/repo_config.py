@@ -125,7 +125,7 @@ class RegistryConfig(FeastBaseModel):
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
-    sqlalchemy_config_kwargs: Optional[Dict[str, Any]] = {}
+    sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
 
