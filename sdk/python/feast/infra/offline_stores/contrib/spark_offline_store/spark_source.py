@@ -39,7 +39,6 @@ class SparkSource(DataSource):
         query: Optional[str] = None,
         path: Optional[str] = None,
         file_format: Optional[str] = None,
-        event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         description: Optional[str] = "",

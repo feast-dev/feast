@@ -178,6 +178,10 @@ class Registry(BaseRegistry):
             from feast.infra.registry.snowflake import SnowflakeRegistry
 
             return SnowflakeRegistry(registry_config, project, repo_path)
+        elif registry_config and registry_config.registry_type == "remote":
+            from feast.infra.registry.remote import RemoteRegistry
+
+            return RemoteRegistry(registry_config, project, repo_path)
         else:
             return super(Registry, cls).__new__(cls)
 

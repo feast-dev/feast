@@ -39,6 +39,7 @@ REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+    "remote": "feast.infra.registry.remote.RemoteRegistry",
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
@@ -74,6 +75,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
+    "duckdb": "feast.infra.offline_stores.contrib.duckdb_offline_store.duckdb.DuckDBOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {

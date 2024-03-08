@@ -10,16 +10,16 @@ on:
 
 jobs:
   integration-test-python-local:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) ||
-      github.repository != 'feast-dev/feast'
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'feast-dev/feast'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.10" ]
+        python-version: [ "3.10" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}

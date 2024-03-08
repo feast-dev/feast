@@ -44,19 +44,12 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "fastavro>=1.1.0,<2",
-    "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
-    "grpcio-reflection>=1.56.2,<2",
-    "grpcio-health-checking>=1.56.2,<2",
     "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<1.25",
-    "pandas>=1.4.3,<2",
-    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "pandavro~=1.5.0",
+    "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
@@ -146,7 +139,18 @@ HAZELCAST_REQUIRED = [
 
 IBIS_REQUIRED = [
     "ibis-framework",
-    "ibis-substrait"
+    "ibis-substrait",
+]
+
+GRPCIO_REQUIRED = [
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
+]
+
+DUCKDB_REQUIRED = [
+    "ibis-framework[duckdb]"
 ]
 
 CI_REQUIRED = (
@@ -190,6 +194,7 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
         "virtualenv<20.24.2",
+        "pandas>=1.4.3,<2; python_version < '3.9'",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -207,6 +212,7 @@ CI_REQUIRED = (
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
+    + GRPCIO_REQUIRED
 )
 
 
@@ -373,8 +379,10 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
-        "ibis": IBIS_REQUIRED
+        "ibis": IBIS_REQUIRED,
+        "duckdb": DUCKDB_REQUIRED
     },
     include_package_data=True,
     license="Apache",

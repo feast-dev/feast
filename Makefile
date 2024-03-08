@@ -186,6 +186,19 @@ test-python-universal-athena:
 			not test_snowflake" \
 	sdk/python/tests
 
+test-python-universal-duckdb:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.duckdb_repo_configuration \
+	FEAST_USAGE=False IS_TEST=True \
+	python -m pytest -n 8 --integration \
+		-k "not test_nullable_online_store and \
+			not gcs_registry and \
+			not s3_registry and \
+			not test_snowflake and \
+			not bigquery and \
+			not test_spark_materialization_consistency" \
+		sdk/python/tests
+			
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \

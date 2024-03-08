@@ -179,10 +179,6 @@ executing==2.0.1
     # via stack-data
 fastapi==0.109.2
     # via feast (setup.py)
-fastavro==1.9.4
-    # via
-    #   feast (setup.py)
-    #   pandavro
 fastjsonschema==2.19.1
     # via nbformat
 filelock==3.13.1
@@ -523,7 +519,6 @@ numpy==1.24.4
     #   great-expectations
     #   ibis-framework
     #   pandas
-    #   pandavro
     #   pyarrow
     #   scipy
 oauthlib==3.2.2
@@ -551,18 +546,14 @@ packaging==23.2
     #   pytest
     #   snowflake-connector-python
     #   sphinx
-pandas==1.5.3
+pandas==2.2.0
     # via
     #   altair
     #   db-dtypes
     #   feast (setup.py)
     #   google-cloud-bigquery
     #   great-expectations
-    #   ibis-framework
-    #   pandavro
     #   snowflake-connector-python
-pandavro==1.5.2
-    # via feast (setup.py)
 pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.3
@@ -834,7 +825,6 @@ six==1.16.0
     #   isodate
     #   kubernetes
     #   mock
-    #   pandavro
     #   python-dateutil
     #   rfc3339-validator
     #   thriftpy2
@@ -988,6 +978,8 @@ typing-extensions==4.9.0
     #   starlette
     #   typeguard
     #   uvicorn
+tzdata==2024.1
+    # via pandas
 tzlocal==5.2
     # via
     #   great-expectations
