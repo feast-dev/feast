@@ -43,7 +43,7 @@
 
         <grpc.version>1.55.1</grpc.version>
         <protoc.version>3.12.2</protoc.version>
-        <protobuf.version>3.16.1</protobuf.version>
+        <protobuf.version>3.23.1</protobuf.version>
         <com.google.cloud.version>1.111.1</com.google.cloud.version>
         <io.prometheus.version>0.8.0</io.prometheus.version>
         <byte-buddy.version>1.9.10</byte-buddy.version>
