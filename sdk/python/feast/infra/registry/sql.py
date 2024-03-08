@@ -202,7 +202,9 @@ class SqlRegistry(BaseRegistry):
         repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
-        self.engine: Engine = create_engine(registry_config.path, **registry_config.sqlalchemy_config_kwargs)
+        self.engine: Engine = create_engine(
+            registry_config.path, **registry_config.sqlalchemy_config_kwargs
+        )
         metadata.create_all(self.engine)
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
