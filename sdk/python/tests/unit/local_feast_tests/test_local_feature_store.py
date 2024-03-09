@@ -130,6 +130,7 @@ def test_apply_feature_view_with_inline_batch_source(
         driver_fv = FeatureView(
             name="driver_fv",
             entities=[entity],
+            schema=[Field(name="test_key", dtype=Int64)],
             source=file_source,
         )
 
@@ -178,6 +179,7 @@ def test_apply_feature_view_with_inline_stream_source(
         driver_fv = FeatureView(
             name="driver_fv",
             entities=[entity],
+            schema=[Field(name="test_key", dtype=Int64)],
             source=stream_source,
         )
 
@@ -332,6 +334,7 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
     driver_stats = FeatureView(
         name="driver_hourly_stats",
         entities=[driver],
+        schema=[Field(name="driver_id", dtype=Int64)],
         ttl=timedelta(seconds=10),
         online=False,
         source=FileSource(path="driver_stats.parquet"),
@@ -341,6 +344,7 @@ def test_apply_conflicting_feature_view_names(feature_store_with_local_registry)
     customer_stats = FeatureView(
         name="DRIVER_HOURLY_STATS",
         entities=[customer],
+        schema=[Field(name="customer_id", dtype=Int64)],
         ttl=timedelta(seconds=10),
         online=False,
         source=FileSource(path="customer_stats.parquet"),
