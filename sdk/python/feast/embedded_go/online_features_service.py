@@ -252,6 +252,9 @@ def transformation_callback(
     # the typeguard requirement.
     full_feature_names = bool(full_feature_names)
 
+    if odfv.mode  != 'pandas':
+        raise Exception(f"OnDemandFeatureView mode '{odfv.mode} not supported by EmbeddedOnlineFeatureServer.")
+
     output = odfv.get_transformed_features_df(
         input_record.to_pandas(), full_feature_names=full_feature_names
     )

@@ -4,7 +4,7 @@ import inspect
 import warnings
 from datetime import datetime
 from types import FunctionType
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union, cast
 
 import dill
 import pandas as pd
@@ -35,6 +35,7 @@ from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.type_map import (
     feast_value_type_to_pandas_type,
+    feast_value_type_to_python_type,
     python_type_to_feast_value_type,
 )
 from feast.usage import log_exceptions
@@ -68,7 +69,10 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    feature_transformation: Union[PandasTransformation, SubstraitTransformation]
+    transformation: Union[OnDemandPandasTransformation]
+    udf: FunctionType
+    udf_string: str
+    mode: str
     description: str
     tags: Dict[str, str]
     owner: str
@@ -86,6 +90,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 FeatureViewProjection,
             ]
         ],
+        mode: str = "pandas",
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
         feature_transformation: Optional[
@@ -108,7 +113,8 @@ class OnDemandFeatureView(BaseFeatureView):
             udf (deprecated): The user defined transformation function, which must take pandas
                 dataframes as inputs.
             udf_string (deprecated): The source code version of the udf (for diffing and displaying in Web UI)
-            feature_transformation: The user defined transformation.
+            mode: The mode of transformation for the udf.
+            transformation: The user defined transformation.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
@@ -147,6 +153,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 ] = odfv_source.projection
 
         self.feature_transformation = feature_transformation
+
+        if mode not in {"python", "pandas"}:
+            raise Exception(f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs.")
+        self.mode = mode
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -225,7 +235,13 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            feature_transformation=feature_transformation,
+            user_defined_function=self.transformation.to_proto()
+            if type(self.transformation) == OnDemandPandasTransformation
+            else None,
+            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
+            if type(self.transformation) == OnDemandSubstraitTransformation
+            else None,
+            mode=self.mode,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -233,8 +249,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
+    def _empty_odfv_udf_fn(x: Any) -> Any:
+        # just an identity mapping, otherwise we risk tripping some downstream tests
+        return x
+
     @classmethod
-    def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto):
+    def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto, skip_udf: bool = False):
         """
         Creates an on demand feature view from a protobuf representation.
 
@@ -300,6 +320,12 @@ class OnDemandFeatureView(BaseFeatureView):
         else:
             raise Exception("At least one transformation type needs to be provided")
 
+        udf = (
+            _empty_odfv_udf_fn
+            if skip_udf
+            else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
+        )
+
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -310,7 +336,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 for feature in on_demand_feature_view_proto.spec.features
             ],
             sources=sources,
-            feature_transformation=transformation,
+            transformation=transformation,
+            udf=udf,
+            udf_string=on_demand_feature_view_proto.spec.user_defined_function.body_text,
+            mode=on_demand_feature_view_proto.spec.mode,
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
@@ -349,6 +378,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
         return schema
 
+    def _get_projected_feature_name(
+        self,
+        feature: str
+    ) -> str:
+        return f"{self.projection.name_to_use()}__{feature}"
+
     def get_transformed_features_df(
         self,
         df_with_features: pd.DataFrame,
@@ -378,7 +413,7 @@ class OnDemandFeatureView(BaseFeatureView):
         rename_columns: Dict[str, str] = {}
         for feature in self.features:
             short_name = feature.name
-            long_name = f"{self.projection.name_to_use()}__{feature.name}"
+            long_name = self._get_projected_feature_name(feature.name)
             if (
                 short_name in df_with_transformed_features.columns
                 and full_feature_names
@@ -392,7 +427,141 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_features.drop(columns=columns_to_cleanup, inplace=True)
         return df_with_transformed_features.rename(columns=rename_columns)
 
+    def _get_transformed_features_dict(
+        self,
+        feature_dict: Dict[str, List[Any]],
+        full_feature_names: bool = False,
+    ) -> Dict[str, Any]:
+        # generates a mapping between feature names and fv__feature names (and vice versa)
+        name_map: Dict[str, str] = {}
+        for source_fv_projection in self.source_feature_view_projections.values():
+            for feature in source_fv_projection.features:
+                full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
+                if full_feature_ref in feature_dict:
+                    name_map[full_feature_ref] = feature.name
+                elif feature.name in feature_dict:
+                    name_map[feature.name] = name_map[full_feature_ref]
+
+        rows = []
+        # this doesn't actually require 2 x |key_space| space; k and name_map[k] point to the same object in memory
+        for values in zip(*feature_dict.values()):
+            rows.append({
+                **{k: v for k, v in zip(feature_dict.keys(), values)},
+                **{name_map[k]: v for k, v in zip(feature_dict.keys(), values)},
+            })
+
+        # construct output dictionary and mapping from expected feature names to alternative feature names
+        output_dict: Dict[str, List[Any]] = {}
+        correct_feature_name_to_alias: Dict[str, str] = {}
+        for feature in self.features:
+            long_name = self._get_projected_feature_name(feature.name)
+            correct_name = long_name if full_feature_names else feature.name
+            correct_feature_name_to_alias[correct_name] = feature.name if full_feature_names else long_name
+            output_dict[correct_name] = [None] * len(rows)
+
+        # populate output dictionary per row
+        for i, row in enumerate(rows):
+            row_output = self.udf.__call__(row)
+            for feature in output_dict:
+                output_dict[feature][i] = (
+                    row_output.get(feature, row_output[correct_feature_name_to_alias[feature]])
+                )
+        return output_dict
+
+    def get_transformed_features(
+            self,
+            features: Union[Dict[str, List[Any]], pd.DataFrame],
+            full_feature_names: bool = False
+    ) -> Union[Dict[str, List[Any]], pd.DataFrame]:
+        # RB / TODO: classic inheritance pattern....maybe fix this
+        if self.mode == "python":
+            assert isinstance(features, dict)
+            return self._get_transformed_features_dict(
+                feature_dict=cast(features, Dict[str, List[Any]]),
+                full_feature_names=full_feature_names
+            )
+        elif self.mode == "pandas":
+            assert isinstance(features, pd.DataFrame)
+            return self._get_transformed_features_df(
+                df_with_features=cast(features, pd.DataFrame),
+                full_feature_names=full_feature_names
+            )
+        else:
+            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+
     def infer_features(self) -> None:
+        if self.mode == "pandas":
+            self._infer_features_df()
+        elif self.mode == "python":
+            self._infer_features_dict()
+        else:
+            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+
+    def _infer_features_dict(self):
+        """
+        Infers the set of features associated to this feature view from the input source.
+        Raises:
+            RegistryInferenceFailure: The set of features could not be inferred.
+        """
+        rand_value: Dict[str, Any] = {
+            "float": 1.0,
+            "int": 1,
+            "str": "hello world",
+            "bytes": str.encode("hello world"),
+            "bool": True,
+            "datetime64[ns]": datetime.utcnow(),
+        }
+
+        feature_dict = {}
+        # Populate feature dictionary with plausible random inputs
+        for feature_view_projection in self.source_feature_view_projections.values():
+            for feature in feature_view_projection.features:
+                dtype = feast_value_type_to_python_type(feature.dtype.to_value_type())
+                sample_val = rand_value[dtype] if dtype in rand_value else None
+                feature_key = f"{feature_view_projection.name}__{feature.name}"
+                feature_dict[feature_key] = sample_val
+        for request_data in self.source_request_sources.values():
+            for field in request_data.schema:
+                dtype = feast_value_type_to_python_type(field.dtype.to_value_type())
+                sample_val = rand_value[dtype] if dtype in rand_value else None
+                feature_dict[field.name] = sample_val
+
+        # Call the UDF with the feature dictionary to get an output dictionary
+        output_dict: Dict[str, Any] = self.udf.__call__(feature_dict)
+
+        inferred_features = []
+        # Determine feature data types using the output dictionary
+        for f, val in output_dict.items():
+            inferred_features.append(
+                # TODO: assumes that the UDF produces a dict of (f_name: f_value) pairs
+                # should instead use `value=val[0]` if the UDF produces (f_name: List(f_value))
+                Field(
+                    name=f,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(f, value=val)
+                    ),
+                )
+            )
+
+        if self.features:
+            missing_features = []
+            for specified_feature in self.features:
+                if specified_feature.name not in feature_dict:
+                    missing_features.append(specified_feature)
+            if missing_features:
+                raise SpecifiedFeaturesNotPresentError(
+                    missing_features, inferred_features, self.name
+                )
+        else:
+            self.features = inferred_features
+
+        if not self.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{self.name}'.",
+            )
+
+    def _infer_features_df(self):
         """
         Infers the set of features associated to this feature view from the input source.
 
@@ -478,6 +647,7 @@ def on_demand_feature_view(
             FeatureViewProjection,
         ]
     ],
+    mode: str = "pandas",
     description: str = "",
     tags: Optional[Dict[str, str]] = None,
     owner: str = "",
@@ -491,6 +661,7 @@ def on_demand_feature_view(
         sources: A map from input source names to the actual input sources, which may be
             feature views, or request data sources. These sources serve as inputs to the udf,
             which will refer to them by name.
+        mode (optional): Backend used to compute on-demand transforms. Must be one of "python" or "pandas"
         description (optional): A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the on demand feature view, typically the email
@@ -550,7 +721,8 @@ def on_demand_feature_view(
             name=user_function.__name__,
             sources=sources,
             schema=schema,
-            feature_transformation=transformation,
+            udf=user_function,
+            transformation=transformation,
             description=description,
             tags=tags,
             owner=owner,

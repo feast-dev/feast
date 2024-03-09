@@ -62,7 +62,7 @@ message OnDemandFeatureViewSpec {
 
     // Owner of the on demand feature view.
     string owner = 8;
-    string mode = 11;
+    string mode = 10;
 }
 
 message OnDemandFeatureViewMeta {
