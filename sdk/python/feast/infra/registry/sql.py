@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Callable, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from pydantic import StrictStr
 from sqlalchemy import (  # type: ignore
@@ -190,6 +190,9 @@ class SqlRegistryConfig(RegistryConfig):
     """ str: Path to metadata store.
     If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
 
+    sqlalchemy_config_kwargs: Dict[str, Any] = {"echo": False}
+    """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
+
 
 class SqlRegistry(BaseRegistry):
     def __init__(
@@ -199,7 +202,9 @@ class SqlRegistry(BaseRegistry):
         repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
-        self.engine: Engine = create_engine(registry_config.path, echo=False)
+        self.engine: Engine = create_engine(
+            registry_config.path, **registry_config.sqlalchemy_config_kwargs
+        )
         metadata.create_all(self.engine)
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
