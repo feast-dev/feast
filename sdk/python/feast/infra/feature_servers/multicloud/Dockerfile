@@ -1,5 +1,9 @@
 FROM python:3.8
 
+# Input the feast version to install
+# This requires feast package to be available in pypi before building this image
+ARG VERSION
+
 RUN apt update && \
         apt install -y \
         jq \
@@ -7,8 +11,7 @@ RUN apt update && \
         build-essential
 
 RUN pip install pip --upgrade
-RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres]"
-
+RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres]==${VERSION}"
 
 RUN apt update
 RUN apt install -y -V ca-certificates lsb-release wget

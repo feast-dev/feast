@@ -183,7 +183,7 @@ class FileSource(DataSource):
             return None, path
 
     def get_table_query_string(self) -> str:
-        pass
+        raise NotImplementedError
 
 
 class FileOptions:

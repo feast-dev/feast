@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
@@ -150,9 +150,8 @@ class RetrievalJob(ABC):
         """
         Return RetrievalJob generated SQL statement if applicable.
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """
         Synchronously executes the underlying query and returns the result as a pandas dataframe.
@@ -162,9 +161,8 @@ class RetrievalJob(ABC):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_df` should be used.
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """
         Synchronously executes the underlying query and returns the result as an arrow table.
@@ -174,21 +172,18 @@ class RetrievalJob(ABC):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_arrow` should be used.
         """
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def full_feature_names(self) -> bool:
         """Returns True if full feature names should be applied to the results of the query."""
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -204,13 +199,12 @@ class RetrievalJob(ABC):
             allow_overwrite: If True, a pre-existing location (e.g. table or file) can be overwritten.
                 Currently not all individual offline store implementations make use of this parameter.
         """
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def metadata(self) -> Optional[RetrievalMetadata]:
         """Returns metadata about the retrieval job."""
-        pass
+        raise NotImplementedError
 
     def supports_remote_storage_export(self) -> bool:
         """Returns True if the RetrievalJob supports `to_remote_storage`."""
@@ -226,7 +220,7 @@ class RetrievalJob(ABC):
         Returns:
             A list of parquet file paths in remote storage.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class OfflineStore(ABC):
@@ -239,7 +233,6 @@ class OfflineStore(ABC):
     """
 
     @staticmethod
-    @abstractmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -270,10 +263,9 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the entity rows.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
-    @abstractmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -302,10 +294,9 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the features.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
-    @abstractmethod
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -334,7 +325,7 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the entity rows.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def write_logged_features(
@@ -358,7 +349,7 @@ class OfflineStore(ABC):
             logging_config: A LoggingConfig object that determines where the logs will be written.
             registry: The registry for the current feature store.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @staticmethod
     def offline_write_batch(
@@ -377,4 +368,4 @@ class OfflineStore(ABC):
             progress: Function to be called once a portion of the data has been written, used
                 to show progress.
         """
-        raise NotImplementedError()
+        raise NotImplementedError

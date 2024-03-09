@@ -14,6 +14,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -23,8 +24,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, StrictStr
-from pydantic.typing import Literal
+from pydantic import ConfigDict, Field, StrictStr
 from pytz import utc
 
 from feast import OnDemandFeatureView
@@ -119,9 +119,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     convert_timestamp_columns: Optional[bool] = None
     """ Convert timestamp columns on export to a Parquet-supported format """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeOfflineStore(OfflineStore):
@@ -465,14 +463,16 @@ class SnowflakeRetrievalJob(RetrievalJob):
                     Array(Float32),
                     Array(Bool),
                 ]:
-                    df[feature.name] = [json.loads(x) for x in df[feature.name]]
+                    df[feature.name] = [
+                        json.loads(x) if x else None for x in df[feature.name]
+                    ]
 
         return df
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         pa_table = execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all()
+        ).fetch_arrow_all(force_return_table=False)
 
         if pa_table:
             return pa_table

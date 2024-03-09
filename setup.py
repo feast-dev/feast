@@ -44,24 +44,17 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "fastavro>=1.1.0,<2",
-    "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
-    "grpcio-reflection>=1.56.2,<2",
-    "grpcio-health-checking>=1.56.2,<2",
     "mypy-protobuf==3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<1.25",
-    "pandas>=1.4.3,<2",
-    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "pandavro~=1.5.0",
+    "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf<4.23.4,>3.20",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
-    "pydantic>=1,<2",
+    "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -70,8 +63,8 @@ REQUIRED = [
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard==2.13.3",
-    "fastapi>=0.68.0,<0.100",
+    "typeguard>=4.0.0",
+    "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
     "dask>=2021.1.0",
@@ -90,7 +83,7 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
-    "fsspec<2023.10.0",
+    "fsspec<=2024.1.0",
 ]
 
 REDIS_REQUIRED = [
@@ -98,7 +91,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<2023.10.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
@@ -126,7 +119,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
+GE_REQUIRED = ["great_expectations>=0.15.41"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -144,11 +137,27 @@ HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
 
+IBIS_REQUIRED = [
+    "ibis-framework",
+    "ibis-substrait",
+]
+
+GRPCIO_REQUIRED = [
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
+]
+
+DUCKDB_REQUIRED = [
+    "ibis-framework[duckdb]"
+]
+
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<42",
+        "cryptography>=35.0,<43",
         "flake8>=6.0.0,<6.1.0",
         "black>=22.6.0,<23",
         "isort>=5,<6",
@@ -156,9 +165,8 @@ CI_REQUIRED = (
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
-        "mypy>=0.981,<0.990",
+        "mypy>=1.4.1",
         "avro==1.10.0",
-        "fsspec<2023.10.0",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
@@ -186,6 +194,7 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
         "virtualenv<20.24.2",
+        "pandas>=1.4.3,<2; python_version < '3.9'",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -202,6 +211,8 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + IBIS_REQUIRED
+    + GRPCIO_REQUIRED
 )
 
 
@@ -368,7 +379,10 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "ibis": IBIS_REQUIRED,
+        "duckdb": DUCKDB_REQUIRED
     },
     include_package_data=True,
     license="Apache",

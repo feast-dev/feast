@@ -340,6 +340,11 @@ def test_historical_features_with_entities_from_query(
 
     table_from_sql_entities = job_from_sql.to_arrow().to_pandas()
     for col in table_from_sql_entities.columns:
+        # check if col dtype is timezone naive
+        if pd.api.types.is_datetime64_dtype(table_from_sql_entities[col]):
+            table_from_sql_entities[col] = table_from_sql_entities[col].dt.tz_localize(
+                "UTC"
+            )
         expected_df_query[col] = expected_df_query[col].astype(
             table_from_sql_entities[col].dtype
         )

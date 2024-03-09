@@ -48,7 +48,10 @@ message OnDemandFeatureViewSpec {
     // Map of sources for this feature view.
     map<string, OnDemandSource> sources = 4;
 
-    UserDefinedFunction user_defined_function = 5;
+    oneof transformation {
+        UserDefinedFunction user_defined_function = 5;
+        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9;
+    }
 
     // Description of the on demand feature view.
     string description = 6;
@@ -86,4 +89,8 @@ message UserDefinedFunction {
 
     // The string representation of the udf
     string body_text = 3;
+}
+
+message OnDemandSubstraitTransformation {
+    bytes substrait_plan = 1;
 }

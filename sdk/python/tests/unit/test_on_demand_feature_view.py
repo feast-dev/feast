@@ -17,7 +17,10 @@ import pandas as pd
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.on_demand_feature_view import (
+    OnDemandFeatureView,
+    OnDemandPandasTransformation,
+)
 from feast.types import Float32
 
 
@@ -54,8 +57,9 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        udf=udf1,
-        udf_string="udf1 source code",
+        transformation=OnDemandPandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
     )
     on_demand_feature_view_2 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -64,8 +68,9 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        udf=udf1,
-        udf_string="udf1 source code",
+        transformation=OnDemandPandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
     )
     on_demand_feature_view_3 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -74,10 +79,23 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        udf=udf2,
-        udf_string="udf2 source code",
+        transformation=OnDemandPandasTransformation(
+            udf=udf2, udf_string="udf2 source code"
+        ),
     )
     on_demand_feature_view_4 = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        transformation=OnDemandPandasTransformation(
+            udf=udf2, udf_string="udf2 source code"
+        ),
+        description="test",
+    )
+    on_demand_feature_view_5 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
         sources=sources,
         schema=[
@@ -105,3 +123,7 @@ def test_hash():
         on_demand_feature_view_4,
     }
     assert len(s4) == 3
+
+    assert on_demand_feature_view_5.transformation == OnDemandPandasTransformation(
+        udf2, "udf2 source code"
+    )

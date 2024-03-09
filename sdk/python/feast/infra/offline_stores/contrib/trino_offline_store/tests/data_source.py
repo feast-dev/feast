@@ -62,10 +62,11 @@ class TrinoSourceCreator(DataSourceCreator):
                 "must be include into pytest plugins"
             )
         self.exposed_port = self.container.get_exposed_port("8080")
+        self.container_host = self.container.get_container_host_ip()
         self.client = Trino(
             user="user",
             catalog="memory",
-            host="localhost",
+            host=self.container_host,
             port=self.exposed_port,
             source="trino-python-client",
             http_scheme="http",
@@ -81,10 +82,10 @@ class TrinoSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
         self.client.execute_query(
@@ -123,9 +124,11 @@ class TrinoSourceCreator(DataSourceCreator):
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return TrinoOfflineStoreConfig(
-            host="localhost",
+            host=self.container_host,
             port=self.exposed_port,
             catalog="memory",
             dataset=self.project_name,
             connector={"type": "memory"},
+            user="test",
+            auth=None,
         )
