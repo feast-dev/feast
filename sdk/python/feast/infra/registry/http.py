@@ -11,7 +11,7 @@ from pydantic import StrictStr
 
 from feast import usage
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource, PushSource, RequestSource
+from feast.data_source import DataSource, KafkaSource, PushSource, RequestSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
@@ -21,6 +21,7 @@ from feast.errors import (
     ProjectMetadataNotFoundException,
 )
 from feast.expediagroup.pydantic_models.data_source_model import (
+    KafkaSourceModel,
     PushSourceModel,
     RequestSourceModel,
     SparkSourceModel,
@@ -240,9 +241,13 @@ class HttpRegistry(BaseRegistry):
                 data = PushSourceModel.from_data_source(data_source).json()
                 response_data = self._send_request("PUT", url, params=params, data=data)
                 return PushSourceModel.parse_obj(response_data).to_data_source()
+            elif isinstance(data_source, KafkaSource):
+                data = KafkaSourceModel.from_data_source(data_source).json()
+                response_data = self._send_request("PUT", url, params=params, data=data)
+                return KafkaSourceModel.parse_obj(response_data).to_data_source()
             else:
                 raise TypeError(
-                    "Unsupported DataSource type. Please use either SparkSource or RequestSource only"
+                    "Unsupported DataSource type. Please use either SparkSource, RequestSource, PushSource or KafkaSource only"
                 )
         except Exception as exception:
             self._handle_exception(exception)
