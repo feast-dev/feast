@@ -41,9 +41,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <grpc.version>1.30.2</grpc.version>
+        <grpc.version>1.55.1</grpc.version>
         <protoc.version>3.12.2</protoc.version>
-        <protobuf.version>3.16.1</protobuf.version>
+        <protobuf.version>3.23.1</protobuf.version>
         <com.google.cloud.version>1.111.1</com.google.cloud.version>
         <io.prometheus.version>0.8.0</io.prometheus.version>
         <byte-buddy.version>1.9.10</byte-buddy.version>
@@ -67,7 +67,7 @@
         <javax.validation.version>2.0.1.Final</javax.validation.version>
         <google.auth.library.oauth2.http.version>0.21.0</google.auth.library.oauth2.http.version>
         <auto.value.version>1.6.6</auto.value.version>
-        <guava.version>30.1-jre</guava.version>
+        <guava.version>32.0.0-jre</guava.version>
 
         <license.content><![CDATA[
 /*
@@ -255,7 +255,7 @@
                         <excludes>
                             <exclude>src/main/java/**/BatchLoadsWithResult.java</exclude>
                         </excludes>
-                        <removeUnusedImports />
+                        <removeUnusedImports/>
                     </java>
                     <scala>
                         <licenseHeader>
@@ -320,7 +320,7 @@
                                 <requireJavaVersion>
                                     <version>[11.0,)</version>
                                 </requireJavaVersion>
-                                <reactorModuleConvergence />
+                                <reactorModuleConvergence/>
                             </rules>
                         </configuration>
                     </execution>
@@ -331,7 +331,7 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <banDuplicatePomDependencyVersions />
+                                <banDuplicatePomDependencyVersions/>
                             </rules>
                         </configuration>
                     </execution>
