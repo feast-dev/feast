@@ -69,6 +69,7 @@ from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
+logger = logging.getLogger(__name__)
 
 def get_registry_tables(metadata : MetaData = MetaData()):
 
@@ -184,8 +185,6 @@ class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
     PROJECT_UUID = "project_uuid"
     
-logger = logging.getLogger(__name__)
-
 metadata = MetaData()
 class SqlRegistryConfig(RegistryConfig):
     registry_type: StrictStr = "sql"
@@ -208,7 +207,7 @@ class SqlRegistry(BaseRegistry):
         if 'registry_schema' in registry_config.__dict__:
             inspector = inspect(self.engine)
             if registry_config.registry_schema in inspector.get_schema_names():
-                print(f"Registry Schema [{registry_config.registry_schema}] already exists.")
+                logger.info(f"Registry Schema [{registry_config.registry_schema}] already exists.")
             else:
                 self.engine.execute(schema.CreateSchema(registry_config.registry_schema))
                 print(f"Registry Schema [{registry_config.registry_schema}] created.")
