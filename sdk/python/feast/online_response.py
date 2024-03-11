@@ -78,6 +78,7 @@ class OnlineResponse:
 
         return pd.DataFrame(self.to_dict(include_event_timestamps))
 
+
 class OnlineResponseRow(OnlineResponse):
     def to_dict(self, include_event_timestamps: bool = False) -> Dict[str, Any]:
         """
@@ -88,16 +89,23 @@ class OnlineResponseRow(OnlineResponse):
         response: Dict[str, Any] = {}
 
         for feature_ref, feature_vector in zip(
-                self.proto.metadata.feature_names.val, self.proto.results
+            self.proto.metadata.feature_names.val, self.proto.results
         ):
 
-            if len(feature_vector.values) != 1 or len(feature_vector.event_timestamps) != 1:
-                raise ValueError(f'Response contains more than one row: \n'
-                                 f'feature_ref: {feature_ref}'
-                                 f'feature_vector: {feature_vector.values},'
-                                 f'event_timestamps: {feature_vector.event_timestamps}')
+            if (
+                len(feature_vector.values) != 1
+                or len(feature_vector.event_timestamps) != 1
+            ):
+                raise ValueError(
+                    f"Response contains more than one row: \n"
+                    f"feature_ref: {feature_ref}"
+                    f"feature_vector: {feature_vector.values},"
+                    f"event_timestamps: {feature_vector.event_timestamps}"
+                )
 
-            response[feature_ref] = feast_value_type_to_python_type(feature_vector.values[0])
+            response[feature_ref] = feast_value_type_to_python_type(
+                feature_vector.values[0]
+            )
 
             if include_event_timestamps:
                 timestamp_ref = feature_ref + TIMESTAMP_POSTFIX

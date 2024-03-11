@@ -155,7 +155,9 @@ class OnDemandFeatureView(BaseFeatureView):
         self.feature_transformation = feature_transformation
 
         if mode not in {"python", "pandas"}:
-            raise Exception(f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs.")
+            raise Exception(
+                f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs."
+            )
         self.mode = mode
 
     @property
@@ -249,12 +251,12 @@ class OnDemandFeatureView(BaseFeatureView):
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
-    def _empty_odfv_udf_fn(x: Any) -> Any:
-        # just an identity mapping, otherwise we risk tripping some downstream tests
-        return x
-
     @classmethod
-    def from_proto(cls, on_demand_feature_view_proto: OnDemandFeatureViewProto, skip_udf: bool = False):
+    def from_proto(
+        cls,
+        on_demand_feature_view_proto: OnDemandFeatureViewProto,
+        skip_udf: bool = False,
+    ):
         """
         Creates an on demand feature view from a protobuf representation.
 
@@ -292,8 +294,8 @@ class OnDemandFeatureView(BaseFeatureView):
             and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
             != ""
         ):
-            transformation = PandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
+            transformation = OnDemandPandasTransformation.from_proto(
+                on_demand_feature_view_proto.spec.transformation.user_defined_function
             )
         elif (
             on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
@@ -301,21 +303,8 @@ class OnDemandFeatureView(BaseFeatureView):
             )
             == "substrait_transformation"
         ):
-            transformation = SubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.feature_transformation.substrait_transformation
-            )
-        elif (
-            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
-            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
-            == ""
-        ):
-            backwards_compatible_udf = UserDefinedFunctionProto(
-                name=on_demand_feature_view_proto.spec.user_defined_function.name,
-                body=on_demand_feature_view_proto.spec.user_defined_function.body,
-                body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
-            )
-            transformation = PandasTransformation.from_proto(
-                user_defined_function_proto=backwards_compatible_udf,
+            transformation = OnDemandSubstraitTransformation.from_proto(
+                on_demand_feature_view_proto.spec.transformation.on_demand_substrait_transformation
             )
         else:
             raise Exception("At least one transformation type needs to be provided")
@@ -323,7 +312,9 @@ class OnDemandFeatureView(BaseFeatureView):
         udf = (
             _empty_odfv_udf_fn
             if skip_udf
-            else dill.loads(on_demand_feature_view_proto.spec.user_defined_function.body)
+            else dill.loads(
+                on_demand_feature_view_proto.spec.transformation.user_defined_function.body
+            )
         )
 
         on_demand_feature_view_obj = cls(
@@ -338,7 +329,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources=sources,
             transformation=transformation,
             udf=udf,
-            udf_string=on_demand_feature_view_proto.spec.user_defined_function.body_text,
+            udf_string=on_demand_feature_view_proto.spec.transformation.user_defined_function.body_text,
             mode=on_demand_feature_view_proto.spec.mode,
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
@@ -378,10 +369,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
         return schema
 
-    def _get_projected_feature_name(
-        self,
-        feature: str
-    ) -> str:
+    def _get_projected_feature_name(self, feature: str) -> str:
         return f"{self.projection.name_to_use()}__{feature}"
 
     def get_transformed_features_df(
@@ -445,10 +433,12 @@ class OnDemandFeatureView(BaseFeatureView):
         rows = []
         # this doesn't actually require 2 x |key_space| space; k and name_map[k] point to the same object in memory
         for values in zip(*feature_dict.values()):
-            rows.append({
-                **{k: v for k, v in zip(feature_dict.keys(), values)},
-                **{name_map[k]: v for k, v in zip(feature_dict.keys(), values)},
-            })
+            rows.append(
+                {
+                    **{k: v for k, v in zip(feature_dict.keys(), values)},
+                    **{name_map[k]: v for k, v in zip(feature_dict.keys(), values)},
+                }
+            )
 
         # construct output dictionary and mapping from expected feature names to alternative feature names
         output_dict: Dict[str, List[Any]] = {}
@@ -456,38 +446,42 @@ class OnDemandFeatureView(BaseFeatureView):
         for feature in self.features:
             long_name = self._get_projected_feature_name(feature.name)
             correct_name = long_name if full_feature_names else feature.name
-            correct_feature_name_to_alias[correct_name] = feature.name if full_feature_names else long_name
+            correct_feature_name_to_alias[correct_name] = (
+                feature.name if full_feature_names else long_name
+            )
             output_dict[correct_name] = [None] * len(rows)
 
         # populate output dictionary per row
         for i, row in enumerate(rows):
             row_output = self.udf.__call__(row)
             for feature in output_dict:
-                output_dict[feature][i] = (
-                    row_output.get(feature, row_output[correct_feature_name_to_alias[feature]])
+                output_dict[feature][i] = row_output.get(
+                    feature, row_output[correct_feature_name_to_alias[feature]]
                 )
         return output_dict
 
     def get_transformed_features(
-            self,
-            features: Union[Dict[str, List[Any]], pd.DataFrame],
-            full_feature_names: bool = False
+        self,
+        features: Union[Dict[str, List[Any]], pd.DataFrame],
+        full_feature_names: bool = False,
     ) -> Union[Dict[str, List[Any]], pd.DataFrame]:
-        # RB / TODO: classic inheritance pattern....maybe fix this
+        # TODO: classic inheritance pattern....maybe fix this
         if self.mode == "python":
             assert isinstance(features, dict)
             return self._get_transformed_features_dict(
                 feature_dict=cast(features, Dict[str, List[Any]]),
-                full_feature_names=full_feature_names
+                full_feature_names=full_feature_names,
             )
         elif self.mode == "pandas":
             assert isinstance(features, pd.DataFrame)
             return self._get_transformed_features_df(
                 df_with_features=cast(features, pd.DataFrame),
-                full_feature_names=full_feature_names
+                full_feature_names=full_feature_names,
             )
         else:
-            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+            raise Exception(
+                f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".'
+            )
 
     def infer_features(self) -> None:
         if self.mode == "pandas":
@@ -495,7 +489,9 @@ class OnDemandFeatureView(BaseFeatureView):
         elif self.mode == "python":
             self._infer_features_dict()
         else:
-            raise Exception(f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".')
+            raise Exception(
+                f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".'
+            )
 
     def _infer_features_dict(self):
         """
@@ -750,3 +746,8 @@ def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
     bfv.features = copy.copy(fv.features)
     bfv.entities = copy.copy(fv.entities)
     return bfv
+
+def _empty_odfv_udf_fn(x: Any) -> Any:
+    # just an identity mapping, otherwise we risk tripping some downstream tests
+    return x
+

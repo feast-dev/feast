@@ -2118,13 +2118,16 @@ class FeatureStore:
                     full_feature_names,
                 )
             else:
-                raise Exception(f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas' or 'python'.")
+                raise Exception(
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas' or 'python'."
+                )
 
-            transformed_columns = transformed_features.columns \
-                if isinstance(transformed_features, pd.DataFrame) else transformed_features
-            selected_subset = [
-                f for f in transformed_columns if f in _feature_refs
-            ]
+            transformed_columns = (
+                transformed_features.columns
+                if isinstance(transformed_features, pd.DataFrame)
+                else transformed_features
+            )
+            selected_subset = [f for f in transformed_columns if f in _feature_refs]
 
             proto_values = []
             for feature in selected_subset:

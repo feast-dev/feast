@@ -16,7 +16,7 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
 )
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
