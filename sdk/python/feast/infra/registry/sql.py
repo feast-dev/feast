@@ -210,7 +210,7 @@ class SqlRegistry(BaseRegistry):
                 logger.info(f"Registry Schema [{registry_config.registry_schema}] already exists.")
             else:
                 self.engine.execute(schema.CreateSchema(registry_config.registry_schema))
-                print(f"Registry Schema [{registry_config.registry_schema}] created.")
+                logger.info(f"Registry Schema [{registry_config.registry_schema}] created.")
         
         metadata = MetaData(schema=registry_config.registry_schema if 'registry_schema' in registry_config.__dict__ else None)
         
