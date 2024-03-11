@@ -237,12 +237,13 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandPandasTransformation
-            else None,
-            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
-            if type(self.transformation) == OnDemandSubstraitTransformation
-            else None,
+            transformation=self.transformation,
+            # transformation=self.transformation.to_proto()
+            # if type(self.transformation) == OnDemandPandasTransformation
+            # else None,
+            # on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
+            # if type(self.transformation) == OnDemandSubstraitTransformation
+            # else None,
             mode=self.mode,
             description=self.description,
             tags=self.tags,
