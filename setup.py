@@ -96,7 +96,7 @@ AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=3,<4",
+    "snowflake-connector-python[pandas]>=3.7,<4",
 ]
 
 SPARK_REQUIRED = [
