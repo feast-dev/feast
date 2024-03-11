@@ -472,7 +472,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         return execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all(force_return_table=False)
+        ).fetch_arrow_all(force_return_table=True)
 
     def to_sql(self) -> str:
         """
