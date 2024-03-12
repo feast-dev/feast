@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import dask
 import dask.dataframe as dd
@@ -38,10 +38,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.usage import log_exceptions_and_usage
-from feast.utils import (
-    _get_requested_feature_views_to_features_dict,
-    _run_dask_field_mapping,
-)
+from feast.utils import _get_requested_feature_views_to_features_dict
 
 # FileRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
 # This is not the desired behavior for our use case, so we set the convert-string option to False
@@ -510,6 +507,18 @@ def _read_datasource(data_source) -> dd.DataFrame:
         data_source.path,
         storage_options=storage_options,
     )
+
+
+def _run_dask_field_mapping(
+    table: dd.DataFrame,
+    field_mapping: Dict[str, str],
+):
+    if field_mapping:
+        # run field mapping in the forward direction
+        table = table.rename(columns=field_mapping)
+        table = table.persist()
+
+    return table
 
 
 def _field_mapping(

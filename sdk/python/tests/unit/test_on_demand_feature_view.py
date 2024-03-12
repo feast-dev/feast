@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import pandas as pd
+import pytest
 
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -38,6 +39,7 @@ def udf2(features_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+@pytest.mark.filterwarnings("ignore:udf and udf_string parameters are deprecated")
 def test_hash():
     file_source = FileSource(name="my-file-source", path="test.parquet")
     feature_view = FeatureView(

@@ -38,6 +38,7 @@ def retrieval_job(request):
             provider="snowflake.offline",
             online_store=SqliteOnlineStoreConfig(type="sqlite"),
             offline_store=offline_store_config,
+            entity_key_serialization_version=2,
         ),
         full_feature_names=True,
         on_demand_feature_views=[],
