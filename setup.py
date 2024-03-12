@@ -51,7 +51,7 @@ REQUIRED = [
     "numpy>=1.22,<1.25",
     "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
-    "protobuf<4.23.4,>3.20",
+    "protobuf>=4.24.0,<5.0.0",
     "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
     "pydantic>=2.0.0",
