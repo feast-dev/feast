@@ -38,7 +38,7 @@ NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = ">=3.9.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
@@ -194,7 +194,6 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
         "virtualenv<20.24.2",
-        "pandas>=1.4.3,<2; python_version < '3.9'",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -392,7 +391,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
