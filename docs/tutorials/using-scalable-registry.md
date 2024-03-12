@@ -30,6 +30,9 @@ registry:
     path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
     cache_ttl_seconds: 60
     registry_schema: feature_store_registry
+    sqlalchemy_config_kwargs:
+        echo: false
+        pool_pre_ping: true
 ```
 
 Specifically, the registry_type needs to be set to sql in the registry config block. On doing so, the path should refer to the [Database URL](https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls) for the database to be used, as expected by SQLAlchemy. No other additional commands are currently needed to configure this registry.

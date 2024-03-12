@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import uuid
 import warnings
@@ -13,6 +14,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -22,8 +24,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, StrictStr
-from pydantic.typing import Literal
+from pydantic import ConfigDict, Field, StrictStr
 from pytz import utc
 
 from feast import OnDemandFeatureView
@@ -51,6 +52,17 @@ from feast.infra.utils.snowflake.snowflake_utils import (
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
 from feast.usage import log_exceptions_and_usage
 
 try:
@@ -107,9 +119,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     convert_timestamp_columns: Optional[bool] = None
     """ Convert timestamp columns on export to a Parquet-supported format """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeOfflineStore(OfflineStore):
@@ -320,6 +330,7 @@ class SnowflakeOfflineStore(OfflineStore):
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
                 feature_refs, project, registry
             ),
+            feature_views=feature_views,
             metadata=RetrievalMetadata(
                 features=feature_refs,
                 keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
@@ -398,9 +409,12 @@ class SnowflakeRetrievalJob(RetrievalJob):
         config: RepoConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        feature_views: Optional[List[FeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
 
+        if feature_views is None:
+            feature_views = []
         if not isinstance(query, str):
             self._query_generator = query
         else:
@@ -416,6 +430,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self.config = config
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
+        self._feature_views = feature_views
         self._metadata = metadata
         self.export_path: Optional[str]
         if self.config.offline_store.blob_export_location:
@@ -436,23 +451,28 @@ class SnowflakeRetrievalJob(RetrievalJob):
             self.snowflake_conn, self.to_sql()
         ).fetch_pandas_all()
 
+        for feature_view in self._feature_views:
+            for feature in feature_view.features:
+                if feature.dtype in [
+                    Array(String),
+                    Array(Bytes),
+                    Array(Int32),
+                    Array(Int64),
+                    Array(UnixTimestamp),
+                    Array(Float64),
+                    Array(Float32),
+                    Array(Bool),
+                ]:
+                    df[feature.name] = [
+                        json.loads(x) if x else None for x in df[feature.name]
+                    ]
+
         return df
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
-        pa_table = execute_snowflake_statement(
+        return execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all()
-
-        if pa_table:
-            return pa_table
-        else:
-            empty_result = execute_snowflake_statement(
-                self.snowflake_conn, self.to_sql()
-            )
-
-            return pyarrow.Table.from_pandas(
-                pd.DataFrame(columns=[md.name for md in empty_result.description])
-            )
+        ).fetch_arrow_all(force_return_table=True)
 
     def to_sql(self) -> str:
         """
@@ -584,12 +604,17 @@ class SnowflakeRetrievalJob(RetrievalJob):
               HEADER = TRUE
         """
         cursor = execute_snowflake_statement(self.snowflake_conn, query)
+        # s3gov schema is used by Snowflake in AWS govcloud regions
+        # remove gov portion from schema and pass it to online store upload
+        native_export_path = self.export_path.replace("s3gov://", "s3://")
+        return self._get_file_names_from_copy_into(cursor, native_export_path)
 
+    def _get_file_names_from_copy_into(self, cursor, native_export_path) -> List[str]:
         file_name_column_index = [
             idx for idx, rm in enumerate(cursor.description) if rm.name == "FILE_NAME"
         ][0]
         return [
-            f"{self.export_path}/{row[file_name_column_index]}"
+            f"{native_export_path}/{row[file_name_column_index]}"
             for row in cursor.fetchall()
         ]
 

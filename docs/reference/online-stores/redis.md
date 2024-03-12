@@ -45,6 +45,21 @@ online_store:
 ```
 {% endcode %}
 
+Connecting to a Redis Sentinel with SSL enabled and password authentication:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  redis_type: redis_sentinel
+  sentinel_master: mymaster
+  connection_string: "redis1:26379,ssl=true,password=my_password"
+```
+{% endcode %}
+
 Additionally, the redis online store also supports automatically deleting data via a TTL mechanism.
 The TTL is applied at the entity level, so feature values from any associated feature views for an entity are removed together. 
 This TTL can be set in the `feature_store.yaml`, using the `key_ttl_seconds` field in the online store. For example:

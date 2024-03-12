@@ -20,7 +20,7 @@ class DataSourceCreator(ABC):
         destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = None,
     ) -> DataSource:
         """
@@ -42,19 +42,20 @@ class DataSourceCreator(ABC):
             A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
             test.
         """
-        ...
+        raise NotImplementedError
 
     @abstractmethod
     def create_offline_store_config(self) -> FeastConfigBaseModel:
-        ...
+        raise NotImplementedError
 
     @abstractmethod
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        ...
+        raise NotImplementedError
 
+    @abstractmethod
     def create_logged_features_destination(self) -> LoggingDestination:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def teardown(self):
-        ...
+        raise NotImplementedError

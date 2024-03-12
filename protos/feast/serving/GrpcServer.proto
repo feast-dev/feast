@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+import "feast/serving/ServingService.proto";
+
+message PushRequest {
+    map<string, string> features = 1;
+    string stream_feature_view = 2;
+    bool allow_registry_cache = 3;
+    string to = 4;
+}
+
+message PushResponse {
+    bool status = 1;
+}
+
+message WriteToOnlineStoreRequest {
+    map<string, string> features = 1;
+    string feature_view_name = 2;
+    bool allow_registry_cache = 3;
+}
+
+message WriteToOnlineStoreResponse {
+    bool status = 1;
+}
+
+service GrpcFeatureServer {
+    rpc Push (PushRequest) returns (PushResponse) {};
+    rpc WriteToOnlineStore (WriteToOnlineStoreRequest) returns (WriteToOnlineStoreResponse);
+    rpc GetOnlineFeatures (feast.serving.GetOnlineFeaturesRequest) returns (feast.serving.GetOnlineFeaturesResponse);
+}

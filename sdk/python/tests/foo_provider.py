@@ -71,16 +71,16 @@ class FooProvider(Provider):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        pass
+        return RetrievalJob()
 
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        pass
+        return []
 
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
         pass
@@ -102,4 +102,4 @@ class FooProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ) -> RetrievalJob:
-        pass
+        return RetrievalJob()

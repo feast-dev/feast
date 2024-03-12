@@ -167,7 +167,7 @@ def test_logged_features_validation(environment, universal_data_sources):
                         {
                             "customer_id": 2000 + i,
                             "driver_id": 6000 + i,
-                            "event_timestamp": datetime.datetime.now(),
+                            "event_timestamp": make_tzaware(datetime.datetime.now()),
                         }
                     ]
                 ),

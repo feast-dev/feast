@@ -297,9 +297,9 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
     def __init__(
         self,
         table_ref: str,
-        query: str = None,
-        database: str = None,
-        data_source: str = None,
+        query: Optional[str] = None,
+        database: Optional[str] = None,
+        data_source: Optional[str] = None,
     ):
         self.athena_options = AthenaOptions(
             table=table_ref, query=query, database=database, data_source=data_source

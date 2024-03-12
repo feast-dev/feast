@@ -83,8 +83,8 @@ SNOWFLAKE_CONFIG = {
     "password": os.getenv("SNOWFLAKE_CI_PASSWORD", ""),
     "role": os.getenv("SNOWFLAKE_CI_ROLE", ""),
     "warehouse": os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
-    "database": "FEAST",
-    "schema": "ONLINE",
+    "database": os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
+    "schema": os.getenv("SNOWFLAKE_CI_SCHEMA_ONLINE", "ONLINE"),
 }
 
 BIGTABLE_CONFIG = {
@@ -99,7 +99,7 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
-OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
+OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
@@ -111,7 +111,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
 ]
 
 AVAILABLE_ONLINE_STORES: Dict[
-    str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
+    str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
 }
@@ -169,7 +169,7 @@ if full_repo_configs_module is not None:
         AVAILABLE_ONLINE_STORES = {
             c.online_store["type"]
             if isinstance(c.online_store, dict)
-            else c.online_store: (c.online_store, c.online_store_creator)
+            else c.online_store: (c.online_store, c.online_store_creator)  # type: ignore
             for c in FULL_REPO_CONFIGS
         }
 
@@ -328,7 +328,7 @@ class UniversalFeatureViews:
     customer: FeatureView
     global_fv: FeatureView
     driver: FeatureView
-    driver_odfv: OnDemandFeatureView
+    driver_odfv: Optional[OnDemandFeatureView]
     order: FeatureView
     location: FeatureView
     field_mapping: FeatureView
@@ -410,9 +410,7 @@ def construct_test_environment(
         online_creator = test_repo_config.online_store_creator(
             project, fixture_request=fixture_request
         )
-        online_store = (
-            test_repo_config.online_store
-        ) = online_creator.create_online_store()
+        online_store = online_creator.create_online_store()
     else:
         online_creator = None
         online_store = test_repo_config.online_store
@@ -422,7 +420,7 @@ def construct_test_environment(
             AwsLambdaFeatureServerConfig,
         )
 
-        feature_server = AwsLambdaFeatureServerConfig(
+        feature_server: Any = AwsLambdaFeatureServerConfig(
             enabled=True,
             execution_role_name=os.getenv(
                 "AWS_LAMBDA_ROLE",
@@ -465,7 +463,7 @@ def construct_test_environment(
 
     # Create feature_store.yaml out of the config
     with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
-        yaml.safe_dump(json.loads(config.json()), f)
+        yaml.safe_dump(json.loads(config.model_dump_json(by_alias=True)), f)
 
     fs = FeatureStore(repo_dir_name)
     # We need to initialize the registry, because if nothing is applied in the test before tearing down

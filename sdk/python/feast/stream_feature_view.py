@@ -3,9 +3,10 @@ import functools
 import warnings
 from datetime import datetime, timedelta
 from types import FunctionType
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import dill
+from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import flags_helper, utils
@@ -283,7 +284,6 @@ class StreamFeatureView(FeatureView):
         fv = StreamFeatureView(
             name=self.name,
             schema=self.schema,
-            entities=self.entities,
             ttl=self.ttl,
             tags=self.tags,
             online=self.online,
@@ -292,11 +292,18 @@ class StreamFeatureView(FeatureView):
             aggregations=self.aggregations,
             mode=self.mode,
             timestamp_field=self.timestamp_field,
-            source=self.source,
+            source=self.stream_source if self.stream_source else self.batch_source,
             udf=self.udf,
         )
+        fv.entities = self.entities
+        fv.features = copy.copy(self.features)
+        fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
         return fv
+
+    @property
+    def proto_class(self) -> Type[Message]:
+        return StreamFeatureViewProto
 
 
 def stream_feature_view(

@@ -8,16 +8,13 @@ jobs:
     env:
       PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: "3.8"
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -32,6 +29,9 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: pip install pip-tools
       - name: Install dependencies

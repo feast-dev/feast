@@ -70,7 +70,7 @@ class PassthroughProvider(Provider):
         if self._batch_engine:
             return self._batch_engine
         else:
-            engine_config = self.repo_config._batch_engine_config
+            engine_config = self.repo_config.batch_engine_config
             config_is_dict = False
             if isinstance(engine_config, str):
                 engine_config_type = engine_config
@@ -180,7 +180,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []

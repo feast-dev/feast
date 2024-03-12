@@ -66,10 +66,12 @@ def pg_registry():
     )
     logger.info("Waited for %s seconds until postgres container was up", waited)
     container_port = container.get_exposed_port(5432)
+    container_host = container.get_container_host_ip()
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
+        sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -91,7 +93,7 @@ def mysql_registry():
     container.start()
 
     # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.0.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
+    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '(\\d+(\\.\\d+){1,2})'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"  # noqa: W605
     waited = wait_for_logs(
         container=container,
         predicate=log_string_to_wait_for,
@@ -100,10 +102,12 @@ def mysql_registry():
     )
     logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
+    container_host = container.get_container_host_ip()
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"mysql+mysqldb://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{container_port}/{POSTGRES_DB}",
+        path=f"mysql+pymysql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
+        sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
     yield SqlRegistry(registry_config, "project", None)
@@ -214,6 +218,7 @@ def test_apply_feature_view_success(sql_registry):
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
+            Field(name="test", dtype=Int64),
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
@@ -309,6 +314,7 @@ def test_apply_on_demand_feature_view_success(sql_registry):
         entities=[driver()],
         ttl=timedelta(seconds=8640000000),
         schema=[
+            Field(name="driver_id", dtype=Int64),
             Field(name="daily_miles_driven", dtype=Float32),
             Field(name="lat", dtype=Float32),
             Field(name="lon", dtype=Float32),
@@ -399,7 +405,10 @@ def test_modify_feature_views_success(sql_registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+        ],
         entities=[entity],
         tags={"team": "matchmaking"},
         source=batch_source,
@@ -523,6 +532,7 @@ def test_apply_data_source(sql_registry):
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
+            Field(name="test", dtype=Int64),
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
@@ -592,6 +602,7 @@ def test_registry_cache(sql_registry):
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
+            Field(name="test", dtype=Int64),
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),

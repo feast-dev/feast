@@ -20,7 +20,11 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
             container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         exposed_port = self.container.get_exposed_port("6379")
-        return {"type": "redis", "connection_string": f"localhost:{exposed_port},db=0"}
+        container_host = self.container.get_container_host_ip()
+        return {
+            "type": "redis",
+            "connection_string": f"{container_host}:{exposed_port},db=0",
+        }
 
     def teardown(self):
         self.container.stop()

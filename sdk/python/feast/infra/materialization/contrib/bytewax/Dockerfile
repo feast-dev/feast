@@ -25,5 +25,5 @@ COPY README.md README.md
 # git dir to infer the version of feast we're installing.
 # https://github.com/pypa/setuptools_scm#usage-from-docker
 # I think it also assumes that this dockerfile is being built from the root of the directory.
-RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir -e '.[aws,gcp,bytewax]'
+RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir '.[aws,gcp,bytewax,snowflake,postgres]'
 

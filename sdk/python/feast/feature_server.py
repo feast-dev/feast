@@ -1,9 +1,12 @@
 import json
+import threading
 import traceback
 import warnings
+from typing import List, Optional
 
 import gunicorn.app.base
 import pandas as pd
+from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
@@ -11,7 +14,7 @@ from google.protobuf.json_format import MessageToDict, Parse
 from pydantic import BaseModel
 
 import feast
-from feast import proto_json
+from feast import proto_json, utils
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
@@ -31,13 +34,47 @@ class PushFeaturesRequest(BaseModel):
     to: str = "online"
 
 
-def get_app(store: "feast.FeatureStore"):
+class MaterializeRequest(BaseModel):
+    start_ts: str
+    end_ts: str
+    feature_views: Optional[List[str]] = None
+
+
+class MaterializeIncrementalRequest(BaseModel):
+    end_ts: str
+    feature_views: Optional[List[str]] = None
+
+
+def get_app(store: "feast.FeatureStore", registry_ttl_sec: int = 5):
     proto_json.patch()
 
     app = FastAPI()
+    # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
+    registry_proto = None
+    shutting_down = False
+    active_timer: Optional[threading.Timer] = None
 
     async def get_body(request: Request):
         return await request.body()
+
+    def async_refresh():
+        store.refresh_registry()
+        nonlocal registry_proto
+        registry_proto = store.registry.proto()
+        if shutting_down:
+            return
+        nonlocal active_timer
+        active_timer = threading.Timer(registry_ttl_sec, async_refresh)
+        active_timer.start()
+
+    @app.on_event("shutdown")
+    def shutdown_event():
+        nonlocal shutting_down
+        shutting_down = True
+        if active_timer:
+            active_timer.cancel()
+
+    async_refresh()
 
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
@@ -134,12 +171,43 @@ def get_app(store: "feast.FeatureStore"):
     def health():
         return Response(status_code=status.HTTP_200_OK)
 
+    @app.post("/materialize")
+    def materialize(body=Depends(get_body)):
+        try:
+            request = MaterializeRequest(**json.loads(body))
+            store.materialize(
+                utils.make_tzaware(parser.parse(request.start_ts)),
+                utils.make_tzaware(parser.parse(request.end_ts)),
+                request.feature_views,
+            )
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/materialize-incremental")
+    def materialize_incremental(body=Depends(get_body)):
+        try:
+            request = MaterializeIncrementalRequest(**json.loads(body))
+            store.materialize_incremental(
+                utils.make_tzaware(parser.parse(request.end_ts)), request.feature_views
+            )
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
     return app
 
 
 class FeastServeApplication(gunicorn.app.base.BaseApplication):
     def __init__(self, store: "feast.FeatureStore", **options):
-        self._app = get_app(store=store)
+        self._app = get_app(
+            store=store,
+            registry_ttl_sec=options.get("registry_ttl_sec", 5),
+        )
         self._options = options
         super().__init__()
 
@@ -161,6 +229,7 @@ def start_server(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
+    registry_ttl_sec: int = 5,
 ):
     FeastServeApplication(
         store=store,
@@ -168,4 +237,5 @@ def start_server(
         accesslog=None if no_access_log else "-",
         workers=workers,
         keepalive=keep_alive_timeout,
+        registry_ttl_sec=registry_ttl_sec,
     ).run()

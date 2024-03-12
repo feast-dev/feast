@@ -21,6 +21,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -30,7 +31,6 @@ from typing import (
 import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
-from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
@@ -43,6 +43,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 try:
     from redis import Redis
     from redis.cluster import ClusterNode, RedisCluster
+    from redis.sentinel import Sentinel
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -54,6 +55,7 @@ logger = logging.getLogger(__name__)
 class RedisType(str, Enum):
     redis = "redis"
     redis_cluster = "redis_cluster"
+    redis_sentinel = "redis_sentinel"
 
 
 class RedisOnlineStoreConfig(FeastConfigBaseModel):
@@ -64,6 +66,9 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
     redis_type: RedisType = RedisType.redis
     """Redis type: redis or redis_cluster"""
+
+    sentinel_master: StrictStr = "mymaster"
+    """Sentinel's master name"""
 
     connection_string: StrictStr = "localhost:6379"
     """Connection string containing the host, port, and configuration parameters for Redis
@@ -101,6 +106,39 @@ class RedisOnlineStore(OnlineStore):
 
         logger.debug(f"Deleted {deleted_count} rows for entity {', '.join(join_keys)}")
 
+    def delete_table(self, config: RepoConfig, table: FeatureView):
+        """
+        Delete all rows in Redis for a specific feature view
+
+        Args:
+            config: Feast config
+            table: Feature view to delete
+        """
+        client = self._get_client(config.online_store)
+        deleted_count = 0
+        prefix = _redis_key_prefix(table.join_keys)
+
+        redis_hash_keys = [_mmh3(f"{table.name}:{f.name}") for f in table.features]
+        redis_hash_keys.append(bytes(f"_ts:{table.name}", "utf8"))
+
+        with client.pipeline(transaction=False) as pipe:
+            for _k in client.scan_iter(
+                b"".join([prefix, b"*", config.project.encode("utf8")])
+            ):
+                _tables = {
+                    _hk[4:] for _hk in client.hgetall(_k) if _hk.startswith(b"_ts:")
+                }
+                if bytes(table.name, "utf8") not in _tables:
+                    continue
+                if len(_tables) == 1:
+                    pipe.delete(_k)
+                else:
+                    pipe.hdel(_k, *redis_hash_keys)
+                deleted_count += 1
+            pipe.execute()
+
+        logger.debug(f"Deleted {deleted_count} rows for feature view {table.name}")
+
     @log_exceptions_and_usage(online_store="redis")
     def update(
         self,
@@ -112,16 +150,19 @@ class RedisOnlineStore(OnlineStore):
         partial: bool,
     ):
         """
-        Look for join_keys (list of entities) that are not in use anymore
-        (usually this happens when the last feature view that was using specific compound key is deleted)
-        and remove all features attached to this "join_keys".
+        Delete data from feature views that are no longer in use.
+
+        Args:
+            config: Feast config
+            tables_to_delete: Feature views to delete
+            tables_to_keep: Feature views to keep
+            entities_to_delete: Entities to delete
+            entities_to_keep: Entities to keep
+            partial: Whether to do a partial update
         """
-        join_keys_to_keep = set(tuple(table.join_keys) for table in tables_to_keep)
 
-        join_keys_to_delete = set(tuple(table.join_keys) for table in tables_to_delete)
-
-        for join_keys in join_keys_to_delete - join_keys_to_keep:
-            self.delete_entity_values(config, list(join_keys))
+        for table in tables_to_delete:
+            self.delete_table(config, table)
 
     def teardown(
         self,
@@ -178,6 +219,15 @@ class RedisOnlineStore(OnlineStore):
                     ClusterNode(**node) for node in startup_nodes
                 ]
                 self._client = RedisCluster(**kwargs)
+            elif online_store_config.redis_type == RedisType.redis_sentinel:
+                sentinel_hosts = []
+
+                for item in startup_nodes:
+                    sentinel_hosts.append((item["host"], int(item["port"])))
+
+                sentinel = Sentinel(sentinel_hosts, **kwargs)
+                master = sentinel.master_for(online_store_config.sentinel_master)
+                self._client = master
             else:
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]

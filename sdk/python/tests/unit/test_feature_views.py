@@ -1,6 +1,8 @@
+import copy
 from datetime import timedelta
 
 import pytest
+from typeguard import TypeCheckError
 
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
@@ -10,6 +12,9 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
@@ -275,5 +280,43 @@ def test_hash():
 
 
 def test_field_types():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         Field(name="name", dtype=ValueType.INT32)
+
+
+def test_stream_feature_view_proto_type():
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+    sfv = StreamFeatureView(
+        name="test stream featureview proto class",
+        entities=[],
+        ttl=timedelta(days=30),
+        source=stream_source,
+        aggregations=[],
+    )
+    assert sfv.proto_class is StreamFeatureViewProto
+
+
+def test_stream_feature_view_copy():
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+    sfv = StreamFeatureView(
+        name="test stream featureview proto class",
+        entities=[],
+        ttl=timedelta(days=30),
+        source=stream_source,
+        aggregations=[],
+    )
+    assert sfv == copy.copy(sfv)

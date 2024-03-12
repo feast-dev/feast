@@ -1,5 +1,7 @@
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
+import pyarrow
+from packaging import version
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
 from pyarrow.parquet import ParquetDataset
@@ -158,7 +160,13 @@ class FileSource(DataSource):
         # Adding support for different file format path
         # based on S3 filesystem
         if filesystem is None:
-            schema = ParquetDataset(path).schema
+            kwargs = (
+                {"use_legacy_dataset": False}
+                if version.parse(pyarrow.__version__) < version.parse("15.0.0")
+                else {}
+            )
+
+            schema = ParquetDataset(path, **kwargs).schema
             if hasattr(schema, "names") and hasattr(schema, "types"):
                 # Newer versions of pyarrow doesn't have this method,
                 # but this field is good enough.
@@ -183,7 +191,7 @@ class FileSource(DataSource):
             return None, path
 
     def get_table_query_string(self) -> str:
-        pass
+        raise NotImplementedError
 
 
 class FileOptions:
