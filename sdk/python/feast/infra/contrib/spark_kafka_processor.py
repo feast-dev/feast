@@ -182,6 +182,11 @@ class SparkKafkaProcessor(StreamProcessor):
         if isinstance(self.sfv, FeatureView):
             drop_list: List[str] = []
             fv_schema: Set[str] = set(map(lambda field: field.name, self.sfv.schema))
+            # Add timestamp field to the schema so we don't delete from dataframe
+            if isinstance(self.sfv, StreamFeatureView):
+                fv_schema.add(self.sfv.timestamp_field)
+            else:
+                fv_schema.add(self.sfv.stream_source.timestamp_field)
             for column in df.columns:
                 if column not in fv_schema:
                     drop_list.append(column)

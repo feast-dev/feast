@@ -1498,12 +1498,14 @@ class FeatureStore:
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
+        # In EG, we use feature view to support streaming and http registry is not implemented for stream feature views
+        # HTTP Registry raises MethodNotImplementedError for get_stream_feature_view
         try:
-            feature_view = self.get_stream_feature_view(
+            feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
+            feature_view = self.get_stream_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         provider = self._get_provider()
@@ -1663,9 +1665,9 @@ class FeatureStore:
 
             return self._go_server.get_online_features(
                 features_refs=features if isinstance(features, list) else [],
-                feature_service=features
-                if isinstance(features, FeatureService)
-                else None,
+                feature_service=(
+                    features if isinstance(features, FeatureService) else None
+                ),
                 entities=entity_native_values,
                 request_data={},  # TODO: add request data parameter to public API
                 full_feature_names=full_feature_names,
@@ -2093,9 +2095,11 @@ class FeatureStore:
         """
         # Add the feature names to the response.
         requested_feature_refs = [
-            f"{table.projection.name_to_use()}__{feature_name}"
-            if full_feature_names
-            else feature_name
+            (
+                f"{table.projection.name_to_use()}__{feature_name}"
+                if full_feature_names
+                else feature_name
+            )
             for feature_name in requested_features
         ]
         online_features_response.metadata.feature_names.val.extend(
