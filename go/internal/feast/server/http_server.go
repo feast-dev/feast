@@ -158,6 +158,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		var err error
 		status, err = strconv.ParseBool(statusQuery)
 		if err != nil {
+			log.Error().Err(err).Msg("Error parsing status query parameter")
 			http.Error(w, fmt.Sprintf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
 			return
 		}
@@ -167,6 +168,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var request getOnlineFeaturesRequest
 	err := decoder.Decode(&request)
 	if err != nil {
+		log.Error().Err(err).Msg("Error decoding JSON request data")
 		http.Error(w, fmt.Sprintf("Error decoding JSON request data: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -174,6 +176,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if request.FeatureService != nil {
 		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
 		if err != nil {
+			log.Error().Err(err).Msg("Error getting feature service from registry")
 			http.Error(w, fmt.Sprintf("Error getting feature service from registry: %+v", err), http.StatusInternalServerError)
 			return
 		}
@@ -196,6 +199,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		request.FullFeatureNames)
 
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting feature vector")
 		http.Error(w, fmt.Sprintf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -237,6 +241,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(response)
 
 	if err != nil {
+		log.Error().Err(err).Msg("Error encoding response")
 		http.Error(w, fmt.Sprintf("Error encoding response: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -244,6 +249,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
 		logger, err := s.loggingService.GetOrCreateLogger(featureService)
 		if err != nil {
+			log.Error().Err(err).Msgf("Couldn't instantiate logger for feature service %s", featureService.Name)
 			http.Error(w, fmt.Sprintf("Couldn't instantiate logger for feature service %s: %+v", featureService.Name, err), http.StatusInternalServerError)
 			return
 		}
@@ -256,6 +262,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		for _, vector := range featureVectors[len(request.Entities):] {
 			values, err := types.ArrowValuesToProtoValues(vector.Values)
 			if err != nil {
+				log.Error().Err(err).Msg("Couldn't convert arrow values into protobuf")
 				http.Error(w, fmt.Sprintf("Couldn't convert arrow values into protobuf: %+v", err), http.StatusInternalServerError)
 				return
 			}
@@ -283,15 +290,18 @@ func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
 }
 
 func logStackTrace() {
-	// Create a buffer for storing the stack trace
-	const size = 4096
-	buf := make([]byte, size)
-
-	// Retrieve the stack trace and write it to the buffer
-	stackSize := runtime.Stack(buf, false)
-
-	// Log the stack trace using zerolog
-	log.Error().Str("stack_trace", string(buf[:stackSize])).Msg("")
+	// Start with a small buffer and grow it until the full stack trace fits.
+	buf := make([]byte, 1024)
+	for {
+		stackSize := runtime.Stack(buf, false)
+		if stackSize < len(buf) {
+			// The stack trace fits in the buffer, so we can log it now.
+			log.Error().Str("stack_trace", string(buf[:stackSize])).Msg("")
+			return
+		}
+		// The stack trace doesn't fit in the buffer, so we need to grow the buffer and try again.
+		buf = make([]byte, 2*len(buf))
+	}
 }
 
 func recoverMiddleware(next http.Handler) http.Handler {
@@ -299,7 +309,9 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("Panic recovered: %v", r)
+				// Log the stack trace
 				logStackTrace()
+
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()

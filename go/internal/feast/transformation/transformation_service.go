@@ -23,8 +23,8 @@ import (
 
 type GrpcTransformationService struct {
 	project string
-	conn *grpc.ClientConn
-	client *serving.TransformationServiceClient
+	conn    *grpc.ClientConn
+	client  *serving.TransformationServiceClient
 }
 
 func NewGrpcTransformationService(config *registry.RepoConfig, endpoint string) (*GrpcTransformationService, error) {
@@ -36,7 +36,7 @@ func NewGrpcTransformationService(config *registry.RepoConfig, endpoint string) 
 		return nil, err
 	}
 	client := serving.NewTransformationServiceClient(conn)
-	return &GrpcTransformationService{ config.Project, conn, &client }, nil
+	return &GrpcTransformationService{config.Project, conn, &client}, nil
 }
 
 func (s *GrpcTransformationService) Close() error {
@@ -64,11 +64,11 @@ func (s *GrpcTransformationService) GetTransformation(
 		inputColumns = append(inputColumns, arr)
 	}
 
-       inputSchema := arrow.NewSchema(inputFields, nil)
+	inputSchema := arrow.NewSchema(inputFields, nil)
 	inputRecord := array.NewRecord(inputSchema, inputColumns, int64(numRows))
 	defer inputRecord.Release()
 
-       recordValueWriter := new(ByteSliceWriter)
+	recordValueWriter := new(ByteSliceWriter)
 	arrowWriter, err := ipc.NewFileWriter(recordValueWriter, ipc.WithSchema(inputSchema))
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func ExtractTransformationResponse(
 	for idx, field := range outRecord.Schema().Fields() {
 		dropFeature := true
 
-               featureName := strings.Split(field.Name, "__")[1]
+		featureName := strings.Split(field.Name, "__")[1]
 		if featureView.Base.Projection != nil {
 
 			for _, feature := range featureView.Base.Projection.Features {
@@ -163,18 +163,18 @@ type ByteSliceWriter struct {
 }
 
 func (w *ByteSliceWriter) Write(p []byte) (n int, err error) {
-  minCap := int(w.offset) + len(p)
-  if minCap > cap(w.buf) { // Make sure buf has enough capacity:
-      buf2 := make([]byte, len(w.buf), minCap+len(p)) // add some extra
-      copy(buf2, w.buf)
-      w.buf = buf2
-  }
-  if minCap > len(w.buf) {
-      w.buf = w.buf[:minCap]
-  }
-  copy(w.buf[w.offset:], p)
-  w.offset += int64(len(p))
-  return len(p), nil
+	minCap := int(w.offset) + len(p)
+	if minCap > cap(w.buf) { // Make sure buf has enough capacity:
+		buf2 := make([]byte, len(w.buf), minCap+len(p)) // add some extra
+		copy(buf2, w.buf)
+		w.buf = buf2
+	}
+	if minCap > len(w.buf) {
+		w.buf = w.buf[:minCap]
+	}
+	copy(w.buf[w.offset:], p)
+	w.offset += int64(len(p))
+	return len(p), nil
 }
 
 func (w *ByteSliceWriter) Seek(offset int64, whence int) (int64, error) {

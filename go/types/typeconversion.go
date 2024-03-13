@@ -11,6 +11,9 @@ import (
 )
 
 func ProtoTypeToArrowType(sample *types.Value) (arrow.DataType, error) {
+	if sample.Val == nil {
+		return nil, nil
+	}
 	switch sample.Val.(type) {
 	case *types.Value_BytesVal:
 		return arrow.BinaryTypes.Binary, nil
@@ -92,7 +95,7 @@ func ValueTypeEnumToArrowType(t types.ValueType_Enum) (arrow.DataType, error) {
 
 func CopyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) error {
 	for _, value := range values {
-		if value == nil {
+		if value == nil || value.Val == nil {
 			builder.AppendNull()
 			continue
 		}
@@ -241,7 +244,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.PrimitiveTypes.Int32:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_Int32Val{Int32Val: arr.(*array.Int32).Value(idx)}})
 			}
@@ -249,7 +252,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.PrimitiveTypes.Int64:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_Int64Val{Int64Val: arr.(*array.Int64).Value(idx)}})
 			}
@@ -257,7 +260,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.PrimitiveTypes.Float32:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_FloatVal{FloatVal: arr.(*array.Float32).Value(idx)}})
 			}
@@ -265,7 +268,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.PrimitiveTypes.Float64:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_DoubleVal{DoubleVal: arr.(*array.Float64).Value(idx)}})
 			}
@@ -273,7 +276,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.FixedWidthTypes.Boolean:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_BoolVal{BoolVal: arr.(*array.Boolean).Value(idx)}})
 			}
@@ -281,7 +284,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.BinaryTypes.Binary:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_BytesVal{BytesVal: arr.(*array.Binary).Value(idx)}})
 			}
@@ -289,7 +292,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.BinaryTypes.String:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.String).Value(idx)}})
 			}
@@ -297,7 +300,7 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	case arrow.FixedWidthTypes.Timestamp_s:
 		for idx := 0; idx < arr.Len(); idx++ {
 			if arr.IsNull(idx) {
-				values = append(values, nil)
+				values = append(values, &types.Value{})
 			} else {
 				values = append(values, &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: int64(arr.(*array.Timestamp).Value(idx))}})
 			}
@@ -323,7 +326,9 @@ func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.A
 			if err != nil {
 				return nil, err
 			}
-			break
+			if fieldType != nil {
+				break
+			}
 		}
 	}
 
