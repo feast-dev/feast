@@ -39,7 +39,7 @@ except ImportError:
     from distutils.core import setup
 
 NAME = "feast"
-VERSION = "0.28+affirm186"
+VERSION = "0.28+affirm191"
 DESCRIPTION = "Python SDK for Feast @ Affirm"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -96,7 +96,7 @@ AWS_REQUIRED = ["boto3>=1.17.0,<=1.20.23", "docker>=5.0.2", "s3fs>=0.4.0,<=2022.
 BYTEWAX_REQUIRED = ["bytewax==0.13.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=2.7.3,<3",
+    "snowflake-connector-python[pandas]>=2.7.3",
     # `pyOpenSSL==22.1.0` requires `cryptography<39,>=38.0.0`, which is incompatible
     # with `snowflake-connector-python[pandas]==2.8.0`, which depends on
     # `cryptography<37.0.0,>=3.1.0`.
@@ -208,7 +208,7 @@ AFFIRM_REQUIRED = [
     "jsonschema",
     "mmh3",
     "pandavro==1.5.*",  # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "pyarrow>=4,<9",
+    "pyarrow>=14.0.2",
     "pydantic>=1,<2",
     "pygments>=2.12.0,<3",
     "SQLAlchemy[mypy]>1,<2",
