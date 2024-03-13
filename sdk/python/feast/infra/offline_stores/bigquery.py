@@ -539,6 +539,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def _execute_query(
         self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:
+        print(f"Executing query: {query}")
         bq_job = self.client.query(query, job_config=job_config)
 
         if job_config and job_config.dry_run:
