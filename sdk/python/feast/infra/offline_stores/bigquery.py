@@ -522,7 +522,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                     OPTIONS(
                         expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
                     )
-                    AS SELECT * FROM {temp_dest_table}
+                    AS SELECT * FROM `{temp_dest_table}`
                 """
                 self._execute_query(sql, timeout=timeout)
 
