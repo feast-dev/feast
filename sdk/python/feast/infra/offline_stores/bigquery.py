@@ -522,7 +522,7 @@ class BigQueryRetrievalJob(RetrievalJob):
                     OPTIONS(
                         expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
                     )
-                    AS SELECT * FROM {temp_dest_table}
+                    AS SELECT * FROM `{temp_dest_table}`
                 """
                 self._execute_query(sql, timeout=timeout)
 
@@ -539,6 +539,7 @@ class BigQueryRetrievalJob(RetrievalJob):
     def _execute_query(
         self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:
+        print(f"Executing query: {query}")
         bq_job = self.client.query(query, job_config=job_config)
 
         if job_config and job_config.dry_run:
