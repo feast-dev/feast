@@ -14,6 +14,7 @@ import (
 	"github.com/apache/arrow/go/v8/arrow/memory"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -45,6 +46,9 @@ func AugmentResponseWithOnDemandTransforms(
 	fullFeatureNames bool,
 
 ) ([]*onlineserving.FeatureVector, error) {
+	span, _ := tracer.StartSpanFromContext(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
+	defer span.Finish()
+
 	result := make([]*onlineserving.FeatureVector, 0)
 	var err error
 
