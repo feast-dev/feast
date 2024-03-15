@@ -16,47 +16,54 @@
  */
 package feast.serving.it;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.*;
-import com.google.cloud.storage.testing.RemoteStorageHelper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
 import feast.proto.core.RegistryProto;
 import feast.serving.service.config.ApplicationProperties;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 
 public class ServingRedisGSRegistryIT extends ServingBaseTests {
-  static Storage storage =
-      RemoteStorageHelper.create()
-          .getOptions()
-          .toBuilder()
-          .setProjectId(System.getProperty("GCP_PROJECT", "kf-feast"))
-          .build()
-          .getService();
 
-  static final String bucket = RemoteStorageHelper.generateBucketName();
+  private static final String TEST_PROJECT = "test-project";
+  private static final String TEST_BUCKET = "test-bucket";
+  private static final BlobId blobId = BlobId.of(TEST_BUCKET, "registry.db");;
+  private static final int GCS_PORT = 4443;
 
-  static void putToStorage(BlobId blobId, RegistryProto.Registry registry) {
-    storage.create(BlobInfo.newBuilder(blobId).build(), registry.toByteArray());
+  @Container
+  static final GenericContainer<?> gcsMock =
+      new GenericContainer<>("fsouza/fake-gcs-server")
+          .withExposedPorts(GCS_PORT)
+          .withCreateContainerCmdModifier(
+              cmd -> cmd.withEntrypoint("/bin/fake-gcs-server", "-scheme", "http"));
 
-    assertArrayEquals(storage.get(blobId).getContent(), registry.toByteArray());
+  public static final AccessToken credential = new AccessToken("test-token", null);
+
+  static void putToStorage(RegistryProto.Registry registry) {
+    Storage gcsClient = createClient();
+
+    gcsClient.create(BlobInfo.newBuilder(blobId).build(), registry.toByteArray());
   }
-
-  static BlobId blobId;
 
   @BeforeAll
   static void setUp() {
-    storage.create(BucketInfo.of(bucket));
-    blobId = BlobId.of(bucket, "registry.db");
+    Storage gcsClient = createClient();
+    gcsClient.create(BucketInfo.of(TEST_BUCKET));
 
-    putToStorage(blobId, registryProto);
+    putToStorage(registryProto);
   }
 
-  @AfterAll
-  static void tearDown() throws ExecutionException, InterruptedException {
-    RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
+  private static Storage createClient() {
+    return StorageOptions.newBuilder()
+        .setProjectId(TEST_PROJECT)
+        .setCredentials(ServiceAccountCredentials.create(credential))
+        .setHost("http://localhost:" + gcsMock.getMappedPort(GCS_PORT))
+        .build()
+        .getService();
   }
 
   @Override
@@ -71,6 +78,21 @@ public class ServingRedisGSRegistryIT extends ServingBaseTests {
 
   @Override
   void updateRegistryFile(RegistryProto.Registry registry) {
-    putToStorage(blobId, registry);
+    putToStorage(registry);
+  }
+
+  @Override
+  AbstractModule registryConfig() {
+    return new AbstractModule() {
+      @Provides
+      Storage googleStorage(ApplicationProperties applicationProperties) {
+        return StorageOptions.newBuilder()
+            .setProjectId(TEST_PROJECT)
+            .setCredentials(ServiceAccountCredentials.create(credential))
+            .setHost("http://localhost:" + gcsMock.getMappedPort(GCS_PORT))
+            .build()
+            .getService();
+      }
+    };
   }
 }
