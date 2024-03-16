@@ -17,6 +17,9 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
+from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
+from feast.on_demand_python_transformation import OnDemandPythonTransformation
+from feast.on_demand_substrait_transformation import OnDemandSubstraitTransformation
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -26,13 +29,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandSource,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
+    FeatureTransformation as FeatureTransformationProto,
+    OnDemandSubstraitTransformation as OnDemandSubstraitTransformationProto,
 )
-from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
-)
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     feast_value_type_to_python_type,
@@ -93,9 +92,7 @@ class OnDemandFeatureView(BaseFeatureView):
         mode: str = "pandas",
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        feature_transformation: Optional[
-            Union[PandasTransformation, SubstraitTransformation]
-        ] = None,
+        transformation: Optional[Union[OnDemandPandasTransformation, OnDemandPythonTransformation]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -131,10 +128,13 @@ class OnDemandFeatureView(BaseFeatureView):
         if not feature_transformation:
             if udf:
                 warnings.warn(
-                    "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) instead.",
+                    "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) or OnDemandPythonTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                feature_transformation = PandasTransformation(udf, udf_string)
+                if isinstance(inspect.signature(self.transformation.udf).return_annotation, pd.DataFrame):
+                    transformation = OnDemandPandasTransformation(udf, udf_string)
+                else:
+                    transformation = OnDemandPythonTransformation(udf, udf_string)
             else:
                 raise Exception(
                     "OnDemandFeatureView needs to be initialized with either transformation or udf arguments"
@@ -225,25 +225,20 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        feature_transformation = FeatureTransformationProto(
-            user_defined_function=self.feature_transformation.to_proto()
-            if isinstance(self.feature_transformation, PandasTransformation)
+        # udf_type = inspect.signature(self.transformation.udf).return_annotation
+        transformation = FeatureTransformationProto(
+            user_defined_function=self.transformation.to_proto()
+            if type(self.transformation) in [OnDemandPandasTransformation, OnDemandPythonTransformation]
             else None,
-            substrait_transformation=self.feature_transformation.to_proto()
-            if isinstance(self.feature_transformation, SubstraitTransformation)
+            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
+            if type(self.transformation) == OnDemandSubstraitTransformationProto
             else None,
         )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            transformation=self.transformation,
-            # transformation=self.transformation.to_proto()
-            # if type(self.transformation) == OnDemandPandasTransformation
-            # else None,
-            # on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
-            # if type(self.transformation) == OnDemandSubstraitTransformation
-            # else None,
+            transformation=transformation,
             mode=self.mode,
             description=self.description,
             tags=self.tags,
