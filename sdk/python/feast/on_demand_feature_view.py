@@ -27,6 +27,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewSpec,
     OnDemandSource,
 )
+from feast.protos.feast.core.Transformation_pb2 import (
+    FeatureTransformation as FeatureTransformationProto,
+)
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -205,16 +208,19 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        feature_transformation = FeatureTransformationProto(
+            user_defined_function=self.transformation.to_proto()
+            if type(self.transformation) == OnDemandPandasTransformation
+            else None,
+            on_demand_substrait_transformation=self.transformation.to_proto()
+            if type(self.transformation) == OnDemandSubstraitTransformation
+            else None,  # type: ignore
+        )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandPandasTransformation
-            else None,
-            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
-            if type(self.transformation) == OnDemandSubstraitTransformation
-            else None,
+            transformation=feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -258,14 +264,14 @@ class OnDemandFeatureView(BaseFeatureView):
             == "user_defined_function"
         ):
             transformation = OnDemandPandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.user_defined_function
+                on_demand_feature_view_proto.spec.transformation.user_defined_function
             )
         elif (
             on_demand_feature_view_proto.spec.WhichOneof("transformation")
             == "on_demand_substrait_transformation"
         ):
             transformation = OnDemandSubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.on_demand_substrait_transformation
+                on_demand_feature_view_proto.spec.transformation.on_demand_substrait_transformation
             )
         else:
             raise Exception("At least one transformation type needs to be provided")

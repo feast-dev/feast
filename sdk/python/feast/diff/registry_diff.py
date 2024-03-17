@@ -147,8 +147,8 @@ def diff_registry_objects(
                 if _field.name == "user_defined_function":
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
-                    current_udf = current_spec.user_defined_function
-                    new_udf = new_spec.user_defined_function
+                    current_udf = current_spec.transformation.user_defined_function
+                    new_udf = new_spec.transformation.user_defined_function
                     for _udf_field in current_udf.DESCRIPTOR.fields:
                         if _udf_field.name == "body":
                             continue
