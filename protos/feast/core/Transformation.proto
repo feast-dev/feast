@@ -8,7 +8,7 @@ option java_package = "feast.proto.core";
 import "google/protobuf/duration.proto";
 
 // Serialized representation of python function.
-message UserDefinedFunctionV2 {
+message UserDefinedFunction {
     // The function name
     string name = 1;
 
@@ -19,15 +19,13 @@ message UserDefinedFunctionV2 {
     string body_text = 3;
 }
 
-// A feature transformation executed as a user-defined function
-message FeatureTransformationV2 {
-  // Note this Transformation starts at 5 for backwards compatibility
+message FeatureTransformation {
   oneof transformation {
-    UserDefinedFunctionV2 user_defined_function = 1;
-    OnDemandSubstraitTransformationV2 on_demand_substrait_transformation = 2;
+    UserDefinedFunction user_defined_function = 1;
+    OnDemandSubstraitTransformation on_demand_substrait_transformation = 2;
   }
 }
 
-message OnDemandSubstraitTransformationV2 {
+message OnDemandSubstraitTransformation {
   bytes substrait_plan = 1;
 }
