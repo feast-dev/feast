@@ -1,0 +1,31 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "FeatureTransformationProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/duration.proto";
+
+// Serialized representation of python function.
+message UserDefinedFunction {
+    // The function name
+    string name = 1;
+
+    // The python-syntax function body (serialized by dill)
+    bytes body = 2;
+
+    // The string representation of the udf
+    string body_text = 3;
+}
+
+message FeatureTransformation {
+  oneof transformation {
+    UserDefinedFunction user_defined_function = 1;
+    OnDemandSubstraitTransformation on_demand_substrait_transformation = 2;
+  }
+}
+
+message OnDemandSubstraitTransformation {
+  bytes substrait_plan = 1;
+}

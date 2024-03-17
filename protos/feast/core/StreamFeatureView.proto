@@ -29,6 +29,7 @@ import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Aggregation.proto";
+import "feast/core/Transformation.proto";
 
 message StreamFeatureView {
     // User-specified specifications of this feature view.
