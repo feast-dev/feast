@@ -30,6 +30,8 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 )
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformation as FeatureTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
     OnDemandSubstraitTransformation as OnDemandSubstraitTransformationProto,
 )
 from feast.type_map import (
@@ -92,7 +94,9 @@ class OnDemandFeatureView(BaseFeatureView):
         mode: str = "pandas",
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        transformation: Optional[Union[OnDemandPandasTransformation, OnDemandPythonTransformation]] = None,
+        transformation: Optional[
+            Union[OnDemandPandasTransformation, OnDemandPythonTransformation]
+        ] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -131,7 +135,10 @@ class OnDemandFeatureView(BaseFeatureView):
                     "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) or OnDemandPythonTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                if isinstance(inspect.signature(self.transformation.udf).return_annotation, pd.DataFrame):
+                if isinstance(
+                    inspect.signature(self.transformation.udf).return_annotation,
+                    pd.DataFrame,
+                ):
                     transformation = OnDemandPandasTransformation(udf, udf_string)
                 else:
                     transformation = OnDemandPythonTransformation(udf, udf_string)
@@ -228,7 +235,8 @@ class OnDemandFeatureView(BaseFeatureView):
         # udf_type = inspect.signature(self.transformation.udf).return_annotation
         transformation = FeatureTransformationProto(
             user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) in [OnDemandPandasTransformation, OnDemandPythonTransformation]
+            if type(self.transformation)
+            in [OnDemandPandasTransformation, OnDemandPythonTransformation]
             else None,
             on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
             if type(self.transformation) == OnDemandSubstraitTransformationProto
@@ -743,7 +751,7 @@ def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
     bfv.entities = copy.copy(fv.entities)
     return bfv
 
+
 def _empty_odfv_udf_fn(x: Any) -> Any:
     # just an identity mapping, otherwise we risk tripping some downstream tests
     return x
-
