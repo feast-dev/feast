@@ -3,7 +3,7 @@ import pyarrow
 import pyarrow.substrait as substrait  # type: ignore # noqa
 
 from feast.protos.feast.core.Transformation_pb2 import (
-    OnDemandSubstraitTransformationV2 as OnDemandSubstraitTransformationProto,
+    OnDemandSubstraitTransformation as OnDemandSubstraitTransformationProto,
 )
 
 

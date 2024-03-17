@@ -28,10 +28,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandSource,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+    FeatureTransformation as FeatureTransformationProto,
 )
 from feast.type_map import (
     feast_value_type_to_pandas_type,
@@ -229,7 +226,7 @@ class OnDemandFeatureView(BaseFeatureView):
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            feature_transformation=feature_transformation,
+            transformation=feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -277,7 +274,7 @@ class OnDemandFeatureView(BaseFeatureView):
             != ""
         ):
             transformation = OnDemandPandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
+                on_demand_feature_view_proto.spec.transformation.user_defined_function
             )
         elif (
             on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
@@ -286,20 +283,7 @@ class OnDemandFeatureView(BaseFeatureView):
             == "on_demand_substrait_transformation"
         ):
             transformation = OnDemandSubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.feature_transformation.on_demand_substrait_transformation
-            )
-        elif (
-            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
-            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
-            == ""
-        ):
-            backwards_compatible_udf = UserDefinedFunctionProto(
-                name=on_demand_feature_view_proto.spec.user_defined_function.name,
-                body=on_demand_feature_view_proto.spec.user_defined_function.body,
-                body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
-            )
-            transformation = OnDemandPandasTransformation.from_proto(
-                user_defined_function_proto=backwards_compatible_udf,
+                on_demand_feature_view_proto.spec.transformation.on_demand_substrait_transformation
             )
         else:
             raise Exception("At least one transformation type needs to be provided")

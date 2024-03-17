@@ -17,9 +17,6 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    UserDefinedFunction as UserDefinedFunctionProto,
-)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -27,10 +24,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureViewSpec as StreamFeatureViewSpecProto,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
-    FeatureTransformationV2 as FeatureTransformationProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProtoV2,
+    UserDefinedFunction as UserDefinedFunctionProto,
 )
 
 warnings.simplefilter("once", RuntimeWarning)

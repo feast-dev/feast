@@ -153,17 +153,8 @@ def diff_registry_objects(
                     )
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
-                    # Check if the old proto is populated and use that if it is
-                    deprecated_udf = current_spec.user_defined_function
-                    feature_transformation_udf = (
-                        current_spec.feature_transformation.user_defined_function
-                    )
-                    current_udf = (
-                        deprecated_udf
-                        if deprecated_udf.body_text != ""
-                        else feature_transformation_udf
-                    )
-                    new_udf = new_spec.feature_transformation.user_defined_function
+                    current_udf = current_spec.transformation.user_defined_function
+                    new_udf = new_spec.transformation.user_defined_function
                     for _udf_field in current_udf.DESCRIPTOR.fields:
                         if _udf_field.name == "body":
                             continue
