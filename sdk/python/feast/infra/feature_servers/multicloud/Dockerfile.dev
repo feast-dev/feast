@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.9
 
 # Input the feast version to install
 # This requires feast package to be available in pypi before building this image
