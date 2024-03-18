@@ -266,9 +266,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         if (
-            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
-                "transformation"
-            )
+            on_demand_feature_view_proto.spec.transformation.WhichOneof("transformation")
             == "user_defined_function"
             and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
             != ""
@@ -277,9 +275,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 on_demand_feature_view_proto.spec.transformation.user_defined_function
             )
         elif (
-            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
-                "transformation"
-            )
+            on_demand_feature_view_proto.spec.transformation.WhichOneof("transformation")
             == "on_demand_substrait_transformation"
         ):
             transformation = OnDemandSubstraitTransformation.from_proto(
