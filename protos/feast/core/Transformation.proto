@@ -19,10 +19,12 @@ message UserDefinedFunction {
     string body_text = 3;
 }
 
+// A feature transformation executed as a user-defined function
 message FeatureTransformation {
+  // Note this Transformation starts at 5 for backwards compatibility
   oneof transformation {
-    UserDefinedFunction user_defined_function = 1;
-    OnDemandSubstraitTransformation on_demand_substrait_transformation = 2;
+    UserDefinedFunction user_defined_function = 5;
+    OnDemandSubstraitTransformation on_demand_substrait_transformation = 6;
   }
 }
 
