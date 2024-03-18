@@ -44,7 +44,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "mypy-protobuf==3.1",
+    "mypy-protobuf>=3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -67,6 +67,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
+    # https://github.com/dask/dask/issues/10996
     "dask>=2021.1.0,<2024.3.0",
     "bowler",  # Needed for automatic repo upgrades
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
@@ -221,7 +222,7 @@ DOCS_REQUIRED = CI_REQUIRED.copy()
 for _r in MYSQL_REQUIRED:
     DOCS_REQUIRED.remove(_r)
 
-DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing~=1.0"] + CI_REQUIRED
+DEV_REQUIRED = ["grpcio-testing~=1.0"] + CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
@@ -399,7 +400,7 @@ setup(
         "setuptools_scm",
         "grpcio>=1.56.2,<2",
         "grpcio-tools>=1.56.2,<2",
-        "mypy-protobuf==3.1",
+        "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
     ],
     cmdclass={
