@@ -144,7 +144,7 @@ def diff_registry_objects(
             if _field.name in FIELDS_TO_IGNORE:
                 continue
             elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                if _field.name == "user_defined_function":
+                if _field.name == "transformation":
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
                     current_udf = current_spec.transformation.user_defined_function
