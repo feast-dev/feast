@@ -80,6 +80,7 @@ message StreamFeatureViewSpec {
     // Serialized function that is encoded in the streamfeatureview
     UserDefinedFunction user_defined_function = 13;
 
+
     // Mode of execution
     string mode = 14;
 
@@ -88,5 +89,8 @@ message StreamFeatureViewSpec {
 
     // Timestamp field for aggregation
     string timestamp_field = 16;
+
+    // Oneof with {user_defined_function, on_demand_substrait_transformation}
+    FeatureTransformation transformation = 17;
 }
 
