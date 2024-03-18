@@ -81,6 +81,7 @@ message StreamFeatureViewSpec {
     UserDefinedFunction user_defined_function = 13 [deprecated = true];
 
 
+
     // Mode of execution
     string mode = 14;
 
@@ -91,6 +92,6 @@ message StreamFeatureViewSpec {
     string timestamp_field = 16;
 
     // Oneof with {user_defined_function, on_demand_substrait_transformation}
-    FeatureTransformationV2 feature_transformation = 17;
+    FeatureTransformation transformation = 17;
 }
 
