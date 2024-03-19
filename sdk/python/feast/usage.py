@@ -40,20 +40,6 @@ _executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 _is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
 
-if sys.version_info >= (3, 9):
-    _md5 = hashlib.md5(
-        ",".join(
-            sorted([k for k in os.environ.keys() if not k.startswith("FEAST")])
-        ).encode(),
-        usedforsecurity=False,
-    ).hexdigest()
-else:
-    _md5 = hashlib.md5(
-        ",".join(
-            sorted([k for k in os.environ.keys() if not k.startswith("FEAST")])
-        ).encode()
-    ).hexdigest()
-
 _constant_attributes = {
     "project_id": "",
     "session_id": str(uuid.uuid4()),
@@ -61,7 +47,12 @@ _constant_attributes = {
     "version": get_version(),
     "python_version": platform.python_version(),
     "platform": platform.platform(),
-    "env_signature": _md5,
+    "env_signature": hashlib.md5(
+        ",".join(
+            sorted([k for k in os.environ.keys() if not k.startswith("FEAST")])
+        ).encode(),
+        usedforsecurity=False,
+    ).hexdigest(),
 }
 
 APPLICATION_NAME = "feast-dev/feast"
