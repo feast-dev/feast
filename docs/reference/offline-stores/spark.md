@@ -30,6 +30,8 @@ offline_store:
         spark.sql.catalogImplementation: "hive"
         spark.sql.parser.quotedRegexColumnNames: "true"
         spark.sql.session.timeZone: "UTC"
+        spark.sql.execution.arrow.fallback.enabled: "true"
+        spark.sql.execution.arrow.pyspark.enabled: "true"
 online_store:
     path: data/online_store.db
 ```
