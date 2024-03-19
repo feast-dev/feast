@@ -52,7 +52,6 @@ REQUIRED = [
     "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf>=4.24.0,<5.0.0",
-    "proto-plus>=1.20.0,<2",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -70,8 +69,6 @@ REQUIRED = [
     # https://github.com/dask/dask/issues/10996
     "dask>=2021.1.0,<2024.3.0",
     "bowler",  # Needed for automatic repo upgrades
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
 ]
@@ -163,11 +160,12 @@ CI_REQUIRED = (
         "black>=22.6.0,<23",
         "isort>=5,<6",
         "grpcio-testing>=1.56.2,<2",
+        # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+        "httpx>=0.23.3",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
         "mypy>=1.4.1",
-        "avro==1.10.0",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
@@ -215,14 +213,8 @@ CI_REQUIRED = (
     + GRPCIO_REQUIRED
 )
 
-
-# rtd builds fail because of mysql not being installed in their environment.
-# We can add mysql there, but it's not strictly needed. This will be faster for builds.
-DOCS_REQUIRED = CI_REQUIRED.copy()
-for _r in MYSQL_REQUIRED:
-    DOCS_REQUIRED.remove(_r)
-
-DEV_REQUIRED = ["grpcio-testing~=1.0"] + CI_REQUIRED
+DOCS_REQUIRED = CI_REQUIRED
+DEV_REQUIRED = CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
