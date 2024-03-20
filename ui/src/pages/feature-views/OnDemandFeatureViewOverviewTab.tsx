@@ -57,7 +57,7 @@ const OnDemandFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             <EuiCodeBlock language="py" fontSize="m" paddingSize="m">
-              {data?.spec?.transformation?.userDefinedFunction?.bodyText}
+              {data?.spec?.feature_transformation?.userDefinedFunction?.bodyText}
             </EuiCodeBlock>
           </EuiPanel>
         </EuiFlexItem>

@@ -49,8 +49,12 @@ message OnDemandFeatureViewSpec {
     // Map of sources for this feature view.
     map<string, OnDemandSource> sources = 4;
 
+    oneof transformation {
+        UserDefinedFunction user_defined_function = 5;
+        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9;
+    }
     // Oneof with {user_defined_function, on_demand_substrait_transformation}
-    FeatureTransformation transformation = 5;
+    FeatureTransformationV2 feature_transformation = 10;
 
     // Description of the on demand feature view.
     string description = 6;
@@ -60,7 +64,7 @@ message OnDemandFeatureViewSpec {
 
     // Owner of the on demand feature view.
     string owner = 8;
-    string mode = 9;
+    string mode = 11;
 }
 
 message OnDemandFeatureViewMeta {
@@ -77,4 +81,24 @@ message OnDemandSource {
         FeatureViewProjection feature_view_projection = 3;
         DataSource request_data_source = 2;
     }
+}
+
+// Serialized representation of python function.
+message UserDefinedFunction {
+    option deprecated = true;
+
+    // The function name
+    string name = 1;
+
+    // The python-syntax function body (serialized by dill)
+    bytes body = 2;
+
+    // The string representation of the udf
+    string body_text = 3;
+}
+
+message OnDemandSubstraitTransformation {
+    option deprecated = true;
+
+    bytes substrait_plan = 1;
 }
