@@ -139,11 +139,11 @@ def test_diff_odfv(simple_dataset_1):
         assert feast_object_diffs.feast_object_property_diffs[0].property_name == "name"
         assert (
             feast_object_diffs.feast_object_property_diffs[1].property_name
-            == "transformation.name"
+            == "feature_transformation.name"
         )
         assert (
             feast_object_diffs.feast_object_property_diffs[2].property_name
-            == "transformation.body_text"
+            == "feature_transformation.body_text"
         )
 
 

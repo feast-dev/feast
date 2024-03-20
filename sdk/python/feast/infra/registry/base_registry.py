@@ -662,8 +662,7 @@ class BaseRegistry(ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-
-            odfv_dict["spec"]["transformation"]["userDefinedFunction"][
+            odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
                 "body"
             ] = on_demand_feature_view.transformation.udf_string
             registry_dict["onDemandFeatureViews"].append(odfv_dict)

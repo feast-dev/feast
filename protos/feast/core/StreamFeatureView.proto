@@ -91,6 +91,6 @@ message StreamFeatureViewSpec {
     string timestamp_field = 16;
 
     // Oneof with {user_defined_function, on_demand_substrait_transformation}
-    FeatureTransformation transformation = 17;
+    FeatureTransformationV2 feature_transformation = 17;
 }
 

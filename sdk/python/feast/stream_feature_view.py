@@ -16,6 +16,9 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    UserDefinedFunction as UserDefinedFunctionProto,
+)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -23,7 +26,10 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureViewSpec as StreamFeatureViewSpecProto,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunction as UserDefinedFunctionProto,
+    FeatureTransformationV2 as FeatureTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProtoV2,
 )
 
 warnings.simplefilter("once", RuntimeWarning)
@@ -171,19 +177,30 @@ class StreamFeatureView(FeatureView):
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
 
-        udf_proto = None
+        udf_proto, feature_transformation = None, None
         if self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
                 body_text=self.udf_string,
             )
+            udf_proto_v2 = UserDefinedFunctionProtoV2(
+                name=self.udf.__name__,
+                body=dill.dumps(self.udf, recurse=True),
+                body_text=self.udf_string,
+            )
+
+            feature_transformation = FeatureTransformationProto(
+                user_defined_function=udf_proto_v2,
+            )
+
         spec = StreamFeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             entity_columns=[field.to_proto() for field in self.entity_columns],
             features=[field.to_proto() for field in self.schema],
             user_defined_function=udf_proto,
+            feature_transformation=feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,

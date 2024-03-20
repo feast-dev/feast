@@ -163,6 +163,27 @@ def diff_registry_objects(
                                     getattr(new_udf, _udf_field.name),
                                 )
                             )
+                elif _field.name == "feature_transformation":
+                    current_spec = cast(OnDemandFeatureViewSpec, current_spec)
+                    new_spec = cast(OnDemandFeatureViewSpec, new_spec)
+                    current_udf = (
+                        current_spec.feature_transformation.user_defined_function
+                    )
+                    new_udf = new_spec.feature_transformation.user_defined_function
+                    for _udf_field in current_udf.DESCRIPTOR.fields:
+                        if _udf_field.name == "body":
+                            continue
+                        if getattr(current_udf, _udf_field.name) != getattr(
+                            new_udf, _udf_field.name
+                        ):
+                            transition = TransitionType.UPDATE
+                            property_diffs.append(
+                                PropertyDiff(
+                                    _field.name + "." + _udf_field.name,
+                                    getattr(current_udf, _udf_field.name),
+                                    getattr(new_udf, _udf_field.name),
+                                )
+                            )
                 else:
                     transition = TransitionType.UPDATE
                     property_diffs.append(
