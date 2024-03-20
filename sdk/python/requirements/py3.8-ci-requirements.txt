@@ -59,7 +59,7 @@ backports-zoneinfo==0.2.1
     #   tzlocal
 beautifulsoup4==4.12.2
     # via nbconvert
-black==22.12.0
+black==24.3.0
     # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
