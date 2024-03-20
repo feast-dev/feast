@@ -382,8 +382,8 @@ def test_apply_on_demand_feature_view_success(sql_registry):
 @pytest.mark.parametrize(
     "sql_registry",
     [
-        # lazy_fixture("mysql_registry"),
-        # lazy_fixture("pg_registry"),
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("pg_registry"),
         lazy_fixture("sqlite_registry"),
     ],
 )
