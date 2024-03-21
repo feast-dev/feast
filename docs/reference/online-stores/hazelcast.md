@@ -2,17 +2,17 @@
 
 ## Description
 
-Hazelcast online store is in alpha development.
+The Hazelcast online store is in alpha development.
 
 The [Hazelcast](htpps://hazelcast.com) online store provides support for materializing feature values into a Hazelcast cluster for serving online features in real-time.
-In order to use Hazelcast as online store, you need to have a running Hazelcast cluster. You can create a cluster using Hazelcast Viridian Serverless. See this [getting started](https://hazelcast.com/get-started/) page for more details.
+In order to use Hazelcast as an online store, you need to have a running Hazelcast cluster. You can create a cluster using Hazelcast Viridian Serverless. See this [getting started](https://hazelcast.com/get-started/) page for more details.
 
 * Each feature view is mapped one-to-one to a specific Hazelcast IMap
 * This implementation inherits all strengths of Hazelcast such as high availability, fault-tolerance, and data distribution.
 * Secure TSL/SSL connection is supported by Hazelcast online store.
 * You can set TTL (Time-To-Live) setting for your features in Hazelcast cluster. 
 
-Each feature view corresponds to an IMap in Hazelcast cluster and the entries in that IMap corresponds to features of entities.
+Each feature view corresponds to an IMap in Hazelcast cluster and the entries in that IMap correspond to features of entities.
 Each feature value stored separately and can be retrieved individually.
 
 ## Getting started
@@ -33,6 +33,7 @@ online_store:
   cluster_members: ["localhost:5701"]
   key_ttl_seconds: 36000
 ```
+{% endcode %}
 
 ## Functionality Matrix
 

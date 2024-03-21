@@ -38,21 +38,20 @@ NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = ">=3.9.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "mypy-protobuf==3.1",
+    "mypy-protobuf>=3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<1.25",
     "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
-    "protobuf<4.23.4,>3.20",
-    "proto-plus>=1.20.0,<2",
+    "protobuf>=4.24.0,<5.0.0",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -67,10 +66,9 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn",
-    "dask>=2021.1.0",
+    # https://github.com/dask/dask/issues/10996
+    "dask>=2021.1.0,<2024.3.0",
     "bowler",  # Needed for automatic repo upgrades
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx>=0.23.3",
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
 ]
@@ -96,7 +94,7 @@ AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=3,<4",
+    "snowflake-connector-python[pandas]>=3.7,<4",
 ]
 
 SPARK_REQUIRED = [
@@ -162,11 +160,12 @@ CI_REQUIRED = (
         "black>=22.6.0,<23",
         "isort>=5,<6",
         "grpcio-testing>=1.56.2,<2",
+        # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+        "httpx>=0.23.3",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
         "mypy>=1.4.1",
-        "avro==1.10.0",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
@@ -194,7 +193,6 @@ CI_REQUIRED = (
         "types-setuptools",
         "types-tabulate",
         "virtualenv<20.24.2",
-        "pandas>=1.4.3,<2; python_version < '3.9'",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
@@ -215,14 +213,8 @@ CI_REQUIRED = (
     + GRPCIO_REQUIRED
 )
 
-
-# rtd builds fail because of mysql not being installed in their environment.
-# We can add mysql there, but it's not strictly needed. This will be faster for builds.
-DOCS_REQUIRED = CI_REQUIRED.copy()
-for _r in MYSQL_REQUIRED:
-    DOCS_REQUIRED.remove(_r)
-
-DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing~=1.0"] + CI_REQUIRED
+DOCS_REQUIRED = CI_REQUIRED
+DEV_REQUIRED = CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
@@ -392,7 +384,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
@@ -400,7 +392,7 @@ setup(
         "setuptools_scm",
         "grpcio>=1.56.2,<2",
         "grpcio-tools>=1.56.2,<2",
-        "mypy-protobuf==3.1",
+        "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
     ],
     cmdclass={

@@ -50,7 +50,8 @@ _constant_attributes = {
     "env_signature": hashlib.md5(
         ",".join(
             sorted([k for k in os.environ.keys() if not k.startswith("FEAST")])
-        ).encode()
+        ).encode(),
+        usedforsecurity=False,
     ).hexdigest(),
 }
 

@@ -59,7 +59,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.8"
+          python-version: "3.9"
           architecture: x64
       - name: Setup Node
         uses: actions/setup-node@v3
@@ -137,7 +137,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest,  macos-latest ]
-        python-version: [ "3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
