@@ -162,26 +162,32 @@ class IbisOfflineStore(OfflineStore):
 
             if full_feature_names:
                 fv_table = fv_table.rename(
-                    {f"{full_name_prefix}__{feature}": feature for feature in feature_refs}
+                    {
+                        f"{full_name_prefix}__{feature}": feature
+                        for feature in feature_refs
+                    }
                 )
 
-                feature_refs = [f"{full_name_prefix}__{feature}" for feature in feature_refs]
+                feature_refs = [
+                    f"{full_name_prefix}__{feature}" for feature in feature_refs
+                ]
 
             return (
                 fv_table,
                 feature_view.batch_source.timestamp_field,
-                feature_view.projection.join_key_map or {e.name: e.name for e in feature_view.entity_columns},
+                feature_view.projection.join_key_map
+                or {e.name: e.name for e in feature_view.entity_columns},
                 feature_refs,
-                feature_view.ttl
+                feature_view.ttl,
             )
 
         res = point_in_time_join(
             entity_table=entity_table,
-            feature_tables=[                
+            feature_tables=[
                 read_fv(feature_view, feature_refs, full_feature_names)
                 for feature_view in feature_views
             ],
-            event_timestamp_col=event_timestamp_col
+            event_timestamp_col=event_timestamp_col,
         )
 
         return IbisRetrievalJob(
@@ -217,8 +223,8 @@ class IbisOfflineStore(OfflineStore):
         table = table.select(*fields)
 
         # TODO get rid of this fix
-        if '__log_date' in table.columns:
-            table = table.drop('__log_date')
+        if "__log_date" in table.columns:
+            table = table.drop("__log_date")
 
         table = table.filter(
             ibis.and_(
@@ -255,7 +261,7 @@ class IbisOfflineStore(OfflineStore):
         else:
             kwargs = {}
 
-        #TODO always write to directory
+        # TODO always write to directory
         table.to_parquet(
             f"{destination.path}/{uuid.uuid4().hex}-{{i}}.parquet", **kwargs
         )
@@ -346,9 +352,9 @@ class IbisRetrievalJob(RetrievalJob):
 def point_in_time_join(
     entity_table: Table,
     feature_tables: List[Tuple[Table, str, Dict[str, str], List[str], timedelta]],
-    event_timestamp_col = 'event_timestamp' 
+    event_timestamp_col="event_timestamp",
 ):
-    #TODO handle ttl
+    # TODO handle ttl
     all_entities = [event_timestamp_col]
     for feature_table, timestamp_field, join_key_map, _, _ in feature_tables:
         all_entities.extend(join_key_map.values())
@@ -362,8 +368,16 @@ def point_in_time_join(
 
     acc_table = entity_table
 
-    for feature_table, timestamp_field, join_key_map, feature_refs, ttl in feature_tables:
-        predicates = [feature_table[k] == entity_table[v] for k, v in join_key_map.items()]
+    for (
+        feature_table,
+        timestamp_field,
+        join_key_map,
+        feature_refs,
+        ttl,
+    ) in feature_tables:
+        predicates = [
+            feature_table[k] == entity_table[v] for k, v in join_key_map.items()
+        ]
 
         predicates.append(
             feature_table[timestamp_field] <= entity_table[event_timestamp_col],
@@ -371,7 +385,8 @@ def point_in_time_join(
 
         if ttl:
             predicates.append(
-                feature_table[timestamp_field] >= entity_table[event_timestamp_col] - ibis.literal(ttl)
+                feature_table[timestamp_field]
+                >= entity_table[event_timestamp_col] - ibis.literal(ttl)
             )
 
         feature_table = feature_table.inner_join(
@@ -386,7 +401,9 @@ def point_in_time_join(
             .mutate(rn=ibis.row_number())
         )
 
-        feature_table = feature_table.filter(feature_table["rn"] == ibis.literal(0)).drop("rn")
+        feature_table = feature_table.filter(
+            feature_table["rn"] == ibis.literal(0)
+        ).drop("rn")
 
         select_cols = ["entity_row_id"]
         select_cols.extend(feature_refs)
@@ -401,6 +418,6 @@ def point_in_time_join(
 
         acc_table = acc_table.drop(s.endswith("_yyyy"))
 
-    acc_table = acc_table.drop('entity_row_id')
+    acc_table = acc_table.drop("entity_row_id")
 
     return acc_table
