@@ -14,9 +14,11 @@
 import os
 import time
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
+from testcontainers.core.container import DockerContainer
 
 from feast import FileSource
 from feast.data_format import ParquetFormat
@@ -60,10 +62,52 @@ def s3_registry() -> Registry:
     return Registry("project", registry_config, None)
 
 
+@pytest.fixture
+def minio_registry() -> Registry:
+    minio_user = "minio99"
+    minio_password = "minio123"
+    bucket_name = "test-bucket"
+
+    container: DockerContainer = (
+        DockerContainer("quay.io/minio/minio")
+        .with_exposed_ports(9000, 9001)
+        .with_env("MINIO_ROOT_USER", minio_user)
+        .with_env("MINIO_ROOT_PASSWORD", minio_password)
+        .with_command('server /data --console-address ":9001"')
+        .with_exposed_ports()
+    )
+
+    container.start()
+
+    exposed_port = container.get_exposed_port("9000")
+    container_host = container.get_container_host_ip()
+
+    container.exec(f"mkdir /data/{bucket_name}")
+
+    registry_config = RegistryConfig(
+        path=f"s3://{bucket_name}/registry.db", cache_ttl_seconds=600
+    )
+
+    mock_environ = {
+        "FEAST_S3_ENDPOINT_URL": f"http://{container_host}:{exposed_port}",
+        "AWS_ACCESS_KEY_ID": minio_user,
+        "AWS_SECRET_ACCESS_KEY": minio_password,
+    }
+
+    with mock.patch.dict(os.environ, mock_environ):
+        yield Registry("project", registry_config, None)
+
+    container.stop()
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    [
+        lazy_fixture("gcs_registry"),
+        lazy_fixture("s3_registry"),
+        lazy_fixture("minio_registry"),
+    ],
 )
 def test_apply_entity_integration(test_registry):
     entity = Entity(
@@ -106,7 +150,11 @@ def test_apply_entity_integration(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    [
+        lazy_fixture("gcs_registry"),
+        lazy_fixture("s3_registry"),
+        lazy_fixture("minio_registry"),
+    ],
 )
 def test_apply_feature_view_integration(test_registry):
     # Create Feature Views
@@ -183,7 +231,11 @@ def test_apply_feature_view_integration(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture("gcs_registry"), lazy_fixture("s3_registry")],
+    [
+        lazy_fixture("gcs_registry"),
+        lazy_fixture("s3_registry"),
+        lazy_fixture("minio_registry"),
+    ],
 )
 def test_apply_data_source_integration(test_registry: Registry):
     validate_registry_data_source_apply(test_registry)
