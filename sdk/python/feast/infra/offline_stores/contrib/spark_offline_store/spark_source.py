@@ -189,13 +189,11 @@ class SparkSource(DataSource):
         base_eq = super().__eq__(other)
         if not base_eq:
             return False
-        if self.table != other.table:
-            return False
-        if self.query != other.query:
-            return False
-        if self.path != other.path:
-            return False
-        return True
+        return (
+            self.table == other.table
+            and self.query == other.query
+            and self.path == other.path
+        )
 
     def __hash__(self):
         return super().__hash__()
