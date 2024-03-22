@@ -285,6 +285,14 @@ class OnDemandFeatureView(BaseFeatureView):
             transformation = OnDemandSubstraitTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.on_demand_substrait_transformation
             )
+        elif (
+            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            == ""
+        ):
+            transformation = OnDemandPandasTransformation.from_proto(
+                on_demand_feature_view_proto.spec.user_defined_function
+            )
         else:
             raise Exception("At least one transformation type needs to be provided")
 
