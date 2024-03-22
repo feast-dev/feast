@@ -30,6 +30,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2 as FeatureTransformationProto,
 )
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -290,8 +293,13 @@ class OnDemandFeatureView(BaseFeatureView):
             and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
             == ""
         ):
+            backwards_compatible_udf = UserDefinedFunctionProto(
+                name=on_demand_feature_view_proto.spec.user_defined_function.name,
+                body=on_demand_feature_view_proto.spec.user_defined_function.body,
+                body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
+            )
             transformation = OnDemandPandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.user_defined_function
+                user_defined_function_proto=backwards_compatible_udf,
             )
         else:
             raise Exception("At least one transformation type needs to be provided")
