@@ -23,8 +23,8 @@ message UserDefinedFunctionV2 {
 message FeatureTransformationV2 {
   // Note this Transformation starts at 5 for backwards compatibility
   oneof transformation {
-    UserDefinedFunctionV2 user_defined_function = 5;
-    OnDemandSubstraitTransformationV2 on_demand_substrait_transformation = 6;
+    UserDefinedFunctionV2 user_defined_function = 1;
+    OnDemandSubstraitTransformationV2 on_demand_substrait_transformation = 2;
   }
 }
 
