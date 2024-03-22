@@ -1,9 +1,10 @@
-import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union, cast
 
 import dill
+import numpy as np
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
@@ -33,8 +34,6 @@ from feast.utils import (
     _run_pyarrow_field_mapping,
 )
 
-logger = logging.getLogger(__name__)
-
 
 class SparkMaterializationEngineConfig(FeastConfigBaseModel):
     """Batch Materialization Engine config for spark engine"""
@@ -44,6 +43,10 @@ class SparkMaterializationEngineConfig(FeastConfigBaseModel):
 
     partitions: int = 0
     """Number of partitions to use when writing data to online store. If 0, no repartitioning is done"""
+
+    batch_size: int = 10000
+    """Batch size determines the number of rows to be written to the online store in a single batch per partitions.
+       To overwrite at each feature view level, set the tag 'batch_size' in the feature view definition."""
 
 
 @dataclass
@@ -181,8 +184,22 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                     self.repo_config.batch_engine.partitions
                 )
 
+            # Calculate batch_size per feature_view
+            feature_view_batch_size = (
+                self.repo_config.batch_engine.batch_size
+                if "batch_size" not in feature_view.tags
+                or feature_view.tags["batch_size"] is None
+                else int(feature_view.tags["batch_size"])
+            )
+
+            print(
+                f"INFO!!! Processing {feature_view.name} with {spark_df.count()} records, batch size {feature_view_batch_size}"
+            )
+
             spark_df.foreachPartition(
-                lambda x: _process_by_partition(x, spark_serialized_artifacts)
+                lambda x: _process_by_partition(
+                    x, spark_serialized_artifacts, feature_view_batch_size
+                )
             )
 
             return SparkMaterializationJob(
@@ -228,38 +245,66 @@ class _SparkSerializedArtifacts:
         return feature_view, online_store, repo_config
 
 
-def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArtifacts):
+def _process_by_partition(
+    rows,
+    spark_serialized_artifacts: _SparkSerializedArtifacts,
+    batch_size: int,
+):
     """Load pandas df to online store"""
 
-    # convert to pyarrow table
-    dicts = []
-    for row in rows:
-        dicts.append(row.asDict())
+    # def write_to_online_store_in_batches(batch_dict, batch_id):
+    def write_to_online_store_in_batches(batch_df: pd.DataFrame):
+        batch_id = batch_df.name
+        start_time = time.time()
+        # convert to pyarrow table
+        if batch_df.shape[0] == 0:
+            print("INFO!!! Dataframe has 0 records to process")
+            return
 
-    df = pd.DataFrame.from_records(dicts)
-    if df.shape[0] == 0:
-        logger.info("Dataframe has 0 records to process")
-        return
+        table = pyarrow.Table.from_pandas(batch_df)
 
-    table = pyarrow.Table.from_pandas(df)
+        # unserialize artifacts
+        (
+            feature_view,
+            online_store,
+            repo_config,
+        ) = spark_serialized_artifacts.unserialize()
 
-    # unserialize artifacts
-    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
+        if feature_view.batch_source.field_mapping is not None:
+            table = _run_pyarrow_field_mapping(
+                table, feature_view.batch_source.field_mapping
+            )
 
-    if feature_view.batch_source.field_mapping is not None:
-        table = _run_pyarrow_field_mapping(
-            table, feature_view.batch_source.field_mapping
+        join_key_to_value_type = {
+            entity.name: entity.dtype.to_value_type()
+            for entity in feature_view.entity_columns
+        }
+
+        rows_to_write = _convert_arrow_to_proto(
+            table, feature_view, join_key_to_value_type
+        )
+        online_store.online_write_batch(
+            repo_config,
+            feature_view,
+            rows_to_write,
+            lambda x: None,
+        )
+        end_time = time.time()
+        print(
+            f"INFO!!! Time taken to write batch {batch_id} is {int((end_time - start_time) * 1000)} milliseconds"
         )
 
-    join_key_to_value_type = {
-        entity.name: entity.dtype.to_value_type()
-        for entity in feature_view.entity_columns
-    }
-
-    rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
-    online_store.online_write_batch(
-        repo_config,
-        feature_view,
-        rows_to_write,
-        lambda x: None,
+    # Spark 3.3.0 or above supports toPandas() method. We are running on spark 3.2.2
+    pandas_dataframe = pd.DataFrame([row.asDict() for row in rows])
+    # TODO: For Pyspark applications, we should use py4j bridge to initialize loggers
+    # Temporarily using print to display logs
+    print(
+        f"INFO!!! Processing a partition with {pandas_dataframe.shape[0]} records and batch size {batch_size}"
     )
+
+    if "fs_batch" in pandas_dataframe.columns:
+        raise ValueError(
+            "Column 'fs_batch' is reserved by Feature Store. Please rename to avoid conflicts."
+        )
+    pandas_dataframe["fs_batch"] = np.arange(len(pandas_dataframe)) // batch_size
+    pandas_dataframe.groupby("fs_batch").apply(write_to_online_store_in_batches)

@@ -228,3 +228,4 @@ sdk/python/feast/binaries/
 /sdk/python/feast/test_open_api/
 
 venv39/*
+test.go

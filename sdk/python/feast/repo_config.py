@@ -211,6 +211,16 @@ class RepoConfig(FeastBaseModel):
                 self._offline_config = "redshift"
             elif data["provider"] == "azure":
                 self._offline_config = "mssql"
+            elif data["provider"] == "expedia":
+                spark_offline_config = {
+                    "type": "spark",
+                    "spark_conf": {
+                        "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
+                        "spark.sql.catalog.spark_catalog.type": "hive",
+                        "spark.sql.iceberg.handle-timestamp-without-timezone": "true",
+                    },
+                }
+                self._offline_config = spark_offline_config
 
         self._online_store = None
         if "online_store" in data:
@@ -224,12 +234,16 @@ class RepoConfig(FeastBaseModel):
                 self._online_config = "dynamodb"
             elif data["provider"] == "rockset":
                 self._online_config = "rockset"
+            elif data["provider"] == "expedia":
+                self._online_config = "redis"
 
         self._batch_engine = None
         if "batch_engine" in data:
             self._batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self._batch_engine_config = data["batch_engine_config"]
+        elif data["provider"] == "expedia":
+            self._batch_engine_config = "spark.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self._batch_engine_config = "local"
@@ -352,6 +366,8 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "datastore"
             elif values["provider"] == "aws":
                 values["online_store"]["type"] = "dynamodb"
+            elif values["provider"] == "expedia":
+                values["online_store"]["type"] = "redis"
 
         online_store_type = values["online_store"]["type"]
 
@@ -390,6 +406,8 @@ class RepoConfig(FeastBaseModel):
                 values["offline_store"]["type"] = "redshift"
             if values["provider"] == "azure":
                 values["offline_store"]["type"] = "mssql"
+            if values["provider"] == "expedia":
+                values["offline_store"]["type"] = "spark"
 
         offline_store_type = values["offline_store"]["type"]
 

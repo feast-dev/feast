@@ -1,5 +1,5 @@
 from types import MethodType
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Union
 
 import pandas as pd
 from pyspark import SparkContext
@@ -180,18 +180,9 @@ class SparkKafkaProcessor(StreamProcessor):
 
     def _construct_transformation_plan(self, df: StreamTable) -> StreamTable:
         if isinstance(self.sfv, FeatureView):
-            drop_list: List[str] = []
-            fv_schema: Set[str] = set(map(lambda field: field.name, self.sfv.schema))
-            # Add timestamp field to the schema so we don't delete from dataframe
-            if isinstance(self.sfv, StreamFeatureView):
-                fv_schema.add(self.sfv.timestamp_field)
-            else:
-                fv_schema.add(self.sfv.stream_source.timestamp_field)
-            for column in df.columns:
-                if column not in fv_schema:
-                    drop_list.append(column)
-            return df.drop(*drop_list)
-        return self.sfv.udf.__call__(df) if self.sfv.udf else df
+            return df
+        elif isinstance(self.sfv, StreamFeatureView):
+            return self.sfv.udf.__call__(df) if self.sfv.udf else df
 
     def _write_stream_data(self, df: StreamTable, to: PushMode):
         # Validation occurs at the fs.write_to_online_store() phase against the stream feature view schema.
@@ -209,7 +200,10 @@ class SparkKafkaProcessor(StreamProcessor):
                 .groupby(self.join_keys)
                 .nth(0)
             )
-            rows["created"] = pd.to_datetime("now", utc=True)
+            # Created column is not used anywhere in the code, but it is added to the dataframe.
+            # Expedia provider drops the unused columns from dataframe
+            # Commenting this out as it is not used anywhere in the code
+            # rows["created"] = pd.to_datetime("now", utc=True)
 
             # Reset indices to ensure the dataframe has all the required columns.
             rows = rows.reset_index()

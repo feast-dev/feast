@@ -13,6 +13,7 @@
 # limitations under the License.
 import copy
 import itertools
+import logging
 import os
 import warnings
 from collections import Counter, defaultdict
@@ -105,6 +106,8 @@ from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("ignore", DeprecationWarning)
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
@@ -2626,11 +2629,17 @@ def _print_materialization_log(
             f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
         )
+        logger.info(
+            f"Materializing {num_feature_views} feature views from {start_date.replace(microsecond=0).astimezone()} to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
+        )
     else:
         print(
             f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
             f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        )
+        logger.info(
+            f"Materializing {num_feature_views} feature views to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
         )
 
 

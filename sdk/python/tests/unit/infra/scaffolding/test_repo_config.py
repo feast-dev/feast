@@ -3,6 +3,13 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
+from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
+    SparkMaterializationEngineConfig,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+    SparkOfflineStoreConfig,
+)
+from feast.infra.online_stores.redis import RedisOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import FeastConfigError, load_repo_config
 
@@ -229,3 +236,24 @@ def test_invalid_project_name():
         ),
         expect_error="alphanumerical values ",
     )
+
+
+def test_repo_config_init_expedia_provider():
+    c = _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: expedia
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert c._registry_config == "registry.db"
+    assert c._offline_config["type"] == "spark"
+    assert c._online_config == "redis"
+    assert c._batch_engine_config == "spark.engine"
+    assert isinstance(c.online_store, RedisOnlineStoreConfig)
+    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
+    assert isinstance(c.offline_store, SparkOfflineStoreConfig)

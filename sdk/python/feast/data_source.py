@@ -462,9 +462,11 @@ class KafkaSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source)
-            if data_source.batch_source
-            else None,
+            batch_source=(
+                DataSource.from_proto(data_source.batch_source)
+                if data_source.batch_source
+                else None
+            ),
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -497,7 +499,10 @@ class KafkaSource(DataSource):
         return type_map.redshift_to_feast_value_type
 
     def get_table_query_string(self) -> str:
-        raise NotImplementedError
+        if self.batch_source:
+            return self.batch_source.get_table_query_string()
+        else:
+            raise ValueError("Define batch source for KafkaSource.")
 
 
 @typechecked
@@ -632,9 +637,11 @@ class KinesisSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source)
-            if data_source.batch_source
-            else None,
+            batch_source=(
+                DataSource.from_proto(data_source.batch_source)
+                if data_source.batch_source
+                else None
+            ),
         )
 
     @staticmethod

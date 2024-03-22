@@ -286,6 +286,8 @@ class HttpRegistry(BaseRegistry):
                     return RequestSourceModel.parse_obj(response_data).to_data_source()
                 elif response_data["model_type"] == "SparkSourceModel":
                     return SparkSourceModel.parse_obj(response_data).to_data_source()
+                elif response_data["model_type"] == "KafkaSourceModel":
+                    return KafkaSourceModel.parse_obj(response_data).to_data_source()
             logger.error(f"Unable to parse object with response: {response_data}")
             raise ValueError("Unable to parse object")
 
@@ -322,6 +324,17 @@ class HttpRegistry(BaseRegistry):
                     elif data_source["model_type"] == "SparkSourceModel":
                         data_source_list.append(
                             SparkSourceModel.parse_obj(data_source).to_data_source()
+                        )
+                    elif data_source["model_type"] == "KafkaSourceModel":
+                        data_source_list.append(
+                            KafkaSourceModel.parse_obj(data_source).to_data_source()
+                        )
+                    else:
+                        logger.error(
+                            f"Unable to parse model_type for data_source response: {data_source}"
+                        )
+                        raise ValueError(
+                            "Unable to parse object with data_source name: {data_source.name}"
                         )
 
             return data_source_list
