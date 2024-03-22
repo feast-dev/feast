@@ -78,7 +78,7 @@ message StreamFeatureViewSpec {
     bool online = 12;
 
     // Serialized function that is encoded in the streamfeatureview
-    UserDefinedFunction user_defined_function = 13;
+    UserDefinedFunction user_defined_function = 13 [deprecated = true];
 
 
     // Mode of execution

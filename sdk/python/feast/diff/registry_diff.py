@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
@@ -144,32 +145,23 @@ def diff_registry_objects(
             if _field.name in FIELDS_TO_IGNORE:
                 continue
             elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                if _field.name == "transformation":
+                # TODO: Delete "transformation" after we've safely deprecated it from the proto
+                if _field.name in ["transformation", "feature_transformation"]:
+                    warnings.warn(
+                        "transformation will be deprecated in the future please use feature_transformation instead.",
+                        DeprecationWarning,
+                    )
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
-                    current_udf = (
+                    # Check if the old proto is populated and use that if it is
+                    deprecated_udf = current_spec.user_defined_function
+                    feature_transformation_udf = (
                         current_spec.feature_transformation.user_defined_function
                     )
-                    new_udf = new_spec.feature_transformation.user_defined_function
-                    for _udf_field in current_udf.DESCRIPTOR.fields:
-                        if _udf_field.name == "body":
-                            continue
-                        if getattr(current_udf, _udf_field.name) != getattr(
-                            new_udf, _udf_field.name
-                        ):
-                            transition = TransitionType.UPDATE
-                            property_diffs.append(
-                                PropertyDiff(
-                                    _field.name + "." + _udf_field.name,
-                                    getattr(current_udf, _udf_field.name),
-                                    getattr(new_udf, _udf_field.name),
-                                )
-                            )
-                elif _field.name == "feature_transformation":
-                    current_spec = cast(OnDemandFeatureViewSpec, current_spec)
-                    new_spec = cast(OnDemandFeatureViewSpec, new_spec)
                     current_udf = (
-                        current_spec.feature_transformation.user_defined_function
+                        deprecated_udf
+                        if deprecated_udf.body_text != ""
+                        else feature_transformation_udf
                     )
                     new_udf = new_spec.feature_transformation.user_defined_function
                     for _udf_field in current_udf.DESCRIPTOR.fields:

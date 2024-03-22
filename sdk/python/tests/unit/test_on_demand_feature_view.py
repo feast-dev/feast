@@ -129,3 +129,7 @@ def test_hash():
     assert on_demand_feature_view_5.transformation == OnDemandPandasTransformation(
         udf2, "udf2 source code"
     )
+    assert (
+        on_demand_feature_view_5.feature_transformation
+        == on_demand_feature_view_5.transformation
+    )
