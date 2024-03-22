@@ -663,6 +663,13 @@ class BaseRegistry(ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
+            # We are logging a warning because the registry object may be read from a proto that is not updated
+            # i.e., we have to submit dual writes but in order to ensure the read behavior succeeds we have to load
+            # both objects to compare any changes in the registry
+            warnings.warn(
+                "We will be deprecating the usage of spec.userDefinedFunction in a future release please upgrade cautiously.",
+                DeprecationWarning,
+            )
             odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
                 "body"
             ] = on_demand_feature_view.feature_transformation.udf_string

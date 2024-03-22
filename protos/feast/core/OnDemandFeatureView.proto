@@ -50,8 +50,8 @@ message OnDemandFeatureViewSpec {
     map<string, OnDemandSource> sources = 4;
 
     oneof transformation {
-        UserDefinedFunction user_defined_function = 5;
-        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9;
+        UserDefinedFunction user_defined_function = 5 [deprecated = true];
+        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9 [deprecated = true];
     }
     // Oneof with {user_defined_function, on_demand_substrait_transformation}
     FeatureTransformationV2 feature_transformation = 10;

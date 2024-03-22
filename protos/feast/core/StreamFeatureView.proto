@@ -81,7 +81,6 @@ message StreamFeatureViewSpec {
     UserDefinedFunction user_defined_function = 13 [deprecated = true];
 
 
-
     // Mode of execution
     string mode = 14;
 
