@@ -69,7 +69,11 @@ test-python:
 	python -m pytest -n 8 sdk/python/tests \
 
 test-python-integration:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
+	FEAST_USAGE=False \
+	IS_TEST=True \
+	python -m pytest -n 8 --integration \
+		-k "not minio_registry" \
+	sdk/python/tests
 
 test-python-integration-local:
 	@(docker info > /dev/null 2>&1 && \

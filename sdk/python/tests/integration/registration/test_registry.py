@@ -92,7 +92,7 @@ def minio_registry() -> Registry:
         "FEAST_S3_ENDPOINT_URL": f"http://{container_host}:{exposed_port}",
         "AWS_ACCESS_KEY_ID": minio_user,
         "AWS_SECRET_ACCESS_KEY": minio_password,
-        "AWS_SESSION_TOKEN": ""
+        "AWS_SESSION_TOKEN": "",
     }
 
     with mock.patch.dict(os.environ, mock_environ):
@@ -111,9 +111,7 @@ def minio_registry() -> Registry:
     ],
 )
 def test_apply_entity_integration(test_registry):
-    print('Log Environ Keys')
-    print(dict(os.environ).keys())
-    
+
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",
