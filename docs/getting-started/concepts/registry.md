@@ -57,6 +57,7 @@ registry:
     registry_type: sql
     path: postgresql://postgres:mysecretpassword@127.0.0.1:55001/feast
     cache_ttl_seconds: 60
+    registry_schema: feature_store_registry
     sqlalchemy_config_kwargs:
         echo: false
         pool_pre_ping: true
