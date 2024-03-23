@@ -15,6 +15,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
@@ -79,6 +80,7 @@ class StreamFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
+    feature_transformation: Optional[OnDemandPandasTransformation]
 
     def __init__(
         self,
@@ -97,6 +99,7 @@ class StreamFeatureView(FeatureView):
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
+        feature_transformation: Optional[Union[OnDemandPandasTransformation]] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -124,6 +127,7 @@ class StreamFeatureView(FeatureView):
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string
+        self.feature_transformation = feature_transformation
 
         super().__init__(
             name=name,
@@ -237,6 +241,11 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
+        feature_transformation = (
+            sfv_proto.spec.feature_transformation.user_defined_function.body_text
+            if sfv_proto.spec.HasField("feature_transformation")
+            else None
+        )
         stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -255,6 +264,7 @@ class StreamFeatureView(FeatureView):
             mode=sfv_proto.spec.mode,
             udf=udf,
             udf_string=udf_string,
+            feature_transformation=feature_transformation,
             aggregations=[
                 Aggregation.from_proto(agg_proto)
                 for agg_proto in sfv_proto.spec.aggregations
@@ -311,6 +321,7 @@ class StreamFeatureView(FeatureView):
             timestamp_field=self.timestamp_field,
             source=self.stream_source if self.stream_source else self.batch_source,
             udf=self.udf,
+            feature_transformation=self.feature_transformation,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
@@ -360,6 +371,9 @@ def stream_feature_view(
             schema=schema,
             udf=user_function,
             udf_string=udf_string,
+            feature_transformation=OnDemandPandasTransformation(
+                user_function, udf_string
+            ),
             description=description,
             tags=tags,
             online=online,
