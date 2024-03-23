@@ -23,17 +23,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install mysql on macOS
-        if:  startsWith(matrix.os, 'macOS')
-        run: |
-          brew install mysql
-          PATH=$PATH:/usr/local/mysql/bin
-      - name: Work around Homebrew MySQL being broken
-        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
-        if:  startsWith(matrix.os, 'macOS')
-        run: |
-          brew install zlib
-          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -56,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
+        run: make test-python
 
 
   unit-test-ui:
