@@ -94,7 +94,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             FROM (
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-                FROM ({from_expression}) a
+                FROM {from_expression} a
                 WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
             ) b
             WHERE _feast_row = 1
