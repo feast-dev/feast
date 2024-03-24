@@ -82,7 +82,7 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        transformation: Optional[Union[OnDemandPandasTransformation]] = None,
+        transformation: Optional[Union[OnDemandPandasTransformation, OnDemandSubstraitTransformation]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
