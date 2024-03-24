@@ -15,7 +15,7 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.feature_view_projection import FeatureViewProjection
-from feast.on_demand_feature_view import OnDemandPandasTransformation
+from feast.on_demand_feature_view import PandasTransformation
 from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import (
     customer,
@@ -71,7 +71,7 @@ def conv_rate_plus_100_feature_view(
         name=conv_rate_plus_100.__name__,
         schema=[] if infer_features else _features,
         sources=sources,
-        transformation=OnDemandPandasTransformation(
+        transformation=PandasTransformation(
             udf=conv_rate_plus_100, udf_string="raw udf source"
         ),
     )
@@ -110,7 +110,7 @@ def similarity_feature_view(
         name=similarity.__name__,
         sources=sources,
         schema=[] if infer_features else _fields,
-        transformation=OnDemandPandasTransformation(
+        transformation=PandasTransformation(
             udf=similarity, udf_string="similarity raw udf"
         ),
     )

@@ -18,10 +18,7 @@ import pytest
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import (
-    OnDemandFeatureView,
-    OnDemandPandasTransformation,
-)
+from feast.on_demand_feature_view import OnDemandFeatureView, PandasTransformation
 from feast.types import Float32
 
 
@@ -59,9 +56,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf1, udf_string="udf1 source code"
-        ),
+        transformation=PandasTransformation(udf=udf1, udf_string="udf1 source code"),
     )
     on_demand_feature_view_2 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -70,9 +65,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf1, udf_string="udf1 source code"
-        ),
+        transformation=PandasTransformation(udf=udf1, udf_string="udf1 source code"),
     )
     on_demand_feature_view_3 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -81,9 +74,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf2, udf_string="udf2 source code"
-        ),
+        transformation=PandasTransformation(udf=udf2, udf_string="udf2 source code"),
     )
     on_demand_feature_view_4 = OnDemandFeatureView(
         name="my-on-demand-feature-view",
@@ -92,9 +83,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf2, udf_string="udf2 source code"
-        ),
+        transformation=PandasTransformation(udf=udf2, udf_string="udf2 source code"),
         description="test",
     )
     on_demand_feature_view_5 = OnDemandFeatureView(
@@ -126,7 +115,7 @@ def test_hash():
     }
     assert len(s4) == 3
 
-    assert on_demand_feature_view_5.transformation == OnDemandPandasTransformation(
+    assert on_demand_feature_view_5.transformation == PandasTransformation(
         udf2, "udf2 source code"
     )
     assert (
@@ -155,9 +144,7 @@ def test_from_proto_backwards_compatable_udf():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
-            udf=udf1, udf_string="udf1 source code"
-        ),
+        transformation=PandasTransformation(udf=udf1, udf_string="udf1 source code"),
     )
 
     # We need a proto with the "udf1 source code" in the user_defined_function.body_text

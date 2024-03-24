@@ -17,8 +17,6 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
-from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
-from feast.on_demand_substrait_transformation import OnDemandSubstraitTransformation
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -33,6 +31,8 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -68,8 +68,8 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    transformation: Union[OnDemandPandasTransformation]
-    feature_transformation: Union[OnDemandPandasTransformation]
+    transformation: Union[PandasTransformation]
+    feature_transformation: Union[PandasTransformation]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -89,8 +89,8 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        transformation: Optional[Union[OnDemandPandasTransformation]] = None,
-        feature_transformation: Optional[Union[OnDemandPandasTransformation]] = None,
+        transformation: Optional[Union[PandasTransformation]] = None,
+        feature_transformation: Optional[Union[PandasTransformation]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -129,7 +129,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                transformation = OnDemandPandasTransformation(udf, udf_string)
+                transformation = PandasTransformation(udf, udf_string)
             else:
                 raise Exception(
                     "OnDemandFeatureView needs to be initialized with either transformation or udf arguments"
@@ -219,10 +219,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
         feature_transformation = FeatureTransformationProto(
             user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandPandasTransformation
+            if type(self.transformation) == PandasTransformation
             else None,
             on_demand_substrait_transformation=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandSubstraitTransformation
+            if type(self.transformation) == SubstraitTransformation
             else None,  # type: ignore
         )
         spec = OnDemandFeatureViewSpec(
@@ -276,7 +276,7 @@ class OnDemandFeatureView(BaseFeatureView):
             and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
             != ""
         ):
-            transformation = OnDemandPandasTransformation.from_proto(
+            transformation = PandasTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
             )
         elif (
@@ -285,7 +285,7 @@ class OnDemandFeatureView(BaseFeatureView):
             )
             == "on_demand_substrait_transformation"
         ):
-            transformation = OnDemandSubstraitTransformation.from_proto(
+            transformation = SubstraitTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.on_demand_substrait_transformation
             )
         elif (
@@ -298,7 +298,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 body=on_demand_feature_view_proto.spec.user_defined_function.body,
                 body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
             )
-            transformation = OnDemandPandasTransformation.from_proto(
+            transformation = PandasTransformation.from_proto(
                 user_defined_function_proto=backwards_compatible_udf,
             )
         else:
@@ -540,13 +540,13 @@ def on_demand_feature_view(
 
             expr = user_function(ibis.table(input_fields, "t"))
 
-            transformation = OnDemandSubstraitTransformation(
+            transformation = SubstraitTransformation(
                 substrait_plan=compiler.compile(expr).SerializeToString()
             )
         else:
             udf_string = dill.source.getsource(user_function)
             mainify(user_function)
-            transformation = OnDemandPandasTransformation(user_function, udf_string)
+            transformation = PandasTransformation(user_function, udf_string)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,

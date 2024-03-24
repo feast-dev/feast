@@ -7,7 +7,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 )
 
 
-class OnDemandSubstraitTransformation:
+class SubstraitTransformation:
     def __init__(self, substrait_plan: bytes):
         """
         Creates an OnDemandSubstraitTransformation object.
@@ -27,7 +27,7 @@ class OnDemandSubstraitTransformation:
         return table.to_pandas()
 
     def __eq__(self, other):
-        if not isinstance(other, OnDemandSubstraitTransformation):
+        if not isinstance(other, SubstraitTransformation):
             raise TypeError(
                 "Comparisons should only involve OnDemandSubstraitTransformation class objects."
             )
@@ -45,6 +45,6 @@ class OnDemandSubstraitTransformation:
         cls,
         on_demand_substrait_transformation_proto: OnDemandSubstraitTransformationProto,
     ):
-        return OnDemandSubstraitTransformation(
+        return SubstraitTransformation(
             substrait_plan=on_demand_substrait_transformation_proto.substrait_plan
         )
