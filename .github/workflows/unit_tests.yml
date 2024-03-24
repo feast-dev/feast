@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test Python
-        run: make test-python
+        run: make test-python-unit
 
 
   unit-test-ui:

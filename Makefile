@@ -28,7 +28,7 @@ format: format-python format-java
 
 lint: lint-python lint-java
 
-test: test-python test-java
+test: test-python-unit test-java
 
 protos: compile-protos-python compile-protos-docs
 
@@ -63,7 +63,7 @@ benchmark-python:
 benchmark-python-local:
 	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
-test-python:
+test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
