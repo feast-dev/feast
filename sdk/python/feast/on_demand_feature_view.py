@@ -27,6 +27,12 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewSpec,
     OnDemandSource,
 )
+from feast.protos.feast.core.Transformation_pb2 import (
+    FeatureTransformationV2 as FeatureTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -63,6 +69,7 @@ class OnDemandFeatureView(BaseFeatureView):
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
     transformation: Union[OnDemandPandasTransformation]
+    feature_transformation: Union[OnDemandPandasTransformation]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -83,6 +90,7 @@ class OnDemandFeatureView(BaseFeatureView):
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
         transformation: Optional[Union[OnDemandPandasTransformation]] = None,
+        feature_transformation: Optional[Union[OnDemandPandasTransformation]] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -101,6 +109,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 dataframes as inputs.
             udf_string (deprecated): The source code version of the udf (for diffing and displaying in Web UI)
             transformation: The user defined transformation.
+            feature_transformation: The user defined transformation.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
@@ -139,6 +148,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 ] = odfv_source.projection
 
         self.transformation = transformation
+        self.feature_transformation = self.transformation
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -151,6 +161,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources=list(self.source_feature_view_projections.values())
             + list(self.source_request_sources.values()),
             transformation=self.transformation,
+            feature_transformation=self.transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -172,6 +183,7 @@ class OnDemandFeatureView(BaseFeatureView):
             != other.source_feature_view_projections
             or self.source_request_sources != other.source_request_sources
             or self.transformation != other.transformation
+            or self.feature_transformation != other.feature_transformation
         ):
             return False
 
@@ -205,16 +217,19 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        feature_transformation = FeatureTransformationProto(
+            user_defined_function=self.transformation.to_proto()
+            if type(self.transformation) == OnDemandPandasTransformation
+            else None,
+            on_demand_substrait_transformation=self.transformation.to_proto()
+            if type(self.transformation) == OnDemandSubstraitTransformation
+            else None,  # type: ignore
+        )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandPandasTransformation
-            else None,
-            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
-            if type(self.transformation) == OnDemandSubstraitTransformation
-            else None,
+            feature_transformation=feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -254,18 +269,37 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         if (
-            on_demand_feature_view_proto.spec.WhichOneof("transformation")
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
             == "user_defined_function"
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            != ""
         ):
             transformation = OnDemandPandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.user_defined_function
+                on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
             )
         elif (
-            on_demand_feature_view_proto.spec.WhichOneof("transformation")
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
             == "on_demand_substrait_transformation"
         ):
             transformation = OnDemandSubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.on_demand_substrait_transformation
+                on_demand_feature_view_proto.spec.feature_transformation.on_demand_substrait_transformation
+            )
+        elif (
+            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            == ""
+        ):
+            backwards_compatible_udf = UserDefinedFunctionProto(
+                name=on_demand_feature_view_proto.spec.user_defined_function.name,
+                body=on_demand_feature_view_proto.spec.user_defined_function.body,
+                body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
+            )
+            transformation = OnDemandPandasTransformation.from_proto(
+                user_defined_function_proto=backwards_compatible_udf,
             )
         else:
             raise Exception("At least one transformation type needs to be provided")

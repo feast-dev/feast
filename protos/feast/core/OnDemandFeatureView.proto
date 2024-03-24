@@ -27,6 +27,7 @@ import "feast/core/FeatureView.proto";
 import "feast/core/FeatureViewProjection.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
+import "feast/core/Transformation.proto";
 
 message OnDemandFeatureView {
     // User-specified specifications of this feature view.
@@ -49,9 +50,11 @@ message OnDemandFeatureViewSpec {
     map<string, OnDemandSource> sources = 4;
 
     oneof transformation {
-        UserDefinedFunction user_defined_function = 5;
-        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9;
+        UserDefinedFunction user_defined_function = 5 [deprecated = true];
+        OnDemandSubstraitTransformation on_demand_substrait_transformation = 9 [deprecated = true];
     }
+    // Oneof with {user_defined_function, on_demand_substrait_transformation}
+    FeatureTransformationV2 feature_transformation = 10;
 
     // Description of the on demand feature view.
     string description = 6;
@@ -61,6 +64,7 @@ message OnDemandFeatureViewSpec {
 
     // Owner of the on demand feature view.
     string owner = 8;
+    string mode = 11;
 }
 
 message OnDemandFeatureViewMeta {
@@ -81,6 +85,8 @@ message OnDemandSource {
 
 // Serialized representation of python function.
 message UserDefinedFunction {
+    option deprecated = true;
+
     // The function name
     string name = 1;
 
@@ -92,5 +98,7 @@ message UserDefinedFunction {
 }
 
 message OnDemandSubstraitTransformation {
+    option deprecated = true;
+
     bytes substrait_plan = 1;
 }

@@ -3,8 +3,8 @@ from types import FunctionType
 import dill
 import pandas as pd
 
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    UserDefinedFunction as UserDefinedFunctionProto,
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 
 
