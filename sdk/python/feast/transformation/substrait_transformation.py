@@ -3,7 +3,7 @@ import pyarrow
 import pyarrow.substrait as substrait  # type: ignore # noqa
 
 from feast.protos.feast.core.Transformation_pb2 import (
-    OnDemandSubstraitTransformationV2 as OnDemandSubstraitTransformationProto,
+    SubstraitTransformationV2 as SubstraitTransformationProto,
 )
 
 
@@ -37,13 +37,13 @@ class SubstraitTransformation:
 
         return self.substrait_plan == other.substrait_plan
 
-    def to_proto(self) -> OnDemandSubstraitTransformationProto:
-        return OnDemandSubstraitTransformationProto(substrait_plan=self.substrait_plan)
+    def to_proto(self) -> SubstraitTransformationProto:
+        return SubstraitTransformationProto(substrait_plan=self.substrait_plan)
 
     @classmethod
     def from_proto(
         cls,
-        on_demand_substrait_transformation_proto: OnDemandSubstraitTransformationProto,
+        on_demand_substrait_transformation_proto: SubstraitTransformationProto,
     ):
         return SubstraitTransformation(
             substrait_plan=on_demand_substrait_transformation_proto.substrait_plan
