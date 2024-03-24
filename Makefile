@@ -83,8 +83,6 @@ test-python-integration-local:
 
 test-python-integration-container:
 	@(docker info > /dev/null 2>&1 && \
-		FEAST_USAGE=False \
-		IS_TEST=True \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
 		python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
@@ -93,7 +91,6 @@ test-python-universal-spark:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
@@ -117,7 +114,6 @@ test-python-universal-trino:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
@@ -144,7 +140,6 @@ test-python-universal-mssql:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not gcs_registry and \
@@ -162,7 +157,6 @@ test-python-universal-athena:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
- 	FEAST_USAGE=False IS_TEST=True \
 	ATHENA_REGION=ap-northeast-2 \
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
@@ -186,7 +180,6 @@ test-python-universal-athena:
 test-python-universal-duckdb:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.duckdb_repo_configuration \
-	FEAST_USAGE=False IS_TEST=True \
 	python -m pytest -n 8 --integration \
 		-k "not test_nullable_online_store and \
 			not gcs_registry and \
@@ -200,8 +193,6 @@ test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
-		FEAST_USAGE=False \
-		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
@@ -222,8 +213,6 @@ test-python-universal-postgres-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
-		FEAST_USAGE=False \
-		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -243,8 +232,6 @@ test-python-universal-postgres-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
-		FEAST_USAGE=False \
-		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -264,8 +251,6 @@ test-python-universal-cassandra:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
-	FEAST_USAGE=False \
-	IS_TEST=True \
 	python -m pytest -x --integration \
 	sdk/python/tests
 
@@ -273,8 +258,6 @@ test-python-universal-hazelcast:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.hazelcast_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
-		FEAST_USAGE=False \
-		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -294,8 +277,6 @@ test-python-universal-cassandra-no-cloud-providers:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
-	FEAST_USAGE=False \
-	IS_TEST=True \
 	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
 	  not test_apply_entity_integration               and \
@@ -310,7 +291,7 @@ test-python-universal-cassandra-no-cloud-providers:
 	sdk/python/tests
 
 test-python-universal:
-	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
+	python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
 	# Sort
