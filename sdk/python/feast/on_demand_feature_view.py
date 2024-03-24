@@ -221,7 +221,7 @@ class OnDemandFeatureView(BaseFeatureView):
             user_defined_function=self.transformation.to_proto()
             if type(self.transformation) == PandasTransformation
             else None,
-            on_demand_substrait_transformation=self.transformation.to_proto()
+            substrait_transformation=self.transformation.to_proto()
             if type(self.transformation) == SubstraitTransformation
             else None,  # type: ignore
         )
@@ -283,10 +283,10 @@ class OnDemandFeatureView(BaseFeatureView):
             on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
                 "transformation"
             )
-            == "on_demand_substrait_transformation"
+            == "substrait_transformation"
         ):
             transformation = SubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.feature_transformation.on_demand_substrait_transformation
+                on_demand_feature_view_proto.spec.feature_transformation.substrait_transformation
             )
         elif (
             hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
