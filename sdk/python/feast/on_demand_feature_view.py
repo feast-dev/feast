@@ -62,7 +62,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    transformation: Union[OnDemandPandasTransformation]
+    transformation: Union[OnDemandPandasTransformation, OnDemandSubstraitTransformation]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -82,7 +82,9 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        transformation: Optional[Union[OnDemandPandasTransformation, OnDemandSubstraitTransformation]] = None,
+        transformation: Optional[
+            Union[OnDemandPandasTransformation, OnDemandSubstraitTransformation]
+        ] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
