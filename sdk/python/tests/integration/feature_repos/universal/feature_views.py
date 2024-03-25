@@ -71,7 +71,7 @@ def conv_rate_plus_100_feature_view(
         name=conv_rate_plus_100.__name__,
         schema=[] if infer_features else _features,
         sources=sources,
-        transformation=PandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=conv_rate_plus_100, udf_string="raw udf source"
         ),
     )
