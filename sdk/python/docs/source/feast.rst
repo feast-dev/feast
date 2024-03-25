@@ -273,14 +273,6 @@ feast.repo\_upgrade module
    :undoc-members:
    :show-inheritance:
 
-feast.request\_feature\_view module
------------------------------------
-
-.. automodule:: feast.request_feature_view
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.saved\_dataset module
 ---------------------------
 

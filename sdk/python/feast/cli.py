@@ -381,7 +381,6 @@ def feature_view_list(ctx: click.Context):
     table = []
     for feature_view in [
         *store.list_feature_views(),
-        *store.list_request_feature_views(),
         *store.list_on_demand_feature_views(),
     ]:
         entities = set()
