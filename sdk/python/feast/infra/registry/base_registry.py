@@ -673,7 +673,9 @@ class BaseRegistry(ABC):
                 DeprecationWarning,
             )
             if on_demand_feature_view.feature_transformation:
-                if isinstance(on_demand_feature_view.feature_transformation, PandasTransformation):
+                if isinstance(
+                    on_demand_feature_view.feature_transformation, PandasTransformation
+                ):
                     if "userDefinedFunction" not in odfv_dict["spec"]:
                         odfv_dict["spec"]["userDefinedFunction"] = {}
                     odfv_dict["spec"]["userDefinedFunction"][
@@ -682,13 +684,20 @@ class BaseRegistry(ABC):
                     odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
                         "body"
                     ] = on_demand_feature_view.feature_transformation.udf_string
-                elif isinstance(on_demand_feature_view.feature_transformation, SubstraitTransformation):
-                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"]["body"] = (
-                        on_demand_feature_view.feature_transformation.substrait_plan
-                    )
+                elif isinstance(
+                    on_demand_feature_view.feature_transformation,
+                    SubstraitTransformation,
+                ):
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.substrait_plan
                 else:
-                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"]["body"] = None
-                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"]["body"] = None
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = None
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = None
                 registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
