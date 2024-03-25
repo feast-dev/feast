@@ -110,7 +110,7 @@ def similarity_feature_view(
         name=similarity.__name__,
         sources=sources,
         schema=[] if infer_features else _fields,
-        transformation=PandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=similarity, udf_string="similarity raw udf"
         ),
     )
