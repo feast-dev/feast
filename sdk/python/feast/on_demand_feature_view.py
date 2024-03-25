@@ -57,7 +57,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources with type FeatureViewProjection.
         source_request_sources: A map from input source names to the actual input
             sources with type RequestSource.
-        transformation: The user defined transformation.
+        feature_transformation: The user defined transformation.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the on demand feature view, typically the email of the primary
@@ -68,7 +68,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    feature_transformation: Union[PandasTransformation]
+    feature_transformation: Union[PandasTransformation, SubstraitTransformation]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -88,7 +88,9 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        feature_transformation: Optional[Union[PandasTransformation]] = None,
+        feature_transformation: Optional[
+            Union[PandasTransformation, SubstraitTransformation]
+        ] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -213,11 +215,11 @@ class OnDemandFeatureView(BaseFeatureView):
 
         feature_transformation = FeatureTransformationProto(
             user_defined_function=self.feature_transformation.to_proto()
-            if type(self.feature_transformation) == PandasTransformation
+            if isinstance(self.feature_transformation, PandasTransformation)
             else None,
             substrait_transformation=self.feature_transformation.to_proto()
-            if type(self.feature_transformation) == SubstraitTransformation
-            else None,  # type: ignore
+            if isinstance(self.feature_transformation, SubstraitTransformation)
+            else None,
         )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
@@ -517,7 +519,7 @@ def on_demand_feature_view(
             input_fields: Field = []
 
             for s in sources:
-                if type(s) == FeatureView:
+                if isinstance(s, FeatureView):
                     fields = s.projection.features
                 else:
                     fields = s.features
