@@ -27,7 +27,7 @@ class PandasTransformation:
     def __eq__(self, other):
         if not isinstance(other, PandasTransformation):
             raise TypeError(
-                "Comparisons should only involve OnDemandPandasTransformation class objects."
+                "Comparisons should only involve PandasTransformation class objects."
             )
 
         if (
