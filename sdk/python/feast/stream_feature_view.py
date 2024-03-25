@@ -15,7 +15,6 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     UserDefinedFunction as UserDefinedFunctionProto,
@@ -32,6 +31,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProtoV2,
 )
+from feast.transformation.pandas_transformation import PandasTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -80,7 +80,7 @@ class StreamFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
-    feature_transformation: Optional[OnDemandPandasTransformation]
+    feature_transformation: Optional[PandasTransformation]
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class StreamFeatureView(FeatureView):
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
-        feature_transformation: Optional[Union[OnDemandPandasTransformation]] = None,
+        feature_transformation: Optional[Union[PandasTransformation]] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -371,9 +371,7 @@ def stream_feature_view(
             schema=schema,
             udf=user_function,
             udf_string=udf_string,
-            feature_transformation=OnDemandPandasTransformation(
-                user_function, udf_string
-            ),
+            feature_transformation=PandasTransformation(user_function, udf_string),
             description=description,
             tags=tags,
             online=online,

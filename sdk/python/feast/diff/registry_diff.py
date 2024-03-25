@@ -1,4 +1,3 @@
-import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
@@ -145,22 +144,23 @@ def diff_registry_objects(
             if _field.name in FIELDS_TO_IGNORE:
                 continue
             elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                # TODO: Delete "transformation" after we've safely deprecated it from the proto
-                if _field.name in ["transformation", "feature_transformation"]:
-                    warnings.warn(
-                        "transformation will be deprecated in the future please use feature_transformation instead.",
-                        DeprecationWarning,
-                    )
+                if _field.name == "feature_transformation":
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
                     # Check if the old proto is populated and use that if it is
-                    deprecated_udf = current_spec.user_defined_function
                     feature_transformation_udf = (
                         current_spec.feature_transformation.user_defined_function
                     )
+                    if (
+                        current_spec.HasField("user_defined_function")
+                        and not feature_transformation_udf
+                    ):
+                        deprecated_udf = current_spec.user_defined_function
+                    else:
+                        deprecated_udf = None
                     current_udf = (
                         deprecated_udf
-                        if deprecated_udf.body_text != ""
+                        if deprecated_udf is not None
                         else feature_transformation_udf
                     )
                     new_udf = new_spec.feature_transformation.user_defined_function
