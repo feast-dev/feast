@@ -18,10 +18,7 @@ import pytest
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import (
-    OnDemandFeatureView,
-    OnDemandPandasTransformation,
-)
+from feast.on_demand_feature_view import OnDemandFeatureView, PandasTransformation
 from feast.types import Float32
 
 
@@ -59,7 +56,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=udf1, udf_string="udf1 source code"
         ),
     )
@@ -70,7 +67,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=udf1, udf_string="udf1 source code"
         ),
     )
@@ -81,7 +78,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=udf2, udf_string="udf2 source code"
         ),
     )
@@ -92,7 +89,7 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=udf2, udf_string="udf2 source code"
         ),
         description="test",
@@ -126,17 +123,13 @@ def test_hash():
     }
     assert len(s4) == 3
 
-    assert on_demand_feature_view_5.transformation == OnDemandPandasTransformation(
+    assert on_demand_feature_view_5.feature_transformation == PandasTransformation(
         udf2, "udf2 source code"
-    )
-    assert (
-        on_demand_feature_view_5.feature_transformation
-        == on_demand_feature_view_5.transformation
     )
 
 
 @pytest.mark.filterwarnings("ignore:udf and udf_string parameters are deprecated")
-def test_from_proto_backwards_compatable_udf():
+def test_from_proto_backwards_compatible_udf():
     file_source = FileSource(name="my-file-source", path="test.parquet")
     feature_view = FeatureView(
         name="my-feature-view",
@@ -155,7 +148,7 @@ def test_from_proto_backwards_compatable_udf():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        transformation=OnDemandPandasTransformation(
+        feature_transformation=PandasTransformation(
             udf=udf1, udf_string="udf1 source code"
         ),
     )
@@ -164,7 +157,7 @@ def test_from_proto_backwards_compatable_udf():
     # and to populate it in feature_transformation
     proto = on_demand_feature_view.to_proto()
     assert (
-        on_demand_feature_view.transformation.udf_string
+        on_demand_feature_view.feature_transformation.udf_string
         == proto.spec.feature_transformation.user_defined_function.body_text
     )
     # Because of the current set of code this is just confirming it is empty

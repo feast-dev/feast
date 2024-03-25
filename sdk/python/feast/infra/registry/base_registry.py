@@ -32,6 +32,8 @@ from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.substrait_transformation import SubstraitTransformation
 
 
 class BaseRegistry(ABC):
@@ -634,10 +636,33 @@ class BaseRegistry(ABC):
                 "We will be deprecating the usage of spec.userDefinedFunction in a future release please upgrade cautiously.",
                 DeprecationWarning,
             )
-            odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
-                "body"
-            ] = on_demand_feature_view.feature_transformation.udf_string
-            registry_dict["onDemandFeatureViews"].append(odfv_dict)
+            if on_demand_feature_view.feature_transformation:
+                if isinstance(
+                    on_demand_feature_view.feature_transformation, PandasTransformation
+                ):
+                    if "userDefinedFunction" not in odfv_dict["spec"]:
+                        odfv_dict["spec"]["userDefinedFunction"] = {}
+                    odfv_dict["spec"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                elif isinstance(
+                    on_demand_feature_view.feature_transformation,
+                    SubstraitTransformation,
+                ):
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.substrait_plan
+                else:
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = None
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = None
+                registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for stream_feature_view in sorted(
             self.list_stream_feature_views(project=project),
             key=lambda stream_feature_view: stream_feature_view.name,
