@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
@@ -32,6 +33,8 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.substrait_transformation import SubstraitTransformation
 
 
 class BaseRegistry(ABC):
@@ -662,11 +665,40 @@ class BaseRegistry(ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-
-            odfv_dict["spec"]["userDefinedFunction"][
-                "body"
-            ] = on_demand_feature_view.transformation.udf_string  # type: ignore
-            registry_dict["onDemandFeatureViews"].append(odfv_dict)
+            # We are logging a warning because the registry object may be read from a proto that is not updated
+            # i.e., we have to submit dual writes but in order to ensure the read behavior succeeds we have to load
+            # both objects to compare any changes in the registry
+            warnings.warn(
+                "We will be deprecating the usage of spec.userDefinedFunction in a future release please upgrade cautiously.",
+                DeprecationWarning,
+            )
+            if on_demand_feature_view.feature_transformation:
+                if isinstance(
+                    on_demand_feature_view.feature_transformation, PandasTransformation
+                ):
+                    if "userDefinedFunction" not in odfv_dict["spec"]:
+                        odfv_dict["spec"]["userDefinedFunction"] = {}
+                    odfv_dict["spec"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                elif isinstance(
+                    on_demand_feature_view.feature_transformation,
+                    SubstraitTransformation,
+                ):
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.substrait_plan
+                else:
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = None
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = None
+                registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for request_feature_view in sorted(
             self.list_request_feature_views(project=project),
             key=lambda request_feature_view: request_feature_view.name,
@@ -684,6 +716,7 @@ class BaseRegistry(ABC):
                 "body"
             ] = stream_feature_view.udf_string
             registry_dict["streamFeatureViews"].append(sfv_dict)
+
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):

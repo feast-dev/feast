@@ -3,12 +3,12 @@ from types import FunctionType
 import dill
 import pandas as pd
 
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    UserDefinedFunction as UserDefinedFunctionProto,
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 
 
-class OnDemandPandasTransformation:
+class PandasTransformation:
     def __init__(self, udf: FunctionType, udf_string: str = ""):
         """
         Creates an OnDemandPandasTransformation object.
@@ -25,9 +25,9 @@ class OnDemandPandasTransformation:
         return self.udf.__call__(df)
 
     def __eq__(self, other):
-        if not isinstance(other, OnDemandPandasTransformation):
+        if not isinstance(other, PandasTransformation):
             raise TypeError(
-                "Comparisons should only involve OnDemandPandasTransformation class objects."
+                "Comparisons should only involve PandasTransformation class objects."
             )
 
         if (
@@ -47,7 +47,7 @@ class OnDemandPandasTransformation:
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
-        return OnDemandPandasTransformation(
+        return PandasTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )
