@@ -2108,7 +2108,8 @@ class FeatureStore:
 
             proto_values = [
                 python_values_to_proto_values(
-                    transformed_features_df[feature].values, feature_dtypes[feature].to_value_type()
+                    transformed_features_df[feature].values,
+                    feature_dtypes[feature].to_value_type(),
                 )
                 for feature in selected_subset
             ]
