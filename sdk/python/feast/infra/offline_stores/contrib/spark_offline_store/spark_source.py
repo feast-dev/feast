@@ -185,6 +185,19 @@ class SparkSource(DataSource):
 
         return f"`{tmp_table_name}`"
 
+    def __eq__(self, other):
+        base_eq = super().__eq__(other)
+        if not base_eq:
+            return False
+        return (
+            self.table == other.table
+            and self.query == other.query
+            and self.path == other.path
+        )
+
+    def __hash__(self):
+        return super().__hash__()
+
 
 class SparkOptions:
     allowed_formats = [format.value for format in SparkSourceFormat]
