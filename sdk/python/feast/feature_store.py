@@ -2134,8 +2134,6 @@ class FeatureStore:
                 feature_vector = transformed_features[feature]
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
-                python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
                 )
 
             odfv_result_names |= set(selected_subset)
