@@ -142,9 +142,9 @@ class OnDemandFeatureView(BaseFeatureView):
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[odfv_source.name] = odfv_source
             else:
-                self.source_feature_view_projections[
-                    odfv_source.name
-                ] = odfv_source.projection
+                self.source_feature_view_projections[odfv_source.name] = (
+                    odfv_source.projection
+                )
 
         self.feature_transformation = feature_transformation
 

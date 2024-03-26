@@ -200,7 +200,6 @@ class _SparkSerializedArtifacts:
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
-
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
 

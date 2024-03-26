@@ -357,9 +357,9 @@ class IbisRetrievalJob(RetrievalJob):
     ) -> None:
         super().__init__()
         self.table = table
-        self._on_demand_feature_views: List[
-            OnDemandFeatureView
-        ] = on_demand_feature_views
+        self._on_demand_feature_views: List[OnDemandFeatureView] = (
+            on_demand_feature_views
+        )
         self._full_feature_names = full_feature_names
         self._metadata = metadata
 
