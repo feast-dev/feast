@@ -95,6 +95,7 @@ public class ApplicationProperties {
     private String gcpProject;
     private String awsRegion;
     private String transformationServiceEndpoint;
+    private String azureStorageAccount;
 
     public String getRegistry() {
       return registry;
@@ -204,6 +205,14 @@ public class ApplicationProperties {
 
     public void setTransformationServiceEndpoint(String transformationServiceEndpoint) {
       this.transformationServiceEndpoint = transformationServiceEndpoint;
+    }
+
+    public String getAzureStorageAccount() {
+      return azureStorageAccount;
+    }
+
+    public void setAzureStorageAccount(String azureStorageAccount) {
+      this.azureStorageAccount = azureStorageAccount;
     }
   }
 
