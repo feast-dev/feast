@@ -5,9 +5,8 @@ from time import sleep
 from typing import Callable, List, Literal, Sequence, Union
 
 import yaml
-from kubernetes import client
+from kubernetes import client, utils
 from kubernetes import config as k8s_config
-from kubernetes import utils
 from kubernetes.client.exceptions import ApiException
 from kubernetes.utils import FailToCreateError
 from pydantic import StrictStr

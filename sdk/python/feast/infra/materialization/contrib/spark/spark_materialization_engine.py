@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union, cast
 
 import dill
-import pandas
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
