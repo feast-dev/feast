@@ -61,11 +61,11 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
-boto3==1.34.65
+boto3==1.34.67
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.34.65
+botocore==1.34.67
     # via
     #   boto3
     #   moto
@@ -82,7 +82,7 @@ cachecontrol==0.14.0
     # via firebase-admin
 cachetools==5.3.3
     # via google-auth
-cassandra-driver==3.29.0
+cassandra-driver==3.29.1
     # via feast (setup.py)
 certifi==2024.2.2
     # via
@@ -164,6 +164,12 @@ docker==7.0.0
     #   testcontainers
 docutils==0.19
     # via sphinx
+duckdb==0.10.1
+    # via
+    #   duckdb-engine
+    #   ibis-framework
+duckdb-engine==0.11.2
+    # via ibis-framework
 entrypoints==0.4
     # via altair
 exceptiongroup==1.2.0
@@ -213,7 +219,7 @@ google-api-core[grpc]==2.17.1
     #   google-cloud-storage
 google-api-python-client==2.122.0
     # via firebase-admin
-google-auth==2.28.2
+google-auth==2.29.0
     # via
     #   google-api-core
     #   google-api-python-client
@@ -258,7 +264,7 @@ googleapis-common-protos[grpc]==1.63.0
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-great-expectations==0.18.11
+great-expectations==0.18.12
     # via feast (setup.py)
 greenlet==3.0.3
     # via sqlalchemy
@@ -310,7 +316,7 @@ httpx==0.27.0
     # via
     #   feast (setup.py)
     #   jupyterlab
-ibis-framework==8.0.0
+ibis-framework[duckdb]==8.0.0
     # via
     #   feast (setup.py)
     #   ibis-substrait
@@ -331,7 +337,7 @@ importlib-metadata==6.11.0
     # via
     #   dask
     #   feast (setup.py)
-importlib-resources==6.3.1
+importlib-resources==6.3.2
     # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
@@ -459,7 +465,7 @@ moreorless==0.4.0
     # via bowler
 moto==4.2.14
     # via feast (setup.py)
-msal==1.27.0
+msal==1.28.0
     # via
     #   azure-identity
     #   msal-extensions
@@ -844,8 +850,13 @@ sphinxcontrib-serializinghtml==1.1.10
     # via sphinx
 sqlalchemy[mypy]==1.4.52
     # via
+    #   duckdb-engine
     #   feast (setup.py)
+    #   ibis-framework
     #   sqlalchemy
+    #   sqlalchemy-views
+sqlalchemy-views==0.3.2
+    # via ibis-framework
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 sqlglot==20.11.0
@@ -984,7 +995,7 @@ urllib3==1.26.18
     #   requests
     #   responses
     #   rockset
-uvicorn[standard]==0.28.0
+uvicorn[standard]==0.29.0
     # via feast (setup.py)
 uvloop==0.19.0
     # via uvicorn
