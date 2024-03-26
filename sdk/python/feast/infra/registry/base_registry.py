@@ -30,7 +30,6 @@ from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
@@ -350,41 +349,6 @@ class BaseRegistry(ABC):
         """
         raise NotImplementedError
 
-    # request feature view operations
-    @abstractmethod
-    def get_request_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> RequestFeatureView:
-        """
-        Retrieves a request feature view.
-
-        Args:
-            name: Name of request feature view
-            project: Feast project that this feature view belongs to
-            allow_cache: Allow returning feature view from the cached registry
-
-        Returns:
-            Returns either the specified feature view, or raises an exception if
-            none is found
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        """
-        Retrieve a list of request feature views from the registry
-
-        Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature views based on project name
-
-        Returns:
-            List of request feature views
-        """
-        raise NotImplementedError
-
     @abstractmethod
     def apply_materialization(
         self,
@@ -699,13 +663,6 @@ class BaseRegistry(ABC):
                         "body"
                     ] = None
                 registry_dict["onDemandFeatureViews"].append(odfv_dict)
-        for request_feature_view in sorted(
-            self.list_request_feature_views(project=project),
-            key=lambda request_feature_view: request_feature_view.name,
-        ):
-            registry_dict["requestFeatureViews"].append(
-                self._message_to_sorted_dict(request_feature_view.to_proto())
-            )
         for stream_feature_view in sorted(
             self.list_stream_feature_views(project=project),
             key=lambda stream_feature_view: stream_feature_view.name,
