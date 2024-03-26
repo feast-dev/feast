@@ -97,7 +97,7 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis==4.2.2",
+    "redis==4.6.0",
     "hiredis>=2.0.0,<3",
 ]
 
@@ -148,10 +148,7 @@ HAZELCAST_REQUIRED = [
 ]
 
 
-MILVUS_REQUIRED = [
-    "pymilvus==2.3.0",
-    "bidict==0.22.1"
-]
+MILVUS_REQUIRED = ["pymilvus==2.3.0", "bidict==0.22.1"]
 
 ELASTICSEARCH_REQUIRED = [
     "elasticsearch==8.8",
@@ -240,7 +237,9 @@ with open(README_FILE, "r", encoding="utf8") as f:
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
 # Regex modified from default tag regex in:
 # https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
-TAG_REGEX = re.compile(r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$")
+TAG_REGEX = re.compile(
+    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
+)
 
 # Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
 if shutil.which("git"):
@@ -354,7 +353,9 @@ def _ensure_go_and_proto_toolchain():
 
     try:
         subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
-        subprocess.check_call(["protoc-gen-go-grpc", "--version"], env={"PATH": path_val})
+        subprocess.check_call(
+            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
+        )
     except Exception as e:
         raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
 
@@ -440,7 +441,10 @@ class build_ext(_build_ext):
             self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
 
     def _is_go_ext(self, ext: Extension):
-        return any(source.endswith(".go") or source.startswith("github") for source in ext.sources)
+        return any(
+            source.endswith(".go") or source.startswith("github")
+            for source in ext.sources
+        )
 
     def build_extension(self, ext: Extension):
         print(f"Building extension {ext}")

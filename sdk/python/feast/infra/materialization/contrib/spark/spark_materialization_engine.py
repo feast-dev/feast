@@ -291,15 +291,16 @@ def _process_by_partition(
         )
         end_time = time.time()
         print(
-            f"INFO!!! Time taken to write batch {batch_id} is {int((end_time - start_time) * 1000)} milliseconds"
+            f"INFO!!! Processed batch {batch_id} in {int((end_time - start_time) * 1000)} milliseconds"
         )
 
+    start_time = time.time()
     # Spark 3.3.0 or above supports toPandas() method. We are running on spark 3.2.2
     pandas_dataframe = pd.DataFrame([row.asDict() for row in rows])
     # TODO: For Pyspark applications, we should use py4j bridge to initialize loggers
     # Temporarily using print to display logs
     print(
-        f"INFO!!! Processing a partition with {pandas_dataframe.shape[0]} records and batch size {batch_size}"
+        f"INFO!!! Processing partition {pandas_dataframe.shape[0]} records, batch size {batch_size}"
     )
 
     if "fs_batch" in pandas_dataframe.columns:
@@ -308,3 +309,6 @@ def _process_by_partition(
         )
     pandas_dataframe["fs_batch"] = np.arange(len(pandas_dataframe)) // batch_size
     pandas_dataframe.groupby("fs_batch").apply(write_to_online_store_in_batches)
+    print(
+        f"INFO!!! Processed partition {pandas_dataframe.shape[0]} records, batch size {batch_size}, time {int((time.time() - start_time))} Seconds"
+    )

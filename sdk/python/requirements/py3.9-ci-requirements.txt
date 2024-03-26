@@ -806,7 +806,7 @@ pyzmq==25.1.0
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
-redis==4.2.2
+redis==4.6.0
     # via eg-feast (setup.py)
 referencing==0.30.0
     # via
