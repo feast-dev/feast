@@ -117,7 +117,6 @@ class PostgreSQLSource(DataSource):
             )
 
     def get_table_query_string(self) -> str:
-
         if self._postgres_options._table:
             return f"{self._postgres_options._table}"
         else:

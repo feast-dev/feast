@@ -216,12 +216,12 @@ def extract_objects_for_keep_delete_update_add(
     objs_to_update = {}
     objs_to_add = {}
 
-    registry_object_type_to_objects: Dict[
-        FeastObjectType, List[Any]
-    ] = FeastObjectType.get_objects_from_registry(registry, current_project)
-    registry_object_type_to_repo_contents: Dict[
-        FeastObjectType, List[Any]
-    ] = FeastObjectType.get_objects_from_repo_contents(desired_repo_contents)
+    registry_object_type_to_objects: Dict[FeastObjectType, List[Any]] = (
+        FeastObjectType.get_objects_from_registry(registry, current_project)
+    )
+    registry_object_type_to_repo_contents: Dict[FeastObjectType, List[Any]] = (
+        FeastObjectType.get_objects_from_repo_contents(desired_repo_contents)
+    )
 
     for object_type in FEAST_OBJECT_TYPES:
         (

@@ -286,7 +286,6 @@ class SnowflakeOfflineStore(OfflineStore):
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
-
             table_name = offline_utils.get_temp_entity_table_name()
 
             _upload_entity_df(entity_df, snowflake_conn, config, table_name)
@@ -412,7 +411,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         feature_views: Optional[List[FeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
-
         if feature_views is None:
             feature_views = []
         if not isinstance(query, str):
@@ -507,7 +505,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return None
 
     def to_arrow_batches(self) -> Iterator[pyarrow.Table]:
-
         table_name = "temp_arrow_batches_" + uuid.uuid4().hex
 
         self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
@@ -520,7 +517,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return arrow_batches
 
     def to_pandas_batches(self) -> Iterator[pd.DataFrame]:
-
         table_name = "temp_pandas_batches_" + uuid.uuid4().hex
 
         self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
@@ -624,13 +620,10 @@ def _get_entity_schema(
     snowflake_conn: SnowflakeConnection,
     config: RepoConfig,
 ) -> Dict[str, np.dtype]:
-
     if isinstance(entity_df, pd.DataFrame):
-
         return dict(zip(entity_df.columns, entity_df.dtypes))
 
     else:
-
         query = f"SELECT * FROM ({entity_df}) LIMIT 1"
         limited_entity_df = execute_snowflake_statement(
             snowflake_conn, query
@@ -645,7 +638,6 @@ def _upload_entity_df(
     config: RepoConfig,
     table_name: str,
 ) -> None:
-
     if isinstance(entity_df, pd.DataFrame):
         # Write the data from the DataFrame to the table
         # Known issues with following entity data types: BINARY
@@ -669,7 +661,6 @@ def _upload_entity_df(
 
 
 def _fix_entity_selections_identifiers(query_context) -> list:
-
     for i, qc in enumerate(query_context):
         for j, es in enumerate(qc.entity_selections):
             query_context[i].entity_selections[j] = f'"{es}"'.replace(" AS ", '" AS "')

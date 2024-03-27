@@ -307,7 +307,6 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-
         return SavedDatasetAthenaStorage(
             table_ref=AthenaOptions.from_proto(storage_proto.athena_storage).table
         )

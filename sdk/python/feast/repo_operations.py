@@ -201,7 +201,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
 @log_exceptions_and_usage
 def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
-
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
 

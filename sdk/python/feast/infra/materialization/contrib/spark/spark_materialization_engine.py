@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union, cast
 
 import dill
-import pandas
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
@@ -201,7 +200,6 @@ class _SparkSerializedArtifacts:
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
-
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
 

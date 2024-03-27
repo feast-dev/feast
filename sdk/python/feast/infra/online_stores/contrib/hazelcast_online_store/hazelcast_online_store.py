@@ -17,6 +17,7 @@
 """
 Hazelcast online store for Feast.
 """
+
 import base64
 import threading
 from datetime import datetime, timezone
@@ -200,7 +201,6 @@ class HazelcastOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-
         online_store_config = config.online_store
         if not isinstance(online_store_config, HazelcastOnlineStoreConfig):
             raise HazelcastInvalidConfig(

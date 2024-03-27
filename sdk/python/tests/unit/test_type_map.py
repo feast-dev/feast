@@ -43,7 +43,6 @@ def test_null_unix_timestamp_list():
     ),
 )
 def test_python_values_to_proto_values_bool(values):
-
     protos = python_values_to_proto_values(values, ValueType.BOOL)
     converted = feast_value_type_to_python_type(protos[0])
 

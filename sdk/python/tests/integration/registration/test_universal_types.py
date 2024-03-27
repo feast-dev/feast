@@ -144,7 +144,7 @@ def test_feature_get_online_features_types_match(
     fs.materialize(
         environment.start_date,
         environment.end_date
-        - timedelta(hours=1)  # throwing out last record to make sure
+        - timedelta(hours=1),  # throwing out last record to make sure
         # we can successfully infer type even from all empty values
     )
 

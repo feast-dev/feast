@@ -42,7 +42,6 @@ class BigQueryDataSourceCreator(DataSourceCreator):
             self.client.update_dataset(self.dataset, ["default_table_expiration_ms"])
 
     def teardown(self):
-
         for table in self.tables:
             self.client.delete_table(table, not_found_ok=True)
 
@@ -68,7 +67,6 @@ class BigQueryDataSourceCreator(DataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         self.create_dataset()

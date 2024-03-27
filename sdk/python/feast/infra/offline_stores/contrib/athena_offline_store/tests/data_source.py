@@ -22,7 +22,6 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class AthenaDataSourceCreator(DataSourceCreator):
-
     tables: List[str] = []
 
     def __init__(self, project_name: str, *args, **kwargs):
@@ -53,7 +52,6 @@ class AthenaDataSourceCreator(DataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         table_name = destination_name
         s3_target = (
             self.offline_store_config.s3_staging_location

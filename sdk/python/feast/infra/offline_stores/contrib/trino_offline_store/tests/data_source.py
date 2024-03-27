@@ -46,7 +46,6 @@ def trino_container():
 
 
 class TrinoSourceCreator(DataSourceCreator):
-
     tables: List[str] = []
 
     def __init__(

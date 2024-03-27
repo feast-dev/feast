@@ -169,7 +169,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         entities: Sequence[Entity],
     ):
-
         stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"DROP STAGE IF EXISTS {stage_path}"
@@ -230,8 +229,9 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ):
-        assert isinstance(feature_view, BatchFeatureView) or isinstance(
-            feature_view, FeatureView
+        assert (
+            isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, FeatureView)
         ), "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
 
         entities = []
@@ -350,7 +350,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         feature_batch: list,
         project: str,
     ) -> str:
-
         if feature_view.batch_source.created_timestamp_column:
             fv_created_str = f',"{feature_view.batch_source.created_timestamp_column}"'
         else:
@@ -477,7 +476,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         feature_view: Union[StreamFeatureView, FeatureView],
         pbar: tqdm,
     ) -> None:
-
         feature_names = [feature.name for feature in feature_view.features]
 
         with GetSnowflakeConnection(repo_config.batch_engine) as conn:

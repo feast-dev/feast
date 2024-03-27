@@ -180,7 +180,6 @@ def make_feature_store_yaml(
     repo_dir_name: Path,
     offline_creator: DataSourceCreator,
 ):
-
     offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
