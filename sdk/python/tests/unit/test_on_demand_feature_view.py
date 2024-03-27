@@ -12,13 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Dict, List
+
 import pandas as pd
 import pytest
 
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
-from feast.on_demand_feature_view import OnDemandFeatureView, PandasTransformation
+from feast.on_demand_feature_view import (
+    OnDemandFeatureView,
+    PandasTransformation,
+    PythonTransformation,
+)
 from feast.types import Float32
 
 
@@ -34,6 +40,14 @@ def udf2(features_df: pd.DataFrame) -> pd.DataFrame:
     df["output1"] = features_df["feature1"] + 100
     df["output2"] = features_df["feature2"] + 100
     return df
+
+
+def python_native_udf(features_dict: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+    output_dict: Dict[str, List[Any]] = {
+        "output1": [features_dict["feature1"] + 100],
+        "output2": [features_dict["feature2"] + 100],
+    }
+    return output_dict
 
 
 @pytest.mark.filterwarnings("ignore:udf and udf_string parameters are deprecated")
@@ -127,6 +141,59 @@ def test_hash():
     assert on_demand_feature_view_5.feature_transformation == PandasTransformation(
         udf2, "udf2 source code"
     )
+
+
+def test_python_native_transformation_mode():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    sources = [feature_view]
+
+    on_demand_feature_view_python_native = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PythonTransformation(
+            udf=python_native_udf, udf_string="python native udf source code"
+        ),
+        description="test",
+        mode="python",
+    )
+
+    on_demand_feature_view_python_native_err = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PandasTransformation(
+            udf=python_native_udf, udf_string="python native udf source code"
+        ),
+        description="test",
+        mode="python",
+    )
+
+    assert (
+        on_demand_feature_view_python_native.feature_transformation
+        == PythonTransformation(python_native_udf, "python native udf source code")
+    )
+
+    with pytest.raises(TypeError):
+        assert (
+            on_demand_feature_view_python_native_err.feature_transformation
+            == PandasTransformation(python_native_udf, "python native udf source code")
+        )
 
 
 @pytest.mark.filterwarnings("ignore:udf and udf_string parameters are deprecated")

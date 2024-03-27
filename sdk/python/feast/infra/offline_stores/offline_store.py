@@ -81,7 +81,7 @@ class RetrievalJob(ABC):
         if self.on_demand_feature_views:
             # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
             for odfv in self.on_demand_feature_views:
-                if odfv.mode != "pandas":
+                if odfv.mode not in {"pandas", "substrait"}:
                     raise Exception(
                         f'OnDemandFeatureView mode "{odfv.mode}" not supported for offline processing.'
                     )

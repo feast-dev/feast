@@ -128,9 +128,9 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
-        if mode not in {"python", "pandas"}:
+        if mode not in {"python", "pandas", "substrait"}:
             raise Exception(
-                f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs."
+                f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs and substraits."
             )
         else:
             self.mode = mode
@@ -140,23 +140,37 @@ class OnDemandFeatureView(BaseFeatureView):
                     "udf and udf_string parameters are deprecated. Please use transformation=PandasTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                if (
-                    isinstance(inspect.signature(udf).return_annotation, pd.DataFrame)
-                    and mode == "pandas"
-                ):
+                # Note inspecting the return signature won't work with isinstance so this is the best alternative
+                if mode == "pandas":
                     feature_transformation = PandasTransformation(udf, udf_string)
-                elif (
-                    isinstance(inspect.signature(udf).return_annotation, Dict)
-                    and mode == "python"
-                ):
+                elif mode == "python":
                     feature_transformation = PythonTransformation(udf, udf_string)
+                elif mode == "substrait":
+                    feature_transformation = SubstraitTransformation(
+                        substrait_plan=udf_string
+                    )
                 else:
                     pass
-
             else:
                 raise Exception(
-                    "OnDemandFeatureView needs to be initialized with either feauture_transformation or udf arguments"
+                    "OnDemandFeatureView needs to be initialized with either feature_transformation or udf arguments"
                 )
+        else:
+            # Note inspecting the return signature won't work with isinstance so this is the best alternative
+            if mode == "pandas":
+                feature_transformation = PandasTransformation(
+                    feature_transformation.udf, feature_transformation.udf_string
+                )
+            elif mode == "python":
+                feature_transformation = PythonTransformation(
+                    feature_transformation.udf, feature_transformation.udf_string
+                )
+            elif mode == "substrait":
+                feature_transformation = SubstraitTransformation(
+                    substrait_plan=feature_transformation.substrait_plan
+                )
+            else:
+                pass
 
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
@@ -500,7 +514,7 @@ class OnDemandFeatureView(BaseFeatureView):
             )
 
     def infer_features(self) -> None:
-        if self.mode == "pandas":
+        if self.mode in {"pandas", "substrait"}:
             self._infer_features_df()
         elif self.mode == "python":
             self._infer_features_dict()
@@ -512,10 +526,69 @@ class OnDemandFeatureView(BaseFeatureView):
     def _infer_features_dict(self):
         """
         Infers the set of features associated to this feature view from the input source.
+
         Raises:
             RegistryInferenceFailure: The set of features could not be inferred.
         """
-        pass
+        rand_dict_value: Dict[str, Any] = {
+            "float": [1.0],
+            "int": [1],
+            "str": ["hello world"],
+            "bytes": [str.encode("hello world")],
+            "bool": [True],
+            "datetime64[ns]": [datetime.utcnow()],
+        }
+
+        feature_dict = {}
+        for feature_view_projection in self.source_feature_view_projections.values():
+            for feature in feature_view_projection.features:
+                dtype = feast_value_type_to_pandas_type(feature.dtype.to_value_type())
+                feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
+                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                )
+                feature_dict[f"{feature.name}"] = (
+                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                )
+        for request_data in self.source_request_sources.values():
+            for field in request_data.schema:
+                dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
+                feature_dict[f"{field.name}"] = (
+                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                )
+
+        output_dict: Dict[str, List[Any]] = self.feature_transformation.transform(
+            feature_dict
+        )
+        inferred_features = []
+        for f, dt in output_dict.items():
+            inferred_features.append(
+                Field(
+                    name=f,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(
+                            f, type_name=type(dt[0]).__name__
+                        )
+                    ),
+                )
+            )
+
+        if self.features:
+            missing_features = []
+            for specified_features in self.features:
+                if specified_features not in inferred_features:
+                    missing_features.append(specified_features)
+            if missing_features:
+                raise SpecifiedFeaturesNotPresentError(
+                    missing_features, inferred_features, self.name
+                )
+        else:
+            self.features = inferred_features
+
+        if not self.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{self.name}'.",
+            )
 
     def _infer_features_df(self) -> None:
         """
@@ -547,6 +620,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
                 sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
                 df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
+
         output_df: pd.DataFrame = self.feature_transformation.transform(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):

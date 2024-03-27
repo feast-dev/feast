@@ -11,7 +11,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 class PythonTransformation:
     def __init__(self, udf: FunctionType, udf_string: str = ""):
         """
-        Creates an OnDemandPythonTransformation object.
+        Creates an PythonTransformation object.
         Args:
             udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
@@ -21,7 +21,16 @@ class PythonTransformation:
         self.udf_string = udf_string
 
     def transform(self, input_dict: Dict) -> Dict:
-        return self.udf.__call__(input_dict)
+        if not isinstance(input_dict, Dict):
+            raise TypeError(
+                f"input_dict should be type Dict[str, List[Any]] but got {type(input_dict).__name__}"
+            )
+        output_dict = self.udf.__call__(input_dict)
+        if not isinstance(output_dict, Dict):
+            raise TypeError(
+                f"output_dict should be type Dict[str, List[Any]] but got {type(output_dict).__name__}"
+            )
+        return output_dict
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
