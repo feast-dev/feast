@@ -13,7 +13,6 @@
 # limitations under the License.
 import logging
 import multiprocessing
-import os
 import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
@@ -24,8 +23,6 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
-os.environ["FEAST_USAGE"] = "False"
-os.environ["IS_TEST"] = "True"
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
