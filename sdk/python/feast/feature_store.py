@@ -2106,7 +2106,9 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[str, List[Any]] = odfv.get_transformed_features(
+                transformed_features_dict: Dict[
+                    str, List[Any]
+                ] = odfv.get_transformed_features(
                     initial_response_dict,
                     full_feature_names,
                 )
@@ -2122,7 +2124,11 @@ class FeatureStore:
                     f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas' or 'python'."
                 )
 
-            transformed_features = transformed_features_dict if odfv.mode == "python" else transformed_features_df
+            transformed_features = (
+                transformed_features_dict
+                if odfv.mode == "python"
+                else transformed_features_df
+            )
             transformed_columns = (
                 transformed_features.columns
                 if isinstance(transformed_features, pd.DataFrame)

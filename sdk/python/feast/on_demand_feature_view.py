@@ -69,7 +69,9 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    feature_transformation: Union[PandasTransformation, PythonTransformation, SubstraitTransformation]
+    feature_transformation: Union[
+        PandasTransformation, PythonTransformation, SubstraitTransformation
+    ]
     mode: str
     description: str
     tags: Dict[str, str]
@@ -77,24 +79,26 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @log_exceptions  # noqa: C901
     def __init__(  # noqa: C901
-            self,
-            *,
-            name: str,
-            schema: List[Field],
-            sources: List[
-                Union[
-                    FeatureView,
-                    RequestSource,
-                    FeatureViewProjection,
-                ]
-            ],
-            udf: Optional[FunctionType] = None,
-            udf_string: str = "",
-            feature_transformation: Union[PandasTransformation, PythonTransformation, SubstraitTransformation],
-            mode: str = "pandas",
-            description: str = "",
-            tags: Optional[Dict[str, str]] = None,
-            owner: str = "",
+        self,
+        *,
+        name: str,
+        schema: List[Field],
+        sources: List[
+            Union[
+                FeatureView,
+                RequestSource,
+                FeatureViewProjection,
+            ]
+        ],
+        udf: Optional[FunctionType] = None,
+        udf_string: str = "",
+        feature_transformation: Union[
+            PandasTransformation, PythonTransformation, SubstraitTransformation
+        ],
+        mode: str = "pandas",
+        description: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        owner: str = "",
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -128,15 +132,23 @@ class OnDemandFeatureView(BaseFeatureView):
             raise Exception(
                 f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs."
             )
+        else:
+            self.mode = mode
         if not feature_transformation:
             if udf:
                 warnings.warn(
                     "udf and udf_string parameters are deprecated. Please use transformation=PandasTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                if isinstance(inspect.signature(udf).return_annotation, pd.DataFrame) and mode == "pandas":
+                if (
+                    isinstance(inspect.signature(udf).return_annotation, pd.DataFrame)
+                    and mode == "pandas"
+                ):
                     feature_transformation = PandasTransformation(udf, udf_string)
-                elif isinstance(inspect.signature(udf).return_annotation, Dict) and mode == "python":
+                elif (
+                    isinstance(inspect.signature(udf).return_annotation, Dict)
+                    and mode == "python"
+                ):
                     feature_transformation = PythonTransformation(udf, udf_string)
                 else:
                     pass
@@ -168,7 +180,8 @@ class OnDemandFeatureView(BaseFeatureView):
         fv = OnDemandFeatureView(
             name=self.name,
             schema=self.features,
-            sources=list(self.source_feature_view_projections.values()) + list(self.source_request_sources.values()),
+            sources=list(self.source_feature_view_projections.values())
+            + list(self.source_request_sources.values()),
             feature_transformation=self.feature_transformation,
             mode=self.mode,
             description=self.description,
@@ -188,11 +201,11 @@ class OnDemandFeatureView(BaseFeatureView):
             return False
 
         if (
-                self.source_feature_view_projections
-                != other.source_feature_view_projections
-                or self.source_request_sources != other.source_request_sources
-                or self.mode != other.mode
-                or self.feature_transformation != other.feature_transformation
+            self.source_feature_view_projections
+            != other.source_feature_view_projections
+            or self.source_request_sources != other.source_request_sources
+            or self.mode != other.mode
+            or self.feature_transformation != other.feature_transformation
         ):
             return False
 
@@ -219,8 +232,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_view_projection=fv_projection.to_proto()
             )
         for (
-                source_name,
-                request_sources,
+            source_name,
+            request_sources,
         ) in self.source_request_sources.items():
             sources[source_name] = OnDemandSource(
                 request_data_source=request_sources.to_proto()
@@ -252,9 +265,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @classmethod
     def from_proto(
-            cls,
-            on_demand_feature_view_proto: OnDemandFeatureViewProto,
-            skip_udf: bool = False,
+        cls,
+        on_demand_feature_view_proto: OnDemandFeatureViewProto,
+        skip_udf: bool = False,
     ):
         """
         Creates an on demand feature view from a protobuf representation.
@@ -268,8 +281,8 @@ class OnDemandFeatureView(BaseFeatureView):
         """
         sources = []
         for (
-                _,
-                on_demand_source,
+            _,
+            on_demand_source,
         ) in on_demand_feature_view_proto.spec.sources.items():
             if on_demand_source.WhichOneof("source") == "feature_view":
                 sources.append(
@@ -287,29 +300,29 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         if (
-                on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
-                    "transformation"
-                )
-                == "user_defined_function"
-                and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
-                != ""
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
+            == "user_defined_function"
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            != ""
         ):
             transformation = PandasTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
             )
         elif (
-                on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
-                    "transformation"
-                )
-                == "substrait_transformation"
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
+            == "substrait_transformation"
         ):
             transformation = SubstraitTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.substrait_transformation
             )
         elif (
-                hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
-                and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
-                == ""
+            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            == ""
         ):
             backwards_compatible_udf = UserDefinedFunctionProto(
                 name=on_demand_feature_view_proto.spec.user_defined_function.name,
@@ -376,9 +389,9 @@ class OnDemandFeatureView(BaseFeatureView):
         return f"{self.projection.name_to_use()}__{feature}"
 
     def get_transformed_features_df(
-            self,
-            df_with_features: pd.DataFrame,
-            full_feature_names: bool = False,
+        self,
+        df_with_features: pd.DataFrame,
+        full_feature_names: bool = False,
     ) -> pd.DataFrame:
         # Apply on demand transformations
         if not isinstance(df_with_features, pd.DataFrame):
@@ -397,8 +410,8 @@ class OnDemandFeatureView(BaseFeatureView):
                     columns_to_cleanup.append(full_feature_ref)
 
         # Compute transformed values and apply to each result row
-        df_with_transformed_features: pd.DataFrame = self.feature_transformation.transform(
-            df_with_features
+        df_with_transformed_features: pd.DataFrame = (
+            self.feature_transformation.transform(df_with_features)
         )
 
         # Work out whether the correct columns names are used.
@@ -407,8 +420,8 @@ class OnDemandFeatureView(BaseFeatureView):
             short_name = feature.name
             long_name = self._get_projected_feature_name(feature.name)
             if (
-                    short_name in df_with_transformed_features.columns
-                    and full_feature_names
+                short_name in df_with_transformed_features.columns
+                and full_feature_names
             ):
                 rename_columns[short_name] = long_name
             elif not full_feature_names:
@@ -420,9 +433,9 @@ class OnDemandFeatureView(BaseFeatureView):
         return df_with_transformed_features.rename(columns=rename_columns)
 
     def get_transformed_features_dict(
-            self,
-            feature_dict: Dict[str, List[Any]],
-            full_feature_names: bool = False,
+        self,
+        feature_dict: Dict[str, List[Any]],
+        full_feature_names: bool = False,
     ) -> Dict[str, Any]:
         # generates a mapping between feature names and fv__feature names (and vice versa)
         name_map: Dict[str, str] = {}
@@ -460,14 +473,15 @@ class OnDemandFeatureView(BaseFeatureView):
             row_output = self.feature_transformation.transform(row)
             for feature_name in output_dict:
                 output_dict[feature_name][i] = row_output.get(
-                    feature_name, row_output[correct_feature_name_to_alias[feature_name]]
+                    feature_name,
+                    row_output[correct_feature_name_to_alias[feature_name]],
                 )
         return output_dict
 
     def get_transformed_features(
-            self,
-            features: Union[Dict[str, List[Any]], pd.DataFrame],
-            full_feature_names: bool = False,
+        self,
+        features: Union[Dict[str, List[Any]], pd.DataFrame],
+        full_feature_names: bool = False,
     ) -> Union[Dict[str, List[Any]], pd.DataFrame]:
         # TODO: classic inheritance pattern....maybe fix this
         if self.mode == "python" and isinstance(features, dict):
@@ -565,7 +579,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @staticmethod
     def get_requested_odfvs(
-            feature_refs, project, registry
+        feature_refs, project, registry
     ) -> List["OnDemandFeatureView"]:
         all_on_demand_feature_views = registry.list_on_demand_feature_views(
             project, allow_cache=True
@@ -580,19 +594,19 @@ class OnDemandFeatureView(BaseFeatureView):
 
 
 def on_demand_feature_view(
-        *,
-        schema: List[Field],
-        sources: List[
-            Union[
-                FeatureView,
-                RequestSource,
-                FeatureViewProjection,
-            ]
-        ],
-        mode: str = "pandas",
-        description: str = "",
-        tags: Optional[Dict[str, str]] = None,
-        owner: str = "",
+    *,
+    schema: List[Field],
+    sources: List[
+        Union[
+            FeatureView,
+            RequestSource,
+            FeatureViewProjection,
+        ]
+    ],
+    mode: str = "pandas",
+    description: str = "",
+    tags: Optional[Dict[str, str]] = None,
+    owner: str = "",
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -619,9 +633,9 @@ def on_demand_feature_view(
     def decorator(user_function):
         return_annotation = inspect.signature(user_function).return_annotation
         if (
-                return_annotation
-                and return_annotation.__module__ == "ibis.expr.types.relations"
-                and return_annotation.__name__ == "Table"
+            return_annotation
+            and return_annotation.__module__ == "ibis.expr.types.relations"
+            and return_annotation.__name__ == "Table"
         ):
             import ibis
             import ibis.expr.datatypes as dt

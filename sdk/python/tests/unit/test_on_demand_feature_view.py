@@ -101,8 +101,9 @@ def test_hash():
             Field(name="output1", dtype=Float32),
             Field(name="output2", dtype=Float32),
         ],
-        udf=udf2,
-        udf_string="udf2 source code",
+        feature_transformation=PandasTransformation(
+            udf=udf2, udf_string="udf2 source code"
+        ),
         description="test",
     )
 
