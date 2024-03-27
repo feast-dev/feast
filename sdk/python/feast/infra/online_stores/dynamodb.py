@@ -65,6 +65,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     consistent_reads: StrictBool = False
     """Whether to read from Dynamodb by forcing consistent reads"""
 
+    global_table_region: Union[str, None] = None
+    """Region to backup tables for multi-region availability.  Defaults to None (no backup)"""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -107,14 +110,32 @@ class DynamoDBOnlineStore(OnlineStore):
 
         for table_instance in tables_to_keep:
             try:
-                dynamodb_resource.create_table(
+                table = dynamodb_resource.create_table(
                     TableName=_get_table_name(online_config, config, table_instance),
                     KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
                         {"AttributeName": "entity_id", "AttributeType": "S"}
                     ],
                     BillingMode="PAY_PER_REQUEST",
+                    StreamSpecification={
+                        "StreamEnabled": True,
+                        "StreamViewType": "NEW_AND_OLD_IMAGES",
+                    }
+                    if online_config.global_table_region
+                    else {
+                        "StreamEnabled": False,
+                    },
                 )
+                if online_config.global_table_region:
+                    table.update(
+                        ReplicaUpdates=[
+                            {
+                                "Create": {
+                                    "RegionName": online_config.global_table_region,
+                                }
+                            }
+                        ],
+                    )
             except ClientError as ce:
                 # If the table creation fails with ResourceInUseException,
                 # it means the table already exists or is being created.
@@ -386,14 +407,22 @@ class DynamoDBTable(InfraObject):
     """
 
     region: str
+    global_table_region: Optional[str]
     endpoint_url = None
     _dynamodb_client = None
     _dynamodb_resource = None
 
-    def __init__(self, name: str, region: str, endpoint_url: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        region: str,
+        endpoint_url: Optional[str] = None,
+        global_table_region: Optional[str] = None,
+    ):
         super().__init__(name)
         self.region = region
         self.endpoint_url = endpoint_url
+        self.global_table_region = global_table_region
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         dynamodb_table_proto = self.to_proto()
@@ -427,14 +456,32 @@ class DynamoDBTable(InfraObject):
         dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
 
         try:
-            dynamodb_resource.create_table(
+            table = dynamodb_resource.create_table(
                 TableName=f"{self.name}",
                 KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                 AttributeDefinitions=[
                     {"AttributeName": "entity_id", "AttributeType": "S"}
                 ],
                 BillingMode="PAY_PER_REQUEST",
+                StreamSpecification={
+                    "StreamEnabled": True,
+                    "StreamViewType": "NEW_AND_OLD_IMAGES",
+                }
+                if self.global_table_region
+                else {
+                    "StreamEnabled": False,
+                },
             )
+            if self.global_table_region:
+                table.update(
+                    ReplicaUpdates=[
+                        {
+                            "Create": {
+                                "RegionName": self.global_table_region,
+                            }
+                        }
+                    ],
+                )
         except ClientError as ce:
             # If the table creation fails with ResourceInUseException,
             # it means the table already exists or is being created.
