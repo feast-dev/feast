@@ -8,7 +8,6 @@ annotated-types==0.6.0
     # via pydantic
 anyio==4.3.0
     # via
-    #   httpx
     #   starlette
     #   watchfiles
 appdirs==1.4.4
@@ -21,10 +20,7 @@ attrs==23.2.0
 bowler==0.9.0
     # via feast (setup.py)
 certifi==2024.2.2
-    # via
-    #   httpcore
-    #   httpx
-    #   requests
+    # via requests
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
@@ -53,21 +49,12 @@ greenlet==3.0.3
 gunicorn==21.2.0
     # via feast (setup.py)
 h11==0.14.0
-    # via
-    #   httpcore
-    #   uvicorn
-httpcore==1.0.4
-    # via httpx
+    # via uvicorn
 httptools==0.6.1
     # via uvicorn
-httpx==0.27.0
-    # via feast (setup.py)
-ibis==3.3.0
-    # via feast (setup.py)
 idna==3.6
     # via
     #   anyio
-    #   httpx
     #   requests
 importlib-metadata==6.11.0
     # via
@@ -108,13 +95,10 @@ pandas==2.2.1
     # via feast (setup.py)
 partd==1.4.1
     # via dask
-proto-plus==1.23.0
-    # via feast (setup.py)
 protobuf==4.25.3
     # via
     #   feast (setup.py)
     #   mypy-protobuf
-    #   proto-plus
 pyarrow==15.0.2
     # via feast (setup.py)
 pydantic==2.6.4
@@ -149,9 +133,7 @@ rpds-py==0.18.0
 six==1.16.0
     # via python-dateutil
 sniffio==1.3.1
-    # via
-    #   anyio
-    #   httpx
+    # via anyio
 sqlalchemy[mypy]==1.4.52
     # via
     #   feast (setup.py)

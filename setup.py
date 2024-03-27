@@ -71,7 +71,6 @@ REQUIRED = [
     "bowler",  # Needed for automatic repo upgrades
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
-    "ibis~=3.3.0",
 ]
 
 GCP_REQUIRED = [
