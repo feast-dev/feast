@@ -38,7 +38,8 @@ build: protos build-java build-docker
 
 install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
-	COMPILE_GO=true python setup.py develop
+	pip install --no-deps -e .
+	python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
 	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt

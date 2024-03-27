@@ -7,7 +7,6 @@ import "feast/core/Registry.proto";
 import "feast/core/Entity.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/FeatureView.proto";
-import "feast/core/RequestFeatureView.proto";
 import "feast/core/StreamFeatureView.proto";
 import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/FeatureService.proto";
@@ -27,10 +26,6 @@ service RegistryServer{
   // FeatureView RPCs
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
-
-  // RequestFeatureView RPCs
-  rpc GetRequestFeatureView (GetRequestFeatureViewRequest) returns (feast.core.RequestFeatureView) {}
-  rpc ListRequestFeatureViews (ListRequestFeatureViewsRequest) returns (ListRequestFeatureViewsResponse) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
@@ -124,23 +119,6 @@ message ListFeatureViewsRequest {
 
 message ListFeatureViewsResponse {
     repeated feast.core.FeatureView feature_views = 1;
-}
-
-// RequestFeatureView
-
-message GetRequestFeatureViewRequest {
-    string name = 1;
-    string project = 2;
-    bool allow_cache = 3;
-}
-
-message ListRequestFeatureViewsRequest {
-    string project = 1;
-    bool allow_cache = 2;
-}
-
-message ListRequestFeatureViewsResponse {
-    repeated feast.core.RequestFeatureView request_feature_views = 1;
 }
 
 // StreamFeatureView

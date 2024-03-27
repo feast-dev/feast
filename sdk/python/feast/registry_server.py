@@ -59,23 +59,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
-    def GetRequestFeatureView(
-        self, request: RegistryServer_pb2.GetRequestFeatureViewRequest, context
-    ):
-        return self.proxied_registry.get_request_feature_view(
-            name=request.name, project=request.project, allow_cache=request.allow_cache
-        ).to_proto()
-
-    def ListRequestFeatureViews(self, request, context):
-        return RegistryServer_pb2.ListRequestFeatureViewsResponse(
-            request_feature_views=[
-                request_feature_view.to_proto()
-                for request_feature_view in self.proxied_registry.list_request_feature_views(
-                    project=request.project, allow_cache=request.allow_cache
-                )
-            ]
-        )
-
     def GetStreamFeatureView(
         self, request: RegistryServer_pb2.GetStreamFeatureViewRequest, context
     ):
