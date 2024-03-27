@@ -71,6 +71,7 @@ def test_ibis_pandas_parity():
         @on_demand_feature_view(
             sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
             schema=[Field(name="conv_rate_plus_acc_substrait", dtype=Float64)],
+            mode="substrait",
         )
         def substrait_view(inputs: Table) -> Table:
             return inputs.select(

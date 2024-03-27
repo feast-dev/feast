@@ -81,6 +81,10 @@ class RetrievalJob(ABC):
         if self.on_demand_feature_views:
             # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
             for odfv in self.on_demand_feature_views:
+                if odfv.mode not in {"pandas", "substrait"}:
+                    raise Exception(
+                        f'OnDemandFeatureView mode "{odfv.mode}" not supported for offline processing.'
+                    )
                 features_df = features_df.join(
                     odfv.get_transformed_features_df(
                         features_df,
@@ -124,6 +128,10 @@ class RetrievalJob(ABC):
         features_df = self._to_df_internal(timeout=timeout)
         if self.on_demand_feature_views:
             for odfv in self.on_demand_feature_views:
+                if odfv.mode != "pandas":
+                    raise Exception(
+                        f'OnDemandFeatureView mode "{odfv.mode}" not supported for offline processing.'
+                    )
                 features_df = features_df.join(
                     odfv.get_transformed_features_df(
                         features_df,
