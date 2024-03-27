@@ -20,13 +20,13 @@ class PythonTransformation:
         self.udf = udf
         self.udf_string = udf_string
 
-    def transform(self, df: Dict) -> Dict:
-        return self.udf.__call__(df)
+    def transform(self, input_dict: Dict) -> Dict:
+        return self.udf.__call__(input_dict)
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
             raise TypeError(
-                "Comparisons should only involve OnDemandPythonTransformation class objects."
+                "Comparisons should only involve PythonTransformation class objects."
             )
 
         if not super().__eq__(other):

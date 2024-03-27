@@ -2106,14 +2106,14 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features = odfv.get_transformed_features(
+                transformed_features_dict: Dict[str, List[Any]] = odfv.get_transformed_features(
                     initial_response_dict,
                     full_feature_names,
                 )
             elif odfv.mode == "pandas":
                 if initial_response_df is None:
                     initial_response_df = initial_response.to_df()
-                transformed_features_df = odfv.get_transformed_features(
+                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
                     initial_response_df,
                     full_feature_names,
                 )
@@ -2122,6 +2122,7 @@ class FeatureStore:
                     f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas' or 'python'."
                 )
 
+            transformed_features = transformed_features_dict if odfv.mode == "python" else transformed_features_df
             transformed_columns = (
                 transformed_features.columns
                 if isinstance(transformed_features, pd.DataFrame)
@@ -2130,11 +2131,12 @@ class FeatureStore:
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
 
             proto_values = []
-            for feature in selected_subset:
-                feature_vector = transformed_features[feature]
-                proto_values.append(
-                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
-                )
+            for selected_feature in selected_subset:
+                if odfv.mode in ["python", "pandas"]:
+                    feature_vector = transformed_features[selected_feature]
+                    proto_values.append(
+                        python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                    )
 
             odfv_result_names |= set(selected_subset)
 
