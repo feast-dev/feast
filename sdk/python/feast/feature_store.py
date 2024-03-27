@@ -952,8 +952,8 @@ class FeatureStore:
                 )
 
         tables_to_delete: List[FeatureView] = (
-            views_to_delete + sfvs_to_delete if not partial else []
-        )  # type: ignore
+            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        )
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
         self._get_provider().update_infra(
