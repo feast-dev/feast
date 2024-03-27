@@ -17,8 +17,6 @@ from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentEr
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
-from feast.on_demand_pandas_transformation import OnDemandPandasTransformation
-from feast.on_demand_substrait_transformation import OnDemandSubstraitTransformation
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -27,6 +25,14 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureViewSpec,
     OnDemandSource,
 )
+from feast.protos.feast.core.Transformation_pb2 import (
+    FeatureTransformationV2 as FeatureTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -51,7 +57,7 @@ class OnDemandFeatureView(BaseFeatureView):
             sources with type FeatureViewProjection.
         source_request_sources: A map from input source names to the actual input
             sources with type RequestSource.
-        transformation: The user defined transformation.
+        feature_transformation: The user defined transformation.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the on demand feature view, typically the email of the primary
@@ -62,7 +68,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: Dict[str, FeatureViewProjection]
     source_request_sources: Dict[str, RequestSource]
-    transformation: Union[OnDemandPandasTransformation]
+    feature_transformation: Union[PandasTransformation, SubstraitTransformation]
     description: str
     tags: Dict[str, str]
     owner: str
@@ -82,7 +88,9 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: str = "",
-        transformation: Optional[Union[OnDemandPandasTransformation]] = None,
+        feature_transformation: Optional[
+            Union[PandasTransformation, SubstraitTransformation]
+        ] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -100,7 +108,7 @@ class OnDemandFeatureView(BaseFeatureView):
             udf (deprecated): The user defined transformation function, which must take pandas
                 dataframes as inputs.
             udf_string (deprecated): The source code version of the udf (for diffing and displaying in Web UI)
-            transformation: The user defined transformation.
+            feature_transformation: The user defined transformation.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
@@ -114,13 +122,13 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=owner,
         )
 
-        if not transformation:
+        if not feature_transformation:
             if udf:
                 warnings.warn(
                     "udf and udf_string parameters are deprecated. Please use transformation=OnDemandPandasTransformation(udf, udf_string) instead.",
                     DeprecationWarning,
                 )
-                transformation = OnDemandPandasTransformation(udf, udf_string)
+                feature_transformation = PandasTransformation(udf, udf_string)
             else:
                 raise Exception(
                     "OnDemandFeatureView needs to be initialized with either transformation or udf arguments"
@@ -138,7 +146,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     odfv_source.name
                 ] = odfv_source.projection
 
-        self.transformation = transformation
+        self.feature_transformation = feature_transformation
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -150,7 +158,7 @@ class OnDemandFeatureView(BaseFeatureView):
             schema=self.features,
             sources=list(self.source_feature_view_projections.values())
             + list(self.source_request_sources.values()),
-            transformation=self.transformation,
+            feature_transformation=self.feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -171,7 +179,7 @@ class OnDemandFeatureView(BaseFeatureView):
             self.source_feature_view_projections
             != other.source_feature_view_projections
             or self.source_request_sources != other.source_request_sources
-            or self.transformation != other.transformation
+            or self.feature_transformation != other.feature_transformation
         ):
             return False
 
@@ -205,16 +213,19 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
+        feature_transformation = FeatureTransformationProto(
+            user_defined_function=self.feature_transformation.to_proto()
+            if isinstance(self.feature_transformation, PandasTransformation)
+            else None,
+            substrait_transformation=self.feature_transformation.to_proto()
+            if isinstance(self.feature_transformation, SubstraitTransformation)
+            else None,
+        )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
             features=[feature.to_proto() for feature in self.features],
             sources=sources,
-            user_defined_function=self.transformation.to_proto()
-            if type(self.transformation) == OnDemandPandasTransformation
-            else None,
-            on_demand_substrait_transformation=self.transformation.to_proto()  # type: ignore
-            if type(self.transformation) == OnDemandSubstraitTransformation
-            else None,
+            feature_transformation=feature_transformation,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
@@ -254,18 +265,37 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
 
         if (
-            on_demand_feature_view_proto.spec.WhichOneof("transformation")
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
             == "user_defined_function"
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            != ""
         ):
-            transformation = OnDemandPandasTransformation.from_proto(
-                on_demand_feature_view_proto.spec.user_defined_function
+            transformation = PandasTransformation.from_proto(
+                on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
             )
         elif (
-            on_demand_feature_view_proto.spec.WhichOneof("transformation")
-            == "on_demand_substrait_transformation"
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
+            == "substrait_transformation"
         ):
-            transformation = OnDemandSubstraitTransformation.from_proto(
-                on_demand_feature_view_proto.spec.on_demand_substrait_transformation
+            transformation = SubstraitTransformation.from_proto(
+                on_demand_feature_view_proto.spec.feature_transformation.substrait_transformation
+            )
+        elif (
+            hasattr(on_demand_feature_view_proto.spec, "user_defined_function")
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            == ""
+        ):
+            backwards_compatible_udf = UserDefinedFunctionProto(
+                name=on_demand_feature_view_proto.spec.user_defined_function.name,
+                body=on_demand_feature_view_proto.spec.user_defined_function.body,
+                body_text=on_demand_feature_view_proto.spec.user_defined_function.body_text,
+            )
+            transformation = PandasTransformation.from_proto(
+                user_defined_function_proto=backwards_compatible_udf,
             )
         else:
             raise Exception("At least one transformation type needs to be provided")
@@ -280,7 +310,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 for feature in on_demand_feature_view_proto.spec.features
             ],
             sources=sources,
-            transformation=transformation,
+            feature_transformation=transformation,
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
@@ -340,7 +370,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
         # Compute transformed values and apply to each result row
 
-        df_with_transformed_features = self.transformation.transform(df_with_features)
+        df_with_transformed_features = self.feature_transformation.transform(
+            df_with_features
+        )
 
         # Work out whether the correct columns names are used.
         rename_columns: Dict[str, str] = {}
@@ -390,7 +422,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
                 sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
                 df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
-        output_df: pd.DataFrame = self.transformation.transform(df)
+        output_df: pd.DataFrame = self.feature_transformation.transform(df)
         inferred_features = []
         for f, dt in zip(output_df.columns, output_df.dtypes):
             inferred_features.append(
@@ -487,7 +519,7 @@ def on_demand_feature_view(
             input_fields: Field = []
 
             for s in sources:
-                if type(s) == FeatureView:
+                if isinstance(s, FeatureView):
                     fields = s.projection.features
                 else:
                     fields = s.features
@@ -506,19 +538,19 @@ def on_demand_feature_view(
 
             expr = user_function(ibis.table(input_fields, "t"))
 
-            transformation = OnDemandSubstraitTransformation(
+            transformation = SubstraitTransformation(
                 substrait_plan=compiler.compile(expr).SerializeToString()
             )
         else:
             udf_string = dill.source.getsource(user_function)
             mainify(user_function)
-            transformation = OnDemandPandasTransformation(user_function, udf_string)
+            transformation = PandasTransformation(user_function, udf_string)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,
             sources=sources,
             schema=schema,
-            transformation=transformation,
+            feature_transformation=transformation,
             description=description,
             tags=tags,
             owner=owner,

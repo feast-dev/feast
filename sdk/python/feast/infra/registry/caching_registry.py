@@ -14,7 +14,6 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -144,34 +143,6 @@ class CachingRegistry(BaseRegistry):
                 self.cached_registry_proto, project
             )
         return self._list_on_demand_feature_views(project)
-
-    @abstractmethod
-    def _get_request_feature_view(self, name: str, project: str) -> RequestFeatureView:
-        pass
-
-    def get_request_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> RequestFeatureView:
-        if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_request_feature_view(
-                self.cached_registry_proto, name, project
-            )
-        return self._get_request_feature_view(name, project)
-
-    @abstractmethod
-    def _list_request_feature_views(self, project: str) -> List[RequestFeatureView]:
-        pass
-
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_request_feature_views(
-                self.cached_registry_proto, project
-            )
-        return self._list_request_feature_views(project)
 
     @abstractmethod
     def _get_stream_feature_view(self, name: str, project: str) -> StreamFeatureView:

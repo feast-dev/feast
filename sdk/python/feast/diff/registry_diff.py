@@ -20,9 +20,6 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
-    RequestFeatureView as RequestFeatureViewProto,
-)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -110,7 +107,6 @@ FeastObjectProto = TypeVar(
     FeatureViewProto,
     FeatureServiceProto,
     OnDemandFeatureViewProto,
-    RequestFeatureViewProto,
     StreamFeatureViewProto,
     ValidationReferenceProto,
 )
@@ -144,11 +140,26 @@ def diff_registry_objects(
             if _field.name in FIELDS_TO_IGNORE:
                 continue
             elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
-                if _field.name == "user_defined_function":
+                if _field.name == "feature_transformation":
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
-                    current_udf = current_spec.user_defined_function
-                    new_udf = new_spec.user_defined_function
+                    # Check if the old proto is populated and use that if it is
+                    feature_transformation_udf = (
+                        current_spec.feature_transformation.user_defined_function
+                    )
+                    if (
+                        current_spec.HasField("user_defined_function")
+                        and not feature_transformation_udf
+                    ):
+                        deprecated_udf = current_spec.user_defined_function
+                    else:
+                        deprecated_udf = None
+                    current_udf = (
+                        deprecated_udf
+                        if deprecated_udf is not None
+                        else feature_transformation_udf
+                    )
+                    new_udf = new_spec.feature_transformation.user_defined_function
                     for _udf_field in current_udf.DESCRIPTOR.fields:
                         if _udf_field.name == "body":
                             continue
@@ -324,7 +335,6 @@ def apply_diff_to_registry(
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
-                FeastObjectType.REQUEST_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
             ]:
                 feature_view_obj = cast(
@@ -368,7 +378,6 @@ def apply_diff_to_registry(
             elif feast_object_diff.feast_object_type in [
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
-                FeastObjectType.REQUEST_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
