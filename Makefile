@@ -321,7 +321,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
 
 lint-python:
-	# cd ${ROOT_DIR}/sdk/python; python -m mypy feast
+	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
 	cd ${ROOT_DIR}/sdk/python; ruff check feast/ tests/
 
 # Java
