@@ -1,4 +1,4 @@
-FROM python:3.9-slim-bullseye AS build
+FROM python:3.11-slim-bullseye AS build
 
 RUN apt-get update && \
     apt-get install --no-install-suggests --no-install-recommends --yes git

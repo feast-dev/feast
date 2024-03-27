@@ -5,9 +5,6 @@ from typing import List
 import pyarrow as pa
 import pyarrow.parquet as pq
 from bytewax.dataflow import Dataflow  # type: ignore
-from bytewax.execution import cluster_main
-from bytewax.inputs import ManualInputConfig
-from bytewax.outputs import ManualOutputConfig
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
