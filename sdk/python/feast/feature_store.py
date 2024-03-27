@@ -2112,7 +2112,7 @@ class FeatureStore:
                     initial_response_dict,
                     full_feature_names,
                 )
-            elif odfv.mode == "pandas":
+            elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_df is None:
                     initial_response_df = initial_response.to_df()
                 transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
@@ -2121,7 +2121,7 @@ class FeatureStore:
                 )
             else:
                 raise Exception(
-                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas' or 'python'."
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
                 )
 
             transformed_features = (
