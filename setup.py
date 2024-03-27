@@ -67,6 +67,10 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.4.2",
     "bowler",  # Needed for automatic repo upgrades
+    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+    "httpx>=0.23.3",
+    "importlib-resources>=6.0.0,<7",
+    "importlib_metadata>=6.8.0,<7",
 ]
 
 GCP_REQUIRED = [
@@ -164,6 +168,7 @@ CI_REQUIRED = (
         "mock==2.0.0",
         "moto<5",
         "mypy>=1.4.1",
+        "avro==1.10.0",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
