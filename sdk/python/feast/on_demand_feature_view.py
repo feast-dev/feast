@@ -130,7 +130,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         if mode not in {"python", "pandas", "substrait"}:
             raise Exception(
-                f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs and substraits."
+                f"Unknown mode {mode}. OnDemandFeatureView only supports python or pandas UDFs and substrait."
             )
         else:
             self.mode = mode
@@ -145,32 +145,12 @@ class OnDemandFeatureView(BaseFeatureView):
                     feature_transformation = PandasTransformation(udf, udf_string)
                 elif mode == "python":
                     feature_transformation = PythonTransformation(udf, udf_string)
-                elif mode == "substrait":
-                    feature_transformation = SubstraitTransformation(
-                        substrait_plan=udf_string
-                    )
                 else:
                     pass
             else:
                 raise Exception(
                     "OnDemandFeatureView needs to be initialized with either feature_transformation or udf arguments"
                 )
-        else:
-            # Note inspecting the return signature won't work with isinstance so this is the best alternative
-            if mode == "pandas":
-                feature_transformation = PandasTransformation(
-                    feature_transformation.udf, feature_transformation.udf_string
-                )
-            elif mode == "python":
-                feature_transformation = PythonTransformation(
-                    feature_transformation.udf, feature_transformation.udf_string
-                )
-            elif mode == "substrait":
-                feature_transformation = SubstraitTransformation(
-                    substrait_plan=feature_transformation.substrait_plan
-                )
-            else:
-                pass
 
         self.source_feature_view_projections: Dict[str, FeatureViewProjection] = {}
         self.source_request_sources: Dict[str, RequestSource] = {}
@@ -705,6 +685,7 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
+
         return_annotation = inspect.signature(user_function).return_annotation
         if (
             return_annotation
@@ -745,7 +726,12 @@ def on_demand_feature_view(
         else:
             udf_string = dill.source.getsource(user_function)
             mainify(user_function)
-            transformation = PandasTransformation(user_function, udf_string)
+            if mode == "pandas":
+                transformation = PandasTransformation(user_function, udf_string)
+            elif mode == "python":
+                transformation = PythonTransformation(user_function, udf_string)
+            elif mode == "substrait":
+                pass
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,
