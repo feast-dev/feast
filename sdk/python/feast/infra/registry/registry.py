@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
-from proto import Message
+from google.protobuf.message import Message
 
 from feast import usage
 from feast.base_feature_view import BaseFeatureView
