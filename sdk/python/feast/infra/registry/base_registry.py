@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from proto import Message
+from google.protobuf.message import Message
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
