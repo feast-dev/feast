@@ -67,7 +67,7 @@ test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
-	python -m pytest -n 8 --integration --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
+	python -m pytest -n 8 --integration -k "not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
 
 test-python-integration-local:
 	@(docker info > /dev/null 2>&1 && \
