@@ -77,7 +77,7 @@ GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
     "google-cloud-bigquery[pandas]>=2,<3.13.0",
-    "google-cloud-bigquery-storage >= 2.0.0,<3",
+    "google-cloud-bigquery-storage >= 2.23.0,<3",
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
@@ -90,8 +90,6 @@ REDIS_REQUIRED = [
 ]
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
-
-BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
@@ -198,7 +196,6 @@ CI_REQUIRED = (
     + GCP_REQUIRED
     + REDIS_REQUIRED
     + AWS_REQUIRED
-    + BYTEWAX_REQUIRED
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
@@ -359,7 +356,6 @@ setup(
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
-        "bytewax": BYTEWAX_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,

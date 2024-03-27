@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-python@v3
         id: setup-python
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           architecture: x64
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
@@ -95,7 +95,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
-      PYTHON: 3.9
+      PYTHON: 3.11
     steps:
       - uses: actions/checkout@v3
         with:
@@ -110,7 +110,7 @@ jobs:
         uses: actions/setup-python@v3
         id: setup-python
         with:
-          python-version: 3.9
+          python-version: 3.11
           architecture: x64
       - name: Get pip cache dir
         id: pip-cache
