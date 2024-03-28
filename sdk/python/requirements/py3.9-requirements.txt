@@ -34,8 +34,12 @@ cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2024.2.1
-    # via feast (setup.py)
+dask[array,dataframe]==2024.3.1
+    # via
+    #   dask-expr
+    #   feast (setup.py)
+dask-expr==1.0.5
+    # via dask
 dill==0.3.8
     # via feast (setup.py)
 exceptiongroup==1.2.0
@@ -87,6 +91,7 @@ mypy-protobuf==3.5.0
     # via feast (setup.py)
 numpy==1.24.4
     # via
+    #   dask
     #   feast (setup.py)
     #   pandas
     #   pyarrow
@@ -95,7 +100,10 @@ packaging==24.0
     #   dask
     #   gunicorn
 pandas==2.2.1
-    # via feast (setup.py)
+    # via
+    #   dask
+    #   dask-expr
+    #   feast (setup.py)
 partd==1.4.1
     # via dask
 protobuf==4.25.3
@@ -103,7 +111,9 @@ protobuf==4.25.3
     #   feast (setup.py)
     #   mypy-protobuf
 pyarrow==15.0.2
-    # via feast (setup.py)
+    # via
+    #   dask-expr
+    #   feast (setup.py)
 pydantic==2.6.4
     # via
     #   fastapi
