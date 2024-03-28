@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional
 
 import psycopg2
@@ -37,6 +38,11 @@ class PostgreSQLRegistryStore(RegistryStore):
             sslcert_path=getattr(config, "sslcert_path", None),
             sslrootcert_path=getattr(config, "sslrootcert_path", None),
         )
+        warnings.warn(
+            "PostgreSQLRegistryStore is deprecated and will be removed in the future releases. Please use SqlRegistry instead.",
+            DeprecationWarning,
+        )
+
         self.table_name = config.path
         self.cache_ttl_seconds = config.cache_ttl_seconds
 

@@ -50,9 +50,6 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
-    RequestFeatureView as RequestFeatureViewProto,
-)
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
@@ -61,7 +58,6 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
 from feast.repo_config import RegistryConfig
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -92,16 +88,6 @@ feature_views = Table(
     Column("project_id", String(50), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("materialized_intervals", LargeBinary, nullable=True),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
-)
-
-request_feature_views = Table(
-    "request_feature_views",
-    metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
-    Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
     Column("user_metadata", LargeBinary, nullable=True),
 )
@@ -216,7 +202,6 @@ class SqlRegistry(CachingRegistry):
             feature_views,
             feature_services,
             on_demand_feature_views,
-            request_feature_views,
             saved_datasets,
             validation_references,
         }:
@@ -292,18 +277,6 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
-    def _get_request_feature_view(self, name: str, project: str):
-        return self._get_object(
-            table=request_feature_views,
-            name=name,
-            project=project,
-            proto_class=RequestFeatureViewProto,
-            python_class=RequestFeatureView,
-            id_field_name="feature_view_name",
-            proto_field_name="feature_view_proto",
-            not_found_exception=FeatureViewNotFoundException,
-        )
-
     def _get_feature_service(self, name: str, project: str) -> FeatureService:
         return self._get_object(
             table=feature_services,
@@ -363,7 +336,6 @@ class SqlRegistry(CachingRegistry):
         deleted_count = 0
         for table in {
             feature_views,
-            request_feature_views,
             on_demand_feature_views,
             stream_feature_views,
         }:
@@ -459,15 +431,6 @@ class SqlRegistry(CachingRegistry):
             "saved_dataset_proto",
         )
 
-    def _list_request_feature_views(self, project: str) -> List[RequestFeatureView]:
-        return self._list_objects(
-            request_feature_views,
-            project,
-            RequestFeatureViewProto,
-            RequestFeatureView,
-            "feature_view_proto",
-        )
-
     def _list_on_demand_feature_views(self, project: str) -> List[OnDemandFeatureView]:
         return self._list_objects(
             on_demand_feature_views,
@@ -532,7 +495,7 @@ class SqlRegistry(CachingRegistry):
         table = self._infer_fv_table(feature_view)
         python_class, proto_class = self._infer_fv_classes(feature_view)
 
-        if python_class in {RequestFeatureView, OnDemandFeatureView}:
+        if python_class in {OnDemandFeatureView}:
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
@@ -628,8 +591,6 @@ class SqlRegistry(CachingRegistry):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
             table = on_demand_feature_views
-        elif isinstance(feature_view, RequestFeatureView):
-            table = request_feature_views
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return table
@@ -641,8 +602,6 @@ class SqlRegistry(CachingRegistry):
             python_class, proto_class = FeatureView, FeatureViewProto
         elif isinstance(feature_view, OnDemandFeatureView):
             python_class, proto_class = OnDemandFeatureView, OnDemandFeatureViewProto
-        elif isinstance(feature_view, RequestFeatureView):
-            python_class, proto_class = RequestFeatureView, RequestFeatureViewProto
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return python_class, proto_class
@@ -671,7 +630,6 @@ class SqlRegistry(CachingRegistry):
                 (self.list_feature_views, r.feature_views),
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_request_feature_views, r.request_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
@@ -733,7 +691,10 @@ class SqlRegistry(CachingRegistry):
                 }
                 update_stmt = (
                     update(table)
-                    .where(getattr(table.c, id_field_name) == name)
+                    .where(
+                        getattr(table.c, id_field_name) == name,
+                        table.c.project_id == project,
+                    )
                     .values(
                         values,
                     )
@@ -905,7 +866,6 @@ class SqlRegistry(CachingRegistry):
                 entities,
                 data_sources,
                 feature_views,
-                request_feature_views,
                 on_demand_feature_views,
                 stream_feature_views,
             }:

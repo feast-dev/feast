@@ -2,15 +2,15 @@ import pandas as pd
 import pyarrow
 import pyarrow.substrait as substrait  # type: ignore # noqa
 
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    OnDemandSubstraitTransformation as OnDemandSubstraitTransformationProto,
+from feast.protos.feast.core.Transformation_pb2 import (
+    SubstraitTransformationV2 as SubstraitTransformationProto,
 )
 
 
-class OnDemandSubstraitTransformation:
+class SubstraitTransformation:
     def __init__(self, substrait_plan: bytes):
         """
-        Creates an OnDemandSubstraitTransformation object.
+        Creates an SubstraitTransformation object.
 
         Args:
             substrait_plan: The user-provided substrait plan.
@@ -27,9 +27,9 @@ class OnDemandSubstraitTransformation:
         return table.to_pandas()
 
     def __eq__(self, other):
-        if not isinstance(other, OnDemandSubstraitTransformation):
+        if not isinstance(other, SubstraitTransformation):
             raise TypeError(
-                "Comparisons should only involve OnDemandSubstraitTransformation class objects."
+                "Comparisons should only involve SubstraitTransformation class objects."
             )
 
         if not super().__eq__(other):
@@ -37,14 +37,14 @@ class OnDemandSubstraitTransformation:
 
         return self.substrait_plan == other.substrait_plan
 
-    def to_proto(self) -> OnDemandSubstraitTransformationProto:
-        return OnDemandSubstraitTransformationProto(substrait_plan=self.substrait_plan)
+    def to_proto(self) -> SubstraitTransformationProto:
+        return SubstraitTransformationProto(substrait_plan=self.substrait_plan)
 
     @classmethod
     def from_proto(
         cls,
-        on_demand_substrait_transformation_proto: OnDemandSubstraitTransformationProto,
+        substrait_transformation_proto: SubstraitTransformationProto,
     ):
-        return OnDemandSubstraitTransformation(
-            substrait_plan=on_demand_substrait_transformation_proto.substrait_plan
+        return SubstraitTransformation(
+            substrait_plan=substrait_transformation_proto.substrait_plan
         )

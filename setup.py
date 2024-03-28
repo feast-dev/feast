@@ -177,6 +177,7 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering~=0.6.0",
         "pytest-mock==1.10.4",
+        "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "firebase-admin>=5.2.0,<6",

@@ -61,11 +61,11 @@ black==22.12.0
     # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
-boto3==1.34.67
+boto3==1.34.69
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.34.67
+botocore==1.34.69
     # via
     #   boto3
     #   moto
@@ -205,7 +205,7 @@ geojson==2.5.0
     # via rockset
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.17.1
+google-api-core[grpc]==2.18.0
     # via
     #   feast (setup.py)
     #   firebase-admin
@@ -217,7 +217,7 @@ google-api-core[grpc]==2.17.1
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.122.0
+google-api-python-client==2.123.0
     # via firebase-admin
 google-auth==2.29.0
     # via
@@ -337,7 +337,7 @@ importlib-metadata==6.11.0
     # via
     #   dask
     #   feast (setup.py)
-importlib-resources==6.3.2
+importlib-resources==6.4.0
     # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
@@ -489,7 +489,7 @@ mypy-protobuf==3.3.0
     # via feast (setup.py)
 nbclient==0.10.0
     # via nbconvert
-nbconvert==7.16.2
+nbconvert==7.16.3
     # via jupyter-server
 nbformat==5.10.3
     # via
@@ -587,6 +587,7 @@ prompt-toolkit==3.0.43
     # via ipython
 proto-plus==1.23.0
     # via
+    #   google-api-core
     #   google-cloud-bigquery
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
@@ -693,6 +694,7 @@ pytest==7.4.4
     #   feast (setup.py)
     #   pytest-benchmark
     #   pytest-cov
+    #   pytest-env
     #   pytest-lazy-fixture
     #   pytest-mock
     #   pytest-ordering
@@ -701,6 +703,8 @@ pytest==7.4.4
 pytest-benchmark==3.4.1
     # via feast (setup.py)
 pytest-cov==4.1.0
+    # via feast (setup.py)
+pytest-env==1.1.3
     # via feast (setup.py)
 pytest-lazy-fixture==0.6.3
     # via feast (setup.py)
@@ -779,7 +783,7 @@ requests==2.31.0
     #   snowflake-connector-python
     #   sphinx
     #   trino
-requests-oauthlib==1.4.0
+requests-oauthlib==2.0.0
     # via kubernetes
 responses==0.25.0
     # via moto
@@ -893,6 +897,7 @@ tomli==2.0.1
     #   pip-tools
     #   pyproject-hooks
     #   pytest
+    #   pytest-env
 tomlkit==0.12.4
     # via snowflake-connector-python
 toolz==0.12.1
@@ -930,7 +935,7 @@ traitlets==5.14.2
     #   nbformat
 trino==0.328.0
     # via feast (setup.py)
-typeguard==4.1.5
+typeguard==4.2.1
     # via feast (setup.py)
 types-protobuf==3.19.22
     # via
