@@ -709,8 +709,16 @@ def on_demand_feature_view(
             udf_string = dill.source.getsource(user_function)
             mainify(user_function)
             if mode == "pandas":
+                if return_annotation not in (inspect._empty, pd.DataFrame):
+                    raise TypeError(
+                        f"return signature for {user_function} is {return_annotation} but should be pd.DataFrame"
+                    )
                 transformation = PandasTransformation(user_function, udf_string)
             elif mode == "python":
+                if return_annotation not in (inspect._empty, Dict[str, Any]):
+                    raise TypeError(
+                        f"return signature for {user_function} is {return_annotation} but should be Dict[str, Any]"
+                    )
                 transformation = PythonTransformation(user_function, udf_string)
             elif mode == "substrait":
                 pass

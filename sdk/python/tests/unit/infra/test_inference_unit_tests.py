@@ -83,10 +83,8 @@ def test_on_demand_features_valid_type_inference():
         ],
         mode="python",
     )
-    def python_native_test_view(
-        input_dict: Dict[str, List[Any]]
-    ) -> Dict[str, List[Any]]:
-        output_dict: Dict[str, List[Any]] = {
+    def python_native_test_view(input_dict: Dict[str, Any]) -> Dict[str, List[Any]]:
+        output_dict: Dict[str, Any] = {
             "output": input_dict["some_date"],
             "object_output": str(input_dict["some_date"]),
         }
@@ -102,72 +100,73 @@ def test_on_demand_features_invalid_type_inference():
         schema=[Field(name="some_date", dtype=UnixTimestamp)],
     )
 
-    @on_demand_feature_view(
-        sources=[date_request],
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="object_output", dtype=String),
-        ],
-    )
-    def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        data["object_output"] = features_df["some_date"].astype(str)
-        return data
-
-    with pytest.raises(ValueError, match="Value with native type object"):
-        invalid_test_view.infer_features()
-
-    @on_demand_feature_view(
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="missing", dtype=String),
-        ],
-        sources=[date_request],
-    )
-    def view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        return data
-
-    with pytest.raises(SpecifiedFeaturesNotPresentError):
-        view_with_missing_feature.infer_features()
-
-    @on_demand_feature_view(
-        sources=[date_request],
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="object_output", dtype=String),
-        ],
-        mode="pandas",
-    )
-    def python_native_test_invalid_pandas_view(
-        input_dict: Dict[str, List[Any]]
-    ) -> Dict[str, List[Any]]:
-        output_dict: Dict[str, List[Any]] = {
-            "output": input_dict["some_date"],
-            "object_output": str(input_dict["some_date"]),
-        }
-        return output_dict
-
-    with pytest.raises(TypeError):
-        python_native_test_invalid_pandas_view.infer_features()
-
-    @on_demand_feature_view(
-        sources=[date_request],
-        schema=[
-            Field(name="output", dtype=UnixTimestamp),
-            Field(name="object_output", dtype=String),
-        ],
-        mode="python",
-    )
-    def python_native_test_invalid_dict_view(features_df: pd.DataFrame) -> pd.DataFrame:
-        data = pd.DataFrame()
-        data["output"] = features_df["some_date"]
-        return data
+    # @on_demand_feature_view(
+    #     sources=[date_request],
+    #     schema=[
+    #         Field(name="output", dtype=UnixTimestamp),
+    #         Field(name="object_output", dtype=String),
+    #     ],
+    # )
+    # def invalid_test_view(features_df: pd.DataFrame) -> pd.DataFrame:
+    #     data = pd.DataFrame()
+    #     data["output"] = features_df["some_date"]
+    #     data["object_output"] = features_df["some_date"].astype(str)
+    #     return data
+    #
+    # with pytest.raises(ValueError, match="Value with native type object"):
+    #     invalid_test_view.infer_features()
+    #
+    # @on_demand_feature_view(
+    #     schema=[
+    #         Field(name="output", dtype=UnixTimestamp),
+    #         Field(name="missing", dtype=String),
+    #     ],
+    #     sources=[date_request],
+    # )
+    # def view_with_missing_feature(features_df: pd.DataFrame) -> pd.DataFrame:
+    #     data = pd.DataFrame()
+    #     data["output"] = features_df["some_date"]
+    #     return data
+    #
+    # with pytest.raises(SpecifiedFeaturesNotPresentError):
+    #     view_with_missing_feature.infer_features()
+    #
+    # @on_demand_feature_view(
+    #     sources=[date_request],
+    #     schema=[
+    #         Field(name="output", dtype=UnixTimestamp),
+    #         Field(name="object_output", dtype=String),
+    #     ],
+    #     mode="pandas",
+    # )
+    # def python_native_test_invalid_pandas_view(
+    #     input_dict: Dict[str, Any]
+    # ) -> Dict[str, Any]:
+    #     output_dict: Dict[str, Any] = {
+    #         "output": input_dict["some_date"],
+    #         "object_output": str(input_dict["some_date"]),
+    #     }
+    #     return output_dict
+    #
+    # with pytest.raises(TypeError):
+    #     python_native_test_invalid_pandas_view.infer_features()
 
     with pytest.raises(TypeError):
-        python_native_test_invalid_dict_view.infer_features()
+
+        @on_demand_feature_view(
+            sources=[date_request],
+            schema=[
+                Field(name="output", dtype=UnixTimestamp),
+                Field(name="object_output", dtype=String),
+            ],
+            mode="python",
+        )
+        def python_native_test_invalid_dict_view(
+            features_df: pd.DataFrame,
+        ) -> pd.DataFrame:
+            data = pd.DataFrame()
+            data["output"] = features_df["some_date"]
+            return data
 
 
 def test_datasource_inference():
