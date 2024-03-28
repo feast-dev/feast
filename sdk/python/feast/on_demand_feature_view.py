@@ -387,7 +387,6 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_features: pd.DataFrame,
         full_feature_names: bool = False,
     ) -> pd.DataFrame:
-        print("-" * 40, "something happened")
         # Apply on demand transformations
         if not isinstance(df_with_features, pd.DataFrame):
             raise TypeError("get_transformed_features_df only accepts pd.DataFrame")
@@ -467,14 +466,6 @@ class OnDemandFeatureView(BaseFeatureView):
                 feature_dict=features,
             )
         elif self.mode == "pandas" and isinstance(features, pd.DataFrame):
-            print(
-                "*" * 30,
-                "\n",
-                type(features),
-                self.mode,
-                "\n",
-                "*" * 30,
-            )
             return self.get_transformed_features_df(
                 df_with_features=features,
                 full_feature_names=full_feature_names,
