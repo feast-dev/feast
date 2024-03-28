@@ -2,10 +2,8 @@
 
 ## Description
 
-The Hazelcast online store is in alpha development.
-
 The [Hazelcast](htpps://hazelcast.com) online store provides support for materializing feature values into a Hazelcast cluster for serving online features in real-time.
-In order to use Hazelcast as an online store, you need to have a running Hazelcast cluster. You can create a cluster using Hazelcast Viridian Serverless. See this [getting started](https://hazelcast.com/get-started/) page for more details.
+In order to use Hazelcast as an online store, you need to have a running Hazelcast cluster. See this [getting started](https://hazelcast.com/get-started/) page for more details.
 
 * Each feature view is mapped one-to-one to a specific Hazelcast IMap
 * This implementation inherits all strengths of Hazelcast such as high availability, fault-tolerance, and data distribution.
