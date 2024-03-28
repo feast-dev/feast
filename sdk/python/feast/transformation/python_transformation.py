@@ -23,15 +23,15 @@ class PythonTransformation:
     def transform(self, input_dict: Dict) -> Dict:
         if not isinstance(input_dict, Dict):
             raise TypeError(
-                f"input_dict should be type Dict[str, List[Any]] but got {type(input_dict).__name__}"
+                f"input_dict should be type Dict[str, Any] but got {type(input_dict).__name__}"
             )
         # Ensuring that the inputs are included as well
-        output_dict = {**input_dict, **self.udf.__call__(input_dict)}
+        output_dict = self.udf.__call__(input_dict)
         if not isinstance(output_dict, Dict):
             raise TypeError(
-                f"output_dict should be type Dict[str, List[Any]] but got {type(output_dict).__name__}"
+                f"output_dict should be type Dict[str, Any] but got {type(output_dict).__name__}"
             )
-        return output_dict
+        return {**input_dict, **output_dict}
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):

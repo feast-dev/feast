@@ -77,4 +77,3 @@ class OnlineResponse:
         """
 
         return pd.DataFrame(self.to_dict(include_event_timestamps))
-
