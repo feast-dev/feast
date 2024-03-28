@@ -2115,10 +2115,12 @@ class FeatureStore:
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_df is None:
                     initial_response_df = initial_response.to_df()
+                print("about to happen\n", initial_response_df)
                 transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
                     initial_response_df,
                     full_feature_names,
                 )
+                print("it did not happen")
             else:
                 raise Exception(
                     f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."

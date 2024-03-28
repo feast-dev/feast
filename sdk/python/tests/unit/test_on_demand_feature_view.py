@@ -38,14 +38,14 @@ def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
 def udf2(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df["output1"] = features_df["feature1"] + 100
-    df["output2"] = features_df["feature2"] + 100
+    df["output2"] = features_df["feature2"] + 101
     return df
 
 
-def python_native_udf(features_dict: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+def python_native_udf(features_dict: Dict[str, List[Any]]) -> Dict[str, Any]:
     output_dict: Dict[str, List[Any]] = {
-        "output1": [features_dict["feature1"] + 100],
-        "output2": [features_dict["feature2"] + 100],
+        "output1": features_dict["feature1"] + 100,
+        "output2": features_dict["feature2"] + 101,
     }
     return output_dict
 
@@ -203,6 +203,13 @@ def test_python_native_transformation_mode():
                 "feature2": 1,
             }
         )
+
+    assert on_demand_feature_view_python_native.get_transformed_features(
+        {
+            "feature1": 0,
+            "feature2": 1,
+        }
+    ) == {"feature1": 0, "feature2": 1, "output1": 100, "output2": 102}
 
 
 @pytest.mark.filterwarnings("ignore:udf and udf_string parameters are deprecated")

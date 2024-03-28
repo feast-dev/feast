@@ -4,7 +4,7 @@ import inspect
 import warnings
 from datetime import datetime
 from types import FunctionType
-from typing import Any, Dict, List, Optional, Type, Union, cast
+from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
@@ -387,6 +387,7 @@ class OnDemandFeatureView(BaseFeatureView):
         df_with_features: pd.DataFrame,
         full_feature_names: bool = False,
     ) -> pd.DataFrame:
+        print("-" * 40, "something happened")
         # Apply on demand transformations
         if not isinstance(df_with_features, pd.DataFrame):
             raise TypeError("get_transformed_features_df only accepts pd.DataFrame")
@@ -428,64 +429,54 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def get_transformed_features_dict(
         self,
-        feature_dict: Dict[str, List[Any]],
-        full_feature_names: bool = False,
+        feature_dict: Dict[str, Any],  # type: ignore
     ) -> Dict[str, Any]:
-        # generates a mapping between feature names and fv__feature names (and vice versa)
-        name_map: Dict[str, str] = {}
+
+        # we need a mapping from full feature name to short and back to do a renaming
+        # The simplest thing to do is to make the full reference, copy the columns with the short reference
+        # and rerun
+        columns_to_cleanup: List[str] = []
         for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
                 full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
-                if full_feature_ref in feature_dict:
-                    name_map[full_feature_ref] = feature.name
-                elif feature.name in feature_dict:
-                    name_map[feature.name] = name_map[full_feature_ref]
+                if full_feature_ref in feature_dict.keys():
+                    # Make sure the partial feature name is always present
+                    feature_dict[feature.name] = feature_dict[full_feature_ref]
+                    columns_to_cleanup.append(str(feature.name))
+                elif feature.name in feature_dict.keys():
+                    # Make sure the full feature name is always present
+                    feature_dict[full_feature_ref] = feature_dict[feature.name]
+                    columns_to_cleanup.append(str(full_feature_ref))
 
-        rows = []
-        # this doesn't actually require 2 x |key_space| space; k and name_map[k] point to the same object in memory
-        for values in zip(*feature_dict.values()):
-            rows.append(
-                {
-                    **{k: v for k, v in zip(feature_dict.keys(), values)},
-                    **{name_map[k]: v for k, v in zip(feature_dict.keys(), values)},
-                }
-            )
-
-        # construct output dictionary and mapping from expected feature names to alternative feature names
-        output_dict: Dict[str, List[Any]] = {}
-        correct_feature_name_to_alias: Dict[str, str] = {}
-        for feature in self.features:
-            long_name = self._get_projected_feature_name(feature.name)
-            correct_name = long_name if full_feature_names else feature.name
-            correct_feature_name_to_alias[correct_name] = (
-                feature.name if full_feature_names else long_name
-            )
-            output_dict[correct_name] = [None] * len(rows)
-
-        # populate output dictionary per row
-        for i, row in enumerate(rows):
-            row_output = self.feature_transformation.transform(row)
-            for feature_name in output_dict:
-                output_dict[feature_name][i] = row_output.get(
-                    feature_name,
-                    row_output[correct_feature_name_to_alias[feature_name]],
-                )
+        output_dict: Dict[str, Any] = self.feature_transformation.transform(
+            feature_dict
+        )
+        for feature_name in columns_to_cleanup:
+            del output_dict[feature_name]
         return output_dict
 
     def get_transformed_features(
         self,
-        features: Union[Dict[str, List[Any]], pd.DataFrame],
+        features: Union[Dict[str, Any], pd.DataFrame],
         full_feature_names: bool = False,
-    ) -> Union[Dict[str, List[Any]], pd.DataFrame]:
+    ) -> Union[Dict[str, Any], pd.DataFrame]:
         # TODO: classic inheritance pattern....maybe fix this
-        if self.mode == "python" and isinstance(features, dict):
+        if self.mode == "python" and isinstance(features, Dict):
+            # note full_feature_names is not needed for the dictionary
             return self.get_transformed_features_dict(
-                feature_dict=cast(features, Dict[str, List[Any]]),  # type: ignore
-                full_feature_names=full_feature_names,
+                feature_dict=features,
             )
         elif self.mode == "pandas" and isinstance(features, pd.DataFrame):
+            print(
+                "*" * 30,
+                "\n",
+                type(features),
+                self.mode,
+                "\n",
+                "*" * 30,
+            )
             return self.get_transformed_features_df(
-                df_with_features=cast(features, pd.DataFrame),  # type: ignore
+                df_with_features=features,
                 full_feature_names=full_feature_names,
             )
         else:
