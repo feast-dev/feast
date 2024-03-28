@@ -132,6 +132,7 @@ def test_on_demand_features_invalid_type_inference():
         view_with_missing_feature.infer_features()
 
     with pytest.raises(TypeError):
+
         @on_demand_feature_view(
             sources=[date_request],
             schema=[
@@ -150,6 +151,7 @@ def test_on_demand_features_invalid_type_inference():
             return output_dict
 
     with pytest.raises(TypeError):
+
         @on_demand_feature_view(
             sources=[date_request],
             schema=[
