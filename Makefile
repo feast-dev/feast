@@ -322,8 +322,8 @@ format-python:
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; ruff check feast/ tests/
-
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
 # Java
 
 install-java-ci-dependencies:
