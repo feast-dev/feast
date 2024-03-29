@@ -42,7 +42,7 @@ def udf2(features_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def python_native_udf(features_dict: Dict[str, List[Any]]) -> Dict[str, Any]:
+def python_native_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
     output_dict: Dict[str, List[Any]] = {
         "output1": features_dict["feature1"] + 100,
         "output2": features_dict["feature2"] + 101,
