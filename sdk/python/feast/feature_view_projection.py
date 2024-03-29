@@ -41,7 +41,7 @@ class FeatureViewProjection:
     def to_proto(self) -> FeatureViewProjectionProto:
         feature_reference_proto = FeatureViewProjectionProto(
             feature_view_name=self.name,
-            feature_view_name_alias=self.name_alias or "",
+            feature_view_name_alias=self.name_alias or None,
             join_key_map=self.join_key_map,
         )
         for feature in self.features:
