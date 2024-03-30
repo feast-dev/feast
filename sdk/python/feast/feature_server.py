@@ -236,7 +236,7 @@ def start_server(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    registry_ttl_sec: int = 5,
+    registry_ttl_sec: int,
 ):
     if sys.platform != "win32":
         FeastServeApplication(
