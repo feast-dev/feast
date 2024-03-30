@@ -518,7 +518,7 @@ def test_historical_features_with_no_ttl(
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-def test_historical_features_from_bigquery_sources_containing_backfills(environment):
+def test_historical_features_containing_backfills(environment):
     store = environment.feature_store
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)

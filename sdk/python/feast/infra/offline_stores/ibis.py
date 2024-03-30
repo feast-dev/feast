@@ -134,7 +134,9 @@ class IbisOfflineStore(OfflineStore):
             entity_table, feature_views, event_timestamp_col
         )
 
-        def read_fv(feature_view, feature_refs, full_feature_names):
+        def read_fv(
+            feature_view: FeatureView, feature_refs: List[str], full_feature_names: bool
+        ) -> Tuple:
             fv_table: Table = ibis.read_parquet(feature_view.batch_source.name)
 
             for old_name, new_name in feature_view.batch_source.field_mapping.items():
@@ -175,6 +177,7 @@ class IbisOfflineStore(OfflineStore):
             return (
                 fv_table,
                 feature_view.batch_source.timestamp_field,
+                feature_view.batch_source.created_timestamp_column,
                 feature_view.projection.join_key_map
                 or {e.name: e.name for e in feature_view.entity_columns},
                 feature_refs,
@@ -351,12 +354,19 @@ class IbisRetrievalJob(RetrievalJob):
 
 def point_in_time_join(
     entity_table: Table,
-    feature_tables: List[Tuple[Table, str, Dict[str, str], List[str], timedelta]],
+    feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
-    for feature_table, timestamp_field, join_key_map, _, _ in feature_tables:
+    for (
+        feature_table,
+        timestamp_field,
+        created_timestamp_field,
+        join_key_map,
+        _,
+        _,
+    ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
     r = ibis.literal("")
@@ -371,6 +381,7 @@ def point_in_time_join(
     for (
         feature_table,
         timestamp_field,
+        created_timestamp_field,
         join_key_map,
         feature_refs,
         ttl,
@@ -395,9 +406,13 @@ def point_in_time_join(
 
         feature_table = feature_table.drop(s.endswith("_y"))
 
+        order_by_fields = [ibis.desc(feature_table[timestamp_field])]
+        if created_timestamp_field:
+            order_by_fields.append(ibis.desc(feature_table[created_timestamp_field]))
+
         feature_table = (
             feature_table.group_by(by="entity_row_id")
-            .order_by(ibis.desc(feature_table[timestamp_field]))
+            .order_by(order_by_fields)
             .mutate(rn=ibis.row_number())
         )
 
