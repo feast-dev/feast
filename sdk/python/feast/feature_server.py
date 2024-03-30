@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import feast
 from feast import proto_json, utils
+from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
@@ -45,7 +46,10 @@ class MaterializeIncrementalRequest(BaseModel):
     feature_views: Optional[List[str]] = None
 
 
-def get_app(store: "feast.FeatureStore", registry_ttl_sec: int = 5):
+def get_app(
+    store: "feast.FeatureStore",
+    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+):
     proto_json.patch()
 
     app = FastAPI()
@@ -209,7 +213,7 @@ if sys.platform != "win32":
         def __init__(self, store: "feast.FeatureStore", **options):
             self._app = get_app(
                 store=store,
-                registry_ttl_sec=options.get("registry_ttl_sec", 5),
+                registry_ttl_sec=options["registry_ttl_sec"],
             )
             self._options = options
             super().__init__()
