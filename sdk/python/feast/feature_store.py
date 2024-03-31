@@ -35,6 +35,7 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
+import numpy as np
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -1684,6 +1685,62 @@ class FeatureStore:
         )
         return OnlineResponse(online_features_response)
 
+    @log_exceptions_and_usage
+    def get_top_k_document_features(self,
+                                    feature: Union[str, FeatureService],
+                                    document: Union[str, np.ndarray],
+                                    top_k: int,
+                                    ) -> OnlineResponse:
+        """
+        Retrieves the top k cloeses document features.
+
+        Args:
+            feature: The list of document features that should be retrieved from the online document store. These features can be
+                specified either as a list of string document feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g, "document_fv:document_embedding_feature".
+            document: The document to retrieve the closest document features for.
+            top_k: The number of closest document features to retrieve.
+        """
+        return self._get_top_k_document_features(
+            feature=feature,
+            document=document,
+            top_k=top_k,
+        )
+
+    def _get_top_k_document_features(
+            self,
+            feature: Union[str, FeatureService],
+            document: Union[str, np.ndarray],
+            top_k: int,
+    ):
+        (
+            requested_feature_views,
+            requested_on_demand_feature_views
+        ) = self._get_feature_views_to_use(
+            features=[feature],
+            allow_cache=True,
+            hide_dummy_entity=False
+        )
+        requested_feature = feature.split(":")[1] if isinstance(feature, str) else feature
+        provider = self._get_provider()
+        document_features = self._search_from_document_store(
+            provider,
+            requested_feature_views[0],
+            requested_feature,
+            document,
+            top_k,
+        )
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+        self._populate_response_from_feature_data(
+            document_features,
+            [],
+            online_features_response,
+            False,
+            requested_feature,
+            requested_feature_views[0]
+        )
+        return OnlineResponse(online_features_response)
+
     @staticmethod
     def _get_columnar_entity_values(
         rowise: Optional[List[Dict[str, Any]]], columnar: Optional[Dict[str, List[Any]]]
@@ -1899,6 +1956,27 @@ class FeatureStore:
                         values.append(feature_data[feature_name])
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
+
+    def _search_from_document_store(
+        self,
+        provider: Provider,
+        table: FeatureView,
+        requested_feature: str,
+        document: Union[str, np.ndarray],
+        top_k: int,
+    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
+        """
+        Search and return document features from the online document store.
+        """
+        documents = provider.online_search(
+            config=self.config,
+            table=table,
+            requested_feature=requested_feature,
+            document=document,
+            top_k=top_k,
+        )
+        return documents
+
 
     @staticmethod
     def _populate_response_from_feature_data(
