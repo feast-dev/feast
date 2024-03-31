@@ -19,7 +19,10 @@ from feast.infra.materialization.batch_materialization_engine import (
 )
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.infra.online_stores.helpers import get_online_store_from_config, get_document_store_from_config
+from feast.infra.online_stores.helpers import (
+    get_document_store_from_config,
+    get_online_store_from_config,
+)
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -58,7 +61,7 @@ class PassthroughProvider(Provider):
                 self.repo_config.online_store
             )
         return self._online_store
-    
+
     @property
     def document_store(self):
         if not self._document_store:
@@ -207,14 +210,15 @@ class PassthroughProvider(Provider):
         table: FeatureView,
         requested_feature: str,
         embeddings: np.ndarray,
-        top_k: int
+        top_k: int,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.document_store:
-            result = self.document_store.online_search(config, table, requested_feature, embeddings, top_k)
+            result = self.document_store.online_search(
+                config, table, requested_feature, embeddings, top_k
+            )
         return result
-
 
     def ingest_df(
         self,

@@ -33,9 +33,9 @@ from typing import (
     cast,
 )
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
-import numpy as np
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
@@ -1686,11 +1686,12 @@ class FeatureStore:
         return OnlineResponse(online_features_response)
 
     @log_exceptions_and_usage
-    def get_top_k_document_features(self,
-                                    feature: Union[str, FeatureService],
-                                    document: Union[str, np.ndarray],
-                                    top_k: int,
-                                    ) -> OnlineResponse:
+    def get_top_k_document_features(
+        self,
+        feature: str,
+        document: Union[str, np.ndarray],
+        top_k: int,
+    ) -> OnlineResponse:
         """
         Retrieves the top k cloeses document features.
 
@@ -1708,20 +1709,20 @@ class FeatureStore:
         )
 
     def _get_top_k_document_features(
-            self,
-            feature: Union[str, FeatureService],
-            document: Union[str, np.ndarray],
-            top_k: int,
+        self,
+        feature: str,
+        document: Union[str, np.ndarray],
+        top_k: int,
     ):
         (
             requested_feature_views,
-            requested_on_demand_feature_views
+            requested_on_demand_feature_views,
         ) = self._get_feature_views_to_use(
-            features=[feature],
-            allow_cache=True,
-            hide_dummy_entity=False
+            features=[feature], allow_cache=True, hide_dummy_entity=False
         )
-        requested_feature = feature.split(":")[1] if isinstance(feature, str) else feature
+        requested_feature = (
+            feature.split(":")[1] if isinstance(feature, str) else feature
+        )
         provider = self._get_provider()
         document_features = self._search_from_document_store(
             provider,
@@ -1737,7 +1738,7 @@ class FeatureStore:
             online_features_response,
             False,
             requested_feature,
-            requested_feature_views[0]
+            requested_feature_views[0],
         )
         return OnlineResponse(online_features_response)
 
@@ -1975,8 +1976,29 @@ class FeatureStore:
             document=document,
             top_k=top_k,
         )
-        return documents
+        # Each row is a set of features for a given entity key. We only need to convert
+        # the data to Protobuf once.
+        null_value = Value()
+        read_row_protos = []
 
+        for doc in documents:
+            row_ts_proto = Timestamp()
+            row_ts, feature_data = doc
+            # TODO (Ly): reuse whatever timestamp if row_ts is None?
+            if row_ts is not None:
+                row_ts_proto.FromDatetime(row_ts)
+            event_timestamps = [row_ts_proto]
+            if feature_data is None:
+                statuses = [FieldStatus.NOT_FOUND]
+                values = [null_value]
+            else:
+                statuses = []
+                values = []
+                for feature_name, feature_value in feature_data.items():
+                    statuses.append(FieldStatus.PRESENT)
+                    values.append(feature_value)
+            read_row_protos.append((event_timestamps, statuses, values))
+        return read_row_protos
 
     @staticmethod
     def _populate_response_from_feature_data(

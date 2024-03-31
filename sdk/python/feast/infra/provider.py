@@ -3,8 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pyarrow
 from tqdm import tqdm
 
@@ -42,13 +42,13 @@ class Provider(ABC):
 
     @abstractmethod
     def update_infra(
-            self,
-            project: str,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        project: str,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         """
         Reconciles cloud resources with the specified set of Feast objects.
@@ -67,7 +67,7 @@ class Provider(ABC):
         pass
 
     def plan_infra(
-            self, config: RepoConfig, desired_registry_proto: RegistryProto
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> Infra:
         """
         Returns the Infra required to support the desired registry.
@@ -80,10 +80,10 @@ class Provider(ABC):
 
     @abstractmethod
     def teardown_infra(
-            self,
-            project: str,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        project: str,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
         Tears down all cloud resources for the specified set of Feast objects.
@@ -97,13 +97,13 @@ class Provider(ABC):
 
     @abstractmethod
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
         Writes a batch of feature rows to the online store.
@@ -122,9 +122,9 @@ class Provider(ABC):
         pass
 
     def ingest_df(
-            self,
-            feature_view: FeatureView,
-            df: pd.DataFrame,
+        self,
+        feature_view: FeatureView,
+        df: pd.DataFrame,
     ):
         """
         Persists a dataframe to the online store.
@@ -136,9 +136,9 @@ class Provider(ABC):
         pass
 
     def ingest_df_to_offline_store(
-            self,
-            feature_view: FeatureView,
-            df: pyarrow.Table,
+        self,
+        feature_view: FeatureView,
+        df: pyarrow.Table,
     ):
         """
         Persists a dataframe to the offline store.
@@ -151,14 +151,14 @@ class Provider(ABC):
 
     @abstractmethod
     def materialize_single_feature_view(
-            self,
-            config: RepoConfig,
-            feature_view: FeatureView,
-            start_date: datetime,
-            end_date: datetime,
-            registry: BaseRegistry,
-            project: str,
-            tqdm_builder: Callable[[int], tqdm],
+        self,
+        config: RepoConfig,
+        feature_view: FeatureView,
+        start_date: datetime,
+        end_date: datetime,
+        registry: BaseRegistry,
+        project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         """
         Writes latest feature values in the specified time range to the online store.
@@ -176,14 +176,14 @@ class Provider(ABC):
 
     @abstractmethod
     def get_historical_features(
-            self,
-            config: RepoConfig,
-            feature_views: List[FeatureView],
-            feature_refs: List[str],
-            entity_df: Union[pd.DataFrame, str],
-            registry: BaseRegistry,
-            project: str,
-            full_feature_names: bool,
+        self,
+        config: RepoConfig,
+        feature_views: List[FeatureView],
+        feature_refs: List[str],
+        entity_df: Union[pd.DataFrame, str],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool,
     ) -> RetrievalJob:
         """
         Retrieves the point-in-time correct historical feature values for the specified entity rows.
@@ -208,11 +208,11 @@ class Provider(ABC):
 
     @abstractmethod
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
@@ -232,7 +232,7 @@ class Provider(ABC):
 
     @abstractmethod
     def retrieve_saved_dataset(
-            self, config: RepoConfig, dataset: SavedDataset
+        self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
         """
         Reads a saved dataset.
@@ -248,11 +248,11 @@ class Provider(ABC):
 
     @abstractmethod
     def write_feature_service_logs(
-            self,
-            feature_service: FeatureService,
-            logs: Union[pyarrow.Table, Path],
-            config: RepoConfig,
-            registry: BaseRegistry,
+        self,
+        feature_service: FeatureService,
+        logs: Union[pyarrow.Table, Path],
+        config: RepoConfig,
+        registry: BaseRegistry,
     ):
         """
         Writes features and entities logged by a feature server to the offline store.
@@ -270,12 +270,12 @@ class Provider(ABC):
 
     @abstractmethod
     def retrieve_feature_service_logs(
-            self,
-            feature_service: FeatureService,
-            start_date: datetime,
-            end_date: datetime,
-            config: RepoConfig,
-            registry: BaseRegistry,
+        self,
+        feature_service: FeatureService,
+        start_date: datetime,
+        end_date: datetime,
+        config: RepoConfig,
+        registry: BaseRegistry,
     ) -> RetrievalJob:
         """
         Reads logged features for the specified time window.
@@ -298,12 +298,12 @@ class Provider(ABC):
 
     @abstractmethod
     def online_search(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_feature: str,
-            document: Union[str, np.ndarray],
-            top_k: int,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        document: Union[str, np.ndarray],
+        top_k: int,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Searches for the top-k nearest neighbors of the given document in the online document store.

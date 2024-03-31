@@ -13,10 +13,12 @@ from psycopg2.pool import SimpleConnectionPool
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.feature import Feature
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.document_store import (
+    DocumentStore,
+    DocumentStoreIndexConfig,
+)
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.document_store import DocumentStore, DocumentStoreIndexConfig
 from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -49,13 +51,13 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @log_exceptions_and_usage(online_store="postgres")
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         project = config.project
 
@@ -83,7 +85,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             # Control the batch so that we can update the progress
             batch_size = 5000
             for i in range(0, len(insert_values), batch_size):
-                cur_batch = insert_values[i: i + batch_size]
+                cur_batch = insert_values[i : i + batch_size]
                 execute_values(
                     cur,
                     sql.SQL(
@@ -107,11 +109,11 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @log_exceptions_and_usage(online_store="postgres")
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
@@ -178,13 +180,13 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @log_exceptions_and_usage(online_store="postgres")
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         project = config.project
         schema_name = config.online_store.db_schema or config.online_store.user
@@ -239,10 +241,10 @@ class PostgreSQLOnlineStore(OnlineStore):
             conn.commit()
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         project = config.project
         try:
@@ -298,21 +300,23 @@ class PostgresDocumentStoreConfig(DocumentStoreIndexConfig):
 
 
 class PostgresDocumentStore(PostgreSQLOnlineStore, DocumentStore):
-
-    def online_search(self,
-                      config: RepoConfig,
-                      table: FeatureView,
-                      requested_feature: str,
-                      embedding: np.ndarray,
-                      top_k: int,
-                      ):
+    def online_search(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: np.ndarray,
+        top_k: int,
+    ):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         with self._get_conn(config) as conn, conn.cursor() as cur:
-            cur.execute(SEARCH_QUERY_TEMPLATE.format(
-                table_name=table,
-                feature_name=requested_feature
-            ), (embedding, top_k))
+            cur.execute(
+                SEARCH_QUERY_TEMPLATE.format(
+                    table_name=table, feature_name=requested_feature
+                ),
+                (embedding, top_k),
+            )
             rows = cur.fetchall()
 
             for row in rows:
@@ -334,17 +338,16 @@ class PostgresDocumentStore(PostgreSQLOnlineStore, DocumentStore):
                 res[feature_name] = val
                 result.append((event_ts, res))
 
-
         return result
 
-    def create_index(self,
-                     config: RepoConfig,
-                     index: str,
-                     index_config: DocumentStoreIndexConfig
-                     ):
+    def create_index(
+        self, config: RepoConfig, index: str, index_config: DocumentStoreIndexConfig
+    ):
         with self._get_conn(config) as conn, conn.cursor() as cur:
-            cur.execute(CREATE_INDEX_QUERY_TEMPLATE.format(
-                table_name=config.project,
-                index_type=index,
-                embeding_type=index_config.embedding_type
-            ))
+            cur.execute(
+                CREATE_INDEX_QUERY_TEMPLATE.format(
+                    table_name=config.project,
+                    index_type=index,
+                    embeding_type=index_config.embedding_type,
+                )
+            )
