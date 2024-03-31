@@ -132,7 +132,7 @@ ROCKSET_REQUIRED = [
 ]
 
 IKV_REQUIRED = [
-    "ikv>=0.0.23",
+    "ikvpy>=0.0.23",
 ]
 
 HAZELCAST_REQUIRED = [
