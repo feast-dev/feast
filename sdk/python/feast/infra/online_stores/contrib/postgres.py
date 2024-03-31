@@ -341,13 +341,16 @@ class PostgresDocumentStore(PostgreSQLOnlineStore, DocumentStore):
         return result
 
     def create_index(
-        self, config: RepoConfig, index: str, index_config: DocumentStoreIndexConfig
+            self,
+            config: RepoConfig,
+            table: str
     ):
+        document_store_config = config.document_store_config
         with self._get_conn(config) as conn, conn.cursor() as cur:
             cur.execute(
                 CREATE_INDEX_QUERY_TEMPLATE.format(
-                    table_name=config.project,
-                    index_type=index,
-                    embeding_type=index_config.embedding_type,
+                    table=table,
+                    index_type=document_store_config.index_type,
+                    embeding_type=document_store_config.embedding_type,
                 )
             )
