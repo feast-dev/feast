@@ -340,11 +340,7 @@ class PostgresDocumentStore(PostgreSQLOnlineStore, DocumentStore):
 
         return result
 
-    def create_index(
-            self,
-            config: RepoConfig,
-            table: str
-    ):
+    def create_index(self, config: RepoConfig, table: str):
         document_store_config = config.document_store_config
         with self._get_conn(config) as conn, conn.cursor() as cur:
             cur.execute(
