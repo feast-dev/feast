@@ -131,6 +131,10 @@ ROCKSET_REQUIRED = [
     "rockset>=1.0.3",
 ]
 
+IKV_REQUIRED = [
+    "ikv>=0.0.23",
+]
+
 HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
@@ -209,6 +213,7 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
+    + IKV_REQUIRED
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
@@ -376,7 +381,8 @@ setup(
         "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
-        "duckdb": DUCKDB_REQUIRED
+        "duckdb": DUCKDB_REQUIRED,
+        "ikv": IKV_REQUIRED
     },
     include_package_data=True,
     license="Apache",
