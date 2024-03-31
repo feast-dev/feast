@@ -61,9 +61,4 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
-        env:
-          FEAST_USAGE: "False"
-          IS_TEST: "True"
-          FEAST_LOCAL_ONLINE_CONTAINER: "True"
-          FEAST_IS_LOCAL_TEST: "True"
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes --integration -k "not gcs_registry and not s3_registry and not test_lambda_materialization and not test_snowflake_materialization" sdk/python/tests
+        run: make test-python-integration-local
