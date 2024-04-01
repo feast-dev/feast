@@ -106,7 +106,6 @@
   * [Amazon Web Services](reference/providers/amazon-web-services.md)
   * [Azure](reference/providers/azure.md)
 * [Batch Materialization Engines](reference/batch-materialization/README.md)
-  * [Bytewax](reference/batch-materialization/bytewax.md)
   * [Snowflake](reference/batch-materialization/snowflake.md)
   * [AWS Lambda (alpha)](reference/batch-materialization/lambda.md)
   * [Spark (contrib)](reference/batch-materialization/spark.md)
