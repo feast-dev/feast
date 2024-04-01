@@ -1995,26 +1995,53 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df = initial_response.to_df()
+        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
-            )
-            selected_subset = [
-                f for f in transformed_features_df.columns if f in _feature_refs
-            ]
-
-            proto_values = [
-                python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features_dict: Dict[
+                    str, List[Any]
+                ] = odfv.get_transformed_features(
+                    initial_response_dict,
+                    full_feature_names,
                 )
-                for feature in selected_subset
-            ]
+            elif odfv.mode in {"pandas", "substrait"}:
+                if initial_response_df is None:
+                    initial_response_df = initial_response.to_df()
+                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
+                    initial_response_df,
+                    full_feature_names,
+                )
+            else:
+                raise Exception(
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
+
+            transformed_features = (
+                transformed_features_dict
+                if odfv.mode == "python"
+                else transformed_features_df
+            )
+            transformed_columns = (
+                transformed_features.columns
+                if isinstance(transformed_features, pd.DataFrame)
+                else transformed_features
+            )
+            selected_subset = [f for f in transformed_columns if f in _feature_refs]
+
+            proto_values = []
+            for selected_feature in selected_subset:
+                if odfv.mode in ["python", "pandas"]:
+                    feature_vector = transformed_features[selected_feature]
+                    proto_values.append(
+                        python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                    )
 
             odfv_result_names |= set(selected_subset)
 
