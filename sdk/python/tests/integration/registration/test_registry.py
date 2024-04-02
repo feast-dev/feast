@@ -111,7 +111,6 @@ def minio_registry() -> Registry:
     ],
 )
 def test_apply_entity_integration(test_registry):
-
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",

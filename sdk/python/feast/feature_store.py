@@ -2011,11 +2011,11 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[
-                    str, List[Any]
-                ] = odfv.get_transformed_features(
-                    initial_response_dict,
-                    full_feature_names,
+                transformed_features_dict: Dict[str, List[Any]] = (
+                    odfv.get_transformed_features(
+                        initial_response_dict,
+                        full_feature_names,
+                    )
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_df is None:
