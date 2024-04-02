@@ -9,6 +9,7 @@ build-backend = "setuptools.build_meta"
 line-length = 88
 target-version = "py39"
 include = ["*.py", "*.pyi"]
+
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
 exclude = [ 
