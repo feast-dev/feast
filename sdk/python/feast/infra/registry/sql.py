@@ -165,8 +165,6 @@ feast_metadata = Table(
 
 logger = logging.getLogger(__name__)
 
-CachingRegistry
-
 
 class SqlRegistryConfig(RegistryConfig):
     registry_type: StrictStr = "sql"
