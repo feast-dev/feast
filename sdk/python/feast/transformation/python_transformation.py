@@ -1,18 +1,17 @@
 from types import FunctionType
+from typing import Dict
 
 import dill
-import pandas as pd
 
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 
 
-class PandasTransformation:
+class PythonTransformation:
     def __init__(self, udf: FunctionType, udf_string: str = ""):
         """
-        Creates an PandasTransformation object.
-
+        Creates an PythonTransformation object.
         Args:
             udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
@@ -21,23 +20,27 @@ class PandasTransformation:
         self.udf = udf
         self.udf_string = udf_string
 
-    def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
-        if not isinstance(input_df, pd.DataFrame):
+    def transform(self, input_dict: Dict) -> Dict:
+        if not isinstance(input_dict, Dict):
             raise TypeError(
-                f"input_df should be type pd.DataFrame but got {type(input_df).__name__}"
+                f"input_dict should be type Dict[str, Any] but got {type(input_dict).__name__}"
             )
-        output_df = self.udf.__call__(input_df)
-        if not isinstance(output_df, pd.DataFrame):
+        # Ensuring that the inputs are included as well
+        output_dict = self.udf.__call__(input_dict)
+        if not isinstance(output_dict, Dict):
             raise TypeError(
-                f"output_df should be type pd.DataFrame but got {type(output_df).__name__}"
+                f"output_dict should be type Dict[str, Any] but got {type(output_dict).__name__}"
             )
-        return output_df
+        return {**input_dict, **output_dict}
 
     def __eq__(self, other):
-        if not isinstance(other, PandasTransformation):
+        if not isinstance(other, PythonTransformation):
             raise TypeError(
-                "Comparisons should only involve PandasTransformation class objects."
+                "Comparisons should only involve PythonTransformation class objects."
             )
+
+        if not super().__eq__(other):
+            return False
 
         if (
             self.udf_string != other.udf_string
@@ -56,7 +59,7 @@ class PandasTransformation:
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
-        return PandasTransformation(
+        return PythonTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )
