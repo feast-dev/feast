@@ -85,8 +85,8 @@ def test_ibis_pandas_parity():
         )
 
         store.materialize(
-            start_date=datetime(2000, 4, 12, 10, 59, 42),
-            end_date=datetime(3000, 4, 12, 10, 59, 42),
+            start_date=start_date,
+            end_date=end_date,
         )
 
         entity_df = pd.DataFrame.from_dict(
@@ -95,9 +95,9 @@ def test_ibis_pandas_parity():
                 "driver_id": [1001, 1002, 1003],
                 # "event_timestamp" (reserved key) -> timestamps
                 "event_timestamp": [
-                    datetime(2021, 4, 12, 10, 59, 42),
-                    datetime(2021, 4, 12, 8, 12, 10),
-                    datetime(2021, 4, 12, 16, 40, 26),
+                    start_date + timedelta(days=4),
+                    start_date + timedelta(days=5),
+                    start_date + timedelta(days=6),
                 ],
             }
         )
