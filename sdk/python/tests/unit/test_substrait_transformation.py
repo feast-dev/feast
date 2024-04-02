@@ -60,6 +60,7 @@ def test_ibis_pandas_parity():
         @on_demand_feature_view(
             sources=[driver_stats_fv],
             schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
+            mode="pandas",
         )
         def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
