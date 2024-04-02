@@ -84,7 +84,10 @@ def test_ibis_pandas_parity():
             [driver, driver_stats_source, driver_stats_fv, substrait_view, pandas_view]
         )
 
-        store.materialize(start_date=datetime(2000, 4, 12, 10, 59, 42), end_date=datetime(3000, 4, 12, 10, 59, 42))
+        store.materialize(
+            start_date=datetime(2000, 4, 12, 10, 59, 42),
+            end_date=datetime(3000, 4, 12, 10, 59, 42),
+        )
 
         entity_df = pd.DataFrame.from_dict(
             {
@@ -99,9 +102,6 @@ def test_ibis_pandas_parity():
             }
         )
 
-        substrait_view.infer_features()
-        pandas_view.infer_features()
-
         requested_features = [
             "driver_hourly_stats:conv_rate",
             "driver_hourly_stats:acc_rate",
@@ -111,8 +111,7 @@ def test_ibis_pandas_parity():
         ]
 
         training_df = store.get_historical_features(
-            entity_df=entity_df,
-            features=requested_features
+            entity_df=entity_df, features=requested_features
         )
 
         assert training_df.to_df()["conv_rate_plus_acc"].equals(
@@ -125,7 +124,10 @@ def test_ibis_pandas_parity():
 
         online_response = store.get_online_features(
             features=requested_features,
-            entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}]
+            entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}],
         )
 
-        assert online_response.to_dict()['conv_rate_plus_acc'] == online_response.to_dict()['conv_rate_plus_acc_substrait']
+        assert (
+            online_response.to_dict()["conv_rate_plus_acc"]
+            == online_response.to_dict()["conv_rate_plus_acc_substrait"]
+        )
