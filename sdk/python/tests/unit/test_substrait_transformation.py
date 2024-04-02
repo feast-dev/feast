@@ -60,6 +60,7 @@ def test_ibis_pandas_parity():
         @on_demand_feature_view(
             sources=[driver_stats_fv],
             schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
+            mode="pandas",
         )
         def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
             df = pd.DataFrame()
@@ -84,30 +85,50 @@ def test_ibis_pandas_parity():
             [driver, driver_stats_source, driver_stats_fv, substrait_view, pandas_view]
         )
 
+        store.materialize(
+            start_date=start_date,
+            end_date=end_date,
+        )
+
         entity_df = pd.DataFrame.from_dict(
             {
                 # entity's join key -> entity values
                 "driver_id": [1001, 1002, 1003],
                 # "event_timestamp" (reserved key) -> timestamps
                 "event_timestamp": [
-                    datetime(2021, 4, 12, 10, 59, 42),
-                    datetime(2021, 4, 12, 8, 12, 10),
-                    datetime(2021, 4, 12, 16, 40, 26),
+                    start_date + timedelta(days=4),
+                    start_date + timedelta(days=5),
+                    start_date + timedelta(days=6),
                 ],
             }
         )
 
-        training_df = store.get_historical_features(
-            entity_df=entity_df,
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "driver_hourly_stats:avg_daily_trips",
-                "substrait_view:conv_rate_plus_acc_substrait",
-                "pandas_view:conv_rate_plus_acc",
-            ],
-        ).to_df()
+        requested_features = [
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:acc_rate",
+            "driver_hourly_stats:avg_daily_trips",
+            "substrait_view:conv_rate_plus_acc_substrait",
+            "pandas_view:conv_rate_plus_acc",
+        ]
 
-        assert training_df["conv_rate_plus_acc"].equals(
-            training_df["conv_rate_plus_acc_substrait"]
+        training_df = store.get_historical_features(
+            entity_df=entity_df, features=requested_features
+        )
+
+        assert training_df.to_df()["conv_rate_plus_acc"].equals(
+            training_df.to_df()["conv_rate_plus_acc_substrait"]
+        )
+
+        assert training_df.to_arrow()["conv_rate_plus_acc"].equals(
+            training_df.to_arrow()["conv_rate_plus_acc_substrait"]
+        )
+
+        online_response = store.get_online_features(
+            features=requested_features,
+            entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}],
+        )
+
+        assert (
+            online_response.to_dict()["conv_rate_plus_acc"]
+            == online_response.to_dict()["conv_rate_plus_acc_substrait"]
         )
