@@ -158,6 +158,12 @@ docker==7.0.0
     #   testcontainers
 docutils==0.19
     # via sphinx
+duckdb==0.10.1
+    # via
+    #   duckdb-engine
+    #   ibis-framework
+duckdb-engine==0.11.2
+    # via ibis-framework
 entrypoints==0.4
     # via altair
 execnet==2.0.2
@@ -298,7 +304,7 @@ httpx==0.27.0
     # via
     #   feast (setup.py)
     #   jupyterlab
-ibis-framework==8.0.0
+ibis-framework[duckdb]==8.0.0
     # via
     #   feast (setup.py)
     #   ibis-substrait
@@ -823,8 +829,13 @@ sphinxcontrib-serializinghtml==1.1.10
     # via sphinx
 sqlalchemy[mypy]==1.4.52
     # via
+    #   duckdb-engine
     #   feast (setup.py)
+    #   ibis-framework
     #   sqlalchemy
+    #   sqlalchemy-views
+sqlalchemy-views==0.3.2
+    # via ibis-framework
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 sqlglot==20.11.0
