@@ -71,6 +71,10 @@ class IKVOnlineStore(OnlineStore):
             progress: Function to be called once a batch of rows is written to the online store, used
                 to show progress.
         """
+        # update should have been called before
+        if self._writer is None:
+            return
+        
         for entity_key, features, event_timestamp, _ in data:
             entity_id: str = compute_entity_id(
                 entity_key,
@@ -118,6 +122,7 @@ class IKVOnlineStore(OnlineStore):
         for i, fn in enumerate(requested_features):
             field_names[i + 1] = IKVOnlineStore._create_ikv_field_name(table, fn)
 
+        assert self._reader is not None
         value_iter = self._reader.multiget_bytes_values(
             bytes_primary_keys=[], str_primary_keys=primary_keys, field_names=field_names)
 
@@ -171,6 +176,7 @@ class IKVOnlineStore(OnlineStore):
                 infrastructure corresponding to other feature views should be not be touched.
         """
         self._init_clients(config=config)
+        assert self._writer is not None
 
         # note: we assume tables_to_keep does not overlap with tables_to_delete
         
@@ -194,15 +200,16 @@ class IKVOnlineStore(OnlineStore):
             entities: Entities whose corresponding infrastructure should be deleted.
         """
         self._init_clients(config=config)
+        assert self._writer is not None
 
         # drop fields corresponding to this feature-view
         for feature_view in tables:
             self._writer.drop_fields_by_name_prefix([feature_view.name])
         
         # shutdown clients
-        if self._writer is not None:
-            self._writer.shutdown()
-            self._writer = None
+        self._writer.shutdown()
+        self._writer = None
+        
         if self._reader is not None:
             self._reader.shutdown()
             self._reader = None
