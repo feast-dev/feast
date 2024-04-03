@@ -67,15 +67,16 @@ def test_pandas_transformation():
             df["conv_rate_plus_acc"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
-        store.apply(
-            [driver, driver_stats_source, driver_stats_fv, pandas_view]
-        )
+        store.apply([driver, driver_stats_source, driver_stats_fv, pandas_view])
 
         entity_rows = [
             {
                 "driver_id": 1001,
             }
         ]
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
 
         online_response = store.get_online_features(
             entity_rows=entity_rows,
@@ -87,4 +88,6 @@ def test_pandas_transformation():
             ],
         ).to_df()
 
-        assert online_response["conv_rate_plus_acc"].equals(1)
+        assert online_response["conv_rate_plus_acc"].equals(
+            online_response["conv_rate"] + online_response["acc_rate"]
+        )

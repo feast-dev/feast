@@ -1,6 +1,8 @@
 import os
 import tempfile
+import unittest
 from datetime import datetime, timedelta
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -10,95 +12,119 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
-from typing import Dict, Any
 
 
-def test_python_pandas_parity():
-    with tempfile.TemporaryDirectory() as data_dir:
-        store = FeatureStore(
-            config=RepoConfig(
-                project="test_on_demand_python_transformation",
-                registry=os.path.join(data_dir, "registry.db"),
-                provider="local",
-                entity_key_serialization_version=2,
-                online_store=SqliteOnlineStoreConfig(
-                    path=os.path.join(data_dir, "online.db")
-                ),
+class TestOnDemandPythonTransformation(unittest.TestCase):
+    def setUp(self):
+        # data_dir = tempfile.TemporaryDirectory()
+        with tempfile.TemporaryDirectory() as data_dir:
+            self.store = FeatureStore(
+                config=RepoConfig(
+                    project="test_on_demand_python_transformation",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=2,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
+                )
             )
-        )
 
-        # Generate test data.
-        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-        start_date = end_date - timedelta(days=15)
+            # Generate test data.
+            end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+            start_date = end_date - timedelta(days=15)
 
-        driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
-        driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
-        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
+            driver_entities = [1001, 1002, 1003, 1004, 1005]
+            driver_df = create_driver_hourly_stats_df(
+                driver_entities, start_date, end_date
+            )
+            driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+            driver_df.to_parquet(
+                path=driver_stats_path, allow_truncated_timestamps=True
+            )
 
-        driver = Entity(name="driver", join_keys=["driver_id"])
+            driver = Entity(name="driver", join_keys=["driver_id"])
 
-        driver_stats_source = FileSource(
-            name="driver_hourly_stats_source",
-            path=driver_stats_path,
-            timestamp_field="event_timestamp",
-            created_timestamp_column="created",
-        )
+            driver_stats_source = FileSource(
+                name="driver_hourly_stats_source",
+                path=driver_stats_path,
+                timestamp_field="event_timestamp",
+                created_timestamp_column="created",
+            )
 
-        driver_stats_fv = FeatureView(
-            name="driver_hourly_stats",
-            entities=[driver],
-            ttl=0,
-            schema=[
-                Field(name="conv_rate", dtype=Float32),
-                Field(name="acc_rate", dtype=Float32),
-                Field(name="avg_daily_trips", dtype=Int64),
-            ],
-            online=True,
-            source=driver_stats_source,
-        )
+            driver_stats_fv = FeatureView(
+                name="driver_hourly_stats",
+                entities=[driver],
+                ttl=timedelta(days=0),
+                schema=[
+                    Field(name="conv_rate", dtype=Float32),
+                    Field(name="acc_rate", dtype=Float32),
+                    Field(name="avg_daily_trips", dtype=Int64),
+                ],
+                online=True,
+                source=driver_stats_source,
+            )
 
-        @on_demand_feature_view(
-            sources=[driver_stats_fv],
-            schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
-            mode="pandas",
-        )
-        def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
-            df = pd.DataFrame()
-            df["conv_rate_plus_acc"] = inputs["conv_rate"] + inputs["acc_rate"]
-            return df
+            @on_demand_feature_view(
+                sources=[driver_stats_fv],
+                schema=[Field(name="conv_rate_plus_acc_pandas", dtype=Float64)],
+                mode="pandas",
+            )
+            def pandas_view(inputs: pd.DataFrame) -> pd.DataFrame:
+                df = pd.DataFrame()
+                df["conv_rate_plus_acc_pandas"] = (
+                    inputs["conv_rate"] + inputs["acc_rate"]
+                )
+                return df
 
-        # @on_demand_feature_view(
-        #     sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
-        #     schema=[Field(name="conv_rate_plus_acc_python", dtype=Float64)],
-        #     mode="python",
-        # )
-        # def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-        #     output: Dict[str, Any] = {'conv_rate_plus_acc_python': inputs['conv_rate'] + inputs['acc_rate']}
-        #     return output
+            @on_demand_feature_view(
+                sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
+                schema=[Field(name="conv_rate_plus_acc_python", dtype=Float64)],
+                mode="python",
+            )
+            def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
+                output: Dict[str, Any] = {
+                    "conv_rate_plus_acc_python": inputs["conv_rate"]
+                    + inputs["acc_rate"]
+                }
+                return output
 
-        store.apply(
-            [driver, driver_stats_source, driver_stats_fv, pandas_view]
-        )
+            self.store.apply(
+                [driver, driver_stats_source, driver_stats_fv, pandas_view, python_view]
+            )
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats", df=driver_df
+            )
 
+    def test_python_pandas_parity(self):
         entity_rows = [
             {
                 "driver_id": 1001,
-                # "event_timestamp": datetime(2021, 4, 12, 10, 59, 42),
             }
         ]
 
-        online_response = store.get_online_features(
+        online_python_response = self.store.get_online_features(
             entity_rows=entity_rows,
             features=[
                 "driver_hourly_stats:conv_rate",
                 "driver_hourly_stats:acc_rate",
-                "driver_hourly_stats:avg_daily_trips",
                 "python_view:conv_rate_plus_acc_python",
-                "pandas_view:conv_rate_plus_acc",
             ],
         ).to_df()
 
-        assert online_response["conv_rate_plus_acc"].equals(
-            online_response["conv_rate_plus_acc_python"]
+        online_pandas_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "pandas_view:conv_rate_plus_acc_pandas",
+            ],
+        ).to_df()
+
+        assert (
+            online_python_response["conv_rate_plus_acc_python"]
+            .equals(online_pandas_response["conv_rate_plus_acc_pandas"])
+            .equals(
+                online_python_response["conv_rate"] + online_python_response["acc_rate"]
+            )
         )

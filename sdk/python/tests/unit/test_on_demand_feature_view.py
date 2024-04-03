@@ -211,6 +211,7 @@ def test_python_native_transformation_mode():
         }
     ) == {"feature1": 0, "feature2": 1, "output1": 100, "output2": 102}
 
+
 # def test_get_online_features_on_demand():
 
 
