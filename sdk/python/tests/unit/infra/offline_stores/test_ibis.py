@@ -141,7 +141,6 @@ def tables_equal_ignore_order(actual: pa.Table, expected: pa.Table):
 
 
 def test_point_in_time_join():
-
     expected = point_in_time_join_brute(
         customer_table(),
         feature_tables=[
