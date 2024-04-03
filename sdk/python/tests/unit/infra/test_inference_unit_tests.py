@@ -142,7 +142,7 @@ def test_on_demand_features_invalid_type_inference():
             mode="pandas",
         )
         def python_native_test_invalid_pandas_view(
-            input_dict: Dict[str, Any]
+            input_dict: Dict[str, Any],
         ) -> Dict[str, Any]:
             output_dict: Dict[str, Any] = {
                 "output": input_dict["some_date"],
