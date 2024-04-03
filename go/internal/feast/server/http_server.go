@@ -353,7 +353,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 
 func (s *httpServer) Serve(host string, port int) error {
 	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-		tracer.Start()
+		tracer.Start(tracer.WithRuntimeMetrics())
 		defer tracer.Stop()
 	}
 	mux := httptrace.NewServeMux()

@@ -6,11 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
 type redisType int
@@ -102,6 +105,12 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		}
 	}
 
+	// Metrics are not showing up when the service name is set to DD_SERVICE
+	redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
+	if redisTraceServiceName == "" {
+		redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
+	}
+
 	if redisStoreType == redisNode {
 		store.client = redis.NewClient(&redis.Options{
 			Addr:      address[0],
@@ -109,6 +118,9 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
+		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+		}
 	} else if redisStoreType == redisCluster {
 		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:     []string{address[0]},
@@ -116,6 +128,9 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			TLSConfig: tlsConfig,
 			ReadOnly:  true,
 		})
+		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+			redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+		}
 	}
 
 	return &store, nil
@@ -142,11 +157,10 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 	return t, nil
 }
 
-func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	featureCount := len(featureNames)
-	index := featureCount
+func (r *RedisOnlineStore) buildFeatureViewIndices(featureViewNames []string, featureNames []string) (map[string]int, map[int]string, int) {
 	featureViewIndices := make(map[string]int)
 	indicesFeatureView := make(map[int]string)
+	index := len(featureNames)
 	for _, featureViewName := range featureViewNames {
 		if _, ok := featureViewIndices[featureViewName]; !ok {
 			featureViewIndices[featureViewName] = index
@@ -154,6 +168,11 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 			index += 1
 		}
 	}
+	return featureViewIndices, indicesFeatureView, index
+}
+
+func (r *RedisOnlineStore) buildHsetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
+	featureCount := len(featureNames)
 	var hsetKeys = make([]string, index)
 	h := murmur3.New32()
 	intBuffer := h.Sum32()
@@ -172,52 +191,59 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 		hsetKeys[i] = tsKey
 		featureNames = append(featureNames, tsKey)
 	}
+	return hsetKeys, featureNames
+}
 
+func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]byte, map[string]int, error) {
 	redisKeys := make([]*[]byte, len(entityKeys))
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
-
 		var key, err = buildRedisKey(r.project, entityKeys[i], r.config.EntityKeySerializationVersion)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		redisKeys[i] = key
 		redisKeyToEntityIndex[string(*key)] = i
 	}
+	return redisKeys, redisKeyToEntityIndex, nil
+}
 
-	// Retrieve features from Redis
-	// TODO: Move context object out
+func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
+	defer span.Finish()
+
+	featureCount := len(featureNames)
+	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
+	hsetKeys, featureNamesWithTimeStamps := r.buildHsetKeys(featureViewNames, featureNames, indicesFeatureView, index)
+	redisKeys, redisKeyToEntityIndex, err := r.buildRedisKeys(entityKeys)
+	if err != nil {
+		return nil, err
+	}
 
 	results := make([][]FeatureData, len(entityKeys))
-
 	commands := map[string]*redis.SliceCmd{}
 
 	if r.t == redisNode {
 		pipe := r.client.Pipeline()
-
 		for _, redisKey := range redisKeys {
 			keyString := string(*redisKey)
 			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
 		}
-
-		_, err := pipe.Exec(ctx)
+		_, err = pipe.Exec(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else if r.t == redisCluster {
 		pipe := r.clusterClient.Pipeline()
-
 		for _, redisKey := range redisKeys {
 			keyString := string(*redisKey)
 			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
 		}
-
-		_, err := pipe.Exec(ctx)
+		_, err = pipe.Exec(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	var entityIndex int
 	var resContainsNonNil bool
 	for redisKey, values := range commands {
@@ -240,7 +266,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 
 			if resString == nil {
 				// TODO (Ly): Can there be nil result within each feature or they will all be returned as string proto of types.Value_NullVal proto?
-				featureName := featureNames[featureIndex]
+				featureName := featureNamesWithTimeStamps[featureIndex]
 				featureViewName := featureViewNames[featureIndex]
 				timeStampIndex := featureViewIndices[featureViewName]
 				timeStampInterface := res[timeStampIndex]
@@ -267,7 +293,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("error converting parsed redis Value to types.Value")
 				} else {
-					featureName := featureNames[featureIndex]
+					featureName := featureNamesWithTimeStamps[featureIndex]
 					featureViewName := featureViewNames[featureIndex]
 					timeStampIndex := featureViewIndices[featureViewName]
 					timeStampInterface := res[timeStampIndex]

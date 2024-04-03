@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/pkg/errors v0.9.1
-	github.com/redis/go-redis/v9 v9.1.0
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.54.0
@@ -43,6 +43,7 @@ require (
 )
 
 require github.com/rs/zerolog v1.21.0
+
 require github.com/ianlancetaylor/cgosymbolizer v0.0.0-20230801000641-8736a9d41aaa
 
 require (
