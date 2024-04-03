@@ -49,3 +49,6 @@ DEFAULT_REGISTRY_SERVER_PORT = 6570
 
 # Environment variable for feature server docker image tag
 DOCKER_IMAGE_TAG_ENV_NAME: str = "FEAST_SERVER_DOCKER_IMAGE_TAG"
+
+# Default feature server registry ttl (seconds)
+DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5

@@ -169,7 +169,6 @@ class DatastoreOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
@@ -259,7 +258,6 @@ class DatastoreOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)

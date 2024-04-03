@@ -176,7 +176,6 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_historical_retrieval():
-
             # Create a copy of entity_df to prevent modifying the original
             entity_df_with_features = entity_df.copy()
 
@@ -188,25 +187,31 @@ class FileOfflineStore(OfflineStore):
                 or entity_df_event_timestamp_col_type.tz != pytz.UTC
             ):
                 # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
-                entity_df_with_features[
-                    entity_df_event_timestamp_col
-                ] = entity_df_with_features[entity_df_event_timestamp_col].apply(
-                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+                entity_df_with_features[entity_df_event_timestamp_col] = (
+                    entity_df_with_features[
+                        entity_df_event_timestamp_col
+                    ].apply(
+                        lambda x: x
+                        if x.tzinfo is not None
+                        else x.replace(tzinfo=pytz.utc)
+                    )
                 )
 
                 # Convert event timestamp column to datetime and normalize time zone to UTC
                 # This is necessary to avoid issues with pd.merge_asof
                 if isinstance(entity_df_with_features, dd.DataFrame):
-                    entity_df_with_features[
-                        entity_df_event_timestamp_col
-                    ] = dd.to_datetime(
-                        entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                    entity_df_with_features[entity_df_event_timestamp_col] = (
+                        dd.to_datetime(
+                            entity_df_with_features[entity_df_event_timestamp_col],
+                            utc=True,
+                        )
                     )
                 else:
-                    entity_df_with_features[
-                        entity_df_event_timestamp_col
-                    ] = pd.to_datetime(
-                        entity_df_with_features[entity_df_event_timestamp_col], utc=True
+                    entity_df_with_features[entity_df_event_timestamp_col] = (
+                        pd.to_datetime(
+                            entity_df_with_features[entity_df_event_timestamp_col],
+                            utc=True,
+                        )
                     )
 
             # Sort event timestamp values

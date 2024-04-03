@@ -18,6 +18,8 @@ anyio==4.3.0
     #   watchfiles
 appdirs==1.4.4
     # via fissix
+appnope==0.1.4
+    # via ipykernel
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
@@ -57,8 +59,6 @@ beautifulsoup4==4.12.3
     # via nbconvert
 bidict==0.23.1
     # via ibis-framework
-black==22.12.0
-    # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
 boto3==1.34.72
@@ -105,7 +105,6 @@ charset-normalizer==3.3.2
     #   snowflake-connector-python
 click==8.1.7
     # via
-    #   black
     #   bowler
     #   dask
     #   feast (setup.py)
@@ -168,6 +167,12 @@ docker==7.0.0
     #   testcontainers
 docutils==0.19
     # via sphinx
+duckdb==0.10.1
+    # via
+    #   duckdb-engine
+    #   ibis-framework
+duckdb-engine==0.11.2
+    # via ibis-framework
 entrypoints==0.4
     # via altair
 exceptiongroup==1.2.0
@@ -191,8 +196,6 @@ firebase-admin==5.4.0
     # via feast (setup.py)
 fissix==21.11.13
     # via bowler
-flake8==6.0.0
-    # via feast (setup.py)
 fqdn==1.5.1
     # via jsonschema
 fsspec==2023.12.2
@@ -314,7 +317,7 @@ httpx==0.27.0
     # via
     #   feast (setup.py)
     #   jupyterlab
-ibis-framework==8.0.0
+ibis-framework[duckdb]==8.0.0
     # via
     #   feast (setup.py)
     #   ibis-substrait
@@ -352,8 +355,6 @@ isodate==0.6.1
     # via azure-storage-blob
 isoduration==20.11.0
     # via jsonschema
-isort==5.13.2
-    # via feast (setup.py)
 jedi==0.19.1
     # via ipython
 jinja2==3.1.3
@@ -445,8 +446,6 @@ matplotlib-inline==0.1.6
     # via
     #   ipykernel
     #   ipython
-mccabe==0.7.0
-    # via flake8
 mdurl==0.1.2
     # via markdown-it-py
 minio==7.1.0
@@ -480,9 +479,7 @@ mypy==1.9.0
     #   feast (setup.py)
     #   sqlalchemy
 mypy-extensions==1.0.0
-    # via
-    #   black
-    #   mypy
+    # via mypy
 mypy-protobuf==3.3.0
     # via feast (setup.py)
 nbclient==0.10.0
@@ -560,8 +557,6 @@ parsy==2.1
     # via ibis-framework
 partd==1.4.1
     # via dask
-pathspec==0.12.1
-    # via black
 pbr==6.0.0
     # via mock
 pexpect==4.9.0
@@ -570,7 +565,6 @@ pip-tools==7.4.1
     # via feast (setup.py)
 platformdirs==3.11.0
     # via
-    #   black
     #   jupyter-core
     #   snowflake-connector-python
     #   virtualenv
@@ -649,8 +643,6 @@ pyasn1-modules==0.4.0
     # via google-auth
 pybindgen==0.22.1
     # via feast (setup.py)
-pycodestyle==2.10.0
-    # via flake8
 pycparser==2.21
     # via cffi
 pydantic==2.6.4
@@ -660,8 +652,6 @@ pydantic==2.6.4
     #   great-expectations
 pydantic-core==2.16.3
     # via pydantic
-pyflakes==3.0.1
-    # via flake8
 pygments==2.17.2
     # via
     #   feast (setup.py)
@@ -809,6 +799,8 @@ rsa==4.9
     # via google-auth
 ruamel-yaml==0.17.17
     # via great-expectations
+ruff==0.3.4
+    # via feast (setup.py)
 s3transfer==0.10.1
     # via boto3
 scipy==1.12.0
@@ -856,8 +848,13 @@ sphinxcontrib-serializinghtml==1.1.10
     # via sphinx
 sqlalchemy[mypy]==1.4.52
     # via
+    #   duckdb-engine
     #   feast (setup.py)
+    #   ibis-framework
     #   sqlalchemy
+    #   sqlalchemy-views
+sqlalchemy-views==0.3.2
+    # via ibis-framework
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 sqlglot==20.11.0
@@ -886,7 +883,6 @@ toml==0.10.2
     # via feast (setup.py)
 tomli==2.0.1
     # via
-    #   black
     #   build
     #   coverage
     #   jupyterlab
