@@ -63,6 +63,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
     "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
+    "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -214,6 +215,8 @@ class RepoConfig(FeastBaseModel):
                 self.online_config = "dynamodb"
             elif data["provider"] == "rockset":
                 self.online_config = "rockset"
+            elif data["provider"] == "ikv":
+                self.online_config = "ikv"
 
         self._batch_engine = None
         if "batch_engine" in data:
