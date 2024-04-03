@@ -10,10 +10,9 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
-from typing import Dict, Any
 
 
-def test_python_pandas_parity():
+def test_pandas_transformation():
     with tempfile.TemporaryDirectory() as data_dir:
         store = FeatureStore(
             config=RepoConfig(
@@ -48,7 +47,7 @@ def test_python_pandas_parity():
         driver_stats_fv = FeatureView(
             name="driver_hourly_stats",
             entities=[driver],
-            ttl=0,
+            ttl=timedelta(days=0),
             schema=[
                 Field(name="conv_rate", dtype=Float32),
                 Field(name="acc_rate", dtype=Float32),
@@ -68,15 +67,6 @@ def test_python_pandas_parity():
             df["conv_rate_plus_acc"] = inputs["conv_rate"] + inputs["acc_rate"]
             return df
 
-        # @on_demand_feature_view(
-        #     sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
-        #     schema=[Field(name="conv_rate_plus_acc_python", dtype=Float64)],
-        #     mode="python",
-        # )
-        # def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-        #     output: Dict[str, Any] = {'conv_rate_plus_acc_python': inputs['conv_rate'] + inputs['acc_rate']}
-        #     return output
-
         store.apply(
             [driver, driver_stats_source, driver_stats_fv, pandas_view]
         )
@@ -84,7 +74,6 @@ def test_python_pandas_parity():
         entity_rows = [
             {
                 "driver_id": 1001,
-                # "event_timestamp": datetime(2021, 4, 12, 10, 59, 42),
             }
         ]
 
@@ -94,11 +83,8 @@ def test_python_pandas_parity():
                 "driver_hourly_stats:conv_rate",
                 "driver_hourly_stats:acc_rate",
                 "driver_hourly_stats:avg_daily_trips",
-                "python_view:conv_rate_plus_acc_python",
                 "pandas_view:conv_rate_plus_acc",
             ],
         ).to_df()
 
-        assert online_response["conv_rate_plus_acc"].equals(
-            online_response["conv_rate_plus_acc_python"]
-        )
+        assert online_response["conv_rate_plus_acc"].equals(1)
