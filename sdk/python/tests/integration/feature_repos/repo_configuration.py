@@ -99,6 +99,14 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
+IKV_CONFIG = {
+    "type": "ikv",
+    "account_id": os.getenv("IKV_ACCOUNT_ID", ""),
+    "account_passkey": os.getenv("IKV_ACCOUNT_PASSKEY", ""),
+    "store_name": os.getenv("IKV_STORE_NAME", ""),
+    "mount_directory": os.getenv("IKV_MOUNT_DIR", ""),
+}
+
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -136,6 +144,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     # there is no dedicated Rockset instance for CI testing and there is no
     # containerized version of Rockset.
     # AVAILABLE_ONLINE_STORES["rockset"] = (ROCKSET_CONFIG, None)
+
+    # Uncomment to test using private IKV account. Currently not enabled as
+    # there is no dedicated IKV instance for CI testing and there is no
+    # containerized version of IKV.
+    # AVAILABLE_OFFLINE_STORES["ikv"] = (IKV_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
