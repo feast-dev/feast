@@ -19,7 +19,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -99,16 +98,6 @@ def get_stream_feature_view(
     raise FeatureViewNotFoundException(name, project)
 
 
-def get_request_feature_view(registry_proto: RegistryProto, name: str, project: str):
-    for feature_view_proto in registry_proto.feature_views:
-        if (
-            feature_view_proto.spec.name == name
-            and feature_view_proto.spec.project == project
-        ):
-            return RequestFeatureView.from_proto(feature_view_proto)
-    raise FeatureViewNotFoundException(name, project)
-
-
 def get_on_demand_feature_view(
     registry_proto: RegistryProto, name: str, project: str
 ) -> OnDemandFeatureView:
@@ -177,19 +166,6 @@ def list_feature_views(
     for feature_view_proto in registry_proto.feature_views:
         if feature_view_proto.spec.project == project:
             feature_views.append(FeatureView.from_proto(feature_view_proto))
-    return feature_views
-
-
-@registry_proto_cache
-def list_request_feature_views(
-    registry_proto: RegistryProto, project: str
-) -> List[RequestFeatureView]:
-    feature_views: List[RequestFeatureView] = []
-    for request_feature_view_proto in registry_proto.request_feature_views:
-        if request_feature_view_proto.spec.project == project:
-            feature_views.append(
-                RequestFeatureView.from_proto(request_feature_view_proto)
-            )
     return feature_views
 
 

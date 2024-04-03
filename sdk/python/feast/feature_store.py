@@ -91,7 +91,6 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
@@ -265,23 +264,6 @@ class FeatureStore:
             A list of feature views.
         """
         return self._list_feature_views(allow_cache)
-
-    @log_exceptions_and_usage
-    def list_request_feature_views(
-        self, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        """
-        Retrieves the list of feature views from the registry.
-
-        Args:
-            allow_cache: Whether to allow returning entities from a cached registry.
-
-        Returns:
-            A list of feature views.
-        """
-        return self._registry.list_request_feature_views(
-            self.project, allow_cache=allow_cache
-        )
 
     def _list_feature_views(
         self,
@@ -562,7 +544,6 @@ class FeatureStore:
         self,
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
-        request_views_to_update: List[RequestFeatureView],
         sfvs_to_update: List[StreamFeatureView],
     ):
         """Validates all feature views."""
@@ -577,7 +558,6 @@ class FeatureStore:
             [
                 *views_to_update,
                 *odfvs_to_update,
-                *request_views_to_update,
                 *sfvs_to_update,
             ]
         )
@@ -716,7 +696,6 @@ class FeatureStore:
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
-            ...     request_feature_views=list(),
             ...     entities=[driver],
             ...     feature_services=list())) # register entity and feature view
         """
@@ -724,7 +703,6 @@ class FeatureStore:
         self._validate_all_feature_views(
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.request_feature_views,
             desired_repo_contents.stream_feature_views,
         )
         _validate_data_sources(desired_repo_contents.data_sources)
@@ -781,7 +759,6 @@ class FeatureStore:
             Entity,
             FeatureView,
             OnDemandFeatureView,
-            RequestFeatureView,
             BatchFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -848,9 +825,6 @@ class FeatureStore:
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
-        request_views_to_update = [
-            ob for ob in objects if isinstance(ob, RequestFeatureView)
-        ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         data_sources_set_to_update = {
@@ -877,16 +851,6 @@ class FeatureStore:
             if fv.stream_source:
                 data_sources_set_to_update.add(fv.stream_source)
 
-        if request_views_to_update:
-            warnings.warn(
-                "Request feature view is deprecated. "
-                "Please use request data source instead",
-                DeprecationWarning,
-            )
-
-        for rfv in request_views_to_update:
-            data_sources_set_to_update.add(rfv.request_source)
-
         for odfv in odfvs_to_update:
             for v in odfv.source_request_sources.values():
                 data_sources_set_to_update.add(v)
@@ -898,7 +862,7 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, request_views_to_update, sfvs_to_update
+            views_to_update, odfvs_to_update, sfvs_to_update
         )
         self._make_inferences(
             data_sources_to_update,
@@ -912,9 +876,7 @@ class FeatureStore:
         # Add all objects to the registry and update the provider's infrastructure.
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
-        for view in itertools.chain(
-            views_to_update, odfvs_to_update, request_views_to_update, sfvs_to_update
-        ):
+        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
@@ -943,9 +905,6 @@ class FeatureStore:
                     and not isinstance(ob, StreamFeatureView)
                 )
             ]
-            request_views_to_delete = [
-                ob for ob in objects_to_delete if isinstance(ob, RequestFeatureView)
-            ]
             odfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
             ]
@@ -973,10 +932,6 @@ class FeatureStore:
             for view in views_to_delete:
                 self._registry.delete_feature_view(
                     view.name, project=self.project, commit=False
-                )
-            for request_view in request_views_to_delete:
-                self._registry.delete_feature_view(
-                    request_view.name, project=self.project, commit=False
                 )
             for odfv in odfvs_to_delete:
                 self._registry.delete_feature_view(
@@ -1088,43 +1043,26 @@ class FeatureStore:
         _feature_refs = self._get_features(features)
         (
             all_feature_views,
-            all_request_feature_views,
             all_on_demand_feature_views,
         ) = self._get_feature_views_to_use(features)
-
-        if all_request_feature_views:
-            warnings.warn(
-                "Request feature view is deprecated. "
-                "Please use request data source instead",
-                DeprecationWarning,
-            )
 
         # TODO(achal): _group_feature_refs returns the on demand feature views, but it's not passed into the provider.
         # This is a weird interface quirk - we should revisit the `get_historical_features` to
         # pass in the on demand feature views as well.
-        fvs, odfvs, request_fvs, request_fv_refs = _group_feature_refs(
+        fvs, odfvs = _group_feature_refs(
             _feature_refs,
             all_feature_views,
-            all_request_feature_views,
             all_on_demand_feature_views,
         )
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
-        request_feature_views = list(view for view, _ in request_fvs)
 
         set_usage_attribute("odfv", bool(on_demand_feature_views))
-        set_usage_attribute("request_fv", bool(request_feature_views))
 
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
                 entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
-            for fv in request_feature_views:
-                for feature in fv.features:
-                    if feature.name not in entity_df.columns:
-                        raise RequestDataNotFoundInEntityDfException(
-                            feature_name=feature.name, feature_view_name=fv.name
-                        )
             for odfv in on_demand_feature_views:
                 odfv_request_data_schema = odfv.get_request_data_schema()
                 for feature_name in odfv_request_data_schema.keys():
@@ -1135,9 +1073,6 @@ class FeatureStore:
                         )
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-        # Drop refs that refer to RequestFeatureViews since they don't need to be fetched and
-        # already exist in the entity_df
-        _feature_refs = [ref for ref in _feature_refs if ref not in request_fv_refs]
         provider = self._get_provider()
 
         job = provider.get_historical_features(
@@ -1615,18 +1550,10 @@ class FeatureStore:
         _feature_refs = self._get_features(features, allow_cache=True)
         (
             requested_feature_views,
-            requested_request_feature_views,
             requested_on_demand_feature_views,
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
-
-        if requested_request_feature_views:
-            warnings.warn(
-                "Request feature view is deprecated. "
-                "Please use request data source instead",
-                DeprecationWarning,
-            )
 
         (
             entity_name_to_join_key_map,
@@ -1648,19 +1575,12 @@ class FeatureStore:
 
         num_rows = _validate_entity_values(entity_proto_values)
         _validate_feature_refs(_feature_refs, full_feature_names)
-        (
-            grouped_refs,
-            grouped_odfv_refs,
-            grouped_request_fv_refs,
-            _,
-        ) = _group_feature_refs(
+        (grouped_refs, grouped_odfv_refs,) = _group_feature_refs(
             _feature_refs,
             requested_feature_views,
-            requested_request_feature_views,
             requested_on_demand_feature_views,
         )
         set_usage_attribute("odfv", bool(grouped_odfv_refs))
-        set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
 
         # All requested features should be present in the result.
         requested_result_row_names = {
@@ -1673,23 +1593,14 @@ class FeatureStore:
 
         feature_views = list(view for view, _ in grouped_refs)
 
-        needed_request_data, needed_request_fv_features = self.get_needed_request_data(
-            grouped_odfv_refs, grouped_request_fv_refs
-        )
+        needed_request_data = self.get_needed_request_data(grouped_odfv_refs)
 
         join_key_values: Dict[str, List[Value]] = {}
         request_data_features: Dict[str, List[Value]] = {}
         # Entity rows may be either entities or request data.
         for join_key_or_entity_name, values in entity_proto_values.items():
             # Found request data
-            if (
-                join_key_or_entity_name in needed_request_data
-                or join_key_or_entity_name in needed_request_fv_features
-            ):
-                if join_key_or_entity_name in needed_request_fv_features:
-                    # If the data was requested as a feature then
-                    # make sure it appears in the result.
-                    requested_result_row_names.add(join_key_or_entity_name)
+            if join_key_or_entity_name in needed_request_data:
                 request_data_features[join_key_or_entity_name] = values
             else:
                 if join_key_or_entity_name in join_keys_set:
@@ -1711,7 +1622,7 @@ class FeatureStore:
                 join_key_values[join_key] = values
 
         self.ensure_request_data_values_exist(
-            needed_request_data, needed_request_fv_features, request_data_features
+            needed_request_data, request_data_features
         )
 
         # Populate online features response proto with join keys and request data features
@@ -1870,33 +1781,21 @@ class FeatureStore:
     @staticmethod
     def get_needed_request_data(
         grouped_odfv_refs: List[Tuple[OnDemandFeatureView, List[str]]],
-        grouped_request_fv_refs: List[Tuple[RequestFeatureView, List[str]]],
-    ) -> Tuple[Set[str], Set[str]]:
+    ) -> Set[str]:
         needed_request_data: Set[str] = set()
-        needed_request_fv_features: Set[str] = set()
         for odfv, _ in grouped_odfv_refs:
             odfv_request_data_schema = odfv.get_request_data_schema()
             needed_request_data.update(odfv_request_data_schema.keys())
-        for request_fv, _ in grouped_request_fv_refs:
-            for feature in request_fv.features:
-                needed_request_fv_features.add(feature.name)
-        return needed_request_data, needed_request_fv_features
+        return needed_request_data
 
     @staticmethod
     def ensure_request_data_values_exist(
         needed_request_data: Set[str],
-        needed_request_fv_features: Set[str],
         request_data_features: Dict[str, List[Any]],
     ):
-        if len(needed_request_data) + len(needed_request_fv_features) != len(
-            request_data_features.keys()
-        ):
+        if len(needed_request_data) != len(request_data_features.keys()):
             missing_features = [
-                x
-                for x in itertools.chain(
-                    needed_request_data, needed_request_fv_features
-                )
-                if x not in request_data_features
+                x for x in needed_request_data if x not in request_data_features
             ]
             raise RequestDataNotFoundInEntityRowsException(
                 feature_names=missing_features
@@ -2096,26 +1995,52 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df = initial_response.to_df()
+        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
-            )
-            selected_subset = [
-                f for f in transformed_features_df.columns if f in _feature_refs
-            ]
-
-            proto_values = [
-                python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features_dict: Dict[
+                    str, List[Any]
+                ] = odfv.get_transformed_features(
+                    initial_response_dict,
+                    full_feature_names,
                 )
-                for feature in selected_subset
-            ]
+            elif odfv.mode in {"pandas", "substrait"}:
+                if initial_response_df is None:
+                    initial_response_df = initial_response.to_df()
+                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
+                    initial_response_df,
+                    full_feature_names,
+                )
+            else:
+                raise Exception(
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
+
+            transformed_features = (
+                transformed_features_dict
+                if odfv.mode == "python"
+                else transformed_features_df
+            )
+            transformed_columns = (
+                transformed_features.columns
+                if isinstance(transformed_features, pd.DataFrame)
+                else transformed_features
+            )
+            selected_subset = [f for f in transformed_columns if f in _feature_refs]
+
+            proto_values = []
+            for selected_feature in selected_subset:
+                feature_vector = transformed_features[selected_feature]
+                proto_values.append(
+                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                )
 
             odfv_result_names |= set(selected_subset)
 
@@ -2161,7 +2086,7 @@ class FeatureStore:
         features: Optional[Union[List[str], FeatureService]],
         allow_cache=False,
         hide_dummy_entity: bool = True,
-    ) -> Tuple[List[FeatureView], List[RequestFeatureView], List[OnDemandFeatureView]]:
+    ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
         fvs = {
             fv.name: fv
             for fv in [
@@ -2172,13 +2097,6 @@ class FeatureStore:
             ]
         }
 
-        request_fvs = {
-            fv.name: fv
-            for fv in self._registry.list_request_feature_views(
-                project=self.project, allow_cache=allow_cache
-            )
-        }
-
         od_fvs = {
             fv.name: fv
             for fv in self._registry.list_on_demand_feature_views(
@@ -2187,7 +2105,7 @@ class FeatureStore:
         }
 
         if isinstance(features, FeatureService):
-            fvs_to_use, request_fvs_to_use, od_fvs_to_use = [], [], []
+            fvs_to_use, od_fvs_to_use = [], []
             for fv_name, projection in [
                 (projection.name, projection)
                 for projection in features.feature_view_projections
@@ -2195,10 +2113,6 @@ class FeatureStore:
                 if fv_name in fvs:
                     fvs_to_use.append(
                         fvs[fv_name].with_projection(copy.copy(projection))
-                    )
-                elif fv_name in request_fvs:
-                    request_fvs_to_use.append(
-                        request_fvs[fv_name].with_projection(copy.copy(projection))
                     )
                 elif fv_name in od_fvs:
                     odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
@@ -2214,11 +2128,10 @@ class FeatureStore:
                         f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
                         f'{fv_name} and that you have registered it by running "apply".'
                     )
-            views_to_use = (fvs_to_use, request_fvs_to_use, od_fvs_to_use)
+            views_to_use = (fvs_to_use, od_fvs_to_use)
         else:
             views_to_use = (
                 [*fvs.values()],
-                [*request_fvs.values()],
                 [*od_fvs.values()],
             )
 
@@ -2456,23 +2369,14 @@ def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = F
 def _group_feature_refs(
     features: List[str],
     all_feature_views: List[FeatureView],
-    all_request_feature_views: List[RequestFeatureView],
     all_on_demand_feature_views: List[OnDemandFeatureView],
 ) -> Tuple[
-    List[Tuple[FeatureView, List[str]]],
-    List[Tuple[OnDemandFeatureView, List[str]]],
-    List[Tuple[RequestFeatureView, List[str]]],
-    Set[str],
+    List[Tuple[FeatureView, List[str]]], List[Tuple[OnDemandFeatureView, List[str]]]
 ]:
     """Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
-
-    # request view name to proto
-    request_view_index = {
-        view.projection.name_to_use(): view for view in all_request_feature_views
-    }
 
     # on demand view to on demand view proto
     on_demand_view_index = {
@@ -2481,8 +2385,6 @@ def _group_feature_refs(
 
     # view name to feature names
     views_features = defaultdict(set)
-    request_views_features = defaultdict(set)
-    request_view_refs = set()
 
     # on demand view name to feature names
     on_demand_view_features = defaultdict(set)
@@ -2503,26 +2405,17 @@ def _group_feature_refs(
             ].source_feature_view_projections.values():
                 for input_feat in input_fv_projection.features:
                     views_features[input_fv_projection.name].add(input_feat.name)
-        elif view_name in request_view_index:
-            request_view_index[view_name].projection.get_feature(
-                feat_name
-            )  # For validation
-            request_views_features[view_name].add(feat_name)
-            request_view_refs.add(ref)
         else:
             raise FeatureViewNotFoundException(view_name)
 
     fvs_result: List[Tuple[FeatureView, List[str]]] = []
     odfvs_result: List[Tuple[OnDemandFeatureView, List[str]]] = []
-    request_fvs_result: List[Tuple[RequestFeatureView, List[str]]] = []
 
     for view_name, feature_names in views_features.items():
         fvs_result.append((view_index[view_name], list(feature_names)))
-    for view_name, feature_names in request_views_features.items():
-        request_fvs_result.append((request_view_index[view_name], list(feature_names)))
     for view_name, feature_names in on_demand_view_features.items():
         odfvs_result.append((on_demand_view_index[view_name], list(feature_names)))
-    return fvs_result, odfvs_result, request_fvs_result, request_view_refs
+    return fvs_result, odfvs_result
 
 
 def _print_materialization_log(
