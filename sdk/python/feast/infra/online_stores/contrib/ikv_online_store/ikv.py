@@ -74,7 +74,7 @@ class IKVOnlineStore(OnlineStore):
         # update should have been called before
         if self._writer is None:
             return
-        
+
         for entity_key, features, event_timestamp, _ in data:
             entity_id: str = compute_entity_id(
                 entity_key,
@@ -209,7 +209,7 @@ class IKVOnlineStore(OnlineStore):
         # shutdown clients
         self._writer.shutdown()
         self._writer = None
-        
+
         if self._reader is not None:
             self._reader.shutdown()
             self._reader = None
