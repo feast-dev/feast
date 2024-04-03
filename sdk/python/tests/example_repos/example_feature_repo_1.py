@@ -102,15 +102,15 @@ customer_driver_combined = FeatureView(
 )
 
 @on_demand_feature_view(
-    sources=[customer_driver_combined_source],
+    sources=[customer_profile],
     schema=[
-        Field(name='on_demand_feature', dtype=Int64)
+        Field(name='on_demand_age', dtype=Int64)
     ],
     mode="pandas",
 )
-def customer_driver_combined_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
+def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     outputs = pd.DataFrame()
-    outputs['on_demand_feature'] = inputs['trips'] + 1
+    outputs['on_demand_age'] = inputs['age'] + 1
     return outputs
 
 
