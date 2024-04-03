@@ -1,6 +1,21 @@
 from datetime import datetime
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+)
+
+from ikvpy.client import IKVReader, IKVWriter
+from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
+from ikvpy.document import IKVDocument, IKVDocumentBuilder
+from ikvpy.factory import create_new_reader, create_new_writer
 from pydantic import StrictStr
-from typing import Any, Callable, Dict, Iterator, Literal, List, Optional, Sequence, Tuple
 
 from feast import Entity, FeatureView, utils
 from feast.infra.online_stores.helpers import compute_entity_id
@@ -9,11 +24,6 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage
-
-from ikvpy.client import IKVReader, IKVWriter
-from ikvpy.document import IKVDocument, IKVDocumentBuilder
-from ikvpy.factory import create_new_reader, create_new_writer
-from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
 
 PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
