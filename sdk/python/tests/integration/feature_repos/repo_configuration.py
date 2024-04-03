@@ -148,7 +148,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     # Uncomment to test using private IKV account. Currently not enabled as
     # there is no dedicated IKV instance for CI testing and there is no
     # containerized version of IKV.
-    # AVAILABLE_OFFLINE_STORES["ikv"] = (IKV_CONFIG, None)
+    # AVAILABLE_ONLINE_STORES["ikv"] = (IKV_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
