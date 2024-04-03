@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import StrictStr, Sequence
+from pydantic import StrictStr
 from typing import Any, Callable, Dict, Iterator, Literal, List, Optional, Sequence, Tuple
 
 from feast import Entity, FeatureView, utils
@@ -122,7 +122,7 @@ class IKVOnlineStore(OnlineStore):
             bytes_primary_keys=[], str_primary_keys=primary_keys, field_names=field_names)
 
         # decode results
-        return [self._decode_fields_for_primary_key(requested_features, value_iter) for _ in range(0, len(primary_keys))]
+        return [IKVOnlineStore._decode_fields_for_primary_key(requested_features, value_iter) for _ in range(0, len(primary_keys))]
 
     def _decode_fields_for_primary_key(requested_features: List[str], 
         value_iter: Iterator[Optional[bytes]]) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
