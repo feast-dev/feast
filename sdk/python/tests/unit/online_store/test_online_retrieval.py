@@ -124,6 +124,13 @@ def test_online() -> None:
 
         assert "trips" in result
 
+        result = store.get_online_features(
+            features=["customer_driver_combined_pandas_odfv:on_demand_feature"],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
+            full_feature_names=False,
+        ).to_dict()
+        print(result)
+        assert 1 == 2
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(

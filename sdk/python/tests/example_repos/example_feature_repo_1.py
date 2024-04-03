@@ -1,7 +1,10 @@
 from datetime import timedelta
 
+import pandas as pd
+
 from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
 from feast.types import Float32, Int64, String
+from feast.on_demand_feature_view import on_demand_feature_view
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
 # at the paths for these file sources. Since these paths are effectively fake, this example
@@ -97,6 +100,18 @@ customer_driver_combined = FeatureView(
     source=customer_driver_combined_source,
     tags={},
 )
+
+@on_demand_feature_view(
+    sources=[customer_driver_combined_source],
+    schema=[
+        Field(name='on_demand_feature', dtype=Int64)
+    ],
+    mode="pandas",
+)
+def customer_driver_combined_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
+    outputs = pd.DataFrame()
+    outputs['on_demand_feature'] = inputs['trips'] + 1
+    return outputs
 
 
 all_drivers_feature_service = FeatureService(
