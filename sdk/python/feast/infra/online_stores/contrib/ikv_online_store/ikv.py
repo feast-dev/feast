@@ -124,6 +124,7 @@ class IKVOnlineStore(OnlineStore):
         # decode results
         return [IKVOnlineStore._decode_fields_for_primary_key(requested_features, value_iter) for _ in range(0, len(primary_keys))]
 
+    @staticmethod
     def _decode_fields_for_primary_key(requested_features: List[str], 
         value_iter: Iterator[Optional[bytes]]) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
 
@@ -206,18 +207,20 @@ class IKVOnlineStore(OnlineStore):
             self._reader.shutdown()
             self._reader = None
 
+    @staticmethod
     def _create_ikv_field_name(feature_view: FeatureView, feature_name: str) -> str:
         return "{}_{}".format(feature_view.name, feature_name)
 
+    @staticmethod
     def _create_document(entity_id: str, feature_view: FeatureView, \
             values: Dict[str, ValueProto], event_timestamp: datetime) -> IKVDocument:
         """ Converts feast key-value pairs into an IKV document. """
 
         # initialie builder by inserting primary key and row creation timestamp
-        event_timestamp: str = utils.make_tzaware(event_timestamp).isoformat()
+        event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
         builder = IKVDocumentBuilder()\
             .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)\
-            .put_bytes_field(EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp.encode('utf-8'))
+            .put_bytes_field(EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_str.encode('utf-8'))
 
         for feature_name, feature_value in values.items():
             field_name = IKVOnlineStore._create_ikv_field_name(feature_view, feature_name)
@@ -237,9 +240,10 @@ class IKVOnlineStore(OnlineStore):
         
         # initialize reader, iff mount_dir is specified
         if self._reader is None:
-            if config.mount_directory and len(config.mount_directory) > 0:
+            if online_config.mount_directory and len(online_config.mount_directory) > 0:
                 self._reader = create_new_reader(client_options)
 
+    @staticmethod
     def _config_to_client_options(config: IKVOnlineStoreConfig) -> ClientOptions:
         """ Utility for IKVOnlineStoreConfig to IKV ClientOptions conversion. """
         builder = ClientOptionsBuilder()\
