@@ -57,7 +57,7 @@ REQUIRED = [
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
-    "SQLAlchemy[mypy]>1,<2",
+    "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
