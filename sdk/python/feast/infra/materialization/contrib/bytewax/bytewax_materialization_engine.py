@@ -308,7 +308,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def _create_configuration_map(self, job_id, paths, feature_view, namespace):
         """Create a Kubernetes configmap for this job"""
 
-        feature_store_configuration = yaml.dump(self.repo_config.dict())
+        feature_store_configuration = yaml.dump(self.repo_config.dict(by_alias=True))
 
         materialization_config = yaml.dump(
             {"paths": paths, "feature_view": feature_view.name}

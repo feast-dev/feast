@@ -464,7 +464,9 @@ class OnDemandFeatureView(BaseFeatureView):
             return self.get_transformed_features_dict(
                 feature_dict=features,
             )
-        elif self.mode == "pandas" and isinstance(features, pd.DataFrame):
+        elif self.mode in {"pandas", "substrait"} and isinstance(
+            features, pd.DataFrame
+        ):
             return self.get_transformed_features_df(
                 df_with_features=features,
                 full_feature_names=full_feature_names,
