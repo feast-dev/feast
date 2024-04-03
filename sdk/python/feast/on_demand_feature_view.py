@@ -160,9 +160,9 @@ class OnDemandFeatureView(BaseFeatureView):
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[odfv_source.name] = odfv_source
             else:
-                self.source_feature_view_projections[
-                    odfv_source.name
-                ] = odfv_source.projection
+                self.source_feature_view_projections[odfv_source.name] = (
+                    odfv_source.projection
+                )
 
         self.feature_transformation = feature_transformation
 
@@ -430,7 +430,6 @@ class OnDemandFeatureView(BaseFeatureView):
         self,
         feature_dict: Dict[str, Any],  # type: ignore
     ) -> Dict[str, Any]:
-
         # we need a mapping from full feature name to short and back to do a renaming
         # The simplest thing to do is to make the full reference, copy the columns with the short reference
         # and rerun
@@ -465,7 +464,9 @@ class OnDemandFeatureView(BaseFeatureView):
             return self.get_transformed_features_dict(
                 feature_dict=features,
             )
-        elif self.mode == "pandas" and isinstance(features, pd.DataFrame):
+        elif self.mode in {"pandas", "substrait"} and isinstance(
+            features, pd.DataFrame
+        ):
             return self.get_transformed_features_df(
                 df_with_features=features,
                 full_feature_names=full_feature_names,
@@ -667,7 +668,6 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-
         return_annotation = inspect.signature(user_function).return_annotation
         if (
             return_annotation

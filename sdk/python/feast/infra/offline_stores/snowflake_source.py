@@ -395,7 +395,6 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
-
         return SavedDatasetSnowflakeStorage(
             table_ref=SnowflakeOptions.from_proto(storage_proto.snowflake_storage).table
         )

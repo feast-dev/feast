@@ -95,9 +95,9 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     gcs_staging_location: Optional[str] = None
     """ (optional) GCS location used for offloading BigQuery results as parquet files."""
 
-    table_create_disposition: Literal[
-        "CREATE_NEVER", "CREATE_IF_NEEDED"
-    ] = "CREATE_IF_NEEDED"
+    table_create_disposition: Literal["CREATE_NEVER", "CREATE_IF_NEEDED"] = (
+        "CREATE_IF_NEEDED"
+    )
     """ (optional) Specifies whether the job is allowed to create new tables. The default value is CREATE_IF_NEEDED.
     Custom constraint for table_create_disposition. To understand more, see:
     https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition

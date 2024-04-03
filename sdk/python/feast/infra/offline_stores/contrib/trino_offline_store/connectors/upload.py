@@ -17,6 +17,7 @@ offline_store:
         file_format: parquet
 ```
 """
+
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional, Set
 

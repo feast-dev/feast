@@ -44,7 +44,6 @@ class FileDataSourceCreator(DataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         f = tempfile.NamedTemporaryFile(
@@ -99,7 +98,6 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         dataset_path = tempfile.TemporaryDirectory(

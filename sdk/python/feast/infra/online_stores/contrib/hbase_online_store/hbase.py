@@ -107,9 +107,9 @@ class HbaseOnlineStore(OnlineStore):
             )
             values_dict = {}
             for feature_name, val in values.items():
-                values_dict[
-                    HbaseConstants.get_col_from_feature(feature_name)
-                ] = val.SerializeToString()
+                values_dict[HbaseConstants.get_col_from_feature(feature_name)] = (
+                    val.SerializeToString()
+                )
             if isinstance(timestamp, datetime):
                 values_dict[HbaseConstants.DEFAULT_EVENT_TS] = struct.pack(
                     ">L", int(calendar.timegm(timestamp.timetuple()))
