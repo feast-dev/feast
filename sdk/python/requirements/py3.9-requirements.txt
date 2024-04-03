@@ -8,7 +8,6 @@ annotated-types==0.6.0
     # via pydantic
 anyio==4.3.0
     # via
-    #   httpx
     #   starlette
     #   watchfiles
 appdirs==1.4.4
@@ -21,10 +20,7 @@ attrs==23.2.0
 bowler==0.9.0
     # via feast (setup.py)
 certifi==2024.2.2
-    # via
-    #   httpcore
-    #   httpx
-    #   requests
+    # via requests
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
@@ -48,33 +44,26 @@ fastapi==0.110.0
     # via feast (setup.py)
 fissix==21.11.13
     # via bowler
-fsspec==2024.2.0
+fsspec==2024.3.1
     # via dask
 greenlet==3.0.3
     # via sqlalchemy
 gunicorn==21.2.0
     # via feast (setup.py)
 h11==0.14.0
-    # via
-    #   httpcore
-    #   uvicorn
-httpcore==1.0.4
-    # via httpx
+    # via uvicorn
 httptools==0.6.1
     # via uvicorn
-httpx==0.27.0
-    # via feast (setup.py)
 idna==3.6
     # via
     #   anyio
-    #   httpx
     #   requests
 importlib-metadata==6.11.0
     # via
     #   dask
     #   feast (setup.py)
     #   typeguard
-importlib-resources==6.1.3
+importlib-resources==6.4.0
     # via feast (setup.py)
 jinja2==3.1.3
     # via feast (setup.py)
@@ -109,14 +98,11 @@ pandas==2.2.1
     # via feast (setup.py)
 partd==1.4.1
     # via dask
-proto-plus==1.23.0
-    # via feast (setup.py)
 protobuf==4.25.3
     # via
     #   feast (setup.py)
     #   mypy-protobuf
-    #   proto-plus
-pyarrow==15.0.1
+pyarrow==15.0.2
     # via feast (setup.py)
 pydantic==2.6.4
     # via
@@ -137,7 +123,7 @@ pyyaml==6.0.1
     #   dask
     #   feast (setup.py)
     #   uvicorn
-referencing==0.33.0
+referencing==0.34.0
     # via
     #   jsonschema
     #   jsonschema-specifications
@@ -150,11 +136,11 @@ rpds-py==0.18.0
 six==1.16.0
     # via python-dateutil
 sniffio==1.3.1
-    # via
-    #   anyio
-    #   httpx
+    # via anyio
 sqlalchemy[mypy]==1.4.52
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
 sqlalchemy2-stubs==0.0.2a38
     # via sqlalchemy
 starlette==0.36.3
@@ -173,7 +159,7 @@ toolz==0.12.1
     #   partd
 tqdm==4.66.2
     # via feast (setup.py)
-typeguard==4.1.5
+typeguard==4.2.1
     # via feast (setup.py)
 types-protobuf==4.24.0.20240311
     # via mypy-protobuf
@@ -192,7 +178,7 @@ tzdata==2024.1
     # via pandas
 urllib3==2.2.1
     # via requests
-uvicorn[standard]==0.28.0
+uvicorn[standard]==0.29.0
     # via feast (setup.py)
 uvloop==0.19.0
     # via uvicorn
@@ -202,7 +188,7 @@ watchfiles==0.21.0
     # via uvicorn
 websockets==12.0
     # via uvicorn
-zipp==3.17.0
+zipp==3.18.1
     # via
     #   importlib-metadata
     #   importlib-resources

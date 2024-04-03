@@ -19,7 +19,6 @@ from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.repo_config import RegistryConfig
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -213,31 +212,6 @@ class RemoteRegistry(BaseRegistry):
         return [
             FeatureView.from_proto(feature_view)
             for feature_view in response.feature_views
-        ]
-
-    def get_request_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> RequestFeatureView:
-        request = RegistryServer_pb2.GetRequestFeatureViewRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
-
-        response = self.stub.GetRequestFeatureView(request)
-
-        return RequestFeatureView.from_proto(response)
-
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        request = RegistryServer_pb2.ListRequestFeatureViewsRequest(
-            project=project, allow_cache=allow_cache
-        )
-
-        response = self.stub.ListRequestFeatureViews(request)
-
-        return [
-            RequestFeatureView.from_proto(request_feature_view)
-            for request_feature_view in response.request_feature_views
         ]
 
     def apply_materialization(

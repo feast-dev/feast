@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from proto import Message
+from google.protobuf.message import Message
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -29,9 +30,10 @@ from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.substrait_transformation import SubstraitTransformation
 
 
 class BaseRegistry(ABC):
@@ -347,41 +349,6 @@ class BaseRegistry(ABC):
         """
         raise NotImplementedError
 
-    # request feature view operations
-    @abstractmethod
-    def get_request_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> RequestFeatureView:
-        """
-        Retrieves a request feature view.
-
-        Args:
-            name: Name of request feature view
-            project: Feast project that this feature view belongs to
-            allow_cache: Allow returning feature view from the cached registry
-
-        Returns:
-            Returns either the specified feature view, or raises an exception if
-            none is found
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        """
-        Retrieve a list of request feature views from the registry
-
-        Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature views based on project name
-
-        Returns:
-            List of request feature views
-        """
-        raise NotImplementedError
-
     @abstractmethod
     def apply_materialization(
         self,
@@ -662,18 +629,40 @@ class BaseRegistry(ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-
-            odfv_dict["spec"]["userDefinedFunction"][
-                "body"
-            ] = on_demand_feature_view.transformation.udf_string
-            registry_dict["onDemandFeatureViews"].append(odfv_dict)
-        for request_feature_view in sorted(
-            self.list_request_feature_views(project=project),
-            key=lambda request_feature_view: request_feature_view.name,
-        ):
-            registry_dict["requestFeatureViews"].append(
-                self._message_to_sorted_dict(request_feature_view.to_proto())
+            # We are logging a warning because the registry object may be read from a proto that is not updated
+            # i.e., we have to submit dual writes but in order to ensure the read behavior succeeds we have to load
+            # both objects to compare any changes in the registry
+            warnings.warn(
+                "We will be deprecating the usage of spec.userDefinedFunction in a future release please upgrade cautiously.",
+                DeprecationWarning,
             )
+            if on_demand_feature_view.feature_transformation:
+                if isinstance(
+                    on_demand_feature_view.feature_transformation, PandasTransformation
+                ):
+                    if "userDefinedFunction" not in odfv_dict["spec"]:
+                        odfv_dict["spec"]["userDefinedFunction"] = {}
+                    odfv_dict["spec"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.udf_string
+                elif isinstance(
+                    on_demand_feature_view.feature_transformation,
+                    SubstraitTransformation,
+                ):
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = on_demand_feature_view.feature_transformation.substrait_plan
+                else:
+                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
+                        "body"
+                    ] = None
+                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
+                        "body"
+                    ] = None
+                registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for stream_feature_view in sorted(
             self.list_stream_feature_views(project=project),
             key=lambda stream_feature_view: stream_feature_view.name,
@@ -684,6 +673,7 @@ class BaseRegistry(ABC):
                 "body"
             ] = stream_feature_view.udf_string
             registry_dict["streamFeatureViews"].append(sfv_dict)
+
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
