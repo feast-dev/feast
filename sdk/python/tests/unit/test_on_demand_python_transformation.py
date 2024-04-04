@@ -83,27 +83,42 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 mode="python",
             )
             def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = {"conv_rate_plus_acc_python": []}
-                output["conv_rate_plus_acc_python"].append(
-                    inputs["conv_rate"][0] + inputs["acc_rate"][0]
-                )
+                output: Dict[str, Any] = {
+                    "conv_rate_plus_acc_python": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ]
+                }
                 return output
 
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
-                schema=[Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)],
+                schema=[
+                    Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)
+                ],
                 mode="python",
             )
             def python_singleton_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = dict(conv_rate_plus_acc_python=float('-inf'))
-                output["conv_rate_plus_acc_python_singleton"] = inputs["conv_rate"] + inputs["acc_rate"]
+                output: Dict[str, Any] = dict(conv_rate_plus_acc_python=float("-inf"))
+                output["conv_rate_plus_acc_python_singleton"] = (
+                    inputs["conv_rate"] + inputs["acc_rate"]
+                )
                 return output
 
             with pytest.raises(TypeError):
                 # Note the singleton view will fail as the type is
                 # expected to be a List which can be confirmed in _infer_features_dict
                 self.store.apply(
-                    [driver, driver_stats_source, driver_stats_fv, pandas_view, python_view, python_singleton_view]
+                    [
+                        driver,
+                        driver_stats_source,
+                        driver_stats_fv,
+                        pandas_view,
+                        python_view,
+                        python_singleton_view,
+                    ]
                 )
 
             self.store.apply(
