@@ -29,6 +29,7 @@ PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
 CREATION_TIMESTAMP_FIELD_NAME: str = "_created_timestamp"
 
+
 class IKVOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for IKV store"""
 
@@ -90,7 +91,9 @@ class IKVOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
-            document: IKVDocument = IKVOnlineStore._create_document(entity_id, table, features, event_timestamp)
+            document: IKVDocument = IKVOnlineStore._create_document(
+                entity_id, table, features, event_timestamp
+            )
             self._writer.upsert_fields(document)
             if progress:
                 progress(1)
@@ -121,7 +124,10 @@ class IKVOnlineStore(OnlineStore):
             return []
 
         # create IKV primary keys
-        primary_keys = [compute_entity_id(ek, config.entity_key_serialization_version) for ek in entity_keys]
+        primary_keys = [
+            compute_entity_id(ek, config.entity_key_serialization_version)
+            for ek in entity_keys
+        ]
 
         # create IKV field names
         if requested_features is None:
@@ -134,15 +140,23 @@ class IKVOnlineStore(OnlineStore):
 
         assert self._reader is not None
         value_iter = self._reader.multiget_bytes_values(
-            bytes_primary_keys=[], str_primary_keys=primary_keys, field_names=field_names)
+            bytes_primary_keys=[],
+            str_primary_keys=primary_keys,
+            field_names=field_names,
+        )
 
         # decode results
-        return [IKVOnlineStore._decode_fields_for_primary_key(requested_features, value_iter) for _ in range(0, len(primary_keys))]
+        return [
+            IKVOnlineStore._decode_fields_for_primary_key(
+                requested_features, value_iter
+            )
+            for _ in range(0, len(primary_keys))
+        ]
 
     @staticmethod
-    def _decode_fields_for_primary_key(requested_features: List[str],
-        value_iter: Iterator[Optional[bytes]]) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
-
+    def _decode_fields_for_primary_key(
+        requested_features: List[str], value_iter: Iterator[Optional[bytes]]
+    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         # decode timestamp
         dt: Optional[datetime] = None
         dt_bytes = next(value_iter)
@@ -229,24 +243,34 @@ class IKVOnlineStore(OnlineStore):
         return "{}_{}".format(feature_view.name, feature_name)
 
     @staticmethod
-    def _create_document(entity_id: str, feature_view: FeatureView, \
-            values: Dict[str, ValueProto], event_timestamp: datetime) -> IKVDocument:
-        """ Converts feast key-value pairs into an IKV document. """
+    def _create_document(
+        entity_id: str,
+        feature_view: FeatureView,
+        values: Dict[str, ValueProto],
+        event_timestamp: datetime,
+    ) -> IKVDocument:
+        """Converts feast key-value pairs into an IKV document."""
 
         # initialie builder by inserting primary key and row creation timestamp
         event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
-        builder = IKVDocumentBuilder()\
-            .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)\
-            .put_bytes_field(EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_str.encode('utf-8'))
+        builder = (
+            IKVDocumentBuilder()
+            .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)
+            .put_bytes_field(
+                EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_str.encode("utf-8")
+            )
+        )
 
         for feature_name, feature_value in values.items():
-            field_name = IKVOnlineStore._create_ikv_field_name(feature_view, feature_name)
+            field_name = IKVOnlineStore._create_ikv_field_name(
+                feature_view, feature_name
+            )
             builder.put_bytes_field(field_name, feature_value.SerializeToString())
 
         return builder.build()
 
     def _init_clients(self, config: RepoConfig):
-        """ Initializes (if required) reader/writer ikv clients. """
+        """Initializes (if required) reader/writer ikv clients."""
         online_config = config.online_store
         assert isinstance(online_config, IKVOnlineStoreConfig)
         client_options = IKVOnlineStore._config_to_client_options(online_config)
@@ -262,11 +286,13 @@ class IKVOnlineStore(OnlineStore):
 
     @staticmethod
     def _config_to_client_options(config: IKVOnlineStoreConfig) -> ClientOptions:
-        """ Utility for IKVOnlineStoreConfig to IKV ClientOptions conversion. """
-        builder = ClientOptionsBuilder()\
-            .with_account_id(config.account_id)\
-            .with_account_passkey(config.account_passkey)\
+        """Utility for IKVOnlineStoreConfig to IKV ClientOptions conversion."""
+        builder = (
+            ClientOptionsBuilder()
+            .with_account_id(config.account_id)
+            .with_account_passkey(config.account_passkey)
             .with_store_name(config.store_name)
+        )
 
         if config.mount_directory and len(config.mount_directory) > 0:
             builder = builder.with_mount_directory(config.mount_directory)
