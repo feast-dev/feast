@@ -300,8 +300,21 @@ class OnDemandFeatureView(BaseFeatureView):
             == "user_defined_function"
             and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
             != ""
+            and on_demand_feature_view_proto.spec.mode == "pandas"
         ):
             transformation = PandasTransformation.from_proto(
+                on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
+            )
+        elif (
+            on_demand_feature_view_proto.spec.feature_transformation.WhichOneof(
+                "transformation"
+            )
+            == "user_defined_function"
+            and on_demand_feature_view_proto.spec.feature_transformation.user_defined_function.body_text
+            != ""
+            and on_demand_feature_view_proto.spec.mode == "python"
+        ):
+            transformation = PythonTransformation.from_proto(
                 on_demand_feature_view_proto.spec.feature_transformation.user_defined_function
             )
         elif (
