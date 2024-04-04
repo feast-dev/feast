@@ -127,7 +127,7 @@ def create_similarity_request_source():
     return RequestSource(
         name="similarity_input",
         schema=[
-            Field(name="vector_doube", dtype=Array(Float64)),
+            Field(name="vector_double", dtype=Array(Float64)),
             Field(name="vector_float", dtype=Array(Float32)),
         ],
     )
