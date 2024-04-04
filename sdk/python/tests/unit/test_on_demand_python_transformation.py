@@ -16,7 +16,6 @@ from feast.types import Float32, Float64, Int64
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
     def setUp(self):
-        # data_dir = tempfile.TemporaryDirectory()
         with tempfile.TemporaryDirectory() as data_dir:
             self.store = FeatureStore(
                 config=RepoConfig(
@@ -83,10 +82,10 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 mode="python",
             )
             def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = {
-                    "conv_rate_plus_acc_python": inputs["conv_rate"]
-                    + inputs["acc_rate"]
-                }
+                output: Dict[str, Any] = {"conv_rate_plus_acc_python": []}
+                output["conv_rate_plus_acc_python"].append(
+                    inputs["conv_rate"][0] + inputs["acc_rate"][0]
+                )
                 return output
 
             self.store.apply(
@@ -110,7 +109,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 "driver_hourly_stats:acc_rate",
                 "python_view:conv_rate_plus_acc_python",
             ],
-        ).to_df()
+        ).to_dict()
 
         online_pandas_response = self.store.get_online_features(
             entity_rows=entity_rows,
@@ -121,10 +120,20 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             ],
         ).to_df()
 
+        assert len(online_python_response) == 4
+        assert all(
+            key in online_python_response.keys()
+            for key in [
+                "driver_id",
+                "acc_rate",
+                "conv_rate",
+                "conv_rate_plus_acc_python",
+            ]
+        )
+        assert len(online_python_response["conv_rate_plus_acc_python"]) == 1
         assert (
-            online_python_response["conv_rate_plus_acc_python"]
-            .equals(online_pandas_response["conv_rate_plus_acc_pandas"])
-            .equals(
-                online_python_response["conv_rate"] + online_python_response["acc_rate"]
-            )
+            online_python_response["conv_rate_plus_acc_python"][0]
+            == online_pandas_response["conv_rate_plus_acc_pandas"][0]
+            == online_python_response["conv_rate"][0]
+            + online_python_response["acc_rate"][0]
         )
