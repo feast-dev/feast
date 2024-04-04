@@ -12,7 +12,6 @@ def _test_config(config_text, expect_error: Optional[str]):
     Try loading a repo config and check raised error against a regex.
     """
     with tempfile.TemporaryDirectory() as repo_dir_name:
-
         repo_path = Path(repo_dir_name)
 
         repo_config = repo_path / "feature_store.yaml"

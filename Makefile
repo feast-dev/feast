@@ -294,18 +294,13 @@ test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	# Sort
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
-
-	# Format
-	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
-	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
-
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
 # Java
 
 install-java-ci-dependencies:
