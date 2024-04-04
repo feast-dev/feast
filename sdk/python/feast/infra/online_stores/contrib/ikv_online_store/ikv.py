@@ -92,7 +92,7 @@ class IKVOnlineStore(OnlineStore):
             )
             document: IKVDocument = IKVOnlineStore._create_document(entity_id, table, features, event_timestamp)
             self._writer.upsert_fields(document)
-            if progress: 
+            if progress:
                 progress(1)
 
     @log_exceptions_and_usage(online_store="ikv")
@@ -124,9 +124,9 @@ class IKVOnlineStore(OnlineStore):
         primary_keys = [compute_entity_id(ek, config.entity_key_serialization_version) for ek in entity_keys]
 
         # create IKV field names
-        if requested_features is None: 
+        if requested_features is None:
             requested_features = []
-        
+
         field_names: List[Optional[str]] = [None] * (1 + len(requested_features))
         field_names[0] = EVENT_CREATION_TIMESTAMP_FIELD_NAME
         for i, fn in enumerate(requested_features):
@@ -140,13 +140,13 @@ class IKVOnlineStore(OnlineStore):
         return [IKVOnlineStore._decode_fields_for_primary_key(requested_features, value_iter) for _ in range(0, len(primary_keys))]
 
     @staticmethod
-    def _decode_fields_for_primary_key(requested_features: List[str], 
+    def _decode_fields_for_primary_key(requested_features: List[str],
         value_iter: Iterator[Optional[bytes]]) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
 
         # decode timestamp
         dt: Optional[datetime] = None
         dt_bytes = next(value_iter)
-        if dt_bytes: 
+        if dt_bytes:
             dt = datetime.fromisoformat(str(dt_bytes, "utf-8"))
 
         # decode other features
@@ -157,7 +157,7 @@ class IKVOnlineStore(OnlineStore):
                 value_proto = ValueProto()
                 value_proto.ParseFromString(value_proto_bytes)
                 features[requested_feature] = value_proto
-        
+
         return dt, features
 
     # called before any read/write requests are issued
@@ -189,7 +189,7 @@ class IKVOnlineStore(OnlineStore):
         assert self._writer is not None
 
         # note: we assume tables_to_keep does not overlap with tables_to_delete
-        
+
         for feature_view in tables_to_delete:
             # each field in an IKV document is prefixed by the feature-view's name
             self._writer.drop_fields_by_name_prefix([feature_view.name])
@@ -215,7 +215,7 @@ class IKVOnlineStore(OnlineStore):
         # drop fields corresponding to this feature-view
         for feature_view in tables:
             self._writer.drop_fields_by_name_prefix([feature_view.name])
-        
+
         # shutdown clients
         self._writer.shutdown()
         self._writer = None
@@ -242,7 +242,7 @@ class IKVOnlineStore(OnlineStore):
         for feature_name, feature_value in values.items():
             field_name = IKVOnlineStore._create_ikv_field_name(feature_view, feature_name)
             builder.put_bytes_field(field_name, feature_value.SerializeToString())
-        
+
         return builder.build()
 
     def _init_clients(self, config: RepoConfig):
@@ -254,7 +254,7 @@ class IKVOnlineStore(OnlineStore):
         # initialize writer
         if self._writer is None:
             self._writer = create_new_writer(client_options)
-        
+
         # initialize reader, iff mount_dir is specified
         if self._reader is None:
             if online_config.mount_directory and len(online_config.mount_directory) > 0:
@@ -267,7 +267,7 @@ class IKVOnlineStore(OnlineStore):
             .with_account_id(config.account_id)\
             .with_account_passkey(config.account_passkey)\
             .with_store_name(config.store_name)
-        
+
         if config.mount_directory and len(config.mount_directory) > 0:
             builder = builder.with_mount_directory(config.mount_directory)
 
