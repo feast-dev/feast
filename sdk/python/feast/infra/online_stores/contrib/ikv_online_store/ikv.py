@@ -127,7 +127,7 @@ class IKVOnlineStore(OnlineStore):
         if requested_features is None: 
             requested_features = []
         
-        field_names = [None] * (1 + len(requested_features))
+        field_names: List[Optional[str]] = [None] * (1 + len(requested_features))
         field_names[0] = EVENT_CREATION_TIMESTAMP_FIELD_NAME
         for i, fn in enumerate(requested_features):
             field_names[i + 1] = IKVOnlineStore._create_ikv_field_name(table, fn)
