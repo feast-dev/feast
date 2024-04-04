@@ -542,7 +542,7 @@ class OnDemandFeatureView(BaseFeatureView):
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 feature_dict[f"{field.name}"] = rand_dict_value.get(
-                    feature.dtype.to_value_type(), [None]
+                    field.dtype.to_value_type(), [None]
                 )
 
         return feature_dict
