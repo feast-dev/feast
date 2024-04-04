@@ -241,11 +241,11 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
-        feature_transformation = (
-            sfv_proto.spec.feature_transformation.user_defined_function.body_text
-            if sfv_proto.spec.HasField("feature_transformation")
-            else None
-        )
+        # feature_transformation = (
+        #     sfv_proto.spec.feature_transformation.user_defined_function.body_text
+        #     if sfv_proto.spec.HasField("feature_transformation")
+        #     else None
+        # )
         stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -264,7 +264,9 @@ class StreamFeatureView(FeatureView):
             mode=sfv_proto.spec.mode,
             udf=udf,
             udf_string=udf_string,
-            feature_transformation=feature_transformation,
+            feature_transformation=PandasTransformation(udf, udf_string)
+            if udf
+            else None,
             aggregations=[
                 Aggregation.from_proto(agg_proto)
                 for agg_proto in sfv_proto.spec.aggregations

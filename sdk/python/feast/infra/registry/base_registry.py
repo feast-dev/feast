@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from proto import Message
+from google.protobuf.message import Message
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -489,7 +489,6 @@ class BaseRegistry(ABC):
     def list_validation_references(
         self, project: str, allow_cache: bool = False
     ) -> List[ValidationReference]:
-
         """
         Retrieve a list of validation references from the registry
 
@@ -550,14 +549,12 @@ class BaseRegistry(ABC):
         project: str,
         feature_view: BaseFeatureView,
         metadata_bytes: Optional[bytes],
-    ):
-        ...
+    ): ...
 
     @abstractmethod
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
-    ) -> Optional[bytes]:
-        ...
+    ) -> Optional[bytes]: ...
 
     @abstractmethod
     def proto(self) -> RegistryProto:
@@ -642,9 +639,9 @@ class BaseRegistry(ABC):
                 ):
                     if "userDefinedFunction" not in odfv_dict["spec"]:
                         odfv_dict["spec"]["userDefinedFunction"] = {}
-                    odfv_dict["spec"]["userDefinedFunction"][
-                        "body"
-                    ] = on_demand_feature_view.feature_transformation.udf_string
+                    odfv_dict["spec"]["userDefinedFunction"]["body"] = (
+                        on_demand_feature_view.feature_transformation.udf_string
+                    )
                     odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
                         "body"
                     ] = on_demand_feature_view.feature_transformation.udf_string
@@ -669,9 +666,9 @@ class BaseRegistry(ABC):
         ):
             sfv_dict = self._message_to_sorted_dict(stream_feature_view.to_proto())
 
-            sfv_dict["spec"]["userDefinedFunction"][
-                "body"
-            ] = stream_feature_view.udf_string
+            sfv_dict["spec"]["userDefinedFunction"]["body"] = (
+                stream_feature_view.udf_string
+            )
             registry_dict["streamFeatureViews"].append(sfv_dict)
 
         for saved_dataset in sorted(

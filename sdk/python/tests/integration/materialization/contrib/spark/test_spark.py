@@ -57,7 +57,6 @@ def test_spark_materialization_consistency():
     )
 
     try:
-
         fs.apply([driver, driver_stats_fv])
 
         print(df)

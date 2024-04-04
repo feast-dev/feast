@@ -41,7 +41,6 @@ class MySQLOnlineStore(OnlineStore):
     _conn: Optional[Connection] = None
 
     def _get_conn(self, config: RepoConfig) -> Connection:
-
         online_store_config = config.online_store
         assert isinstance(online_store_config, MySQLOnlineStoreConfig)
 
@@ -65,7 +64,6 @@ class MySQLOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-
         conn = self._get_conn(config)
         cur = conn.cursor()
 
@@ -178,7 +176,6 @@ class MySQLOnlineStore(OnlineStore):
 
         # We don't create any special state for the entities in this implementation.
         for table in tables_to_keep:
-
             table_name = _table_id(project, table)
             index_name = f"{table_name}_ek"
             cur.execute(

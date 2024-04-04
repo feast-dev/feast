@@ -38,9 +38,9 @@ from feast.utils import to_naive_utc
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for local (SQLite-based) store"""
 
-    type: Literal[
-        "sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"
-    ] = "sqlite"
+    type: Literal["sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"] = (
+        "sqlite"
+    )
     """ Online store type selector"""
 
     path: StrictStr = "data/online.db"
@@ -86,7 +86,6 @@ class SqliteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-
         conn = self._get_conn(config)
 
         project = config.project

@@ -57,7 +57,7 @@ REQUIRED = [
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
-    "SQLAlchemy[mypy]>1,<2",
+    "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
@@ -65,7 +65,7 @@ REQUIRED = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
-    "gunicorn",
+    "gunicorn; platform_system != 'Windows'",
     # https://github.com/dask/dask/issues/10996
     "dask>=2021.1.0,<2024.3.0",
     "bowler",  # Needed for automatic repo upgrades
@@ -156,9 +156,7 @@ CI_REQUIRED = (
         "build",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
-        "flake8>=6.0.0,<6.1.0",
-        "black>=22.6.0,<23",
-        "isort>=5,<6",
+        "ruff>=0.3.3",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx>=0.23.3",
@@ -177,6 +175,7 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering~=0.6.0",
         "pytest-mock==1.10.4",
+        "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers>=3.5,<4",
         "firebase-admin>=5.2.0,<6",
@@ -211,6 +210,7 @@ CI_REQUIRED = (
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
+    + DUCKDB_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED

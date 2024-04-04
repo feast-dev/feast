@@ -1,10 +1,10 @@
 import json
+import sys
 import threading
 import traceback
 import warnings
 from typing import List, Optional
 
-import gunicorn.app.base
 import pandas as pd
 from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import feast
 from feast import proto_json, utils
+from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
@@ -45,7 +46,10 @@ class MaterializeIncrementalRequest(BaseModel):
     feature_views: Optional[List[str]] = None
 
 
-def get_app(store: "feast.FeatureStore", registry_ttl_sec: int = 5):
+def get_app(
+    store: "feast.FeatureStore",
+    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+):
     proto_json.patch()
 
     app = FastAPI()
@@ -202,24 +206,27 @@ def get_app(store: "feast.FeatureStore", registry_ttl_sec: int = 5):
     return app
 
 
-class FeastServeApplication(gunicorn.app.base.BaseApplication):
-    def __init__(self, store: "feast.FeatureStore", **options):
-        self._app = get_app(
-            store=store,
-            registry_ttl_sec=options.get("registry_ttl_sec", 5),
-        )
-        self._options = options
-        super().__init__()
+if sys.platform != "win32":
+    import gunicorn.app.base
 
-    def load_config(self):
-        for key, value in self._options.items():
-            if key.lower() in self.cfg.settings and value is not None:
-                self.cfg.set(key.lower(), value)
+    class FeastServeApplication(gunicorn.app.base.BaseApplication):
+        def __init__(self, store: "feast.FeatureStore", **options):
+            self._app = get_app(
+                store=store,
+                registry_ttl_sec=options["registry_ttl_sec"],
+            )
+            self._options = options
+            super().__init__()
 
-        self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
+        def load_config(self):
+            for key, value in self._options.items():
+                if key.lower() in self.cfg.settings and value is not None:
+                    self.cfg.set(key.lower(), value)
 
-    def load(self):
-        return self._app
+            self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
+
+        def load(self):
+            return self._app
 
 
 def start_server(
@@ -229,13 +236,19 @@ def start_server(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    registry_ttl_sec: int = 5,
+    registry_ttl_sec: int,
 ):
-    FeastServeApplication(
-        store=store,
-        bind=f"{host}:{port}",
-        accesslog=None if no_access_log else "-",
-        workers=workers,
-        keepalive=keep_alive_timeout,
-        registry_ttl_sec=registry_ttl_sec,
-    ).run()
+    if sys.platform != "win32":
+        FeastServeApplication(
+            store=store,
+            bind=f"{host}:{port}",
+            accesslog=None if no_access_log else "-",
+            workers=workers,
+            keepalive=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
+        ).run()
+    else:
+        import uvicorn
+
+        app = get_app(store, registry_ttl_sec)
+        uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))

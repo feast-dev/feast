@@ -818,7 +818,8 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if (
+            if
+            (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -950,7 +951,9 @@ class FeatureStore:
                     validation_references.name, project=self.project, commit=False
                 )
 
-        tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        tables_to_delete: List[FeatureView] = (
+            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        )
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
         self._get_provider().update_infra(
@@ -1551,8 +1554,10 @@ class FeatureStore:
         ) = self._get_entity_maps(requested_feature_views)
 
         _validate_feature_refs(_feature_refs, full_feature_names)
-
-        (grouped_refs, grouped_odfv_refs,) = _group_feature_refs(
+        (
+            grouped_refs,
+            grouped_odfv_refs,
+        ) = _group_feature_refs(
             _feature_refs,
             requested_feature_views,
             requested_on_demand_feature_views,
@@ -1758,9 +1763,9 @@ class FeatureStore:
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
             for entity_column in feature_view.entity_columns:
-                entity_type_map[
-                    entity_column.name
-                ] = entity_column.dtype.to_value_type()
+                entity_type_map[entity_column.name] = (
+                    entity_column.dtype.to_value_type()
+                )
 
         return (
             entity_name_to_join_key_map,
@@ -2025,26 +2030,52 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df = initial_response.to_df()
+        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            transformed_features_df = odfv.get_transformed_features_df(
-                initial_response_df,
-                full_feature_names,
-            )
-            selected_subset = [
-                f for f in transformed_features_df.columns if f in _feature_refs
-            ]
-
-            proto_values = [
-                python_values_to_proto_values(
-                    transformed_features_df[feature].values, ValueType.UNKNOWN
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features_dict: Dict[str, List[Any]] = (
+                    odfv.get_transformed_features(
+                        initial_response_dict,
+                        full_feature_names,
+                    )
                 )
-                for feature in selected_subset
-            ]
+            elif odfv.mode in {"pandas", "substrait"}:
+                if initial_response_df is None:
+                    initial_response_df = initial_response.to_df()
+                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
+                    initial_response_df,
+                    full_feature_names,
+                )
+            else:
+                raise Exception(
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
+
+            transformed_features = (
+                transformed_features_dict
+                if odfv.mode == "python"
+                else transformed_features_df
+            )
+            transformed_columns = (
+                transformed_features.columns
+                if isinstance(transformed_features, pd.DataFrame)
+                else transformed_features
+            )
+            selected_subset = [f for f in transformed_columns if f in _feature_refs]
+
+            proto_values = []
+            for selected_feature in selected_subset:
+                feature_vector = transformed_features[selected_feature]
+                proto_values.append(
+                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                )
 
             odfv_result_names |= set(selected_subset)
 

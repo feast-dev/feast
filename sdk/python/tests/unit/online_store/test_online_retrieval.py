@@ -276,7 +276,7 @@ def test_online_to_df():
         )
         provider = store._get_provider()
 
-        for (d, c) in zip(driver_ids, customer_ids):
+        for d, c in zip(driver_ids, customer_ids):
             """
             driver table:
                                     lon                    lat
