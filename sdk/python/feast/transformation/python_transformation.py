@@ -1,10 +1,14 @@
 from types import FunctionType
-from typing import Dict
+from typing import Any, Dict, List
 
 import dill
 
+from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
+from feast.type_map import (
+    python_type_to_feast_value_type,
 )
 
 
@@ -32,6 +36,19 @@ class PythonTransformation:
                 f"output_dict should be type Dict[str, Any] but got {type(output_dict).__name__}"
             )
         return {**input_dict, **output_dict}
+
+    def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
+        output_dict: Dict[str, List[Any]] = self.transform(random_input)
+
+        return [
+            Field(
+                name=f,
+                dtype=from_value_type(
+                    python_type_to_feast_value_type(f, type_name=type(dt[0]).__name__)
+                ),
+            )
+            for f, dt in output_dict.items()
+        ]
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
