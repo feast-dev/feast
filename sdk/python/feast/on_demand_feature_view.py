@@ -531,8 +531,6 @@ class OnDemandFeatureView(BaseFeatureView):
         feature_dict = {}
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
-                if feature.dtype not in rand_dict_value:
-                    print(feature.dtype)
                 feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
                     rand_dict_value.get(feature.dtype.to_value_type(), [None])
                 )
