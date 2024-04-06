@@ -397,9 +397,8 @@ class OnDemandFeatureView(BaseFeatureView):
         pa_table: pyarrow.Table,
         full_feature_names: bool = False,
     ) -> pyarrow.Table:
-        # Apply on demand transformations
         if not isinstance(pa_table, pyarrow.Table):
-            raise TypeError("get_transformed_features_df only accepts pyarrow.Table")
+            raise TypeError("transform_arrow only accepts pyarrow.Table")
         columns_to_cleanup = []
         for source_fv_projection in self.source_feature_view_projections.values():
             for feature in source_fv_projection.features:
@@ -419,7 +418,6 @@ class OnDemandFeatureView(BaseFeatureView):
                     )
                     columns_to_cleanup.append(full_feature_ref)
 
-        # Compute transformed values and apply to each result row
         df_with_transformed_features: pyarrow.Table = (
             self.feature_transformation.transform_arrow(pa_table)
         )
@@ -435,7 +433,6 @@ class OnDemandFeatureView(BaseFeatureView):
             ):
                 rename_columns[short_name] = long_name
             elif not full_feature_names:
-                # Long name must be in dataframe.
                 rename_columns[long_name] = short_name
 
         # Cleanup extra columns used for transformation
