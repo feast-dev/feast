@@ -216,7 +216,7 @@ def test_to_sql():
 
 @pytest.mark.parametrize("timeout", (None, 30))
 def test_to_df_timeout(retrieval_job, timeout: Optional[int]):
-    with patch.object(retrieval_job, "_to_df_internal") as mock_to_df_internal:
+    with patch.object(retrieval_job, "_to_arrow_internal") as mock_to_df_internal:
         retrieval_job.to_df(timeout=timeout)
         mock_to_df_internal.assert_called_once_with(timeout=timeout)
 

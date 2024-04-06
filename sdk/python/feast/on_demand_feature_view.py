@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
+import pyarrow
 from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
@@ -390,6 +391,63 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def _get_projected_feature_name(self, feature: str) -> str:
         return f"{self.projection.name_to_use()}__{feature}"
+
+    def transform_arrow(
+        self,
+        pa_table: pyarrow.Table,
+        full_feature_names: bool = False,
+    ) -> pyarrow.Table:
+        # Apply on demand transformations
+        if not isinstance(pa_table, pyarrow.Table):
+            raise TypeError("get_transformed_features_df only accepts pyarrow.Table")
+        columns_to_cleanup = []
+        for source_fv_projection in self.source_feature_view_projections.values():
+            for feature in source_fv_projection.features:
+                full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
+                if full_feature_ref in pa_table.column_names:
+                    # Make sure the partial feature name is always present
+                    pa_table = pa_table.append_column(
+                        feature.name, pa_table[full_feature_ref]
+                    )
+                    # pa_table[feature.name] = pa_table[full_feature_ref]
+                    columns_to_cleanup.append(feature.name)
+                elif feature.name in pa_table.column_names:
+                    # Make sure the full feature name is always present
+                    # pa_table[full_feature_ref] = pa_table[feature.name]
+                    pa_table = pa_table.append_column(
+                        full_feature_ref, pa_table[feature.name]
+                    )
+                    columns_to_cleanup.append(full_feature_ref)
+
+        # Compute transformed values and apply to each result row
+        df_with_transformed_features: pyarrow.Table = (
+            self.feature_transformation.transform_arrow(pa_table)
+        )
+
+        # Work out whether the correct columns names are used.
+        rename_columns: Dict[str, str] = {}
+        for feature in self.features:
+            short_name = feature.name
+            long_name = self._get_projected_feature_name(feature.name)
+            if (
+                short_name in df_with_transformed_features.column_names
+                and full_feature_names
+            ):
+                rename_columns[short_name] = long_name
+            elif not full_feature_names:
+                # Long name must be in dataframe.
+                rename_columns[long_name] = short_name
+
+        # Cleanup extra columns used for transformation
+        for col in columns_to_cleanup:
+            if col in df_with_transformed_features.column_names:
+                df_with_transformed_features = df_with_transformed_features.dtop(col)
+        return df_with_transformed_features.rename_columns(
+            [
+                rename_columns.get(c, c)
+                for c in df_with_transformed_features.column_names
+            ]
+        )
 
     def get_transformed_features_df(
         self,
