@@ -1,4 +1,46 @@
 # Changelog
+[v0.36.0](https://github.com/feast-dev/feast/compare/v0.35.0...v0.36.0) (2024-02-17)
+
+## Bug Fixes
+* chore: Bump jupyter-server from 2.10.1 to 2.11.2 in /sdk/python/requirements by @dependabot in https://github.com/feast-dev/feast/pull/3858
+* chore: Bump jinja2 from 3.1.2 to 3.1.3 in /sdk/python/requirements by @dependabot in https://github.com/feast-dev/feast/pull/3882
+* Move maintainers to emeritus by @woop in https://github.com/feast-dev/feast/pull/3888
+* fix: Allow trancated timestamps when converting by @phil-park in https://github.com/feast-dev/feast/pull/3861
+* chore: Bump jupyter-lsp from 2.2.0 to 2.2.2 in /sdk/python/requirements by @dependabot in https://github.com/feast-dev/feast/pull/3892
+* chore: Bump cryptography from 41.0.5 to 41.0.6 in /sdk/python/requirements by @dependabot in https://github.com/feast-dev/feast/pull/3845
+* chore: Bump zod from 3.15.1 to 3.22.3 in /sdk/python/feast/ui by @dependabot in https://github.com/feast-dev/feast/pull/3816
+* chore: Bump google.golang.org/grpc from 1.53.0 to 1.56.3 by @dependabot in https://github.com/feast-dev/feast/pull/3820
+* chore: Bump @babel/traverse from 7.16.10 to 7.23.2 in /ui by @dependabot in https://github.com/feast-dev/feast/pull/3801
+* chore: Bump zod from 3.19.1 to 3.22.3 in /ui by @dependabot in https://github.com/feast-dev/feast/pull/3817
+* fix: Correct the returning class proto type of StreamFeatureView to StreamFeatureViewProto instead of FeatureViewProto. by @shuchu in https://github.com/feast-dev/feast/pull/3843
+* fix: Verify the existence of Registry tables in snowflake before calling CREATE sql command. Allow read-only user to call feast apply. by @shuchu in https://github.com/feast-dev/feast/pull/3851
+* revert: Verify the existence of Registry tables in snowflake… by @etirelli in https://github.com/feast-dev/feast/pull/3907
+* fix: Create index only if not exists during MySQL online store update by @gee-senbong in https://github.com/feast-dev/feast/pull/3905
+* fix: Bytewax materialization engine fails when loading feature_store.yaml by @marti-jorda-roca in https://github.com/feast-dev/feast/pull/3912
+* Update maintainers.md by @woop in https://github.com/feast-dev/feast/pull/3918
+* docs: Updating maintainers.md by @franciscojavierarceo in https://github.com/feast-dev/feast/pull/3919
+* docs: Updated development guide to include compiling the protos by @franciscojavierarceo in https://github.com/feast-dev/feast/pull/3896
+* fix: Prevent spamming pull busybox from dockerhub by @sudohainguyen in https://github.com/feast-dev/feast/pull/3923
+* chore: Bump jupyterlab from 4.0.8 to 4.0.11 in /sdk/python/requirements by @dependabot in https://github.com/feast-dev/feast/pull/3895
+* fix: Remove unnecessary dependency on mysqlclient by @tokoko in https://github.com/feast-dev/feast/pull/3925
+* ci: Extend python base version for test cases by @sudohainguyen in https://github.com/feast-dev/feast/pull/3929
+* chore: Set upper bound for moto package by @sudohainguyen in https://github.com/feast-dev/feast/pull/3937
+* fix: Trino as an OfflineStore Access Denied when BasicAuthenticaion by @Woo-Dong in https://github.com/feast-dev/feast/pull/3898
+* fix: Typo Correction in Feast UI Readme by @tsisodia10 in https://github.com/feast-dev/feast/pull/3939
+* docs: Add ScyllaDB as online store alternative (fixed DCO) by @zseta in https://github.com/feast-dev/feast/pull/3944
+* fix: Add conn.commit() to Postgresonline_write_batch.online_write_batch by @job-almekinders in https://github.com/feast-dev/feast/pull/3904
+* fix: Transformation server doesn't generate files from proto by @tokoko in https://github.com/feast-dev/feast/pull/3902
+* chore: Bumping fastapi + starlette by @bushwhackr in https://github.com/feast-dev/feast/pull/3938
+* fix: Rewrite Spark materialization engine to use mapInPandas by @tokoko in https://github.com/feast-dev/feast/pull/3936
+* chore: Loosen fsspec requirements to allow recent releases by @cburroughs in https://github.com/feast-dev/feast/pull/3922
+* fix: Update typeguard version to >=4.0.0 by @trhodeos in https://github.com/feast-dev/feast/pull/3837
+
+## Features
+* feat: Add python bytes to array type conversion support proto by @robhowley in https://github.com/feast-dev/feast/pull/3874
+* feat: Add support for arrays in snowflake by @JohnLemmonMedely in https://github.com/feast-dev/feast/pull/3769
+* feat: Support s3gov schema by snowflake offline store during materialization by @alex-vinnik-sp in https://github.com/feast-dev/feast/pull/3891
+* feat: Add gRPC Registry Server by @tokoko in https://github.com/feast-dev/feast/pull/3924
+* feat: Update the Pydantic from v1 to v2 by @shuchu in https://github.com/feast-dev/feast/pull/3948
 
 # [0.35.0](https://github.com/feast-dev/feast/compare/v0.34.0...v0.35.0) (2024-01-13)
 
