@@ -1,7 +1,7 @@
 import ibis
 from pydantic import StrictStr
 
-from feast.infra.offline_stores.contrib.ibis_offline_store.ibis import IbisOfflineStore
+from feast.infra.offline_stores.ibis import IbisOfflineStore
 from feast.repo_config import FeastConfigBaseModel
 
 
