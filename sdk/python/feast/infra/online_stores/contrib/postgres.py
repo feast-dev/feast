@@ -31,12 +31,6 @@ LIMIT %s;
 """
 
 
-# Create index query template to create a index based on the index type
-CREATE_INDEX_QUERY_TEMPLATE = """
-CREATE INDEX ON {table_name} USING {index_type} (embedding {embeding_type});
-"""
-
-
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
 

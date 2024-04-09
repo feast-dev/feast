@@ -63,8 +63,6 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
     "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    # below are supported Online Document Store
-    "postgresDocument": "feast.infra.online_stores.contrib.postgres.PostgresDocumentStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -182,9 +180,6 @@ class RepoConfig(FeastBaseModel):
 
     coerce_tz_aware: Optional[bool] = True
     """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
-
-    document_store_config: Any = Field(None, alias="document_store")
-    """ DocumentStoreConfig: Document store configuration (optional depending on provider) """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
