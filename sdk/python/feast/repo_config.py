@@ -47,6 +47,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
     "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
+    "k8s.engine": "feast.infra.materialization.kubernetes.kubernetes_materialization_engine.KubernetesMaterializationEngine",
     "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
 }
 
