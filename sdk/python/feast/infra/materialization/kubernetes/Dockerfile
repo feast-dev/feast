@@ -5,7 +5,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY sdk/python/feast/infra/materialization/contrib/kuberentes/main.py /app
+COPY sdk/python/feast/infra/materialization/kuberentes/main.py /app
 
 # Copy necessary parts of the Feast codebase
 COPY sdk/python sdk/python
