@@ -4,7 +4,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import numpy as np
 import psycopg2
 import pytz
 from psycopg2 import sql

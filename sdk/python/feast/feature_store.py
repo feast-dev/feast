@@ -33,7 +33,6 @@ from typing import (
     cast,
 )
 
-import numpy as np
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
@@ -1724,7 +1723,10 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-        (requested_feature_views, _,) = self._get_feature_views_to_use(
+        (
+            requested_feature_views,
+            _,
+        ) = self._get_feature_views_to_use(
             features=[feature], allow_cache=True, hide_dummy_entity=False
         )
         requested_feature = (
@@ -1970,7 +1972,7 @@ class FeatureStore:
         provider: Provider,
         table: FeatureView,
         requested_feature: str,
-        query: Union[str, List[float]],
+        query: List[float],
         top_k: int,
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """
