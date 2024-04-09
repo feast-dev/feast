@@ -152,7 +152,6 @@ class OnlineStore(ABC):
             requested_feature: The name of the feature whose embeddings should be used for retrieval.
             embedding: The embeddings to use for retrieval.
             top_k: The number of nearest neighbors to retrieve.
-        
         Returns:
             A list of top k closest documents to the specified embedding. Each item in the list is a tuple
             where the first item is the event timestamp for the row, and the second item is a dict of feature
