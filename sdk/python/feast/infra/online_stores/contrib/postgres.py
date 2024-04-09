@@ -22,7 +22,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
 
-
 # Search query template to find the top k items that are closest to the given embedding
 # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
 SEARCH_QUERY_TEMPLATE = """
@@ -310,6 +309,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 result.append((event_ts, res))
 
         return result
+
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"

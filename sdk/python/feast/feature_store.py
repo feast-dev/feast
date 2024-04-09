@@ -1718,10 +1718,7 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-        (
-            requested_feature_views,
-            _,
-        ) = self._get_feature_views_to_use(
+        (requested_feature_views, _,) = self._get_feature_views_to_use(
             features=[feature], allow_cache=True, hide_dummy_entity=False
         )
         requested_feature = (
