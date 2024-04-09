@@ -70,9 +70,9 @@ def _get_requested_feature_views_to_features_dict(
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
     feature_views_to_feature_map: Dict["FeatureView", List[str]] = defaultdict(list)
-    on_demand_feature_views_to_feature_map: Dict[
-        "OnDemandFeatureView", List[str]
-    ] = defaultdict(list)
+    on_demand_feature_views_to_feature_map: Dict["OnDemandFeatureView", List[str]] = (
+        defaultdict(list)
+    )
 
     for ref in feature_refs:
         ref_parts = ref.split(":")

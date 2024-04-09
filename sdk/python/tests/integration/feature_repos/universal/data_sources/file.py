@@ -15,6 +15,7 @@ from feast import FileSource
 from feast.data_format import ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
@@ -43,7 +44,6 @@ class FileDataSourceCreator(DataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         f = tempfile.NamedTemporaryFile(
@@ -98,7 +98,6 @@ class FileParquetDatasetSourceCreator(FileDataSourceCreator):
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         dataset_path = tempfile.TemporaryDirectory(
@@ -216,3 +215,10 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def teardown(self):
         self.minio.stop()
         self.f.close()
+
+
+# TODO split up DataSourceCreator and OfflineStoreCreator
+class DuckDBDataSourceCreator(FileDataSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config

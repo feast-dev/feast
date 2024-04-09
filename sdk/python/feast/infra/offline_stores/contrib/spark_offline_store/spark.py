@@ -389,7 +389,6 @@ class SparkRetrievalJob(RetrievalJob):
     def to_remote_storage(self) -> List[str]:
         """Currently only works for local and s3-based staging locations"""
         if self.supports_remote_storage_export():
-
             sdf: pyspark.sql.DataFrame = self.to_spark_df()
 
             if self._config.offline_store.staging_location.startswith("/"):
@@ -405,7 +404,6 @@ class SparkRetrievalJob(RetrievalJob):
 
                 return _list_files_in_folder(output_uri)
             elif self._config.offline_store.staging_location.startswith("s3://"):
-
                 spark_compatible_s3_staging_location = (
                     self._config.offline_store.staging_location.replace(
                         "s3://", "s3a://"

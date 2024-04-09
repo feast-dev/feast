@@ -220,9 +220,9 @@ class RedshiftSource(DataSource):
 
                 if config.offline_store.cluster_id:
                     # Provisioned cluster
-                    paginator_kwargs[
-                        "ClusterIdentifier"
-                    ] = config.offline_store.cluster_id
+                    paginator_kwargs["ClusterIdentifier"] = (
+                        config.offline_store.cluster_id
+                    )
                     paginator_kwargs["DbUser"] = config.offline_store.user
                 elif config.offline_store.workgroup:
                     # Redshift serverless

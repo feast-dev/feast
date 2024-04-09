@@ -31,6 +31,7 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
+    DuckDBDataSourceCreator,
     FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
@@ -108,6 +109,7 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]]
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
+    ("local", DuckDBDataSourceCreator),
 ]
 
 AVAILABLE_ONLINE_STORES: Dict[
@@ -440,9 +442,9 @@ def construct_test_environment(
         aws_registry_path = os.getenv(
             "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
         )
-        registry: Union[
-            str, RegistryConfig
-        ] = f"{aws_registry_path}/{project}/registry.db"
+        registry: Union[str, RegistryConfig] = (
+            f"{aws_registry_path}/{project}/registry.db"
+        )
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),

@@ -168,8 +168,8 @@ docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicl
 Feast Python SDK / CLI codebase:
 - Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
 - Has type annotations as enforced by `mypy`
-- Has imports sorted by `isort`
-- Is lintable by `flake8`
+- Has imports sorted by `ruff` (see [isort (I) rules](https://docs.astral.sh/ruff/rules/#isort-i))
+- Is lintable by `ruff`
 
 To ensure your Python code conforms to Feast Python code standards:
 - Autoformat your code to conform to the code style:
@@ -187,7 +187,7 @@ make lint-python
 ### Unit Tests
 Unit tests (`pytest`) for the Feast Python SDK / CLI can run as follows:
 ```sh
-make test-python
+make test-python-unit
 ```
 
 > :warning: Local configuration can interfere with Unit tests and cause them to fail:

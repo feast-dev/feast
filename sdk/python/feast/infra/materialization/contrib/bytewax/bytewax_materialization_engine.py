@@ -5,9 +5,8 @@ from time import sleep
 from typing import Callable, List, Literal, Sequence, Union
 
 import yaml
-from kubernetes import client
+from kubernetes import client, utils
 from kubernetes import config as k8s_config
-from kubernetes import utils
 from kubernetes.client.exceptions import ApiException
 from kubernetes.utils import FailToCreateError
 from pydantic import StrictStr
@@ -309,7 +308,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def _create_configuration_map(self, job_id, paths, feature_view, namespace):
         """Create a Kubernetes configmap for this job"""
 
-        feature_store_configuration = yaml.dump(self.repo_config.dict())
+        feature_store_configuration = yaml.dump(self.repo_config.dict(by_alias=True))
 
         materialization_config = yaml.dump(
             {"paths": paths, "feature_view": feature_view.name}

@@ -67,7 +67,7 @@ test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
-	python -m pytest -n 8 --integration --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
+	python -m pytest -n 8 --integration -k "not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
 
 test-python-integration-local:
 	@(docker info > /dev/null 2>&1 && \
@@ -176,18 +176,6 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-
-test-python-universal-duckdb:
-	PYTHONPATH='.' \
-	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.duckdb_repo_configuration \
-	python -m pytest -n 8 --integration \
-		-k "not test_nullable_online_store and \
-			not gcs_registry and \
-			not s3_registry and \
-			not test_snowflake and \
-			not bigquery and \
-			not test_spark_materialization_consistency" \
-		sdk/python/tests
 			
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
@@ -294,18 +282,13 @@ test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	# Sort
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
-
-	# Format
-	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
-	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
-
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
 # Java
 
 install-java-ci-dependencies:

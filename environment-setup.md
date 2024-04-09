@@ -19,5 +19,5 @@ make install-python-ci-dependencies PYTHON=3.9
 4. start the docker daemon
 5. run unit tests:
 ```bash
-make test-python
+make test-python-unit
 ```

@@ -819,7 +819,8 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if (
+            if
+            (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -951,7 +952,9 @@ class FeatureStore:
                     validation_references.name, project=self.project, commit=False
                 )
 
-        tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        tables_to_delete: List[FeatureView] = (
+            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        )
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
         self._get_provider().update_infra(
@@ -1576,7 +1579,10 @@ class FeatureStore:
 
         num_rows = _validate_entity_values(entity_proto_values)
         _validate_feature_refs(_feature_refs, full_feature_names)
-        (grouped_refs, grouped_odfv_refs,) = _group_feature_refs(
+        (
+            grouped_refs,
+            grouped_odfv_refs,
+        ) = _group_feature_refs(
             _feature_refs,
             requested_feature_views,
             requested_on_demand_feature_views,
@@ -1787,9 +1793,9 @@ class FeatureStore:
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
             for entity_column in feature_view.entity_columns:
-                entity_type_map[
-                    entity_column.name
-                ] = entity_column.dtype.to_value_type()
+                entity_type_map[entity_column.name] = (
+                    entity_column.dtype.to_value_type()
+                )
 
         return (
             entity_name_to_join_key_map,
@@ -2106,11 +2112,11 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[
-                    str, List[Any]
-                ] = odfv.get_transformed_features(
-                    initial_response_dict,
-                    full_feature_names,
+                transformed_features_dict: Dict[str, List[Any]] = (
+                    odfv.get_transformed_features(
+                        initial_response_dict,
+                        full_feature_names,
+                    )
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_df is None:
@@ -2138,11 +2144,10 @@ class FeatureStore:
 
             proto_values = []
             for selected_feature in selected_subset:
-                if odfv.mode in ["python", "pandas"]:
-                    feature_vector = transformed_features[selected_feature]
-                    proto_values.append(
-                        python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
-                    )
+                feature_vector = transformed_features[selected_feature]
+                proto_values.append(
+                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                )
 
             odfv_result_names |= set(selected_subset)
 

@@ -167,7 +167,6 @@ def retrieval_job(request, environment):
             full_feature_names=False,
         )
     elif request.param is MsSqlServerRetrievalJob:
-
         return MsSqlServerRetrievalJob(
             query="query",
             engine=MagicMock(),
