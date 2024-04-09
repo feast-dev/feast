@@ -135,6 +135,7 @@ class OnlineStore(ABC):
         """
         pass
 
+    @abstractmethod
     def retrieve_online_documents(
         self,
         config: RepoConfig,
