@@ -187,7 +187,7 @@ make lint-python
 ### Unit Tests
 Unit tests (`pytest`) for the Feast Python SDK / CLI can run as follows:
 ```sh
-make test-python
+make test-python-unit
 ```
 
 > :warning: Local configuration can interfere with Unit tests and cause them to fail:
