@@ -18,8 +18,6 @@ anyio==4.3.0
     #   watchfiles
 appdirs==1.4.4
     # via fissix
-appnope==0.1.4
-    # via ipykernel
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
@@ -36,7 +34,7 @@ async-lru==2.0.4
     # via jupyterlab
 async-timeout==4.0.3
     # via redis
-atpublic==4.0
+atpublic==4.1.0
     # via ibis-framework
 attrs==23.2.0
     # via
@@ -61,18 +59,18 @@ bidict==0.23.1
     # via ibis-framework
 bleach==6.1.0
     # via nbconvert
-boto3==1.34.72
+boto3==1.34.80
     # via
     #   feast (setup.py)
     #   moto
-botocore==1.34.72
+botocore==1.34.80
     # via
     #   boto3
     #   moto
     #   s3transfer
 bowler==0.9.0
     # via feast (setup.py)
-build==1.1.1
+build==1.2.1
     # via
     #   feast (setup.py)
     #   pip-tools
@@ -138,11 +136,11 @@ cryptography==42.0.5
     #   snowflake-connector-python
     #   types-pyopenssl
     #   types-redis
-dask[array,dataframe]==2024.3.1
+dask[array,dataframe]==2024.4.1
     # via
     #   dask-expr
     #   feast (setup.py)
-dask-expr==1.0.5
+dask-expr==1.0.10
     # via dask
 db-dtypes==1.2.0
     # via google-cloud-bigquery
@@ -171,7 +169,7 @@ duckdb==0.10.1
     # via
     #   duckdb-engine
     #   ibis-framework
-duckdb-engine==0.11.2
+duckdb-engine==0.11.4
     # via ibis-framework
 entrypoints==0.4
     # via altair
@@ -180,11 +178,11 @@ exceptiongroup==1.2.0
     #   anyio
     #   ipython
     #   pytest
-execnet==2.0.2
+execnet==2.1.1
     # via pytest-xdist
 executing==2.0.1
     # via stack-data
-fastapi==0.110.0
+fastapi==0.110.1
     # via feast (setup.py)
 fastjsonschema==2.19.1
     # via nbformat
@@ -218,7 +216,7 @@ google-api-core[grpc]==2.18.0
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.123.0
+google-api-python-client==2.125.0
     # via firebase-admin
 google-auth==2.29.0
     # via
@@ -226,6 +224,7 @@ google-auth==2.29.0
     #   google-api-python-client
     #   google-auth-httplib2
     #   google-cloud-core
+    #   google-cloud-firestore
     #   google-cloud-storage
     #   kubernetes
 google-auth-httplib2==0.2.0
@@ -245,7 +244,7 @@ google-cloud-core==2.4.1
     #   google-cloud-storage
 google-cloud-datastore==2.19.0
     # via feast (setup.py)
-google-cloud-firestore==2.15.0
+google-cloud-firestore==2.16.0
     # via firebase-admin
 google-cloud-storage==2.16.0
     # via
@@ -293,7 +292,7 @@ grpcio-testing==1.62.1
     # via feast (setup.py)
 grpcio-tools==1.62.1
     # via feast (setup.py)
-gunicorn==21.2.0
+gunicorn==21.2.0 ; platform_system != "Windows"
     # via feast (setup.py)
 h11==0.14.0
     # via
@@ -344,7 +343,7 @@ iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.4
     # via jupyterlab
-ipython==8.22.2
+ipython==8.23.0
     # via
     #   great-expectations
     #   ipykernel
@@ -417,11 +416,11 @@ jupyter-server==2.13.0
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.1.5
+jupyterlab==4.1.6
     # via notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
-jupyterlab-server==2.25.4
+jupyterlab-server==2.26.0
     # via
     #   jupyterlab
     #   notebook
@@ -486,7 +485,7 @@ nbclient==0.10.0
     # via nbconvert
 nbconvert==7.16.3
     # via jupyter-server
-nbformat==5.10.3
+nbformat==5.10.4
     # via
     #   great-expectations
     #   jupyter-server
@@ -517,13 +516,14 @@ oauthlib==3.2.2
     # via requests-oauthlib
 overrides==7.7.0
     # via jupyter-server
-packaging==24.0
+packaging==21.3
     # via
     #   build
     #   dask
     #   db-dtypes
     #   deprecation
     #   docker
+    #   duckdb-engine
     #   google-cloud-bigquery
     #   great-expectations
     #   gunicorn
@@ -551,7 +551,7 @@ pandas==2.2.1
     #   snowflake-connector-python
 pandocfilters==1.5.1
     # via nbconvert
-parso==0.8.3
+parso==0.8.4
     # via jedi
 parsy==2.1
     # via ibis-framework
@@ -643,7 +643,7 @@ pyasn1-modules==0.4.0
     # via google-auth
 pybindgen==0.22.1
     # via feast (setup.py)
-pycparser==2.21
+pycparser==2.22
     # via cffi
 pydantic==2.6.4
     # via
@@ -663,7 +663,7 @@ pyjwt[crypto]==2.8.0
     # via
     #   msal
     #   snowflake-connector-python
-pymssql==2.2.11
+pymssql==2.3.0
     # via feast (setup.py)
 pymysql==1.1.0
     # via feast (setup.py)
@@ -675,6 +675,7 @@ pyparsing==3.1.2
     # via
     #   great-expectations
     #   httplib2
+    #   packaging
 pyproject-hooks==1.0.0
     # via
     #   build
@@ -799,13 +800,13 @@ rsa==4.9
     # via google-auth
 ruamel-yaml==0.17.17
     # via great-expectations
-ruff==0.3.4
+ruff==0.3.5
     # via feast (setup.py)
 s3transfer==0.10.1
     # via boto3
-scipy==1.12.0
+scipy==1.13.0
     # via great-expectations
-send2trash==1.8.2
+send2trash==1.8.3
     # via jupyter-server
 six==1.16.0
     # via
@@ -846,7 +847,7 @@ sphinxcontrib-qthelp==1.0.7
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.10
     # via sphinx
-sqlalchemy[mypy]==1.4.52
+sqlalchemy[mypy]==2.0.29
     # via
     #   duckdb-engine
     #   feast (setup.py)
@@ -855,13 +856,11 @@ sqlalchemy[mypy]==1.4.52
     #   sqlalchemy-views
 sqlalchemy-views==0.3.2
     # via ibis-framework
-sqlalchemy2-stubs==0.0.2a38
-    # via sqlalchemy
 sqlglot==20.11.0
     # via ibis-framework
 stack-data==0.6.3
     # via ipython
-starlette==0.36.3
+starlette==0.37.2
     # via fastapi
 substrait==0.15.0
     # via ibis-substrait
@@ -946,7 +945,7 @@ types-pytz==2024.1.0.20240203
     # via feast (setup.py)
 types-pyyaml==6.0.12.20240311
     # via feast (setup.py)
-types-redis==4.6.0.20240311
+types-redis==4.6.0.20240409
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
@@ -956,7 +955,7 @@ types-tabulate==0.9.0.20240106
     # via feast (setup.py)
 types-urllib3==1.26.25.14
     # via types-requests
-typing-extensions==4.10.0
+typing-extensions==4.11.0
     # via
     #   anyio
     #   async-lru
@@ -965,11 +964,12 @@ typing-extensions==4.10.0
     #   fastapi
     #   great-expectations
     #   ibis-framework
+    #   ipython
     #   mypy
     #   pydantic
     #   pydantic-core
     #   snowflake-connector-python
-    #   sqlalchemy2-stubs
+    #   sqlalchemy
     #   typeguard
     #   uvicorn
 tzdata==2024.1
@@ -1019,7 +1019,7 @@ websocket-client==1.7.0
     #   kubernetes
 websockets==12.0
     # via uvicorn
-werkzeug==3.0.1
+werkzeug==3.0.2
     # via moto
 wheel==0.43.0
     # via pip-tools
