@@ -14,10 +14,6 @@ from psycopg2.pool import SimpleConnectionPool
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.online_stores.document_store import (
-    DocumentStore,
-    DocumentStoreIndexConfig,
-)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
@@ -25,6 +21,22 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
+
+
+# Search query template to find the top k items that are closest to the given embedding
+# SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
+SEARCH_QUERY_TEMPLATE = """
+SELECT feature_name, value, event_ts FROM {table_name}
+WHERE feature_name = '{feature_name}'
+ORDER BY value <-> %s
+LIMIT %s;
+"""
+
+
+# Create index query template to create a index based on the index type
+CREATE_INDEX_QUERY_TEMPLATE = """
+CREATE INDEX ON {table_name} USING {index_type} (embedding {embeding_type});
+"""
 
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
@@ -256,6 +268,48 @@ class PostgreSQLOnlineStore(OnlineStore):
             logging.exception("Teardown failed")
             raise
 
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_feature: The requested feature as the column to search
+            embedding: The query embedding to search for
+            top_k: The number of items to return
+        Returns:
+            List of tuples containing the event timestamp and the document feature
+
+        """
+
+        # Convert the embedding to a string to be used in postgres vector search
+        query_embedding_str = f"'[{','.join(str(el) for el in embedding)}]'"
+
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        with self._get_conn(config) as conn, conn.cursor() as cur:
+            cur.execute(
+                SEARCH_QUERY_TEMPLATE.format(
+                    table_name=table, feature_name=requested_feature
+                ),
+                (query_embedding_str, top_k),
+            )
+            rows = cur.fetchall()
+
+            for feature_name, value, event_ts in rows:
+                val = ValueProto()
+                val.ParseFromString(value)
+
+                res = {feature_name: val}
+                result.append((event_ts, res))
+
+        return result
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
@@ -278,75 +332,3 @@ def _to_naive_utc(ts: datetime):
         return ts
     else:
         return ts.astimezone(pytz.utc).replace(tzinfo=None)
-
-
-# Search query template to find the top k items that are closest to the given embedding
-# SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
-SEARCH_QUERY_TEMPLATE = """
-SELECT entity_key, feature_name, value, event_ts FROM {table_name}
-WHERE feature_name = '{feature_name}'
-ORDER BY value <-> %s
-LIMIT %s;
-"""
-
-# Create index query template to create a index based on the index type
-CREATE_INDEX_QUERY_TEMPLATE = """
-CREATE INDEX ON {table_name} USING {index_type} (embedding {embeding_type});
-"""
-
-
-class PostgresDocumentStoreConfig(DocumentStoreIndexConfig):
-    type: Literal["postgres"] = "postgres"
-
-
-class PostgresDocumentStore(PostgreSQLOnlineStore, DocumentStore):
-    def online_search(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        requested_feature: str,
-        embedding: np.ndarray,
-        top_k: int,
-    ):
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-
-        with self._get_conn(config) as conn, conn.cursor() as cur:
-            cur.execute(
-                SEARCH_QUERY_TEMPLATE.format(
-                    table_name=table, feature_name=requested_feature
-                ),
-                (embedding, top_k),
-            )
-            rows = cur.fetchall()
-
-            for row in rows:
-                # The first column is the entity key
-                entity_key = EntityKeyProto()
-                entity_key.ParseFromString(row[0])
-
-                # The second column is the feature name
-                feature_name = row[1]
-
-                # The third column is the embedding value
-                val = ValueProto()
-                val.ParseFromString(row[2])
-
-                # The fourth column is the event timestamp
-                event_ts = row[3]
-
-                res = {}
-                res[feature_name] = val
-                result.append((event_ts, res))
-
-        return result
-
-    def create_index(self, config: RepoConfig, table: str):
-        document_store_config = config.document_store_config
-        with self._get_conn(config) as conn, conn.cursor() as cur:
-            cur.execute(
-                CREATE_INDEX_QUERY_TEMPLATE.format(
-                    table=table,
-                    index_type=document_store_config.index_type,
-                    embeding_type=document_store_config.embedding_type,
-                )
-            )

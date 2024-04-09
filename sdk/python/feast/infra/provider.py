@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import numpy as np
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
@@ -297,12 +296,12 @@ class Provider(ABC):
         return None
 
     @abstractmethod
-    def online_search(
+    def retrieve_online_documents(
         self,
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
-        document: Union[str, np.ndarray],
+        query: List[float],
         top_k: int,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
@@ -312,7 +311,7 @@ class Provider(ABC):
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_feature: the requested document feature name.
-            document: The document to search for.
+            query: The query embedding to search for.
             top_k: The number of nearest neighbors to return.
 
         Returns:

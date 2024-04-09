@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
@@ -20,7 +19,6 @@ from feast.infra.materialization.batch_materialization_engine import (
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import (
-    get_document_store_from_config,
     get_online_store_from_config,
 )
 from feast.infra.provider import Provider
@@ -61,14 +59,6 @@ class PassthroughProvider(Provider):
                 self.repo_config.online_store
             )
         return self._online_store
-
-    @property
-    def document_store(self):
-        if not self._document_store:
-            self._document_store = get_document_store_from_config(
-                self.repo_config.online_store
-            )
-        return self._document_store
 
     @property
     def offline_store(self):
@@ -204,19 +194,19 @@ class PassthroughProvider(Provider):
         return result
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
-    def online_search(
+    def retrieve_online_documents(
         self,
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
-        embeddings: np.ndarray,
+        embedding: List[float],
         top_k: int,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
-        if self.document_store:
-            result = self.document_store.online_search(
-                config, table, requested_feature, embeddings, top_k
+        if self.online_store:
+            result = self.online_store.retrieve_online_documents(
+                config, table, requested_feature, embedding, top_k
             )
         return result
 

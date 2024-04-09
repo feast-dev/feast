@@ -1686,37 +1686,41 @@ class FeatureStore:
         return OnlineResponse(online_features_response)
 
     @log_exceptions_and_usage
-    def get_top_k_document_features(
+    def retrieve_online_documents(
         self,
         feature: str,
-        document: Union[str, np.ndarray],
+        query: Union[str, List[float]],
         top_k: int,
     ) -> OnlineResponse:
         """
-        Retrieves the top k cloeses document features.
+        Retrieves the top k closest document features.
 
         Args:
             feature: The list of document features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embedding_feature".
-            document: The document to retrieve the closest document features for.
+            query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
         """
-        return self._get_top_k_document_features(
+        return self._retrieve_online_documents(
             feature=feature,
-            document=document,
+            query=query,
             top_k=top_k,
         )
 
-    def _get_top_k_document_features(
+    def _retrieve_online_documents(
         self,
         feature: str,
-        document: Union[str, np.ndarray],
+        query: Union[str, List[float]],
         top_k: int,
     ):
+        if isinstance(query, str):
+            raise ValueError(
+                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
+            )
         (
             requested_feature_views,
-            requested_on_demand_feature_views,
+            _,
         ) = self._get_feature_views_to_use(
             features=[feature], allow_cache=True, hide_dummy_entity=False
         )
@@ -1724,11 +1728,11 @@ class FeatureStore:
             feature.split(":")[1] if isinstance(feature, str) else feature
         )
         provider = self._get_provider()
-        document_features = self._search_from_document_store(
+        document_features = self._retrieve_from_online_store(
             provider,
             requested_feature_views[0],
             requested_feature,
-            document,
+            query,
             top_k,
         )
         online_features_response = GetOnlineFeaturesResponse(results=[])
@@ -1958,22 +1962,22 @@ class FeatureStore:
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
 
-    def _search_from_document_store(
+    def _retrieve_from_online_store(
         self,
         provider: Provider,
         table: FeatureView,
         requested_feature: str,
-        document: Union[str, np.ndarray],
+        query: Union[str, List[float]],
         top_k: int,
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """
         Search and return document features from the online document store.
         """
-        documents = provider.online_search(
+        documents = provider.retrieve_online_documents(
             config=self.config,
             table=table,
             requested_feature=requested_feature,
-            document=document,
+            query=query,
             top_k=top_k,
         )
         # Each row is a set of features for a given entity key. We only need to convert

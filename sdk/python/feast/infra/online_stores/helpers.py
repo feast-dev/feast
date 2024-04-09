@@ -8,7 +8,6 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
     serialize_entity_key_prefix,
 )
-from feast.infra.online_stores.document_store import DocumentStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 
@@ -20,15 +19,6 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
     class_name = qualified_name.replace("Config", "")
     online_store_class = import_class(module_name, class_name, "OnlineStore")
     return online_store_class()
-
-
-def get_document_store_from_config(document_store_config: Any) -> DocumentStore:
-    """Creates a document store corresponding to the given online document store config."""
-    module_name = document_store_config.__module__
-    qualified_name = type(document_store_config).__name__
-    class_name = qualified_name.replace("Config", "")
-    document_store_class = import_class(module_name, class_name, "DocumentStore")
-    return document_store_class()
 
 
 def _redis_key(

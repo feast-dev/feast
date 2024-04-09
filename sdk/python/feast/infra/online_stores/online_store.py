@@ -134,3 +134,23 @@ class OnlineStore(ABC):
             entities: Entities whose corresponding infrastructure should be deleted.
         """
         pass
+
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Retrieves online feature values for the specified embeddings.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            requested_feature: The name of the feature whose embeddings should be used for retrieval.
+            embedding: The embeddings to use for retrieval.
+            top_k: The number of nearest neighbors to retrieve.
+        """
+        pass
