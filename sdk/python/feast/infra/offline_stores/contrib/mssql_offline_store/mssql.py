@@ -423,7 +423,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we don't have unnecessary columns
-        engine.execute(_df_to_create_table_sql(entity_df, table_id)) # type: ignore
+        engine.execute(_df_to_create_table_sql(entity_df, table_id))  # type: ignore
         entity_df.to_sql(name=table_id, con=engine, index=False, if_exists="append")
         entity_schema = dict(zip(entity_df.columns, entity_df.dtypes)), table_id
 
