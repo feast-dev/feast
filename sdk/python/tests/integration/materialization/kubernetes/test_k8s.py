@@ -24,7 +24,7 @@ def test_kubernetes_materialization():
         provider="aws",
         online_store={"type": "dynamodb", "region": "us-west-2"},
         offline_store_creator=RedshiftDataSourceCreator,
-        batch_engine={"type": "k8s.engine"},
+        batch_engine={"type": "k8s"},
         registry_location=RegistryLocation.S3,
     )
     env = construct_test_environment(config, None)
