@@ -83,7 +83,7 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         engine = create_engine(connection_string)
         destination_name = self.get_prefixed_table_name(destination_name)
         # Create table
-        engine.execute(_df_to_create_table_sql(df, destination_name))
+        engine.execute(_df_to_create_table_sql(df, destination_name)) # type: ignore
 
         # Upload dataframe to azure table
         df.to_sql(destination_name, engine, index=False, if_exists="append")
