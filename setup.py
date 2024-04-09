@@ -48,7 +48,7 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<1.25",
+    "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
     # Higher than 4.23.4 seems to cause a seg fault
     "protobuf>=4.24.0,<5.0.0",
