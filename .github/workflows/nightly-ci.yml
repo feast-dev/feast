@@ -95,13 +95,13 @@ jobs:
           path: ~/cache
           key: lambda_python_3_9
       - name: Handle Cache Miss (pull public ECR image & save it to tar file)
-        if: steps.cache-primes.outputs.cache-hit != 'true'
+        if: steps.lambda_python_3_9.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/cache
           docker pull public.ecr.aws/lambda/python:3.9
           docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
       - name: Handle Cache Hit (load docker image from tar file)
-        if: steps.cache-primes.outputs.cache-hit == 'true'
+        if: steps.lambda_python_3_9.outputs.cache-hit == 'true'
         run: |
           docker load -i ~/cache/lambda_python_3_9.tar
       - name: Build and push
