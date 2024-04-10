@@ -30,15 +30,17 @@ from pathlib import Path
 import requests
 
 from feast import flags_helper
-from feast.constants import DEFAULT_FEAST_USAGE_VALUE, FEAST_USAGE
+from feast.constants import FEAST_USAGE, FEAST_USAGE_ENDPOINT
 from feast.version import get_version
-
-USAGE_ENDPOINT = "https://usage.feast.dev"
 
 _logger = logging.getLogger(__name__)
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
-_is_enabled = os.getenv(FEAST_USAGE, default=DEFAULT_FEAST_USAGE_VALUE) == "True"
+_is_enabled = os.getenv(FEAST_USAGE, default="False") == "True"
+
+# Default usage endpoint value. 
+# Will raise an exception if the configured value is not working.
+_usage_endpoint = os.getenv(FEAST_USAGE_ENDPOINT, default="")
 
 _constant_attributes = {
     "project_id": "",
@@ -177,7 +179,7 @@ _set_installation_id()
 
 
 def _export(event: typing.Dict[str, typing.Any]):
-    _executor.submit(requests.post, USAGE_ENDPOINT, json=event, timeout=2)
+    _executor.submit(requests.post, _usage_endpoint, json=event, timeout=2)
 
 
 def _produce_event(ctx: UsageContext):
