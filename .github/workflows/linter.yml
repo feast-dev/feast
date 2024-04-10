@@ -15,7 +15,6 @@ jobs:
         with:
           python-version: "3.9"
           architecture: x64
-          cache: 'pip'
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1,<23.2"
