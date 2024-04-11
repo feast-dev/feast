@@ -405,3 +405,15 @@ def fake_ingest_data():
         "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
     }
     return pd.DataFrame(data)
+
+
+@pytest.fixture
+def fake_ingest_document_data():
+    """Fake document data to ingest into the feature store"""
+    data = {
+        "driver_id": [1],
+        "doc": [4, 5],
+        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
+        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
+    }
+    return pd.DataFrame(data)

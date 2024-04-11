@@ -267,7 +267,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[ValueProto]]]:
         """
 
         Args:

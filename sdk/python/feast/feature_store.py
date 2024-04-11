@@ -1698,12 +1698,12 @@ class FeatureStore:
         top_k: int,
     ) -> OnlineResponse:
         """
-        Retrieves the top k closest document features.
+        Retrieves the top k closest document features. Note, embeddings are a subset of features.
 
         Args:
             feature: The list of document features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
-                references must have format "feature_view:feature", e.g, "document_fv:document_embedding_feature".
+                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
         """

@@ -47,7 +47,6 @@ class PassthroughProvider(Provider):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
-        self._document_store = None
         self._batch_engine: Optional[BatchMaterializationEngine] = None
 
     @property
