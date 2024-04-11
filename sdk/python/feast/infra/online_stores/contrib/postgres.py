@@ -284,7 +284,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"'[{','.join(str(el) for el in embedding)}]'"
 
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        result: List[Tuple[Optional[datetime], Optional[ValueProto]]] = []
         with self._get_conn(config) as conn, conn.cursor() as cur:
             cur.execute(
                 SEARCH_QUERY_TEMPLATE.format(
@@ -294,12 +294,12 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             rows = cur.fetchall()
 
+            event_ts:
             for feature_name, value, event_ts in rows:
                 val = ValueProto()
                 val.ParseFromString(value)
 
-                res = {feature_name: val}
-                result.append((event_ts, res))
+                result.append((event_ts, val))
 
         return result
 
