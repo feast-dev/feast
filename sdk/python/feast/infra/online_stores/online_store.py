@@ -143,7 +143,7 @@ class OnlineStore(ABC):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[ValueProto]]]:
         """
         Retrieves online feature values for the specified embeddings.
 
