@@ -90,7 +90,7 @@ jobs:
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
       - name: Cache Public ECR Image
         id: lambda_python_3_9
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/cache
           key: lambda_python_3_9
@@ -178,6 +178,15 @@ jobs:
           pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
         run: pip install uv
+      - name: Get uv cache dir
+        id: uv-cache
+        run: |
+          echo "::set-output name=dir::$(uv cache dir)"
+      - name: uv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
