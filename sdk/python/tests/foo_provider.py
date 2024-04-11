@@ -16,69 +16,70 @@ from feast.saved_dataset import SavedDataset
 
 
 class FooProvider(Provider):
+
     def __init__(self, config: RepoConfig):
         pass
 
     def update_infra(
-        self,
-        project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-        partial: bool,
+            self,
+            project: str,
+            tables_to_delete: Sequence[FeatureView],
+            tables_to_keep: Sequence[FeatureView],
+            entities_to_delete: Sequence[Entity],
+            entities_to_keep: Sequence[Entity],
+            partial: bool,
     ):
         pass
 
     def teardown_infra(
-        self,
-        project: str,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
+            self,
+            project: str,
+            tables: Sequence[FeatureView],
+            entities: Sequence[Entity],
     ):
         pass
 
     def online_write_batch(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        progress: Optional[Callable[[int], Any]],
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            progress: Optional[Callable[[int], Any]],
     ) -> None:
         pass
 
     def materialize_single_feature_view(
-        self,
-        config: RepoConfig,
-        feature_view: FeatureView,
-        start_date: datetime,
-        end_date: datetime,
-        registry: BaseRegistry,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
+            self,
+            config: RepoConfig,
+            feature_view: FeatureView,
+            start_date: datetime,
+            end_date: datetime,
+            registry: BaseRegistry,
+            project: str,
+            tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         pass
 
     def get_historical_features(
-        self,
-        config: RepoConfig,
-        feature_views: List[FeatureView],
-        feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
-        registry: BaseRegistry,
-        project: str,
-        full_feature_names: bool = False,
+            self,
+            config: RepoConfig,
+            feature_views: List[FeatureView],
+            feature_refs: List[str],
+            entity_df: Union[pandas.DataFrame, str],
+            registry: BaseRegistry,
+            project: str,
+            full_feature_names: bool = False,
     ) -> RetrievalJob:
         return RetrievalJob()
 
     def online_read(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            entity_keys: List[EntityKeyProto],
+            requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         return []
 
@@ -86,20 +87,25 @@ class FooProvider(Provider):
         pass
 
     def write_feature_service_logs(
-        self,
-        feature_service: FeatureService,
-        logs: Union[pyarrow.Table, Path],
-        config: RepoConfig,
-        registry: BaseRegistry,
+            self,
+            feature_service: FeatureService,
+            logs: Union[pyarrow.Table, Path],
+            config: RepoConfig,
+            registry: BaseRegistry,
     ):
         pass
 
     def retrieve_feature_service_logs(
-        self,
-        feature_service: FeatureService,
-        start_date: datetime,
-        end_date: datetime,
-        config: RepoConfig,
-        registry: BaseRegistry,
+            self,
+            feature_service: FeatureService,
+            start_date: datetime,
+            end_date: datetime,
+            config: RepoConfig,
+            registry: BaseRegistry,
     ) -> RetrievalJob:
         return RetrievalJob()
+
+    def retrieve_online_documents(self, config: RepoConfig, table: FeatureView, requested_feature: str,
+                                  query: List[float], top_k: int) -> List[
+        Tuple[Optional[datetime], Optional[ValueProto]]]:
+        return []
