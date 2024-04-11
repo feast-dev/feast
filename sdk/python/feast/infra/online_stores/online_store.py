@@ -135,7 +135,6 @@ class OnlineStore(ABC):
         """
         pass
 
-    @abstractmethod
     def retrieve_online_documents(
         self,
         config: RepoConfig,
@@ -159,4 +158,6 @@ class OnlineStore(ABC):
             where the first item is the event timestamp for the row, and the second item is a dict of feature
             name to embeddings.
         """
-        pass
+        raise NotImplementedError(
+            f"Online store {self.__class__.__name__} does not support online retrieval"
+        )
