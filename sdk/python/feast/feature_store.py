@@ -2001,11 +2001,8 @@ class FeatureStore:
                 statuses = [FieldStatus.NOT_FOUND]
                 values = [null_value]
             else:
-                statuses = []
-                values = []
-                for feature_name, feature_value in feature_data.items():
-                    statuses.append(FieldStatus.PRESENT)
-                    values.append(feature_value)
+                statuses = [FieldStatus.PRESENT]
+                values = [feature_data]
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
 
