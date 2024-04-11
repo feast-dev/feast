@@ -303,7 +303,7 @@ class Provider(ABC):
         requested_feature: str,
         query: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[ValueProto]]]:
         """
         Searches for the top-k nearest neighbors of the given document in the online document store.
 
