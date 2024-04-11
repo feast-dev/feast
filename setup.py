@@ -93,6 +93,8 @@ AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
 
 BYTEWAX_REQUIRED = ["bytewax==0.15.1", "docker>=5.0.2", "kubernetes<=20.13.0"]
 
+KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
+
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
 ]
@@ -147,9 +149,7 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = [
-    "ibis-framework[duckdb]"
-]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]"]
 
 CI_REQUIRED = (
     [
@@ -197,6 +197,7 @@ CI_REQUIRED = (
     + REDIS_REQUIRED
     + AWS_REQUIRED
     + BYTEWAX_REQUIRED
+    + KUBERNETES_REQUIRED
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
@@ -359,6 +360,7 @@ setup(
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
         "bytewax": BYTEWAX_REQUIRED,
+        "k8s": KUBERNETES_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
@@ -374,7 +376,7 @@ setup(
         "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
-        "duckdb": DUCKDB_REQUIRED
+        "duckdb": DUCKDB_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
