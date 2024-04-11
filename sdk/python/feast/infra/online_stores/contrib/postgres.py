@@ -294,7 +294,6 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             rows = cur.fetchall()
 
-            event_ts:
             for feature_name, value, event_ts in rows:
                 val = ValueProto()
                 val.ParseFromString(value)
