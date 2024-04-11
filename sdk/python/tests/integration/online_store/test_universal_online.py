@@ -790,7 +790,7 @@ def assert_feature_service_entity_mapping_correctness(
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["postgres"])
 def test_retrieve_online_documents(
-     environment, universal_data_sources, fake_ingest_document_data
+    environment, universal_data_sources, fake_ingest_document_data
 ):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
@@ -805,8 +805,6 @@ def test_retrieve_online_documents(
 
     # retrieve the online documents
     documents = fs.retrieve_online_documents(
-        feature="document_fv:doc",
-        query="[1, 2]",
-        top_k=5
+        feature="document_fv:doc", query="[1, 2]", top_k=5
     )
     assert len(documents) == 2
