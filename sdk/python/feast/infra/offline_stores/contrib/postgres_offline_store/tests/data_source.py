@@ -13,6 +13,7 @@ from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
 )
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+from feast.feature_logging import LoggingDestination
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -57,6 +58,9 @@ def postgres_container():
 
 
 class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
+    def create_logged_features_destination(self) -> LoggingDestination:
+        pass
+
     def __init__(
         self, project_name: str, fixture_request: pytest.FixtureRequest, **kwargs
     ):
