@@ -76,8 +76,6 @@ build==1.1.1
     # via
     #   feast (setup.py)
     #   pip-tools
-bytewax==0.15.1
-    # via feast (setup.py)
 cachecontrol==0.14.0
     # via firebase-admin
 cachetools==5.3.3
@@ -152,7 +150,6 @@ deprecation==2.1.0
     # via testcontainers
 dill==0.3.8
     # via
-    #   bytewax
     #   feast (setup.py)
     #   multiprocess
 distlib==0.3.8
@@ -468,8 +465,6 @@ msgpack==1.0.8
     # via cachecontrol
 multipledispatch==1.0.0
     # via ibis-framework
-multiprocess==0.70.16
-    # via bytewax
 mypy==1.9.0
     # via
     #   feast (setup.py)
