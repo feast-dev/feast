@@ -59,7 +59,7 @@ def postgres_container():
 
 class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def create_logged_features_destination(self) -> LoggingDestination:
-        return None
+        return LoggingDestination()
 
     def __init__(
         self, project_name: str, fixture_request: pytest.FixtureRequest, **kwargs
