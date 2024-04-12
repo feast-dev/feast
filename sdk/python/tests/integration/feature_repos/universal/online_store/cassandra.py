@@ -17,7 +17,7 @@
 import time
 from typing import Dict
 
-from testcontainers.core.container import DockerContainer
+from testcontainers.cassandra import CassandraContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from tests.integration.feature_repos.universal.online_store_creator import (
@@ -28,8 +28,8 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 class CassandraOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
-        self.container = DockerContainer("library/cassandra:4.0.4").with_exposed_ports(
-            "9042"
+        self.container = CassandraContainer("cassandra:4.1.4").with_exposed_ports(
+            9042
         )
 
     def create_online_store(self) -> Dict[str, object]:

@@ -11,7 +11,7 @@ class PostgresOnlieStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.container = (
-            PostgresContainer("postgres:latest", platform="linux/amd64")
+            PostgresContainer("postgres:16", platform="linux/amd64")
             .with_exposed_ports(5432)
             .with_env("POSTGRES_USER", "root")
             .with_env("POSTGRES_PASSWORD", "test")
