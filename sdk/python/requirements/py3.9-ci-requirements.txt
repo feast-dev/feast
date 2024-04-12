@@ -321,7 +321,7 @@ ibis-substrait==3.2.0
     # via feast (setup.py)
 identify==2.5.35
     # via pre-commit
-idna==3.6
+idna==3.7
     # via
     #   anyio
     #   httpx
