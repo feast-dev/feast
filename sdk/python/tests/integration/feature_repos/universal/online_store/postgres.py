@@ -10,15 +10,12 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 class PostgresOnlieStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
-        self.container = (
-            PostgresContainer(
-                "postgres:16",
-                username="root",
-                password="test",
-                dbname="test",
-                )
-            .with_exposed_ports(5432)
-        )
+        self.container = PostgresContainer(
+            "postgres:16",
+            username="root",
+            password="test",
+            dbname="test",
+        ).with_exposed_ports(5432)
 
     def create_online_store(self) -> Dict[str, str]:
         self.container.start()
