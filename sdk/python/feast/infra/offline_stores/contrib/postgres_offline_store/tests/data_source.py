@@ -7,13 +7,13 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLSource,
 )
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
-from feast.feature_logging import LoggingDestination
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
