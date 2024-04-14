@@ -196,14 +196,14 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
-        embedding: List[float],
+        query: List[float],
         top_k: int,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents(
-                config, table, requested_feature, embedding, top_k
+                config, table, requested_feature, query, top_k
             )
         return result
 

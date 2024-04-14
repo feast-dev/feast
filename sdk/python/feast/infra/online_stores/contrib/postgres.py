@@ -9,7 +9,6 @@ import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 from psycopg2.pool import SimpleConnectionPool
-
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -21,18 +20,15 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
 
-# Search query template to find the top k items that are closest to the given embedding
-# SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
-SEARCH_QUERY_TEMPLATE = """
-SELECT feature_name, value, event_ts FROM {table_name}
-WHERE feature_name = '{feature_name}'
-ORDER BY value <-> %s
-LIMIT %s;
-"""
-
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
+
+    # Whether to enable the pgvector extension for vector similarity search
+    pgvector_enabled: Optional[bool] = False
+
+    # If pgvector is enabled, the length of the vector field
+    vector_len: Optional[int] = 512
 
 
 class PostgreSQLOnlineStore(OnlineStore):
@@ -77,11 +73,15 @@ class PostgreSQLOnlineStore(OnlineStore):
                     created_ts = _to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
+                    if config.online_config["pgvector_enabled"]:
+                        val = str(val.float_list_val.val)
+                    else:
+                        val = val.SerializeToString()
                     insert_values.append(
                         (
                             entity_key_bin,
                             feature_name,
-                            val.SerializeToString(),
+                            val,
                             timestamp,
                             created_ts,
                         )
@@ -221,6 +221,9 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
+                value_type = "BYTEA"
+                if config.online_config["pgvector_enabled"]:
+                    value_type = f'vector({config.online_config["vector_len"]})'
                 cur.execute(
                     sql.SQL(
                         """
@@ -228,7 +231,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         (
                             entity_key BYTEA,
                             feature_name TEXT,
-                            value BYTEA,
+                            value {},
                             event_ts TIMESTAMPTZ,
                             created_ts TIMESTAMPTZ,
                             PRIMARY KEY(entity_key, feature_name)
@@ -237,6 +240,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         """
                     ).format(
                         sql.Identifier(table_name),
+                        sql.SQL(value_type),
                         sql.Identifier(f"{table_name}_ek"),
                         sql.Identifier(table_name),
                     )
@@ -267,7 +271,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[ValueProto]]]:
+    ) -> List[Tuple[Optional[datetime],  Optional[ValueProto], Optional[ValueProto]]]:
         """
 
         Args:
@@ -280,25 +284,50 @@ class PostgreSQLOnlineStore(OnlineStore):
             List of tuples containing the event timestamp and the document feature
 
         """
+        project = config.project
 
         # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_str = f"'[{','.join(str(el) for el in embedding)}]'"
+        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
-        result: List[Tuple[Optional[datetime], Optional[ValueProto]]] = []
+        result: List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]] = []
         with self._get_conn(config) as conn, conn.cursor() as cur:
+            table_name = _table_id(project, table)
+
+            # Search query template to find the top k items that are closest to the given embedding
+            # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
             cur.execute(
-                SEARCH_QUERY_TEMPLATE.format(
-                    table_name=table, feature_name=requested_feature
+                sql.SQL(
+                    """
+                    SELECT
+                        entity_key,
+                        feature_name,
+                        value,
+                        value <-> %s as distance,
+                        event_ts FROM {table_name}
+                    WHERE feature_name = {feature_name}
+                    ORDER BY distance
+                    LIMIT {top_k};
+                    """
+                ).format(
+                    table_name=sql.Identifier(table_name),
+                    feature_name=sql.Literal(requested_feature),
+                    top_k=sql.Literal(top_k)
                 ),
-                (query_embedding_str, top_k),
+                (query_embedding_str,),
             )
             rows = cur.fetchall()
 
-            for feature_name, value, event_ts in rows:
-                val = ValueProto()
-                val.ParseFromString(value)
+            for entity_key, feature_name, value, distance, event_ts in rows:
 
-                result.append((event_ts, val))
+                # TODO Deserialize entity_key to return the entity in response
+                entity_key_proto = EntityKeyProto()
+                entity_key_proto_bin = bytes(entity_key)
+
+                # TODO Convert to List[float] for value type proto
+                feature_value_proto = ValueProto(string_val=value)
+
+                distance_value_proto = ValueProto(float_val=distance)
+                result.append((event_ts, feature_value_proto, distance_value_proto))
 
         return result
 

@@ -25,10 +25,11 @@ from tests.integration.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver
+from tests.integration.feature_repos.universal.entities import driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
     driver_feature_view,
+    create_item_embeddings_feature_view
 )
 from tests.utils.data_source_test_creator import prep_file_source
 
@@ -788,23 +789,18 @@ def assert_feature_service_entity_mapping_correctness(
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["postgres"])
+@pytest.mark.universal_online_stores(only=["pgvector"])
 def test_retrieve_online_documents(
-    environment, universal_data_sources, fake_ingest_document_data
+    environment, fake_document_data
 ):
     fs = environment.feature_store
-    entities, datasets, data_sources = universal_data_sources
-    driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
-    driver_entity = driver()
+    df, data_source = fake_document_data
+    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
+    fs.apply([item_embeddings_feature_view, item()])
+    fs.write_to_online_store("item_embeddings", df)
 
-    # Register Feature View and Entity
-    fs.apply([driver_hourly_stats, driver_entity])
-
-    # directly ingest data into the Online Store
-    fs.write_to_online_store("document_fv", fake_ingest_document_data)
-
-    # retrieve the online documents
     documents = fs.retrieve_online_documents(
-        feature="document_fv:doc", query="[1, 2]", top_k=5
-    )
-    assert len(documents) == 2
+        feature="item_embeddings:embedding_float", query=[1.0, 2.0], top_k=2
+    ).to_dict()
+    assert len(documents["embedding_float"]) == 2
+

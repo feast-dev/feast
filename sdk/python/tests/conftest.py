@@ -23,9 +23,10 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
+from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
+from tests.data.data_creator import create_basic_driver_dataset, create_document_dataset  # noqa: E402
 from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )
@@ -270,12 +271,12 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
                         # aws lambda works only with dynamo
                         if (
-                            config.get("python_feature_server")
-                            and config.get("provider") == "aws"
-                            and (
+                                config.get("python_feature_server")
+                                and config.get("provider") == "aws"
+                                and (
                                 not isinstance(online_store, dict)
                                 or online_store["type"] != "dynamodb"
-                            )
+                        )
                         ):
                             continue
 
@@ -297,8 +298,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 @pytest.fixture
 def feature_server_endpoint(environment):
     if (
-        not environment.python_feature_server
-        or environment.test_repo_config.provider != "local"
+            not environment.python_feature_server
+            or environment.test_repo_config.provider != "local"
     ):
         yield environment.feature_store.get_feature_server_endpoint()
         return
@@ -310,8 +311,8 @@ def feature_server_endpoint(environment):
         args=(environment.feature_store.repo_path, port),
     )
     if (
-        environment.python_feature_server
-        and environment.test_repo_config.provider == "local"
+            environment.python_feature_server
+            and environment.test_repo_config.provider == "local"
     ):
         proc.start()
         # Wait for server to start
@@ -354,7 +355,7 @@ def e2e_data_sources(environment: Environment):
 
 @pytest.fixture
 def feature_store_for_online_retrieval(
-    environment, universal_data_sources
+        environment, universal_data_sources
 ) -> Tuple[FeatureStore, List[str], List[Dict[str, int]]]:
     """
     Returns a feature store that is ready for online retrieval, along with entity rows and feature
@@ -408,12 +409,10 @@ def fake_ingest_data():
 
 
 @pytest.fixture
-def fake_ingest_document_data():
-    """Fake document data to ingest into the feature store"""
-    data = {
-        "driver_id": [1],
-        "doc": [4, 5],
-        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
-        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
-    }
-    return pd.DataFrame(data)
+def fake_document_data(environment: Environment) -> Tuple[pd.DataFrame, DataSource]:
+    df = create_document_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        environment.feature_store.project,
+    )
+    return df, data_source

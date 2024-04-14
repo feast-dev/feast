@@ -1740,14 +1740,19 @@ class FeatureStore:
             query,
             top_k,
         )
+        document_feature_vals = [feature[2] for feature in document_features]
+        document_feature_distance_vals = [feature[3] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
-        self._populate_response_from_feature_data(
-            document_features,
-            [],
-            online_features_response,
-            False,
-            requested_feature,
-            requested_feature_views[0],
+
+        # TODO Refactor to better way of populating result
+        # TODO populate entity in the response after returning entity in document_features is supported
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={requested_feature: document_feature_vals}
+        )
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={"distance": document_feature_distance_vals}
         )
         return OnlineResponse(online_features_response)
 
@@ -1974,7 +1979,7 @@ class FeatureStore:
         requested_feature: str,
         query: List[float],
         top_k: int,
-    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
+    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value]]:
         """
         Search and return document features from the online document store.
         """
@@ -1985,25 +1990,27 @@ class FeatureStore:
             query=query,
             top_k=top_k,
         )
-        # Each row is a set of features for a given entity key. We only need to convert
-        # the data to Protobuf once.
-        null_value = Value()
-        read_row_protos = []
 
-        for doc in documents:
-            row_ts_proto = Timestamp()
-            row_ts, feature_data = doc
-            # TODO (Ly): reuse whatever timestamp if row_ts is None?
+        null_value = Value()
+        not_found_status = FieldStatus.NOT_FOUND
+        present_status = FieldStatus.PRESENT
+
+        read_row_protos = []
+        row_ts_proto = Timestamp()
+
+        for row_ts, feature_val, distance in documents:
+            # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
-            event_timestamps = [row_ts_proto]
-            if feature_data is None:
-                statuses = [FieldStatus.NOT_FOUND]
-                values = [null_value]
+
+            if feature_val is None:
+                status = not_found_status
+                value = null_value
             else:
-                statuses = [FieldStatus.PRESENT]
-                values = [feature_data]
-            read_row_protos.append((event_timestamps, statuses, values))
+                status = present_status
+                value = feature_val
+
+            read_row_protos.append((row_ts_proto, status, value, distance))
         return read_row_protos
 
     @staticmethod

@@ -140,7 +140,6 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
         schema=None
         if infer_features
         else [
-            Field(name="embedding_double", dtype=Array(Float64)),
             Field(name="embedding_float", dtype=Array(Float32)),
         ],
         source=source,
