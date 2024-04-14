@@ -2,7 +2,7 @@ import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import psycopg2
 import pytz
@@ -74,6 +74,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     created_ts = _to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
+                    val_str: Union[str, bytes]
                     if config.online_config["pgvector_enabled"]:
                         val_str = str(val.float_list_val.val)
                     else:
