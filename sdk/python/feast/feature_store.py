@@ -1999,7 +1999,7 @@ class FeatureStore:
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
 
-            if feature_val is None:
+            if feature_val is None or distance_val is None:
                 feature_val = Value()
                 distance_val = Value()
                 status = FieldStatus.NOT_FOUND
