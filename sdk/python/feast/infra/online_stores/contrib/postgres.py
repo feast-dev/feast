@@ -75,14 +75,14 @@ class PostgreSQLOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     if config.online_config["pgvector_enabled"]:
-                        val = str(val.float_list_val.val)
+                        val_str = str(val.float_list_val.val)
                     else:
-                        val = val.SerializeToString()
+                        val_str = val.SerializeToString()
                     insert_values.append(
                         (
                             entity_key_bin,
                             feature_name,
-                            val,
+                            val_str,
                             timestamp,
                             created_ts,
                         )
@@ -272,7 +272,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime],  Optional[ValueProto], Optional[ValueProto]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]]:
         """
 
         Args:
@@ -290,7 +290,9 @@ class PostgreSQLOnlineStore(OnlineStore):
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
-        result: List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]] = []
+        result: List[
+            Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]
+        ] = []
         with self._get_conn(config) as conn, conn.cursor() as cur:
             table_name = _table_id(project, table)
 
@@ -312,14 +314,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 ).format(
                     table_name=sql.Identifier(table_name),
                     feature_name=sql.Literal(requested_feature),
-                    top_k=sql.Literal(top_k)
+                    top_k=sql.Literal(top_k),
                 ),
                 (query_embedding_str,),
             )
             rows = cur.fetchall()
 
             for entity_key, feature_name, value, distance, event_ts in rows:
-
                 # TODO Deserialize entity_key to return the entity in response
                 # entity_key_proto = EntityKeyProto()
                 # entity_key_proto_bin = bytes(entity_key)

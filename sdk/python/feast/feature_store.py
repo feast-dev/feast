@@ -1748,11 +1748,11 @@ class FeatureStore:
         # TODO populate entity in the response after returning entity in document_features is supported
         self._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={requested_feature: document_feature_vals}
+            data={requested_feature: document_feature_vals},
         )
         self._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={"distance": document_feature_distance_vals}
+            data={"distance": document_feature_distance_vals},
         )
         return OnlineResponse(online_features_response)
 

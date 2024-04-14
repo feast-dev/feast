@@ -8,11 +8,9 @@ from tests.integration.feature_repos.universal.online_store.postgres import (
 
 FULL_REPO_CONFIGS = [
     IntegrationTestRepoConfig(
-        online_store="postgres",
-        online_store_creator=PostgresOnlineStoreCreator
+        online_store="postgres", online_store_creator=PostgresOnlineStoreCreator
     ),
     IntegrationTestRepoConfig(
-        online_store="pgvector",
-        online_store_creator=PGVectorOnlineStoreCreator
+        online_store="pgvector", online_store_creator=PGVectorOnlineStoreCreator
     ),
 ]

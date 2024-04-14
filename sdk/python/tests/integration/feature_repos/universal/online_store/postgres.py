@@ -49,9 +49,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
         self.container.start()
         log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(
-            container=self.container,
-            predicate=log_string_to_wait_for,
-            timeout=10
+            container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
         command = "psql -h localhost -p 5432 -U root -d test -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
         self.container.exec(command)

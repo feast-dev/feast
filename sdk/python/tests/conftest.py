@@ -274,12 +274,12 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
                         # aws lambda works only with dynamo
                         if (
-                                config.get("python_feature_server")
-                                and config.get("provider") == "aws"
-                                and (
+                            config.get("python_feature_server")
+                            and config.get("provider") == "aws"
+                            and (
                                 not isinstance(online_store, dict)
                                 or online_store["type"] != "dynamodb"
-                        )
+                            )
                         ):
                             continue
 
@@ -301,8 +301,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 @pytest.fixture
 def feature_server_endpoint(environment):
     if (
-            not environment.python_feature_server
-            or environment.test_repo_config.provider != "local"
+        not environment.python_feature_server
+        or environment.test_repo_config.provider != "local"
     ):
         yield environment.feature_store.get_feature_server_endpoint()
         return
@@ -314,8 +314,8 @@ def feature_server_endpoint(environment):
         args=(environment.feature_store.repo_path, port),
     )
     if (
-            environment.python_feature_server
-            and environment.test_repo_config.provider == "local"
+        environment.python_feature_server
+        and environment.test_repo_config.provider == "local"
     ):
         proc.start()
         # Wait for server to start
@@ -358,7 +358,7 @@ def e2e_data_sources(environment: Environment):
 
 @pytest.fixture
 def feature_store_for_online_retrieval(
-        environment, universal_data_sources
+    environment, universal_data_sources
 ) -> Tuple[FeatureStore, List[str], List[Dict[str, int]]]:
     """
     Returns a feature store that is ready for online retrieval, along with entity rows and feature

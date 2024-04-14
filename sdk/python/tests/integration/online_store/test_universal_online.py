@@ -790,9 +790,7 @@ def assert_feature_service_entity_mapping_correctness(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector"])
-def test_retrieve_online_documents(
-    environment, fake_document_data
-):
+def test_retrieve_online_documents(environment, fake_document_data):
     fs = environment.feature_store
     df, data_source = fake_document_data
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
@@ -803,4 +801,3 @@ def test_retrieve_online_documents(
         feature="item_embeddings:embedding_float", query=[1.0, 2.0], top_k=2
     ).to_dict()
     assert len(documents["embedding_float"]) == 2
-
