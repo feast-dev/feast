@@ -28,8 +28,8 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.entities import driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
+    create_item_embeddings_feature_view,
     driver_feature_view,
-    create_item_embeddings_feature_view
 )
 from tests.utils.data_source_test_creator import prep_file_source
 

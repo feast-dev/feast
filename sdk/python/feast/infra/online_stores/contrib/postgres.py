@@ -9,6 +9,7 @@ import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 from psycopg2.pool import SimpleConnectionPool
+
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -320,8 +321,8 @@ class PostgreSQLOnlineStore(OnlineStore):
             for entity_key, feature_name, value, distance, event_ts in rows:
 
                 # TODO Deserialize entity_key to return the entity in response
-                entity_key_proto = EntityKeyProto()
-                entity_key_proto_bin = bytes(entity_key)
+                # entity_key_proto = EntityKeyProto()
+                # entity_key_proto_bin = bytes(entity_key)
 
                 # TODO Convert to List[float] for value type proto
                 feature_value_proto = ValueProto(string_val=value)

@@ -26,7 +26,10 @@ from _pytest.nodes import Item
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.data.data_creator import create_basic_driver_dataset, create_document_dataset  # noqa: E402
+from tests.data.data_creator import (  # noqa: E402
+    create_basic_driver_dataset,
+    create_document_dataset,
+)
 from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )

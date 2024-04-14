@@ -54,7 +54,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             timeout=10
         )
         command = "psql -h localhost -p 5432 -U root -d test -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
-        res = self.container.exec(command)
+        self.container.exec(command)
         return {
             "host": "localhost",
             "type": "postgres",
