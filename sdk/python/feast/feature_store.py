@@ -1991,26 +1991,22 @@ class FeatureStore:
             top_k=top_k,
         )
 
-        null_value = Value()
-        not_found_status = FieldStatus.NOT_FOUND
-        present_status = FieldStatus.PRESENT
-
         read_row_protos = []
         row_ts_proto = Timestamp()
 
-        for row_ts, feature_val, distance in documents:
+        for row_ts, feature_val, distance_val in documents:
             # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
 
             if feature_val is None:
-                status = not_found_status
-                value = null_value
+                feature_val = Value()
+                distance_val = Value()
+                status = FieldStatus.NOT_FOUND
             else:
-                status = present_status
-                value = feature_val
+                status = FieldStatus.PRESENT
 
-            read_row_protos.append((row_ts_proto, status, value, distance))
+            read_row_protos.append((row_ts_proto, status, feature_val, distance_val))
         return read_row_protos
 
     @staticmethod
