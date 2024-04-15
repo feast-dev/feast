@@ -220,6 +220,7 @@ test-python-universal-pgvector-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.pgvector_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
