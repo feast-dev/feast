@@ -752,7 +752,7 @@ def _non_empty_value(value: Any) -> bool:
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
     # TODO not all spark types are convertible
-    # Current non-convertible types: interval, map, struct, structfield, decimal, binary
+    # Current non-convertible types: interval, map, struct, structfield, binary
     type_map: Dict[str, ValueType] = {
         "null": ValueType.UNKNOWN,
         "byte": ValueType.BYTES,
@@ -762,6 +762,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
+        "decimal": ValueType.DOUBLE,
         "float": ValueType.FLOAT,
         "boolean": ValueType.BOOL,
         "timestamp": ValueType.UNIX_TIMESTAMP,
@@ -770,10 +771,15 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<int>": ValueType.INT32_LIST,
         "array<bigint>": ValueType.INT64_LIST,
         "array<double>": ValueType.DOUBLE_LIST,
+        "array<decimal>": ValueType.DOUBLE_LIST,
         "array<float>": ValueType.FLOAT_LIST,
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
+    if spark_type_as_str.startswith("decimal"):
+        spark_type_as_str = "decimal"
+    if spark_type_as_str.startswith("array<decimal"):
+        spark_type_as_str = "array<decimal>"
     # TODO: Find better way of doing this.
     if not isinstance(spark_type_as_str, str) or spark_type_as_str not in type_map:
         return ValueType.NULL
