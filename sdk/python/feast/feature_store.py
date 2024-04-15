@@ -1690,6 +1690,72 @@ class FeatureStore:
         )
         return OnlineResponse(online_features_response)
 
+    @log_exceptions_and_usage
+    def retrieve_online_documents(
+        self,
+        feature: str,
+        query: Union[str, List[float]],
+        top_k: int,
+    ) -> OnlineResponse:
+        """
+        Retrieves the top k closest document features. Note, embeddings are a subset of features.
+
+        Args:
+            feature: The list of document features that should be retrieved from the online document store. These features can be
+                specified either as a list of string document feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
+            query: The query to retrieve the closest document features for.
+            top_k: The number of closest document features to retrieve.
+        """
+        return self._retrieve_online_documents(
+            feature=feature,
+            query=query,
+            top_k=top_k,
+        )
+
+    def _retrieve_online_documents(
+        self,
+        feature: str,
+        query: Union[str, List[float]],
+        top_k: int,
+    ):
+        if isinstance(query, str):
+            raise ValueError(
+                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
+            )
+        (
+            requested_feature_views,
+            _,
+        ) = self._get_feature_views_to_use(
+            features=[feature], allow_cache=True, hide_dummy_entity=False
+        )
+        requested_feature = (
+            feature.split(":")[1] if isinstance(feature, str) else feature
+        )
+        provider = self._get_provider()
+        document_features = self._retrieve_from_online_store(
+            provider,
+            requested_feature_views[0],
+            requested_feature,
+            query,
+            top_k,
+        )
+        document_feature_vals = [feature[2] for feature in document_features]
+        document_feature_distance_vals = [feature[3] for feature in document_features]
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+
+        # TODO Refactor to better way of populating result
+        # TODO populate entity in the response after returning entity in document_features is supported
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={requested_feature: document_feature_vals},
+        )
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={"distance": document_feature_distance_vals},
+        )
+        return OnlineResponse(online_features_response)
+
     @staticmethod
     def _get_columnar_entity_values(
         rowise: Optional[List[Dict[str, Any]]], columnar: Optional[Dict[str, List[Any]]]
@@ -1904,6 +1970,43 @@ class FeatureStore:
                         statuses.append(FieldStatus.PRESENT)
                         values.append(feature_data[feature_name])
             read_row_protos.append((event_timestamps, statuses, values))
+        return read_row_protos
+
+    def _retrieve_from_online_store(
+        self,
+        provider: Provider,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value]]:
+        """
+        Search and return document features from the online document store.
+        """
+        documents = provider.retrieve_online_documents(
+            config=self.config,
+            table=table,
+            requested_feature=requested_feature,
+            query=query,
+            top_k=top_k,
+        )
+
+        read_row_protos = []
+        row_ts_proto = Timestamp()
+
+        for row_ts, feature_val, distance_val in documents:
+            # Reset timestamp to default or update if row_ts is not None
+            if row_ts is not None:
+                row_ts_proto.FromDatetime(row_ts)
+
+            if feature_val is None or distance_val is None:
+                feature_val = Value()
+                distance_val = Value()
+                status = FieldStatus.NOT_FOUND
+            else:
+                status = FieldStatus.PRESENT
+
+            read_row_protos.append((row_ts_proto, status, feature_val, distance_val))
         return read_row_protos
 
     @staticmethod
