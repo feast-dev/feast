@@ -14,3 +14,5 @@ FULL_REPO_CONFIGS = [
         online_store="pgvector", online_store_creator=PGVectorOnlineStoreCreator
     ),
 ]
+
+AVAILABLE_ONLINE_STORES = {"pgvector": PGVectorOnlineStoreCreator}

@@ -7,7 +7,7 @@ from feast.protos.feast.types.Value_pb2 import ValueType
 
 
 def _serialize_val(
-    value_type, v: ValueProto, entity_key_serialization_version=1
+        value_type, v: ValueProto, entity_key_serialization_version=1
 ) -> Tuple[bytes, int]:
     if value_type == "string_val":
         return v.string_val.encode("utf8"), ValueType.STRING
@@ -40,7 +40,7 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
 
 
 def serialize_entity_key(
-    entity_key: EntityKeyProto, entity_key_serialization_version=1
+        entity_key: EntityKeyProto, entity_key_serialization_version=1
 ) -> bytes:
     """
     Serialize entity key to a bytestring so it can be used as a lookup key in a hash table.
@@ -72,3 +72,11 @@ def serialize_entity_key(
         output.append(val_bytes)
 
     return b"".join(output)
+
+
+def get_val_str(val):
+    accept_value_types = ["float_list_val", "double_list_val", "int_list_val"]
+    for accept_type in accept_value_types:
+        if val.HasField(accept_type):
+            return str(getattr(val, accept_type).val)
+    return None

@@ -84,6 +84,7 @@ def create_document_dataset() -> pd.DataFrame:
     data = {
         "item_id": [1, 2, 3],
         "embedding_float": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
+        "embedding_double": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
         "ts": [
             pd.Timestamp(datetime.utcnow()).round("ms"),
             pd.Timestamp(datetime.utcnow()).round("ms"),
