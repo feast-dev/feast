@@ -34,6 +34,15 @@ class SubstraitTransformation:
         ).read_all()
         return table.to_pandas()
 
+    def transform_arrow(self, pa_table: pyarrow.Table) -> pyarrow.Table:
+        def table_provider(names, schema: pyarrow.Schema):
+            return pa_table.select(schema.names)
+
+        table: pyarrow.Table = pyarrow.substrait.run_query(
+            self.substrait_plan, table_provider=table_provider
+        ).read_all()
+        return table
+
     def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)

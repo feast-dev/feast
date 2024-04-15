@@ -2,6 +2,7 @@ from types import FunctionType
 from typing import Any, Dict, List
 
 import dill
+import pyarrow
 
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
@@ -23,6 +24,11 @@ class PythonTransformation:
         """
         self.udf = udf
         self.udf_string = udf_string
+
+    def transform_arrow(self, pa_table: pyarrow.Table) -> pyarrow.Table:
+        raise Exception(
+            'OnDemandFeatureView mode "python" not supported for offline processing.'
+        )
 
     def transform(self, input_dict: Dict) -> Dict:
         if not isinstance(input_dict, Dict):
