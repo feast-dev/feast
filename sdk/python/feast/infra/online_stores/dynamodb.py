@@ -65,6 +65,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     consistent_reads: StrictBool = False
     """Whether to read from Dynamodb by forcing consistent reads"""
 
+    tags: Union[Dict[str, str], None] = None
+    """AWS resource tags added to each table"""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -114,6 +117,12 @@ class DynamoDBOnlineStore(OnlineStore):
                         {"AttributeName": "entity_id", "AttributeType": "S"}
                     ],
                     BillingMode="PAY_PER_REQUEST",
+                    Tags=[
+                        {"Key": key, "Value": value}
+                        for key, value in online_config.tags.items()
+                    ]
+                    if online_config.tags is not None
+                    else [],
                 )
             except ClientError as ce:
                 # If the table creation fails with ResourceInUseException,
