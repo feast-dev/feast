@@ -12,7 +12,7 @@ from psycopg2.pool import SimpleConnectionPool
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import serialize_entity_key, get_val_str
+from feast.infra.key_encoding_utils import get_val_str, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
@@ -75,7 +75,10 @@ class PostgreSQLOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     val_str: Union[str, bytes]
-                    if "pgvector_enabled" in config.online_config and config.online_config["pgvector_enabled"]:
+                    if (
+                        "pgvector_enabled" in config.online_config
+                        and config.online_config["pgvector_enabled"]
+                    ):
                         val_str = get_val_str(val)
                     else:
                         val_str = val.SerializeToString()
@@ -224,7 +227,10 @@ class PostgreSQLOnlineStore(OnlineStore):
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
                 value_type = "BYTEA"
-                if "pgvector_enabled" in config.online_config and config.online_config["pgvector_enabled"]:
+                if (
+                    "pgvector_enabled" in config.online_config
+                    and config.online_config["pgvector_enabled"]
+                ):
                     value_type = f'vector({config.online_config["vector_len"]})'
                 cur.execute(
                     sql.SQL(
