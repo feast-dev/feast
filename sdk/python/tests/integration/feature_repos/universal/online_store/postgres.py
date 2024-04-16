@@ -1,9 +1,10 @@
+import os
 from typing import Dict
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
-import os
+
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
@@ -45,7 +46,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             .with_env("POSTGRES_DB", "test")
             .with_exposed_ports(5432)
             .with_volume_mapping(
-                os.path.join(script_directory, 'init.sql'),
+                os.path.join(script_directory, "init.sql"),
                 "/docker-entrypoint-initdb.d/init.sql",
             )
         )

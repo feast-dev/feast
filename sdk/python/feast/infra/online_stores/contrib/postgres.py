@@ -75,7 +75,10 @@ class PostgreSQLOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     vector_val = None
-                    if "pgvector_enabled" in config.online_store and config.online_store.pgvector_enabled:
+                    if (
+                        "pgvector_enabled" in config.online_store
+                        and config.online_store.pgvector_enabled
+                    ):
                         vector_val = get_list_val_str(val)
                     insert_values.append(
                         (
@@ -223,11 +226,14 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
-                if "pgvector_enabled" in config.online_store and config.online_store.pgvector_enabled:
-                    vector_value_type = f'vector({config.online_store.vector_len})'
+                if (
+                    "pgvector_enabled" in config.online_store
+                    and config.online_store.pgvector_enabled
+                ):
+                    vector_value_type = f"vector({config.online_store.vector_len})"
                 else:
                     # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
-                    vector_value_type = 'BYTEA'
+                    vector_value_type = "BYTEA"
                 cur.execute(
                     sql.SQL(
                         """
@@ -291,8 +297,13 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if "pgvector_enabled" not in config.online_store or not config.online_store.pgvector_enabled:
-            raise ValueError("pgvector is not enabled in the online store configuration")
+        if (
+            "pgvector_enabled" not in config.online_store
+            or not config.online_store.pgvector_enabled
+        ):
+            raise ValueError(
+                "pgvector is not enabled in the online store configuration"
+            )
 
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
