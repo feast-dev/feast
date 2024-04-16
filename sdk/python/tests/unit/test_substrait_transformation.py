@@ -75,10 +75,8 @@ def test_ibis_pandas_parity():
             mode="substrait",
         )
         def substrait_view(inputs: Table) -> Table:
-            return inputs.select(
-                (inputs["conv_rate"] + inputs["acc_rate"]).name(
-                    "conv_rate_plus_acc_substrait"
-                )
+            return inputs.mutate(
+                conv_rate_plus_acc_substrait=inputs["conv_rate"] + inputs["acc_rate"]
             )
 
         store.apply(
