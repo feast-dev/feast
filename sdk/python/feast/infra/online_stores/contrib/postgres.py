@@ -2,7 +2,7 @@ import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import psycopg2
 import pytz
@@ -12,7 +12,7 @@ from psycopg2.pool import SimpleConnectionPool
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import get_val_str, serialize_entity_key
+from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
@@ -74,19 +74,18 @@ class PostgreSQLOnlineStore(OnlineStore):
                     created_ts = _to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
-                    val_str: Union[str, bytes]
+                    vector_val = None
                     if (
-                        "pgvector_enabled" in config.online_config
-                        and config.online_config["pgvector_enabled"]
+                        "pgvector_enabled" in config.online_store
+                        and config.online_store.pgvector_enabled
                     ):
-                        val_str = get_val_str(val)
-                    else:
-                        val_str = val.SerializeToString()
+                        vector_val = get_list_val_str(val)
                     insert_values.append(
                         (
                             entity_key_bin,
                             feature_name,
-                            val_str,
+                            val.SerializeToString(),
+                            vector_val,
                             timestamp,
                             created_ts,
                         )
@@ -100,11 +99,12 @@ class PostgreSQLOnlineStore(OnlineStore):
                     sql.SQL(
                         """
                         INSERT INTO {}
-                        (entity_key, feature_name, value, event_ts, created_ts)
+                        (entity_key, feature_name, value, vector_value, event_ts, created_ts)
                         VALUES %s
                         ON CONFLICT (entity_key, feature_name) DO
                         UPDATE SET
                             value = EXCLUDED.value,
+                            vector_value = EXCLUDED.vector_value,
                             event_ts = EXCLUDED.event_ts,
                             created_ts = EXCLUDED.created_ts;
                         """,
@@ -226,12 +226,14 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
-                value_type = "BYTEA"
                 if (
-                    "pgvector_enabled" in config.online_config
-                    and config.online_config["pgvector_enabled"]
+                    "pgvector_enabled" in config.online_store
+                    and config.online_store.pgvector_enabled
                 ):
-                    value_type = f'vector({config.online_config["vector_len"]})'
+                    vector_value_type = f"vector({config.online_store.vector_len})"
+                else:
+                    # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
+                    vector_value_type = "BYTEA"
                 cur.execute(
                     sql.SQL(
                         """
@@ -239,7 +241,8 @@ class PostgreSQLOnlineStore(OnlineStore):
                         (
                             entity_key BYTEA,
                             feature_name TEXT,
-                            value {},
+                            value BYTEA,
+                            vector_value {} NULL,
                             event_ts TIMESTAMPTZ,
                             created_ts TIMESTAMPTZ,
                             PRIMARY KEY(entity_key, feature_name)
@@ -248,7 +251,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         """
                     ).format(
                         sql.Identifier(table_name),
-                        sql.SQL(value_type),
+                        sql.SQL(vector_value_type),
                         sql.Identifier(f"{table_name}_ek"),
                         sql.Identifier(table_name),
                     )
@@ -294,6 +297,14 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         project = config.project
 
+        if (
+            "pgvector_enabled" not in config.online_store
+            or not config.online_store.pgvector_enabled
+        ):
+            raise ValueError(
+                "pgvector is not enabled in the online store configuration"
+            )
+
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
@@ -311,8 +322,8 @@ class PostgreSQLOnlineStore(OnlineStore):
                     SELECT
                         entity_key,
                         feature_name,
-                        value,
-                        value <-> %s as distance,
+                        vector_value,
+                        vector_value <-> %s as distance,
                         event_ts FROM {table_name}
                     WHERE feature_name = {feature_name}
                     ORDER BY distance
@@ -327,13 +338,13 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             rows = cur.fetchall()
 
-            for entity_key, feature_name, value, distance, event_ts in rows:
+            for entity_key, feature_name, vector_value, distance, event_ts in rows:
                 # TODO Deserialize entity_key to return the entity in response
                 # entity_key_proto = EntityKeyProto()
                 # entity_key_proto_bin = bytes(entity_key)
 
                 # TODO Convert to List[float] for value type proto
-                feature_value_proto = ValueProto(string_val=value)
+                feature_value_proto = ValueProto(string_val=vector_value)
 
                 distance_value_proto = ValueProto(float_val=distance)
                 result.append((event_ts, feature_value_proto, distance_value_proto))

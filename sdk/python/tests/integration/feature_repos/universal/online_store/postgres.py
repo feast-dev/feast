@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 from testcontainers.core.container import DockerContainer
@@ -37,12 +38,17 @@ class PostgresOnlineStoreCreator(OnlineStoreCreator):
 class PGVectorOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
+        script_directory = os.path.dirname(os.path.abspath(__file__))
         self.container = (
             DockerContainer("pgvector/pgvector:pg16")
             .with_env("POSTGRES_USER", "root")
             .with_env("POSTGRES_PASSWORD", "test")
             .with_env("POSTGRES_DB", "test")
             .with_exposed_ports(5432)
+            .with_volume_mapping(
+                os.path.join(script_directory, "init.sql"),
+                "/docker-entrypoint-initdb.d/init.sql",
+            )
         )
 
     def create_online_store(self) -> Dict[str, str]:
@@ -51,8 +57,10 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
         wait_for_logs(
             container=self.container, predicate=log_string_to_wait_for, timeout=10
         )
-        command = "psql -h localhost -p 5432 -U root -d test -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
-        self.container.exec(command)
+        init_log_string_to_wait_for = "PostgreSQL init process complete"
+        wait_for_logs(
+            container=self.container, predicate=init_log_string_to_wait_for, timeout=10
+        )
         return {
             "host": "localhost",
             "type": "postgres",
