@@ -66,8 +66,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
-    # https://github.com/dask/dask/issues/10996
-    "dask>=2021.1.0,<2024.3.0",
+    "dask[dataframe]>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
     "importlib-resources>=6.0.0,<7",
     "importlib_metadata>=6.8.0,<7",
