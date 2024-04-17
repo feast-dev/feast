@@ -31,7 +31,6 @@ from feast.constants import (
 )
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -734,6 +733,8 @@ def listen_command(
     registry_ttl_sec: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
+    from feast.infra.contrib.grpc_server import get_grpc_server
+
     store = create_feature_store(ctx)
     server = get_grpc_server(address, store, max_workers, registry_ttl_sec)
     server.start()
