@@ -2009,7 +2009,9 @@ class FeatureStore:
             else:
                 status = FieldStatus.PRESENT
 
-            read_row_protos.append((row_ts_proto, status, feature_val, vector_value, distance_val))
+            read_row_protos.append(
+                (row_ts_proto, status, feature_val, vector_value, distance_val)
+            )
         return read_row_protos
 
     @staticmethod

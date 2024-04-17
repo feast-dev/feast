@@ -276,7 +276,14 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto], Optional[ValueProto]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
         """
 
         Args:
@@ -300,7 +307,12 @@ class PostgreSQLOnlineStore(OnlineStore):
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
         result: List[
-            Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto], Optional[ValueProto]]
+            Tuple[
+                Optional[datetime],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+            ]
         ] = []
         with self._get_conn(config) as conn, conn.cursor() as cur:
             table_name = _table_id(project, table)
@@ -330,7 +342,14 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             rows = cur.fetchall()
 
-            for entity_key, feature_name, value, vector_value, distance, event_ts in rows:
+            for (
+                entity_key,
+                feature_name,
+                value,
+                vector_value,
+                distance,
+                event_ts,
+            ) in rows:
                 # TODO Deserialize entity_key to return the entity in response
                 # entity_key_proto = EntityKeyProto()
                 # entity_key_proto_bin = bytes(entity_key)
@@ -340,7 +359,14 @@ class PostgreSQLOnlineStore(OnlineStore):
 
                 vector_value_proto = ValueProto(string_val=vector_value)
                 distance_value_proto = ValueProto(float_val=distance)
-                result.append((event_ts, feature_value_proto, vector_value_proto, distance_value_proto))
+                result.append(
+                    (
+                        event_ts,
+                        feature_value_proto,
+                        vector_value_proto,
+                        distance_value_proto,
+                    )
+                )
 
         return result
 
