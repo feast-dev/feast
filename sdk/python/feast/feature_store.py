@@ -1740,12 +1740,14 @@ class FeatureStore:
             query,
             top_k,
         )
-        document_feature_vals = [feature[2] for feature in document_features]
-        document_feature_distance_vals = [feature[3] for feature in document_features]
-        online_features_response = GetOnlineFeaturesResponse(results=[])
 
         # TODO Refactor to better way of populating result
         # TODO populate entity in the response after returning entity in document_features is supported
+        # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
+        # the feature value can be raw text before embedded
+        document_feature_vals = [feature[2] for feature in document_features]
+        document_feature_distance_vals = [feature[4] for feature in document_features]
+        online_features_response = GetOnlineFeaturesResponse(results=[])
         self._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data={requested_feature: document_feature_vals},
@@ -1979,7 +1981,7 @@ class FeatureStore:
         requested_feature: str,
         query: List[float],
         top_k: int,
-    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value]]:
+    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value, Value]]:
         """
         Search and return document features from the online document store.
         """
@@ -1994,19 +1996,22 @@ class FeatureStore:
         read_row_protos = []
         row_ts_proto = Timestamp()
 
-        for row_ts, feature_val, distance_val in documents:
+        for row_ts, feature_val, vector_value, distance_val in documents:
             # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
 
-            if feature_val is None or distance_val is None:
+            if feature_val is None or vector_value is None or distance_val is None:
                 feature_val = Value()
+                vector_value = Value()
                 distance_val = Value()
                 status = FieldStatus.NOT_FOUND
             else:
                 status = FieldStatus.PRESENT
 
-            read_row_protos.append((row_ts_proto, status, feature_val, distance_val))
+            read_row_protos.append(
+                (row_ts_proto, status, feature_val, vector_value, distance_val)
+            )
         return read_row_protos
 
     @staticmethod

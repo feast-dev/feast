@@ -75,10 +75,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     vector_val = None
-                    if (
-                        "pgvector_enabled" in config.online_store
-                        and config.online_store.pgvector_enabled
-                    ):
+                    if config.online_store.pgvector_enabled:
                         vector_val = get_list_val_str(val)
                     insert_values.append(
                         (
@@ -226,10 +223,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
-                if (
-                    "pgvector_enabled" in config.online_store
-                    and config.online_store.pgvector_enabled
-                ):
+                if config.online_store.pgvector_enabled:
                     vector_value_type = f"vector({config.online_store.vector_len})"
                 else:
                     # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
@@ -282,7 +276,14 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
         """
 
         Args:
@@ -297,10 +298,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if (
-            "pgvector_enabled" not in config.online_store
-            or not config.online_store.pgvector_enabled
-        ):
+        if not config.online_store.pgvector_enabled:
             raise ValueError(
                 "pgvector is not enabled in the online store configuration"
             )
@@ -309,7 +307,12 @@ class PostgreSQLOnlineStore(OnlineStore):
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
         result: List[
-            Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]
+            Tuple[
+                Optional[datetime],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+            ]
         ] = []
         with self._get_conn(config) as conn, conn.cursor() as cur:
             table_name = _table_id(project, table)
@@ -322,6 +325,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     SELECT
                         entity_key,
                         feature_name,
+                        value,
                         vector_value,
                         vector_value <-> %s as distance,
                         event_ts FROM {table_name}
@@ -338,16 +342,31 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             rows = cur.fetchall()
 
-            for entity_key, feature_name, vector_value, distance, event_ts in rows:
+            for (
+                entity_key,
+                feature_name,
+                value,
+                vector_value,
+                distance,
+                event_ts,
+            ) in rows:
                 # TODO Deserialize entity_key to return the entity in response
                 # entity_key_proto = EntityKeyProto()
                 # entity_key_proto_bin = bytes(entity_key)
 
-                # TODO Convert to List[float] for value type proto
-                feature_value_proto = ValueProto(string_val=vector_value)
+                feature_value_proto = ValueProto()
+                feature_value_proto.ParseFromString(bytes(value))
 
+                vector_value_proto = ValueProto(string_val=vector_value)
                 distance_value_proto = ValueProto(float_val=distance)
-                result.append((event_ts, feature_value_proto, distance_value_proto))
+                result.append(
+                    (
+                        event_ts,
+                        feature_value_proto,
+                        vector_value_proto,
+                        distance_value_proto,
+                    )
+                )
 
         return result
 
