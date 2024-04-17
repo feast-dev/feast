@@ -111,5 +111,5 @@ class FooProvider(Provider):
         requested_feature: str,
         query: List[float],
         top_k: int,
-    ) -> List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[ValueProto], Optional[ValueProto], Optional[ValueProto]]]:
         return []
