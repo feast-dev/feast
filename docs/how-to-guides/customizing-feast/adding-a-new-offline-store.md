@@ -381,7 +381,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
 2.  Make sure that your offline store doesn't break any unit tests first by running:
 
     ```
-    make test-python
+    make test-python-unit
     ```
 3.  Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
 
