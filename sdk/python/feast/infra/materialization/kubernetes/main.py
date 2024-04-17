@@ -4,10 +4,7 @@ from typing import List
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-from bytewax.dataflow import Dataflow  # type: ignore
-from bytewax.execution import cluster_main
-from bytewax.inputs import ManualInputConfig
-from bytewax.outputs import ManualOutputConfig
+import yaml
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
@@ -16,7 +13,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_BATCH_SIZE = 1000
 
 
-class BytewaxMaterializationDataflow:
+class KubernetesMaterializer:
     def __init__(
         self,
         config: RepoConfig,
@@ -30,11 +27,7 @@ class BytewaxMaterializationDataflow:
         self.feature_view = feature_view
         self.worker_index = worker_index
         self.paths = paths
-        self.mini_batch_size = int(
-            os.getenv("BYTEWAX_MINI_BATCH_SIZE", DEFAULT_BATCH_SIZE)
-        )
-
-        self._run_dataflow()
+        self.mini_batch_size = int(os.getenv("MINI_BATCH_SIZE", DEFAULT_BATCH_SIZE))
 
     def process_path(self, path):
         logger.info(f"Processing path {path}")
@@ -45,14 +38,10 @@ class BytewaxMaterializationDataflow:
                 max_chunksize=self.mini_batch_size
             ):
                 batches.append(batch)
-
         return batches
 
-    def input_builder(self, worker_index, worker_count, _state):
-        return [(None, self.paths[self.worker_index])]
-
-    def output_builder(self, worker_index, worker_count):
-        def output_fn(mini_batch):
+    def run(self):
+        for mini_batch in self.process_path(self.paths[self.worker_index]):
             table: pa.Table = pa.Table.from_batches([mini_batch])
 
             if self.feature_view.batch_source.field_mapping is not None:
@@ -73,11 +62,24 @@ class BytewaxMaterializationDataflow:
                 progress=None,
             )
 
-        return output_fn
 
-    def _run_dataflow(self):
-        flow = Dataflow()
-        flow.input("inp", ManualInputConfig(self.input_builder))
-        flow.flat_map(self.process_path)
-        flow.capture(ManualOutputConfig(self.output_builder))
-        cluster_main(flow, [], 0)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
+    with open("/var/feast/feature_store.yaml") as f:
+        feast_config = yaml.load(f, Loader=yaml.Loader)
+
+        with open("/var/feast/materialization_config.yaml") as b:
+            materialization_cfg = yaml.load(b, Loader=yaml.Loader)
+
+            config = RepoConfig(**feast_config)
+            store = FeatureStore(config=config)
+
+            KubernetesMaterializer(
+                config=config,
+                feature_view=store.get_feature_view(
+                    materialization_cfg["feature_view"]
+                ),
+                paths=materialization_cfg["paths"],
+                worker_index=int(os.environ["JOB_COMPLETION_INDEX"]),
+            ).run()

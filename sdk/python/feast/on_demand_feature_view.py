@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 import dill
 import pandas as pd
+import pyarrow
 from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
@@ -34,10 +35,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
-from feast.type_map import (
-    feast_value_type_to_pandas_type,
-    python_type_to_feast_value_type,
-)
 from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
@@ -395,6 +392,60 @@ class OnDemandFeatureView(BaseFeatureView):
     def _get_projected_feature_name(self, feature: str) -> str:
         return f"{self.projection.name_to_use()}__{feature}"
 
+    def transform_arrow(
+        self,
+        pa_table: pyarrow.Table,
+        full_feature_names: bool = False,
+    ) -> pyarrow.Table:
+        if not isinstance(pa_table, pyarrow.Table):
+            raise TypeError("transform_arrow only accepts pyarrow.Table")
+        columns_to_cleanup = []
+        for source_fv_projection in self.source_feature_view_projections.values():
+            for feature in source_fv_projection.features:
+                full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
+                if full_feature_ref in pa_table.column_names:
+                    # Make sure the partial feature name is always present
+                    pa_table = pa_table.append_column(
+                        feature.name, pa_table[full_feature_ref]
+                    )
+                    # pa_table[feature.name] = pa_table[full_feature_ref]
+                    columns_to_cleanup.append(feature.name)
+                elif feature.name in pa_table.column_names:
+                    # Make sure the full feature name is always present
+                    # pa_table[full_feature_ref] = pa_table[feature.name]
+                    pa_table = pa_table.append_column(
+                        full_feature_ref, pa_table[feature.name]
+                    )
+                    columns_to_cleanup.append(full_feature_ref)
+
+        df_with_transformed_features: pyarrow.Table = (
+            self.feature_transformation.transform_arrow(pa_table)
+        )
+
+        # Work out whether the correct columns names are used.
+        rename_columns: Dict[str, str] = {}
+        for feature in self.features:
+            short_name = feature.name
+            long_name = self._get_projected_feature_name(feature.name)
+            if (
+                short_name in df_with_transformed_features.column_names
+                and full_feature_names
+            ):
+                rename_columns[short_name] = long_name
+            elif not full_feature_names:
+                rename_columns[long_name] = short_name
+
+        # Cleanup extra columns used for transformation
+        for col in columns_to_cleanup:
+            if col in df_with_transformed_features.column_names:
+                df_with_transformed_features = df_with_transformed_features.dtop(col)
+        return df_with_transformed_features.rename_columns(
+            [
+                rename_columns.get(c, c)
+                for c in df_with_transformed_features.column_names
+            ]
+        )
+
     def get_transformed_features_df(
         self,
         df_with_features: pd.DataFrame,
@@ -490,142 +541,64 @@ class OnDemandFeatureView(BaseFeatureView):
             )
 
     def infer_features(self) -> None:
-        if self.mode in {"pandas", "substrait"}:
-            self._infer_features_df()
-        elif self.mode == "python":
-            self._infer_features_dict()
+        inferred_features = self.feature_transformation.infer_features(
+            self._construct_random_input()
+        )
+
+        if self.features:
+            missing_features = []
+            for specified_feature in self.features:
+                if specified_feature not in inferred_features:
+                    missing_features.append(specified_feature)
+            if missing_features:
+                raise SpecifiedFeaturesNotPresentError(
+                    missing_features, inferred_features, self.name
+                )
         else:
-            raise Exception(
-                f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".'
+            self.features = inferred_features
+
+        if not self.features:
+            raise RegistryInferenceFailure(
+                "OnDemandFeatureView",
+                f"Could not infer Features for the feature view '{self.name}'.",
             )
 
-    def _infer_features_dict(self):
-        """
-        Infers the set of features associated to this feature view from the input source.
-
-        Raises:
-            RegistryInferenceFailure: The set of features could not be inferred.
-        """
-        rand_dict_value: Dict[str, Any] = {
-            "float": [1.0],
-            "int": [1],
-            "str": ["hello world"],
-            "bytes": [str.encode("hello world")],
-            "bool": [True],
-            "datetime64[ns]": [datetime.utcnow()],
+    def _construct_random_input(self) -> Dict[str, List[Any]]:
+        rand_dict_value: Dict[ValueType, List[Any]] = {
+            ValueType.BYTES: [str.encode("hello world")],
+            ValueType.STRING: ["hello world"],
+            ValueType.INT32: [1],
+            ValueType.INT64: [1],
+            ValueType.DOUBLE: [1.0],
+            ValueType.FLOAT: [1.0],
+            ValueType.BOOL: [True],
+            ValueType.UNIX_TIMESTAMP: [datetime.utcnow()],
+            ValueType.BYTES_LIST: [[str.encode("hello world")]],
+            ValueType.STRING_LIST: [["hello world"]],
+            ValueType.INT32_LIST: [[1]],
+            ValueType.INT64_LIST: [[1]],
+            ValueType.DOUBLE_LIST: [[1.0]],
+            ValueType.FLOAT_LIST: [[1.0]],
+            ValueType.BOOL_LIST: [[True]],
+            ValueType.UNIX_TIMESTAMP_LIST: [[datetime.utcnow()]],
         }
 
         feature_dict = {}
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
-                dtype = feast_value_type_to_pandas_type(feature.dtype.to_value_type())
                 feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
-                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                    rand_dict_value.get(feature.dtype.to_value_type(), [None])
                 )
-                feature_dict[f"{feature.name}"] = (
-                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                feature_dict[f"{feature.name}"] = rand_dict_value.get(
+                    feature.dtype.to_value_type(), [None]
                 )
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
-                dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
-                feature_dict[f"{field.name}"] = (
-                    rand_dict_value[dtype] if dtype in rand_dict_value else [None]
+                feature_dict[f"{field.name}"] = rand_dict_value.get(
+                    field.dtype.to_value_type(), [None]
                 )
 
-        output_dict: Dict[str, List[Any]] = self.feature_transformation.transform(
-            feature_dict
-        )
-        inferred_features = []
-        for f, dt in output_dict.items():
-            inferred_features.append(
-                Field(
-                    name=f,
-                    dtype=from_value_type(
-                        python_type_to_feast_value_type(
-                            f, type_name=type(dt[0]).__name__
-                        )
-                    ),
-                )
-            )
-
-        if self.features:
-            missing_features = []
-            for specified_features in self.features:
-                if specified_features not in inferred_features:
-                    missing_features.append(specified_features)
-            if missing_features:
-                raise SpecifiedFeaturesNotPresentError(
-                    missing_features, inferred_features, self.name
-                )
-        else:
-            self.features = inferred_features
-
-        if not self.features:
-            raise RegistryInferenceFailure(
-                "OnDemandFeatureView",
-                f"Could not infer Features for the feature view '{self.name}'.",
-            )
-
-    def _infer_features_df(self) -> None:
-        """
-        Infers the set of features associated to this feature view from the input source.
-
-        Raises:
-            RegistryInferenceFailure: The set of features could not be inferred.
-        """
-        rand_df_value: Dict[str, Any] = {
-            "float": 1.0,
-            "int": 1,
-            "str": "hello world",
-            "bytes": str.encode("hello world"),
-            "bool": True,
-            "datetime64[ns]": datetime.utcnow(),
-        }
-
-        df = pd.DataFrame()
-        for feature_view_projection in self.source_feature_view_projections.values():
-            for feature in feature_view_projection.features:
-                dtype = feast_value_type_to_pandas_type(feature.dtype.to_value_type())
-                df[f"{feature_view_projection.name}__{feature.name}"] = pd.Series(
-                    dtype=dtype
-                )
-                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
-                df[f"{feature.name}"] = pd.Series(data=sample_val, dtype=dtype)
-        for request_data in self.source_request_sources.values():
-            for field in request_data.schema:
-                dtype = feast_value_type_to_pandas_type(field.dtype.to_value_type())
-                sample_val = rand_df_value[dtype] if dtype in rand_df_value else None
-                df[f"{field.name}"] = pd.Series(sample_val, dtype=dtype)
-
-        output_df: pd.DataFrame = self.feature_transformation.transform(df)
-        inferred_features = []
-        for f, dt in zip(output_df.columns, output_df.dtypes):
-            inferred_features.append(
-                Field(
-                    name=f,
-                    dtype=from_value_type(
-                        python_type_to_feast_value_type(f, type_name=str(dt))
-                    ),
-                )
-            )
-
-        if self.features:
-            missing_features = []
-            for specified_features in self.features:
-                if specified_features not in inferred_features:
-                    missing_features.append(specified_features)
-            if missing_features:
-                raise SpecifiedFeaturesNotPresentError(
-                    missing_features, inferred_features, self.name
-                )
-        else:
-            self.features = inferred_features
-
-        if not self.features:
-            raise RegistryInferenceFailure(
-                "OnDemandFeatureView",
-                f"Could not infer Features for the feature view '{self.name}'.",
-            )
+        return feature_dict
 
     @staticmethod
     def get_requested_odfvs(
@@ -682,59 +655,28 @@ def on_demand_feature_view(
 
     def decorator(user_function):
         return_annotation = inspect.signature(user_function).return_annotation
-        if (
-            return_annotation
-            and return_annotation.__module__ == "ibis.expr.types.relations"
-            and return_annotation.__name__ == "Table"
-        ):
-            import ibis
-            import ibis.expr.datatypes as dt
-            from ibis_substrait.compiler.core import SubstraitCompiler
-
-            compiler = SubstraitCompiler()
-
-            input_fields: Field = []
-
-            for s in sources:
-                if isinstance(s, FeatureView):
-                    fields = s.projection.features
-                else:
-                    fields = s.features
-
-                input_fields.extend(
-                    [
-                        (
-                            f.name,
-                            dt.dtype(
-                                feast_value_type_to_pandas_type(f.dtype.to_value_type())
-                            ),
-                        )
-                        for f in fields
-                    ]
+        udf_string = dill.source.getsource(user_function)
+        mainify(user_function)
+        if mode == "pandas":
+            if return_annotation not in (inspect._empty, pd.DataFrame):
+                raise TypeError(
+                    f"return signature for {user_function} is {return_annotation} but should be pd.DataFrame"
                 )
+            transformation = PandasTransformation(user_function, udf_string)
+        elif mode == "python":
+            if return_annotation not in (inspect._empty, Dict[str, Any]):
+                raise TypeError(
+                    f"return signature for {user_function} is {return_annotation} but should be Dict[str, Any]"
+                )
+            transformation = PythonTransformation(user_function, udf_string)
+        elif mode == "substrait":
+            from ibis.expr.types.relations import Table
 
-            expr = user_function(ibis.table(input_fields, "t"))
-
-            transformation = SubstraitTransformation(
-                substrait_plan=compiler.compile(expr).SerializeToString()
-            )
-        else:
-            udf_string = dill.source.getsource(user_function)
-            mainify(user_function)
-            if mode == "pandas":
-                if return_annotation not in (inspect._empty, pd.DataFrame):
-                    raise TypeError(
-                        f"return signature for {user_function} is {return_annotation} but should be pd.DataFrame"
-                    )
-                transformation = PandasTransformation(user_function, udf_string)
-            elif mode == "python":
-                if return_annotation not in (inspect._empty, Dict[str, Any]):
-                    raise TypeError(
-                        f"return signature for {user_function} is {return_annotation} but should be Dict[str, Any]"
-                    )
-                transformation = PythonTransformation(user_function, udf_string)
-            elif mode == "substrait":
-                pass
+            if return_annotation not in (inspect._empty, Table):
+                raise TypeError(
+                    f"return signature for {user_function} is {return_annotation} but should be ibis.expr.types.relations.Table"
+                )
+            transformation = SubstraitTransformation.from_ibis(user_function, sources)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=user_function.__name__,

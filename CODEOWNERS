@@ -51,8 +51,5 @@
 # Snowflake
 /sdk/python/feast/infra/materialization/snowflake* @sfc-gh-madkins
 
-# Bytewax
-/sdk/python/feast/infra/materialization/contrib/bytewax/ @whoahbot
-
 # AWS Lambda
 /sdk/python/feast/infra/materialization/contrib/aws_lambda/ @achals

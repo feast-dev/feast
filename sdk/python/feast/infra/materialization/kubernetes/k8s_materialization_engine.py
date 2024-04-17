@@ -28,22 +28,22 @@ from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 
-from .bytewax_materialization_job import BytewaxMaterializationJob
+from .k8s_materialization_job import KubernetesMaterializationJob
 
 logger = logging.getLogger(__name__)
 
 
-class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
-    """Batch Materialization Engine config for Bytewax"""
+class KubernetesMaterializationEngineConfig(FeastConfigBaseModel):
+    """Batch Materialization Engine config for Kubernetes"""
 
-    type: Literal["bytewax"] = "bytewax"
+    type: Literal["k8s"] = "k8s"
     """ Materialization type selector"""
 
     namespace: StrictStr = "default"
     """ (optional) The namespace in Kubernetes to use when creating services, configuration maps and jobs.
     """
 
-    image: StrictStr = "bytewax/bytewax-feast:latest"
+    image: StrictStr = "feast/feast-k8s-materialization:latest"
     """ (optional) The container image to use when running the materialization job."""
 
     env: List[dict] = []
@@ -70,7 +70,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     """ (optional) additional labels to append to kubernetes objects """
 
     max_parallelism: int = 10
-    """ (optional) Maximum number of pods allowed to run in parallel"""
+    """ (optional) Maximum number of pods allowed to run in parallel within a single job"""
 
     synchronous: bool = False
     """ (optional) If true, wait for materialization for one feature to complete before moving to the next """
@@ -91,7 +91,7 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     """(optional) Print pod logs on job failure.  Only applies to synchronous materialization"""
 
 
-class BytewaxMaterializationEngine(BatchMaterializationEngine):
+class KubernetesMaterializationEngine(BatchMaterializationEngine):
     def __init__(
         self,
         *,
@@ -287,23 +287,21 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
 
     def _create_kubernetes_job(self, job_id, paths, feature_view):
         try:
-            # Create a k8s configmap with information needed by bytewax
+            # Create a k8s configmap with information needed by pods
             self._create_configuration_map(job_id, paths, feature_view, self.namespace)
 
             # Create the k8s job definition
             self._create_job_definition(
-                job_id,
-                self.namespace,
-                len(paths),  # Create a pod for each parquet file
-                self.batch_engine_config.env,
+                job_id=job_id,
+                namespace=self.namespace,
+                pods=len(paths),  # Create a pod for each parquet file
+                env=self.batch_engine_config.env,
             )
-            logger.info(
-                f"Created job `dataflow-{job_id}` on namespace `{self.namespace}`"
-            )
+            job = KubernetesMaterializationJob(job_id, self.namespace)
+            logger.info(f"Created job `{job.job_id()}` on namespace `{self.namespace}`")
+            return job
         except FailToCreateError as failures:
-            return BytewaxMaterializationJob(job_id, self.namespace, error=failures)
-
-        return BytewaxMaterializationJob(job_id, self.namespace)
+            return KubernetesMaterializationJob(job_id, self.namespace, error=failures)
 
     def _create_configuration_map(self, job_id, paths, feature_view, namespace):
         """Create a Kubernetes configmap for this job"""
@@ -314,7 +312,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             {"paths": paths, "feature_view": feature_view.name}
         )
 
-        labels = {"feast-bytewax-materializer": "configmap"}
+        labels = {"feast-materializer": "configmap"}
         configmap_manifest = {
             "kind": "ConfigMap",
             "apiVersion": "v1",
@@ -324,7 +322,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             "data": {
                 "feature_store.yaml": feature_store_configuration,
-                "bytewax_materialization_config.yaml": materialization_config,
+                "materialization_config.yaml": materialization_config,
             },
         }
         self.v1.create_namespaced_config_map(
@@ -338,39 +336,8 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def _create_job_definition(self, job_id, namespace, pods, env, index_offset=0):
         """Create a kubernetes job definition."""
         job_env = [
-            {"name": "RUST_BACKTRACE", "value": "full"},
             {
-                "name": "BYTEWAX_PYTHON_FILE_PATH",
-                "value": "/bytewax/dataflow.py",
-            },
-            {"name": "BYTEWAX_WORKDIR", "value": "/bytewax"},
-            {
-                "name": "BYTEWAX_WORKERS_PER_PROCESS",
-                "value": "1",
-            },
-            {
-                "name": "BYTEWAX_POD_NAME",
-                "valueFrom": {
-                    "fieldRef": {
-                        "apiVersion": "v1",
-                        "fieldPath": "metadata.annotations['batch.kubernetes.io/job-completion-index']",
-                    }
-                },
-            },
-            {
-                "name": "BYTEWAX_REPLICAS",
-                "value": "1",
-            },
-            {
-                "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
-                "value": "false",
-            },
-            {
-                "name": "BYTEWAX_STATEFULSET_NAME",
-                "value": f"dataflow-{job_id}",
-            },
-            {
-                "name": "BYTEWAX_MINI_BATCH_SIZE",
+                "name": "MINI_BATCH_SIZE",
                 "value": str(self.batch_engine_config.mini_batch_size),
             },
         ]
@@ -384,13 +351,13 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "drop": ["ALL"],
             }
 
-        job_labels = {"feast-bytewax-materializer": "job"}
-        pod_labels = {"feast-bytewax-materializer": "pod"}
+        job_labels = {"feast-materializer": "job"}
+        pod_labels = {"feast-materializer": "pod"}
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
-                "name": f"dataflow-{job_id}",
+                "name": f"feast-materialization-{job_id}",
                 "namespace": namespace,
                 "labels": {**job_labels, **self.batch_engine_config.labels},
             },
@@ -408,55 +375,16 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                     },
                     "spec": {
                         "restartPolicy": "Never",
-                        "subdomain": f"dataflow-{job_id}",
+                        "subdomain": f"feast-materialization-{job_id}",
                         "imagePullSecrets": self.batch_engine_config.image_pull_secrets,
                         "serviceAccountName": self.batch_engine_config.service_account_name,
-                        "initContainers": [
-                            {
-                                "env": [
-                                    {
-                                        "name": "BYTEWAX_REPLICAS",
-                                        "value": f"{pods}",
-                                    }
-                                ],
-                                "image": "busybox",
-                                "imagePullPolicy": "IfNotPresent",
-                                "name": "init-hostfile",
-                                "resources": {},
-                                "securityContext": {
-                                    "allowPrivilegeEscalation": False,
-                                    "capabilities": securityContextCapabilities,
-                                    "readOnlyRootFilesystem": True,
-                                },
-                                "terminationMessagePath": "/dev/termination-log",
-                                "terminationMessagePolicy": "File",
-                                "volumeMounts": [
-                                    {"mountPath": "/etc/bytewax", "name": "hostfile"},
-                                    {
-                                        "mountPath": "/tmp/bytewax/",
-                                        "name": "python-files",
-                                    },
-                                    {
-                                        "mountPath": "/var/feast/",
-                                        "name": self._configmap_name(job_id),
-                                    },
-                                ],
-                            }
-                        ],
                         "containers": [
                             {
-                                "command": ["sh", "-c", "sh ./entrypoint.sh"],
+                                "command": ["python", "main.py"],
                                 "env": job_env,
                                 "image": self.batch_engine_config.image,
                                 "imagePullPolicy": "Always",
-                                "name": "process",
-                                "ports": [
-                                    {
-                                        "containerPort": 9999,
-                                        "name": "process",
-                                        "protocol": "TCP",
-                                    }
-                                ],
+                                "name": "feast",
                                 "resources": self.batch_engine_config.resources,
                                 "securityContext": {
                                     "allowPrivilegeEscalation": False,
@@ -466,7 +394,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                                 "terminationMessagePath": "/dev/termination-log",
                                 "terminationMessagePolicy": "File",
                                 "volumeMounts": [
-                                    {"mountPath": "/etc/bytewax", "name": "hostfile"},
                                     {
                                         "mountPath": "/var/feast/",
                                         "name": self._configmap_name(job_id),
@@ -475,7 +402,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                             }
                         ],
                         "volumes": [
-                            {"emptyDir": {}, "name": "hostfile"},
                             {
                                 "configMap": {
                                     "defaultMode": 420,

@@ -29,11 +29,11 @@ FEAST_FS_YAML_FILE_PATH_ENV_NAME: str = "FEAST_FS_YAML_FILE_PATH"
 # Environment variable for registry
 REGISTRY_ENV_NAME: str = "REGISTRY_BASE64"
 
-# Environment variable for toggling usage
+# Environment variable for toggling the Usage feature
 FEAST_USAGE = "FEAST_USAGE"
 
-# Default value for FEAST_USAGE when environment variable is not set
-DEFAULT_FEAST_USAGE_VALUE = "True"
+# Environment variable for FEAST_USAGE_ENDPOINT
+FEAST_USAGE_ENDPOINT = "FEAST_USAGE_ENDPOINT"
 
 # Environment variable for the path for overwriting universal test configs
 FULL_REPO_CONFIGS_MODULE_ENV_NAME: str = "FULL_REPO_CONFIGS_MODULE"

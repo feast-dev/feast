@@ -8,11 +8,11 @@ from feast.infra.materialization.batch_materialization_engine import (
 )
 
 
-class BytewaxMaterializationJob(MaterializationJob):
+class KubernetesMaterializationJob(MaterializationJob):
     def __init__(
         self,
-        job_id,
-        namespace,
+        job_id: str,
+        namespace: str,
         error: Optional[BaseException] = None,
     ):
         super().__init__()
@@ -28,7 +28,6 @@ class BytewaxMaterializationJob(MaterializationJob):
         if self._error is not None:
             return MaterializationJobStatus.ERROR
         else:
-            # TODO: Find a better way to parse status?
             job_status = self.batch_v1.read_namespaced_job_status(
                 self.job_id(), self.namespace
             ).status
@@ -57,7 +56,7 @@ class BytewaxMaterializationJob(MaterializationJob):
         return False
 
     def job_id(self):
-        return f"dataflow-{self._job_id}"
+        return f"feast-materialization-{self._job_id}"
 
     def url(self):
         return None

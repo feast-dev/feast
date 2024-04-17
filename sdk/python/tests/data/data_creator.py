@@ -78,3 +78,22 @@ def get_feature_values_for_dtype(
         return [[n, n] if n is not None else None for n in non_list_val]
     else:
         return non_list_val
+
+
+def create_document_dataset() -> pd.DataFrame:
+    data = {
+        "item_id": [1, 2, 3],
+        "embedding_float": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
+        "embedding_double": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
+        "ts": [
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+        ],
+        "created_ts": [
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(datetime.utcnow()).round("ms"),
+        ],
+    }
+    return pd.DataFrame(data)

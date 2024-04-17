@@ -7,6 +7,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLSource,
@@ -57,6 +58,9 @@ def postgres_container():
 
 
 class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
+    def create_logged_features_destination(self) -> LoggingDestination:
+        return None  # type: ignore
+
     def __init__(
         self, project_name: str, fixture_request: pytest.FixtureRequest, **kwargs
     ):
