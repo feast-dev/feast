@@ -1,9 +1,5 @@
-try:
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as _version
-except ModuleNotFoundError:
-    from importlib_metadata import PackageNotFoundError  # type: ignore
-    from importlib_metadata import version as _version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (

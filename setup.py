@@ -68,8 +68,6 @@ REQUIRED = [
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2021.1.0",
     "bowler",  # Needed for automatic repo upgrades
-    "importlib-resources>=6.0.0,<7",
-    "importlib_metadata>=6.8.0,<7",
 ]
 
 GCP_REQUIRED = [
