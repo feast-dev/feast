@@ -1,5 +1,18 @@
 # Changelog
 
+# [0.37.0](https://github.com/feast-dev/feast/compare/v0.36.0...v0.37.0) (2024-04-17)
+
+
+### Bug Fixes
+
+* Pgvector patch ([#4103](https://github.com/feast-dev/feast/issues/4103)) ([5c4a9c5](https://github.com/feast-dev/feast/commit/5c4a9c57fa42ee5688fb6b428cedb416a7dbf185))
+* Remove top-level grpc import in cli ([#4107](https://github.com/feast-dev/feast/issues/4107)) ([4362b6c](https://github.com/feast-dev/feast/commit/4362b6cc857ceafe60d58a14f2dfe006a83effb8))
+
+
+### Features
+
+* Add tags to dynamodb config ([#4100](https://github.com/feast-dev/feast/issues/4100)) ([b08b8d5](https://github.com/feast-dev/feast/commit/b08b8d5ce226cceae5e874a287db300f6fb9d41b))
+
 # [0.36.0](https://github.com/feast-dev/feast/compare/v0.35.0...v0.36.0) (2024-04-16)
 
 
