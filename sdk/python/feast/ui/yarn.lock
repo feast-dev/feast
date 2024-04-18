@@ -1530,10 +1530,10 @@
   resolved "https://registry.affirm-stage.com/artifactory/api/npm/npm/@eslint/js/-/js-8.44.0.tgz#961a5903c74139390478bdc808bcde3fc45ab7af"
   integrity sha1-lhpZA8dBOTkEeL3ICLzeP8Rat68=
 
-"@feast-dev/feast-ui@0.35.0":
-  version "0.35.0"
-  resolved "https://registry.affirm-stage.com/artifactory/api/npm/npm/@feast-dev/feast-ui/-/feast-ui-0.35.0.tgz#f28eb82ae4855673230f14e3740a7786f545fdd7"
-  integrity sha1-8o64KuSFVnMjDxTjdAp3hvVF/dc=
+"@feast-dev/feast-ui@0.37.1":
+  version "0.37.1"
+  resolved "https://registry.affirm-stage.com/artifactory/api/npm/npm/@feast-dev/feast-ui/-/feast-ui-0.37.1.tgz#b84618d1fd2e1dbc463ab2889964006b555d9ec4"
+  integrity sha1-uEYY0f0uHbxGOrKImWQAa1VdnsQ=
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^55.0.1"
