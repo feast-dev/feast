@@ -57,6 +57,12 @@ install-python:
 lock-python-dependencies:
 	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
+lock-python-dependencies-all:
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.9-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.10-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
