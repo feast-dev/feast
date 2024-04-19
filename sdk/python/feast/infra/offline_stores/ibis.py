@@ -193,9 +193,15 @@ class IbisOfflineStore(OfflineStore):
             event_timestamp_col=event_timestamp_col,
         )
 
+        odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
+
+        substrait_odfvs = [fv for fv in odfvs if fv.mode == "substrait"]
+        for odfv in substrait_odfvs:
+            res = odfv.transform_ibis(res, full_feature_names)
+
         return IbisRetrievalJob(
             res,
-            OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry),
+            [fv for fv in odfvs if fv.mode != "substrait"],
             full_feature_names,
             metadata=RetrievalMetadata(
                 features=feature_refs,

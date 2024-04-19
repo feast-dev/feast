@@ -392,6 +392,53 @@ class OnDemandFeatureView(BaseFeatureView):
     def _get_projected_feature_name(self, feature: str) -> str:
         return f"{self.projection.name_to_use()}__{feature}"
 
+    def transform_ibis(
+        self,
+        ibis_table,
+        full_feature_names: bool = False,
+    ):
+        from ibis.expr.types import Table
+
+        if not isinstance(ibis_table, Table):
+            raise TypeError("transform_ibis only accepts ibis.expr.types.Table")
+
+        assert type(self.feature_transformation) == SubstraitTransformation
+
+        columns_to_cleanup = []
+        for source_fv_projection in self.source_feature_view_projections.values():
+            for feature in source_fv_projection.features:
+                full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
+                if full_feature_ref in ibis_table.columns:
+                    # Make sure the partial feature name is always present
+                    ibis_table = ibis_table.mutate(
+                        **{feature.name: ibis_table[full_feature_ref]}
+                    )
+                    columns_to_cleanup.append(feature.name)
+                elif feature.name in ibis_table.columns:
+                    ibis_table = ibis_table.mutate(
+                        **{full_feature_ref: ibis_table[feature.name]}
+                    )
+                    columns_to_cleanup.append(full_feature_ref)
+
+        transformed_table = self.feature_transformation.transform_ibis(ibis_table)
+
+        transformed_table = transformed_table.drop(*columns_to_cleanup)
+
+        rename_columns: Dict[str, str] = {}
+        for feature in self.features:
+            short_name = feature.name
+            long_name = self._get_projected_feature_name(feature.name)
+            if short_name in transformed_table.columns and full_feature_names:
+                rename_columns[short_name] = long_name
+            elif not full_feature_names:
+                rename_columns[long_name] = short_name
+
+        for rename_from, rename_to in rename_columns.items():
+            if rename_from in transformed_table.columns:
+                transformed_table = transformed_table.rename(**{rename_to: rename_from})
+
+        return transformed_table
+
     def transform_arrow(
         self,
         pa_table: pyarrow.Table,
@@ -419,7 +466,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     columns_to_cleanup.append(full_feature_ref)
 
         df_with_transformed_features: pyarrow.Table = (
-            self.feature_transformation.transform_arrow(pa_table)
+            self.feature_transformation.transform_arrow(pa_table, self.features)
         )
 
         # Work out whether the correct columns names are used.
@@ -438,7 +485,7 @@ class OnDemandFeatureView(BaseFeatureView):
         # Cleanup extra columns used for transformation
         for col in columns_to_cleanup:
             if col in df_with_transformed_features.column_names:
-                df_with_transformed_features = df_with_transformed_features.dtop(col)
+                df_with_transformed_features = df_with_transformed_features.drop(col)
         return df_with_transformed_features.rename_columns(
             [
                 rename_columns.get(c, c)
@@ -487,7 +534,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 rename_columns[long_name] = short_name
 
         # Cleanup extra columns used for transformation
-        df_with_features.drop(columns=columns_to_cleanup, inplace=True)
+        df_with_transformed_features = df_with_transformed_features[
+            [f.name for f in self.features]
+        ]
         return df_with_transformed_features.rename(columns=rename_columns)
 
     def get_transformed_features_dict(
