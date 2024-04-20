@@ -32,6 +32,7 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
     DuckDBDataSourceCreator,
+    DuckDBDeltaDataSourceCreator,
     FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
@@ -118,6 +119,7 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]]
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
     ("local", DuckDBDataSourceCreator),
+    ("local", DuckDBDeltaDataSourceCreator),
 ]
 
 AVAILABLE_ONLINE_STORES: Dict[
