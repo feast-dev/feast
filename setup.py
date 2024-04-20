@@ -50,7 +50,6 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    # Higher than 4.23.4 seems to cause a seg fault
     "protobuf>=4.24.0,<5.0.0",
     "pyarrow>=4",
     "pydantic>=2.0.0",
@@ -150,6 +149,8 @@ GRPCIO_REQUIRED = [
 
 DUCKDB_REQUIRED = ["ibis-framework[duckdb]"]
 
+DELTA_REQUIRED = ["deltalake"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -210,6 +211,7 @@ CI_REQUIRED = (
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
     + DUCKDB_REQUIRED
+    + DELTA_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -374,7 +376,8 @@ setup(
         "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED,
-        "ikv": IKV_REQUIRED
+        "ikv": IKV_REQUIRED,
+        "delta": DELTA_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

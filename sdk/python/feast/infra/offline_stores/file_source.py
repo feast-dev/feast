@@ -8,7 +8,7 @@ from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
 from feast import type_map
-from feast.data_format import FileFormat, ParquetFormat
+from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -157,24 +157,31 @@ class FileSource(DataSource):
         filesystem, path = FileSource.create_filesystem_and_path(
             self.path, self.file_options.s3_endpoint_override
         )
-        # Adding support for different file format path
-        # based on S3 filesystem
-        if filesystem is None:
-            kwargs = (
-                {"use_legacy_dataset": False}
-                if version.parse(pyarrow.__version__) < version.parse("15.0.0")
-                else {}
-            )
 
-            schema = ParquetDataset(path, **kwargs).schema
-            if hasattr(schema, "names") and hasattr(schema, "types"):
-                # Newer versions of pyarrow doesn't have this method,
-                # but this field is good enough.
-                pass
+        # TODO why None check necessary
+        if self.file_format is None or isinstance(self.file_format, ParquetFormat):
+            if filesystem is None:
+                kwargs = (
+                    {"use_legacy_dataset": False}
+                    if version.parse(pyarrow.__version__) < version.parse("15.0.0")
+                    else {}
+                )
+
+                schema = ParquetDataset(path, **kwargs).schema
+                if hasattr(schema, "names") and hasattr(schema, "types"):
+                    # Newer versions of pyarrow doesn't have this method,
+                    # but this field is good enough.
+                    pass
+                else:
+                    schema = schema.to_arrow_schema()
             else:
-                schema = schema.to_arrow_schema()
+                schema = ParquetDataset(path, filesystem=filesystem).schema
+        elif isinstance(self.file_format, DeltaFormat):
+            from deltalake import DeltaTable
+
+            schema = DeltaTable(self.path).schema().to_pyarrow()
         else:
-            schema = ParquetDataset(path, filesystem=filesystem).schema
+            raise Exception(f"Unknown FileFormat -> {self.file_format}")
 
         return zip(schema.names, map(str, schema.types))
 

@@ -12,7 +12,7 @@ from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
@@ -30,11 +30,13 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 class FileDataSourceCreator(DataSourceCreator):
     files: List[Any]
     dirs: List[Any]
+    keep: List[Any]
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.files = []
         self.dirs = []
+        self.keep = []
 
     def create_data_source(
         self,
@@ -87,6 +89,51 @@ class FileDataSourceCreator(DataSourceCreator):
             if not os.path.exists(d):
                 continue
             shutil.rmtree(d)
+
+        print(self.keep)
+
+
+class DeltaFileSourceCreator(FileDataSourceCreator):
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        created_timestamp_column="created_ts",
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
+    ) -> DataSource:
+        from deltalake.writer import write_deltalake
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        delta_path = tempfile.TemporaryDirectory(
+            prefix=f"{self.project_name}_{destination_name}"
+        )
+
+        self.keep.append(delta_path)
+
+        write_deltalake(delta_path.name, df)
+
+        return FileSource(
+            file_format=DeltaFormat(),
+            path=delta_path.name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return SavedDatasetFileStorage(
+            path=d, file_format=DeltaFormat(), s3_endpoint_override=None
+        )
+
+    # LoggingDestination is parquet-only
+    def create_logged_features_destination(self) -> LoggingDestination:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return FileLoggingDestination(path=d)
 
 
 class FileParquetDatasetSourceCreator(FileDataSourceCreator):
@@ -219,6 +266,12 @@ class S3FileDataSourceCreator(DataSourceCreator):
 
 # TODO split up DataSourceCreator and OfflineStoreCreator
 class DuckDBDataSourceCreator(FileDataSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config
+
+
+class DuckDBDeltaDataSourceCreator(DeltaFileSourceCreator):
     def create_offline_store_config(self):
         self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
         return self.duckdb_offline_store_config
