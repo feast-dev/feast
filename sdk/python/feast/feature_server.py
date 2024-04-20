@@ -100,7 +100,7 @@ def get_app(
             ).proto
 
             # Convert the Protobuf object to JSON and return it
-            return MessageToDict(  # type: ignore
+            return MessageToDict(
                 response_proto, preserving_proto_field_name=True, float_precision=18
             )
         except Exception as e:
