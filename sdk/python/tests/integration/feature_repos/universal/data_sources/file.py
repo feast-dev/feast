@@ -90,8 +90,6 @@ class FileDataSourceCreator(DataSourceCreator):
                 continue
             shutil.rmtree(d)
 
-        print(self.keep)
-
 
 class DeltaFileSourceCreator(FileDataSourceCreator):
     def create_data_source(
