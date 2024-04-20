@@ -25,7 +25,9 @@ class PythonTransformation:
         self.udf = udf
         self.udf_string = udf_string
 
-    def transform_arrow(self, pa_table: pyarrow.Table) -> pyarrow.Table:
+    def transform_arrow(
+        self, pa_table: pyarrow.Table, features: List[Field]
+    ) -> pyarrow.Table:
         raise Exception(
             'OnDemandFeatureView mode "python" not supported for offline processing.'
         )

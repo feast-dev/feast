@@ -27,7 +27,9 @@ class PandasTransformation:
         self.udf = udf
         self.udf_string = udf_string
 
-    def transform_arrow(self, pa_table: pyarrow.Table) -> pyarrow.Table:
+    def transform_arrow(
+        self, pa_table: pyarrow.Table, features: List[Field]
+    ) -> pyarrow.Table:
         if not isinstance(pa_table, pyarrow.Table):
             raise TypeError(
                 f"pa_table should be type pyarrow.Table but got {type(pa_table).__name__}"

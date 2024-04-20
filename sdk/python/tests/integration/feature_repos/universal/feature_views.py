@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from ibis.expr.types.relations import Table
 
 from feast import (
     BatchFeatureView,
@@ -15,7 +16,7 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.feature_view_projection import FeatureViewProjection
-from feast.on_demand_feature_view import PandasTransformation
+from feast.on_demand_feature_view import PandasTransformation, SubstraitTransformation
 from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import (
     customer,
@@ -56,10 +57,22 @@ def conv_rate_plus_100(features_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def conv_rate_plus_100_ibis(features_table: Table) -> Table:
+    return features_table.mutate(
+        conv_rate_plus_100=features_table["conv_rate"] + 100,
+        conv_rate_plus_val_to_add=features_table["conv_rate"]
+        + features_table["val_to_add"],
+        conv_rate_plus_100_rounded=(features_table["conv_rate"] + 100)
+        .round(digits=0)
+        .cast("int32"),
+    )
+
+
 def conv_rate_plus_100_feature_view(
     sources: List[Union[FeatureView, RequestSource, FeatureViewProjection]],
     infer_features: bool = False,
     features: Optional[List[Field]] = None,
+    use_substrait_odfv: bool = False,
 ) -> OnDemandFeatureView:
     # Test that positional arguments and Features still work for ODFVs.
     _features = features or [
@@ -73,7 +86,10 @@ def conv_rate_plus_100_feature_view(
         sources=sources,
         feature_transformation=PandasTransformation(
             udf=conv_rate_plus_100, udf_string="raw udf source"
-        ),
+        )
+        if not use_substrait_odfv
+        else SubstraitTransformation.from_ibis(conv_rate_plus_100_ibis, sources),
+        mode="pandas" if not use_substrait_odfv else "substrait",
     )
 
 

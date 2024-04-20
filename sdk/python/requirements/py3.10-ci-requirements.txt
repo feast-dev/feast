@@ -326,12 +326,8 @@ idna==3.7
     #   snowflake-connector-python
 imagesize==1.4.1
     # via sphinx
-importlib-metadata==6.11.0
-    # via
-    #   dask
-    #   feast (setup.py)
-importlib-resources==6.4.0
-    # via feast (setup.py)
+importlib-metadata==7.1.0
+    # via dask
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.4

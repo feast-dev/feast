@@ -1,5 +1,7 @@
+from types import FunctionType
 from typing import Any, Dict, List
 
+import dill
 import pandas as pd
 import pyarrow
 import pyarrow.substrait as substrait  # type: ignore # noqa
@@ -16,14 +18,16 @@ from feast.type_map import (
 
 
 class SubstraitTransformation:
-    def __init__(self, substrait_plan: bytes):
+    def __init__(self, substrait_plan: bytes, ibis_function: FunctionType):
         """
         Creates an SubstraitTransformation object.
 
         Args:
             substrait_plan: The user-provided substrait plan.
+            ibis_function: The user-provided ibis function.
         """
         self.substrait_plan = substrait_plan
+        self.ibis_function = ibis_function
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         def table_provider(names, schema: pyarrow.Schema):
@@ -34,13 +38,22 @@ class SubstraitTransformation:
         ).read_all()
         return table.to_pandas()
 
-    def transform_arrow(self, pa_table: pyarrow.Table) -> pyarrow.Table:
+    def transform_ibis(self, table):
+        return self.ibis_function(table)
+
+    def transform_arrow(
+        self, pa_table: pyarrow.Table, features: List[Field] = []
+    ) -> pyarrow.Table:
         def table_provider(names, schema: pyarrow.Schema):
             return pa_table.select(schema.names)
 
         table: pyarrow.Table = pyarrow.substrait.run_query(
             self.substrait_plan, table_provider=table_provider
         ).read_all()
+
+        if features:
+            table = table.select([f.name for f in features])
+
         return table
 
     def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
@@ -55,6 +68,7 @@ class SubstraitTransformation:
                 ),
             )
             for f, dt in zip(output_df.columns, output_df.dtypes)
+            if f not in random_input
         ]
 
     def __eq__(self, other):
@@ -66,10 +80,17 @@ class SubstraitTransformation:
         if not super().__eq__(other):
             return False
 
-        return self.substrait_plan == other.substrait_plan
+        return (
+            self.substrait_plan == other.substrait_plan
+            and self.ibis_function.__code__.co_code
+            == other.ibis_function.__code__.co_code
+        )
 
     def to_proto(self) -> SubstraitTransformationProto:
-        return SubstraitTransformationProto(substrait_plan=self.substrait_plan)
+        return SubstraitTransformationProto(
+            substrait_plan=self.substrait_plan,
+            ibis_function=dill.dumps(self.ibis_function, recurse=True),
+        )
 
     @classmethod
     def from_proto(
@@ -77,7 +98,8 @@ class SubstraitTransformation:
         substrait_transformation_proto: SubstraitTransformationProto,
     ):
         return SubstraitTransformation(
-            substrait_plan=substrait_transformation_proto.substrait_plan
+            substrait_plan=substrait_transformation_proto.substrait_plan,
+            ibis_function=dill.loads(substrait_transformation_proto.ibis_function),
         )
 
     @classmethod
@@ -91,7 +113,7 @@ class SubstraitTransformation:
         input_fields = []
 
         for s in sources:
-            fields = s.projection.features if isinstance(s, FeatureView) else s.features
+            fields = s.projection.features if isinstance(s, FeatureView) else s.schema
 
             input_fields.extend(
                 [
@@ -108,5 +130,6 @@ class SubstraitTransformation:
         expr = user_function(ibis.table(input_fields, "t"))
 
         return SubstraitTransformation(
-            substrait_plan=compiler.compile(expr).SerializeToString()
+            substrait_plan=compiler.compile(expr).SerializeToString(),
+            ibis_function=user_function,
         )

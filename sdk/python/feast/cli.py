@@ -14,6 +14,7 @@
 import json
 import logging
 from datetime import datetime
+from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,7 +22,6 @@ import click
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
-from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
