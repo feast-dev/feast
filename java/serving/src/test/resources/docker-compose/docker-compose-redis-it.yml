@@ -12,6 +12,3 @@ services:
       - "8080"
     links:
       - redis
-    # volumes:
-    #   - $PWD/../../../../../../:/mnt/feast
-
