@@ -61,7 +61,7 @@ public class ServingRedisGSRegistryIT extends ServingBaseTests {
     return StorageOptions.newBuilder()
         .setProjectId(TEST_PROJECT)
         .setCredentials(ServiceAccountCredentials.create(credential))
-        .setHost("http://localhost:" + gcsMock.getMappedPort(GCS_PORT))
+        .setHost(String.format("http://%s:%d", gcsMock.getHost(), gcsMock.getMappedPort(GCS_PORT)))
         .build()
         .getService();
   }
@@ -89,7 +89,8 @@ public class ServingRedisGSRegistryIT extends ServingBaseTests {
         return StorageOptions.newBuilder()
             .setProjectId(TEST_PROJECT)
             .setCredentials(ServiceAccountCredentials.create(credential))
-            .setHost("http://localhost:" + gcsMock.getMappedPort(GCS_PORT))
+            .setHost(
+                String.format("http://%s:%d", gcsMock.getHost(), gcsMock.getMappedPort(GCS_PORT)))
             .build()
             .getService();
       }
