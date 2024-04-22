@@ -62,11 +62,8 @@ abstract class ServingEnvironment {
             .withExposedService("redis", 6379)
             .withExposedService(
                 "feast", 8080, Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(180)))
-            .withTailChildContainers(true);
-
-    if (System.getenv("FEAST_TESTCONTAINERS_LOCAL_COMPOSE") != null) {
-      environment = environment.withLocalCompose(true);
-    }
+            .withTailChildContainers(true)
+            .withLocalCompose(true);
 
     environment.start();
   }
