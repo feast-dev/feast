@@ -36,6 +36,7 @@ from feast.repo_config import RegistryConfig
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 from tests.integration.feature_repos.universal.entities import driver
+from testcontainers.mysql import MySqlContainer
 
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
@@ -81,19 +82,10 @@ def pg_registry():
 
 @pytest.fixture(scope="session")
 def mysql_registry():
-    container = (
-        DockerContainer("mysql:latest")
-        .with_exposed_ports(3306)
-        .with_env("MYSQL_RANDOM_ROOT_PASSWORD", "true")
-        .with_env("MYSQL_USER", POSTGRES_USER)
-        .with_env("MYSQL_PASSWORD", POSTGRES_PASSWORD)
-        .with_env("MYSQL_DATABASE", POSTGRES_DB)
-    )
-
+    container = MySqlContainer("mysql:latest")
     container.start()
 
-    # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '(\\d+(\\.\\d+){1,2})'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"  # noqa: W605
+    log_string_to_wait_for = "ready for connections. Version: '8.2.0'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL"  # noqa: W605
     waited = wait_for_logs(
         container=container,
         predicate=log_string_to_wait_for,
@@ -125,10 +117,6 @@ def sqlite_registry():
     yield SqlRegistry(registry_config, "project", None)
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -192,10 +180,6 @@ def assert_project_uuid(project, project_uuid, sql_registry):
     assert project_metadata[0].project_uuid == project_uuid
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -286,10 +270,6 @@ def test_apply_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -375,10 +355,6 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -505,10 +481,6 @@ def test_modify_feature_views_success(sql_registry):
     sql_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -575,10 +547,6 @@ def test_apply_data_source(sql_registry):
     sql_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -646,10 +614,6 @@ def test_registry_cache(sql_registry):
     sql_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
 @pytest.mark.parametrize(
     "sql_registry",
     [
