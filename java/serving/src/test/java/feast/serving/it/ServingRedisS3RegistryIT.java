@@ -42,7 +42,8 @@ public class ServingRedisS3RegistryIT extends ServingBaseTests {
     return AmazonS3ClientBuilder.standard()
         .withEndpointConfiguration(
             new AwsClientBuilder.EndpointConfiguration(
-                String.format("http://localhost:%d", s3Mock.getHttpServerPort()), TEST_REGION))
+                String.format("http://%s:%d", s3Mock.getHost(), s3Mock.getHttpServerPort()),
+                TEST_REGION))
         .withCredentials(credentials)
         .enablePathStyleAccess()
         .build();
@@ -89,7 +90,8 @@ public class ServingRedisS3RegistryIT extends ServingBaseTests {
         return AmazonS3ClientBuilder.standard()
             .withEndpointConfiguration(
                 new AwsClientBuilder.EndpointConfiguration(
-                    String.format("http://localhost:%d", s3Mock.getHttpServerPort()), TEST_REGION))
+                    String.format("http://%s:%d", s3Mock.getHost(), s3Mock.getHttpServerPort()),
+                    TEST_REGION))
             .withCredentials(credentials)
             .enablePathStyleAccess()
             .build();

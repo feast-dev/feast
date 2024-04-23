@@ -1,6 +1,0 @@
-# for source generation
-pyarrow==14.0.1
-
-# temp fixes
-proto-plus
-Jinja2>=2.0.0

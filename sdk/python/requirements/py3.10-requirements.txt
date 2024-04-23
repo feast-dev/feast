@@ -34,17 +34,17 @@ cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask[array,dataframe]==2024.4.1
+dask[array,dataframe]==2024.4.2
     # via
     #   dask-expr
     #   feast (setup.py)
-dask-expr==1.0.11
+dask-expr==1.0.12
     # via dask
 dill==0.3.8
     # via feast (setup.py)
-exceptiongroup==1.2.0
+exceptiongroup==1.2.1
     # via anyio
-fastapi==0.110.1
+fastapi==0.110.2
     # via feast (setup.py)
 fissix==21.11.13
     # via bowler
@@ -84,7 +84,7 @@ mypy-extensions==1.0.0
     # via mypy
 mypy-protobuf==3.6.0
     # via feast (setup.py)
-numpy==1.24.4
+numpy==1.26.4
     # via
     #   dask
     #   feast (setup.py)
@@ -164,7 +164,7 @@ tqdm==4.66.2
     # via feast (setup.py)
 typeguard==4.2.1
     # via feast (setup.py)
-types-protobuf==4.25.0.20240417
+types-protobuf==5.26.0.20240420
     # via mypy-protobuf
 typing-extensions==4.11.0
     # via

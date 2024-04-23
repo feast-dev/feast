@@ -8,9 +8,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ "3.9", "3.10" ]
-        os: [ ubuntu-latest, macOS-latest ]
+        os: [ ubuntu-latest, macos-12 ]
         exclude:
-          - os: macOS-latest
+          - os: macos-12
             python-version: "3.9"
     env:
       OS: ${{ matrix.os }}
