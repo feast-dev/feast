@@ -21,6 +21,7 @@ import pytest
 from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.mysql import MySqlContainer
 
 from feast import FileSource, RequestSource
 from feast.data_format import ParquetFormat
@@ -81,32 +82,17 @@ def pg_registry():
 
 @pytest.fixture(scope="session")
 def mysql_registry():
-    container = (
-        DockerContainer("mysql:latest")
-        .with_exposed_ports(3306)
-        .with_env("MYSQL_RANDOM_ROOT_PASSWORD", "true")
-        .with_env("MYSQL_USER", POSTGRES_USER)
-        .with_env("MYSQL_PASSWORD", POSTGRES_PASSWORD)
-        .with_env("MYSQL_DATABASE", POSTGRES_DB)
-    )
-
+    container = MySqlContainer("mysql:latest")
     container.start()
 
-    # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '(\\d+(\\.\\d+){1,2})'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"  # noqa: W605
-    waited = wait_for_logs(
-        container=container,
-        predicate=log_string_to_wait_for,
-        timeout=60,
-        interval=10,
-    )
-    logger.info("Waited for %s seconds until mysql container was up", waited)
-    container_port = container.get_exposed_port(3306)
-    container_host = container.get_container_host_ip()
+    # testing for the database to exist and ready to connect and start testing.
+    import sqlalchemy
+    engine = sqlalchemy.create_engine(container.get_connection_url(), pool_pre_ping=True)
+    engine.connect()
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"mysql+pymysql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
+        path=container.get_connection_url(),
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
