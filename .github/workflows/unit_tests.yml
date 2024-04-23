@@ -8,9 +8,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ "3.9", "3.10" ]
-        os: [ ubuntu-latest, macOS-latest ]
+        os: [ ubuntu-latest, macos-12 ]
         exclude:
-          - os: macOS-latest
+          - os: macos-12
             python-version: "3.9"
     env:
       OS: ${{ matrix.os }}
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
