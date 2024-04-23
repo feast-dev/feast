@@ -433,11 +433,6 @@ build-feast-operator-docker:
 
 # Dev images
 
-build-feature-server-dev:
-	docker buildx build --build-arg VERSION=dev \
-		-t feastdev/feature-server:dev \
-		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
-
 build-java-docker-dev:
 	make build-java-no-tests REVISION=dev
 	docker buildx build --build-arg VERSION=dev \
