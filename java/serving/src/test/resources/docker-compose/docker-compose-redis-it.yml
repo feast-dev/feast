@@ -10,5 +10,5 @@ services:
       dockerfile: java/serving/src/test/resources/docker-compose/feast10/Dockerfile
     ports:
       - "8080"
-    links:
+    depends_on:
       - redis
