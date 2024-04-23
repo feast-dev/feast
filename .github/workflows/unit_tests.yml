@@ -44,6 +44,10 @@ jobs:
         run: pip install pip-tools
       - name: Install dependencies
         run: make install-python-ci-dependencies
+      - name: Configure docker socket
+        run: |
+          export DOCKER_HOST="/var/run/docker.sock"
+          export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/var/run/docker.sock"
       - name: Test Python
         run: make test-python-unit
 
