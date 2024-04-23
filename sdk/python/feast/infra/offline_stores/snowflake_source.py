@@ -191,8 +191,10 @@ class SnowflakeSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL."""
-        if self.database and self.table:
+        if self.database and self.schema and self.table:
             return f'"{self.database}"."{self.schema}"."{self.table}"'
+        elif self.schema and self.table:
+            return f'"{self.schema}.{self.table}"'
         elif self.table:
             return f'"{self.table}"'
         else:
