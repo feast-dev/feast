@@ -21,7 +21,6 @@ import pytest
 from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
-
 from feast import FileSource, RequestSource
 from feast.data_format import ParquetFormat
 from feast.entity import Entity
@@ -84,14 +83,20 @@ def mysql_registry():
     container = MySqlContainer("mysql:latest")
     container.start()
 
-    log_string_to_wait_for = "ready for connections. Version: '8.2.0'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL"  # noqa: W605
-    waited = wait_for_logs(
-        container=container,
-        predicate=log_string_to_wait_for,
-        timeout=60,
-        interval=10,
-    )
-    logger.info("Waited for %s seconds until mysql container was up", waited)
+    # log_string_to_wait_for = "ready for connections. Version: '8.2.0'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL"  # noqa: W605
+    # waited = wait_for_logs(
+    #     container=container,
+    #     predicate=log_string_to_wait_for,
+    #     timeout=60,
+    #     interval=10,
+    # )
+
+    ## testing for the database to exist.
+    import sqlalchemy
+    engine = sqlalchemy.create_engine(container.get_connection_url(), pool_pre_ping=True )
+    engine.connect()
+
+    # logger.info("Waited for %s seconds until mysql container was up", waited)
     container_port = container.get_exposed_port(3306)
     container_host = container.get_container_host_ip()
 
