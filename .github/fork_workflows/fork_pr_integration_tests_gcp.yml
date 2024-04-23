@@ -82,7 +82,7 @@ jobs:
             sudo apt update
             sudo apt install -y -V libarrow-dev
       - name: Install apache-arrow on macos
-        if: matrix.os == 'macOS-latest'
+        if: matrix.os == 'macOS-12'
         run: |
             brew install apache-arrow
             brew install pkg-config
