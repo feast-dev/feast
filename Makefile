@@ -41,6 +41,11 @@ install-python-ci-dependencies:
 	pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+install-python-ci-dependencies-uv:
+	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip install --system --no-deps -e .
+	python setup.py build_python_protos --inplace
+
 lock-python-ci-dependencies:
 	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
