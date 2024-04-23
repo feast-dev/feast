@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.37.1](https://github.com/feast-dev/feast/compare/v0.37.0...v0.37.1) (2024-04-17)
+
+
+### Bug Fixes
+
+* Pgvector patch ([#4108](https://github.com/feast-dev/feast/issues/4108)) ([1a1f0b1](https://github.com/feast-dev/feast/commit/1a1f0b1c56aa2ac00b1e1aa1e21cc200ea659334))
+
+
+### Reverts
+
+* Reverts "fix: Using version args to install the correct feast version" ([#4112](https://github.com/feast-dev/feast/issues/4112)) ([d5ded69](https://github.com/feast-dev/feast/commit/d5ded69dea9af3a363feaa948cd3d2dcf10fb80c)), closes [#3953](https://github.com/feast-dev/feast/issues/3953)
+
 # [0.37.0](https://github.com/feast-dev/feast/compare/v0.36.0...v0.37.0) (2024-04-17)
 
 
