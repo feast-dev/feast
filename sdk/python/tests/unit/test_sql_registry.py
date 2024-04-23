@@ -42,7 +42,6 @@ POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
 POSTGRES_DB = "test"
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -117,6 +116,10 @@ def sqlite_registry():
     yield SqlRegistry(registry_config, "project", None)
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+)
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -147,19 +150,19 @@ def test_apply_entity_success(sql_registry):
 
     entity = entities[0]
     assert (
-        len(entities) == 1
-        and entity.name == "driver_car_id"
-        and entity.description == "Car driver id"
-        and "team" in entity.tags
-        and entity.tags["team"] == "matchmaking"
+            len(entities) == 1
+            and entity.name == "driver_car_id"
+            and entity.description == "Car driver id"
+            and "team" in entity.tags
+            and entity.tags["team"] == "matchmaking"
     )
 
     entity = sql_registry.get_entity("driver_car_id", project)
     assert (
-        entity.name == "driver_car_id"
-        and entity.description == "Car driver id"
-        and "team" in entity.tags
-        and entity.tags["team"] == "matchmaking"
+            entity.name == "driver_car_id"
+            and entity.description == "Car driver id"
+            and "team" in entity.tags
+            and entity.tags["team"] == "matchmaking"
     )
 
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
@@ -180,6 +183,10 @@ def assert_project_uuid(project, project_uuid, sql_registry):
     assert project_metadata[0].project_uuid == project_uuid
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -223,31 +230,31 @@ def test_apply_feature_view_success(sql_registry):
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "my_feature_view_1"
-        and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == Int64
-        and feature_views[0].features[1].name == "fs1_my_feature_2"
-        and feature_views[0].features[1].dtype == String
-        and feature_views[0].features[2].name == "fs1_my_feature_3"
-        and feature_views[0].features[2].dtype == Array(String)
-        and feature_views[0].features[3].name == "fs1_my_feature_4"
-        and feature_views[0].features[3].dtype == Array(Bytes)
-        and feature_views[0].entities[0] == "fs1_my_entity_1"
+            len(feature_views) == 1
+            and feature_views[0].name == "my_feature_view_1"
+            and feature_views[0].features[0].name == "fs1_my_feature_1"
+            and feature_views[0].features[0].dtype == Int64
+            and feature_views[0].features[1].name == "fs1_my_feature_2"
+            and feature_views[0].features[1].dtype == String
+            and feature_views[0].features[2].name == "fs1_my_feature_3"
+            and feature_views[0].features[2].dtype == Array(String)
+            and feature_views[0].features[3].name == "fs1_my_feature_4"
+            and feature_views[0].features[3].dtype == Array(Bytes)
+            and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
     feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
     assert (
-        feature_view.name == "my_feature_view_1"
-        and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == Int64
-        and feature_view.features[1].name == "fs1_my_feature_2"
-        and feature_view.features[1].dtype == String
-        and feature_view.features[2].name == "fs1_my_feature_3"
-        and feature_view.features[2].dtype == Array(String)
-        and feature_view.features[3].name == "fs1_my_feature_4"
-        and feature_view.features[3].dtype == Array(Bytes)
-        and feature_view.entities[0] == "fs1_my_entity_1"
+            feature_view.name == "my_feature_view_1"
+            and feature_view.features[0].name == "fs1_my_feature_1"
+            and feature_view.features[0].dtype == Int64
+            and feature_view.features[1].name == "fs1_my_feature_2"
+            and feature_view.features[1].dtype == String
+            and feature_view.features[2].name == "fs1_my_feature_3"
+            and feature_view.features[2].dtype == Array(String)
+            and feature_view.features[3].name == "fs1_my_feature_4"
+            and feature_view.features[3].dtype == Array(Bytes)
+            and feature_view.entities[0] == "fs1_my_entity_1"
     )
     assert feature_view.ttl == timedelta(minutes=5)
 
@@ -270,6 +277,10 @@ def test_apply_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -333,19 +344,19 @@ def test_apply_on_demand_feature_view_success(sql_registry):
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "location_features_from_push"
-        and feature_views[0].features[0].name == "first_char"
-        and feature_views[0].features[0].dtype == String
+            len(feature_views) == 1
+            and feature_views[0].name == "location_features_from_push"
+            and feature_views[0].features[0].name == "first_char"
+            and feature_views[0].features[0].dtype == String
     )
 
     feature_view = sql_registry.get_on_demand_feature_view(
         "location_features_from_push", project
     )
     assert (
-        feature_view.name == "location_features_from_push"
-        and feature_view.features[0].name == "first_char"
-        and feature_view.features[0].dtype == String
+            feature_view.name == "location_features_from_push"
+            and feature_view.features[0].name == "first_char"
+            and feature_view.features[0].dtype == String
     )
 
     sql_registry.delete_feature_view("location_features_from_push", project)
@@ -355,6 +366,10 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -431,31 +446,31 @@ def test_modify_feature_views_success(sql_registry):
     on_demand_feature_views = sql_registry.list_on_demand_feature_views(project)
 
     assert (
-        len(on_demand_feature_views) == 1
-        and on_demand_feature_views[0].name == "odfv1"
-        and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
-        and on_demand_feature_views[0].features[0].dtype == Float32
-        and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
-        and on_demand_feature_views[0].features[1].dtype == Int32
+            len(on_demand_feature_views) == 1
+            and on_demand_feature_views[0].name == "odfv1"
+            and on_demand_feature_views[0].features[0].name == "odfv1_my_feature_1"
+            and on_demand_feature_views[0].features[0].dtype == Float32
+            and on_demand_feature_views[0].features[1].name == "odfv1_my_feature_2"
+            and on_demand_feature_views[0].features[1].dtype == Int32
     )
     request_schema = on_demand_feature_views[0].get_request_data_schema()
     assert (
-        list(request_schema.keys())[0] == "my_input_1"
-        and list(request_schema.values())[0] == ValueType.INT32
+            list(request_schema.keys())[0] == "my_input_1"
+            and list(request_schema.values())[0] == ValueType.INT32
     )
 
     feature_view = sql_registry.get_on_demand_feature_view("odfv1", project)
     assert (
-        feature_view.name == "odfv1"
-        and feature_view.features[0].name == "odfv1_my_feature_1"
-        and feature_view.features[0].dtype == Float32
-        and feature_view.features[1].name == "odfv1_my_feature_2"
-        and feature_view.features[1].dtype == Int32
+            feature_view.name == "odfv1"
+            and feature_view.features[0].name == "odfv1_my_feature_1"
+            and feature_view.features[0].dtype == Float32
+            and feature_view.features[1].name == "odfv1_my_feature_2"
+            and feature_view.features[1].dtype == Int32
     )
     request_schema = feature_view.get_request_data_schema()
     assert (
-        list(request_schema.keys())[0] == "my_input_1"
-        and list(request_schema.values())[0] == ValueType.INT32
+            list(request_schema.keys())[0] == "my_input_1"
+            and list(request_schema.values())[0] == ValueType.INT32
     )
 
     # Make sure fv1 is untouched
@@ -463,24 +478,28 @@ def test_modify_feature_views_success(sql_registry):
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "my_feature_view_1"
-        and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == Int64
-        and feature_views[0].entities[0] == "fs1_my_entity_1"
+            len(feature_views) == 1
+            and feature_views[0].name == "my_feature_view_1"
+            and feature_views[0].features[0].name == "fs1_my_feature_1"
+            and feature_views[0].features[0].dtype == Int64
+            and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
     feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
     assert (
-        feature_view.name == "my_feature_view_1"
-        and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == Int64
-        and feature_view.entities[0] == "fs1_my_entity_1"
+            feature_view.name == "my_feature_view_1"
+            and feature_view.features[0].name == "fs1_my_feature_1"
+            and feature_view.features[0].dtype == Int64
+            and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -547,6 +566,10 @@ def test_apply_data_source(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -614,6 +637,10 @@ def test_registry_cache(sql_registry):
     sql_registry.teardown()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
+    reason="does not run on mac github actions",
+    )
 @pytest.mark.parametrize(
     "sql_registry",
     [
@@ -646,3 +673,4 @@ def test_update_infra(sql_registry):
 
     # Try again since second time, infra should be not-empty
     sql_registry.teardown()
+
