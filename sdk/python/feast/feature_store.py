@@ -2138,7 +2138,7 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_arrow: Optional[pa.Table] = None
         initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
@@ -2148,18 +2148,14 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[str, List[Any]] = (
-                    odfv.get_transformed_features(
-                        initial_response_dict,
-                        full_feature_names,
-                    )
+                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
+                    initial_response_dict
                 )
             elif odfv.mode in {"pandas", "substrait"}:
-                if initial_response_df is None:
-                    initial_response_df = initial_response.to_df()
-                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
-                    initial_response_df,
-                    full_feature_names,
+                if initial_response_arrow is None:
+                    initial_response_arrow = initial_response.to_arrow()
+                transformed_features_arrow = odfv.transform_arrow(
+                    initial_response_arrow, full_feature_names
                 )
             else:
                 raise Exception(
@@ -2169,11 +2165,11 @@ class FeatureStore:
             transformed_features = (
                 transformed_features_dict
                 if odfv.mode == "python"
-                else transformed_features_df
+                else transformed_features_arrow
             )
             transformed_columns = (
-                transformed_features.columns
-                if isinstance(transformed_features, pd.DataFrame)
+                transformed_features.column_names
+                if isinstance(transformed_features, pa.Table)
                 else transformed_features
             )
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
@@ -2183,6 +2179,10 @@ class FeatureStore:
                 feature_vector = transformed_features[selected_feature]
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                    if odfv.mode == "python"
+                    else python_values_to_proto_values(
+                        feature_vector.to_numpy(), ValueType.UNKNOWN
+                    )
                 )
 
             odfv_result_names |= set(selected_subset)
