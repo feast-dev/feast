@@ -18,6 +18,8 @@ anyio==4.3.0
     #   watchfiles
 appdirs==1.4.4
     # via fissix
+appnope==0.1.4
+    # via ipykernel
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
@@ -848,7 +850,7 @@ sphinxcontrib-qthelp==1.0.7
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.10
     # via sphinx
-sqlalchemy[mypy]==2.0.29
+sqlalchemy[mypy]==1.4.52
     # via
     #   duckdb-engine
     #   feast (setup.py)
@@ -857,6 +859,8 @@ sqlalchemy[mypy]==2.0.29
     #   sqlalchemy-views
 sqlalchemy-views==0.3.2
     # via ibis-framework
+sqlalchemy2-stubs==0.0.2a38
+    # via sqlalchemy
 sqlglot==20.11.0
     # via ibis-framework
 stack-data==0.6.3
@@ -974,7 +978,7 @@ typing-extensions==4.11.0
     #   pydantic
     #   pydantic-core
     #   snowflake-connector-python
-    #   sqlalchemy
+    #   sqlalchemy2-stubs
     #   starlette
     #   testcontainers
     #   typeguard
