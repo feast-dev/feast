@@ -64,9 +64,6 @@ class PythonTransformation:
                 "Comparisons should only involve PythonTransformation class objects."
             )
 
-        if not super().__eq__(other):
-            return False
-
         if (
             self.udf_string != other.udf_string
             or self.udf.__code__.co_code != other.udf.__code__.co_code
