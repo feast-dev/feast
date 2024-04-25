@@ -7,7 +7,7 @@ jobs:
     if: github.repository == 'your github repo' # swap here with your project id
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -83,7 +83,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
