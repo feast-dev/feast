@@ -4,23 +4,23 @@
 
 [IKV](https://github.com/inlinedio/ikv-store) is a fully-managed embedded key-value store, primarily designed for storing ML features. Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance). 
 
-For provisioning API keys for using it as an online-store in Feast, go to [https://inlined.io](https://inlined.io)
+For provisioning API keys for using it as an online-store in Feast, go to [https://inlined.io](https://inlined.io) or email onboarding[at]inlined.io
 
 ## Getting started
-
 Make sure you have Python and `pip` installed.
 
-Install the Feast SDK and CLI
+Install the Feast SDK and CLI: `pip install feast`
 
-`pip install feast`
+In order to use this online store, you'll need to install the IKV extra (along with the dependency needed for the offline store of choice). E.g.
+-  `pip install 'feast[gcp, ikv]'`
+-  `pip install 'feast[snowflake, ikv]'`
+-  `pip install 'feast[aws, ikv]'`
+-  `pip install 'feast[azure, ikv]'`
 
-In order to use IKV as the online store, you'll need to install the extra:
-
-`pip install 'feast[ikv]'`
+You can get started by using any of the other templates (e.g. `feast init -t gcp` or `feast init -t snowflake` or `feast init -t aws`), and then swapping in IKV as the online store as seen below in the examples.
 
 ### 1. Provision an IKV store
 Go to [https://inlined.io](https://inlined.io) or email onboarding[at]inlined.io
-IKV does not support docker deployment for local testing at the moment.
 
 ### 2. Create a feature repository
 
@@ -88,8 +88,8 @@ Below is a matrix indicating which functionality is supported by the IKV online 
 | support for concurrent writing to the same key            | yes   |
 | support for ttl (time to live) at retrieval               | no    |
 | support for deleting expired data                         | no    |
-| collocated by feature view                                | yes   |
-| collocated by feature service                             | ??    |
+| collocated by feature view                                | no    |
+| collocated by feature service                             | no    |
 | collocated by entity key                                  | yes   |
 
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
