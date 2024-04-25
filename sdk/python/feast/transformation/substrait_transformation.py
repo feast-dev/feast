@@ -77,9 +77,6 @@ class SubstraitTransformation:
                 "Comparisons should only involve SubstraitTransformation class objects."
             )
 
-        if not super().__eq__(other):
-            return False
-
         return (
             self.substrait_plan == other.substrait_plan
             and self.ibis_function.__code__.co_code
