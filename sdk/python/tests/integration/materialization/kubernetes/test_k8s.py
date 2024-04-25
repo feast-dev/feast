@@ -19,26 +19,24 @@ from tests.utils.e2e_test_validation import validate_offline_online_store_consis
 
 @pytest.mark.integration
 @pytest.mark.skip(reason="Run this test manually after creating an EKS cluster.")
-def test_bytewax_materialization():
-    bytewax_config = IntegrationTestRepoConfig(
+def test_kubernetes_materialization():
+    config = IntegrationTestRepoConfig(
         provider="aws",
         online_store={"type": "dynamodb", "region": "us-west-2"},
         offline_store_creator=RedshiftDataSourceCreator,
-        batch_engine={
-            "type": "bytewax",
-        },
+        batch_engine={"type": "k8s"},
         registry_location=RegistryLocation.S3,
     )
-    bytewax_environment = construct_test_environment(bytewax_config, None)
+    env = construct_test_environment(config, None)
 
     df = create_basic_driver_dataset()
-    ds = bytewax_environment.data_source_creator.create_data_source(
+    ds = env.data_source_creator.create_data_source(
         df,
-        bytewax_environment.feature_store.project,
+        env.feature_store.project,
         field_mapping={"ts_1": "ts"},
     )
 
-    fs = bytewax_environment.feature_store
+    fs = env.feature_store
     driver = Entity(
         name="driver_id",
         join_key="driver_id",

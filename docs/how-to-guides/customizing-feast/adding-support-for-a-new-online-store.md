@@ -319,7 +319,7 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
 1.  In the Feast submodule, we can run all the unit tests and make sure they pass:
 
     ```
-    make test-python
+    make test-python-unit
     ```
 2. The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store.
    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different online store classes for testing.

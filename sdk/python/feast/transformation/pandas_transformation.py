@@ -1,10 +1,16 @@
 from types import FunctionType
+from typing import Any, Dict, List
 
 import dill
 import pandas as pd
+import pyarrow
 
+from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
+from feast.type_map import (
+    python_type_to_feast_value_type,
 )
 
 
@@ -21,6 +27,21 @@ class PandasTransformation:
         self.udf = udf
         self.udf_string = udf_string
 
+    def transform_arrow(
+        self, pa_table: pyarrow.Table, features: List[Field]
+    ) -> pyarrow.Table:
+        if not isinstance(pa_table, pyarrow.Table):
+            raise TypeError(
+                f"pa_table should be type pyarrow.Table but got {type(pa_table).__name__}"
+            )
+        output_df = self.udf.__call__(pa_table.to_pandas())
+        output_df = pyarrow.Table.from_pandas(output_df)
+        if not isinstance(output_df, pyarrow.Table):
+            raise TypeError(
+                f"output_df should be type pyarrow.Table but got {type(output_df).__name__}"
+            )
+        return output_df
+
     def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(input_df, pd.DataFrame):
             raise TypeError(
@@ -32,6 +53,21 @@ class PandasTransformation:
                 f"output_df should be type pd.DataFrame but got {type(output_df).__name__}"
             )
         return output_df
+
+    def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
+        df = pd.DataFrame.from_dict(random_input)
+
+        output_df: pd.DataFrame = self.transform(df)
+
+        return [
+            Field(
+                name=f,
+                dtype=from_value_type(
+                    python_type_to_feast_value_type(f, type_name=str(dt))
+                ),
+            )
+            for f, dt in zip(output_df.columns, output_df.dtypes)
+        ]
 
     def __eq__(self, other):
         if not isinstance(other, PandasTransformation):

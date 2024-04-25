@@ -29,4 +29,5 @@ message FeatureTransformationV2 {
 
 message SubstraitTransformationV2 {
   bytes substrait_plan = 1;
+  bytes ibis_function = 2;
 }

@@ -818,7 +818,8 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if (
+            if
+            (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -950,7 +951,9 @@ class FeatureStore:
                     validation_references.name, project=self.project, commit=False
                 )
 
-        tables_to_delete: List[FeatureView] = views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        tables_to_delete: List[FeatureView] = (
+            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+        )
         tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
 
         self._get_provider().update_infra(
@@ -1532,22 +1535,11 @@ class FeatureStore:
             native_entity_values=True,
         )
 
-    def _get_online_features(
-        self,
-        features: Union[List[str], FeatureService],
-        entity_values: Mapping[
-            str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
-        ],
-        full_feature_names: bool = False,
-        native_entity_values: bool = True,
+    def _get_online_request_context(
+        self, features: Union[List[str], FeatureService], full_feature_names: bool
     ):
-        # Extract Sequence from RepeatedValue Protobuf.
-        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
-            k: list(v) if isinstance(v, Sequence) else list(v.val)
-            for k, v in entity_values.items()
-        }
-
         _feature_refs = self._get_features(features, allow_cache=True)
+
         (
             requested_feature_views,
             requested_on_demand_feature_views,
@@ -1560,6 +1552,74 @@ class FeatureStore:
             entity_type_map,
             join_keys_set,
         ) = self._get_entity_maps(requested_feature_views)
+
+        _validate_feature_refs(_feature_refs, full_feature_names)
+        (
+            grouped_refs,
+            grouped_odfv_refs,
+        ) = _group_feature_refs(
+            _feature_refs,
+            requested_feature_views,
+            requested_on_demand_feature_views,
+        )
+        set_usage_attribute("odfv", bool(grouped_odfv_refs))
+
+        requested_result_row_names = {
+            feat_ref.replace(":", "__") for feat_ref in _feature_refs
+        }
+        if not full_feature_names:
+            requested_result_row_names = {
+                name.rpartition("__")[-1] for name in requested_result_row_names
+            }
+
+        feature_views = list(view for view, _ in grouped_refs)
+
+        needed_request_data = self.get_needed_request_data(grouped_odfv_refs)
+
+        entityless_case = DUMMY_ENTITY_NAME in [
+            entity_name
+            for feature_view in feature_views
+            for entity_name in feature_view.entities
+        ]
+
+        return (
+            _feature_refs,
+            requested_on_demand_feature_views,
+            entity_name_to_join_key_map,
+            entity_type_map,
+            join_keys_set,
+            grouped_refs,
+            requested_result_row_names,
+            needed_request_data,
+            entityless_case,
+        )
+
+    def _get_online_features(
+        self,
+        features: Union[List[str], FeatureService],
+        entity_values: Mapping[
+            str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
+        ],
+        full_feature_names: bool = False,
+        native_entity_values: bool = True,
+    ):
+        (
+            _feature_refs,
+            requested_on_demand_feature_views,
+            entity_name_to_join_key_map,
+            entity_type_map,
+            join_keys_set,
+            grouped_refs,
+            requested_result_row_names,
+            needed_request_data,
+            entityless_case,
+        ) = self._get_online_request_context(features, full_feature_names)
+
+        # Extract Sequence from RepeatedValue Protobuf.
+        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
+            k: list(v) if isinstance(v, Sequence) else list(v.val)
+            for k, v in entity_values.items()
+        }
 
         entity_proto_values: Dict[str, List[Value]]
         if native_entity_values:
@@ -1574,26 +1634,6 @@ class FeatureStore:
             entity_proto_values = entity_value_lists
 
         num_rows = _validate_entity_values(entity_proto_values)
-        _validate_feature_refs(_feature_refs, full_feature_names)
-        (grouped_refs, grouped_odfv_refs,) = _group_feature_refs(
-            _feature_refs,
-            requested_feature_views,
-            requested_on_demand_feature_views,
-        )
-        set_usage_attribute("odfv", bool(grouped_odfv_refs))
-
-        # All requested features should be present in the result.
-        requested_result_row_names = {
-            feat_ref.replace(":", "__") for feat_ref in _feature_refs
-        }
-        if not full_feature_names:
-            requested_result_row_names = {
-                name.rpartition("__")[-1] for name in requested_result_row_names
-            }
-
-        feature_views = list(view for view, _ in grouped_refs)
-
-        needed_request_data = self.get_needed_request_data(grouped_odfv_refs)
 
         join_key_values: Dict[str, List[Value]] = {}
         request_data_features: Dict[str, List[Value]] = {}
@@ -1634,11 +1674,6 @@ class FeatureStore:
 
         # Add the Entityless case after populating result rows to avoid having to remove
         # it later.
-        entityless_case = DUMMY_ENTITY_NAME in [
-            entity_name
-            for feature_view in feature_views
-            for entity_name in feature_view.entities
-        ]
         if entityless_case:
             join_key_values[DUMMY_ENTITY_ID] = python_values_to_proto_values(
                 [DUMMY_ENTITY_VAL] * num_rows, DUMMY_ENTITY.value_type
@@ -1671,7 +1706,7 @@ class FeatureStore:
                 table,
             )
 
-        if grouped_odfv_refs:
+        if requested_on_demand_feature_views:
             self._augment_response_with_on_demand_transforms(
                 online_features_response,
                 _feature_refs,
@@ -1681,6 +1716,74 @@ class FeatureStore:
 
         self._drop_unneeded_columns(
             online_features_response, requested_result_row_names
+        )
+        return OnlineResponse(online_features_response)
+
+    @log_exceptions_and_usage
+    def retrieve_online_documents(
+        self,
+        feature: str,
+        query: Union[str, List[float]],
+        top_k: int,
+    ) -> OnlineResponse:
+        """
+        Retrieves the top k closest document features. Note, embeddings are a subset of features.
+
+        Args:
+            feature: The list of document features that should be retrieved from the online document store. These features can be
+                specified either as a list of string document feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
+            query: The query to retrieve the closest document features for.
+            top_k: The number of closest document features to retrieve.
+        """
+        return self._retrieve_online_documents(
+            feature=feature,
+            query=query,
+            top_k=top_k,
+        )
+
+    def _retrieve_online_documents(
+        self,
+        feature: str,
+        query: Union[str, List[float]],
+        top_k: int,
+    ):
+        if isinstance(query, str):
+            raise ValueError(
+                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
+            )
+        (
+            requested_feature_views,
+            _,
+        ) = self._get_feature_views_to_use(
+            features=[feature], allow_cache=True, hide_dummy_entity=False
+        )
+        requested_feature = (
+            feature.split(":")[1] if isinstance(feature, str) else feature
+        )
+        provider = self._get_provider()
+        document_features = self._retrieve_from_online_store(
+            provider,
+            requested_feature_views[0],
+            requested_feature,
+            query,
+            top_k,
+        )
+
+        # TODO Refactor to better way of populating result
+        # TODO populate entity in the response after returning entity in document_features is supported
+        # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
+        # the feature value can be raw text before embedded
+        document_feature_vals = [feature[2] for feature in document_features]
+        document_feature_distance_vals = [feature[4] for feature in document_features]
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={requested_feature: document_feature_vals},
+        )
+        self._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={"distance": document_feature_distance_vals},
         )
         return OnlineResponse(online_features_response)
 
@@ -1728,9 +1831,9 @@ class FeatureStore:
                 )
                 entity_name_to_join_key_map[entity_name] = join_key
             for entity_column in feature_view.entity_columns:
-                entity_type_map[
-                    entity_column.name
-                ] = entity_column.dtype.to_value_type()
+                entity_type_map[entity_column.name] = (
+                    entity_column.dtype.to_value_type()
+                )
 
         return (
             entity_name_to_join_key_map,
@@ -1900,6 +2003,46 @@ class FeatureStore:
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
 
+    def _retrieve_from_online_store(
+        self,
+        provider: Provider,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value, Value]]:
+        """
+        Search and return document features from the online document store.
+        """
+        documents = provider.retrieve_online_documents(
+            config=self.config,
+            table=table,
+            requested_feature=requested_feature,
+            query=query,
+            top_k=top_k,
+        )
+
+        read_row_protos = []
+        row_ts_proto = Timestamp()
+
+        for row_ts, feature_val, vector_value, distance_val in documents:
+            # Reset timestamp to default or update if row_ts is not None
+            if row_ts is not None:
+                row_ts_proto.FromDatetime(row_ts)
+
+            if feature_val is None or vector_value is None or distance_val is None:
+                feature_val = Value()
+                vector_value = Value()
+                distance_val = Value()
+                status = FieldStatus.NOT_FOUND
+            else:
+                status = FieldStatus.PRESENT
+
+            read_row_protos.append(
+                (row_ts_proto, status, feature_val, vector_value, distance_val)
+            )
+        return read_row_protos
+
     @staticmethod
     def _populate_response_from_feature_data(
         feature_data: Iterable[
@@ -1995,7 +2138,7 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_arrow: Optional[pa.Table] = None
         initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
@@ -2005,18 +2148,14 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[
-                    str, List[Any]
-                ] = odfv.get_transformed_features(
-                    initial_response_dict,
-                    full_feature_names,
+                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
+                    initial_response_dict
                 )
             elif odfv.mode in {"pandas", "substrait"}:
-                if initial_response_df is None:
-                    initial_response_df = initial_response.to_df()
-                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
-                    initial_response_df,
-                    full_feature_names,
+                if initial_response_arrow is None:
+                    initial_response_arrow = initial_response.to_arrow()
+                transformed_features_arrow = odfv.transform_arrow(
+                    initial_response_arrow, full_feature_names
                 )
             else:
                 raise Exception(
@@ -2026,11 +2165,11 @@ class FeatureStore:
             transformed_features = (
                 transformed_features_dict
                 if odfv.mode == "python"
-                else transformed_features_df
+                else transformed_features_arrow
             )
             transformed_columns = (
-                transformed_features.columns
-                if isinstance(transformed_features, pd.DataFrame)
+                transformed_features.column_names
+                if isinstance(transformed_features, pa.Table)
                 else transformed_features
             )
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
@@ -2040,6 +2179,10 @@ class FeatureStore:
                 feature_vector = transformed_features[selected_feature]
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                    if odfv.mode == "python"
+                    else python_values_to_proto_values(
+                        feature_vector.to_numpy(), ValueType.UNKNOWN
+                    )
                 )
 
             odfv_result_names |= set(selected_subset)

@@ -72,3 +72,16 @@ def serialize_entity_key(
         output.append(val_bytes)
 
     return b"".join(output)
+
+
+def get_list_val_str(val):
+    accept_value_types = [
+        "float_list_val",
+        "double_list_val",
+        "int32_list_val",
+        "int64_list_val",
+    ]
+    for accept_type in accept_value_types:
+        if val.HasField(accept_type):
+            return str(getattr(val, accept_type).val)
+    return None

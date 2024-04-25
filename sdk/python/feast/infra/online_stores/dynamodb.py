@@ -65,6 +65,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     consistent_reads: StrictBool = False
     """Whether to read from Dynamodb by forcing consistent reads"""
 
+    tags: Union[Dict[str, str], None] = None
+    """AWS resource tags added to each table"""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -104,7 +107,18 @@ class DynamoDBOnlineStore(OnlineStore):
         dynamodb_resource = self._get_dynamodb_resource(
             online_config.region, online_config.endpoint_url
         )
-
+        # Add Tags attribute to creation request only if configured to prevent
+        # TagResource permission issues, even with an empty Tags array.
+        kwargs = (
+            {
+                "Tags": [
+                    {"Key": key, "Value": value}
+                    for key, value in online_config.tags.items()
+                ]
+            }
+            if online_config.tags
+            else {}
+        )
         for table_instance in tables_to_keep:
             try:
                 dynamodb_resource.create_table(
@@ -114,6 +128,7 @@ class DynamoDBOnlineStore(OnlineStore):
                         {"AttributeName": "entity_id", "AttributeType": "S"}
                     ],
                     BillingMode="PAY_PER_REQUEST",
+                    **kwargs,
                 )
             except ClientError as ce:
                 # If the table creation fails with ResourceInUseException,

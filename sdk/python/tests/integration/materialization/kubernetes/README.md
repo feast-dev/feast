@@ -1,6 +1,6 @@
-# Running Bytewax integration tests
+# Running kubernetes engine integration tests
 
-To run the Bytewax integration tests, you'll need to provision a cluster using [eksctl.](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html).
+To run the kubernetes engine integration tests, you'll need to provision a cluster using [eksctl.](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html).
 
 ## Creating an EKS cluster
 
@@ -15,7 +15,7 @@ To create the EKS cluster needed for testing, issue the following command:
 When the tests are complete, delete the created cluster with:
 
 ``` shell
-> eksctl delete cluster bytewax-feast-cluster
+> eksctl delete cluster feast-cluster
 ```
 
 

@@ -103,3 +103,20 @@ class FooProvider(Provider):
         registry: BaseRegistry,
     ) -> RetrievalJob:
         return RetrievalJob()
+
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        return []

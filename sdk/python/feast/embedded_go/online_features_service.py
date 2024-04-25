@@ -65,7 +65,6 @@ class EmbeddedOnlineFeatureServer:
         request_data: Dict[str, Union[List[Any], Value_pb2.RepeatedValue]],
         full_feature_names: bool = False,
     ):
-
         if feature_service:
             join_keys_types = self._service.GetEntityTypesMapByFeatureService(
                 feature_service.name

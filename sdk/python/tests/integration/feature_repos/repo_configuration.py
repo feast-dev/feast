@@ -31,6 +31,8 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
+    DuckDBDataSourceCreator,
+    DuckDBDeltaDataSourceCreator,
     FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
@@ -99,6 +101,14 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
+IKV_CONFIG = {
+    "type": "ikv",
+    "account_id": os.getenv("IKV_ACCOUNT_ID", ""),
+    "account_passkey": os.getenv("IKV_ACCOUNT_PASSKEY", ""),
+    "store_name": os.getenv("IKV_STORE_NAME", ""),
+    "mount_directory": os.getenv("IKV_MOUNT_DIR", ""),
+}
+
 OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
@@ -108,6 +118,8 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]]
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
+    ("local", DuckDBDataSourceCreator),
+    ("local", DuckDBDeltaDataSourceCreator),
 ]
 
 AVAILABLE_ONLINE_STORES: Dict[
@@ -136,6 +148,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     # there is no dedicated Rockset instance for CI testing and there is no
     # containerized version of Rockset.
     # AVAILABLE_ONLINE_STORES["rockset"] = (ROCKSET_CONFIG, None)
+
+    # Uncomment to test using private IKV account. Currently not enabled as
+    # there is no dedicated IKV instance for CI testing and there is no
+    # containerized version of IKV.
+    # AVAILABLE_ONLINE_STORES["ikv"] = (IKV_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
@@ -341,17 +358,23 @@ class UniversalFeatureViews:
 def construct_universal_feature_views(
     data_sources: UniversalDataSources,
     with_odfv: bool = True,
+    use_substrait_odfv: bool = False,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_hourly_stats_base_feature_view = (
         create_driver_hourly_stats_batch_feature_view(data_sources.driver)
     )
+
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
         global_fv=create_global_stats_feature_view(data_sources.global_ds),
         driver=driver_hourly_stats,
         driver_odfv=conv_rate_plus_100_feature_view(
-            [driver_hourly_stats_base_feature_view, create_conv_rate_request_source()]
+            [
+                driver_hourly_stats_base_feature_view[["conv_rate"]],
+                create_conv_rate_request_source(),
+            ],
+            use_substrait_odfv=use_substrait_odfv,
         )
         if with_odfv
         else None,
@@ -440,9 +463,9 @@ def construct_test_environment(
         aws_registry_path = os.getenv(
             "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
         )
-        registry: Union[
-            str, RegistryConfig
-        ] = f"{aws_registry_path}/{project}/registry.db"
+        registry: Union[str, RegistryConfig] = (
+            f"{aws_registry_path}/{project}/registry.db"
+        )
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),

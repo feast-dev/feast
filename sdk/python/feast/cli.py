@@ -14,6 +14,7 @@
 import json
 import logging
 from datetime import datetime
+from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,7 +22,6 @@ import click
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
-from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
@@ -31,7 +31,6 @@ from feast.constants import (
 )
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -596,6 +595,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "cassandra",
             "rockset",
             "hazelcast",
+            "ikv",
         ],
         case_sensitive=False,
     ),
@@ -734,6 +734,8 @@ def listen_command(
     registry_ttl_sec: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
+    from feast.infra.contrib.grpc_server import get_grpc_server
+
     store = create_feature_store(ctx)
     server = get_grpc_server(address, store, max_workers, registry_ttl_sec)
     server.start()

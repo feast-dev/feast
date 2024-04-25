@@ -91,6 +91,7 @@
   * [Snowflake](reference/online-stores/snowflake.md)
   * [Redis](reference/online-stores/redis.md)
   * [Dragonfly](reference/online-stores/dragonfly.md)
+  * [IKV](reference/online-stores/ikv.md)
   * [Datastore](reference/online-stores/datastore.md)
   * [DynamoDB](reference/online-stores/dynamodb.md)
   * [Bigtable](reference/online-stores/bigtable.md)

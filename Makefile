@@ -41,6 +41,11 @@ install-python-ci-dependencies:
 	pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+install-python-ci-dependencies-uv:
+	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip install --system --no-deps -e .
+	python setup.py build_python_protos --inplace
+
 lock-python-ci-dependencies:
 	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
@@ -176,18 +181,6 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-
-test-python-universal-duckdb:
-	PYTHONPATH='.' \
-	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.duckdb_repo_configuration \
-	python -m pytest -n 8 --integration \
-		-k "not test_nullable_online_store and \
-			not gcs_registry and \
-			not s3_registry and \
-			not test_snowflake and \
-			not bigquery and \
-			not test_spark_materialization_consistency" \
-		sdk/python/tests
 			
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
@@ -212,7 +205,26 @@ test-python-universal-postgres-offline:
 test-python-universal-postgres-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
+ test-python-universal-pgvector-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.pgvector_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -294,18 +306,13 @@ test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	# Sort
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
-
-	# Format
-	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
-	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
-
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
 # Java
 
 install-java-ci-dependencies:

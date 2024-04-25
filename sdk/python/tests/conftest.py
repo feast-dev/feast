@@ -23,9 +23,13 @@ import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
+from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
+from tests.data.data_creator import (  # noqa: E402
+    create_basic_driver_dataset,
+    create_document_dataset,
+)
 from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
     IntegrationTestRepoConfig,
 )
@@ -405,3 +409,13 @@ def fake_ingest_data():
         "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
     }
     return pd.DataFrame(data)
+
+
+@pytest.fixture
+def fake_document_data(environment: Environment) -> Tuple[pd.DataFrame, DataSource]:
+    df = create_document_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        environment.feature_store.project,
+    )
+    return df, data_source

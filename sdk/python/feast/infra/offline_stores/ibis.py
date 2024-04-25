@@ -13,6 +13,7 @@ from ibis.expr import datatypes as dt
 from ibis.expr.types import Table
 from pytz import utc
 
+from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -106,6 +107,15 @@ class IbisOfflineStore(OfflineStore):
         return entity_table
 
     @staticmethod
+    def _read_data_source(data_source: DataSource) -> Table:
+        assert isinstance(data_source, FileSource)
+
+        if isinstance(data_source.file_format, ParquetFormat):
+            return ibis.read_parquet(data_source.path)
+        elif isinstance(data_source.file_format, DeltaFormat):
+            return ibis.read_delta(data_source.path)
+
+    @staticmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -134,8 +144,12 @@ class IbisOfflineStore(OfflineStore):
             entity_table, feature_views, event_timestamp_col
         )
 
-        def read_fv(feature_view, feature_refs, full_feature_names):
-            fv_table: Table = ibis.read_parquet(feature_view.batch_source.name)
+        def read_fv(
+            feature_view: FeatureView, feature_refs: List[str], full_feature_names: bool
+        ) -> Tuple:
+            fv_table: Table = IbisOfflineStore._read_data_source(
+                feature_view.batch_source
+            )
 
             for old_name, new_name in feature_view.batch_source.field_mapping.items():
                 if old_name in fv_table.columns:
@@ -175,6 +189,7 @@ class IbisOfflineStore(OfflineStore):
             return (
                 fv_table,
                 feature_view.batch_source.timestamp_field,
+                feature_view.batch_source.created_timestamp_column,
                 feature_view.projection.join_key_map
                 or {e.name: e.name for e in feature_view.entity_columns},
                 feature_refs,
@@ -190,9 +205,15 @@ class IbisOfflineStore(OfflineStore):
             event_timestamp_col=event_timestamp_col,
         )
 
+        odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
+
+        substrait_odfvs = [fv for fv in odfvs if fv.mode == "substrait"]
+        for odfv in substrait_odfvs:
+            res = odfv.transform_ibis(res, full_feature_names)
+
         return IbisRetrievalJob(
             res,
-            OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry),
+            [fv for fv in odfvs if fv.mode != "substrait"],
             full_feature_names,
             metadata=RetrievalMetadata(
                 features=feature_refs,
@@ -218,7 +239,7 @@ class IbisOfflineStore(OfflineStore):
         start_date = start_date.astimezone(tz=utc)
         end_date = end_date.astimezone(tz=utc)
 
-        table = ibis.read_parquet(data_source.path)
+        table = IbisOfflineStore._read_data_source(data_source)
 
         table = table.select(*fields)
 
@@ -251,10 +272,9 @@ class IbisOfflineStore(OfflineStore):
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
 
-        if isinstance(data, Path):
-            table = ibis.read_parquet(data)
-        else:
-            table = ibis.memtable(data)
+        table = (
+            ibis.read_parquet(data) if isinstance(data, Path) else ibis.memtable(data)
+        )
 
         if destination.partition_by:
             kwargs = {"partition_by": destination.partition_by}
@@ -285,12 +305,21 @@ class IbisOfflineStore(OfflineStore):
             )
 
         file_options = feature_view.batch_source.file_options
-        prev_table = ibis.read_parquet(file_options.uri).to_pyarrow()
-        if table.schema != prev_table.schema:
-            table = table.cast(prev_table.schema)
-        new_table = pyarrow.concat_tables([table, prev_table])
 
-        ibis.memtable(new_table).to_parquet(file_options.uri)
+        if isinstance(feature_view.batch_source.file_format, ParquetFormat):
+            prev_table = ibis.read_parquet(file_options.uri).to_pyarrow()
+            if table.schema != prev_table.schema:
+                table = table.cast(prev_table.schema)
+            new_table = pyarrow.concat_tables([table, prev_table])
+
+            ibis.memtable(new_table).to_parquet(file_options.uri)
+        elif isinstance(feature_view.batch_source.file_format, DeltaFormat):
+            from deltalake import DeltaTable
+
+            prev_schema = DeltaTable(file_options.uri).schema().to_pyarrow()
+            if table.schema != prev_schema:
+                table = table.cast(prev_schema)
+            ibis.memtable(table).to_delta(file_options.uri, mode="append")
 
 
 class IbisRetrievalJob(RetrievalJob):
@@ -299,9 +328,9 @@ class IbisRetrievalJob(RetrievalJob):
     ) -> None:
         super().__init__()
         self.table = table
-        self._on_demand_feature_views: List[
-            OnDemandFeatureView
-        ] = on_demand_feature_views
+        self._on_demand_feature_views: List[OnDemandFeatureView] = (
+            on_demand_feature_views
+        )
         self._full_feature_names = full_feature_names
         self._metadata = metadata
 
@@ -329,20 +358,28 @@ class IbisRetrievalJob(RetrievalJob):
         if not allow_overwrite and os.path.exists(storage.file_options.uri):
             raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
 
-        filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.uri,
-            storage.file_options.s3_endpoint_override,
-        )
+        if isinstance(storage.file_options.file_format, ParquetFormat):
+            filesystem, path = FileSource.create_filesystem_and_path(
+                storage.file_options.uri,
+                storage.file_options.s3_endpoint_override,
+            )
 
-        if path.endswith(".parquet"):
-            pyarrow.parquet.write_table(
-                self.to_arrow(), where=path, filesystem=filesystem
+            if path.endswith(".parquet"):
+                pyarrow.parquet.write_table(
+                    self.to_arrow(), where=path, filesystem=filesystem
+                )
+            else:
+                # otherwise assume destination is directory
+                pyarrow.parquet.write_to_dataset(
+                    self.to_arrow(), root_path=path, filesystem=filesystem
+                )
+        elif isinstance(storage.file_options.file_format, DeltaFormat):
+            mode = (
+                "overwrite"
+                if allow_overwrite and os.path.exists(storage.file_options.uri)
+                else "error"
             )
-        else:
-            # otherwise assume destination is directory
-            pyarrow.parquet.write_to_dataset(
-                self.to_arrow(), root_path=path, filesystem=filesystem
-            )
+            self.table.to_delta(storage.file_options.uri, mode=mode)
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -351,12 +388,19 @@ class IbisRetrievalJob(RetrievalJob):
 
 def point_in_time_join(
     entity_table: Table,
-    feature_tables: List[Tuple[Table, str, Dict[str, str], List[str], timedelta]],
+    feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
-    for feature_table, timestamp_field, join_key_map, _, _ in feature_tables:
+    for (
+        feature_table,
+        timestamp_field,
+        created_timestamp_field,
+        join_key_map,
+        _,
+        _,
+    ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
     r = ibis.literal("")
@@ -371,6 +415,7 @@ def point_in_time_join(
     for (
         feature_table,
         timestamp_field,
+        created_timestamp_field,
         join_key_map,
         feature_refs,
         ttl,
@@ -395,9 +440,13 @@ def point_in_time_join(
 
         feature_table = feature_table.drop(s.endswith("_y"))
 
+        order_by_fields = [ibis.desc(feature_table[timestamp_field])]
+        if created_timestamp_field:
+            order_by_fields.append(ibis.desc(feature_table[created_timestamp_field]))
+
         feature_table = (
             feature_table.group_by(by="entity_row_id")
-            .order_by(ibis.desc(feature_table[timestamp_field]))
+            .order_by(order_by_fields)
             .mutate(rn=ibis.row_number())
         )
 

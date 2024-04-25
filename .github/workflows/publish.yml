@@ -14,7 +14,7 @@ jobs:
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Get release version
         id: get_release_version
         run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
@@ -54,7 +54,7 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -105,7 +105,7 @@ jobs:
       HELM_VERSION: v3.8.0
       VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
         with:
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: get-version
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11

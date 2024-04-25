@@ -237,17 +237,6 @@ online_store:
     connection_string: ${REDIS_CONNECTION_STRING}
 ```
 
-It is possible to set a default value if the environment variable is not set, with `${ENV_VAR:"default"}`. For instance:
-
-```yaml
-project: my_project
-registry: data/registry.db
-provider: local
-online_store:
-    type: redis
-    connection_string: ${REDIS_CONNECTION_STRING:"0.0.0.0:6379"}
-```
-
 ***
 
 ## Summary

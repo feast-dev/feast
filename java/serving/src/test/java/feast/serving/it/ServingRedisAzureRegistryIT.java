@@ -50,8 +50,10 @@ public class ServingRedisAzureRegistryIT extends ServingBaseTests {
     return new BlobServiceClientBuilder()
         .endpoint(
             String.format(
-                "http://localhost:%d/%s",
-                azureBlobMock.getMappedPort(BLOB_STORAGE_PORT), TEST_ACCOUNT_NAME))
+                "http://%s:%d/%s",
+                azureBlobMock.getHost(),
+                azureBlobMock.getMappedPort(BLOB_STORAGE_PORT),
+                TEST_ACCOUNT_NAME))
         .credential(CREDENTIAL)
         .buildClient();
   }
@@ -95,8 +97,10 @@ public class ServingRedisAzureRegistryIT extends ServingBaseTests {
         return new BlobServiceClientBuilder()
             .endpoint(
                 String.format(
-                    "http://localhost:%d/%s",
-                    azureBlobMock.getMappedPort(BLOB_STORAGE_PORT), TEST_ACCOUNT_NAME))
+                    "http://%s:%d/%s",
+                    azureBlobMock.getHost(),
+                    azureBlobMock.getMappedPort(BLOB_STORAGE_PORT),
+                    TEST_ACCOUNT_NAME))
             .credential(CREDENTIAL)
             .buildClient();
       }

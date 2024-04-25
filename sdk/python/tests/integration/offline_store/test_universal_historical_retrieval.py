@@ -41,12 +41,19 @@ np.random.seed(0)
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
-def test_historical_features(environment, universal_data_sources, full_feature_names):
+@pytest.mark.parametrize(
+    "use_substrait_odfv", [True, False], ids=lambda v: f"substrait:{v}"
+)
+def test_historical_features(
+    environment, universal_data_sources, full_feature_names, use_substrait_odfv
+):
     store = environment.feature_store
 
     (entities, datasets, data_sources) = universal_data_sources
 
-    feature_views = construct_universal_feature_views(data_sources)
+    feature_views = construct_universal_feature_views(
+        data_sources, use_substrait_odfv=use_substrait_odfv
+    )
 
     entity_df_with_request_data = datasets.entity_df.copy(deep=True)
     entity_df_with_request_data["val_to_add"] = [
@@ -518,7 +525,7 @@ def test_historical_features_with_no_ttl(
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-def test_historical_features_from_bigquery_sources_containing_backfills(environment):
+def test_historical_features_containing_backfills(environment):
     store = environment.feature_store
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)

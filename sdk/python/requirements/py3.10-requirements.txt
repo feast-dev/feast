@@ -34,13 +34,17 @@ cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask==2024.2.1
-    # via feast (setup.py)
+dask[array,dataframe]==2024.4.2
+    # via
+    #   dask-expr
+    #   feast (setup.py)
+dask-expr==1.0.12
+    # via dask
 dill==0.3.8
     # via feast (setup.py)
-exceptiongroup==1.2.0
+exceptiongroup==1.2.1
     # via anyio
-fastapi==0.110.0
+fastapi==0.110.2
     # via feast (setup.py)
 fissix==21.11.13
     # via bowler
@@ -48,22 +52,18 @@ fsspec==2024.3.1
     # via dask
 greenlet==3.0.3
     # via sqlalchemy
-gunicorn==21.2.0
+gunicorn==22.0.0 ; platform_system != "Windows"
     # via feast (setup.py)
 h11==0.14.0
     # via uvicorn
 httptools==0.6.1
     # via uvicorn
-idna==3.6
+idna==3.7
     # via
     #   anyio
     #   requests
-importlib-metadata==6.11.0
-    # via
-    #   dask
-    #   feast (setup.py)
-importlib-resources==6.4.0
-    # via feast (setup.py)
+importlib-metadata==7.1.0
+    # via dask
 jinja2==3.1.3
     # via feast (setup.py)
 jsonschema==4.21.1
@@ -82,10 +82,11 @@ mypy==1.9.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-mypy-protobuf==3.5.0
+mypy-protobuf==3.6.0
     # via feast (setup.py)
-numpy==1.24.4
+numpy==1.26.4
     # via
+    #   dask
     #   feast (setup.py)
     #   pandas
     #   pyarrow
@@ -93,8 +94,11 @@ packaging==24.0
     # via
     #   dask
     #   gunicorn
-pandas==2.2.1
-    # via feast (setup.py)
+pandas==2.2.2
+    # via
+    #   dask
+    #   dask-expr
+    #   feast (setup.py)
 partd==1.4.1
     # via dask
 protobuf==4.25.3
@@ -102,12 +106,14 @@ protobuf==4.25.3
     #   feast (setup.py)
     #   mypy-protobuf
 pyarrow==15.0.2
-    # via feast (setup.py)
-pydantic==2.6.4
+    # via
+    #   dask-expr
+    #   feast (setup.py)
+pydantic==2.7.0
     # via
     #   fastapi
     #   feast (setup.py)
-pydantic-core==2.16.3
+pydantic-core==2.18.1
     # via pydantic
 pygments==2.17.2
     # via feast (setup.py)
@@ -136,13 +142,11 @@ six==1.16.0
     # via python-dateutil
 sniffio==1.3.1
     # via anyio
-sqlalchemy[mypy]==1.4.52
+sqlalchemy[mypy]==2.0.29
     # via
     #   feast (setup.py)
     #   sqlalchemy
-sqlalchemy2-stubs==0.0.2a38
-    # via sqlalchemy
-starlette==0.36.3
+starlette==0.37.2
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
@@ -160,16 +164,16 @@ tqdm==4.66.2
     # via feast (setup.py)
 typeguard==4.2.1
     # via feast (setup.py)
-types-protobuf==4.24.0.20240311
+types-protobuf==5.26.0.20240420
     # via mypy-protobuf
-typing-extensions==4.10.0
+typing-extensions==4.11.0
     # via
     #   anyio
     #   fastapi
     #   mypy
     #   pydantic
     #   pydantic-core
-    #   sqlalchemy2-stubs
+    #   sqlalchemy
     #   typeguard
     #   uvicorn
 tzdata==2024.1
