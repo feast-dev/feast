@@ -18,7 +18,7 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Setup Python
@@ -53,7 +53,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Lint java
@@ -63,7 +63,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -97,7 +97,7 @@ jobs:
     env:
       PYTHON: 3.9
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
