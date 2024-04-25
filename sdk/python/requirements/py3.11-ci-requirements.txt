@@ -134,8 +134,12 @@ cryptography==42.0.5
     #   snowflake-connector-python
     #   types-pyopenssl
     #   types-redis
-dask[array,dataframe]==2024.2.1
-    # via feast (setup.py)
+dask[array,dataframe]==2024.4.2
+    # via
+    #   dask-expr
+    #   feast (setup.py)
+dask-expr==1.0.13
+    # via dask
 db-dtypes==1.2.0
     # via google-cloud-bigquery
 debugpy==1.8.1
@@ -519,6 +523,7 @@ pandas==2.2.1
     # via
     #   altair
     #   dask
+    #   dask-expr
     #   db-dtypes
     #   feast (setup.py)
     #   google-cloud-bigquery
@@ -603,6 +608,7 @@ py4j==0.10.9.7
     # via pyspark
 pyarrow==15.0.2
     # via
+    #   dask-expr
     #   db-dtypes
     #   deltalake
     #   feast (setup.py)
