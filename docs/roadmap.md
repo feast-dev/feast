@@ -33,6 +33,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Bigtable](https://docs.feast.dev/reference/online-stores/bigtable)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
   * [x] [Dragonfly](https://docs.feast.dev/reference/online-stores/dragonfly)
+  * [x] [IKV - Inlined Key Value Store](https://docs.feast.dev/reference/online-stores/ikv)
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Cassandra / AstraDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/cassandra)
