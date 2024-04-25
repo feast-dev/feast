@@ -71,9 +71,9 @@ Created feature service driver_activity_v2
 ## Functionality Matrix
 
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).
-Below is a matrix indicating which functionality is supported by the Redis online store.
+Below is a matrix indicating which functionality is supported by the IKV online store.
 
-|                                                           | Redis |
+|                                                           | IKV   |
 | :-------------------------------------------------------- | :---- |
 | write feature values to the online store                  | yes   |
 | read feature values from the online store                 | yes   |
@@ -82,14 +82,14 @@ Below is a matrix indicating which functionality is supported by the Redis onlin
 | generate a plan of infrastructure changes                 | no    |
 | support for on-demand transforms                          | yes   |
 | readable by Python SDK                                    | yes   |
-| readable by Java                                          | yes   |
-| readable by Go                                            | yes   |
+| readable by Java                                          | no    |
+| readable by Go                                            | no    |
 | support for entityless feature views                      | yes   |
 | support for concurrent writing to the same key            | yes   |
-| support for ttl (time to live) at retrieval               | yes   |
-| support for deleting expired data                         | yes   |
-| collocated by feature view                                | no    |
-| collocated by feature service                             | no    |
+| support for ttl (time to live) at retrieval               | no    |
+| support for deleting expired data                         | no    |
+| collocated by feature view                                | yes   |
+| collocated by feature service                             | ??    |
 | collocated by entity key                                  | yes   |
 
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
