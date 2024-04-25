@@ -17,7 +17,7 @@ jobs:
     outputs:
       WAS_EDITED: ${{ steps.check_date.outputs.WAS_EDITED }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: master
       - id: check_date
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Cleanup Bigtable / Dynamo tables which can fail to cleanup
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: master
       - name: Setup Python
@@ -66,7 +66,7 @@ jobs:
     needs: [check_date]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: master
           submodules: recursive
@@ -140,7 +140,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: master
           submodules: recursive

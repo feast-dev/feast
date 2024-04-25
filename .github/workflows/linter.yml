@@ -8,7 +8,7 @@ jobs:
     env:
       PYTHON: 3.9
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
