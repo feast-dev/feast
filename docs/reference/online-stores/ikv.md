@@ -22,14 +22,7 @@ You can get started by using any of the other templates (e.g. `feast init -t gcp
 ### 1. Provision an IKV store
 Go to [https://inlined.io](https://inlined.io) or email onboarding[at]inlined.io
 
-### 2. Create a feature repository
-
-Bootstrap a new feature repository:
-
-```
-feast init my_feature_repo
-cd my_feature_repo/feature_repo
-```
+### 2. Configure
 
 Update `my_feature_repo/feature_store.yaml` with the below contents:
 
@@ -47,26 +40,11 @@ online_store:
 ```
 {% endcode %}
 
+After provision an IKV account/store, you should the required id, passkey and store-name.
+
+Additionally you must specify a mount-directory - where IKV will pull/update (maintain) a copy of the index for online reads (IKV is an embedded database). It can be skipped only if you don't plan to read any data from this container. The mount directory path usually points to a location on local/remote disk.
+
 The full set of configuration options is available in IKVOnlineStoreConfig at `sdk/python/feast/infra/online_stores/contrib/ikv_online_store/ikv.py`
-
-### 3. Register feature definitions and deploy your feature store
-
-`feast apply`
-
-The `apply` command scans python files in the current directory (`example_repo.py` in this case) for feature view/entity definitions, registers the objects, and deploys infrastructure.
-You should see the following output:
-
-```
-....
-Created entity driver
-Created feature view driver_hourly_stats_fresh
-Created feature view driver_hourly_stats
-Created on demand feature view transformed_conv_rate
-Created on demand feature view transformed_conv_rate_fresh
-Created feature service driver_activity_v1
-Created feature service driver_activity_v3
-Created feature service driver_activity_v2
-```
 
 ## Functionality Matrix
 
