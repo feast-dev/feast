@@ -97,7 +97,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
                 schema=[
                     Field(name="conv_rate_plus_val1_python", dtype=Float64),
-                    Field(name="conv_rate_plus_val2_python", dtype=Float64)],
+                    Field(name="conv_rate_plus_val2_python", dtype=Float64),
+                ],
                 mode="python",
             )
             def python_demo_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -140,7 +141,14 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 )
 
             self.store.apply(
-                [driver, driver_stats_source, driver_stats_fv, pandas_view, python_view, python_demo_view]
+                [
+                    driver,
+                    driver_stats_source,
+                    driver_stats_fv,
+                    pandas_view,
+                    python_view,
+                    python_demo_view,
+                ]
             )
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
