@@ -220,10 +220,27 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             ],
         ).to_dict()
 
-        assert list(online_python_response.keys()) == [
-            "driver_id",
-            "acc_rate",
-            "conv_rate",
-            "conv_rate_plus_val1_python",
-            "conv_rate_plus_val2_python",
-        ]
+        assert sorted(list(online_python_response.keys())) == sorted(
+            [
+                "driver_id",
+                "acc_rate",
+                "conv_rate",
+                "conv_rate_plus_val1_python",
+                "conv_rate_plus_val2_python",
+            ]
+        )
+
+        assert (
+            online_python_response["conv_rate_plus_val1_python"][0]
+            == online_python_response["conv_rate_plus_val2_python"][0]
+        )
+        assert (
+            online_python_response["conv_rate"][0]
+            + online_python_response["acc_rate"][0]
+            == online_python_response["conv_rate_plus_val1_python"][0]
+        )
+        assert (
+            online_python_response["conv_rate"][0]
+            + online_python_response["acc_rate"][0]
+            == online_python_response["conv_rate_plus_val2_python"][0]
+        )
