@@ -64,7 +64,7 @@ Below is a matrix indicating which functionality is supported by the Postgres on
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
 
 ## PGVector
-The Postgres online store supports the use of [PGVector](https://pgvector.dev/) for storing feature values.
+The Postgres online store supports the use of [PGVector](https://github.com/pgvector/pgvector) for storing feature values.
 To enable PGVector, set `pgvector_enabled: true` in the online store configuration.
 The `vector_len` parameter can be used to specify the length of the vector. The default value is 512.
 
