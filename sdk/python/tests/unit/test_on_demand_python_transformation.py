@@ -96,6 +96,24 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
                 schema=[
+                    Field(name="conv_rate_plus_val1_python", dtype=Float64)],
+                    Field(name="conv_rate_plus_val2_python", dtype=Float64)],
+                mode="python",
+            )
+            def python_demo_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
+                output: Dict[str, Any] = {
+                    "conv_rate_plus_acc_python": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ]
+                }
+                return output
+
+            @on_demand_feature_view(
+                sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
+                schema=[
                     Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)
                 ],
                 mode="python",
