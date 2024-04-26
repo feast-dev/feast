@@ -103,12 +103,18 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             )
             def python_demo_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
                 output: Dict[str, Any] = {
-                    "conv_rate_plus_acc_python": [
+                    "conv_rate_plus_val1_python": [
                         conv_rate + acc_rate
                         for conv_rate, acc_rate in zip(
                             inputs["conv_rate"], inputs["acc_rate"]
                         )
-                    ]
+                    ],
+                    "conv_rate_plus_val2_python": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ],
                 }
                 return output
 
@@ -196,3 +202,28 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             == online_python_response["conv_rate"][0]
             + online_python_response["acc_rate"][0]
         )
+
+    def test_python_docs_demo(self):
+        entity_rows = [
+            {
+                "driver_id": 1001,
+            }
+        ]
+
+        online_python_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "python_demo_view:conv_rate_plus_val1_python",
+                "python_demo_view:conv_rate_plus_val2_python",
+            ],
+        ).to_dict()
+
+        assert list(online_python_response.keys()) == [
+            "driver_id",
+            "acc_rate",
+            "conv_rate",
+            "conv_rate_plus_val1_python",
+            "conv_rate_plus_val2_python",
+        ]
