@@ -1429,6 +1429,8 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        if df is not None and dict is not None:
+            raise ValueError("Both df and dict cannot be provided at the same time.")
         if df is None and dict is not None:
             try:
                 df = pd.DataFrame(dict)
