@@ -1408,7 +1408,7 @@ class FeatureStore:
         self,
         feature_view_name: str,
         df: Optional[pd.DataFrame] = None,
-        dict: Optional[Dict] = None,
+        input_dict: Optional[Dict] = None,
         allow_registry_cache: bool = True,
     ):
         """
@@ -1417,7 +1417,7 @@ class FeatureStore:
         Args:
             feature_view_name: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
-            dict: Optional the dictionary object to be written
+            input_dict: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
@@ -1429,13 +1429,13 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
-        if df is not None and dict is not None:
+        if df is not None and input_dict is not None:
             raise ValueError("Both df and dict cannot be provided at the same time.")
-        if df is None and dict is not None:
+        if df is None and input_dict is not None:
             try:
-                df = pd.DataFrame(dict)
+                df = pd.DataFrame(input_dict)
             except Exception as _:
-                raise DataFrameSerializationError(dict)
+                raise DataFrameSerializationError(input_dict)
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 

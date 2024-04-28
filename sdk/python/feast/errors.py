@@ -423,7 +423,7 @@ class ReadOnlyRegistryException(Exception):
 
 
 class DataFrameSerializationError(Exception):
-    def __init__(self, dict_obj: dict):
+    def __init__(self, input_dict: dict):
         super().__init__(
-            f"Failed to serialize the provided dictionary into a pandas DataFrame: {dict_obj.keys()}"
+            f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
         )
