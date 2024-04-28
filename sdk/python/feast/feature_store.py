@@ -61,6 +61,7 @@ from feast.errors import (
     PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
+    DataFrameSerializationError,
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
@@ -1406,7 +1407,8 @@ class FeatureStore:
     def write_to_online_store(
         self,
         feature_view_name: str,
-        df: pd.DataFrame,
+        df: Optional[pd.DataFrame] = None,
+        dict: Optional[Dict] = None,
         allow_registry_cache: bool = True,
     ):
         """
@@ -1415,6 +1417,7 @@ class FeatureStore:
         Args:
             feature_view_name: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
+            dict: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
@@ -1426,6 +1429,11 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        if df is None and dict is not None:
+            try:
+                df = pd.DataFrame(dict)
+            except Exception as _:
+                raise DataFrameSerializationError(dict)
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
