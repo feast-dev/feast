@@ -18,9 +18,6 @@ import unittest
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
-import pandas as pd
-import pytest
-
 from feast import Entity, FeatureStore, FeatureView, FileSource, RepoConfig
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.field import Field
@@ -108,9 +105,10 @@ class TestOnlineWrites(unittest.TestCase):
             )
             # This will give the intuitive structure of the data as:
             # {"driver_id": [..], "conv_rate": [..], "acc_rate": [..], "avg_daily_trips": [..]}
-            driver_dict = driver_df.to_dict(orient='list')
+            driver_dict = driver_df.to_dict(orient="list")
             self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", dict=driver_dict,
+                feature_view_name="driver_hourly_stats",
+                dict=driver_dict,
             )
 
     def test_online_retrieval(self):

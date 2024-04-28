@@ -54,6 +54,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    DataFrameSerializationError,
     DataSourceRepeatNamesException,
     EntityNotFoundException,
     FeatureNameCollisionError,
@@ -61,7 +62,6 @@ from feast.errors import (
     PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
     RequestDataNotFoundInEntityRowsException,
-    DataFrameSerializationError,
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
