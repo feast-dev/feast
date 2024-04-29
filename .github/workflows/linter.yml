@@ -6,14 +6,14 @@ jobs:
   lint-python:
     runs-on: [ubuntu-latest]
     env:
-      PYTHON: 3.9
+      PYTHON: 3.11
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           architecture: x64
       - name: Upgrade pip version
         run: |
