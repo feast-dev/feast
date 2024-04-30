@@ -1408,7 +1408,7 @@ class FeatureStore:
         self,
         feature_view_name: str,
         df: Optional[pd.DataFrame] = None,
-        inputs: Optional[Union[Dict, pd.DataFrame]] = None,
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
     ):
         """
