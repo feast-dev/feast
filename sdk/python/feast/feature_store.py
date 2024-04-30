@@ -1417,7 +1417,7 @@ class FeatureStore:
         Args:
             feature_view_name: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
-            input_dict: Optional the dictionary object to be written
+            inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
