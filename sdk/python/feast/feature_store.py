@@ -1408,7 +1408,7 @@ class FeatureStore:
         self,
         feature_view_name: str,
         df: Optional[pd.DataFrame] = None,
-        input_dict: Optional[Dict] = None,
+        inputs: Optional[Dict, pd.DataFrame] = None,
         allow_registry_cache: bool = True,
     ):
         """
@@ -1429,13 +1429,18 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
-        if df is not None and input_dict is not None:
-            raise ValueError("Both df and dict cannot be provided at the same time.")
-        if df is None and input_dict is not None:
-            try:
-                df = pd.DataFrame(input_dict)
-            except Exception as _:
-                raise DataFrameSerializationError(input_dict)
+        if df is not None and inputs is not None:
+            raise ValueError("Both df and inputs cannot be provided at the same time.")
+        if df is None and inputs is not None:
+            if isinstance(inputs, dict):
+                try:
+                    df = pd.DataFrame(inputs)
+                except Exception as _:
+                    raise DataFrameSerializationError(inputs)
+            elif isinstance(inputs, pd.DataFrame):
+                pass
+            else:
+                raise ValueError("inputs must be a dictionary or a pandas DataFrame.")
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 

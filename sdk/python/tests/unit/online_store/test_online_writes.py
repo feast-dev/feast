@@ -108,7 +108,7 @@ class TestOnlineWrites(unittest.TestCase):
             driver_dict = driver_df.to_dict(orient="list")
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats",
-                input_dict=driver_dict,
+                inputs=driver_dict,
             )
 
     def test_online_retrieval(self):
