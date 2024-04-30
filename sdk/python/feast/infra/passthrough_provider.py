@@ -42,8 +42,6 @@ class PassthroughProvider(Provider):
     """
 
     def __init__(self, config: RepoConfig):
-        super().__init__(config)
-
         self.repo_config = config
         self._offline_store = None
         self._online_store = None

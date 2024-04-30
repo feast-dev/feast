@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.11
 
 WORKDIR /app
 COPY java/serving/src/test/resources/docker-compose/feast10/ .
