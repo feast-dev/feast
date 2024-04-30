@@ -2,9 +2,7 @@
 
 ## Description
 
-[IKV](https://github.com/inlinedio/ikv-store) is a fully-managed embedded key-value store, primarily designed for storing ML features. Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance). 
-
-For provisioning API keys for using it as an online-store in Feast, go to [https://inlined.io](https://inlined.io) or email onboarding[at]inlined.io
+[IKV](https://github.com/inlinedio/ikv-store) is a fully-managed embedded key-value store, primarily designed for storing ML features. Most key-value stores (think Redis or Cassandra) need a remote database cluster, whereas IKV allows you to utilize your existing application infrastructure to store data (cost efficient) and access it without any network calls (better performance). See detailed performance benchmarks and cost comparison with Redis on [https://inlined.io](https://inlined.io). IKV can be used as an online-store in Feast, the rest of this guide goes over the setup.
 
 ## Getting started
 Make sure you have Python and `pip` installed.
@@ -40,9 +38,7 @@ online_store:
 ```
 {% endcode %}
 
-After provision an IKV account/store, you should the required id, passkey and store-name.
-
-Additionally you must specify a mount-directory - where IKV will pull/update (maintain) a copy of the index for online reads (IKV is an embedded database). It can be skipped only if you don't plan to read any data from this container. The mount directory path usually points to a location on local/remote disk.
+After provisioning an IKV account/store, you should have an account id, passkey and store-name. Additionally you must specify a mount-directory - where IKV will pull/update (maintain) a copy of the index for online reads (IKV is an embedded database). It can be skipped only if you don't plan to read any data from this container. The mount directory path usually points to a location on local/remote disk.
 
 The full set of configuration options is available in IKVOnlineStoreConfig at `sdk/python/feast/infra/online_stores/contrib/ikv_online_store/ikv.py`
 
