@@ -401,6 +401,18 @@ build-feature-server-java-docker:
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
 
+push-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-push
+
+build-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-build
+
 # Dev images
 
 build-feature-server-dev:
