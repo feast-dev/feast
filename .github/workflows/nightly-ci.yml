@@ -173,11 +173,8 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
-        run: pip install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
         id: uv-cache
         run: |
@@ -200,7 +197,7 @@ jobs:
         if: matrix.os == 'macos-13'
         run: brew install apache-arrow
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: make install-python-ci-dependencies-uv
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
