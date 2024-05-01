@@ -23,9 +23,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
