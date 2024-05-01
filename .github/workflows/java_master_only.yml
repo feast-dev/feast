@@ -112,12 +112,9 @@ jobs:
         with:
           python-version: 3.9
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
         run: |
-          pip install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
         id: uv-cache
         run: |
