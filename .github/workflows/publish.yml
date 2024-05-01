@@ -49,7 +49,7 @@ jobs:
     needs: [get-version, publish-python-sdk]
     strategy:
       matrix:
-        component: [feature-server, feature-server-python-aws, feature-server-java, feature-transformation-server]
+        component: [feature-server, feature-server-python-aws, feature-server-java, feature-transformation-server, feast-operator]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
@@ -158,9 +158,9 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           architecture: 'x64'
       - uses: actions/cache@v2
         with:

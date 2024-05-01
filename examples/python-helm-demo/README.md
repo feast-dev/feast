@@ -72,11 +72,11 @@ We use the Feast CLI to register and materialize features, and then retrieving v
    3. `helm install feast-release ../../../infra/charts/feast-feature-server --set image.tag=dev --set feature_store_yaml_base64=$(base64 feature_store.yaml)`
 5. (Optional): check logs of the server to make sure it’s working
    ```bash
-   kubectl logs svc/feast-feature-server
+   kubectl logs svc/feast-release-feast-feature-server
    ```
 6. Port forward to expose the grpc endpoint:
    ```bash
-   kubectl port-forward svc/feast-feature-server 6566:80
+   kubectl port-forward svc/feast-release-feast-feature-server 6566:80
    ```
 7. Run test fetches for online features:8. 
     - First: change back the Redis connection string to allow localhost connections to Redis

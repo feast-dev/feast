@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           architecture: x64
       - name: Set up AWS SDK
         uses: aws-actions/configure-aws-credentials@v1
@@ -89,21 +89,21 @@ jobs:
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
       - name: Cache Public ECR Image
-        id: lambda_python_3_9
+        id: lambda_python_3_11
         uses: actions/cache@v4
         with:
           path: ~/cache
-          key: lambda_python_3_9
+          key: lambda_python_3_11
       - name: Handle Cache Miss (pull public ECR image & save it to tar file)
-        if: steps.lambda_python_3_9.outputs.cache-hit != 'true'
+        if: steps.lambda_python_3_11.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/cache
-          docker pull public.ecr.aws/lambda/python:3.9
-          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+          docker pull public.ecr.aws/lambda/python:3.11
+          docker save public.ecr.aws/lambda/python:3.11 -o ~/cache/lambda_python_3_11.tar
       - name: Handle Cache Hit (load docker image from tar file)
-        if: steps.lambda_python_3_9.outputs.cache-hit == 'true'
+        if: steps.lambda_python_3_11.outputs.cache-hit == 'true'
         run: |
-          docker load -i ~/cache/lambda_python_3_9.tar
+          docker load -i ~/cache/lambda_python_3_11.tar
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -124,7 +124,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9" ]
+        python-version: [ "3.11" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -173,11 +173,8 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
-        run: pip install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
         id: uv-cache
         run: |
@@ -197,10 +194,10 @@ jobs:
             sudo apt update
             sudo apt install -y -V libarrow-dev
       - name: Install apache-arrow on macos
-        if: matrix.os == 'macos-12'
+        if: matrix.os == 'macos-13'
         run: brew install apache-arrow
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: make install-python-ci-dependencies-uv
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest

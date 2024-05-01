@@ -420,3 +420,10 @@ class PushSourceNotFoundException(Exception):
 class ReadOnlyRegistryException(Exception):
     def __init__(self):
         super().__init__("Registry implementation is read-only.")
+
+
+class DataFrameSerializationError(Exception):
+    def __init__(self, input_dict: dict):
+        super().__init__(
+            f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
+        )

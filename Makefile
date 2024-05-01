@@ -62,6 +62,12 @@ install-python:
 lock-python-dependencies:
 	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
+lock-python-dependencies-all:
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.9-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.10-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
@@ -351,7 +357,7 @@ kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
 
 install-protoc-dependencies:
-	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf==4.24.0 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
@@ -394,6 +400,18 @@ build-feature-server-java-docker:
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
+
+push-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-push
+
+build-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-build
 
 # Dev images
 

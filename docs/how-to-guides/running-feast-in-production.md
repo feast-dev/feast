@@ -57,28 +57,9 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as the [Bytewax Materialization Engine](../reference/batch-materialization/bytewax.md), or the [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
+In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
 Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
 
-The Bytewax materialization engine can run materialization on an existing Kubernetes cluster. An example configuration of this in a `feature_store.yaml` is as follows:
-
-```yaml
-batch_engine:
-  type: bytewax
-  namespace: bytewax
-  image: bytewax/bytewax-feast:latest
-  env:
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: aws-credentials
-          key: aws-access-key-id
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: aws-credentials
-          key: aws-secret-access-key
-```
 
 ### 2.2 Scheduled materialization with Airflow
 
@@ -243,6 +224,8 @@ helm install feast-release feast-charts/feast-feature-server \
 ```
 
 This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+
+> Alternatively, deploy the same helm chart with a [Kubernetes Operator](/infra/feast-operator).
 
 ## 5. Using environment variables in your yaml configuration
 

@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9" ]
+        python-version: [ "3.11" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -33,7 +33,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -43,25 +43,18 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      - name: Get pip cache dir
-        id: pip-cache
+      - name: Install uv
         run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get uv cache dir
+        id: uv-cache
+        run: |
+          echo "::set-output name=dir::$(uv cache dir)"
+      - name: uv cache
+        uses: actions/cache@v4
         with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
-      - name: Install pip-tools
-        run: pip install pip-tools
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -71,13 +64,8 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
-      - name: Install apache-arrow on macos
-        if: matrix.os == 'macos-12'
-        run: |
-            brew install apache-arrow
-            brew install pkg-config
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: make install-python-ci-dependencies-uv
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest

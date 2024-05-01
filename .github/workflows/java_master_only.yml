@@ -22,10 +22,10 @@ jobs:
         with:
           submodules: 'true'
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           architecture: x64
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
@@ -95,7 +95,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
-      PYTHON: 3.9
+      PYTHON: 3.11
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,14 +110,11 @@ jobs:
         uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: 3.9
+          python-version: 3.11
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install uv
         run: |
-          pip install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
         id: uv-cache
         run: |
@@ -127,7 +124,8 @@ jobs:
         with:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-      - name: Install dependencies
+
+      - name: Install Python dependencies
         run: make install-python-ci-dependencies-uv
       - uses: actions/cache@v4
         with:

@@ -54,6 +54,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    DataFrameSerializationError,
     DataSourceRepeatNamesException,
     EntityNotFoundException,
     FeatureNameCollisionError,
@@ -1406,7 +1407,8 @@ class FeatureStore:
     def write_to_online_store(
         self,
         feature_view_name: str,
-        df: pd.DataFrame,
+        df: Optional[pd.DataFrame] = None,
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
     ):
         """
@@ -1415,6 +1417,7 @@ class FeatureStore:
         Args:
             feature_view_name: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
+            inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
@@ -1426,6 +1429,18 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        if df is not None and inputs is not None:
+            raise ValueError("Both df and inputs cannot be provided at the same time.")
+        if df is None and inputs is not None:
+            if isinstance(inputs, dict):
+                try:
+                    df = pd.DataFrame(inputs)
+                except Exception as _:
+                    raise DataFrameSerializationError(inputs)
+            elif isinstance(inputs, pd.DataFrame):
+                pass
+            else:
+                raise ValueError("inputs must be a dictionary or a pandas DataFrame.")
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
