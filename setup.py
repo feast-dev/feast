@@ -66,7 +66,6 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.4.2",
-    "bowler",  # Needed for automatic repo upgrades
 ]
 
 GCP_REQUIRED = [
