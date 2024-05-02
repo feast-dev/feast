@@ -62,7 +62,9 @@ abstract class ServingEnvironment {
             .withExposedService("redis", 6379)
             .withExposedService(
                 "feast", 8080, Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(180)))
-            .withTailChildContainers(true);
+            .withTailChildContainers(true)
+            .withLocalCompose(true);
+
     environment.start();
   }
 
@@ -136,7 +138,7 @@ abstract class ServingEnvironment {
     server = injector.getInstance(Server.class);
     server.start();
 
-    channel = ManagedChannelBuilder.forAddress("localhost", serverPort).usePlaintext().build();
+    channel = ManagedChannelBuilder.forAddress("127.0.0.1", serverPort).usePlaintext().build();
 
     servingStub =
         ServingServiceGrpc.newBlockingStub(channel)

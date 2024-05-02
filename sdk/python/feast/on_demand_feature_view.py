@@ -12,7 +12,6 @@ import pyarrow
 from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
-from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import RequestSource
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
@@ -493,53 +492,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ]
         )
 
-    def get_transformed_features_df(
-        self,
-        df_with_features: pd.DataFrame,
-        full_feature_names: bool = False,
-    ) -> pd.DataFrame:
-        # Apply on demand transformations
-        if not isinstance(df_with_features, pd.DataFrame):
-            raise TypeError("get_transformed_features_df only accepts pd.DataFrame")
-        columns_to_cleanup = []
-        for source_fv_projection in self.source_feature_view_projections.values():
-            for feature in source_fv_projection.features:
-                full_feature_ref = f"{source_fv_projection.name}__{feature.name}"
-                if full_feature_ref in df_with_features.keys():
-                    # Make sure the partial feature name is always present
-                    df_with_features[feature.name] = df_with_features[full_feature_ref]
-                    columns_to_cleanup.append(feature.name)
-                elif feature.name in df_with_features.keys():
-                    # Make sure the full feature name is always present
-                    df_with_features[full_feature_ref] = df_with_features[feature.name]
-                    columns_to_cleanup.append(full_feature_ref)
-
-        # Compute transformed values and apply to each result row
-        df_with_transformed_features: pd.DataFrame = (
-            self.feature_transformation.transform(df_with_features)
-        )
-
-        # Work out whether the correct columns names are used.
-        rename_columns: Dict[str, str] = {}
-        for feature in self.features:
-            short_name = feature.name
-            long_name = self._get_projected_feature_name(feature.name)
-            if (
-                short_name in df_with_transformed_features.columns
-                and full_feature_names
-            ):
-                rename_columns[short_name] = long_name
-            elif not full_feature_names:
-                # Long name must be in dataframe.
-                rename_columns[long_name] = short_name
-
-        # Cleanup extra columns used for transformation
-        df_with_transformed_features = df_with_transformed_features[
-            [f.name for f in self.features]
-        ]
-        return df_with_transformed_features.rename(columns=rename_columns)
-
-    def get_transformed_features_dict(
+    def transform_dict(
         self,
         feature_dict: Dict[str, Any],  # type: ignore
     ) -> Dict[str, Any]:
@@ -565,29 +518,6 @@ class OnDemandFeatureView(BaseFeatureView):
         for feature_name in columns_to_cleanup:
             del output_dict[feature_name]
         return output_dict
-
-    def get_transformed_features(
-        self,
-        features: Union[Dict[str, Any], pd.DataFrame],
-        full_feature_names: bool = False,
-    ) -> Union[Dict[str, Any], pd.DataFrame]:
-        # TODO: classic inheritance pattern....maybe fix this
-        if self.mode == "python" and isinstance(features, Dict):
-            # note full_feature_names is not needed for the dictionary
-            return self.get_transformed_features_dict(
-                feature_dict=features,
-            )
-        elif self.mode in {"pandas", "substrait"} and isinstance(
-            features, pd.DataFrame
-        ):
-            return self.get_transformed_features_df(
-                df_with_features=features,
-                full_feature_names=full_feature_names,
-            )
-        else:
-            raise Exception(
-                f'Invalid OnDemandFeatureMode: {self.mode}. Expected one of "pandas" or "python".'
-            )
 
     def infer_features(self) -> None:
         inferred_features = self.feature_transformation.infer_features(
@@ -743,23 +673,6 @@ def on_demand_feature_view(
         return on_demand_feature_view_obj
 
     return decorator
-
-
-def feature_view_to_batch_feature_view(fv: FeatureView) -> BatchFeatureView:
-    bfv = BatchFeatureView(
-        name=fv.name,
-        entities=fv.entities,
-        ttl=fv.ttl,
-        tags=fv.tags,
-        online=fv.online,
-        owner=fv.owner,
-        schema=fv.schema,
-        source=fv.batch_source,
-    )
-
-    bfv.features = copy.copy(fv.features)
-    bfv.entities = copy.copy(fv.entities)
-    return bfv
 
 
 def _empty_odfv_udf_fn(x: Any) -> Any:

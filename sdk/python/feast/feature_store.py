@@ -54,6 +54,7 @@ from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
 from feast.errors import (
+    DataFrameSerializationError,
     DataSourceRepeatNamesException,
     EntityNotFoundException,
     FeatureNameCollisionError,
@@ -1406,7 +1407,8 @@ class FeatureStore:
     def write_to_online_store(
         self,
         feature_view_name: str,
-        df: pd.DataFrame,
+        df: Optional[pd.DataFrame] = None,
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
     ):
         """
@@ -1415,6 +1417,7 @@ class FeatureStore:
         Args:
             feature_view_name: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
+            inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
@@ -1426,6 +1429,18 @@ class FeatureStore:
             feature_view = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+        if df is not None and inputs is not None:
+            raise ValueError("Both df and inputs cannot be provided at the same time.")
+        if df is None and inputs is not None:
+            if isinstance(inputs, dict):
+                try:
+                    df = pd.DataFrame(inputs)
+                except Exception as _:
+                    raise DataFrameSerializationError(inputs)
+            elif isinstance(inputs, pd.DataFrame):
+                pass
+            else:
+                raise ValueError("inputs must be a dictionary or a pandas DataFrame.")
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
@@ -2138,7 +2153,7 @@ class FeatureStore:
                 )
 
         initial_response = OnlineResponse(online_features_response)
-        initial_response_df: Optional[pd.DataFrame] = None
+        initial_response_arrow: Optional[pa.Table] = None
         initial_response_dict: Optional[Dict[str, List[Any]]] = None
 
         # Apply on demand transformations and augment the result rows
@@ -2148,18 +2163,14 @@ class FeatureStore:
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[str, List[Any]] = (
-                    odfv.get_transformed_features(
-                        initial_response_dict,
-                        full_feature_names,
-                    )
+                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
+                    initial_response_dict
                 )
             elif odfv.mode in {"pandas", "substrait"}:
-                if initial_response_df is None:
-                    initial_response_df = initial_response.to_df()
-                transformed_features_df: pd.DataFrame = odfv.get_transformed_features(
-                    initial_response_df,
-                    full_feature_names,
+                if initial_response_arrow is None:
+                    initial_response_arrow = initial_response.to_arrow()
+                transformed_features_arrow = odfv.transform_arrow(
+                    initial_response_arrow, full_feature_names
                 )
             else:
                 raise Exception(
@@ -2169,11 +2180,11 @@ class FeatureStore:
             transformed_features = (
                 transformed_features_dict
                 if odfv.mode == "python"
-                else transformed_features_df
+                else transformed_features_arrow
             )
             transformed_columns = (
-                transformed_features.columns
-                if isinstance(transformed_features, pd.DataFrame)
+                transformed_features.column_names
+                if isinstance(transformed_features, pa.Table)
                 else transformed_features
             )
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
@@ -2183,6 +2194,10 @@ class FeatureStore:
                 feature_vector = transformed_features[selected_feature]
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
+                    if odfv.mode == "python"
+                    else python_values_to_proto_values(
+                        feature_vector.to_numpy(), ValueType.UNKNOWN
+                    )
                 )
 
             odfv_result_names |= set(selected_subset)

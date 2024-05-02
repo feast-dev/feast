@@ -141,6 +141,8 @@ decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+deltalake==0.16.4
+    # via feast (setup.py)
 dill==0.3.8
     # via feast (setup.py)
 distlib==0.3.8
@@ -604,12 +606,15 @@ pyarrow==15.0.2
     # via
     #   dask-expr
     #   db-dtypes
+    #   deltalake
     #   feast (setup.py)
     #   google-cloud-bigquery
     #   ibis-framework
     #   snowflake-connector-python
 pyarrow-hotfix==0.6
-    # via ibis-framework
+    # via
+    #   deltalake
+    #   ibis-framework
 pyasn1==0.6.0
     # via
     #   pyasn1-modules
@@ -681,7 +686,7 @@ pytest-ordering==0.6
     # via feast (setup.py)
 pytest-timeout==1.4.2
     # via feast (setup.py)
-pytest-xdist==3.5.0
+pytest-xdist==3.6.0
     # via feast (setup.py)
 python-dateutil==2.9.0.post0
     # via

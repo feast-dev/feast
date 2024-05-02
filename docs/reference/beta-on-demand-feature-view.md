@@ -1,6 +1,6 @@
-# \[Alpha] On demand feature view
+# \[Beta] On demand feature view
 
-**Warning**: This is an _experimental_ feature. It's intended for early testing and feedback, and could change without warnings in future releases.
+**Warning**: This is an experimental feature. To our knowledge, this is stable, but there are still rough edges in the experience. Contributions are welcome!
 
 ## Overview
 
@@ -32,11 +32,14 @@ See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.c
 
 ### **Registering transformations**
 
+On Demand Transformations support transformations using Pandas and native Python. Note, Native Python is much faster but not yet tested for offline retrieval.
+
 We register `RequestSource` inputs and the transform in `on_demand_feature_view`:
 
 ```python
 from feast import Field, RequestSource
 from feast.types import Float64, Int64
+from typing import Any, Dict
 import pandas as pd
 
 # Define a request data source which encodes features / information only
@@ -49,7 +52,7 @@ input_request = RequestSource(
     ]
 )
 
-# Use the input data and feature view features to create new features
+# Use the input data and feature view features to create new features Pandas mode
 @on_demand_feature_view(
    sources=[
        driver_hourly_stats_view,
@@ -58,13 +61,43 @@ input_request = RequestSource(
    schema=[
      Field(name='conv_rate_plus_val1', dtype=Float64),
      Field(name='conv_rate_plus_val2', dtype=Float64)
-   ]
+   ],
+   mode="pandas",
 )
 def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
     df['conv_rate_plus_val1'] = (features_df['conv_rate'] + features_df['val_to_add'])
     df['conv_rate_plus_val2'] = (features_df['conv_rate'] + features_df['val_to_add_2'])
     return df
+
+# Use the input data and feature view features to create new features Python mode
+@on_demand_feature_view(
+    sources=[
+        driver_hourly_stats_view,
+        input_request
+    ],
+    schema=[
+        Field(name='conv_rate_plus_val1_python', dtype=Float64),
+        Field(name='conv_rate_plus_val2_python', dtype=Float64),
+    ],
+    mode="python",
+)
+def transformed_conv_rate_python(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    output: Dict[str, Any] = {
+        "conv_rate_plus_val1_python": [
+            conv_rate + val_to_add
+            for conv_rate, val_to_add in zip(
+                inputs["conv_rate"], inputs["val_to_add"]
+            )
+        ],
+        "conv_rate_plus_val2_python": [
+            conv_rate + val_to_add
+            for conv_rate, val_to_add in zip(
+                inputs["conv_rate"], inputs["val_to_add_2"]
+            )
+        ]
+    }
+    return output
 ```
 
 ### **Feature retrieval**
@@ -73,7 +106,9 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 The on demand feature view's name is the function name (i.e. `transformed_conv_rate`).
 {% endhint %}
 
-And then to retrieve historical or online features, we can call this in a feature service or reference individual features:
+
+#### Offline Features
+And then to retrieve historical, we can call this in a feature service or reference individual features:
 
 ```python
 training_df = store.get_historical_features(
@@ -86,4 +121,29 @@ training_df = store.get_historical_features(
         "transformed_conv_rate:conv_rate_plus_val2",
     ],
 ).to_df()
+
+```
+
+#### Online Features
+
+And then to retrieve online, we can call this in a feature service or reference individual features:
+
+```python
+entity_rows = [
+    {
+        "driver_id": 1001,
+        "val_to_add": 1,
+        "val_to_add_2": 2,
+    }
+]
+
+online_response = store.get_online_features(
+    entity_rows=entity_rows,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "transformed_conv_rate_python:conv_rate_plus_val1_python",
+        "transformed_conv_rate_python:conv_rate_plus_val2_python",
+    ],
+).to_dict()
 ```

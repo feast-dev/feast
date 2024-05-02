@@ -41,9 +41,14 @@ public class RegistryConfigModule extends AbstractModule {
 
   @Provides
   public AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
-    return AmazonS3ClientBuilder.standard()
-        .withRegion(applicationProperties.getFeast().getAwsRegion())
-        .build();
+    AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+    String region = applicationProperties.getFeast().getAwsRegion();
+
+    if (region != null) {
+      builder = builder.withRegion(region);
+    }
+
+    return builder.build();
   }
 
   @Provides

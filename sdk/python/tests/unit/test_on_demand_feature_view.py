@@ -204,7 +204,7 @@ def test_python_native_transformation_mode():
             }
         )
 
-    assert on_demand_feature_view_python_native.get_transformed_features(
+    assert on_demand_feature_view_python_native.transform_dict(
         {
             "feature1": 0,
             "feature2": 1,
