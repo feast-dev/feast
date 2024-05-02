@@ -1,4 +1,5 @@
 import pytest
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.infra.online_stores.redis import RedisOnlineStore
@@ -44,7 +45,9 @@ def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_c
         EntityKeyProto(join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]),
     ]
 
-    actual = redis_online_store._generate_entity_redis_keys(repo_config, entity_keys)
+    actual = redis_online_store._generate_redis_keys_for_entities(
+        repo_config, entity_keys
+    )
     expected = [
         b"\x02\x00\x00\x00entity\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00test"
     ]
@@ -54,7 +57,7 @@ def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_c
 def test_generate_hset_keys_for_features(
     redis_online_store: RedisOnlineStore, feature_view
 ):
-    actual = redis_online_store._generate_feature_hset_keys(feature_view)
+    actual = redis_online_store._generate_hset_keys_for_features(feature_view)
     expected = (
         ["feature_10", "feature_11", "feature_12", "_ts:feature_view_1"],
         [b"&m_9", b"\xc37\x9a\xbf", b"wr\xb5d", b" \xf0v\xde", "_ts:feature_view_1"],
@@ -65,7 +68,7 @@ def test_generate_hset_keys_for_features(
 def test_generate_hset_keys_for_features_with_requested_features(
     redis_online_store: RedisOnlineStore, feature_view
 ):
-    actual = redis_online_store._generate_feature_hset_keys(
+    actual = redis_online_store._generate_hset_keys_for_features(
         feature_view=feature_view, requested_features=["my-feature-view:feature1"]
     )
     expected = (
@@ -73,3 +76,55 @@ def test_generate_hset_keys_for_features_with_requested_features(
         [b"Si\x86J", b" \xf0v\xde", "_ts:feature_view_1"],
     )
     assert actual == expected
+
+
+def test_convert_redis_values_to_protobuf(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    requested_features = [
+        "feature_view_1:feature_10",
+        "feature_view_1:feature_11",
+        "_ts:feature_view_1",
+    ]
+    values = [
+        [
+            ValueProto(int32_val=1).SerializeToString(),
+            ValueProto(int32_val=2).SerializeToString(),
+            Timestamp().SerializeToString(),
+        ]
+    ]
+
+    features = redis_online_store._convert_redis_values_to_protobuf(
+        redis_values=values,
+        feature_view=feature_view.name,
+        requested_features=requested_features,
+    )
+    assert isinstance(features, list)
+    assert len(features) == 1
+
+    timestamp, features = features[0]
+    assert features["feature_view_1:feature_10"].int32_val == 1
+    assert features["feature_view_1:feature_11"].int32_val == 2
+
+
+def test_get_features_for_entity(redis_online_store: RedisOnlineStore, feature_view):
+    requested_features = [
+        "feature_view_1:feature_10",
+        "feature_view_1:feature_11",
+        "_ts:feature_view_1",
+    ]
+    values = [
+        ValueProto(int32_val=1).SerializeToString(),
+        ValueProto(int32_val=2).SerializeToString(),
+        Timestamp().SerializeToString(),
+    ]
+
+    timestamp, features = redis_online_store._get_features_for_entity(
+        values=values,
+        feature_view=feature_view.name,
+        requested_features=requested_features,
+    )
+    assert "feature_view_1:feature_10" in features
+    assert "feature_view_1:feature_11" in features
+    assert features["feature_view_1:feature_10"].int32_val == 1
+    assert features["feature_view_1:feature_11"].int32_val == 2

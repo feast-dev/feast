@@ -332,7 +332,7 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(len(results))
 
-    def _generate_entity_redis_keys(
+    def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
     ) -> List[bytes]:
         keys = []
@@ -345,7 +345,7 @@ class RedisOnlineStore(OnlineStore):
             keys.append(redis_key_bin)
         return keys
 
-    def _generate_feature_hset_keys(
+    def _generate_hset_keys_for_features(
         self,
         feature_view: FeatureView,
         requested_features: Optional[List[str]] = None,
@@ -388,10 +388,10 @@ class RedisOnlineStore(OnlineStore):
         client = self._get_client(online_store_config)
         feature_view = table
 
-        requested_features, hset_keys = self._generate_feature_hset_keys(
+        requested_features, hset_keys = self._generate_hset_keys_for_features(
             feature_view, requested_features
         )
-        keys = self._generate_entity_redis_keys(config, entity_keys)
+        keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
         with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
@@ -417,10 +417,10 @@ class RedisOnlineStore(OnlineStore):
         client = await self._get_client_async(online_store_config)
         feature_view = table
 
-        requested_features, hset_keys = self._generate_feature_hset_keys(
+        requested_features, hset_keys = self._generate_hset_keys_for_features(
             feature_view, requested_features
         )
-        keys = self._generate_entity_redis_keys(config, entity_keys)
+        keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
         async with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
