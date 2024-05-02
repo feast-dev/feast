@@ -313,14 +313,14 @@ class Provider(ABC):
         ]
     ]:
         """
-        Searches for the top-k nearest neighbors of the given document in the online document store.
+        Searches for the top-k most similar documents in the online document store.
 
         Args:
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_feature: the requested document feature name.
             query: The query embedding to search for.
-            top_k: The number of nearest neighbors to return.
+            top_k: The number of documents to return.
 
         Returns:
             A list of dictionaries, where each dictionary contains the document feature.
