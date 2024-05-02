@@ -51,16 +51,31 @@ offline_store:
   type: file
 entity_key_serialization_version: 2
 ```
-Run the following command to apply the feature store configuration:
+Run the following command in terminal to apply the feature store configuration:
 
 ```shell
 feast apply
 ```
 
-Then run the following command to materialize the data to the online store:
+Note that when you run `feast apply` you are going to apply the following Feature View that we will use for retrieval later:  
 
-```shell
-!feast materialize 2024-04-01T00:00:00 2024-04-17T00:00:00
+```python
+city_embeddings_feature_view = FeatureView(
+name="city_embeddings",
+entities=[item],
+schema=[
+Field(name="Embeddings", dtype=Array(Float32)),
+],
+source=source,
+ttl=timedelta(hours=2),
+)
+```
+
+Then run the following command in the terminal to materialize the data to the online store:  
+
+```shell  
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")  
+feast materialize-incremental $CURRENT_TIME  
 ```
 
 ### **Prepare a query embedding**
