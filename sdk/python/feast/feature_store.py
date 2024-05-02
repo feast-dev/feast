@@ -1740,6 +1740,7 @@ class FeatureStore:
         feature: str,
         query: Union[str, List[float]],
         top_k: int,
+        distance_metric: str,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -1750,11 +1751,13 @@ class FeatureStore:
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
+            distance_metric: The distance metric to use for retrieval.
         """
         return self._retrieve_online_documents(
             feature=feature,
             query=query,
             top_k=top_k,
+            distance_metric=distinct_metric,
         )
 
     def _retrieve_online_documents(
@@ -1762,6 +1765,7 @@ class FeatureStore:
         feature: str,
         query: Union[str, List[float]],
         top_k: int,
+        distance_metric: str="L2",
     ):
         if isinstance(query, str):
             raise ValueError(
@@ -1783,6 +1787,7 @@ class FeatureStore:
             requested_feature,
             query,
             top_k,
+            distance_metric,
         )
 
         # TODO Refactor to better way of populating result
@@ -2025,6 +2030,7 @@ class FeatureStore:
         requested_feature: str,
         query: List[float],
         top_k: int,
+        distance_metric: str,
     ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value, Value]]:
         """
         Search and return document features from the online document store.
@@ -2035,6 +2041,7 @@ class FeatureStore:
             requested_feature=requested_feature,
             query=query,
             top_k=top_k,
+            distance_metric=distance_metric,
         )
 
         read_row_protos = []
