@@ -21,8 +21,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
 
-
-
 SUPPORTED_DISTANCE_METRICS_DICT = {
     "L2": "<->",
     "inner_product": "<#>",

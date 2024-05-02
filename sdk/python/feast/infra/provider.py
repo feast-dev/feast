@@ -303,7 +303,7 @@ class Provider(ABC):
         requested_feature: str,
         query: List[float],
         top_k: int,
-        distance_metric: str="euclidean",
+        distance_metric: str = "euclidean",
     ) -> List[
         Tuple[
             Optional[datetime],

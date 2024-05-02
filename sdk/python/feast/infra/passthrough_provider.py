@@ -202,7 +202,12 @@ class PassthroughProvider(Provider):
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents(
-                config, table, requested_feature, query, top_k, distance_metric,
+                config,
+                table,
+                requested_feature,
+                query,
+                top_k,
+                distance_metric,
             )
         return result
 

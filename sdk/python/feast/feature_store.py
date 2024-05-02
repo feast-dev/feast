@@ -1757,7 +1757,7 @@ class FeatureStore:
             feature=feature,
             query=query,
             top_k=top_k,
-            distance_metric=distinct_metric,
+            distance_metric=distance_metric,
         )
 
     def _retrieve_online_documents(
@@ -1765,7 +1765,7 @@ class FeatureStore:
         feature: str,
         query: Union[str, List[float]],
         top_k: int,
-        distance_metric: str="L2",
+        distance_metric: str = "L2",
     ):
         if isinstance(query, str):
             raise ValueError(
