@@ -53,7 +53,7 @@ def gcs_registry() -> Registry:
 @pytest.fixture
 def s3_registry() -> Registry:
     aws_registry_path = os.getenv(
-        "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+        "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
     )
     registry_config = RegistryConfig(
         path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",

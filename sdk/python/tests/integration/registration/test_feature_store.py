@@ -226,7 +226,7 @@ def feature_store_with_gcs_registry():
 @pytest.fixture
 def feature_store_with_s3_registry():
     aws_registry_path = os.getenv(
-        "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+        "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
     )
     return FeatureStore(
         config=RepoConfig(
