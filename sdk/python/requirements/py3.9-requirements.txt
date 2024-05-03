@@ -151,7 +151,7 @@ toolz==0.12.1
     # via
     #   dask
     #   partd
-tqdm==4.66.2
+tqdm==4.66.3
     # via feast (setup.py)
 typeguard==4.2.1
     # via feast (setup.py)

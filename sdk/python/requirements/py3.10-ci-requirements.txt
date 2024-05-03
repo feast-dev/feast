@@ -885,7 +885,7 @@ tornado==6.4
     #   jupyterlab
     #   notebook
     #   terminado
-tqdm==4.66.2
+tqdm==4.66.3
     # via
     #   feast (setup.py)
     #   great-expectations
