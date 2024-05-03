@@ -42,43 +42,4 @@ def test_universal_materialization_consistency(environment):
     # we use timestamp from generated dataframe as a split point
     split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
 
-    print(f"Split datetime: {split_dt}")
-
     validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
-
-
-# @pytest.mark.integration
-# def test_spark_materialization_consistency():
-#     spark_config = IntegrationTestRepoConfig(
-#         provider="local",
-#         online_store_creator=RedisOnlineStoreCreator,
-#         offline_store_creator=SparkDataSourceCreator,
-#         batch_engine={"type": "spark.engine", "partitions": 10},
-#     )
-#     spark_environment = construct_test_environment(
-#         spark_config, None, entity_key_serialization_version=1
-#     )
-
-
-#     driver_stats_fv = FeatureView(
-#         name="driver_hourly_stats",
-#         entities=[driver],
-#         ttl=timedelta(weeks=52),
-#         schema=[Field(name="value", dtype=Float32)],
-#         source=ds,
-#     )
-
-#     # try:
-#     fs.apply([driver, driver_stats_fv])
-
-#     #     print(df)
-
-#     #     # materialization is run in two steps and
-#     #     # we use timestamp from generated dataframe as a split point
-#     #     split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
-
-#     #     print(f"Split datetime: {split_dt}")
-
-#     #     validate_offline_online_store_consistency(fs, driver_stats_fv, split_dt)
-#     # finally:
-#     #     fs.teardown()
