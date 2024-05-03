@@ -7,6 +7,9 @@ from feast.errors import RegistryInferenceFailure
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field, from_value_type
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.contrib.mariadb_offline_store.mariadb_source import (
+    MariaDBSource,
+)
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,
 )
@@ -43,14 +46,16 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 ts_column_type_regex_pattern = "TIMESTAMP[A-Z]*"
             elif isinstance(data_source, SnowflakeSource):
                 ts_column_type_regex_pattern = "TIMESTAMP_[A-Z]*"
-            elif isinstance(data_source, MsSqlServerSource):
+            elif isinstance(data_source, MsSqlServerSource) or isinstance(
+                data_source, MariaDBSource
+            ):
                 ts_column_type_regex_pattern = "TIMESTAMP|DATETIME"
             else:
                 raise RegistryInferenceFailure(
                     "DataSource",
                     f"""
                     DataSource inferencing of timestamp_field is currently only supported
-                    for FileSource, SparkSource, BigQuerySource, RedshiftSource, SnowflakeSource, MsSqlSource.
+                    for FileSource, SparkSource, BigQuerySource, RedshiftSource, SnowflakeSource, MsSqlSource, MariaDB.
                     Attempting to infer from {data_source}.
                     """,
                 )
@@ -61,6 +66,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
                 or isinstance(data_source, RedshiftSource)
                 or isinstance(data_source, SnowflakeSource)
                 or isinstance(data_source, MsSqlServerSource)
+                or isinstance(data_source, MariaDBSource)
                 or "SparkSource" == data_source.__class__.__name__
             )
 

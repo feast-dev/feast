@@ -11,7 +11,7 @@ import pyarrow
 import pyarrow as pa
 import sqlalchemy
 from pydantic.types import StrictStr
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
@@ -33,7 +33,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.type_map import pa_to_mssql_type
+from feast.type_map import pa_to_mariadb_type
 from feast.usage import log_exceptions_and_usage
 
 # Make sure warning doesn't raise more than once.
@@ -42,31 +42,31 @@ warnings.simplefilter("once", RuntimeWarning)
 EntitySchema = Dict[str, np.dtype]
 
 
-class MsSqlServerOfflineStoreConfig(FeastConfigBaseModel):
-    """Offline store config for SQL Server"""
+class MariaDBOfflineStoreConfig(FeastConfigBaseModel):
+    """Offline store config for MariaDB"""
 
-    type: Literal["mssql"] = "mssql"
+    type: Literal["mariadb"] = "mariadb"
     """ Offline store type selector"""
 
-    connection_string: StrictStr = "mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"
-    """Connection string containing the host, port, and configuration parameters for SQL Server
-     format: SQLAlchemy connection string, e.g. mssql+pyodbc://sa:yourStrong(!)Password@localhost:1433/feast_test?driver=ODBC+Driver+17+for+SQL+Server"""
+    connection_string: StrictStr = (
+        "mysql+pymysql://user:pass@some_mariadb/dbname?charset=utf8mb4"
+    )
+    """Connection string containing the host, port, and configuration parameters for MariaDB
+     format: SQLAlchemy connection string, e.g. mysql+pymysql://user:pass@some_mariadb/dbname?charset=utf8mb4"""
 
 
-def make_engine(config: MsSqlServerOfflineStoreConfig) -> Engine:
+def make_engine(config: MariaDBOfflineStoreConfig) -> Engine:
     return create_engine(config.connection_string)
 
 
-class MsSqlServerOfflineStore(OfflineStore):
+class MariaDBOfflineStore(OfflineStore):
     """
-    Microsoft SQL Server based offline store, supporting Azure Synapse or Azure SQL.
+    MariaDB based offline store.
 
-    Note: to use this, you'll need to have Microsoft ODBC 17 installed.
-    See https://docs.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver15#17
     """
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mariadb")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -77,12 +77,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        warnings.warn(
-            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
-            "Some functionality may still be unstable so functionality can change in the future.",
-            RuntimeWarning,
-        )
-        assert type(data_source).__name__ == "MsSqlServerSource"
+        assert type(data_source).__name__ == "MariaDBSource"
         from_expression = data_source.get_table_query_string().replace("`", "")
 
         partition_by_join_key_string = ", ".join(join_key_columns)
@@ -102,13 +97,13 @@ class MsSqlServerOfflineStore(OfflineStore):
                 SELECT {field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression} inner_t
-                WHERE {timestamp_field} BETWEEN CONVERT(DATETIMEOFFSET, '{start_date}', 120) AND CONVERT(DATETIMEOFFSET, '{end_date}', 120)
+                WHERE {timestamp_field} BETWEEN CONVERT('{start_date}', DATETIME) AND CONVERT('{end_date}', DATETIME)
             ) outer_t
             WHERE outer_t._feast_row = 1
             """
         engine = make_engine(config.offline_store)
 
-        return MsSqlServerRetrievalJob(
+        return MariaDBRetrievalJob(
             query=query,
             engine=engine,
             config=config.offline_store,
@@ -117,7 +112,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mariadb")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -127,12 +122,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert type(data_source).__name__ == "MsSqlServerSource"
-        warnings.warn(
-            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
-            "Some functionality may still be unstable so functionality can change in the future.",
-            RuntimeWarning,
-        )
+        assert type(data_source).__name__ == "MariaDBSource"
         from_expression = data_source.get_table_query_string().replace("`", "")
         timestamps = [timestamp_field]
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
@@ -147,7 +137,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             """
         engine = make_engine(config.offline_store)
 
-        return MsSqlServerRetrievalJob(
+        return MariaDBRetrievalJob(
             query=query,
             engine=engine,
             config=config.offline_store,
@@ -156,7 +146,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mssql")
+    @log_exceptions_and_usage(offline_store="mariadb")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -166,14 +156,8 @@ class MsSqlServerOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        warnings.warn(
-            "The Azure Synapse + Azure SQL offline store is an experimental feature in alpha development. "
-            "Some functionality may still be unstable so functionality can change in the future.",
-            RuntimeWarning,
-        )
-
         expected_join_keys = _get_join_keys(project, feature_views, registry)
-        assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
+        assert isinstance(config.offline_store, MariaDBOfflineStoreConfig)
         engine = make_engine(config.offline_store)
         if isinstance(entity_df, pandas.DataFrame):
             entity_df_event_timestamp_col = (
@@ -187,16 +171,16 @@ class MsSqlServerOfflineStore(OfflineStore):
 
         elif isinstance(entity_df, str):
             raise ValueError(
-                "string entities are currently not supported in the MsSQL offline store."
+                "string entities are currently not supported in the MariaDB offline store."
             )
         (
             table_schema,
             table_name,
-        ) = _upload_entity_df_into_sqlserver_and_get_entity_schema(
+        ) = _upload_entity_df_into_mariadb_and_get_entity_schema(
             engine, config, entity_df, full_feature_names=full_feature_names
         )
 
-        _assert_expected_columns_in_sqlserver(
+        _assert_expected_columns_in_mariadb(
             expected_join_keys,
             entity_df_event_timestamp_col,
             table_schema,
@@ -228,7 +212,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         )
         query = query.replace("`", "")
 
-        job = MsSqlServerRetrievalJob(
+        job = MariaDBRetrievalJob(
             query=query,
             engine=engine,
             config=config.offline_store,
@@ -250,13 +234,34 @@ class MsSqlServerOfflineStore(OfflineStore):
         raise NotImplementedError()
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="mariadb")
     def offline_write_batch(
         config: RepoConfig,
         feature_view: FeatureView,
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        raise NotImplementedError()
+        assert isinstance(config.offline_store, MariaDBOfflineStoreConfig)
+        assert type(feature_view.batch_source).__name__ == "MariaDBSource"
+
+        (
+            pa_schema,
+            column_names,
+        ) = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+            )
+
+        if table.schema != pa_schema:
+            table = table.cast(pa_schema)
+
+        engine = make_engine(config.offline_store)
+
+        df_to_mariadb_table(table.to_pandas(), feature_view.batch_source.name, engine)
 
 
 def _assert_expected_columns_in_dataframe(
@@ -272,7 +277,7 @@ def _assert_expected_columns_in_dataframe(
         raise errors.FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
 
 
-def _assert_expected_columns_in_sqlserver(
+def _assert_expected_columns_in_mariadb(
     join_keys: Set[str], entity_df_event_timestamp_col: str, table_schema: EntitySchema
 ):
     entity_columns = set(table_schema.keys())
@@ -297,7 +302,7 @@ def _get_join_keys(
     return join_keys
 
 
-def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
+def _infer_event_timestamp_from_mariadb_schema(table_schema) -> str:
     if any(
         schema_field["COLUMN_NAME"] == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
         for schema_field in table_schema
@@ -321,12 +326,12 @@ def _infer_event_timestamp_from_sqlserver_schema(table_schema) -> str:
             )
 
 
-class MsSqlServerRetrievalJob(RetrievalJob):
+class MariaDBRetrievalJob(RetrievalJob):
     def __init__(
         self,
         query: str,
         engine: Engine,
-        config: MsSqlServerOfflineStoreConfig,
+        config: MariaDBOfflineStoreConfig,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
@@ -356,7 +361,6 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         return pyarrow.Table.from_pandas(result)
 
     ## Implements persist in Feast 0.18 - This persists to filestorage
-    ## ToDo: Persist to Azure Storage
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -391,14 +395,14 @@ class MsSqlServerRetrievalJob(RetrievalJob):
         return self._metadata
 
 
-def _upload_entity_df_into_sqlserver_and_get_entity_schema(
+def _upload_entity_df_into_mariadb_and_get_entity_schema(
     engine: sqlalchemy.engine.Engine,
     config: RepoConfig,
     entity_df: Union[pandas.DataFrame, str],
     full_feature_names: bool,
 ) -> Tuple[Dict[Any, Any], str]:
     """
-    Uploads a Pandas entity dataframe into a SQL Server table and constructs the
+    Uploads a Pandas entity dataframe into a MariaDB table and constructs the
     schema from the original entity_df dataframe.
     """
     table_id = offline_utils.get_temp_entity_table_name()
@@ -410,7 +414,7 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
         session.commit()
 
-        limited_entity_df = MsSqlServerRetrievalJob(
+        limited_entity_df = MariaDBRetrievalJob(
             f"SELECT TOP 1 * FROM {table_id}",
             engine,
             config.offline_store,
@@ -425,26 +429,35 @@ def _upload_entity_df_into_sqlserver_and_get_entity_schema(
 
     elif isinstance(entity_df, pandas.DataFrame):
         # Drop the index so that we don't have unnecessary columns
-        engine.execute(_df_to_create_table_sql(entity_df, table_id))  # type: ignore
-        entity_df.to_sql(name=table_id, con=engine, index=False, if_exists="append")
-        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes)), table_id
+        entity_schema = df_to_mariadb_table(entity_df, table_id, engine)
 
     else:
         raise ValueError(
-            f"The entity dataframe you have provided must be a SQL Server SQL query,"
+            f"The entity dataframe you have provided must be a MariaDB SQL query,"
             f" or a Pandas dataframe. But we found: {type(entity_df)} "
         )
 
     return entity_schema
 
 
-def _df_to_create_table_sql(df: pandas.DataFrame, table_name: str) -> str:
+def df_to_mariadb_table(
+    entity_df: pandas.DataFrame,
+    table_id: str,
+    engine: sqlalchemy.engine.Engine,
+):
+    with engine.connect() as connection:
+        connection.execute(text(_df_to_create_mariadb_table(entity_df, table_id)))
+        entity_df.to_sql(name=table_id, con=engine, index=False, if_exists="append")
+        return dict(zip(entity_df.columns, entity_df.dtypes)), table_id
+
+
+def _df_to_create_mariadb_table(df: pandas.DataFrame, table_name: str) -> str:
     pa_table = pa.Table.from_pandas(df)
 
-    columns = [f""""{f.name}" {pa_to_mssql_type(f.type)}""" for f in pa_table.schema]
+    columns = [f"""{f.name} {pa_to_mariadb_type(f.type)}""" for f in pa_table.schema]
 
     return f"""
-        CREATE TABLE "{table_name}" (
+        CREATE TABLE {table_name} (
             {", ".join(columns)}
         );
         """
@@ -569,7 +582,7 @@ WITH entity_dataframe AS (
         AND subquery.event_timestamp <= entity_dataframe.{{entity_df_event_timestamp_col}}
 
         {% if featureview.ttl == 0 %}{% else %}
-        AND {{ featureview.ttl }} > = DATEDIFF(SECOND, subquery.event_timestamp, entity_dataframe.{{entity_df_event_timestamp_col}})
+        AND {{ featureview.ttl }} >= TIMESTAMPDIFF(SECOND, subquery.event_timestamp, entity_dataframe.{{entity_df_event_timestamp_col}})
         {% endif %}
 
         {% for entity in featureview.entities %}
@@ -648,7 +661,7 @@ LEFT JOIN (
         {% for feature in featureview.features %}
             ,{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}
         {% endfor %}
-    FROM "{{ featureview.name }}__cleaned"
+    FROM {{ featureview.name }}__cleaned
 ) {{ featureview.name }}__cleaned
 ON
 {{ featureview.name }}__cleaned.{{ featureview.name }}__entity_row_unique_id = entity_dataframe.{{ featureview.name }}__entity_row_unique_id

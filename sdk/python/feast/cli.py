@@ -588,6 +588,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "gcp",
             "aws",
             "snowflake",
+            "mariadb",
             "spark",
             "postgres",
             "hbase",

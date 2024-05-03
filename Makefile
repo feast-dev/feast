@@ -159,6 +159,17 @@ test-python-universal-mssql:
 			not test_snowflake" \
  	 sdk/python/tests
 
+test-python-universal-mariadb:
+	PYTHONPATH='.' \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mariadb_repo_configuration \
+	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mariadb_offline_store.tests \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+ 	python -m pytest -n 8 --integration \
+ 	 	-k "not gcs_registry and \
+			not s3_registry and \
+			not test_lambda_materialization and \
+			not test_snowflake" \
+ 	 sdk/python/tests
 
 # To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
 # https://docs.aws.amazon.com/athena/latest/ug/getting-started.html

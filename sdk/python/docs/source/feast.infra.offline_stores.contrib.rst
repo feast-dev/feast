@@ -9,6 +9,7 @@ Subpackages
 
    feast.infra.offline_stores.contrib.athena_offline_store
    feast.infra.offline_stores.contrib.mssql_offline_store
+   feast.infra.offline_stores.contrib.mariadb_offline_store
    feast.infra.offline_stores.contrib.postgres_offline_store
    feast.infra.offline_stores.contrib.spark_offline_store
    feast.infra.offline_stores.contrib.trino_offline_store
@@ -52,6 +53,14 @@ feast.infra.offline\_stores.contrib.trino\_repo\_configuration module
 ---------------------------------------------------------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.trino_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.offline\_stores.contrib.mariadb\_repo\_configuration module
+---------------------------------------------------------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.mariadb_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1022,3 +1022,68 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
     }
 
     return type_map[pa_type_as_str]
+
+
+def pa_to_mariadb_type(pa_type: "pyarrow.DataType") -> str:
+    # PyArrow types: https://arrow.apache.org/docs/python/api/datatypes.html
+    # MariaDB types: https://mariadb.com/kb/en/data-types/
+    pa_type_as_str = str(pa_type).lower()
+    if pa_type_as_str.startswith("timestamp"):
+        return "datetime"
+
+    if pa_type_as_str.startswith("date"):
+        return "date"
+
+    if pa_type_as_str.startswith("decimal"):
+        return pa_type_as_str
+
+    # We have to take into account how arrow types map to parquet types as well.
+    # For example, null type maps to int32 in parquet, so we have to use int4 in Redshift.
+    # Other mappings have also been adjusted accordingly.
+    type_map = {
+        "null": "None",
+        "bool": "bit",
+        "int8": "tinyint",
+        "int16": "smallint",
+        "int32": "int",
+        "int64": "bigint",
+        "uint8": "tinyint",
+        "uint16": "smallint",
+        "uint32": "int",
+        "uint64": "bigint",
+        "float": "float",
+        "double": "real",
+        "binary": "binary",
+        "string": "varchar",
+    }
+
+    if pa_type_as_str.lower() not in type_map:
+        raise ValueError(f"MariaDB type not supported by feast {pa_type_as_str}")
+
+    return type_map[pa_type_as_str]
+
+
+def mariadb_to_feast_value_type(mariadb_type_as_str: str) -> ValueType:
+    type_map = {
+        "tinyint": ValueType.INT32,
+        "boolean": ValueType.BOOL,
+        "smallint": ValueType.INT32,
+        "int": ValueType.INT32,
+        "integer": ValueType.INT32,
+        "bigint": ValueType.INT64,
+        "float": ValueType.FLOAT,
+        "double": ValueType.DOUBLE,
+        "bit": ValueType.BOOL,
+        "binary": ValueType.BYTES,
+        "char": ValueType.STRING,
+        "varchar": ValueType.STRING,
+        "varbinary": ValueType.BYTES,
+        "real": ValueType.FLOAT,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "None": ValueType.NULL,
+    }
+
+    if mariadb_type_as_str.lower() not in type_map:
+        raise ValueError(f"Mariadb type not supported by feast {mariadb_type_as_str}")
+    return type_map[mariadb_type_as_str.lower()]
