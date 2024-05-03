@@ -54,7 +54,40 @@ class IbisOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        raise NotImplementedError()
+        fields = join_key_columns + feature_name_columns + [timestamp_field]
+        if created_timestamp_column:
+            fields.append(created_timestamp_column)
+        start_date = start_date.astimezone(tz=utc)
+        end_date = end_date.astimezone(tz=utc)
+
+        table = IbisOfflineStore._read_data_source(data_source)
+
+        table = table.select(*fields)
+
+        # TODO get rid of this fix
+        if "__log_date" in table.columns:
+            table = table.drop("__log_date")
+
+        table = table.filter(
+            ibis.and_(
+                table[timestamp_field] >= ibis.literal(start_date),
+                table[timestamp_field] <= ibis.literal(end_date),
+            )
+        )
+
+        table = deduplicate(
+            table=table,
+            group_by_cols=join_key_columns,
+            event_timestamp_col=timestamp_field,
+            created_timestamp_col=created_timestamp_column,
+        )
+
+        return IbisRetrievalJob(
+            table=table,
+            on_demand_feature_views=[],
+            full_feature_names=False,
+            metadata=None,
+        )
 
     def _get_entity_df_event_timestamp_range(
         entity_df: pd.DataFrame, entity_df_event_timestamp_col: str
@@ -386,6 +419,25 @@ class IbisRetrievalJob(RetrievalJob):
         return self._metadata
 
 
+def deduplicate(
+    table: Table,
+    group_by_cols: List[str],
+    event_timestamp_col: str,
+    created_timestamp_col: Optional[str],
+):
+    order_by_fields = [ibis.desc(table[event_timestamp_col])]
+    if created_timestamp_col:
+        order_by_fields.append(ibis.desc(table[created_timestamp_col]))
+
+    table = (
+        table.group_by(by=group_by_cols)
+        .order_by(order_by_fields)
+        .mutate(rn=ibis.row_number())
+    )
+
+    return table.filter(table["rn"] == ibis.literal(0)).drop("rn")
+
+
 def point_in_time_join(
     entity_table: Table,
     feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
@@ -440,19 +492,12 @@ def point_in_time_join(
 
         feature_table = feature_table.drop(s.endswith("_y"))
 
-        order_by_fields = [ibis.desc(feature_table[timestamp_field])]
-        if created_timestamp_field:
-            order_by_fields.append(ibis.desc(feature_table[created_timestamp_field]))
-
-        feature_table = (
-            feature_table.group_by(by="entity_row_id")
-            .order_by(order_by_fields)
-            .mutate(rn=ibis.row_number())
+        feature_table = deduplicate(
+            table=feature_table,
+            group_by_cols=["entity_row_id"],
+            event_timestamp_col=timestamp_field,
+            created_timestamp_col=created_timestamp_field,
         )
-
-        feature_table = feature_table.filter(
-            feature_table["rn"] == ibis.literal(0)
-        ).drop("rn")
 
         select_cols = ["entity_row_id"]
         select_cols.extend(feature_refs)
