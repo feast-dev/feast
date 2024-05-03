@@ -27,6 +27,9 @@ import io.grpc.health.v1.HealthGrpc;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
 public class ServerModule extends AbstractModule {
 
   @Override
@@ -41,7 +44,7 @@ public class ServerModule extends AbstractModule {
       TracingServerInterceptor tracingServerInterceptor,
       HealthGrpc.HealthImplBase healthImplBase) {
     ServerBuilder<?> serverBuilder =
-        ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort());
+        ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort()).executor(Executors.newFixedThreadPool(50));
     serverBuilder
         .addService(ProtoReflectionService.newInstance())
         .addService(tracingServerInterceptor.intercept(onlineServingGrpcServiceV2))
