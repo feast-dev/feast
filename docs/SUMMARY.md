@@ -80,6 +80,7 @@
   * [Snowflake](reference/offline-stores/snowflake.md)
   * [BigQuery](reference/offline-stores/bigquery.md)
   * [Redshift](reference/offline-stores/redshift.md)
+  * [DuckDB](reference/offline-stores/duckdb.md)
   * [Spark (contrib)](reference/offline-stores/spark.md)
   * [PostgreSQL (contrib)](reference/offline-stores/postgres.md)
   * [Trino (contrib)](reference/offline-stores/trino.md)
