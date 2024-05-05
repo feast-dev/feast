@@ -56,6 +56,7 @@ REQUIRED = [
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
+    "sqlite-vss",
     "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",

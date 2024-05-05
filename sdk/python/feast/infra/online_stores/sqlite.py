@@ -14,6 +14,7 @@
 import itertools
 import os
 import sqlite3
+import sqlite_vss
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -73,6 +74,10 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
+            db = sqlite3.connect(':memory:')
+            db.enable_load_extension(True)
+            sqlite_vss.load(db)
+
         return self._conn
 
     def online_write_batch(

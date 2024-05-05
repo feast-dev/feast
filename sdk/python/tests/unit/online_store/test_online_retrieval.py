@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 
 import pandas as pd
+import numpy as np
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -14,13 +15,13 @@ from feast.repo_config import RegistryConfig
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
-def test_online() -> None:
+def test_get_online_features() -> None:
     """
     Test reading from the online store in local mode.
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -277,7 +278,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -415,3 +416,56 @@ def test_online_to_df():
         ]
         expected_df = pd.DataFrame({k: reversed(v) for (k, v) in df_dict.items()})
         assert_frame_equal(result_df[ordered_column], expected_df)
+
+
+def test_get_online_Documents() -> None:
+    """
+    Test retrieving documents from the online store in local mode.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+            get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        # Write some data to two tables
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+
+        provider = store._get_provider()
+
+        item_key = EntityKeyProto(
+            join_keys=["item_id"], entity_values=[ValueProto(int64_val=0)]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=[
+                (
+                    item_key,
+                    {
+                        "Embeddings": [
+                            np.array([0.17517076, -0.1259909, 0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226]),
+                            np.array([0.18517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673, 0.01173803, -0.0573408, 0.02616226]),
+                            np.array(
+                                [0.19517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673,
+                                 0.01173803, -0.0573408, 0.02616226]),
+                            np.array(
+                                [0.20517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673,
+                                 0.01173803, -0.0573408, 0.02616226]),
+                        ]
+                    },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        query = np.array([ 0.17517076, -0.1259909 ,  0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226])
+        # Retrieve two features using two keys, one valid one non-existing
+        result = store.retrieve_online_documents(
+            feature="document_embeddings:Embeddings",
+            query=query,
+            top_k=3
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert result["driver_id"] == [0]
