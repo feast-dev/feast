@@ -158,7 +158,9 @@ class DatastoreOnlineStore(OnlineStore):
     def _get_client(self, online_config: DatastoreOnlineStoreConfig):
         if not self._client:
             self._client = _initialize_client(
-                online_config.project_id, online_config.namespace, online_config.database
+                online_config.project_id,
+                online_config.namespace,
+                online_config.database,
             )
         return self._client
 
@@ -351,7 +353,10 @@ def _initialize_client(
 ) -> datastore.Client:
     try:
         client = datastore.Client(
-            project=project_id, namespace=namespace, database=database, client_info=get_http_client_info()
+            project=project_id,
+            namespace=namespace,
+            database=database,
+            client_info=get_http_client_info(),
         )
         return client
     except DefaultCredentialsError as e:
@@ -429,9 +434,7 @@ class DatastoreTable(InfraObject):
                 infra_object_proto.datastore_table.namespace.value
             )
         if infra_object_proto.datastore_table.HasField("database"):
-            datastore_table.database = (
-                infra_object_proto.datastore_table.database.value
-            )
+            datastore_table.database = infra_object_proto.datastore_table.database.value
 
         return datastore_table
 
