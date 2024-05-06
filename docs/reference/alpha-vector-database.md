@@ -61,13 +61,13 @@ Note that when you run `feast apply` you are going to apply the following Featur
 
 ```python
 city_embeddings_feature_view = FeatureView(
-name="city_embeddings",
-entities=[item],
-schema=[
-Field(name="Embeddings", dtype=Array(Float32)),
-],
-source=source,
-ttl=timedelta(hours=2),
+    name="city_embeddings",
+    entities=[item],
+    schema=[
+        Field(name="Embeddings", dtype=Array(Float32)),
+    ],
+    source=source,
+    ttl=timedelta(hours=2),
 )
 ```
 
