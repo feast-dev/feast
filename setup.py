@@ -104,6 +104,8 @@ POSTGRES_REQUIRED = [
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
+MARIADB_REQUIRED = ["pymysql", "types-PyMySQL"]
+
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
 ]
@@ -211,6 +213,7 @@ CI_REQUIRED = (
     + GRPCIO_REQUIRED
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
+    + MARIADB_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -377,6 +380,7 @@ setup(
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
+        "mariadb": MARIADB_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

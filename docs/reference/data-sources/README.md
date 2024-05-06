@@ -49,3 +49,7 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 {% content-ref url="mssql.md" %}
 [mssql.md](mssql.md)
 {% endcontent-ref %}
+
+{% content-ref url="mariadb.md" %}
+[mariadb.md](mariadb.md)
+{% endcontent-ref %}
