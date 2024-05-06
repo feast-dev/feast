@@ -39,10 +39,10 @@ def test_tag_infra_proto_objects_for_keep_delete_add():
 
 def test_diff_between_datastore_tables():
     pre_changed = DatastoreTable(
-        project="test", name="table", project_id="pre", namespace="pre"
+        project="test", name="table", project_id="pre", namespace="pre", database="pre"
     ).to_proto()
     post_changed = DatastoreTable(
-        project="test", name="table", project_id="post", namespace="post"
+        project="test", name="table", project_id="post", namespace="post", database="post"
     ).to_proto()
 
     infra_object_diff = diff_between(pre_changed, pre_changed, "datastore table")
@@ -51,7 +51,7 @@ def test_diff_between_datastore_tables():
 
     infra_object_diff = diff_between(pre_changed, post_changed, "datastore table")
     infra_object_property_diffs = infra_object_diff.infra_object_property_diffs
-    assert len(infra_object_property_diffs) == 2
+    assert len(infra_object_property_diffs) == 3
 
     assert infra_object_property_diffs[0].property_name == "project_id"
     assert infra_object_property_diffs[0].val_existing == wrappers.StringValue(
@@ -65,6 +65,13 @@ def test_diff_between_datastore_tables():
         value="pre"
     )
     assert infra_object_property_diffs[1].val_declared == wrappers.StringValue(
+        value="post"
+    )
+    assert infra_object_property_diffs[2].property_name == "database"
+    assert infra_object_property_diffs[2].val_existing == wrappers.StringValue(
+        value="pre"
+    )
+    assert infra_object_property_diffs[2].val_declared == wrappers.StringValue(
         value="post"
     )
 
