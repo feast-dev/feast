@@ -2,8 +2,8 @@ import os
 import time
 from datetime import datetime
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -21,7 +21,7 @@ def test_get_online_features() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -278,7 +278,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -424,7 +424,7 @@ def test_get_online_Documents() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
@@ -442,14 +442,62 @@ def test_get_online_Documents() -> None:
                     item_key,
                     {
                         "Embeddings": [
-                            np.array([0.17517076, -0.1259909, 0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226]),
-                            np.array([0.18517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673, 0.01173803, -0.0573408, 0.02616226]),
                             np.array(
-                                [0.19517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673,
-                                 0.01173803, -0.0573408, 0.02616226]),
+                                [
+                                    0.17517076,
+                                    -0.1259909,
+                                    0.01954236,
+                                    0.03045186,
+                                    -0.00074535,
+                                    -0.02715777,
+                                    -0.04582673,
+                                    0.01173803,
+                                    -0.0573408,
+                                    0.02616226,
+                                ]
+                            ),
                             np.array(
-                                [0.20517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673,
-                                 0.01173803, -0.0573408, 0.02616226]),
+                                [
+                                    0.18517076,
+                                    -0.1259909,
+                                    0.01954236,
+                                    0.03045186,
+                                    -0.00074535,
+                                    -0.02715777,
+                                    -0.04582673,
+                                    0.01173803,
+                                    -0.0573408,
+                                    0.02616226,
+                                ]
+                            ),
+                            np.array(
+                                [
+                                    0.19517076,
+                                    -0.1259909,
+                                    0.01954236,
+                                    0.03045186,
+                                    -0.00074535,
+                                    -0.02715777,
+                                    -0.04582673,
+                                    0.01173803,
+                                    -0.0573408,
+                                    0.02616226,
+                                ]
+                            ),
+                            np.array(
+                                [
+                                    0.20517076,
+                                    -0.1259909,
+                                    0.01954236,
+                                    0.03045186,
+                                    -0.00074535,
+                                    -0.02715777,
+                                    -0.04582673,
+                                    0.01173803,
+                                    -0.0573408,
+                                    0.02616226,
+                                ]
+                            ),
                         ]
                     },
                     datetime.utcnow(),
@@ -459,12 +507,23 @@ def test_get_online_Documents() -> None:
             progress=None,
         )
 
-        query = np.array([ 0.17517076, -0.1259909 ,  0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226])
+        query = np.array(
+            [
+                0.17517076,
+                -0.1259909,
+                0.01954236,
+                0.03045186,
+                -0.00074535,
+                -0.02715777,
+                -0.04582673,
+                0.01173803,
+                -0.0573408,
+                0.02616226,
+            ]
+        )
         # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings",
-            query=query,
-            top_k=3
+            feature="document_embeddings:Embeddings", query=query, top_k=3
         ).to_dict()
 
         assert "Embeddings" in result

@@ -4,7 +4,7 @@ import pandas as pd
 
 from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, Int64, String, Array
+from feast.types import Array, Float32, Int64, String
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
 # at the paths for these file sources. Since these paths are effectively fake, this example
@@ -50,7 +50,7 @@ customer = Entity(
 )
 
 item = Entity(
-    name="item_id", # The name is derived from this argument, not object name.
+    name="item_id",  # The name is derived from this argument, not object name.
     join_keys=["item_id"],
 )
 
@@ -121,6 +121,7 @@ document_embeddings = FeatureView(
     source=rag_documents_source,
     ttl=timedelta(hours=24),
 )
+
 
 @on_demand_feature_view(
     sources=[customer_profile],
