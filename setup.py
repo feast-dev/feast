@@ -135,8 +135,8 @@ HAZELCAST_REQUIRED = [
 ]
 
 IBIS_REQUIRED = [
-    "ibis-framework",
-    "ibis-substrait",
+    "ibis-framework>=8.0.0,<9",
+    "ibis-substrait<=3.2.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -146,7 +146,7 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 
 DELTA_REQUIRED = ["deltalake"]
 
