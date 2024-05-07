@@ -77,6 +77,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
     "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
+    "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
