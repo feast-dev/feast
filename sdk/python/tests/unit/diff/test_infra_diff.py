@@ -42,7 +42,11 @@ def test_diff_between_datastore_tables():
         project="test", name="table", project_id="pre", namespace="pre", database="pre"
     ).to_proto()
     post_changed = DatastoreTable(
-        project="test", name="table", project_id="post", namespace="post", database="post"
+        project="test",
+        name="table",
+        project_id="post",
+        namespace="post",
+        database="post",
     ).to_proto()
 
     infra_object_diff = diff_between(pre_changed, pre_changed, "datastore table")
