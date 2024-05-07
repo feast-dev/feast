@@ -139,8 +139,10 @@ class SnowflakeOfflineStore(OfflineStore):
         assert isinstance(data_source, SnowflakeSource)
 
         from_expression = data_source.get_table_query_string()
-        if not data_source.database and data_source.table:
+        if not data_source.database and not data_source.schema and data_source.table:
             from_expression = f'"{config.offline_store.database}"."{config.offline_store.schema_}".{from_expression}'
+        if not data_source.database and data_source.schema and data_source.table:
+            from_expression = f'"{config.offline_store.database}".{from_expression}'
 
         if join_key_columns:
             partition_by_join_key_string = '"' + '", "'.join(join_key_columns) + '"'
@@ -226,8 +228,10 @@ class SnowflakeOfflineStore(OfflineStore):
         assert isinstance(data_source, SnowflakeSource)
 
         from_expression = data_source.get_table_query_string()
-        if not data_source.database and data_source.table:
+        if not data_source.database and not data_source.schema and data_source.table:
             from_expression = f'"{config.offline_store.database}"."{config.offline_store.schema_}".{from_expression}'
+        if not data_source.database and data_source.schema and data_source.table:
+            from_expression = f'"{config.offline_store.database}".{from_expression}'
 
         field_string = (
             '"'
