@@ -112,12 +112,12 @@ def retrieval_job(request, environment):
         return FileRetrievalJob(lambda: 1, full_feature_names=False)
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
-            cluster_id="feast-integration-tests",
+            cluster_id="feast-int-bucket",
             region="us-west-2",
             user="admin",
             database="feast",
-            s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
-            iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
+            s3_staging_location="s3://feast-int-bucket/redshift/tests/ingestion",
+            iam_role="arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
             workgroup="",
         )
         environment.test_repo_config.offline_store = offline_store_config

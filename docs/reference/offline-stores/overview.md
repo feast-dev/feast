@@ -42,17 +42,17 @@ Below is a matrix indicating which offline stores support which methods.
 
 Below is a matrix indicating which `RetrievalJob`s support what functionality.
 
-| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
-| --------------------------------- | --- | --- | --- | --- | --- | --- | --- |
-| export to dataframe                                   | yes | yes | yes | yes | yes | yes | yes |
-| export to arrow table                                 | yes | yes | yes | yes | yes | yes | yes |
-| export to arrow batches                               | no  | no  | no  | yes | no  | no  | no  |
-| export to SQL                                         | no  | yes | yes  | yes | yes | no | yes |
-| export to data lake (S3, GCS, etc.)                   | no  | no  | yes | no  | yes | no  | no  |
-| export to data warehouse                              | no  | yes | yes | yes | yes | no  | no  |
-| export as Spark dataframe                             | no  | no  | yes | no  | no  | yes | no  |
-| local execution of Python-based on-demand transforms  | yes | yes | yes | yes | yes | no  | yes |
-| remote execution of Python-based on-demand transforms | no  | no  | no  | no  | no  | no  | no  |
-| persist results in the offline store                  | yes | yes | yes | yes | yes | yes | no  |
-| preview the query plan before execution               | yes | yes | yes | yes | yes | yes | yes |
-| read partitioned data                                 | yes | yes | yes | yes | yes | yes | yes |
+| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | DuckDB |
+| --------------------------------- | --- | --- | --- | --- | --- | --- | --- | --- |
+| export to dataframe                                   | yes | yes | yes | yes | yes | yes | yes | yes | 
+| export to arrow table                                 | yes | yes | yes | yes | yes | yes | yes | yes |
+| export to arrow batches                               | no  | no  | no  | yes | no  | no  | no  | no  |
+| export to SQL                                         | no  | yes | yes | yes | yes | no  | yes | no  |
+| export to data lake (S3, GCS, etc.)                   | no  | no  | yes | no  | yes | no  | no  | no  |
+| export to data warehouse                              | no  | yes | yes | yes | yes | no  | no  | no  |
+| export as Spark dataframe                             | no  | no  | yes | no  | no  | yes | no  | no  |
+| local execution of Python-based on-demand transforms  | yes | yes | yes | yes | yes | no  | yes | yes |
+| remote execution of Python-based on-demand transforms | no  | no  | no  | no  | no  | no  | no  | no  |
+| persist results in the offline store                  | yes | yes | yes | yes | yes | yes | no  | yes |
+| preview the query plan before execution               | yes | yes | yes | yes | yes | yes | yes | no  |
+| read partitioned data                                 | yes | yes | yes | yes | yes | yes | yes | yes |

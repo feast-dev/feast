@@ -31,7 +31,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         data_source = os.getenv("ATHENA_DATA_SOURCE", "AwsDataCatalog")
         database = os.getenv("ATHENA_DATABASE", "default")
         workgroup = os.getenv("ATHENA_WORKGROUP", "primary")
-        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-integration-tests")
+        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-int-bucket")
 
         self.client = aws_utils.get_athena_data_client(region)
         self.s3 = aws_utils.get_s3_resource(region)

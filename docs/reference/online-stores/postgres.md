@@ -65,10 +65,16 @@ To compare this set of functionality against other online stores, please see the
 
 ## PGVector
 The Postgres online store supports the use of [PGVector](https://github.com/pgvector/pgvector) for storing feature values.
-To enable PGVector, set `pgvector_enabled: true` in the online store configuration.
+To enable PGVector, set `pgvector_enabled: true` in the online store configuration. 
+
 The `vector_len` parameter can be used to specify the length of the vector. The default value is 512.
 
-Then you can use `retrieve_online_documents` to retrieve the top k closest vectors to a query vector.
+Please make sure to follow the instructions in the repository, which, as the time of this writing, requires you to 
+run `CREATE EXTENSION vector;` in the database.
+
+
+Then you can use `retrieve_online_documents` to retrieve the top k closest vectors to a query vector. 
+For the Retrieval Augmented  Generation (RAG) use-case, you have to embed the query prior to passing the query vector.
 
 {% code title="python" %}
 ```python

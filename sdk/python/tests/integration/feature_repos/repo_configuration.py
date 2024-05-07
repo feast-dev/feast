@@ -461,7 +461,7 @@ def construct_test_environment(
         test_repo_config.python_feature_server and test_repo_config.provider == "aws"
     ) or test_repo_config.registry_location == RegistryLocation.S3:
         aws_registry_path = os.getenv(
-            "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
+            "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
         )
         registry: Union[str, RegistryConfig] = (
             f"{aws_registry_path}/{project}/registry.db"
