@@ -130,8 +130,8 @@ The following inline policy can be used to grant Redshift necessary permissions 
             "Action": "s3:*",
             "Effect": "Allow",
             "Resource": [
-                "arn:aws:s3:::feast-integration-tests",
-                "arn:aws:s3:::feast-integration-tests/*"
+                "arn:aws:s3:::feast-int-bucket",
+                "arn:aws:s3:::feast-int-bucket/*"
             ]
         }
     ],
