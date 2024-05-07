@@ -93,7 +93,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [ feature-server, feature-server-java, feature-transformation-server ]
+        component: [ feature-server, feature-server-java, feature-transformation-server, feast-operator ]
     env:
       REGISTRY: feastdev
     steps:
