@@ -111,6 +111,7 @@ class FooProvider(Provider):
         requested_feature: str,
         query: List[float],
         top_k: int,
+        distance_metric: str,
     ) -> List[
         Tuple[
             Optional[datetime],

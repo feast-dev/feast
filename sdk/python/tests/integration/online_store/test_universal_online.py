@@ -798,6 +798,25 @@ def test_retrieve_online_documents(environment, fake_document_data):
     fs.write_to_online_store("item_embeddings", df)
 
     documents = fs.retrieve_online_documents(
-        feature="item_embeddings:embedding_float", query=[1.0, 2.0], top_k=2
+        feature="item_embeddings:embedding_float",
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="L2",
     ).to_dict()
     assert len(documents["embedding_float"]) == 2
+
+    documents = fs.retrieve_online_documents(
+        feature="item_embeddings:embedding_float",
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="L1",
+    ).to_dict()
+    assert len(documents["embedding_float"]) == 2
+
+    with pytest.raises(ValueError):
+        fs.retrieve_online_documents(
+            feature="item_embeddings:embedding_float",
+            query=[1.0, 2.0],
+            top_k=2,
+            distance_metric="wrong",
+        ).to_dict()

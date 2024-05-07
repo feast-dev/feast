@@ -158,7 +158,7 @@ class OnlineStore(ABC):
             table: The feature view whose feature values should be read.
             requested_feature: The name of the feature whose embeddings should be used for retrieval.
             embedding: The embeddings to use for retrieval.
-            top_k: The number of nearest neighbors to retrieve.
+            top_k: The number of documents to retrieve.
 
         Returns:
             object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple
