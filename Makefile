@@ -361,9 +361,6 @@ kill-trino-locally:
 install-protoc-dependencies:
 	pip install --ignore-installed protobuf==4.24.0 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
-install-feast-ci-locally:
-	pip install -e ".[ci]"
-
 # Docker
 
 build-docker: build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
