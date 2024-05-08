@@ -60,7 +60,7 @@ def test_generate_hset_keys_for_features(
     actual = redis_online_store._generate_hset_keys_for_features(feature_view)
     expected = (
         ["feature_10", "feature_11", "feature_12", "_ts:feature_view_1"],
-        [b"&m_9", b"\xc37\x9a\xbf", b"wr\xb5d", b" \xf0v\xde", "_ts:feature_view_1"],
+        [b"&m_9", b"\xc37\x9a\xbf", b"wr\xb5d", "_ts:feature_view_1"],
     )
     assert actual == expected
 
@@ -73,7 +73,7 @@ def test_generate_hset_keys_for_features_with_requested_features(
     )
     expected = (
         ["my-feature-view:feature1", "_ts:feature_view_1"],
-        [b"Si\x86J", b" \xf0v\xde", "_ts:feature_view_1"],
+        [b"Si\x86J", "_ts:feature_view_1"],
     )
     assert actual == expected
 
