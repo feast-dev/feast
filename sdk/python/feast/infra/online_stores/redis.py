@@ -353,11 +353,12 @@ class RedisOnlineStore(OnlineStore):
         if not requested_features:
             requested_features = [f.name for f in feature_view.features]
 
+        hset_keys = [_mmh3(f"{feature_view.name}:{k}") for k in requested_features]
+
         ts_key = f"_ts:{feature_view.name}"
+        hset_keys.append(ts_key)
         requested_features.append(ts_key)
 
-        hset_keys = [_mmh3(f"{feature_view.name}:{k}") for k in requested_features]
-        hset_keys.append(ts_key)
         return requested_features, hset_keys
 
     def _convert_redis_values_to_protobuf(
