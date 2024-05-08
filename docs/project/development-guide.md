@@ -123,43 +123,43 @@ Note that this means if you are midway through working through a PR and rebase, 
 Setting up your development environment for Feast Python SDK / CLI:
 1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
    - Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
-2. Ensure that you have `make`, Python (3.8 and above) with `pip`, installed.
+2. Ensure that you have `make` and Python (3.9 or above) installed.
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
   ```sh
   # create & activate a virtual environment
   python -m venv venv/
   source venv/bin/activate
   ```
-4. Upgrade `pip` if outdated
-  ```sh
-  pip install --upgrade pip
-  ```
-5. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
-6. Install pip-tools
-  ```sh
-  pip install pip-tools
-  ```
-7. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
+4. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
+5. Install uv
+It is recommended to use uv for managing python dependencies.
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+or
+```ssh
+pip install uv
+```
+6. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
 ```
 make build-ui
 ```
-8. Install mysql (needed for ci dependencies)
+7. (Optional) install pixi
+pixi is necessary to run step 8 for all python versions at once.
 ```sh
-brew install mysql
+curl -fsSL https://pixi.sh/install.sh | bash
 ```
+8. (Optional): Recompile python lock files
+If you make changes to requirements or simply want to update python lock files to reflect latest versioons.
+```sh
+make lock-python-dependencies-all
+``` 
 9. Install development dependencies for Feast Python SDK / CLI
+This will install package versions from the lock file, install editable version of feast and compile protobufs.
 ```sh
-pip install -e ".[dev]"
+make install-python-ci-dependencies-uv
 ```
-
-This will allow the installed feast version to automatically reflect changes to your local development version of Feast without needing to reinstall everytime you make code changes.
-
-10. Compile the protubufs
-```sh
-make compile-protos-python
-```
-
-11. Spin up Docker Image
+10. Spin up Docker Image
 ```sh
 docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .
 ```

@@ -6,7 +6,7 @@ platforms = ["linux-64"]
 [tasks]
 
 [dependencies]
-pip-tools = ">=7.4.1,<7.5"
+uv = ">=0.1.39,<0.2"
 
 [feature.py39.dependencies]
 python = "~=3.9.0"
@@ -14,6 +14,10 @@ python = "~=3.9.0"
 [feature.py310.dependencies]
 python = "~=3.10.0"
 
+[feature.py311.dependencies]
+python = "~=3.11.0"
+
 [environments]
 py39 = ["py39"]
 py310 = ["py310"]
+py311 = ["py311"]
