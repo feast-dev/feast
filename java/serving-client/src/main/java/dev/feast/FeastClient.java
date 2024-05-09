@@ -26,6 +26,7 @@ import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
@@ -57,9 +58,9 @@ public class FeastClient implements AutoCloseable {
    * @param port port number of Feast serving GRPC server
    * @return {@link FeastClient}
    */
-  public static FeastClient create(String host, int port) {
+  public static FeastClient create(String host, int port, Deadline deadline) {
     // configure client with no security config.
-    return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
+    return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build(), deadline);
   }
 
   /**
@@ -71,7 +72,7 @@ public class FeastClient implements AutoCloseable {
    *     SecurityConfig} for options.
    * @return {@link FeastClient}
    */
-  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
+  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig, Deadline deadline) {
     // Configure client TLS
     ManagedChannel channel = null;
     if (securityConfig.isTLSEnabled()) {
@@ -98,7 +99,7 @@ public class FeastClient implements AutoCloseable {
       channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
     }
 
-    return new FeastClient(channel, securityConfig.getCredentials());
+    return new FeastClient(channel, securityConfig.getCredentials(), deadline);
   }
 
   /**
@@ -201,7 +202,7 @@ public class FeastClient implements AutoCloseable {
     return getOnlineFeatures(featureRefs, rows);
   }
 
-  protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
+  protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials, Deadline deadline) {
     this.channel = channel;
     TracingClientInterceptor tracingInterceptor =
         TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
@@ -212,6 +213,8 @@ public class FeastClient implements AutoCloseable {
     if (credentials.isPresent()) {
       servingStub = servingStub.withCallCredentials(credentials.get());
     }
+
+    servingStub = servingStub.withDeadline(deadline);
 
     this.stub = servingStub;
   }

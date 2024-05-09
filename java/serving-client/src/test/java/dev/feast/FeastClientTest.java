@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Rule;
@@ -86,7 +87,7 @@ public class FeastClientTest {
     ManagedChannel channel =
         this.grpcRule.register(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
-    this.client = new FeastClient(channel, Optional.empty());
+    this.client = new FeastClient(channel, Optional.empty(), Deadline.after(1, TimeUnit.MILLISECONDS));
   }
 
   @Test
