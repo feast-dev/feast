@@ -6,18 +6,19 @@ import warnings
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-import feast
 import pandas as pd
 from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
+from google.protobuf.json_format import MessageToDict
+from pydantic import BaseModel
+
+import feast
 from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
-from google.protobuf.json_format import MessageToDict
-from pydantic import BaseModel
 
 
 # TODO: deprecate this in favor of push features
