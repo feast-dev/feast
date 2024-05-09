@@ -121,7 +121,18 @@ class ElasticsearchOnlineStore(OnlineStore):
                     }
                 },
             }
-        self._client.search(index=self._index, body=body)
+        response = self._client.search(index=self._index, body=body)
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for hit in response["hits"]["hits"]:
+            results.append(
+                (
+                    hit["_source"]["timestamp"],
+                    {
+                        hit["_source"]["feature_name"]: hit["_source"]["feature_value"]
+                    },
+                )
+            )
+        return results
 
     def update(
         self,
