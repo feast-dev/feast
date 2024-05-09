@@ -42,6 +42,7 @@ from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     from redis import Redis
+    from redis import asyncio as redis_asyncio
     from redis.cluster import ClusterNode, RedisCluster
     from redis.sentinel import Sentinel
 except ImportError as e:
@@ -90,6 +91,9 @@ class RedisOnlineStore(OnlineStore):
     """
 
     _client: Optional[Union[Redis, RedisCluster]] = None
+    _client_async: Optional[Union[redis_asyncio.Redis, redis_asyncio.RedisCluster]] = (
+        None
+    )
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
@@ -234,6 +238,30 @@ class RedisOnlineStore(OnlineStore):
                 self._client = Redis(**kwargs)
         return self._client
 
+    async def _get_client_async(self, online_store_config: RedisOnlineStoreConfig):
+        if not self._client_async:
+            startup_nodes, kwargs = self._parse_connection_string(
+                online_store_config.connection_string
+            )
+            if online_store_config.redis_type == RedisType.redis_cluster:
+                kwargs["startup_nodes"] = [
+                    redis_asyncio.cluster.ClusterNode(**node) for node in startup_nodes
+                ]
+                self._client_async = redis_asyncio.RedisCluster(**kwargs)
+            elif online_store_config.redis_type == RedisType.redis_sentinel:
+                sentinel_hosts = []
+                for item in startup_nodes:
+                    sentinel_hosts.append((item["host"], int(item["port"])))
+
+                sentinel = redis_asyncio.Sentinel(sentinel_hosts, **kwargs)
+                master = sentinel.master_for(online_store_config.sentinel_master)
+                self._client_async = master
+            else:
+                kwargs["host"] = startup_nodes[0]["host"]
+                kwargs["port"] = startup_nodes[0]["port"]
+                self._client_async = redis_asyncio.Redis(**kwargs)
+        return self._client_async
+
     @log_exceptions_and_usage(online_store="redis")
     def online_write_batch(
         self,
@@ -304,6 +332,49 @@ class RedisOnlineStore(OnlineStore):
             if progress:
                 progress(len(results))
 
+    def _generate_redis_keys_for_entities(
+        self, config: RepoConfig, entity_keys: List[EntityKeyProto]
+    ) -> List[bytes]:
+        keys = []
+        for entity_key in entity_keys:
+            redis_key_bin = _redis_key(
+                config.project,
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            keys.append(redis_key_bin)
+        return keys
+
+    def _generate_hset_keys_for_features(
+        self,
+        feature_view: FeatureView,
+        requested_features: Optional[List[str]] = None,
+    ) -> Tuple[List[str], List[str]]:
+        if not requested_features:
+            requested_features = [f.name for f in feature_view.features]
+
+        hset_keys = [_mmh3(f"{feature_view.name}:{k}") for k in requested_features]
+
+        ts_key = f"_ts:{feature_view.name}"
+        hset_keys.append(ts_key)
+        requested_features.append(ts_key)
+
+        return requested_features, hset_keys
+
+    def _convert_redis_values_to_protobuf(
+        self,
+        redis_values: List[List[ByteString]],
+        feature_view: str,
+        requested_features: List[str],
+    ):
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for values in redis_values:
+            features = self._get_features_for_entity(
+                values, feature_view, requested_features
+            )
+            result.append(features)
+        return result
+
     @log_exceptions_and_usage(online_store="redis")
     def online_read(
         self,
@@ -316,39 +387,51 @@ class RedisOnlineStore(OnlineStore):
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
 
         client = self._get_client(online_store_config)
-        feature_view = table.name
-        project = config.project
+        feature_view = table
 
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        requested_features, hset_keys = self._generate_hset_keys_for_features(
+            feature_view, requested_features
+        )
+        keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
-        if not requested_features:
-            requested_features = [f.name for f in table.features]
-
-        hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
-
-        ts_key = f"_ts:{feature_view}"
-        hset_keys.append(ts_key)
-        requested_features.append(ts_key)
-
-        keys = []
-        for entity_key in entity_keys:
-            redis_key_bin = _redis_key(
-                project,
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
-            keys.append(redis_key_bin)
         with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
             with tracing_span(name="remote_call"):
                 redis_values = pipe.execute()
-        for values in redis_values:
-            features = self._get_features_for_entity(
-                values, feature_view, requested_features
-            )
-            result.append(features)
-        return result
+
+        return self._convert_redis_values_to_protobuf(
+            redis_values, feature_view.name, requested_features
+        )
+
+    @log_exceptions_and_usage(online_store="redis")
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = await self._get_client_async(online_store_config)
+        feature_view = table
+
+        requested_features, hset_keys = self._generate_hset_keys_for_features(
+            feature_view, requested_features
+        )
+        keys = self._generate_redis_keys_for_entities(config, entity_keys)
+
+        async with client.pipeline(transaction=False) as pipe:
+            for redis_key_bin in keys:
+                pipe.hmget(redis_key_bin, hset_keys)
+            with tracing_span(name="remote_call"):
+                redis_values = await pipe.execute()
+
+        return self._convert_redis_values_to_protobuf(
+            redis_values, feature_view.name, requested_features
+        )
 
     def _get_features_for_entity(
         self,

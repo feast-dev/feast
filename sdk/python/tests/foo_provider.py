@@ -82,6 +82,15 @@ class FooProvider(Provider):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         return []
 
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        return []
+
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
         pass
 
