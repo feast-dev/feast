@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,16 +12,12 @@ from ibis.expr import datatypes as dt
 from ibis.expr.types import Table
 from pytz import utc
 
-from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
-from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
-    FileSource,
-    SavedDatasetFileStorage,
 )
 from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
@@ -51,6 +46,7 @@ def pull_latest_from_table_or_query_ibis(
     start_date: datetime,
     end_date: datetime,
     data_source_reader: Callable[[DataSource], Table],
+    data_source_writer: Callable[[pyarrow.Table, DataSource], None],
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
@@ -85,6 +81,7 @@ def pull_latest_from_table_or_query_ibis(
         on_demand_feature_views=[],
         full_feature_names=False,
         metadata=None,
+        data_source_writer=data_source_writer,
     )
 
 
@@ -141,6 +138,7 @@ def get_historical_features_ibis(
     registry: BaseRegistry,
     project: str,
     data_source_reader: Callable[[DataSource], Table],
+    data_source_writer: Callable[[pyarrow.Table, DataSource], None],
     full_feature_names: bool = False,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
@@ -232,6 +230,7 @@ def get_historical_features_ibis(
             min_event_timestamp=timestamp_range[0],
             max_event_timestamp=timestamp_range[1],
         ),
+        data_source_writer=data_source_writer,
     )
 
 
@@ -244,6 +243,7 @@ def pull_all_from_table_or_query_ibis(
     start_date: datetime,
     end_date: datetime,
     data_source_reader: Callable[[DataSource], Table],
+    data_source_writer: Callable[[pyarrow.Table, DataSource], None],
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     start_date = start_date.astimezone(tz=utc)
@@ -269,6 +269,7 @@ def pull_all_from_table_or_query_ibis(
         on_demand_feature_views=[],
         full_feature_names=False,
         metadata=None,
+        data_source_writer=data_source_writer,
     )
 
 
@@ -309,7 +310,7 @@ def offline_write_batch_ibis(
             f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
         )
 
-    data_source_writer(table, feature_view.batch_source)
+    data_source_writer(ibis.memtable(table), feature_view.batch_source)
 
 
 def deduplicate(
@@ -412,7 +413,12 @@ def point_in_time_join(
 
 class IbisRetrievalJob(RetrievalJob):
     def __init__(
-        self, table, on_demand_feature_views, full_feature_names, metadata
+        self,
+        table,
+        on_demand_feature_views,
+        full_feature_names,
+        metadata,
+        data_source_writer,
     ) -> None:
         super().__init__()
         self.table = table
@@ -421,6 +427,7 @@ class IbisRetrievalJob(RetrievalJob):
         )
         self._full_feature_names = full_feature_names
         self._metadata = metadata
+        self.data_source_writer = data_source_writer
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         return self.table.execute()
@@ -442,32 +449,9 @@ class IbisRetrievalJob(RetrievalJob):
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ):
-        assert isinstance(storage, SavedDatasetFileStorage)
-        if not allow_overwrite and os.path.exists(storage.file_options.uri):
-            raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
-
-        if isinstance(storage.file_options.file_format, ParquetFormat):
-            filesystem, path = FileSource.create_filesystem_and_path(
-                storage.file_options.uri,
-                storage.file_options.s3_endpoint_override,
-            )
-
-            if path.endswith(".parquet"):
-                pyarrow.parquet.write_table(
-                    self.to_arrow(), where=path, filesystem=filesystem
-                )
-            else:
-                # otherwise assume destination is directory
-                pyarrow.parquet.write_to_dataset(
-                    self.to_arrow(), root_path=path, filesystem=filesystem
-                )
-        elif isinstance(storage.file_options.file_format, DeltaFormat):
-            mode = (
-                "overwrite"
-                if allow_overwrite and os.path.exists(storage.file_options.uri)
-                else "error"
-            )
-            self.table.to_delta(storage.file_options.uri, mode=mode)
+        self.data_source_writer(
+            self.table, storage.to_data_source(), "overwrite", allow_overwrite
+        )
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
