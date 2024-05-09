@@ -47,8 +47,8 @@ class MaterializeIncrementalRequest(BaseModel):
 
 
 def get_app(
-    store: "feast.FeatureStore",
-    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+        store: "feast.FeatureStore",
+        registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -56,19 +56,11 @@ def get_app(
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    def stop_refresh():
         nonlocal shutting_down
-
-        yield
         shutting_down = True
         if active_timer:
             active_timer.cancel()
-
-    app = FastAPI(lifespan=lifespan)
-
-    async def get_body(request: Request):
-        return await request.body()
 
     def async_refresh():
         store.refresh_registry()
@@ -80,7 +72,16 @@ def get_app(
         active_timer = threading.Timer(registry_ttl_sec, async_refresh)
         active_timer.start()
 
-    async_refresh()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async_refresh()
+        yield
+        stop_refresh()
+
+    app = FastAPI(lifespan=lifespan)
+
+    async def get_body(request: Request):
+        return await request.body()
 
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
@@ -202,6 +203,7 @@ def get_app(
 if sys.platform != "win32":
     import gunicorn.app.base
 
+
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
         def __init__(self, store: "feast.FeatureStore", **options):
             self._app = get_app(
@@ -223,13 +225,13 @@ if sys.platform != "win32":
 
 
 def start_server(
-    store: "feast.FeatureStore",
-    host: str,
-    port: int,
-    no_access_log: bool,
-    workers: int,
-    keep_alive_timeout: int,
-    registry_ttl_sec: int,
+        store: "feast.FeatureStore",
+        host: str,
+        port: int,
+        no_access_log: bool,
+        workers: int,
+        keep_alive_timeout: int,
+        registry_ttl_sec: int,
 ):
     if sys.platform != "win32":
         FeastServeApplication(
