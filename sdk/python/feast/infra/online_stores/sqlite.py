@@ -46,6 +46,9 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
+    faiss_enabled: Optional[bool] = False
+    """ (optional) Enable or disable faiss indexing for online store (vector search)"""
+
 
 class SqliteOnlineStore(OnlineStore):
     """
@@ -236,6 +239,51 @@ class SqliteOnlineStore(OnlineStore):
             os.unlink(self._get_db_path(config))
         except FileNotFoundError:
             pass
+
+
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        """
+
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_feature: The requested feature as the column to search
+            embedding: The query embedding to search for
+            top_k: The number of items to return
+        Returns:
+            List of tuples containing the event timestamp and the document feature
+        """
+        project = config.project
+        if not config.online_store.faiss_enabled:
+            raise ValueError("Faiss is not enabled in the online store config")
+
+        # Convert the embedding to a string to be used in postgres vector search
+        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
+
+        result: List[
+            Tuple[
+                Optional[datetime],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+            ]
+        ] = []
+
+        raise NotImplementedError("SQLiteOnlineStore does not support retrieval")
 
 
 def _initialize_conn(db_path: str):

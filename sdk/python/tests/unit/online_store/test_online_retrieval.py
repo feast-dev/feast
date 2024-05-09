@@ -418,7 +418,7 @@ def test_online_to_df():
         assert_frame_equal(result_df[ordered_column], expected_df)
 
 
-def test_get_online_Documents() -> None:
+def test_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
