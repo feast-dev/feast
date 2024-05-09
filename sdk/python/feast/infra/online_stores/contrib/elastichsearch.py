@@ -1,16 +1,17 @@
 from __future__ import absolute_import
 
 from datetime import datetime
-from typing import List, Tuple, Optional, Sequence, Dict, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from elasticsearch import Elasticsearch, helpers
 import pytz
-from feast import RepoConfig, FeatureView, Entity
+from elasticsearch import Elasticsearch, helpers
+
+from feast import Entity, FeatureView, RepoConfig
+from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.infra.key_encoding_utils import serialize_entity_key, get_list_val_str
 
 
 class ElasticsearchOnlineStoreConfig(FeastConfigBaseModel):
@@ -39,7 +40,12 @@ class ElasticsearchOnlineStore(OnlineStore):
 
         if not self._client:
             self._client = Elasticsearch(
-                hosts=[{"host": online_store_config.host or "localhost", "port": online_store_config.port or 9200}],
+                hosts=[
+                    {
+                        "host": online_store_config.host or "localhost",
+                        "port": online_store_config.port or 9200,
+                    }
+                ],
                 http_auth=(online_store_config.user, online_store_config.password),
             )
 
@@ -51,14 +57,18 @@ class ElasticsearchOnlineStore(OnlineStore):
             yield {
                 "_index": self._index,
                 "_id": f"{row['entity_key']}_{row['feature_name']}_{row['timestamp']}",
-                "_source": row
+                "_source": row,
             }
 
-    def online_write_batch(self,
-                           config: RepoConfig,
-                           table: FeatureView,
-                           data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]],
-                           progress: Optional[Callable[[int], Any]]) -> None:
+    def online_write_batch(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
         insert_values = []
         for entity_key, values, timestamp, created_ts in data:
             entity_key_bin = serialize_entity_key(
@@ -70,74 +80,80 @@ class ElasticsearchOnlineStore(OnlineStore):
                 created_ts = _to_naive_utc(created_ts)
             for feature_name, value in values.items():
                 vector_val = get_list_val_str(value)
-                insert_values.append({
-                    "entity_key": entity_key_bin,
-                    "feature_name": feature_name,
-                    "feature_value": value,
-                    "timestamp": timestamp,
-                    "created_ts": created_ts,
-                    "vector_value": vector_val,
-                })
+                insert_values.append(
+                    {
+                        "entity_key": entity_key_bin,
+                        "feature_name": feature_name,
+                        "feature_value": value,
+                        "timestamp": timestamp,
+                        "created_ts": created_ts,
+                        "vector_value": vector_val,
+                    }
+                )
 
         batch_size = config.online_config.batch_size
         for i in range(0, len(insert_values), batch_size):
-            batch = insert_values[i:i + batch_size]
+            batch = insert_values[i : i + batch_size]
             actions = self._bulk_batch_actions(batch)
             helpers.bulk(self._client, actions)
 
-    def online_read(self,
-                    config: RepoConfig,
-                    table: FeatureView,
-                    entity_keys: List[EntityKeyProto],
-                    requested_features: Optional[List[str]] = None) -> List[
-        Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    def online_read(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         if not requested_features:
             body = {
-                "_source": {
-                    "excludes": ["vector_value"]
-                },
-                "query": {
-                    "match": {
-                        "entity_key": entity_keys
-                    }
-                }
+                "_source": {"excludes": ["vector_value"]},
+                "query": {"match": {"entity_key": entity_keys}},
             }
         else:
             body = {
-                "_source": {
-                    "excludes": ["vector_value"]
-                },
+                "_source": {"excludes": ["vector_value"]},
                 "query": {
                     "bool": {
                         "must": [
                             {"terms": {"entity_key": entity_keys}},
-                            {"terms": {"feature_name": requested_features}}
+                            {"terms": {"feature_name": requested_features}},
                         ]
                     }
-                }
+                },
             }
         self._client.search(index=self._index, body=body)
 
-    def update(self,
-               config: RepoConfig,
-               tables_to_delete: Sequence[FeatureView],
-               tables_to_keep: Sequence[FeatureView],
-               entities_to_delete: Sequence[Entity],
-               entities_to_keep: Sequence[Entity], partial: bool):
+    def update(
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
         # implement the update method
         for table in tables_to_delete:
             self._client.delete_by_query(index=table.name)
         for table in tables_to_keep:
             self.create_index(config, table)
 
-    def teardown(self, config: RepoConfig, tables: Sequence[FeatureView], entities: Sequence[Entity]):
+    def teardown(
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
+    ):
         pass
 
-    def retrieve_online_documents(self,
-                                  config: RepoConfig,
-                                  table: FeatureView,
-                                  requested_feature: str,
-                                  embedding: List[float], top_k: int) -> List[
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+    ) -> List[
         Tuple[
             Optional[datetime],
             Optional[ValueProto],
@@ -159,7 +175,7 @@ class ElasticsearchOnlineStore(OnlineStore):
                 "field": requested_feature,
                 "query_vector": embedding,
                 "k": top_k,
-            }
+            },
         )
         rows = reponse["hits"]["hits"][0:top_k]
         for row in rows:
