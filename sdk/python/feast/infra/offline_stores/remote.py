@@ -5,6 +5,7 @@ from typing import Any, Callable, List, Literal, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.flight as fl
 import pyarrow.parquet
 from pydantic import StrictInt, StrictStr
 
@@ -41,16 +42,14 @@ class RemoteRetrievalJob(RetrievalJob):
         # Generate unique command identifier
         self.command = str(uuid.uuid4())
         # Initialize the client connection
-        self.client = pa.flight.connect(
+        self.client = fl.connect(
             f"grpc://{config.offline_store.host}:{config.offline_store.port}"
         )
         # Put API parameters
         self._put_parameters(feature_refs, entity_df)
 
     def _put_parameters(self, feature_refs, entity_df):
-        historical_flight_descriptor = pa.flight.FlightDescriptor.for_command(
-            self.command
-        )
+        historical_flight_descriptor = fl.FlightDescriptor.for_command(self.command)
 
         entity_df_table = pa.Table.from_pandas(entity_df)
         writer, _ = self.client.do_put(
@@ -89,7 +88,7 @@ class RemoteRetrievalJob(RetrievalJob):
     # Invoked to synchronously execute the underlying query and return the result as an arrow table
     # This is where do_get service is invoked
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
-        upload_descriptor = pa.flight.FlightDescriptor.for_command(self.command)
+        upload_descriptor = fl.FlightDescriptor.for_command(self.command)
         flight = self.client.get_flight_info(upload_descriptor)
         ticket = flight.endpoints[0].ticket
 

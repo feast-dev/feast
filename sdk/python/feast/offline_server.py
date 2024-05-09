@@ -3,12 +3,12 @@ import traceback
 from typing import Dict
 
 import pyarrow as pa
-import pyarrow.flight as flight
+import pyarrow.flight as fl
 
 from feast import FeatureStore
 
 
-class OfflineServer(flight.FlightServerBase):
+class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
         super(OfflineServer, self).__init__(location, **kwargs)
         self._location = location
@@ -27,14 +27,14 @@ class OfflineServer(flight.FlightServerBase):
     # ATM it returns the metadata of the "entity_df" table
     def _make_flight_info(self, key, descriptor, params):
         table = params["entity_df"]
-        endpoints = [flight.FlightEndpoint(repr(key), [self._location])]
+        endpoints = [fl.FlightEndpoint(repr(key), [self._location])]
         mock_sink = pa.MockOutputStream()
         stream_writer = pa.RecordBatchStreamWriter(mock_sink, table.schema)
         stream_writer.write_table(table)
         stream_writer.close()
         data_size = mock_sink.size()
 
-        return flight.FlightInfo(
+        return fl.FlightInfo(
             table.schema, descriptor, endpoints, table.num_rows, data_size
         )
 
@@ -48,9 +48,9 @@ class OfflineServer(flight.FlightServerBase):
     def list_flights(self, context, criteria):
         for key, table in self.flights.items():
             if key[1] is not None:
-                descriptor = flight.FlightDescriptor.for_command(key[1])
+                descriptor = fl.FlightDescriptor.for_command(key[1])
             else:
-                descriptor = flight.FlightDescriptor.for_path(*key[2])
+                descriptor = fl.FlightDescriptor.for_path(*key[2])
 
             yield self._make_flight_info(key, descriptor, table)
 
@@ -116,7 +116,7 @@ class OfflineServer(flight.FlightServerBase):
             # Get service is consumed, so we clear the corresponding flight
             del self.flights[key]
 
-            return flight.RecordBatchStream(table)
+            return fl.RecordBatchStream(table)
         else:
             raise NotImplementedError
 
