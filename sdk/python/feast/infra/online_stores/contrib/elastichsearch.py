@@ -98,7 +98,7 @@ class ElasticsearchOnlineStore(OnlineStore):
         for i in range(0, len(insert_values), batch_size):
             batch = insert_values[i: i + batch_size]
             actions = self._bulk_batch_actions(batch)
-            helpers.bulk(self._client, actions)
+            helpers.bulk(self._get_client(config), actions)
 
     def online_read(
             self,
@@ -146,7 +146,7 @@ class ElasticsearchOnlineStore(OnlineStore):
     ):
         # implement the update method
         for table in tables_to_delete:
-            self._client.delete_by_query(index=table.name)
+            self._get_client(config).delete_by_query(index=table.name)
         for table in tables_to_keep:
             self.create_index(config, table)
 
