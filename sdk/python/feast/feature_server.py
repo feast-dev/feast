@@ -3,21 +3,21 @@ import sys
 import threading
 import traceback
 import warnings
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
+import feast
 import pandas as pd
 from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
-from google.protobuf.json_format import MessageToDict
-from pydantic import BaseModel
-
-import feast
 from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
+from google.protobuf.json_format import MessageToDict
+from pydantic import BaseModel
 
 
 # TODO: deprecate this in favor of push features
@@ -50,12 +50,21 @@ def get_app(
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
-
-    app = FastAPI()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        nonlocal shutting_down
+
+        yield
+        shutting_down = True
+        if active_timer:
+            active_timer.cancel()
+
+    app = FastAPI(lifespan=lifespan)
 
     async def get_body(request: Request):
         return await request.body()
@@ -69,13 +78,6 @@ def get_app(
         nonlocal active_timer
         active_timer = threading.Timer(registry_ttl_sec, async_refresh)
         active_timer.start()
-
-    @app.on_event("shutdown")
-    def shutdown_event():
-        nonlocal shutting_down
-        shutting_down = True
-        if active_timer:
-            active_timer.cancel()
 
     async_refresh()
 
