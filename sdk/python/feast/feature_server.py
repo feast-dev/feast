@@ -47,8 +47,8 @@ class MaterializeIncrementalRequest(BaseModel):
 
 
 def get_app(
-        store: "feast.FeatureStore",
-        registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+    store: "feast.FeatureStore",
+    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -203,7 +203,6 @@ def get_app(
 if sys.platform != "win32":
     import gunicorn.app.base
 
-
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
         def __init__(self, store: "feast.FeatureStore", **options):
             self._app = get_app(
@@ -225,13 +224,13 @@ if sys.platform != "win32":
 
 
 def start_server(
-        store: "feast.FeatureStore",
-        host: str,
-        port: int,
-        no_access_log: bool,
-        workers: int,
-        keep_alive_timeout: int,
-        registry_ttl_sec: int,
+    store: "feast.FeatureStore",
+    host: str,
+    port: int,
+    no_access_log: bool,
+    workers: int,
+    keep_alive_timeout: int,
+    registry_ttl_sec: int,
 ):
     if sys.platform != "win32":
         FeastServeApplication(
