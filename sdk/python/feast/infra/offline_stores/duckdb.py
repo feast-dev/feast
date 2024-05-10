@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
@@ -10,6 +11,7 @@ from pydantic import StrictStr
 
 from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
+from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
@@ -34,24 +36,56 @@ def _read_data_source(data_source: DataSource) -> Table:
         return ibis.read_delta(data_source.path)
 
 
-def _write_data_source(table: pyarrow.Table, data_source: DataSource):
+def _write_data_source(
+    table: Table,
+    data_source: DataSource,
+    mode: str = "append",
+    allow_overwrite: bool = False,
+):
     assert isinstance(data_source, FileSource)
 
     file_options = data_source.file_options
 
-    if isinstance(data_source.file_format, ParquetFormat):
-        prev_table = ibis.read_parquet(file_options.uri).to_pyarrow()
-        if table.schema != prev_table.schema:
-            table = table.cast(prev_table.schema)
-        new_table = pyarrow.concat_tables([table, prev_table])
-        ibis.memtable(new_table).to_parquet(file_options.uri)
-    elif isinstance(data_source.file_format, DeltaFormat):
-        from deltalake import DeltaTable
+    if mode == "overwrite" and not allow_overwrite and os.path.exists(file_options.uri):
+        raise SavedDatasetLocationAlreadyExists(location=file_options.uri)
 
-        prev_schema = DeltaTable(file_options.uri).schema().to_pyarrow()
-        if table.schema != prev_schema:
-            table = table.cast(prev_schema)
-        ibis.memtable(table).to_delta(file_options.uri, mode="append")
+    if isinstance(data_source.file_format, ParquetFormat):
+        if mode == "overwrite":
+            table = table.to_pyarrow()
+            filesystem, path = FileSource.create_filesystem_and_path(
+                file_options.uri,
+                file_options.s3_endpoint_override,
+            )
+
+            if path.endswith(".parquet"):
+                pyarrow.parquet.write_table(table, where=path, filesystem=filesystem)
+            else:
+                # otherwise assume destination is directory
+                pyarrow.parquet.write_to_dataset(
+                    table, root_path=path, filesystem=filesystem
+                )
+        elif mode == "append":
+            table = table.to_pyarrow()
+            prev_table = ibis.read_parquet(file_options.uri).to_pyarrow()
+            if table.schema != prev_table.schema:
+                table = table.cast(prev_table.schema)
+            new_table = pyarrow.concat_tables([table, prev_table])
+            ibis.memtable(new_table).to_parquet(file_options.uri)
+    elif isinstance(data_source.file_format, DeltaFormat):
+        if mode == "append":
+            from deltalake import DeltaTable
+
+            prev_schema = DeltaTable(file_options.uri).schema().to_pyarrow()
+            table = table.cast(ibis.Schema.from_pyarrow(prev_schema))
+            write_mode = "append"
+        elif mode == "overwrite":
+            write_mode = (
+                "overwrite"
+                if allow_overwrite and os.path.exists(file_options.uri)
+                else "error"
+            )
+
+        table.to_delta(file_options.uri, mode=write_mode)
 
 
 class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
@@ -81,6 +115,7 @@ class DuckDBOfflineStore(OfflineStore):
             start_date=start_date,
             end_date=end_date,
             data_source_reader=_read_data_source,
+            data_source_writer=_write_data_source,
         )
 
     @staticmethod
@@ -102,6 +137,7 @@ class DuckDBOfflineStore(OfflineStore):
             project=project,
             full_feature_names=full_feature_names,
             data_source_reader=_read_data_source,
+            data_source_writer=_write_data_source,
         )
 
     @staticmethod
@@ -123,6 +159,7 @@ class DuckDBOfflineStore(OfflineStore):
             start_date=start_date,
             end_date=end_date,
             data_source_reader=_read_data_source,
+            data_source_writer=_write_data_source,
         )
 
     @staticmethod
