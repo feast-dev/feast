@@ -14,9 +14,7 @@ class OfflineServer(fl.FlightServerBase):
         super(OfflineServer, self).__init__(location, **kwargs)
         self._location = location
         # A dictionary of configured flights, e.g. API calls received and not yet served
-        self.flights: Dict[str, Dict[str, str]] = {}
-        # The data-stream associated to each API call and not yet served
-        self.data: Dict[str, Any] = {}
+        self.flights: Dict[str, Any] = {}
         self.store = store
 
     @classmethod
@@ -55,17 +53,12 @@ class OfflineServer(fl.FlightServerBase):
     def do_put(self, context, descriptor, reader, writer):
         key = OfflineServer.descriptor_to_key(descriptor)
 
-        decoded_metadata = {
-            key.decode(): value.decode()
-            for key, value in reader.schema.metadata.items()
-        }
-        if "api-info" in decoded_metadata:
-            api_info = decoded_metadata["api-info"]
+        command = json.loads(key[1])
+        if "api" in command:
             data = reader.read_all()
-            self.flights[key] = api_info
-            self.data[key] = data
+            self.flights[key] = data
         else:
-            print(f"No 'api-info' field in metadata: {decoded_metadata}")
+            print(f"No 'api' field in command: {command}")
 
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
@@ -75,17 +68,17 @@ class OfflineServer(fl.FlightServerBase):
             print(f"Unknown key {key}")
             return None
 
-        api_info = json.loads(self.flights[key])
-        api = api_info["api"]
-        # print(f"get key is {key}")
+        command = json.loads(key[1])
+        api = command["api"]
+        # print(f"get command is {command}")
         # print(f"requested api is {api}")
         if api == "get_historical_features":
-            # Extract parameters from the internal data dictionary
-            entity_df_value = self.data[key]
+            # Extract parameters from the internal flights dictionary
+            entity_df_value = self.flights[key]
             entity_df = pa.Table.to_pandas(entity_df_value)
             # print(f"entity_df is {entity_df}")
 
-            features = json.loads(api_info["features"])
+            features = command["features"]
             # print(f"features is {features}")
 
             print(
@@ -104,7 +97,6 @@ class OfflineServer(fl.FlightServerBase):
 
             # Get service is consumed, so we clear the corresponding flight and data
             del self.flights[key]
-            del self.data[key]
 
             return fl.RecordBatchStream(table)
         else:

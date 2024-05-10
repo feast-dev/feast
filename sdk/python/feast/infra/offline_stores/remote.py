@@ -52,14 +52,9 @@ class RemoteRetrievalJob(RetrievalJob):
     def _put_parameters(self, command_descriptor, command):
         entity_df_table = pa.Table.from_pandas(self.entity_df)
 
-        api_info = {
-            "command": command,
-            "api": "get_historical_features",
-            "features": json.dumps(self.feature_refs),
-        }
         writer, _ = self.client.do_put(
             command_descriptor,
-            entity_df_table.schema.with_metadata({"api-info": json.dumps(api_info)}),
+            entity_df_table.schema,
         )
 
         writer.write_table(entity_df_table)
@@ -74,8 +69,17 @@ class RemoteRetrievalJob(RetrievalJob):
     # This is where do_get service is invoked
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         # Generate unique command identifier
-        command = str(uuid.uuid4())
-        command_descriptor = fl.FlightDescriptor.for_command(command)
+        command_id = str(uuid.uuid4())
+        command = {
+            "command_id": command_id,
+            "api": "get_historical_features",
+            "features": self.feature_refs,
+        }
+        command_descriptor = fl.FlightDescriptor.for_command(
+            json.dumps(
+                command,
+            )
+        )
 
         self._put_parameters(command_descriptor, command)
         flight = self.client.get_flight_info(command_descriptor)
