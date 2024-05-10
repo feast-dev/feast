@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
@@ -191,6 +190,8 @@ class S3FileDataSourceCreator(DataSourceCreator):
         wait_for_logs(container=self.minio, predicate=log_string_to_wait_for, timeout=5)
 
     def _upload_parquet_file(self, df, file_name, minio_endpoint):
+        from minio import Minio
+
         self.f = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
         df.to_parquet(self.f.name)
 

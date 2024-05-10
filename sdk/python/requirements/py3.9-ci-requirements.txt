@@ -68,7 +68,6 @@ certifi==2024.2.2
     #   httpcore
     #   httpx
     #   kubernetes
-    #   minio
     #   requests
     #   snowflake-connector-python
 cffi==1.16.0
@@ -399,7 +398,6 @@ matplotlib-inline==0.1.7
     #   ipython
 mdurl==0.1.2
     # via markdown-it-py
-minio==7.1.0
 mistune==3.0.2
     # via
     #   great-expectations
@@ -902,7 +900,6 @@ urllib3==1.26.18
     #   docker
     #   great-expectations
     #   kubernetes
-    #   minio
     #   requests
     #   responses
     #   rockset
