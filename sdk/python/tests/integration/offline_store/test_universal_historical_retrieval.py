@@ -139,8 +139,7 @@ def test_historical_features(
 
     if job_from_df.supports_remote_storage_export():
         files = job_from_df.to_remote_storage()
-        print(files)
-        assert len(files) > 0  # This test should be way more detailed
+        assert len(files)  # 0  # This test should be way more detailed
 
     start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
