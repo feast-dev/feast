@@ -34,7 +34,7 @@ class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
     scheme: Optional[str] = "http"
 
     # The number of rows to write in a single batch
-    write_batch_size: Optional[PositiveInt] = 40
+    write_batch_size: Optional[int] = 40
 
     # The length of the vector value
     vector_len: Optional[int] = 512
@@ -116,7 +116,7 @@ class ElasticSearchOnlineStore(OnlineStore):
                     }
                 )
 
-        batch_size = config.online_config.write_batch_size
+        batch_size = config.online_store.write_batch_size
         for i in range(0, len(insert_values), batch_size):
             batch = insert_values[i : i + batch_size]
             actions = self._bulk_batch_actions(table, batch)
@@ -167,9 +167,9 @@ class ElasticSearchOnlineStore(OnlineStore):
                 "created_ts": {"type": "date"},
                 "vector_value": {
                     "type": "dense_vector",
-                    "dims": config.online_config.vector_len,
+                    "dims": config.online_store.vector_len,
                     "index": "true",
-                    "similarity": config.online_config.similarity,
+                    "similarity": config.online_store.similarity,
                 },
             }
         }

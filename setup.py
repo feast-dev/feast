@@ -150,7 +150,7 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 
 DELTA_REQUIRED = ["deltalake"]
 
-ELASTICSEARCH_REQUIRED = ["elasticsearch==8.13.4"]
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 CI_REQUIRED = (
     [
