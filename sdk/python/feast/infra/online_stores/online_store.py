@@ -142,6 +142,7 @@ class OnlineStore(ABC):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -154,6 +155,7 @@ class OnlineStore(ABC):
         Retrieves online feature values for the specified embeddings.
 
         Args:
+            distance_metric: distance metric to use for retrieval.
             config: The config for the current feature store.
             table: The feature view whose feature values should be read.
             requested_feature: The name of the feature whose embeddings should be used for retrieval.

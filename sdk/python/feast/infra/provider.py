@@ -303,7 +303,7 @@ class Provider(ABC):
         requested_feature: str,
         query: List[float],
         top_k: int,
-        distance_metric: str = "L2",
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -316,6 +316,7 @@ class Provider(ABC):
         Searches for the top-k most similar documents in the online document store.
 
         Args:
+            distance_metric: distance metric to use for the search.
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_feature: the requested document feature name.
