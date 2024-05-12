@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
+import base64
 import json
 import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-import base64
 
 import pytz
 from elasticsearch import Elasticsearch, helpers
@@ -51,6 +51,9 @@ class ElasticSearchOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, ElasticSearchOnlineStoreConfig)
 
+        user = online_store_config.user if online_store_config.user is not None else ''
+        password = online_store_config.password if online_store_config.password is not None else ''
+
         if self._client:
             return self._client
         else:
@@ -62,7 +65,7 @@ class ElasticSearchOnlineStore(OnlineStore):
                         "scheme": online_store_config.scheme or "http"
                     }
                 ],
-                basic_auth=(online_store_config.user, online_store_config.password),
+                basic_auth=(user, password)
             )
             return self._client
 
@@ -230,7 +233,6 @@ class ElasticSearchOnlineStore(OnlineStore):
         )
         rows = response["hits"]["hits"][0:top_k]
         for row in rows:
-            entity_key = row["_source"]["entity_key"]
             feature_value = row["_source"]["feature_value"]
             vector_value = row["_source"]["vector_value"]
             timestamp = row["_source"]["timestamp"]
