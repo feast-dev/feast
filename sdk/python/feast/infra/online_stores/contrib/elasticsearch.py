@@ -8,7 +8,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pytz
 from elasticsearch import Elasticsearch, helpers
-from pydantic import PositiveInt
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key

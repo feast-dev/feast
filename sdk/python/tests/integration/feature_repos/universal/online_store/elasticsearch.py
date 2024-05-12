@@ -21,7 +21,7 @@ class ElasticSearchOnlineStoreCreator(OnlineStoreCreator):
             "type": "elasticsearch",
             "port": self.container.get_exposed_port(9200),
             "vector_len": 2,
-            "similarity": "cosine"
+            "similarity": "cosine",
         }
 
     def teardown(self):
