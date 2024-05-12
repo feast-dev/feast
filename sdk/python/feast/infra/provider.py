@@ -8,6 +8,7 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureService, errors
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.importer import import_class
@@ -348,6 +349,21 @@ class Provider(ABC):
 
         Returns:
             A list of dictionaries, where each dictionary contains the document feature.
+        """
+        pass
+
+    @abstractmethod
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        """
+        Validates the underlying data source.
+
+        Args:
+            config: Configuration object used to configure a feature store.
+            data_source: DataSource object that needs to be validated
         """
         pass
 
