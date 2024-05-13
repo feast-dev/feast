@@ -49,7 +49,7 @@ class RemoteRetrievalJob(RetrievalJob):
 
     # TODO add one specialized implementation for each OfflineStore API
     # This can result in a dictionary of functions indexed by api (e.g., "get_historical_features")
-    def _put_parameters(self, command_descriptor, command):
+    def _put_parameters(self, command_descriptor):
         entity_df_table = pa.Table.from_pandas(self.entity_df)
 
         writer, _ = self.client.do_put(
@@ -81,7 +81,7 @@ class RemoteRetrievalJob(RetrievalJob):
             )
         )
 
-        self._put_parameters(command_descriptor, command)
+        self._put_parameters(command_descriptor)
         flight = self.client.get_flight_info(command_descriptor)
         ticket = flight.endpoints[0].ticket
 
