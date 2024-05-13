@@ -11,7 +11,7 @@ class ElasticSearchOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.container = ElasticSearchContainer(
-            "elasticsearch:8.13.4",
+            "elasticsearch:8.3.3",
         ).with_exposed_ports(9200)
 
     def create_online_store(self) -> Dict[str, str]:

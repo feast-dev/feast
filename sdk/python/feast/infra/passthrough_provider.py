@@ -196,7 +196,7 @@ class PassthroughProvider(Provider):
         requested_feature: str,
         query: List[float],
         top_k: int,
-        distance_metric: str,
+        distance_metric: Optional[str] = None,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
