@@ -283,7 +283,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
-        distance_metric: str = "L2",
+        distance_metric: Optional[str] = "L2",
     ) -> List[
         Tuple[
             Optional[datetime],

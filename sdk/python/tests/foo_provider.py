@@ -120,7 +120,7 @@ class FooProvider(Provider):
         requested_feature: str,
         query: List[float],
         top_k: int,
-        distance_metric: str,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],

@@ -150,6 +150,8 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 
 DELTA_REQUIRED = ["deltalake"]
 
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -211,6 +213,7 @@ CI_REQUIRED = (
     + GRPCIO_REQUIRED
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
+    + ELASTICSEARCH_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -377,6 +380,7 @@ setup(
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
+        "elasticsearch": ELASTICSEARCH_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
