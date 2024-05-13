@@ -74,3 +74,52 @@ feature_values = feature_store.retrieve_online_documents(
 )
 ```
 {% endcode %}
+
+## Indexing
+Currently, the indexing mapping in the ElasticSearch online store is configured as:
+
+{% code title="indexing_mapping" %}
+```json
+"properties": {
+    "entity_key": {"type": "binary"},
+    "feature_name": {"type": "keyword"},
+    "feature_value": {"type": "binary"},
+    "timestamp": {"type": "date"},
+    "created_ts": {"type": "date"},
+    "vector_value": {
+        "type": "dense_vector",
+        "dims": config.online_store.vector_len,
+        "index": "true",
+        "similarity": config.online_store.similarity,
+    },
+}
+```
+{% endcode %}
+And the online_read API mapping is configured as:
+
+{% code title="online_read_mapping" %}
+```json
+"query": {
+    "bool": {
+        "must": [
+            {"terms": {"entity_key": entity_keys}},
+            {"terms": {"feature_name": requested_features}},
+        ]
+    }
+},
+```
+{% endcode %}
+
+And the similarity search API mapping is configured as:
+
+{% code title="similarity_search_mapping" %}
+```json
+{
+    "field": "vector_value",
+    "query_vector": embedding_vector,
+    "k": top_k,
+}
+```
+{% endcode %}
+
+These APIs are subject to change in future versions of Feast to improve performance and usability.

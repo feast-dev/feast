@@ -10,7 +10,7 @@ Below are supported vector databases and implemented features:
 | Vector Database | Retrieval | Indexing |
 |-----------------|-----------|----------|
 | Pgvector        | [x]       | [ ]      |
-| Elasticsearch   | [ ]       | [ ]      |
+| Elasticsearch   | [x]       | [x]      |
 | Milvus          | [ ]       | [ ]      |
 | Faiss           | [ ]       | [ ]      |
 

@@ -157,6 +157,13 @@ class ElasticSearchOnlineStore(OnlineStore):
         return results
 
     def create_index(self, config: RepoConfig, table: FeatureView):
+        """
+        Create an index in ElasticSearch for the given table.
+        TODO: This method can be exposed to users to customize the indexing functionality.
+        Args:
+            config: Feast repo configuration object.
+            table: FeatureView table for which the index needs to be created.
+        """
         index_mapping = {
             "properties": {
                 "entity_key": {"type": "binary"},
