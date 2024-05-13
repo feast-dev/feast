@@ -50,7 +50,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into a dictionary form.
 
         Args:
-        is_with_event_timestamps: bool Optionally include feature timestamps in the dictionary
+        include_event_timestamps: bool Optionally include feature timestamps in the dictionary
         """
         response: Dict[str, List[Any]] = {}
 
@@ -74,7 +74,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
 
         Args:
-        is_with_event_timestamps: bool Optionally include feature timestamps in the dataframe
+        include_event_timestamps: bool Optionally include feature timestamps in the dataframe
         """
 
         return pd.DataFrame(self.to_dict(include_event_timestamps))
@@ -84,7 +84,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into pyarrow Table.
 
         Args:
-        is_with_event_timestamps: bool Optionally include feature timestamps in the table
+        include_event_timestamps: bool Optionally include feature timestamps in the table
         """
 
         return pa.Table.from_pydict(self.to_dict(include_event_timestamps))

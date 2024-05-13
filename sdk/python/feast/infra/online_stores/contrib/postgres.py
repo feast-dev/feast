@@ -21,6 +21,13 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.usage import log_exceptions_and_usage
 
+SUPPORTED_DISTANCE_METRICS_DICT = {
+    "cosine": "<=>",
+    "L1": "<+>",
+    "L2": "<->",
+    "inner_product": "<#>",
+}
+
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
@@ -276,6 +283,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
+        distance_metric: Optional[str] = "L2",
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -292,6 +300,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             requested_feature: The requested feature as the column to search
             embedding: The query embedding to search for
             top_k: The number of items to return
+            distance_metric: The distance metric to use for the search.G
         Returns:
             List of tuples containing the event timestamp and the document feature
 
@@ -303,6 +312,12 @@ class PostgreSQLOnlineStore(OnlineStore):
                 "pgvector is not enabled in the online store configuration"
             )
 
+        if distance_metric not in SUPPORTED_DISTANCE_METRICS_DICT:
+            raise ValueError(
+                f"Distance metric {distance_metric} is not supported. Supported distance metrics are {SUPPORTED_DISTANCE_METRICS_DICT.keys()}"
+            )
+
+        distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
@@ -327,13 +342,14 @@ class PostgreSQLOnlineStore(OnlineStore):
                         feature_name,
                         value,
                         vector_value,
-                        vector_value <-> %s as distance,
+                        vector_value {distance_metric_sql} %s as distance,
                         event_ts FROM {table_name}
                     WHERE feature_name = {feature_name}
                     ORDER BY distance
                     LIMIT {top_k};
                     """
                 ).format(
+                    distance_metric_sql=distance_metric_sql,
                     table_name=sql.Identifier(table_name),
                     feature_name=sql.Literal(requested_feature),
                     top_k=sql.Literal(top_k),

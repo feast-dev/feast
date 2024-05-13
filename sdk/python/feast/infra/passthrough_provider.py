@@ -189,6 +189,22 @@ class PassthroughProvider(Provider):
         return result
 
     @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List:
+        set_usage_attribute("provider", self.__class__.__name__)
+        result = []
+        if self.online_store:
+            result = await self.online_store.online_read_async(
+                config, table, entity_keys, requested_features
+            )
+        return result
+
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def retrieve_online_documents(
         self,
         config: RepoConfig,
@@ -196,12 +212,18 @@ class PassthroughProvider(Provider):
         requested_feature: str,
         query: List[float],
         top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents(
-                config, table, requested_feature, query, top_k
+                config,
+                table,
+                requested_feature,
+                query,
+                top_k,
+                distance_metric,
             )
         return result
 

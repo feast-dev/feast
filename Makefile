@@ -47,7 +47,7 @@ install-python-ci-dependencies-uv:
 	python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
-	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -60,13 +60,15 @@ install-python:
 	python setup.py develop
 
 lock-python-dependencies:
-	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt 
 
 lock-python-dependencies-all:
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.9-requirements.txt"
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.10-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
 
 benchmark-python:
 	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -183,7 +185,7 @@ test-python-universal-athena:
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
 	ATHENA_WORKGROUP=primary \
-	ATHENA_S3_BUCKET_NAME=feast-integration-tests \
+	ATHENA_S3_BUCKET_NAME=feast-int-bucket \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_go_feature_server and \
 		    not test_logged_features_validation and \
@@ -319,6 +321,25 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_snowflake" \
 	sdk/python/tests
 
+ test-python-universal-elasticsearch-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.elasticsearch_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
@@ -369,9 +390,6 @@ kill-trino-locally:
 
 install-protoc-dependencies:
 	pip install --ignore-installed protobuf==4.24.0 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
-
-install-feast-ci-locally:
-	pip install -e ".[ci]"
 
 # Docker
 

@@ -2,8 +2,8 @@
 
 ## Functionality
 
-In Feast, each batch data source is associated with a corresponding offline store.
-For example, a `SnowflakeSource` can only be processed by the Snowflake offline store.
+In Feast, each batch data source is associated with corresponding offline stores.
+For example, a `SnowflakeSource` can only be processed by the Snowflake offline store, while a `FileSource` can be processed by both File and DuckDB offline stores.
 Otherwise, the primary difference between batch data sources is the set of supported types.
 Feast has an internal type system, and aims to support eight primitive types (`bytes`, `string`, `int32`, `int64`, `float32`, `float64`, `bool`, and `timestamp`) along with the corresponding array types.
 However, not every batch data source supports all of these types.

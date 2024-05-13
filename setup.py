@@ -137,8 +137,8 @@ HAZELCAST_REQUIRED = [
 ]
 
 IBIS_REQUIRED = [
-    "ibis-framework",
-    "ibis-substrait",
+    "ibis-framework>=8.0.0,<9",
+    "ibis-substrait<=3.2.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -148,9 +148,11 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 
 DELTA_REQUIRED = ["deltalake"]
+
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 CI_REQUIRED = (
     [
@@ -214,6 +216,7 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + MARIADB_REQUIRED
+    + ELASTICSEARCH_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -381,6 +384,7 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "mariadb": MARIADB_REQUIRED,
+        "elasticsearch": ELASTICSEARCH_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
