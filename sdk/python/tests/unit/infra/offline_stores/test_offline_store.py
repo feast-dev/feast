@@ -220,13 +220,6 @@ def retrieval_job(request, environment):
             feature_refs=[
                 "str:str",
             ],
-            feature_view_names=[
-                "str:str",
-            ],
-            name_aliases=[
-                "str:str",
-            ],
-            project="project",
             entity_df=pd.DataFrame.from_dict(
                 {
                     "id": [1],
