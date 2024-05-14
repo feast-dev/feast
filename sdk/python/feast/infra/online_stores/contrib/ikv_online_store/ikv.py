@@ -83,6 +83,7 @@ class IKVOnlineStore(OnlineStore):
                 to show progress.
         """
         self._init_writer(config=config)
+        assert self._writer is not None
 
         for entity_key, features, event_timestamp, _ in data:
             entity_id: str = compute_entity_id(
@@ -199,6 +200,7 @@ class IKVOnlineStore(OnlineStore):
                 infrastructure corresponding to other feature views should be not be touched.
         """
         self._init_writer(config=config)
+        assert self._writer is not None
 
         # note: we assume tables_to_keep does not overlap with tables_to_delete
 
@@ -222,6 +224,7 @@ class IKVOnlineStore(OnlineStore):
             entities: Entities whose corresponding infrastructure should be deleted.
         """
         self._init_writer(config=config)
+        assert self._writer is not None
 
         # drop fields corresponding to this feature-view
         for feature_view in tables:
@@ -275,7 +278,7 @@ class IKVOnlineStore(OnlineStore):
             client_options = IKVOnlineStore._config_to_client_options(online_config)
 
             self._writer = create_new_writer(client_options)
-            self._writer.startup() # blocking operation
+            self._writer.startup()  # blocking operation
 
     def _init_reader(self, config: RepoConfig):
         """Initializes ikv reader client."""
@@ -287,7 +290,7 @@ class IKVOnlineStore(OnlineStore):
 
             if online_config.mount_directory and len(online_config.mount_directory) > 0:
                 self._reader = create_new_reader(client_options)
-                self._reader.startup() # blocking operation
+                self._reader.startup()  # blocking operation
 
     @staticmethod
     def _config_to_client_options(config: IKVOnlineStoreConfig) -> ClientOptions:
