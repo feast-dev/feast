@@ -59,6 +59,7 @@ class FeatureService:
         description: str = "",
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Creates a FeatureService object.
@@ -81,6 +82,7 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
         self.logging_config = logging_config
+        self.metadata = metadata
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
