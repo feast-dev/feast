@@ -35,15 +35,13 @@ class RemoteOfflineStoreConfig(FeastConfigBaseModel):
 class RemoteRetrievalJob(RetrievalJob):
     def __init__(
         self,
-        config: RepoConfig,
+        client: fl.FlightClient,
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         # TODO add missing parameters from the OfflineStore API
     ):
         # Initialize the client connection
-        self.client = fl.connect(
-            f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        )
+        self.client = client
         self.feature_refs = feature_refs
         self.entity_df = entity_df
 
@@ -108,8 +106,14 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # TODO: extend RemoteRetrievalJob API with all method parameters
+
+        # Initialize the client connection
+        client = fl.connect(
+            f"grpc://{config.offline_store.host}:{config.offline_store.port}"
+        )
+
         return RemoteRetrievalJob(
-            config=config, feature_refs=feature_refs, entity_df=entity_df
+            client=client, feature_refs=feature_refs, entity_df=entity_df
         )
 
     @staticmethod
