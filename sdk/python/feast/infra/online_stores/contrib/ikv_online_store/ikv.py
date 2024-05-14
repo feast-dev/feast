@@ -82,9 +82,7 @@ class IKVOnlineStore(OnlineStore):
             progress: Function to be called once a batch of rows is written to the online store, used
                 to show progress.
         """
-        # update should have been called before
-        if self._writer is None:
-            return
+        self._init_writer(config=config)
 
         for entity_key, features, event_timestamp, _ in data:
             entity_id: str = compute_entity_id(
@@ -120,6 +118,8 @@ class IKVOnlineStore(OnlineStore):
             item is the event timestamp for the row, and the second item is a dict mapping feature names
             to values, which are returned in proto format.
         """
+        self._init_reader(config=config)
+
         if not len(entity_keys):
             return []
 
@@ -174,7 +174,6 @@ class IKVOnlineStore(OnlineStore):
 
         return dt, features
 
-    # called before any read/write requests are issued
     @log_exceptions_and_usage(online_store="ikv")
     def update(
         self,
@@ -199,8 +198,7 @@ class IKVOnlineStore(OnlineStore):
             partial: If true, tables_to_delete and tables_to_keep are not exhaustive lists, so
                 infrastructure corresponding to other feature views should be not be touched.
         """
-        self._init_clients(config=config)
-        assert self._writer is not None
+        self._init_writer(config=config)
 
         # note: we assume tables_to_keep does not overlap with tables_to_delete
 
@@ -223,8 +221,7 @@ class IKVOnlineStore(OnlineStore):
             tables: Feature views whose corresponding infrastructure should be deleted.
             entities: Entities whose corresponding infrastructure should be deleted.
         """
-        self._init_clients(config=config)
-        assert self._writer is not None
+        self._init_writer(config=config)
 
         # drop fields corresponding to this feature-view
         for feature_view in tables:
@@ -269,20 +266,28 @@ class IKVOnlineStore(OnlineStore):
 
         return builder.build()
 
-    def _init_clients(self, config: RepoConfig):
-        """Initializes (if required) reader/writer ikv clients."""
-        online_config = config.online_store
-        assert isinstance(online_config, IKVOnlineStoreConfig)
-        client_options = IKVOnlineStore._config_to_client_options(online_config)
-
+    def _init_writer(self, config: RepoConfig):
+        """Initializes ikv writer client."""
         # initialize writer
         if self._writer is None:
-            self._writer = create_new_writer(client_options)
+            online_config = config.online_store
+            assert isinstance(online_config, IKVOnlineStoreConfig)
+            client_options = IKVOnlineStore._config_to_client_options(online_config)
 
-        # initialize reader, iff mount_dir is specified
+            self._writer = create_new_writer(client_options)
+            self._writer.startup() # blocking operation
+
+    def _init_reader(self, config: RepoConfig):
+        """Initializes ikv reader client."""
+        # initialize reader
         if self._reader is None:
+            online_config = config.online_store
+            assert isinstance(online_config, IKVOnlineStoreConfig)
+            client_options = IKVOnlineStore._config_to_client_options(online_config)
+
             if online_config.mount_directory and len(online_config.mount_directory) > 0:
                 self._reader = create_new_reader(client_options)
+                self._reader.startup() # blocking operation
 
     @staticmethod
     def _config_to_client_options(config: IKVOnlineStoreConfig) -> ClientOptions:
