@@ -38,6 +38,9 @@ message FeatureServiceSpec {
 
   // (optional) if provided logging will be enabled for this feature service.
   LoggingConfig logging_config = 7;
+
+  // User defined metadata
+  map<string,string> metadata = 8;
 }
 
 
