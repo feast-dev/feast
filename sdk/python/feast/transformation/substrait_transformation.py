@@ -4,6 +4,7 @@ from typing import Any
 import dill
 import pandas as pd
 import pyarrow
+import pyarrow.substrait as substrait  # type: ignore # noqa
 
 from feast.feature_view import FeatureView
 from feast.field import Field, from_value_type
