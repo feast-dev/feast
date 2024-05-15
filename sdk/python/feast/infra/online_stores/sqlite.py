@@ -109,7 +109,7 @@ class SqliteOnlineStore(OnlineStore):
                 for feature_name, val in values.items():
                     vector_val = None
                     if config.online_store.vss_enabled:
-                        vector_val = get_list_val_str(val)
+                        vector_val = self._get_list_val_str(val)
                         conn.execute(
                             f"""
                                 UPDATE {_table_id(project, table)}
@@ -275,6 +275,19 @@ class SqliteOnlineStore(OnlineStore):
         except FileNotFoundError:
             pass
 
+    def _get_list_val_str(self, val: ValueProto) -> str:
+        if val.HasField("string_list_val"):
+            return ",".join(val.string_list_val.val)
+        elif val.HasField("bytes_list_val"):
+            return ",".join(map(str, val.bytes_list_val.val))
+        elif val.HasField("int64_list_val"):
+            return ",".join(map(str, val.int64_list_val.val))
+        elif val.HasField("float_list_val"):
+            return ",".join(map(str, val.float_list_val.val))
+        elif val.HasField("double_list_val"):
+            return ",".join(map(str, val.double_list_val.val))
+        else:
+            raise ValueError("Unsupported list value type")
 
     def retrieve_online_documents(
         self,
@@ -352,7 +365,6 @@ class SqliteOnlineStore(OnlineStore):
             )
 
         return result
-
 
 
 def _initialize_conn(db_path: str):
