@@ -46,8 +46,8 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
-    faiss_enabled: Optional[bool] = False
-    """ (optional) Enable or disable faiss indexing for online store (vector search)"""
+    vss_enabled: Optional[bool] = False
+    """ (optional) Enable or disable sqlite-vss for vector search"""
 
 
 class SqliteOnlineStore(OnlineStore):
@@ -107,35 +107,70 @@ class SqliteOnlineStore(OnlineStore):
                     created_ts = to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
-                    conn.execute(
-                        f"""
-                            UPDATE {_table_id(project, table)}
-                            SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE (entity_key = ? AND feature_name = ?)
-                        """,
-                        (
-                            # SET
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                            # WHERE
-                            entity_key_bin,
-                            feature_name,
-                        ),
-                    )
+                    vector_val = None
+                    if config.online_store.vss_enabled:
+                        vector_val = get_list_val_str(val)
+                        conn.execute(
+                            f"""
+                                UPDATE {_table_id(project, table)}
+                                SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
+                                WHERE (entity_key = ? AND feature_name = ?)
+                            """,
+                            (
+                                # SET
+                                val.SerializeToString(),
+                                vector_val,
+                                timestamp,
+                                created_ts,
+                                # WHERE
+                                entity_key_bin,
+                                feature_name,
+                            ),
+                        )
 
-                    conn.execute(
-                        f"""INSERT OR IGNORE INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?)""",
-                        (
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                        ),
-                    )
+                        conn.execute(
+                            f"""INSERT OR IGNORE INTO {_table_id(project, table)}
+                                (entity_key, feature_name, value, vector_value, event_ts, created_ts)
+                                VALUES (?, ?, ?, ?, ?, ?)""",
+                            (
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                vector_val,
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
+                    else:
+                        conn.execute(
+                            f"""
+                                UPDATE {_table_id(project, table)}
+                                SET value = ?, event_ts = ?, created_ts = ?
+                                WHERE (entity_key = ? AND feature_name = ?)
+                            """,
+                            (
+                                # SET
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                                # WHERE
+                                entity_key_bin,
+                                feature_name,
+                            ),
+                        )
+
+                        conn.execute(
+                            f"""INSERT OR IGNORE INTO {_table_id(project, table)}
+                                (entity_key, feature_name, value, event_ts, created_ts)
+                                VALUES (?, ?, ?, ?, ?)""",
+                            (
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
                 if progress:
                     progress(1)
 
@@ -265,14 +300,31 @@ class SqliteOnlineStore(OnlineStore):
             embedding: The query embedding to search for
             top_k: The number of items to return
         Returns:
-            List of tuples containing the event timestamp and the document feature
+            List of tuples containing the event timestamp, the document feature, the vector value, and the distance
         """
         project = config.project
-        if not config.online_store.faiss_enabled:
-            raise ValueError("Faiss is not enabled in the online store config")
+
+        if not config.online_store.vss_enabled:
+            raise ValueError("sqlite-vss is not enabled in the online store config")
+
+        conn = self._get_conn(config)
+        cur = conn.cursor()
 
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
+
+        cur.execute(
+            f"""
+            SELECT entity_key, feature_name, value, vector_value, vector_value <=> ? AS distance, event_ts
+            FROM {_table_id(project, table)}
+            WHERE feature_name = ?
+            ORDER BY distance
+            LIMIT ?
+            """,
+            (query_embedding_str, requested_feature, top_k),
+        )
+
+        rows = cur.fetchall()
 
         result: List[
             Tuple[
@@ -283,7 +335,24 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        raise NotImplementedError("SQLiteOnlineStore does not support retrieval")
+        for entity_key, feature_name, val_bin, vector_val, distance, event_ts in rows:
+            feature_value_proto = ValueProto()
+            feature_value_proto.ParseFromString(val_bin)
+
+            vector_value_proto = ValueProto(string_val=vector_val)
+            distance_value_proto = ValueProto(float_val=distance)
+
+            result.append(
+                (
+                    event_ts,
+                    feature_value_proto,
+                    vector_value_proto,
+                    distance_value_proto,
+                )
+            )
+
+        return result
+
 
 
 def _initialize_conn(db_path: str):
