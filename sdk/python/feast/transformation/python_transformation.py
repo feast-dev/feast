@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, List
+from typing import Any
 
 import dill
 import pyarrow
@@ -26,27 +26,19 @@ class PythonTransformation:
         self.udf_string = udf_string
 
     def transform_arrow(
-        self, pa_table: pyarrow.Table, features: List[Field]
+        self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
         raise Exception(
-            'OnDemandFeatureView mode "python" not supported for offline processing.'
+            'OnDemandFeatureView with mode "python" does not support offline processing.'
         )
 
-    def transform(self, input_dict: Dict) -> Dict:
-        if not isinstance(input_dict, Dict):
-            raise TypeError(
-                f"input_dict should be type Dict[str, Any] but got {type(input_dict).__name__}"
-            )
+    def transform(self, input_dict: dict) -> dict:
         # Ensuring that the inputs are included as well
         output_dict = self.udf.__call__(input_dict)
-        if not isinstance(output_dict, Dict):
-            raise TypeError(
-                f"output_dict should be type Dict[str, Any] but got {type(output_dict).__name__}"
-            )
         return {**input_dict, **output_dict}
 
-    def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
-        output_dict: Dict[str, List[Any]] = self.transform(random_input)
+    def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
+        output_dict: dict[str, list[Any]] = self.transform(random_input)
 
         return [
             Field(
