@@ -402,7 +402,9 @@ def test_online_retrieval_with_shared_batch_source(environment, universal_data_s
         )
 
 
-def setup_feature_store_universal_feature_views(environment, universal_data_sources) -> FeatureStore:
+def setup_feature_store_universal_feature_views(
+    environment, universal_data_sources
+) -> FeatureStore:
     fs: FeatureStore = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -459,7 +461,7 @@ def assert_feature_store_universal_feature_views_response(df: pd.DataFrame):
 def test_online_retrieval_with_event_timestamps(
     environment, universal_data_sources, full_feature_names
 ):
-    fs = setup_feature_store_universal_feature_views(fs, universal_data_sources)
+    fs = setup_feature_store_universal_feature_views(universal_data_sources)
 
     response = fs.get_online_features(
         features=[
@@ -479,7 +481,7 @@ def test_online_retrieval_with_event_timestamps(
 def test_async_online_retrieval_with_event_timestamps(
     environment, universal_data_sources
 ):
-    fs = setup_feature_store_universal_feature_views(fs, universal_data_sources)
+    fs = setup_feature_store_universal_feature_views(universal_data_sources)
 
     response = asyncio.run(
         fs.get_online_features_async(
