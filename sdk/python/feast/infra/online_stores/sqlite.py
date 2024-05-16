@@ -77,9 +77,10 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            db = sqlite3.connect(":memory:")
-            db.enable_load_extension(True)
-            sqlite_vss.load(db)
+            if config.online_store.vss_enabled:
+                db = sqlite3.connect(":memory:")
+                db.enable_load_extension(True)
+                sqlite_vss.load(db)
 
         return self._conn
 
