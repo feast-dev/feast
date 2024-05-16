@@ -457,11 +457,10 @@ def assert_feature_store_universal_feature_views_response(df: pd.DataFrame):
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
-def test_online_retrieval_with_event_timestamps(
-    environment, universal_data_sources, full_feature_names
-):
-    fs = setup_feature_store_universal_feature_views(universal_data_sources)
+def test_online_retrieval_with_event_timestamps(environment, universal_data_sources):
+    fs = setup_feature_store_universal_feature_views(
+        environment, universal_data_sources
+    )
 
     response = fs.get_online_features(
         features=[
@@ -481,7 +480,9 @@ def test_online_retrieval_with_event_timestamps(
 def test_async_online_retrieval_with_event_timestamps(
     environment, universal_data_sources
 ):
-    fs = setup_feature_store_universal_feature_views(universal_data_sources)
+    fs = setup_feature_store_universal_feature_views(
+        environment, universal_data_sources
+    )
 
     response = asyncio.run(
         fs.get_online_features_async(
