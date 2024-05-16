@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from feast import importer
 from feast.batch_feature_view import BatchFeatureView
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
@@ -383,3 +384,10 @@ class PassthroughProvider(Provider):
             start_date=make_tzaware(start_date),
             end_date=make_tzaware(end_date),
         )
+
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        self.offline_store.validate_data_source(config=config, data_source=data_source)

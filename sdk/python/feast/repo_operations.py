@@ -205,10 +205,11 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
 
     if not skip_source_validation:
+        provider = store._get_provider()
         data_sources = [t.batch_source for t in repo.feature_views]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
-            data_source.validate(store.config)
+            provider.validate_data_source(store.config, data_source)
 
     registry_diff, infra_diff, _ = store.plan(repo)
     click.echo(registry_diff.to_string())
@@ -282,10 +283,11 @@ def apply_total_with_repo_instance(
     skip_source_validation: bool,
 ):
     if not skip_source_validation:
+        provider = store._get_provider()
         data_sources = [t.batch_source for t in repo.feature_views]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
-            data_source.validate(store.config)
+            provider.validate_data_source(store.config, data_source)
 
     # For each object in the registry, determine whether it should be kept or deleted.
     (

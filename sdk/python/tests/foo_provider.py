@@ -7,6 +7,7 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import Entity, FeatureService, FeatureView, RepoConfig
+from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
@@ -130,3 +131,10 @@ class FooProvider(Provider):
         ]
     ]:
         return []
+
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        pass
