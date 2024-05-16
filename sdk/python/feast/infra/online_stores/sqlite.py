@@ -13,12 +13,13 @@
 # limitations under the License.
 import itertools
 import os
+import json
 import sqlite3
+import sqlite_vss
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import sqlite_vss
 from pydantic import StrictStr
 
 from feast import Entity
@@ -108,9 +109,9 @@ class SqliteOnlineStore(OnlineStore):
                     created_ts = to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
-                    vector_val = None
                     if config.online_store.vss_enabled:
-                        vector_val = self._get_list_val_str(val)
+                        print('using vector search')
+                        vector_val = json.dumps(val)
                         conn.execute(
                             f"""
                                 UPDATE {_table_id(project, table)}
@@ -119,7 +120,7 @@ class SqliteOnlineStore(OnlineStore):
                             """,
                             (
                                 # SET
-                                val.SerializeToString(),
+                                str(val),
                                 vector_val,
                                 timestamp,
                                 created_ts,
@@ -136,13 +137,14 @@ class SqliteOnlineStore(OnlineStore):
                             (
                                 entity_key_bin,
                                 feature_name,
-                                val.SerializeToString(),
+                                str(val),
                                 vector_val,
                                 timestamp,
                                 created_ts,
                             ),
                         )
                     else:
+                        print('not using vector search')
                         conn.execute(
                             f"""
                                 UPDATE {_table_id(project, table)}
@@ -238,8 +240,8 @@ class SqliteOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+            self.conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS {_table_id(project, table)}_ek ON {_table_id(project, table)} (entity_key);"
@@ -275,20 +277,6 @@ class SqliteOnlineStore(OnlineStore):
             os.unlink(self._get_db_path(config))
         except FileNotFoundError:
             pass
-
-    def _get_list_val_str(self, val: ValueProto) -> str:
-        if val.HasField("string_list_val"):
-            return ",".join(val.string_list_val.val)
-        elif val.HasField("bytes_list_val"):
-            return ",".join(map(str, val.bytes_list_val.val))
-        elif val.HasField("int64_list_val"):
-            return ",".join(map(str, val.int64_list_val.val))
-        elif val.HasField("float_list_val"):
-            return ",".join(map(str, val.float_list_val.val))
-        elif val.HasField("double_list_val"):
-            return ",".join(map(str, val.double_list_val.val))
-        else:
-            raise ValueError("Unsupported list value type")
 
     def retrieve_online_documents(
         self,
@@ -428,7 +416,7 @@ class SqliteTable(InfraObject):
 
     def update(self):
         self.conn.execute(
-            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"

@@ -109,3 +109,15 @@ def print_online_features(features):
 
 print_online_features(features)
 ```
+
+### Configuration
+We offer two Online Store options for Vector Databases. PGVector and SQLite.
+
+#### Installation with SQLite
+If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
+```bash
+PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
+    LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
+    CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
+    pyenv install
+```

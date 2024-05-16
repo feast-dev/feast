@@ -426,6 +426,7 @@ def test_get_online_documents() -> None:
     with runner.local_repo(
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
+        store.config.online_store.vss_enabled = True
         # Write some data to two tables
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
 
@@ -434,15 +435,11 @@ def test_get_online_documents() -> None:
         item_key = EntityKeyProto(
             join_keys=["item_id"], entity_values=[ValueProto(int64_val=0)]
         )
-        provider.online_write_batch(
-            config=store.config,
-            table=document_embeddings_fv,
-            data=[
+        data = [
                 (
                     item_key,
                     {
                         "Embeddings": [
-                            np.array(
                                 [
                                     0.17517076,
                                     -0.1259909,
@@ -454,9 +451,7 @@ def test_get_online_documents() -> None:
                                     0.01173803,
                                     -0.0573408,
                                     0.02616226,
-                                ]
-                            ),
-                            np.array(
+                                ],
                                 [
                                     0.18517076,
                                     -0.1259909,
@@ -468,9 +463,7 @@ def test_get_online_documents() -> None:
                                     0.01173803,
                                     -0.0573408,
                                     0.02616226,
-                                ]
-                            ),
-                            np.array(
+                                ],
                                 [
                                     0.19517076,
                                     -0.1259909,
@@ -482,9 +475,7 @@ def test_get_online_documents() -> None:
                                     0.01173803,
                                     -0.0573408,
                                     0.02616226,
-                                ]
-                            ),
-                            np.array(
+                                ],
                                 [
                                     0.20517076,
                                     -0.1259909,
@@ -497,17 +488,20 @@ def test_get_online_documents() -> None:
                                     -0.0573408,
                                     0.02616226,
                                 ]
-                            ),
-                        ]
+                        ],
                     },
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
-            ],
+            ]
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
             progress=None,
         )
 
-        query = np.array(
+        query_embedding = np.array(
             [
                 0.17517076,
                 -0.1259909,
@@ -523,7 +517,7 @@ def test_get_online_documents() -> None:
         )
         # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings", query=query, top_k=3
+            feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
         ).to_dict()
 
         assert "Embeddings" in result
