@@ -33,7 +33,11 @@ def _read_data_source(data_source: DataSource) -> Table:
     if isinstance(data_source.file_format, ParquetFormat):
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
-        return ibis.read_delta(data_source.path)
+        storage_options = {
+            "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
+        }
+
+        return ibis.read_delta(data_source.path, storage_options=storage_options)
 
 
 def _write_data_source(
@@ -72,10 +76,18 @@ def _write_data_source(
             new_table = pyarrow.concat_tables([table, prev_table])
             ibis.memtable(new_table).to_parquet(file_options.uri)
     elif isinstance(data_source.file_format, DeltaFormat):
+        storage_options = {
+            "AWS_ENDPOINT_URL": str(data_source.s3_endpoint_override),
+        }
+
         if mode == "append":
             from deltalake import DeltaTable
 
-            prev_schema = DeltaTable(file_options.uri).schema().to_pyarrow()
+            prev_schema = (
+                DeltaTable(file_options.uri, storage_options=storage_options)
+                .schema()
+                .to_pyarrow()
+            )
             table = table.cast(ibis.Schema.from_pyarrow(prev_schema))
             write_mode = "append"
         elif mode == "overwrite":
@@ -85,12 +97,18 @@ def _write_data_source(
                 else "error"
             )
 
-        table.to_delta(file_options.uri, mode=write_mode)
+        table.to_delta(
+            file_options.uri, mode=write_mode, storage_options=storage_options
+        )
 
 
 class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
     type: StrictStr = "duckdb"
     # """ Offline store type selector"""
+
+    staging_location: Optional[str] = None
+
+    staging_location_endpoint_override: Optional[str] = None
 
 
 class DuckDBOfflineStore(OfflineStore):
@@ -116,6 +134,8 @@ class DuckDBOfflineStore(OfflineStore):
             end_date=end_date,
             data_source_reader=_read_data_source,
             data_source_writer=_write_data_source,
+            staging_location=config.offline_store.staging_location,
+            staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
         )
 
     @staticmethod
@@ -138,6 +158,8 @@ class DuckDBOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
             data_source_reader=_read_data_source,
             data_source_writer=_write_data_source,
+            staging_location=config.offline_store.staging_location,
+            staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
         )
 
     @staticmethod
@@ -160,6 +182,8 @@ class DuckDBOfflineStore(OfflineStore):
             end_date=end_date,
             data_source_reader=_read_data_source,
             data_source_writer=_write_data_source,
+            staging_location=config.offline_store.staging_location,
+            staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
         )
 
     @staticmethod

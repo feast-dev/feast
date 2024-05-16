@@ -179,7 +179,15 @@ class FileSource(DataSource):
         elif isinstance(self.file_format, DeltaFormat):
             from deltalake import DeltaTable
 
-            schema = DeltaTable(self.path).schema().to_pyarrow()
+            storage_options = {
+                "AWS_ENDPOINT_URL": str(self.s3_endpoint_override),
+            }
+
+            schema = (
+                DeltaTable(self.path, storage_options=storage_options)
+                .schema()
+                .to_pyarrow()
+            )
         else:
             raise Exception(f"Unknown FileFormat -> {self.file_format}")
 
