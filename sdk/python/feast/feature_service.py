@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union, Any
+from typing import Any, Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
