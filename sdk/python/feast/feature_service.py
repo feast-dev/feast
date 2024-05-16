@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
@@ -49,6 +49,7 @@ class FeatureService:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     logging_config: Optional[LoggingConfig] = None
+    metadata: Optional[Dict[str, Any]] = None
 
     @log_exceptions
     def __init__(
@@ -60,6 +61,7 @@ class FeatureService:
         description: str = "",
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Creates a FeatureService object.
@@ -82,6 +84,7 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
         self.logging_config = logging_config
+        self.metadata = metadata
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
@@ -202,6 +205,7 @@ class FeatureService:
             logging_config=LoggingConfig.from_proto(
                 feature_service_proto.spec.logging_config
             ),
+            metadata=dict(feature_service_proto.spec.metadata),
         )
         fs.feature_view_projections.extend(
             [
@@ -240,11 +244,12 @@ class FeatureService:
                 projection.to_proto() for projection in self.feature_view_projections
             ],
             tags=self.tags,
+            metadata=self.metadata,
             description=self.description,
             owner=self.owner,
-            logging_config=self.logging_config.to_proto()
-            if self.logging_config
-            else None,
+            logging_config=(
+                self.logging_config.to_proto() if self.logging_config else None
+            ),
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)
