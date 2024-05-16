@@ -44,7 +44,7 @@ np.random.seed(0)
 @pytest.mark.parametrize(
     "use_substrait_odfv", [True, False], ids=lambda v: f"substrait:{v}"
 )
-def test_historical_features(
+def test_historical_features_main(
     environment, universal_data_sources, full_feature_names, use_substrait_odfv
 ):
     store = environment.feature_store
