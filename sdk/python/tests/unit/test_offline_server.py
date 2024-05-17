@@ -61,7 +61,9 @@ def default_store(temp_dir):
 
 
 def remote_feature_store(offline_server):
-    offline_config = RemoteOfflineStoreConfig(host="0.0.0.0", port=offline_server.port)
+    offline_config = RemoteOfflineStoreConfig(
+        type="remote", host="0.0.0.0", port=offline_server.port
+    )
 
     registry_path = os.path.join(
         str(offline_server.store.repo_path),
