@@ -10,6 +10,8 @@ We can serve remote offline requests using the `feast server_offline` command th
 * The server accepts `do_get` requests for the `get_historical_features` command and delegates the implementation to the  
 current `FeatureStore`.
 
+*Note*: The offline server can be initialized by providing the `feature_store.yml` file from an environment variable named `FEATURE_STORE_YAML_BASE64`. A temporary directory will be created with the provided yaml as `feature_store.yml` file in it.
+
 The [offline_client](./offline_client) folder includes a test python function that uses an offline store of type `remote`, leveraging the remote server as the 
 actual data provider. The offline store is implementated by the new `RemoteOfflineStore` class:
 * For now it implements only the `get_historical_features` method.
