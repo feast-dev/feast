@@ -240,7 +240,7 @@ class SqliteOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            self.conn.execute(
+            conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
             conn.execute(
@@ -285,6 +285,7 @@ class SqliteOnlineStore(OnlineStore):
         requested_feature: str,
         embedding: List[float],
         top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
