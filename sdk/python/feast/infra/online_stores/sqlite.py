@@ -15,7 +15,8 @@ import itertools
 import os
 import json
 import sqlite3
-import sqlite_vss
+import sqlite_vec
+import struct
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
@@ -81,7 +82,7 @@ class SqliteOnlineStore(OnlineStore):
             if config.online_store.vss_enabled:
                 db = sqlite3.connect(":memory:")
                 db.enable_load_extension(True)
-                sqlite_vss.load(db)
+                sqlite_vec.load(db)
 
         return self._conn
 
@@ -110,8 +111,9 @@ class SqliteOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     if config.online_store.vss_enabled:
-                        print('using vector search')
-                        vector_val = json.dumps(val)
+                        vector_val = json.loads(val.string_val)  # assuming val.string_val contains the JSON-serialized vector
+                        vector_bin = serialize_f32(vector_val)
+
                         conn.execute(
                             f"""
                                 UPDATE {_table_id(project, table)}
@@ -120,8 +122,8 @@ class SqliteOnlineStore(OnlineStore):
                             """,
                             (
                                 # SET
-                                str(val),
-                                vector_val,
+                                val.SerializeToString(),
+                                vector_bin,
                                 timestamp,
                                 created_ts,
                                 # WHERE
@@ -137,14 +139,13 @@ class SqliteOnlineStore(OnlineStore):
                             (
                                 entity_key_bin,
                                 feature_name,
-                                str(val),
-                                vector_val,
+                                val.SerializeToString(),
+                                vector_bin,
                                 timestamp,
                                 created_ts,
                             ),
                         )
                     else:
-                        print('not using vector search')
                         conn.execute(
                             f"""
                                 UPDATE {_table_id(project, table)}
@@ -316,16 +317,33 @@ class SqliteOnlineStore(OnlineStore):
         # Convert the embedding to a string to be used in postgres vector search
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
+
+        # Convert the embedding to a binary format
+        query_embedding_bin = serialize_f32(embedding)
+        table_name = _table_id(project, table)
+
         cur.execute(
             f"""
-            SELECT entity_key, feature_name, value, vector_value, vector_value <=> ? AS distance, event_ts
-            FROM {_table_id(project, table)}
-            WHERE feature_name = ?
-            ORDER BY distance
-            LIMIT ?
+            WITH similar_matches AS (
+                SELECT rowid, vector_value <-> ? AS distance 
+                FROM {table_name}
+                WHERE feature_name = ?
+                ORDER BY distance
+                LIMIT ?
+            )
+            SELECT
+                sm.distance,
+                t.entity_key,
+                t.feature_name,
+                t.value,
+                t.vector_value,
+                t.event_ts
+            FROM similar_matches sm
+            LEFT JOIN {table_name} t ON t.rowid = sm.rowid;
             """,
-            (query_embedding_str, requested_feature, top_k),
+            (query_embedding_bin, requested_feature, top_k),
         )
+
 
         rows = cur.fetchall()
 
@@ -368,6 +386,11 @@ def _initialize_conn(db_path: str):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
+
+
+def serialize_f32(vector: List[float]) -> bytes:
+    """serializes a list of floats into a compact "raw bytes" format"""
+    return struct.pack("%sf" % len(vector), *vector)
 
 
 class SqliteTable(InfraObject):
