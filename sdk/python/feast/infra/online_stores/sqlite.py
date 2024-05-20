@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import itertools
-import os
 import json
+import os
 import sqlite3
-import sqlite_vec
 import struct
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
+import sqlite_vec
 from pydantic import StrictStr
 
 from feast import Entity
@@ -111,8 +111,7 @@ class SqliteOnlineStore(OnlineStore):
 
                 for feature_name, val in values.items():
                     if config.online_store.vss_enabled:
-                        vector_val = json.loads(val.string_val)  # assuming val.string_val contains the JSON-serialized vector
-                        vector_bin = serialize_f32(vector_val)
+                        vector_bin = [serialize_f32(v) for v in val]  # serializing the value
 
                         conn.execute(
                             f"""
@@ -122,7 +121,7 @@ class SqliteOnlineStore(OnlineStore):
                             """,
                             (
                                 # SET
-                                val.SerializeToString(),
+                                str(val),
                                 vector_bin,
                                 timestamp,
                                 created_ts,
@@ -139,7 +138,7 @@ class SqliteOnlineStore(OnlineStore):
                             (
                                 entity_key_bin,
                                 feature_name,
-                                val.SerializeToString(),
+                                str(val),
                                 vector_bin,
                                 timestamp,
                                 created_ts,
