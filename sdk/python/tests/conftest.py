@@ -182,16 +182,15 @@ def environment(request, worker_id):
         request.param, worker_id=worker_id, fixture_request=request
     )
 
+    e.setup()
+
     if hasattr(e.data_source_creator, "mock_environ"):
         with mock.patch.dict(os.environ, e.data_source_creator.mock_environ):
             yield e
     else:
         yield e
 
-    e.feature_store.teardown()
-    e.data_source_creator.teardown()
-    if e.online_store_creator:
-        e.online_store_creator.teardown()
+    e.teardown()
 
 
 _config_cache: Any = {}

@@ -34,6 +34,8 @@ def test_spark_materialization_consistency():
         spark_config, None, entity_key_serialization_version=2
     )
 
+    spark_environment.setup()
+
     df = create_basic_driver_dataset()
 
     ds = spark_environment.data_source_creator.create_data_source(
