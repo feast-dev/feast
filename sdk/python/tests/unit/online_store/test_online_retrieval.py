@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto, FloatList
 from feast.repo_config import RegistryConfig
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
@@ -440,7 +440,7 @@ def test_get_online_documents() -> None:
                     item_key,
                     {
                         "Embeddings": [
-                                [
+                                FloatList(val=[
                                     0.17517076,
                                     -0.1259909,
                                     0.01954236,
@@ -451,43 +451,43 @@ def test_get_online_documents() -> None:
                                     0.01173803,
                                     -0.0573408,
                                     0.02616226,
-                                ],
-                                [
-                                    0.18517076,
-                                    -0.1259909,
-                                    0.01954236,
-                                    0.03045186,
-                                    -0.00074535,
-                                    -0.02715777,
-                                    -0.04582673,
-                                    0.01173803,
-                                    -0.0573408,
-                                    0.02616226,
-                                ],
-                                [
-                                    0.19517076,
-                                    -0.1259909,
-                                    0.01954236,
-                                    0.03045186,
-                                    -0.00074535,
-                                    -0.02715777,
-                                    -0.04582673,
-                                    0.01173803,
-                                    -0.0573408,
-                                    0.02616226,
-                                ],
-                                [
-                                    0.20517076,
-                                    -0.1259909,
-                                    0.01954236,
-                                    0.03045186,
-                                    -0.00074535,
-                                    -0.02715777,
-                                    -0.04582673,
-                                    0.01173803,
-                                    -0.0573408,
-                                    0.02616226,
-                                ]
+                                ]),
+                            #     FloatList(val=[
+                            #         0.18517076,
+                            #         -0.1259909,
+                            #         0.01954236,
+                            #         0.03045186,
+                            #         -0.00074535,
+                            #         -0.02715777,
+                            #         -0.04582673,
+                            #         0.01173803,
+                            #         -0.0573408,
+                            #         0.02616226,
+                            #     ]),
+                            #     FloatList(val=[
+                            #         0.19517076,
+                            #         -0.1259909,
+                            #         0.01954236,
+                            #         0.03045186,
+                            #         -0.00074535,
+                            #         -0.02715777,
+                            #         -0.04582673,
+                            #         0.01173803,
+                            #         -0.0573408,
+                            #         0.02616226,
+                            #     ]),
+                            # FloatList(val=[
+                            #         0.20517076,
+                            #         -0.1259909,
+                            #         0.01954236,
+                            #         0.03045186,
+                            #         -0.00074535,
+                            #         -0.02715777,
+                            #         -0.04582673,
+                            #         0.01173803,
+                            #         -0.0573408,
+                            #         0.02616226,
+                            #     ])
                         ],
                     },
                     datetime.utcnow(),
@@ -522,3 +522,4 @@ def test_get_online_documents() -> None:
 
         assert "Embeddings" in result
         assert result["driver_id"] == [0]
+        print(result)
