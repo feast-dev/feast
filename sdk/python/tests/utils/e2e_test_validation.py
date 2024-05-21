@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import pytest
@@ -176,17 +176,18 @@ def _check_offline_and_online_features(
 
 def make_feature_store_yaml(
     project,
-    test_repo_config,
     repo_dir_name: Path,
     offline_creator: DataSourceCreator,
+    provider: str,
+    online_store: Optional[Union[str, Dict]],
 ):
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = test_repo_config.online_store
+    online_store = online_store
 
     config = RepoConfig(
         registry=str(Path(repo_dir_name) / "registry.db"),
         project=project,
-        provider=test_repo_config.provider,
+        provider=provider,
         offline_store=offline_store_config,
         online_store=online_store,
         repo_path=str(Path(repo_dir_name)),
