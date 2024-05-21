@@ -11,6 +11,8 @@ from typing import (
     Tuple,
 )
 
+import pytz
+from google.protobuf.timestamp_pb2 import Timestamp
 from ikvpy.client import IKVReader, IKVWriter
 from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
 from ikvpy.document import IKVDocument, IKVDocumentBuilder
@@ -24,9 +26,6 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage
-
-import pytz
-from google.protobuf.timestamp_pb2 import Timestamp
 
 PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
