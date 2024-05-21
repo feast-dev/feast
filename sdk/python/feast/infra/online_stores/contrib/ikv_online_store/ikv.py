@@ -265,7 +265,8 @@ class IKVOnlineStore(OnlineStore):
             IKVDocumentBuilder()
             .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)
             .put_bytes_field(
-                EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_seconds_proto.SerializeToString()
+                EVENT_CREATION_TIMESTAMP_FIELD_NAME,
+                event_timestamp_seconds_proto.SerializeToString(),
             )
         )
 
