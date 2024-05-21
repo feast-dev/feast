@@ -10,7 +10,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaRetrievalJob,
 )
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerOfflineStoreConfig,
     MsSqlServerRetrievalJob,
 )
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
@@ -120,12 +119,14 @@ def retrieval_job(request, environment):
             iam_role="arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
             workgroup="",
         )
-        environment.test_repo_config.offline_store = offline_store_config
+        config = environment.config.copy(
+            update={"offline_config": offline_store_config}
+        )
         return RedshiftRetrievalJob(
             query="query",
             redshift_client="",
             s3_resource="",
-            config=environment.test_repo_config,
+            config=config,
             full_feature_names=False,
         )
     elif request.param is SnowflakeRetrievalJob:
@@ -141,12 +142,14 @@ def retrieval_job(request, environment):
             storage_integration_name="FEAST_S3",
             blob_export_location="s3://feast-snowflake-offload/export",
         )
-        environment.test_repo_config.offline_store = offline_store_config
-        environment.test_repo_config.project = "project"
+        config = environment.config.copy(
+            update={"offline_config": offline_store_config}
+        )
+        environment.project = "project"
         return SnowflakeRetrievalJob(
             query="query",
             snowflake_conn=MagicMock(),
-            config=environment.test_repo_config,
+            config=config,
             full_feature_names=False,
         )
     elif request.param is AthenaRetrievalJob:
@@ -158,21 +161,18 @@ def retrieval_job(request, environment):
             s3_staging_location="athena",
         )
 
-        environment.test_repo_config.offline_store = offline_store_config
         return AthenaRetrievalJob(
             query="query",
             athena_client="client",
             s3_resource="",
-            config=environment.test_repo_config.offline_store,
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is MsSqlServerRetrievalJob:
         return MsSqlServerRetrievalJob(
             query="query",
             engine=MagicMock(),
-            config=MsSqlServerOfflineStoreConfig(
-                connection_string="str"
-            ),  # TODO: this does not match the RetrievalJob pattern. Suppose to be RepoConfig
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is PostgreSQLRetrievalJob:
@@ -182,28 +182,25 @@ def retrieval_job(request, environment):
             user="str",
             password="str",
         )
-        environment.test_repo_config.offline_store = offline_store_config
         return PostgreSQLRetrievalJob(
             query="query",
-            config=environment.test_repo_config.offline_store,
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is SparkRetrievalJob:
         offline_store_config = SparkOfflineStoreConfig()
-        environment.test_repo_config.offline_store = offline_store_config
         return SparkRetrievalJob(
             spark_session=MagicMock(),
             query="str",
             full_feature_names=False,
-            config=environment.test_repo_config,
+            config=environment.config,
         )
     elif request.param is TrinoRetrievalJob:
         offline_store_config = SparkOfflineStoreConfig()
-        environment.test_repo_config.offline_store = offline_store_config
         return TrinoRetrievalJob(
             query="str",
             client=MagicMock(),
-            config=environment.test_repo_config,
+            config=environment.config,
             full_feature_names=False,
         )
     else:

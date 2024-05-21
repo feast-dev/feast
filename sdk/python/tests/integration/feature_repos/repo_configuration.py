@@ -419,7 +419,7 @@ class Environment:
     def setup(self):
         self.data_source_creator.setup(self.registry)
 
-        config = RepoConfig(
+        self.config = RepoConfig(
             registry=self.registry,
             project=self.project,
             provider=self.provider,
@@ -432,7 +432,7 @@ class Environment:
             feature_server=self.feature_server,
             entity_key_serialization_version=self.entity_key_serialization_version,
         )
-        self.feature_store = FeatureStore(config=config)
+        self.feature_store = FeatureStore(config=self.config)
 
     def teardown(self):
         self.feature_store.teardown()
