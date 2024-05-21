@@ -126,7 +126,7 @@ referencing==0.35.1
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.31.0
+requests==2.32.0
 rich==13.7.1
     # via typer
 rpds-py==0.18.1

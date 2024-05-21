@@ -660,7 +660,7 @@ referencing==0.35.1
     #   jsonschema-specifications
     #   jupyter-events
 regex==2024.4.28
-requests==2.31.0
+requests==2.32.0
     # via
     #   azure-core
     #   cachecontrol
