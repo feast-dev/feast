@@ -25,6 +25,9 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.usage import log_exceptions_and_usage
 
+import pytz
+from google.protobuf.timestamp_pb2 import Timestamp
+
 PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
 CREATION_TIMESTAMP_FIELD_NAME: str = "_created_timestamp"
@@ -162,7 +165,9 @@ class IKVOnlineStore(OnlineStore):
         dt: Optional[datetime] = None
         dt_bytes = next(value_iter)
         if dt_bytes:
-            dt = datetime.fromisoformat(str(dt_bytes, "utf-8"))
+            proto_timestamp = Timestamp()
+            proto_timestamp.ParseFromString(dt_bytes)
+            dt = datetime.fromtimestamp(proto_timestamp.seconds, tz=pytz.utc)
 
         # decode other features
         features = {}
@@ -252,12 +257,16 @@ class IKVOnlineStore(OnlineStore):
         """Converts feast key-value pairs into an IKV document."""
 
         # initialie builder by inserting primary key and row creation timestamp
-        event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
+        event_timestamp_seconds = int(utils.make_tzaware(event_timestamp).timestamp())
+        event_timestamp_seconds_proto = Timestamp()
+        event_timestamp_seconds_proto.seconds = event_timestamp_seconds
+
+        # event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
         builder = (
             IKVDocumentBuilder()
             .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)
             .put_bytes_field(
-                EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_str.encode("utf-8")
+                EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_seconds_proto.SerializeToString()
             )
         )
 
