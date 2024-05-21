@@ -269,7 +269,7 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    data_source_creator = environment.test_repo_config.offline_store_creator
+    data_source_creator = environment.data_source_creator
     if data_source_creator.__name__ == SnowflakeDataSourceCreator.__name__:
         entity_df_query = f"""
         SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
