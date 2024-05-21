@@ -31,11 +31,10 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.registry.registry import Registry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import log_exceptions_and_usage
 
 
 class BasicAuthModel(FeastConfigBaseModel):
@@ -266,7 +265,6 @@ class TrinoRetrievalJob(RetrievalJob):
 
 class TrinoOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="trino")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -316,13 +314,12 @@ class TrinoOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="trino")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> TrinoRetrievalJob:
@@ -402,7 +399,6 @@ class TrinoOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="trino")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

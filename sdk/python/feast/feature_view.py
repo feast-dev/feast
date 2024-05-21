@@ -37,7 +37,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.types import from_value_type
-from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -94,7 +93,6 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
 
-    @log_exceptions
     def __init__(
         self,
         *,

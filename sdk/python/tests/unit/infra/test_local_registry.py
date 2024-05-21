@@ -106,6 +106,7 @@ def test_apply_feature_view_success(test_registry):
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
+            Field(name="test", dtype=Int64),
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
@@ -331,7 +332,10 @@ def test_modify_feature_views_success(test_registry):
 
     fv1 = FeatureView(
         name="my_feature_view_1",
-        schema=[Field(name="fs1_my_feature_1", dtype=Int64)],
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+        ],
         entities=[entity],
         tags={"team": "matchmaking"},
         source=batch_source,

@@ -42,7 +42,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import log_exceptions_and_usage
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -95,7 +94,6 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
 
 class RedshiftOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="redshift")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -154,7 +152,6 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="redshift")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -195,7 +192,6 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="redshift")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -426,7 +422,6 @@ class RedshiftRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    @log_exceptions_and_usage
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
@@ -441,7 +436,6 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
-    @log_exceptions_and_usage
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
@@ -456,7 +450,6 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
-    @log_exceptions_and_usage
     def to_s3(self) -> str:
         """Export dataset to S3 in Parquet format and return path"""
         if self.on_demand_feature_views:
@@ -477,7 +470,6 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
             return self._s3_path
 
-    @log_exceptions_and_usage
     def to_redshift(self, table_name: str) -> None:
         """Save dataset as a new Redshift table"""
         if self.on_demand_feature_views:

@@ -251,6 +251,7 @@ def validate_registry_data_source_apply(test_registry: Registry):
     fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
+            Field(name="test", dtype=Int64),
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),

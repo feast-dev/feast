@@ -34,7 +34,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
-from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -73,7 +72,6 @@ class OnDemandFeatureView(BaseFeatureView):
     tags: dict[str, str]
     owner: str
 
-    @log_exceptions  # noqa: C901
     def __init__(  # noqa: C901
         self,
         *,

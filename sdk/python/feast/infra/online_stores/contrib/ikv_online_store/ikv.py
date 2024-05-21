@@ -25,7 +25,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 
 PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
@@ -60,7 +59,6 @@ class IKVOnlineStore(OnlineStore):
     _reader: Optional[IKVReader] = None
     _writer: Optional[IKVWriter] = None
 
-    @log_exceptions_and_usage(online_store="ikv")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -99,7 +97,6 @@ class IKVOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
-    @log_exceptions_and_usage(online_store="ikv")
     def online_read(
         self,
         config: RepoConfig,
@@ -179,7 +176,6 @@ class IKVOnlineStore(OnlineStore):
 
         return dt, features
 
-    @log_exceptions_and_usage(online_store="ikv")
     def update(
         self,
         config: RepoConfig,
@@ -212,7 +208,6 @@ class IKVOnlineStore(OnlineStore):
             # each field in an IKV document is prefixed by the feature-view's name
             self._writer.drop_fields_by_name_prefix([feature_view.name])
 
-    @log_exceptions_and_usage(online_store="ikv")
     def teardown(
         self,
         config: RepoConfig,
