@@ -29,7 +29,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
+from feast.utils import get_user_agent
 
 try:
     import boto3
@@ -81,7 +81,6 @@ class DynamoDBOnlineStore(OnlineStore):
     _dynamodb_client = None
     _dynamodb_resource = None
 
-    @log_exceptions_and_usage(online_store="dynamodb")
     def update(
         self,
         config: RepoConfig,
@@ -172,7 +171,6 @@ class DynamoDBOnlineStore(OnlineStore):
                 dynamodb_resource, _get_table_name(online_config, config, table)
             )
 
-    @log_exceptions_and_usage(online_store="dynamodb")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -208,7 +206,6 @@ class DynamoDBOnlineStore(OnlineStore):
         )
         self._write_batch_non_duplicates(table_instance, data, progress, config)
 
-    @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
         self,
         config: RepoConfig,
@@ -257,10 +254,9 @@ class DynamoDBOnlineStore(OnlineStore):
                     "ConsistentRead": online_config.consistent_reads,
                 }
             }
-            with tracing_span(name="remote_call"):
-                response = dynamodb_resource.batch_get_item(
-                    RequestItems=batch_entity_ids,
-                )
+            response = dynamodb_resource.batch_get_item(
+                RequestItems=batch_entity_ids,
+            )
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
             if table_responses:
@@ -316,7 +312,6 @@ class DynamoDBOnlineStore(OnlineStore):
         _, table_responses_ordered = zip(*table_responses_ordered)
         return table_responses_ordered
 
-    @log_exceptions_and_usage(online_store="dynamodb")
     def _write_batch_non_duplicates(
         self,
         table_instance,

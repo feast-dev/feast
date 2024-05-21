@@ -26,7 +26,6 @@ from feast.errors import (
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
-from feast.usage import log_exceptions
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -307,7 +306,6 @@ class RepoConfig(FeastBaseModel):
         return self._batch_engine
 
     @model_validator(mode="before")
-    @log_exceptions
     def _validate_online_store_config(cls, values: Any) -> Any:
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to

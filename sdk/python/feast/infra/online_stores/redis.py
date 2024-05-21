@@ -38,7 +38,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.usage import log_exceptions_and_usage, tracing_span
 
 try:
     from redis import Redis
@@ -143,7 +142,6 @@ class RedisOnlineStore(OnlineStore):
 
         logger.debug(f"Deleted {deleted_count} rows for feature view {table.name}")
 
-    @log_exceptions_and_usage(online_store="redis")
     def update(
         self,
         config: RepoConfig,
@@ -262,7 +260,6 @@ class RedisOnlineStore(OnlineStore):
                 self._client_async = redis_asyncio.Redis(**kwargs)
         return self._client_async
 
-    @log_exceptions_and_usage(online_store="redis")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -375,7 +372,6 @@ class RedisOnlineStore(OnlineStore):
             result.append(features)
         return result
 
-    @log_exceptions_and_usage(online_store="redis")
     def online_read(
         self,
         config: RepoConfig,
@@ -397,14 +393,13 @@ class RedisOnlineStore(OnlineStore):
         with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
-            with tracing_span(name="remote_call"):
-                redis_values = pipe.execute()
+
+            redis_values = pipe.execute()
 
         return self._convert_redis_values_to_protobuf(
             redis_values, feature_view.name, requested_features
         )
 
-    @log_exceptions_and_usage(online_store="redis")
     async def online_read_async(
         self,
         config: RepoConfig,
@@ -426,8 +421,7 @@ class RedisOnlineStore(OnlineStore):
         async with client.pipeline(transaction=False) as pipe:
             for redis_key_bin in keys:
                 pipe.hmget(redis_key_bin, hset_keys)
-            with tracing_span(name="remote_call"):
-                redis_values = await pipe.execute()
+            redis_values = await pipe.execute()
 
         return self._convert_redis_values_to_protobuf(
             redis_values, feature_view.name, requested_features

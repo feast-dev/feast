@@ -38,11 +38,9 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.infra.registry.registry import Registry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import log_exceptions_and_usage
 
 
 class AthenaOfflineStoreConfig(FeastConfigBaseModel):
@@ -69,7 +67,6 @@ class AthenaOfflineStoreConfig(FeastConfigBaseModel):
 
 class AthenaOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="athena")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -129,7 +126,6 @@ class AthenaOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="athena")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -168,13 +164,12 @@ class AthenaOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="athena")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -372,7 +367,6 @@ class AthenaRetrievalJob(RetrievalJob):
                                 """
         return temp_table_dml_header
 
-    @log_exceptions_and_usage
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
             temp_table_name = "_" + str(uuid.uuid4()).replace("-", "")
@@ -389,7 +383,6 @@ class AthenaRetrievalJob(RetrievalJob):
                 temp_table_name,
             )
 
-    @log_exceptions_and_usage
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             temp_table_name = "_" + str(uuid.uuid4()).replace("-", "")
@@ -419,7 +412,6 @@ class AthenaRetrievalJob(RetrievalJob):
         assert isinstance(storage, SavedDatasetAthenaStorage)
         self.to_athena(table_name=storage.athena_options.table)
 
-    @log_exceptions_and_usage
     def to_athena(self, table_name: str) -> None:
         if self.on_demand_feature_views:
             transformed_df = self.to_df()

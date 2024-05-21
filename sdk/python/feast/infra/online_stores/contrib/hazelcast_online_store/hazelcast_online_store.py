@@ -35,7 +35,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.usage import log_exceptions_and_usage
 
 # Exception messages
 EXCEPTION_HAZELCAST_UNEXPECTED_CONFIGURATION_CLASS = (
@@ -143,7 +142,6 @@ class HazelcastOnlineStore(OnlineStore):
                         )
         return self._client
 
-    @log_exceptions_and_usage(online_store="hazelcast")
     def online_write_batch(
         self,
         config: RepoConfig,

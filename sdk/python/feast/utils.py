@@ -16,10 +16,19 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
+from feast.version import get_version
 
 if typing.TYPE_CHECKING:
     from feast.feature_view import FeatureView
     from feast.on_demand_feature_view import OnDemandFeatureView
+
+
+APPLICATION_NAME = "feast-dev/feast"
+USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+def get_user_agent():
+    return USER_AGENT
 
 
 def make_tzaware(t: datetime) -> datetime:

@@ -16,7 +16,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,6 @@ class BigtableOnlineStore(OnlineStore):
 
     feature_column_family: str = "features"
 
-    @log_exceptions_and_usage(online_store="bigtable")
     def online_read(
         self,
         config: RepoConfig,
@@ -116,7 +114,6 @@ class BigtableOnlineStore(OnlineStore):
 
         return (event_ts, res)
 
-    @log_exceptions_and_usage(online_store="bigtable")
     def online_write_batch(
         self,
         config: RepoConfig,

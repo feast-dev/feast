@@ -95,7 +95,6 @@ from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
-from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -118,7 +117,6 @@ class FeatureStore:
     _registry: BaseRegistry
     _provider: Provider
 
-    @log_exceptions
     def __init__(
         self,
         repo_path: Optional[str] = None,
@@ -176,7 +174,6 @@ class FeatureStore:
 
         self._provider = get_provider(self.config)
 
-    @log_exceptions
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI."""
         return get_version()
@@ -195,7 +192,6 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return self._provider
 
-    @log_exceptions_and_usage
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -218,7 +214,6 @@ class FeatureStore:
 
         self._registry = registry
 
-    @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieves the list of entities from the registry.
@@ -243,7 +238,6 @@ class FeatureStore:
             if entity.name != DUMMY_ENTITY_NAME or not hide_dummy_entity
         ]
 
-    @log_exceptions_and_usage
     def list_feature_services(self) -> List[FeatureService]:
         """
         Retrieves the list of feature services from the registry.
@@ -253,7 +247,6 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project)
 
-    @log_exceptions_and_usage
     def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
@@ -300,7 +293,6 @@ class FeatureStore:
             stream_feature_views.append(sfv)
         return stream_feature_views
 
-    @log_exceptions_and_usage
     def list_on_demand_feature_views(
         self, allow_cache: bool = False
     ) -> List[OnDemandFeatureView]:
@@ -314,7 +306,6 @@ class FeatureStore:
             self.project, allow_cache=allow_cache
         )
 
-    @log_exceptions_and_usage
     def list_stream_feature_views(
         self, allow_cache: bool = False
     ) -> List[StreamFeatureView]:
@@ -326,7 +317,6 @@ class FeatureStore:
         """
         return self._list_stream_feature_views(allow_cache)
 
-    @log_exceptions_and_usage
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
         """
         Retrieves the list of data sources from the registry.
@@ -339,7 +329,6 @@ class FeatureStore:
         """
         return self._registry.list_data_sources(self.project, allow_cache=allow_cache)
 
-    @log_exceptions_and_usage
     def get_entity(self, name: str, allow_registry_cache: bool = False) -> Entity:
         """
         Retrieves an entity.
@@ -358,7 +347,6 @@ class FeatureStore:
             name, self.project, allow_cache=allow_registry_cache
         )
 
-    @log_exceptions_and_usage
     def get_feature_service(
         self, name: str, allow_cache: bool = False
     ) -> FeatureService:
@@ -377,7 +365,6 @@ class FeatureStore:
         """
         return self._registry.get_feature_service(name, self.project, allow_cache)
 
-    @log_exceptions_and_usage
     def get_feature_view(
         self, name: str, allow_registry_cache: bool = False
     ) -> FeatureView:
@@ -409,7 +396,6 @@ class FeatureStore:
             feature_view.entities = []
         return feature_view
 
-    @log_exceptions_and_usage
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
     ) -> StreamFeatureView:
@@ -443,7 +429,6 @@ class FeatureStore:
             stream_feature_view.entities = []
         return stream_feature_view
 
-    @log_exceptions_and_usage
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
@@ -459,7 +444,6 @@ class FeatureStore:
         """
         return self._registry.get_on_demand_feature_view(name, self.project)
 
-    @log_exceptions_and_usage
     def get_data_source(self, name: str) -> DataSource:
         """
         Retrieves the list of data sources from the registry.
@@ -475,7 +459,6 @@ class FeatureStore:
         """
         return self._registry.get_data_source(name, self.project)
 
-    @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view.
@@ -488,7 +471,6 @@ class FeatureStore:
         """
         return self._registry.delete_feature_view(name, self.project)
 
-    @log_exceptions_and_usage
     def delete_feature_service(self, name: str):
         """
         Deletes a feature service.
@@ -554,7 +536,6 @@ class FeatureStore:
                 "This API is stable, but the functionality does not scale well for offline retrieval",
                 RuntimeWarning,
             )
-        set_usage_attribute("odfv", bool(odfvs_to_update))
         _validate_feature_views(
             [
                 *views_to_update,
@@ -657,7 +638,6 @@ class FeatureStore:
 
         return feature_views_to_materialize
 
-    @log_exceptions_and_usage
     def plan(
         self, desired_repo_contents: RepoContents
     ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
@@ -734,7 +714,6 @@ class FeatureStore:
 
         return registry_diff, infra_diff, new_infra
 
-    @log_exceptions_and_usage
     def _apply_diffs(
         self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
     ):
@@ -752,7 +731,6 @@ class FeatureStore:
 
         self._registry.update_infra(new_infra, self.project, commit=True)
 
-    @log_exceptions_and_usage
     def apply(
         self,
         objects: Union[
@@ -968,7 +946,6 @@ class FeatureStore:
 
         self._registry.commit()
 
-    @log_exceptions_and_usage
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
         tables: List[FeatureView] = []
@@ -981,7 +958,6 @@ class FeatureStore:
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
 
-    @log_exceptions_and_usage
     def get_historical_features(
         self,
         entity_df: Union[pd.DataFrame, str],
@@ -1061,8 +1037,6 @@ class FeatureStore:
         feature_views = list(view for view, _ in fvs)
         on_demand_feature_views = list(view for view, _ in odfvs)
 
-        set_usage_attribute("odfv", bool(on_demand_feature_views))
-
         # Check that the right request data is present in the entity_df
         if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
@@ -1091,7 +1065,6 @@ class FeatureStore:
 
         return job
 
-    @log_exceptions_and_usage
     def create_saved_dataset(
         self,
         from_: RetrievalJob,
@@ -1159,7 +1132,6 @@ class FeatureStore:
         self._registry.apply_saved_dataset(dataset, self.project, commit=True)
         return dataset
 
-    @log_exceptions_and_usage
     def get_saved_dataset(self, name: str) -> SavedDataset:
         """
         Find a saved dataset in the registry by provided name and
@@ -1191,7 +1163,6 @@ class FeatureStore:
         )
         return dataset.with_retrieval_job(retrieval_job)
 
-    @log_exceptions_and_usage
     def materialize_incremental(
         self,
         end_date: datetime,
@@ -1283,7 +1254,6 @@ class FeatureStore:
                 end_date,
             )
 
-    @log_exceptions_and_usage
     def materialize(
         self,
         start_date: datetime,
@@ -1358,7 +1328,6 @@ class FeatureStore:
                 end_date,
             )
 
-    @log_exceptions_and_usage
     def push(
         self,
         push_source_name: str,
@@ -1403,7 +1372,6 @@ class FeatureStore:
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
 
-    @log_exceptions_and_usage
     def write_to_online_store(
         self,
         feature_view_name: str,
@@ -1422,7 +1390,7 @@ class FeatureStore:
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
-            feature_view = self.get_stream_feature_view(
+            feature_view: FeatureView = self.get_stream_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
@@ -1444,7 +1412,6 @@ class FeatureStore:
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
-    @log_exceptions_and_usage
     def write_to_offline_store(
         self,
         feature_view_name: str,
@@ -1460,7 +1427,7 @@ class FeatureStore:
         """
         # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
         try:
-            feature_view = self.get_stream_feature_view(
+            feature_view: FeatureView = self.get_stream_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
@@ -1487,7 +1454,6 @@ class FeatureStore:
         provider = self._get_provider()
         provider.ingest_df_to_offline_store(feature_view, table)
 
-    @log_exceptions_and_usage
     def get_online_features(
         self,
         features: Union[List[str], FeatureService],
@@ -1550,7 +1516,6 @@ class FeatureStore:
             native_entity_values=True,
         )
 
-    @log_exceptions_and_usage
     async def get_online_features_async(
         self,
         features: Union[List[str], FeatureService],
@@ -1625,7 +1590,6 @@ class FeatureStore:
             requested_feature_views,
             requested_on_demand_feature_views,
         )
-        set_usage_attribute("odfv", bool(grouped_odfv_refs))
 
         requested_result_row_names = {
             feat_ref.replace(":", "__") for feat_ref in _feature_refs
@@ -1880,7 +1844,6 @@ class FeatureStore:
         )
         return OnlineResponse(online_features_response)
 
-    @log_exceptions_and_usage
     def retrieve_online_documents(
         self,
         feature: str,
@@ -2481,7 +2444,6 @@ class FeatureStore:
 
         return views_to_use
 
-    @log_exceptions_and_usage
     def serve(
         self,
         host: str,
@@ -2510,12 +2472,10 @@ class FeatureStore:
             registry_ttl_sec=registry_ttl_sec,
         )
 
-    @log_exceptions_and_usage
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return self._provider.get_feature_server_endpoint()
 
-    @log_exceptions_and_usage
     def serve_ui(
         self,
         host: str,
@@ -2541,14 +2501,12 @@ class FeatureStore:
             root_path=root_path,
         )
 
-    @log_exceptions_and_usage
     def serve_registry(self, port: int) -> None:
         """Start registry server locally on a given port."""
         from feast import registry_server
 
         registry_server.start_server(self, port)
 
-    @log_exceptions_and_usage
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
         warnings.warn(
@@ -2561,7 +2519,6 @@ class FeatureStore:
 
         transformation_server.start_server(self, port)
 
-    @log_exceptions_and_usage
     def write_logged_features(
         self, logs: Union[pa.Table, Path], source: FeatureService
     ):
@@ -2589,7 +2546,6 @@ class FeatureStore:
             registry=self._registry,
         )
 
-    @log_exceptions_and_usage
     def validate_logged_features(
         self,
         source: FeatureService,
@@ -2650,7 +2606,6 @@ class FeatureStore:
 
         return None
 
-    @log_exceptions_and_usage
     def get_validation_reference(
         self, name: str, allow_cache: bool = False
     ) -> ValidationReference:

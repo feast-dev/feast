@@ -162,7 +162,7 @@ def ui(
     host: str,
     port: int,
     registry_ttl_sec: int,
-    root_path: Optional[str] = "",
+    root_path: str = "",
 ):
     """
     Shows the Feast UI over the current directory
@@ -807,12 +807,12 @@ def validate(
     """
     store = create_feature_store(ctx)
 
-    feature_service = store.get_feature_service(name=feature_service)
-    reference = store.get_validation_reference(reference)
+    _feature_service = store.get_feature_service(name=feature_service)
+    _reference = store.get_validation_reference(reference)
 
     result = store.validate_logged_features(
-        source=feature_service,
-        reference=reference,
+        source=_feature_service,
+        reference=_reference,
         start=maybe_local_tz(datetime.fromisoformat(start_ts)),
         end=maybe_local_tz(datetime.fromisoformat(end_ts)),
         throw_exception=False,

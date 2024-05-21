@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from threading import Lock
 from typing import List, Optional
 
-from feast import usage
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -282,9 +281,7 @@ class CachingRegistry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=self.cached_registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if not project_metadata:
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )
