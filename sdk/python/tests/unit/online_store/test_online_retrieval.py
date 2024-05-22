@@ -427,12 +427,6 @@ def test_get_online_documents() -> None:
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         store.config.online_store.vss_enabled = True
-        import sqlite3
-        import sqlite_vec
-        db = sqlite3.connect(":memory:")
-        db.enable_load_extension(True)
-        sqlite_vec.load(db)
-
         # Write some data to two tables
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
 

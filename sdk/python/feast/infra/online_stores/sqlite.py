@@ -322,26 +322,31 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            WITH similar_matches AS (
-                SELECT rowid, vector_value <-> ? AS distance 
-                FROM {table_name}
-                WHERE feature_name = ?
-                ORDER BY distance
-                LIMIT ?
-            )
-            SELECT
-                sm.distance,
-                t.entity_key,
-                t.feature_name,
-                t.value,
-                t.vector_value,
-                t.event_ts
-            FROM similar_matches sm
-            LEFT JOIN {table_name} t ON t.rowid = sm.rowid;
-            """,
-            (query_embedding_bin, requested_feature, top_k),
+            create virtual table vec_example using vec0(
+                vector_value float[10]
+        );
+        """)
+
+        cur.execute(
+            f"""
+            INSERT INTO vec_example(vector_value) 
+                VALUES (?)
+        """,
+            (query_embedding_bin)
         )
 
+        cur.execute(
+            f"""
+        select
+            vector_value,
+            distance
+        from vec_example
+        where vector_value match ?
+        order by distance
+        limit ?;
+        """,
+            (query_embedding_bin, top_k)
+        )
 
         rows = cur.fetchall()
 
@@ -445,8 +450,8 @@ class SqliteTable(InfraObject):
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
         )
-        self.conn.execute(
-            f"CREATE VIRTUAL TABLE {self.name}_embeddings USING vec0(embedding float[64])"
-        )
+        # self.conn.execute(
+        #     f"CREATE VIRTUAL TABLE {self.name}_embeddings USING vec0(embedding float[10])"
+        # )
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
