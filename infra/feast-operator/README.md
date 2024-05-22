@@ -21,7 +21,7 @@ kind: FeastFeatureServer
 metadata:
   name: example
 spec:
-  feature_store_yaml_base64: $(cat feature_store.yaml | base64)
+  feature_store_yaml_base64: $(cat feature_store.yaml | base64 | tr -d '\n\r')
 EOF
 ```
 Ensure it was successfully created on the cluster and that the `feature_store_yaml_base64` field was properly set. The following command should return output which is identical to your `feature_store.yaml`:
