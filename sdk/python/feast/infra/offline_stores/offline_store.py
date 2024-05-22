@@ -351,3 +351,17 @@ class OfflineStore(ABC):
                 to show progress.
         """
         raise NotImplementedError
+
+    @staticmethod
+    def validate_data_source(
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        """
+        Validates the underlying data source.
+
+        Args:
+            config: Configuration object used to configure a feature store.
+            data_source: DataSource object that needs to be validated
+        """
+        data_source.validate(config=config)

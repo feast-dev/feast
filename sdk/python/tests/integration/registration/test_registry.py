@@ -18,7 +18,7 @@ from unittest import mock
 
 import pytest
 from pytest_lazyfixture import lazy_fixture
-from testcontainers.core.container import DockerContainer
+from testcontainers.minio import MinioContainer
 
 from feast import FileSource
 from feast.data_format import ParquetFormat
@@ -64,25 +64,15 @@ def s3_registry() -> Registry:
 
 @pytest.fixture
 def minio_registry() -> Registry:
-    minio_user = "minio99"
-    minio_password = "minio123"
     bucket_name = "test-bucket"
 
-    container: DockerContainer = (
-        DockerContainer("quay.io/minio/minio")
-        .with_exposed_ports(9000, 9001)
-        .with_env("MINIO_ROOT_USER", minio_user)
-        .with_env("MINIO_ROOT_PASSWORD", minio_password)
-        .with_command('server /data --console-address ":9001"')
-        .with_exposed_ports()
-    )
-
+    container = MinioContainer()
     container.start()
+    client = container.get_client()
+    client.make_bucket(bucket_name)
 
-    exposed_port = container.get_exposed_port("9000")
     container_host = container.get_container_host_ip()
-
-    container.exec(f"mkdir /data/{bucket_name}")
+    exposed_port = container.get_exposed_port(container.port)
 
     registry_config = RegistryConfig(
         path=f"s3://{bucket_name}/registry.db", cache_ttl_seconds=600
@@ -90,8 +80,8 @@ def minio_registry() -> Registry:
 
     mock_environ = {
         "FEAST_S3_ENDPOINT_URL": f"http://{container_host}:{exposed_port}",
-        "AWS_ACCESS_KEY_ID": minio_user,
-        "AWS_SECRET_ACCESS_KEY": minio_password,
+        "AWS_ACCESS_KEY_ID": container.access_key,
+        "AWS_SECRET_ACCESS_KEY": container.secret_key,
         "AWS_SESSION_TOKEN": "",
     }
 

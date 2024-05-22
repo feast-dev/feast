@@ -13,11 +13,13 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import os
 import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
 from typing import Any, Dict, List, Tuple, no_type_check
+from unittest import mock
 
 import pandas as pd
 import pytest
@@ -180,12 +182,15 @@ def environment(request, worker_id):
         request.param, worker_id=worker_id, fixture_request=request
     )
 
-    yield e
+    e.setup()
 
-    e.feature_store.teardown()
-    e.data_source_creator.teardown()
-    if e.online_store_creator:
-        e.online_store_creator.teardown()
+    if hasattr(e.data_source_creator, "mock_environ"):
+        with mock.patch.dict(os.environ, e.data_source_creator.mock_environ):
+            yield e
+    else:
+        yield e
+
+    e.teardown()
 
 
 _config_cache: Any = {}

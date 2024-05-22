@@ -5,7 +5,7 @@ import pandas as pd
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
-from feast.repo_config import FeastConfigBaseModel
+from feast.repo_config import FeastConfigBaseModel, RegistryConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 
@@ -43,6 +43,9 @@ class DataSourceCreator(ABC):
             test.
         """
         raise NotImplementedError
+
+    def setup(self, registry: RegistryConfig):
+        pass
 
     @abstractmethod
     def create_offline_store_config(self) -> FeastConfigBaseModel:

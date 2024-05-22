@@ -47,6 +47,8 @@ def pull_latest_from_table_or_query_ibis(
     end_date: datetime,
     data_source_reader: Callable[[DataSource], Table],
     data_source_writer: Callable[[pyarrow.Table, DataSource], None],
+    staging_location: Optional[str] = None,
+    staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
@@ -82,6 +84,8 @@ def pull_latest_from_table_or_query_ibis(
         full_feature_names=False,
         metadata=None,
         data_source_writer=data_source_writer,
+        staging_location=staging_location,
+        staging_location_endpoint_override=staging_location_endpoint_override,
     )
 
 
@@ -140,6 +144,8 @@ def get_historical_features_ibis(
     data_source_reader: Callable[[DataSource], Table],
     data_source_writer: Callable[[pyarrow.Table, DataSource], None],
     full_feature_names: bool = False,
+    staging_location: Optional[str] = None,
+    staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -231,6 +237,8 @@ def get_historical_features_ibis(
             max_event_timestamp=timestamp_range[1],
         ),
         data_source_writer=data_source_writer,
+        staging_location=staging_location,
+        staging_location_endpoint_override=staging_location_endpoint_override,
     )
 
 
@@ -244,6 +252,8 @@ def pull_all_from_table_or_query_ibis(
     end_date: datetime,
     data_source_reader: Callable[[DataSource], Table],
     data_source_writer: Callable[[pyarrow.Table, DataSource], None],
+    staging_location: Optional[str] = None,
+    staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     start_date = start_date.astimezone(tz=utc)
@@ -270,6 +280,8 @@ def pull_all_from_table_or_query_ibis(
         full_feature_names=False,
         metadata=None,
         data_source_writer=data_source_writer,
+        staging_location=staging_location,
+        staging_location_endpoint_override=staging_location_endpoint_override,
     )
 
 
@@ -411,6 +423,23 @@ def point_in_time_join(
     return acc_table
 
 
+def list_s3_files(path: str, endpoint_url: str) -> List[str]:
+    import boto3
+
+    s3 = boto3.client("s3", endpoint_url=endpoint_url)
+    if path.startswith("s3://"):
+        path = path[len("s3://") :]
+    bucket, prefix = path.split("/", 1)
+    objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    contents = objects["Contents"]
+    files = [
+        f"s3://{bucket}/{content['Key']}"
+        for content in contents
+        if content["Key"].endswith("parquet")
+    ]
+    return files
+
+
 class IbisRetrievalJob(RetrievalJob):
     def __init__(
         self,
@@ -419,6 +448,8 @@ class IbisRetrievalJob(RetrievalJob):
         full_feature_names,
         metadata,
         data_source_writer,
+        staging_location,
+        staging_location_endpoint_override,
     ) -> None:
         super().__init__()
         self.table = table
@@ -428,6 +459,8 @@ class IbisRetrievalJob(RetrievalJob):
         self._full_feature_names = full_feature_names
         self._metadata = metadata
         self.data_source_writer = data_source_writer
+        self.staging_location = staging_location
+        self.staging_location_endpoint_override = staging_location_endpoint_override
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         return self.table.execute()
@@ -456,3 +489,15 @@ class IbisRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return self._metadata
+
+    def supports_remote_storage_export(self) -> bool:
+        return self.staging_location is not None
+
+    def to_remote_storage(self) -> List[str]:
+        path = self.staging_location + f"/{str(uuid.uuid4())}"
+
+        storage_options = {"AWS_ENDPOINT_URL": self.staging_location_endpoint_override}
+
+        self.table.to_delta(path, storage_options=storage_options)
+
+        return list_s3_files(path, self.staging_location_endpoint_override)

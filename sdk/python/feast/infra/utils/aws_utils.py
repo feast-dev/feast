@@ -22,7 +22,7 @@ from feast.errors import (
     RedshiftTableNameTooLong,
 )
 from feast.type_map import pa_to_athena_value_type, pa_to_redshift_value_type
-from feast.usage import get_user_agent
+from feast.utils import get_user_agent
 
 try:
     import boto3

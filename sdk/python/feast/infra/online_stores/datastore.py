@@ -44,7 +44,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
+from feast.utils import get_user_agent
 
 LOGGER = logging.getLogger(__name__)
 
@@ -103,7 +103,6 @@ class DatastoreOnlineStore(OnlineStore):
 
     _client: Optional[datastore.Client] = None
 
-    @log_exceptions_and_usage(online_store="datastore")
     def update(
         self,
         config: RepoConfig,
@@ -164,7 +163,6 @@ class DatastoreOnlineStore(OnlineStore):
             )
         return self._client
 
-    @log_exceptions_and_usage(online_store="datastore")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -255,7 +253,6 @@ class DatastoreOnlineStore(OnlineStore):
         if progress:
             progress(len(entities))
 
-    @log_exceptions_and_usage(online_store="datastore")
     def online_read(
         self,
         config: RepoConfig,
@@ -283,8 +280,7 @@ class DatastoreOnlineStore(OnlineStore):
 
         # NOTE: get_multi doesn't return values in the same order as the keys in the request.
         # Also, len(values) can be less than len(keys) in the case of missing values.
-        with tracing_span(name="remote_call"):
-            values = client.get_multi(keys)
+        values = client.get_multi(keys)
         values_dict = {v.key: v for v in values} if values is not None else {}
         for key in keys:
             if key in values_dict:

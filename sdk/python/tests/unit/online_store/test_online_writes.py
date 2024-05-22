@@ -16,7 +16,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 
 from feast import Entity, FeatureStore, FeatureView, FileSource, RepoConfig
 from feast.driver_test_data import create_driver_hourly_stats_df
@@ -81,8 +81,8 @@ class TestOnlineWrites(unittest.TestCase):
                 schema=[Field(name="conv_rate_plus_acc", dtype=Float64)],
                 mode="python",
             )
-            def test_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = {
+            def test_view(inputs: dict[str, Any]) -> dict[str, Any]:
+                output: dict[str, Any] = {
                     "conv_rate_plus_acc": [
                         conv_rate + acc_rate
                         for conv_rate, acc_rate in zip(

@@ -256,7 +256,7 @@ def transformation_callback(
             f"OnDemandFeatureView mode '{odfv.mode} not supported by EmbeddedOnlineFeatureServer."
         )
 
-    output = odfv.get_transformed_features_df(
+    output = odfv.get_transformed_features_df(  # type: ignore
         input_record.to_pandas(), full_feature_names=full_feature_names
     )
     output_record = pa.RecordBatch.from_pandas(output)

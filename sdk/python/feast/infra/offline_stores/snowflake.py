@@ -63,7 +63,6 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
-from feast.usage import log_exceptions_and_usage
 
 try:
     from snowflake.connector import SnowflakeConnection
@@ -105,6 +104,12 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
+    private_key: Optional[str] = None
+    """ Snowflake private key file path"""
+
+    private_key_passphrase: Optional[str] = None
+    """ Snowflake private key file passphrase"""
+
     database: StrictStr
     """ Snowflake database name """
 
@@ -124,7 +129,6 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
 class SnowflakeOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="snowflake")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -214,7 +218,6 @@ class SnowflakeOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="snowflake")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -259,7 +262,6 @@ class SnowflakeOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="snowflake")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],

@@ -20,7 +20,6 @@ from feast.infra.utils.snowflake.snowflake_utils import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 from feast.utils import to_naive_utc
 
 
@@ -51,6 +50,12 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
+    private_key: Optional[str] = None
+    """ Snowflake private key file path"""
+
+    private_key_passphrase: Optional[str] = None
+    """ Snowflake private key file passphrase"""
+
     database: StrictStr
     """ Snowflake database name """
 
@@ -60,7 +65,6 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
 
 
 class SnowflakeOnlineStore(OnlineStore):
-    @log_exceptions_and_usage(online_store="snowflake")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -145,17 +149,18 @@ class SnowflakeOnlineStore(OnlineStore):
 
         return None
 
-    @log_exceptions_and_usage(online_store="snowflake")
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+
+        requested_features = requested_features if requested_features else []
 
         entity_fetch_str = ",".join(
             [
@@ -205,7 +210,6 @@ class SnowflakeOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @log_exceptions_and_usage(online_store="snowflake")
     def update(
         self,
         config: RepoConfig,

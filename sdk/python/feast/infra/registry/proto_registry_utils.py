@@ -2,7 +2,6 @@ import uuid
 from functools import wraps
 from typing import List, Optional
 
-from feast import usage
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -45,7 +44,6 @@ def registry_proto_cache(func):
 
 def init_project_metadata(cached_registry_proto: RegistryProto, project: str):
     new_project_uuid = f"{uuid.uuid4()}"
-    usage.set_current_project_uuid(new_project_uuid)
     cached_registry_proto.project_metadata.append(
         ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
     )

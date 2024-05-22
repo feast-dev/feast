@@ -321,14 +321,6 @@ feast.ui\_server module
    :undoc-members:
    :show-inheritance:
 
-feast.usage module
-------------------
-
-.. automodule:: feast.usage
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.utils module
 ------------------
 

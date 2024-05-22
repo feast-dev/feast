@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.message import Message
 
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -827,9 +826,7 @@ class Registry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if not project_metadata:
                 proto_registry_utils.init_project_metadata(registry_proto, project)
                 self.commit()
 

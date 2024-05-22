@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, List
+from typing import Any
 
 import dill
 import pandas as pd
@@ -28,35 +28,16 @@ class PandasTransformation:
         self.udf_string = udf_string
 
     def transform_arrow(
-        self, pa_table: pyarrow.Table, features: List[Field]
+        self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
-        if not isinstance(pa_table, pyarrow.Table):
-            raise TypeError(
-                f"pa_table should be type pyarrow.Table but got {type(pa_table).__name__}"
-            )
-        output_df = self.udf.__call__(pa_table.to_pandas())
-        output_df = pyarrow.Table.from_pandas(output_df)
-        if not isinstance(output_df, pyarrow.Table):
-            raise TypeError(
-                f"output_df should be type pyarrow.Table but got {type(output_df).__name__}"
-            )
-        return output_df
+        output_df_pandas = self.udf.__call__(pa_table.to_pandas())
+        return pyarrow.Table.from_pandas(output_df_pandas)
 
     def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
-        if not isinstance(input_df, pd.DataFrame):
-            raise TypeError(
-                f"input_df should be type pd.DataFrame but got {type(input_df).__name__}"
-            )
-        output_df = self.udf.__call__(input_df)
-        if not isinstance(output_df, pd.DataFrame):
-            raise TypeError(
-                f"output_df should be type pd.DataFrame but got {type(output_df).__name__}"
-            )
-        return output_df
+        return self.udf.__call__(input_df)
 
-    def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
+    def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
-
         output_df: pd.DataFrame = self.transform(df)
 
         return [

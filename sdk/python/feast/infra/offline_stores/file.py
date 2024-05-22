@@ -37,7 +37,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import log_exceptions_and_usage
 from feast.utils import _get_requested_feature_views_to_features_dict
 
 # FileRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
@@ -77,14 +76,12 @@ class FileRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
-    @log_exceptions_and_usage
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
         df = df.reset_index(drop=True)
         return df
 
-    @log_exceptions_and_usage
     def _to_arrow_internal(self, timeout: Optional[int] = None):
         # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function().compute()
@@ -127,7 +124,6 @@ class FileRetrievalJob(RetrievalJob):
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="file")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -303,7 +299,6 @@ class FileOfflineStore(OfflineStore):
         return job
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="file")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -383,7 +378,6 @@ class FileOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="file")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

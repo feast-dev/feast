@@ -11,6 +11,8 @@ from typing import (
     Tuple,
 )
 
+import pytz
+from google.protobuf.timestamp_pb2 import Timestamp
 from ikvpy.client import IKVReader, IKVWriter
 from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
 from ikvpy.document import IKVDocument, IKVDocumentBuilder
@@ -23,7 +25,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 
 PRIMARY_KEY_FIELD_NAME: str = "_entity_key"
 EVENT_CREATION_TIMESTAMP_FIELD_NAME: str = "_event_timestamp"
@@ -58,7 +59,6 @@ class IKVOnlineStore(OnlineStore):
     _reader: Optional[IKVReader] = None
     _writer: Optional[IKVWriter] = None
 
-    @log_exceptions_and_usage(online_store="ikv")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -82,9 +82,8 @@ class IKVOnlineStore(OnlineStore):
             progress: Function to be called once a batch of rows is written to the online store, used
                 to show progress.
         """
-        # update should have been called before
-        if self._writer is None:
-            return
+        self._init_writer(config=config)
+        assert self._writer is not None
 
         for entity_key, features, event_timestamp, _ in data:
             entity_id: str = compute_entity_id(
@@ -98,7 +97,6 @@ class IKVOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
-    @log_exceptions_and_usage(online_store="ikv")
     def online_read(
         self,
         config: RepoConfig,
@@ -120,6 +118,8 @@ class IKVOnlineStore(OnlineStore):
             item is the event timestamp for the row, and the second item is a dict mapping feature names
             to values, which are returned in proto format.
         """
+        self._init_reader(config=config)
+
         if not len(entity_keys):
             return []
 
@@ -161,7 +161,9 @@ class IKVOnlineStore(OnlineStore):
         dt: Optional[datetime] = None
         dt_bytes = next(value_iter)
         if dt_bytes:
-            dt = datetime.fromisoformat(str(dt_bytes, "utf-8"))
+            proto_timestamp = Timestamp()
+            proto_timestamp.ParseFromString(dt_bytes)
+            dt = datetime.fromtimestamp(proto_timestamp.seconds, tz=pytz.utc)
 
         # decode other features
         features = {}
@@ -174,8 +176,6 @@ class IKVOnlineStore(OnlineStore):
 
         return dt, features
 
-    # called before any read/write requests are issued
-    @log_exceptions_and_usage(online_store="ikv")
     def update(
         self,
         config: RepoConfig,
@@ -199,7 +199,7 @@ class IKVOnlineStore(OnlineStore):
             partial: If true, tables_to_delete and tables_to_keep are not exhaustive lists, so
                 infrastructure corresponding to other feature views should be not be touched.
         """
-        self._init_clients(config=config)
+        self._init_writer(config=config)
         assert self._writer is not None
 
         # note: we assume tables_to_keep does not overlap with tables_to_delete
@@ -208,7 +208,6 @@ class IKVOnlineStore(OnlineStore):
             # each field in an IKV document is prefixed by the feature-view's name
             self._writer.drop_fields_by_name_prefix([feature_view.name])
 
-    @log_exceptions_and_usage(online_store="ikv")
     def teardown(
         self,
         config: RepoConfig,
@@ -223,7 +222,7 @@ class IKVOnlineStore(OnlineStore):
             tables: Feature views whose corresponding infrastructure should be deleted.
             entities: Entities whose corresponding infrastructure should be deleted.
         """
-        self._init_clients(config=config)
+        self._init_writer(config=config)
         assert self._writer is not None
 
         # drop fields corresponding to this feature-view
@@ -252,12 +251,17 @@ class IKVOnlineStore(OnlineStore):
         """Converts feast key-value pairs into an IKV document."""
 
         # initialie builder by inserting primary key and row creation timestamp
-        event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
+        event_timestamp_seconds = int(utils.make_tzaware(event_timestamp).timestamp())
+        event_timestamp_seconds_proto = Timestamp()
+        event_timestamp_seconds_proto.seconds = event_timestamp_seconds
+
+        # event_timestamp_str: str = utils.make_tzaware(event_timestamp).isoformat()
         builder = (
             IKVDocumentBuilder()
             .put_string_field(PRIMARY_KEY_FIELD_NAME, entity_id)
             .put_bytes_field(
-                EVENT_CREATION_TIMESTAMP_FIELD_NAME, event_timestamp_str.encode("utf-8")
+                EVENT_CREATION_TIMESTAMP_FIELD_NAME,
+                event_timestamp_seconds_proto.SerializeToString(),
             )
         )
 
@@ -269,20 +273,28 @@ class IKVOnlineStore(OnlineStore):
 
         return builder.build()
 
-    def _init_clients(self, config: RepoConfig):
-        """Initializes (if required) reader/writer ikv clients."""
-        online_config = config.online_store
-        assert isinstance(online_config, IKVOnlineStoreConfig)
-        client_options = IKVOnlineStore._config_to_client_options(online_config)
-
+    def _init_writer(self, config: RepoConfig):
+        """Initializes ikv writer client."""
         # initialize writer
         if self._writer is None:
-            self._writer = create_new_writer(client_options)
+            online_config = config.online_store
+            assert isinstance(online_config, IKVOnlineStoreConfig)
+            client_options = IKVOnlineStore._config_to_client_options(online_config)
 
-        # initialize reader, iff mount_dir is specified
+            self._writer = create_new_writer(client_options)
+            self._writer.startup()  # blocking operation
+
+    def _init_reader(self, config: RepoConfig):
+        """Initializes ikv reader client."""
+        # initialize reader
         if self._reader is None:
+            online_config = config.online_store
+            assert isinstance(online_config, IKVOnlineStoreConfig)
+            client_options = IKVOnlineStore._config_to_client_options(online_config)
+
             if online_config.mount_directory and len(online_config.mount_directory) > 0:
                 self._reader = create_new_reader(client_options)
+                self._reader.startup()  # blocking operation
 
     @staticmethod
     def _config_to_client_options(config: IKVOnlineStoreConfig) -> ClientOptions:
