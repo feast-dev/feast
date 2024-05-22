@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,6 +46,7 @@ import org.junit.Test;
 
 public class FeastClientTest {
   private final String AUTH_TOKEN = "test token";
+  private final Deadline DEADLINE = Deadline.after(2, TimeUnit.SECONDS);
 
   @Rule public GrpcCleanupRule grpcRule;
   private AtomicBoolean isAuthenticated;
@@ -86,7 +88,7 @@ public class FeastClientTest {
     ManagedChannel channel =
         this.grpcRule.register(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
-    this.client = new FeastClient(channel, Optional.empty());
+    this.client = new FeastClient(channel, Optional.empty(), Optional.of(DEADLINE));
   }
 
   @Test
