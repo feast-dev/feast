@@ -79,10 +79,8 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if config.online_store.vss_enabled:
-                db = sqlite3.connect(":memory:")
-                db.enable_load_extension(True)
-                sqlite_vec.load(db)
+            self._conn.enable_load_extension(True)
+            sqlite_vec.load(self._conn)
 
         return self._conn
 
@@ -109,20 +107,21 @@ class SqliteOnlineStore(OnlineStore):
                 if created_ts is not None:
                     created_ts = to_naive_utc(created_ts)
 
+                table_name = _table_id(project, table)
                 for feature_name, val in values.items():
                     if config.online_store.vss_enabled:
-                        vector_bin = [serialize_f32(v) for v in val]  # serializing the value
+                        vector_bin = [serialize_f32(v.val) for v in val]  # serializing the value
 
                         conn.execute(
                             f"""
-                                UPDATE {_table_id(project, table)}
+                                UPDATE {table_name}
                                 SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
                                 WHERE (entity_key = ? AND feature_name = ?)
                             """,
                             (
                                 # SET
-                                str(val),
-                                vector_bin,
+                                val[0].SerializeToString(),
+                                vector_bin[0],
                                 timestamp,
                                 created_ts,
                                 # WHERE
@@ -132,14 +131,14 @@ class SqliteOnlineStore(OnlineStore):
                         )
 
                         conn.execute(
-                            f"""INSERT OR IGNORE INTO {_table_id(project, table)}
+                            f"""INSERT OR IGNORE INTO {table_name}
                                 (entity_key, feature_name, value, vector_value, event_ts, created_ts)
                                 VALUES (?, ?, ?, ?, ?, ?)""",
                             (
                                 entity_key_bin,
                                 feature_name,
-                                str(val),
-                                vector_bin,
+                                val[0].SerializeToString(),
+                                vector_bin[0],
                                 timestamp,
                                 created_ts,
                             ),
@@ -147,7 +146,7 @@ class SqliteOnlineStore(OnlineStore):
                     else:
                         conn.execute(
                             f"""
-                                UPDATE {_table_id(project, table)}
+                                UPDATE {table_name}
                                 SET value = ?, event_ts = ?, created_ts = ?
                                 WHERE (entity_key = ? AND feature_name = ?)
                             """,
@@ -163,7 +162,7 @@ class SqliteOnlineStore(OnlineStore):
                         )
 
                         conn.execute(
-                            f"""INSERT OR IGNORE INTO {_table_id(project, table)}
+                            f"""INSERT OR IGNORE INTO {table_name}
                                 (entity_key, feature_name, value, event_ts, created_ts)
                                 VALUES (?, ?, ?, ?, ?)""",
                             (
@@ -438,12 +437,16 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
+        self.conn.enable_load_extension(True)
+        sqlite_vec.load(self.conn)
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
         )
-
+        self.conn.execute(
+            f"CREATE VIRTUAL TABLE {self.name}_embeddings USING vec0(embedding float[64])"
+        )
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
