@@ -13,9 +13,18 @@ helm repo update
 
 Install Feast Feature Server on Kubernetes
 
-A base64 encoded version of the `feature_store.yaml` file is needed. Helm install example:
+- Feast Deployment Mode: The Feast Feature Server supports multiple deployment modes using the `feast_mode` property. Supported modes are `online` (default), `offline`, `ui`, and `registry`.
+Users can set the `feast_mode` based on their deployment choice. The `online` mode is the default and maintains backward compatibility with previous Feast Feature Server implementations.
+
+- Feature Store File: A base64 encoded version of the `feature_store.yaml` file is needed.
+
+Helm install examples:
 ```
-helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 feature_store.yaml)
+helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-offline-server feast-charts/feast-feature-server --set feast_mode=offline  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-ui-server feast-charts/feast-feature-server --set feast_mode=ui  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-registry-server feast-charts/feast-feature-server --set feast_mode=registry  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+
 ```
 
 ## Tutorial
