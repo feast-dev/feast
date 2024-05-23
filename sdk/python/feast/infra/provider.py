@@ -230,30 +230,6 @@ class Provider(ABC):
         pass
 
     @abstractmethod
-    async def online_read_async(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        """
-        Reads features values for the given entity keys.
-
-        Args:
-            config: The config for the current feature store.
-            table: The feature view whose feature values should be read.
-            entity_keys: The list of entity keys for which feature values should be read.
-            requested_features: The list of features that should be read.
-
-        Returns:
-            A list of the same length as entity_keys. Each item in the list is a tuple where the first
-            item is the event timestamp for the row, and the second item is a dict mapping feature names
-            to values, which are returned in proto format.
-        """
-        pass
-
-    @abstractmethod
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
