@@ -7,6 +7,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
+from google.cloud.bigtable.data import BigtableDataClientAsync
+
 from pydantic import StrictStr
 from pydantic.typing import Literal
 
@@ -66,6 +68,54 @@ class BigtableOnlineStore(OnlineStore):
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
         bt_table = bt_instance.table(bt_table_name)
+        row_keys = [
+            self._compute_row_key(
+                entity_key=entity_key,
+                feature_view_name=feature_view.name,
+                config=config,
+            )
+            for entity_key in entity_keys
+        ]
+
+        row_set = bigtable.row_set.RowSet()
+        for row_key in row_keys:
+            row_set.add_row_key(row_key)
+        rows = bt_table.read_rows(
+            row_set=row_set,
+            filter_=(
+                row_filters.ColumnQualifierRegexFilter(
+                    f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                )
+                if requested_features
+                else None
+            ),
+        )
+
+        # The BigTable client library only returns rows for keys that are found. This
+        # means that it's our responsibility to match the returned rows to the original
+        # `row_keys` and make sure that we're returning a list of the same length as
+        # `entity_keys`.
+        bt_rows_dict: Dict[bytes, bigtable.row.PartialRowData] = {
+            row.row_key: row for row in rows
+        }
+        return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
+    
+    @log_exceptions_and_usage(online_store="bigtable")
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        # Potential performance improvement opportunity described in
+        # https://github.com/feast-dev/feast/issues/3259
+        feature_view = table
+        bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
+
+        client: BigtableDataClientAsync = self._get_client_async(online_config=config.online_store)
+        bt_table = client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name)
+
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
@@ -338,5 +388,16 @@ class BigtableOnlineStore(OnlineStore):
         if self._client is None:
             self._client = bigtable.Client(
                 project=online_config.project_id, admin=admin
+            )
+        return self._client
+
+
+    def _get_client_async(
+        self, online_config: BigtableOnlineStoreConfig
+    ):
+        if self._client is None:
+            self._client = BigtableDataClientAsync(
+                project=online_config.project_id,
+                pool_size=10
             )
         return self._client
