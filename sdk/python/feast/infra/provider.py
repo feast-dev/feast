@@ -230,7 +230,7 @@ class Provider(ABC):
         pass
 
     @abstractmethod
-    def online_read_async(
+    async def online_read_async(
         self,
         config: RepoConfig,
         table: FeatureView,
