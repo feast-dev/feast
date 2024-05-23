@@ -77,7 +77,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     key_ttl_seconds: Optional[int] = None
     """(Optional) redis key bin ttl (in seconds) for expiring entities"""
 
-    full_scan_for_deletion: Optional[bool] = False
+    full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
 
 
