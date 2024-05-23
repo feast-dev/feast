@@ -113,32 +113,32 @@ class BigtableOnlineStore(OnlineStore):
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
-        async with await self._get_client_async(online_config=config.online_store) as client:
-            async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
-                row_keys = [
-                    self._compute_row_key(
-                        entity_key=entity_key,
-                        feature_view_name=feature_view.name,
-                        config=config,
-                    )
-                    for entity_key in entity_keys
-                ]
-
-                row_filter = row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
-                query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
-
-                rows = await bt_table.read_rows(
-                    query=query
+        client = self._get_client_async(online_config=config.online_store)
+        async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
+            row_keys = [
+                self._compute_row_key(
+                    entity_key=entity_key,
+                    feature_view_name=feature_view.name,
+                    config=config,
                 )
+                for entity_key in entity_keys
+            ]
 
-                # The BigTable client library only returns rows for keys that are found. This
-                # means that it's our responsibility to match the returned rows to the original
-                # `row_keys` and make sure that we're returning a list of the same length as
-                # `entity_keys`.
-                bt_rows_dict: Dict[bytes, bigtable.row.PartialRowData] = {
-                    row.row_key: row for row in rows
-                }
-                return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
+            row_filter = row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
+            query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
+
+            rows = await bt_table.read_rows(
+                query=query
+            )
+
+            # The BigTable client library only returns rows for keys that are found. This
+            # means that it's our responsibility to match the returned rows to the original
+            # `row_keys` and make sure that we're returning a list of the same length as
+            # `entity_keys`.
+            bt_rows_dict: Dict[bytes, bigtable.row.PartialRowData] = {
+                row.row_key: row for row in rows
+            }
+            return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
 
     def _process_bt_row(
         self, row: Optional[bigtable.row.PartialRowData]
@@ -384,7 +384,7 @@ class BigtableOnlineStore(OnlineStore):
         return self._client
 
 
-    async def _get_client_async(
+    def _get_client_async(
         self, online_config: BigtableOnlineStoreConfig
     ):
         if self._client is None:
