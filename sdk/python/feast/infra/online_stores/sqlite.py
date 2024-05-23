@@ -322,7 +322,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            create virtual table vec_example using vec0(
+            CREATE VIRTUAL TABLE vec_example using vec0(
                 vector_value float[10]
         );
         """)
@@ -450,8 +450,6 @@ class SqliteTable(InfraObject):
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
         )
-        # self.conn.execute(
-        #     f"CREATE VIRTUAL TABLE {self.name}_embeddings USING vec0(embedding float[10])"
-        # )
+
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
