@@ -1,5 +1,6 @@
 # This script will bump the versions found in files (charts, pom.xml) during the Feast release process.
 
+import re
 import pathlib
 import sys
 
@@ -73,10 +74,19 @@ def validate_files_to_bump(current_version, files_to_bump, repo_root):
         with open(repo_root.joinpath(file_path), "r") as f:
             file_contents = f.readlines()
             for line in lines:
-                assert current_version in file_contents[int(line) - 1], (
+                new_version = _get_semantic_version(file_contents[int(line) - 1])
+                current_major_minor_version = '.'.join(current_version.split(".")[0:1])
+                assert current_version in new_version or current_major_minor_version in new_version, (
                     f"File `{file_path}` line `{line}` didn't contain version {current_version}. "
                     f"Contents: {file_contents[int(line) - 1]}"
                 )
+
+
+
+def _get_semantic_version(input_string: str) -> str:
+    semver_pattern = r'\bv?(\d+\.\d+\.\d+)\b'
+    match = re.search(semver_pattern, input_string)
+    return match.group(1)
 
 
 if __name__ == "__main__":
