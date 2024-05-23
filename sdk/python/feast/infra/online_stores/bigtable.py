@@ -113,7 +113,7 @@ class BigtableOnlineStore(OnlineStore):
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
-        async with self._get_client_async(online_config=config.online_store) as client:
+        async with await self._get_client_async(online_config=config.online_store) as client:
             async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
                 row_keys = [
                     self._compute_row_key(
