@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from google.cloud.bigtable.data import BigtableDataClientAsync
+from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery
 
 from pydantic import StrictStr
 from pydantic.typing import Literal
@@ -113,8 +113,8 @@ class BigtableOnlineStore(OnlineStore):
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
-        client: BigtableDataClientAsync = self._get_client_async(online_config=config.online_store)
-        bt_table = client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name)
+        client: BigtableDataClientAsync = await self._get_client_async(online_config=config.online_store)
+        bt_table = await client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name)
 
         row_keys = [
             self._compute_row_key(
@@ -125,18 +125,10 @@ class BigtableOnlineStore(OnlineStore):
             for entity_key in entity_keys
         ]
 
-        row_set = bigtable.row_set.RowSet()
-        for row_key in row_keys:
-            row_set.add_row_key(row_key)
-        rows = bt_table.read_rows(
-            row_set=row_set,
-            filter_=(
-                row_filters.ColumnQualifierRegexFilter(
-                    f"^({'|'.join(requested_features)}|event_ts)$".encode()
-                )
-                if requested_features
-                else None
-            ),
+        query = ReadRowsQuery(row_keys=row_keys)
+
+        rows = await bt_table.read_rows(
+            query=query
         )
 
         # The BigTable client library only returns rows for keys that are found. This
@@ -392,11 +384,11 @@ class BigtableOnlineStore(OnlineStore):
         return self._client
 
 
-    def _get_client_async(
+    async def _get_client_async(
         self, online_config: BigtableOnlineStoreConfig
     ):
         if self._client is None:
-            self._client = BigtableDataClientAsync(
+            self._client = await BigtableDataClientAsync(
                 project=online_config.project_id,
                 pool_size=10
             )
