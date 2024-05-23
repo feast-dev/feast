@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery
+from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery, row_filters
 
 from pydantic import StrictStr
 from pydantic.typing import Literal
@@ -125,7 +125,8 @@ class BigtableOnlineStore(OnlineStore):
             for entity_key in entity_keys
         ]
 
-        query = ReadRowsQuery(row_keys=row_keys)
+        row_filter = row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
+        query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
 
         rows = await bt_table.read_rows(
             query=query
