@@ -2448,12 +2448,11 @@ class FeatureStore:
         self,
         host: str,
         port: int,
-        type_: str,
-        no_access_log: bool,
-        no_feature_log: bool,
-        workers: int,
-        keep_alive_timeout: int,
-        registry_ttl_sec: int,
+        type_: str = "http",
+        no_access_log: bool = True,
+        workers: int = 1,
+        keep_alive_timeout: int = 30,
+        registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
