@@ -49,6 +49,7 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
 
 class BigtableOnlineStore(OnlineStore):
     _client: Optional[bigtable.Client] = None
+    _async_client: Optional[BigtableDataClientAsync] = None
 
     feature_column_family: str = "features"
 
@@ -144,20 +145,21 @@ class BigtableOnlineStore(OnlineStore):
                 row = bt_rows_dict.get(key)
                 if row is None:
                     final_result.append((None, None))
-                row_values = row.get_cells("features")
-                row_values_sorted  = sorted(row_values, key=lambda x: x.timestamp_micros, reverse=True)  # sort in descending order (most recent ts first)
-                event_timestamps = [cell for cell in row_values_sorted if cell.qualifier == b'event_ts'] # all event timestamps (should still be sorted)
-                event_ts = datetime.fromisoformat(event_timestamps[0].value.decode()) # get most recent event timestamp
-                # get all the unique features, excluding timestamp
-                unique_features = list(set([cell.qualifier for cell in row_values_sorted if cell.qualifier != b'event_ts']))
-                # for each feature, get the most recent value and add to res
-                for feature_name in unique_features:
-                    all_cells_of_feature = [cell for cell in row_values_sorted if cell.qualifier == feature_name] # filter rows to just get this feature
-                    feature_value = all_cells_of_feature[0].value # binary string # get the most recent value of this feature
-                    val = ValueProto()
-                    val.ParseFromString(feature_value)
-                    res[feature_name.decode()] = val
-                    final_result.append((event_ts, res))
+                else:
+                    row_values = row.get_cells("features")
+                    row_values_sorted  = sorted(row_values, key=lambda x: x.timestamp_micros, reverse=True)  # sort in descending order (most recent ts first)
+                    event_timestamps = [cell for cell in row_values_sorted if cell.qualifier == b'event_ts'] # all event timestamps (should still be sorted)
+                    event_ts = datetime.fromisoformat(event_timestamps[0].value.decode()) # get most recent event timestamp
+                    # get all the unique features, excluding timestamp
+                    unique_features = list(set([cell.qualifier for cell in row_values_sorted if cell.qualifier != b'event_ts']))
+                    # for each feature, get the most recent value and add to res
+                    for feature_name in unique_features:
+                        all_cells_of_feature = [cell for cell in row_values_sorted if cell.qualifier == feature_name] # filter rows to just get this feature
+                        feature_value = all_cells_of_feature[0].value # binary string # get the most recent value of this feature
+                        val = ValueProto()
+                        val.ParseFromString(feature_value)
+                        res[feature_name.decode()] = val
+                        final_result.append((event_ts, res))
 
             return final_result
 
@@ -408,9 +410,9 @@ class BigtableOnlineStore(OnlineStore):
     def _get_client_async(
         self, online_config: BigtableOnlineStoreConfig
     ):
-        if self._client is None:
-            self._client = BigtableDataClientAsync(
+        if self._async_client is None:
+            self._async_client = BigtableDataClientAsync(
                 project=online_config.project_id,
                 pool_size=10
             )
-        return self._client
+        return self._async_client
