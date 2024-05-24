@@ -138,7 +138,28 @@ class BigtableOnlineStore(OnlineStore):
             bt_rows_dict: Dict[bytes, Row] = {
                 row.row_key: row for row in rows
             }
-            return [self._process_bt_row_async(bt_rows_dict.get(row_key)) for row_key in row_keys]
+            res = {}
+            final_result = []
+            for key in row_keys:
+                row = bt_rows_dict.get(key)
+                if row is None:
+                    return (None, None)
+                row_values = row.get_cells("features")
+                row_values_sorted  = sorted(row_values, key=lambda x: x.timestamp_micros, reverse=True)  # sort in descending order (most recent ts first)
+                event_timestamps = [cell for cell in row_values_sorted if cell.qualifier == b'event_ts'] # all event timestamps (should still be sorted)
+                event_ts = datetime.fromisoformat(event_timestamps[0].value.decode()) # get most recent event timestamp
+                # get all the unique features, excluding timestamp
+                unique_features = list(set([cell.qualifier for cell in row_values_sorted if cell.qualifier != b'event_ts']))
+                # for each feature, get the most recent value and add to res
+                for feature_name in unique_features:
+                    all_cells_of_feature = [cell for cell in row_values_sorted if cell.qualifier == feature_name] # filter rows to just get this feature
+                    feature_value = all_cells_of_feature[0].value # binary string # get the most recent value of this feature
+                    val = ValueProto()
+                    val.ParseFromString(feature_value)
+                    res[feature_name.decode()] = val
+                    final_result.append((event_ts, res))
+
+            return final_result
 
     def _process_bt_row_async(
         self, row: Optional[Row]
