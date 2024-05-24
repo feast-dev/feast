@@ -161,24 +161,6 @@ class BigtableOnlineStore(OnlineStore):
 
             return final_result
 
-    def _process_bt_row_async(
-        self, row: Optional[Row]
-    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
-        res = {}
-
-        if row is None:
-            return (None, None)
-        row_values = row.get_cells(self.feature_column_family)
-        event_ts = datetime.fromisoformat(row_values.pop(b"event_ts")[0].value.decode())
-        for feature_name, feature_values in row_values.items():
-            # We only want to retrieve the latest value for each feature
-            feature_value = feature_values[0]
-            val = ValueProto()
-            val.ParseFromString(feature_value.value)
-            res[feature_name.decode()] = val
-
-        return (event_ts, res)
-
     def _process_bt_row(
         self, row: Optional[bigtable.row.PartialRowData]
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
