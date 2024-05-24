@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.37.1`
+Current chart version is `0.37.0`
 
 ## Installation
 
