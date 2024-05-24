@@ -46,7 +46,9 @@ def main() -> None:
         with open(repo_root.joinpath(file_path), "r") as f:
             file_contents = f.readlines()
             for line in lines:
-                file_contents[int(line) - 1] = file_contents[int(line) - 1].replace(current_version, new_version)
+                # note we validate the version above already
+                current_parsed_version = _get_semantic_version(file_contents[int(line) - 1])
+                file_contents[int(line) - 1] = file_contents[int(line) - 1].replace(current_parsed_version, new_version)
 
         with open(repo_root.joinpath(file_path), "w") as f:
             f.write(''.join(file_contents))
@@ -80,7 +82,6 @@ def validate_files_to_bump(current_version, files_to_bump, repo_root):
                     f"File `{file_path}` line `{line}` didn't contain version {current_version}. "
                     f"Contents: {file_contents[int(line) - 1]}"
                 )
-
 
 
 def _get_semantic_version(input_string: str) -> str:
