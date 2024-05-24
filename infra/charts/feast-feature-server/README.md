@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.37.0`
+Current chart version is `0.38.0`
 
 ## Installation
 
@@ -17,7 +17,6 @@ A base64 encoded version of the `feature_store.yaml` file is needed. Helm instal
 ```
 helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 feature_store.yaml)
 ```
-> Alternatively, deploy this helm chart with a [Kubernetes Operator](/infra/feast-operator).
 
 ## Tutorial
 See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-demo) for a sample tutorial on testing this helm chart with a demo feature repository and a local Redis instance.
@@ -31,7 +30,7 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"feastdev/feature-server"` | Docker image for Feature Server repository |
-| image.tag | string | `"0.37.1"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
+| image.tag | string | `"0.38.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |
