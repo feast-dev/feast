@@ -143,7 +143,7 @@ class BigtableOnlineStore(OnlineStore):
             for key in row_keys:
                 row = bt_rows_dict.get(key)
                 if row is None:
-                    return (None, None)
+                    final_result.append((None, None))
                 row_values = row.get_cells("features")
                 row_values_sorted  = sorted(row_values, key=lambda x: x.timestamp_micros, reverse=True)  # sort in descending order (most recent ts first)
                 event_timestamps = [cell for cell in row_values_sorted if cell.qualifier == b'event_ts'] # all event timestamps (should still be sorted)
