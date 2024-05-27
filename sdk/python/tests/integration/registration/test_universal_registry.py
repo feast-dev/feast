@@ -234,27 +234,40 @@ def mock_remote_registry():
 
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "False":
-    all_fixtures = ["s3_registry", "gcs_registry"]
+    all_fixtures = [lazy_fixture("s3_registry"), lazy_fixture("gcs_registry")]
 else:
     all_fixtures = [
-        "local_registry",
-        "minio_registry",
-        "pg_registry",
-        "mysql_registry",
-        "sqlite_registry",
-        "mock_remote_registry",
+        lazy_fixture("local_registry"),
+        pytest.param(
+            lazy_fixture("minio_registry"),
+            marks=pytest.mark.xdist_group(name="minio_registry"),
+        ),
+        pytest.param(
+            lazy_fixture("pg_registry"),
+            marks=pytest.mark.xdist_group(name="pg_registry"),
+        ),
+        pytest.param(
+            lazy_fixture("mysql_registry"),
+            marks=pytest.mark.xdist_group(name="mysql_registry"),
+        ),
+        lazy_fixture("sqlite_registry"),
+        lazy_fixture("mock_remote_registry"),
     ]
 
-
-# sql_fixtures = [
-#     "pg_registry",
-#     "mysql_registry",
-#     "sqlite_registry",
-# ]
+sql_fixtures = [
+    pytest.param(
+        lazy_fixture("pg_registry"), marks=pytest.mark.xdist_group(name="pg_registry")
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_registry"),
+    ),
+    lazy_fixture("sqlite_registry"),
+]
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("test_registry", [lazy_fixture(f) for f in all_fixtures])
+@pytest.mark.parametrize("test_registry", all_fixtures)
 def test_apply_entity_success(test_registry):
     entity = Entity(
         name="driver_car_id",
@@ -313,7 +326,7 @@ def assert_project_uuid(project, project_uuid, test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_feature_view_success(test_registry):
     # Create Feature Views
@@ -400,16 +413,7 @@ def test_apply_feature_view_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_apply_on_demand_feature_view_success(test_registry):
     # Create Feature Views
@@ -491,7 +495,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_data_source(test_registry):
     # Create Feature Views
@@ -554,7 +558,7 @@ def test_apply_data_source(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
@@ -677,16 +681,7 @@ def test_modify_feature_views_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_update_infra(test_registry):
     # Create infra object
@@ -717,16 +712,7 @@ def test_update_infra(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_registry_cache(test_registry):
     # Create Feature Views
@@ -790,7 +776,7 @@ def test_registry_cache(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_stream_feature_view_success(test_registry):
     # Create Feature Views
