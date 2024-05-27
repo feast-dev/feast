@@ -21,7 +21,7 @@ def call_registry_server(server, method: str, request=None):
 def registry_server(environment):
     store: FeatureStore = environment.feature_store
 
-    servicer = RegistryServer(store=store)
+    servicer = RegistryServer(registry=store._registry)
 
     return grpc_testing.server_from_dictionary(
         {RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"]: servicer},

@@ -406,18 +406,14 @@ class BaseRegistry(ABC):
         """
         raise NotImplementedError
 
-    def delete_saved_dataset(self, name: str, project: str, allow_cache: bool = False):
+    def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         """
         Delete a saved dataset.
 
         Args:
             name: Name of dataset
             project: Feast project that this dataset belongs to
-            allow_cache: Whether to allow returning this dataset from a cached registry
-
-        Returns:
-            Returns either the specified SavedDataset, or raises an exception if
-            none is found
+            commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError
 

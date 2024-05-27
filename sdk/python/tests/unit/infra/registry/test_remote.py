@@ -41,7 +41,7 @@ def mock_remote_registry(environment):
     )
     mock_channel = GrpcMockChannel(
         RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"],
-        RegistryServer(store=store),
+        RegistryServer(registry=store._registry),
     )
     registry.stub = RegistryServer_pb2_grpc.RegistryServerStub(mock_channel)
     return registry
