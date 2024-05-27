@@ -83,14 +83,11 @@ test-python-integration:
 	python -m pytest -n 8 --integration -k "(not snowflake or not test_historical_features_main)" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
 
 test-python-integration-local:
-	@(docker info > /dev/null 2>&1 && \
-		FEAST_IS_LOCAL_TEST=True \
-		FEAST_LOCAL_ONLINE_CONTAINER=True \
-		python -m pytest -n 8 --color=yes --integration --durations=5 --dist loadgroup \
-			-k "not test_lambda_materialization and \
- 				not test_snowflake_materialization" \
-		sdk/python/tests \
-	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
+	FEAST_IS_LOCAL_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	python -m pytest -n 8 --color=yes --integration --durations=5 --dist loadgroup \
+		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+	sdk/python/tests
 
 test-python-integration-container:
 	@(docker info > /dev/null 2>&1 && \
