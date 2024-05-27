@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -20,7 +21,8 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
+
+logger = logging.getLogger(__name__)
 
 
 class RemoteOfflineStoreConfig(FeastConfigBaseModel):
@@ -36,14 +38,23 @@ class RemoteRetrievalJob(RetrievalJob):
     def __init__(
         self,
         client: fl.FlightClient,
+        feature_view_names: List[str],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        # TODO add missing parameters from the OfflineStore API
+        project: str,
+        full_feature_names: bool = False,
     ):
         # Initialize the client connection
         self.client = client
+        self.feature_view_names = feature_view_names
         self.feature_refs = feature_refs
         self.entity_df = entity_df
+        self.project = project
+        self._full_feature_names = full_feature_names
+
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
 
     # TODO add one specialized implementation for each OfflineStore API
     # This can result in a dictionary of functions indexed by api (e.g., "get_historical_features")
@@ -71,7 +82,10 @@ class RemoteRetrievalJob(RetrievalJob):
         command = {
             "command_id": command_id,
             "api": "get_historical_features",
-            "features": self.feature_refs,
+            "feature_view_names": self.feature_view_names,
+            "feature_refs": self.feature_refs,
+            "project": self.project,
+            "full_feature_names": self._full_feature_names,
         }
         command_descriptor = fl.FlightDescriptor.for_command(
             json.dumps(
@@ -93,7 +107,6 @@ class RemoteRetrievalJob(RetrievalJob):
 
 class RemoteOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="remote")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -108,16 +121,21 @@ class RemoteOfflineStore(OfflineStore):
         # TODO: extend RemoteRetrievalJob API with all method parameters
 
         # Initialize the client connection
-        client = fl.connect(
-            f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        )
+        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
+        client = fl.connect(location=location)
+        logger.info(f"Connecting FlightClient at {location}")
 
+        feature_view_names = [fv.name for fv in feature_views]
         return RemoteRetrievalJob(
-            client=client, feature_refs=feature_refs, entity_df=entity_df
+            client=client,
+            feature_view_names=feature_view_names,
+            feature_refs=feature_refs,
+            entity_df=entity_df,
+            project=project,
+            full_feature_names=full_feature_names,
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="remote")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -131,7 +149,6 @@ class RemoteOfflineStore(OfflineStore):
         raise NotImplementedError
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="remote")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -146,7 +163,6 @@ class RemoteOfflineStore(OfflineStore):
         raise NotImplementedError
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="remote")
     def write_logged_features(
         config: RepoConfig,
         data: Union[pyarrow.Table, Path],
@@ -158,7 +174,6 @@ class RemoteOfflineStore(OfflineStore):
         raise NotImplementedError
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="remote")
     def offline_write_batch(
         config: RepoConfig,
         feature_view: FeatureView,
