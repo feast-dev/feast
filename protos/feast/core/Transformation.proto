@@ -5,8 +5,6 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
 option java_outer_classname = "FeatureTransformationProto";
 option java_package = "feast.proto.core";
 
-import "google/protobuf/duration.proto";
-
 // Serialized representation of python function.
 message UserDefinedFunctionV2 {
     // The function name
