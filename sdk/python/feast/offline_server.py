@@ -1,12 +1,16 @@
 import ast
 import json
+import logging
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pyarrow as pa
 import pyarrow.flight as fl
 
-from feast import FeatureStore
+from feast import FeatureStore, FeatureView
+from feast.feature_view import DUMMY_ENTITY_NAME
+
+logger = logging.getLogger(__name__)
 
 
 class OfflineServer(fl.FlightServerBase):
@@ -56,44 +60,101 @@ class OfflineServer(fl.FlightServerBase):
         command = json.loads(key[1])
         if "api" in command:
             data = reader.read_all()
+            logger.debug(f"do_put: command is{command}, data is {data}")
             self.flights[key] = data
         else:
-            print(f"No 'api' field in command: {command}")
+            logger.warning(f"No 'api' field in command: {command}")
+
+    def get_feature_view_by_name(self, fv_name: str, project: str) -> FeatureView:
+        """
+        Retrieves a feature view by name, including all subclasses of FeatureView.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        try:
+            return self.store.registry.get_feature_view(name=fv_name, project=project)
+        except Exception:
+            try:
+                return self.store.registry.get_stream_feature_view(
+                    name=fv_name, project=project
+                )
+            except Exception as e:
+                logger.error(
+                    f"Cannot find any FeatureView by name {fv_name} in project {project}"
+                )
+                raise e
+
+    def list_feature_views_by_name(
+        self, feature_view_names: List[str], project: str
+    ) -> List[FeatureView]:
+        return [
+            remove_dummies(
+                self.get_feature_view_by_name(fv_name=fv_name, project=project)
+            )
+            for fv_name in feature_view_names
+        ]
 
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
     def do_get(self, context, ticket):
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
-            print(f"Unknown key {key}")
+            logger.error(f"Unknown key {key}")
             return None
 
         command = json.loads(key[1])
         api = command["api"]
-        # print(f"get command is {command}")
-        # print(f"requested api is {api}")
+        logger.debug(f"get command is {command}")
+        logger.debug(f"requested api is {api}")
         if api == "get_historical_features":
             # Extract parameters from the internal flights dictionary
             entity_df_value = self.flights[key]
             entity_df = pa.Table.to_pandas(entity_df_value)
-            # print(f"entity_df is {entity_df}")
+            logger.debug(f"do_get: entity_df is {entity_df}")
 
-            features = command["features"]
-            # print(f"features is {features}")
+            feature_view_names = command["feature_view_names"]
+            feature_refs = command["feature_refs"]
+            logger.debug(f"do_get: feature_refs is {feature_refs}")
+            project = command["project"]
+            logger.debug(f"do_get: project is {project}")
+            full_feature_names = command["full_feature_names"]
+            feature_views = self.list_feature_views_by_name(
+                feature_view_names=feature_view_names, project=project
+            )
+            logger.debug(f"do_get: feature_views is {feature_views}")
 
-            print(
+            logger.info(
                 f"get_historical_features for: entity_df from {entity_df.index[0]} to {entity_df.index[len(entity_df)-1]}, "
-                f"features from {features[0]} to {features[len(features)-1]}"
+                f"feature_views is {[(fv.name, fv.entities) for fv in feature_views]}"
+                f"feature_refs is {feature_refs}"
             )
 
-            # TODO define error handling
             try:
-                training_df = self.store.get_historical_features(
-                    entity_df, features
-                ).to_df()
-            except Exception:
+                training_df = (
+                    self.store._get_provider()
+                    .get_historical_features(
+                        config=self.store.config,
+                        feature_views=feature_views,
+                        feature_refs=feature_refs,
+                        entity_df=entity_df,
+                        registry=self.store._registry,
+                        project=project,
+                        full_feature_names=full_feature_names,
+                    )
+                    .to_df()
+                )
+                logger.debug(f"Len of training_df is {len(training_df)}")
+                table = pa.Table.from_pandas(training_df)
+            except Exception as e:
+                logger.exception(e)
                 traceback.print_exc()
-            table = pa.Table.from_pandas(training_df)
+                raise e
 
             # Get service is consumed, so we clear the corresponding flight and data
             del self.flights[key]
@@ -112,6 +173,16 @@ class OfflineServer(fl.FlightServerBase):
         pass
 
 
+def remove_dummies(fv: FeatureView) -> FeatureView:
+    """
+    Removes dummmy IDs from FeatureView instances created with FeatureView.from_proto
+    """
+    if DUMMY_ENTITY_NAME in fv.entities:
+        fv.entities = []
+        fv.entity_columns = []
+    return fv
+
+
 def start_server(
     store: FeatureStore,
     host: str,
@@ -119,5 +190,5 @@ def start_server(
 ):
     location = "grpc+tcp://{}:{}".format(host, port)
     server = OfflineServer(store, location)
-    print("Serving on", location)
+    logger.info(f"Offline store server serving on {location}")
     server.serve()

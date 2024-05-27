@@ -8,11 +8,12 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from minio import Minio
+from multiprocess import Process
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 
-from feast import FileSource
+from feast import FeatureStore, FileSource, RepoConfig
 from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -22,10 +23,14 @@ from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     SavedDatasetFileStorage,
 )
-from feast.repo_config import FeastConfigBaseModel
+from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
+from feast.offline_server import start_server
+from feast.repo_config import FeastConfigBaseModel, RegistryConfig
+from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 
 class FileDataSourceCreator(DataSourceCreator):
@@ -352,3 +357,56 @@ class DuckDBDeltaS3DataSourceCreator(DeltaS3FileSourceCreator):
             staging_location_endpoint_override=self.endpoint_url,
         )
         return self.duckdb_offline_store_config
+
+
+class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        self.server_port: int = 0
+        self.proc: Process = None
+
+    def setup(self, registry: RegistryConfig):
+        parent_offline_config = super().create_offline_store_config()
+
+        fs = FeatureStore(
+            config=RepoConfig(
+                project=self.project_name,
+                provider="local",
+                offline_store=parent_offline_config,
+                registry=registry.path,
+                entity_key_serialization_version=2,
+            )
+        )
+        self.server_port = free_port()
+        host = "0.0.0.0"
+        self.proc = Process(
+            target=start_server,
+            args=(fs, host, self.server_port),
+        )
+        self.proc.start()
+        # Wait for server to start
+        wait_retry_backoff(
+            lambda: (None, check_port_open(host, self.server_port)),
+            timeout_secs=10,
+        )
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
+
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        self.remote_offline_store_config = RemoteOfflineStoreConfig(
+            type="remote", host="0.0.0.0", port=self.server_port
+        )
+        return self.remote_offline_store_config
+
+    def teardown(self):
+        super().teardown()
+        if self.proc is None and self.proc.is_alive():
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
