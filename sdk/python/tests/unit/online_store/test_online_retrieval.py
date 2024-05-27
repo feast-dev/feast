@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import numpy as np
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -21,7 +22,7 @@ def test_get_online_features() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -278,7 +279,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -435,7 +436,10 @@ def test_get_online_documents() -> None:
         item_key = EntityKeyProto(
             join_keys=["item_id"], entity_values=[ValueProto(int64_val=0)]
         )
-        data = [
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=[
                 (
                     item_key,
                     {
@@ -493,33 +497,17 @@ def test_get_online_documents() -> None:
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
-            ]
-        provider.online_write_batch(
-            config=store.config,
-            table=document_embeddings_fv,
-            data=data,
+            ],
             progress=None,
         )
 
-        query_embedding = np.array(
-            [
-                0.17517076,
-                -0.1259909,
-                0.01954236,
-                0.03045186,
-                -0.00074535,
-                -0.02715777,
-                -0.04582673,
-                0.01173803,
-                -0.0573408,
-                0.02616226,
-            ]
-        )
+        query = np.array([ 0.17517076, -0.1259909 ,  0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226])
         # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
+            feature="document_embeddings:Embeddings",
+            query=query,
+            top_k=3
         ).to_dict()
 
         assert "Embeddings" in result
         assert result["driver_id"] == [0]
-        print(result)

@@ -329,10 +329,10 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            INSERT INTO vec_example(vector_value) 
-                VALUES (?)
+            INSERT INTO vec_example(rowid, vector_value) 
+                VALUES (?, ?)
         """,
-            (query_embedding_bin)
+            (0, query_embedding_bin)
         )
 
         cur.execute(
