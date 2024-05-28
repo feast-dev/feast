@@ -413,6 +413,6 @@ class BigtableOnlineStore(OnlineStore):
         if self._async_client is None:
             self._async_client = BigtableDataClientAsync(
                 project=online_config.project_id,
-                pool_size=10
+                pool_size=100
             )
         return self._async_client
