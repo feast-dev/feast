@@ -49,6 +49,8 @@ def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
+    """Start the Feast server with metrics"""
+
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     registry_proto = None
@@ -216,7 +218,6 @@ if sys.platform != "win32":
 
         def load(self):
             return self._app
-
 
 def start_server(
     store: "feast.FeatureStore",

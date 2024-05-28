@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "feast-feature-server.fullname" . }}
   labels:
-    {{- include "feast-feature-server.labels" . | nindent 4 }}
+    {{- include "feast-feature-server.labels" . | nindent 4 }} 
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -13,7 +13,7 @@ spec:
     metadata:
     {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 8 }} 
     {{- end }}
       labels:
         {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
@@ -53,6 +53,12 @@ spec:
             - "-h"
             - "0.0.0.0"
             {{- end }}
+              value: {{ .Values.feature_store_yaml_base64 }}  
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.feast-test.svc.cluster.local:4317/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"  
+          command: ["feast", "serve", "-h", "0.0.0.0"]
           ports:
             - name: {{ .Values.feast_mode }}
               {{- if eq .Values.feast_mode "offline" }}
@@ -76,7 +82,7 @@ spec:
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}   
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

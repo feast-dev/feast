@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 RUN apt-get update && apt-get install -y git
 
@@ -20,9 +20,15 @@ COPY pyproject.toml pyproject.toml
 COPY README.md ./README.md
 
 # Install production dependencies.
-RUN --mount=source=.git,target=.git,type=bind pip install --no-cache-dir \
-    -e '.[gcp,redis]' \
-    -r ./sdk/python/feast/infra/feature_servers/gcp_cloudrun/requirements.txt
+RUN --mount=source=.git,target=.git,type=bind SETUPTOOLS_SCM_PRETEND_VERSION=1 pip3 install --no-cache-dir -e ".[aws]"
+RUN pip install prometheus_client
+RUN pip install grpcio-reflection
+RUN pip install psutil
+
+# Install additional packages for OpenTelemetry
+RUN pip install opentelemetry-sdk opentelemetry-exporter-prometheus opentelemetry-exporter-otlp opentelemetry-distro==0.44b0 opentelemetry-exporter-otlp-proto-http==1.23.0 
+
+# ENV OTEL_METRICS_EXPORTER=none OTEL_TRACES_EXPORTER=otlp OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf OTEL_EXPORTER_OTLP_ENDPOINT=http://OTLP_ENDPOINT:4318
 
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 8 threads.

@@ -11,5 +11,13 @@ spec:
       targetPort: {{ .Values.feast_mode }}
       protocol: TCP
       name: http
+    - port: 4317
+      targetPort: 4317
+      protocol: TCP
+      name: otel-grpc 
+    - port: 4318
+      targetPort: 4318
+      protocol: TCP
+      name: otel-http  
   selector:
     {{- include "feast-feature-server.selectorLabels" . | nindent 4 }}
