@@ -582,7 +582,7 @@ pyjwt[crypto]==2.8.0
     #   msal
     #   snowflake-connector-python
 pymssql==2.3.0
-pymysql==1.1.0
+pymysql==1.1.1
 pyodbc==5.1.0
 pyopenssl==24.1.0
     # via snowflake-connector-python
