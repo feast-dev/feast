@@ -1597,6 +1597,7 @@ class FeatureStore:
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         full_feature_names: bool = False,
+        pool_size: int = 3
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -1652,6 +1653,7 @@ class FeatureStore:
             entity_values=columnar,
             full_feature_names=full_feature_names,
             native_entity_values=True,
+            pool_size=pool_size
         )
 
     def _get_online_features(
@@ -1838,6 +1840,7 @@ class FeatureStore:
         ],
         full_feature_names: bool = False,
         native_entity_values: bool = True,
+        pool_size: int = 3
     ):
         # Extract Sequence from RepeatedValue Protobuf.
         entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
@@ -1981,6 +1984,7 @@ class FeatureStore:
                 provider,
                 requested_features,
                 table,
+                pool_size
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -2240,6 +2244,7 @@ class FeatureStore:
         provider: Provider,
         requested_features: List[str],
         table: FeatureView,
+        pool_size: int = 3
     ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
         """Read and process data from the OnlineStore for a given FeatureView.
 
@@ -2262,6 +2267,7 @@ class FeatureStore:
             table=table,
             entity_keys=entity_key_protos,
             requested_features=requested_features,
+            pool_size=pool_size
         )
 
         # Each row is a set of features for a given entity key. We only need to convert

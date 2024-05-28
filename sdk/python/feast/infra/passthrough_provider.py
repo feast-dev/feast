@@ -197,12 +197,13 @@ class PassthroughProvider(Provider):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
+        pool_size: int = 3
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.online_store:
             result = await self.online_store.online_read_async(
-                config, table, entity_keys, requested_features
+                config, table, entity_keys, requested_features, pool_size
             )
         return result
 

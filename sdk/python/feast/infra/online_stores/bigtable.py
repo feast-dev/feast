@@ -108,13 +108,14 @@ class BigtableOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
+        pool_size: int = 3
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         # Potential performance improvement opportunity described in
         # https://github.com/feast-dev/feast/issues/3259
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
-        client = self._get_client_async(online_config=config.online_store)
+        client = self._get_client_async(online_config=config.online_store, pool_size=pool_size)
         async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
             row_keys = [
                 self._compute_row_key(
@@ -408,11 +409,11 @@ class BigtableOnlineStore(OnlineStore):
 
 
     def _get_client_async(
-        self, online_config: BigtableOnlineStoreConfig
+        self, online_config: BigtableOnlineStoreConfig, pool_size: int = 3
     ):
         if self._async_client is None:
             self._async_client = BigtableDataClientAsync(
                 project=online_config.project_id,
-                pool_size=100
+                pool_size=pool_size
             )
         return self._async_client

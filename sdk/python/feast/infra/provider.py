@@ -236,6 +236,7 @@ class Provider(ABC):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: List[str] = None,
+        pool_size: int = 3
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
