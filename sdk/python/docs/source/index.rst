@@ -182,12 +182,6 @@ S3 Registry Store
 .. autoclass:: feast.infra.registry.s3.S3RegistryStore
     :members:
 
-PostgreSQL Registry Store
------------------------
-
-.. autoclass:: feast.infra.registry.contrib.postgres.postgres_registry_store.PostgreSQLRegistryStore
-    :members:
-
 Provider
 ==================
 
