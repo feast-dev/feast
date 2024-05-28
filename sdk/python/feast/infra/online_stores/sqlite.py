@@ -335,6 +335,8 @@ class SqliteOnlineStore(OnlineStore):
             (0, query_embedding_bin)
         )
 
+        # Have to join this with the {table_name} to get the feature name and entity_key
+        # Also the `top_k` doesn't appear to be working for some reason
         cur.execute(
             """
         select
