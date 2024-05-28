@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import itertools
-import json
 import os
 import sqlite3
 import struct
@@ -32,7 +31,8 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto, FloatList as FloatListProto
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
 
@@ -328,7 +328,7 @@ class SqliteOnlineStore(OnlineStore):
         """)
 
         cur.execute(
-            f"""
+            """
             INSERT INTO vec_example(rowid, vector_value) 
                 VALUES (?, ?)
         """,
@@ -336,7 +336,7 @@ class SqliteOnlineStore(OnlineStore):
         )
 
         cur.execute(
-            f"""
+            """
         select
             rowid as entity_key,
             null as value,
