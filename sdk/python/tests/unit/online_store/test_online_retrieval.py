@@ -423,9 +423,10 @@ def test_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
+    vector_length = 10
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+            get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         store.config.online_store.vss_enabled = True
         # Write some data to two tables
@@ -433,75 +434,41 @@ def test_get_online_documents() -> None:
 
         provider = store._get_provider()
 
-        item_key = EntityKeyProto(
-            join_keys=["item_id"], entity_values=[ValueProto(int64_val=0)]
-        )
-        provider.online_write_batch(
-            config=store.config,
-            table=document_embeddings_fv,
-            data=[
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+            ) for i in range(10)
+        ]
+        data = []
+        for item_key in item_keys:
+            data.append(
                 (
                     item_key,
-                    {
-                        "Embeddings": [
-                                FloatList(val=[
-                                    0.17517076,
-                                    -0.1259909,
-                                    0.01954236,
-                                    0.03045186,
-                                    -0.00074535,
-                                    -0.02715777,
-                                    -0.04582673,
-                                    0.01173803,
-                                    -0.0573408,
-                                    0.02616226,
-                                ]),
-                            #     FloatList(val=[
-                            #         0.18517076,
-                            #         -0.1259909,
-                            #         0.01954236,
-                            #         0.03045186,
-                            #         -0.00074535,
-                            #         -0.02715777,
-                            #         -0.04582673,
-                            #         0.01173803,
-                            #         -0.0573408,
-                            #         0.02616226,
-                            #     ]),
-                            #     FloatList(val=[
-                            #         0.19517076,
-                            #         -0.1259909,
-                            #         0.01954236,
-                            #         0.03045186,
-                            #         -0.00074535,
-                            #         -0.02715777,
-                            #         -0.04582673,
-                            #         0.01173803,
-                            #         -0.0573408,
-                            #         0.02616226,
-                            #     ]),
-                            # FloatList(val=[
-                            #         0.20517076,
-                            #         -0.1259909,
-                            #         0.01954236,
-                            #         0.03045186,
-                            #         -0.00074535,
-                            #         -0.02715777,
-                            #         -0.04582673,
-                            #         0.01173803,
-                            #         -0.0573408,
-                            #         0.02616226,
-                            #     ])
-                        ],
-                    },
+                    {"Embeddings": FloatList(val=np.random.random(vector_length, ))},
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
-            ],
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
             progress=None,
         )
 
-        query = np.array([ 0.17517076, -0.1259909 ,  0.01954236,  0.03045186, -0.00074535, -0.02715777, -0.04582673,  0.01173803, -0.0573408 ,  0.02616226])
+        document_table = store._provider._online_store._conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' and name like '%_document_embeddings';"
+        ).fetchall()
+        assert len(document_table) == 1
+        document_table_name = document_table[0][0]
+        record_count = len(
+            store._provider._online_store._conn.execute(f"select * from {document_table_name}").fetchall())
+        assert record_count == len(data)
+
+        query = np.array(
+            [0.17517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673, 0.01173803,
+             -0.0573408, 0.02616226])
         # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
             feature="document_embeddings:Embeddings",

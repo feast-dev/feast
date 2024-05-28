@@ -18,7 +18,7 @@ import sqlite3
 import struct
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import sqlite_vec
 from pydantic import StrictStr
@@ -32,7 +32,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto, FloatList as FloatListProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
 
@@ -89,7 +89,7 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            Tuple[EntityKeyProto, Dict[str, Union[FloatListProto, ValueProto]], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
@@ -110,18 +110,17 @@ class SqliteOnlineStore(OnlineStore):
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
                     if config.online_store.vss_enabled:
-                        vector_bin = [serialize_f32(v.val) for v in val]  # serializing the value
-
+                        vector_bin = serialize_f32(val.val)
                         conn.execute(
                             f"""
-                                UPDATE {table_name}
-                                SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
-                                WHERE (entity_key = ? AND feature_name = ?)
-                            """,
+                                    UPDATE {table_name}
+                                    SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
+                                    WHERE (entity_key = ? AND feature_name = ?)
+                                """,
                             (
                                 # SET
-                                val[0].SerializeToString(),
-                                vector_bin[0],
+                                val.SerializeToString(),
+                                vector_bin,
                                 timestamp,
                                 created_ts,
                                 # WHERE
@@ -137,12 +136,13 @@ class SqliteOnlineStore(OnlineStore):
                             (
                                 entity_key_bin,
                                 feature_name,
-                                val[0].SerializeToString(),
-                                vector_bin[0],
+                                val.SerializeToString(),
+                                vector_bin,
                                 timestamp,
                                 created_ts,
                             ),
                         )
+
                     else:
                         conn.execute(
                             f"""
@@ -316,12 +316,12 @@ class SqliteOnlineStore(OnlineStore):
         query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
 
-        # Convert the embedding to a binary format
+        # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding)
         table_name = _table_id(project, table)
 
         cur.execute(
-            f"""
+            """
             CREATE VIRTUAL TABLE vec_example using vec0(
                 vector_value float[10]
         );
@@ -338,8 +338,11 @@ class SqliteOnlineStore(OnlineStore):
         cur.execute(
             f"""
         select
+            rowid as entity_key,
+            null as value,
             vector_value,
-            distance
+            distance,
+            datetime('now') event_ts
         from vec_example
         where vector_value match ?
         order by distance
@@ -359,11 +362,11 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        for entity_key, feature_name, val_bin, vector_val, distance, event_ts in rows:
+        for entity_key, val_bin, vector_val, distance, event_ts in rows:
             feature_value_proto = ValueProto()
-            feature_value_proto.ParseFromString(val_bin)
+            # feature_value_proto.ParseFromString(val_bin)
 
-            vector_value_proto = ValueProto(string_val=vector_val)
+            vector_value_proto = FloatListProto(val=vector_val)
             distance_value_proto = ValueProto(float_val=distance)
 
             result.append(
