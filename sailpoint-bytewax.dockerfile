@@ -26,5 +26,5 @@ COPY README.md README.md
 # https://github.com/pypa/setuptools_scm#usage-from-docker
 # I think it also assumes that this dockerfile is being built from the root of the directory.
 RUN --mount=source=.git,target=.git,type=bind SETUPTOOLS_SCM_PRETEND_VERSION=1 \
-pip3 install setuptools==69.* pip==24.* --upgrade --no-cache-dir \
+pip3 install gunicorn==22.0.0 setuptools==69.* pip==24.* --upgrade --no-cache-dir \
 '.[aws,gcp,bytewax,snowflake,postgres,grpcio]'
