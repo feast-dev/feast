@@ -223,6 +223,9 @@ def retrieval_job(request, environment):
             feature_view_names=[
                 "str:str",
             ],
+            name_aliases=[
+                "str:str",
+            ],
             project="project",
             entity_df=pd.DataFrame.from_dict(
                 {
