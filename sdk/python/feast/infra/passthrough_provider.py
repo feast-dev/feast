@@ -206,6 +206,22 @@ class PassthroughProvider(Provider):
                 config, table, entity_keys, requested_features, pool_size
             )
         return result
+    
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
+    async def online_read_async_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
+    ) -> List:
+        set_usage_attribute("provider", self.__class__.__name__)
+        result = []
+        if self.online_store:
+            result = await self.online_store.online_read_async_v2(
+                config, table, entity_keys, requested_features
+            )
+        return result
 
     def ingest_df(
         self,
