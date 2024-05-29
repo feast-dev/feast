@@ -234,27 +234,40 @@ def mock_remote_registry():
 
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "False":
-    all_fixtures = ["s3_registry", "gcs_registry"]
+    all_fixtures = [lazy_fixture("s3_registry"), lazy_fixture("gcs_registry")]
 else:
     all_fixtures = [
-        "local_registry",
-        "minio_registry",
-        "pg_registry",
-        "mysql_registry",
-        "sqlite_registry",
-        "mock_remote_registry",
+        lazy_fixture("local_registry"),
+        pytest.param(
+            lazy_fixture("minio_registry"),
+            marks=pytest.mark.xdist_group(name="minio_registry"),
+        ),
+        pytest.param(
+            lazy_fixture("pg_registry"),
+            marks=pytest.mark.xdist_group(name="pg_registry"),
+        ),
+        pytest.param(
+            lazy_fixture("mysql_registry"),
+            marks=pytest.mark.xdist_group(name="mysql_registry"),
+        ),
+        lazy_fixture("sqlite_registry"),
+        lazy_fixture("mock_remote_registry"),
     ]
 
-
-# sql_fixtures = [
-#     "pg_registry",
-#     "mysql_registry",
-#     "sqlite_registry",
-# ]
+sql_fixtures = [
+    pytest.param(
+        lazy_fixture("pg_registry"), marks=pytest.mark.xdist_group(name="pg_registry")
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_registry"),
+    ),
+    lazy_fixture("sqlite_registry"),
+]
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("test_registry", [lazy_fixture(f) for f in all_fixtures])
+@pytest.mark.parametrize("test_registry", all_fixtures)
 def test_apply_entity_success(test_registry):
     entity = Entity(
         name="driver_car_id",
@@ -313,7 +326,7 @@ def assert_project_uuid(project, project_uuid, test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_feature_view_success(test_registry):
     # Create Feature Views
@@ -400,16 +413,7 @@ def test_apply_feature_view_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_apply_on_demand_feature_view_success(test_registry):
     # Create Feature Views
@@ -491,7 +495,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_data_source(test_registry):
     # Create Feature Views
@@ -554,7 +558,7 @@ def test_apply_data_source(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_modify_feature_views_success(test_registry):
     # Create Feature Views
@@ -677,16 +681,7 @@ def test_modify_feature_views_success(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_update_infra(test_registry):
     # Create infra object
@@ -717,16 +712,7 @@ def test_update_infra(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [
-        # lazy_fixture("local_registry"),
-        # lazy_fixture("gcs_registry"),
-        # lazy_fixture("s3_registry"),
-        # lazy_fixture("minio_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("sqlite_registry"),
-        # lazy_fixture("mock_remote_registry"),
-    ],
+    sql_fixtures,
 )
 def test_registry_cache(test_registry):
     # Create Feature Views
@@ -790,7 +776,7 @@ def test_registry_cache(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    [lazy_fixture(f) for f in all_fixtures],
+    all_fixtures,
 )
 def test_apply_stream_feature_view_success(test_registry):
     # Create Feature Views
@@ -852,3 +838,94 @@ def test_apply_stream_feature_view_success(test_registry):
     assert len(stream_feature_views) == 0
 
     test_registry.teardown()
+
+
+@pytest.mark.integration
+def test_commit():
+    fd, registry_path = mkstemp()
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    test_registry = Registry("project", registry_config, None)
+
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    project = "project"
+
+    # Register Entity without commiting
+    test_registry.apply_entity(entity, project, commit=False)
+    assert test_registry.cached_registry_proto
+    assert len(test_registry.cached_registry_proto.project_metadata) == 1
+    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
+    project_uuid = project_metadata.project_uuid
+    assert len(project_uuid) == 36
+    validate_project_uuid(project_uuid, test_registry)
+
+    # Retrieving the entity should still succeed
+    entities = test_registry.list_entities(project, allow_cache=True)
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+    validate_project_uuid(project_uuid, test_registry)
+
+    entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
+    assert (
+        entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+    validate_project_uuid(project_uuid, test_registry)
+
+    # Create new registry that points to the same store
+    registry_with_same_store = Registry("project", registry_config, None)
+
+    # Retrieving the entity should fail since the store is empty
+    entities = registry_with_same_store.list_entities(project)
+    assert len(entities) == 0
+    validate_project_uuid(project_uuid, registry_with_same_store)
+
+    # commit from the original registry
+    test_registry.commit()
+
+    # Reconstruct the new registry in order to read the newly written store
+    registry_with_same_store = Registry("project", registry_config, None)
+
+    # Retrieving the entity should now succeed
+    entities = registry_with_same_store.list_entities(project)
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+    validate_project_uuid(project_uuid, registry_with_same_store)
+
+    entity = test_registry.get_entity("driver_car_id", project)
+    assert (
+        entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    test_registry.teardown()
+
+    # Will try to reload registry, which will fail because the file has been deleted
+    with pytest.raises(FileNotFoundError):
+        test_registry._get_registry_proto(project=project)
+
+
+def validate_project_uuid(project_uuid, test_registry):
+    assert len(test_registry.cached_registry_proto.project_metadata) == 1
+    project_metadata = test_registry.cached_registry_proto.project_metadata[0]
+    assert project_metadata.project_uuid == project_uuid
