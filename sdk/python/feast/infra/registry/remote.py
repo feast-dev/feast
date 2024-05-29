@@ -65,9 +65,14 @@ class RemoteRegistry(BaseRegistry):
 
         return Entity.from_proto(response)
 
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         request = RegistryServer_pb2.ListEntitiesRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListEntities(request)
@@ -102,10 +107,13 @@ class RemoteRegistry(BaseRegistry):
         return DataSource.from_proto(response)
 
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         request = RegistryServer_pb2.ListDataSourcesRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListDataSources(request)
@@ -142,10 +150,13 @@ class RemoteRegistry(BaseRegistry):
         return FeatureService.from_proto(response)
 
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         request = RegistryServer_pb2.ListFeatureServicesRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListFeatureServices(request)
@@ -200,10 +211,13 @@ class RemoteRegistry(BaseRegistry):
         return StreamFeatureView.from_proto(response)
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         request = RegistryServer_pb2.ListStreamFeatureViewsRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListStreamFeatureViews(request)
@@ -225,10 +239,13 @@ class RemoteRegistry(BaseRegistry):
         return OnDemandFeatureView.from_proto(response)
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         request = RegistryServer_pb2.ListOnDemandFeatureViewsRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListOnDemandFeatureViews(request)
@@ -250,10 +267,13 @@ class RemoteRegistry(BaseRegistry):
         return FeatureView.from_proto(response)
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         request = RegistryServer_pb2.ListFeatureViewsRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListFeatureViews(request)

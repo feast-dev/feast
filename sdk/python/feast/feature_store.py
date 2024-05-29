@@ -204,23 +204,29 @@ class FeatureStore:
 
         self._registry = registry
 
-    def list_entities(self, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Entity]:
         """
         Retrieves the list of entities from the registry.
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+            tags: Filter by tags.
 
         Returns:
             A list of entities.
         """
-        return self._list_entities(allow_cache)
+        return self._list_entities(allow_cache, tags=tags)
 
     def _list_entities(
-        self, allow_cache: bool = False, hide_dummy_entity: bool = True
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
         all_entities = self._registry.list_entities(
-            self.project, allow_cache=allow_cache
+            self.project, allow_cache=allow_cache, tags=tags
         )
         return [
             entity
@@ -228,17 +234,22 @@ class FeatureStore:
             if entity.name != DUMMY_ENTITY_NAME or not hide_dummy_entity
         ]
 
-    def list_feature_services(self) -> List[FeatureService]:
+    def list_feature_services(
+        self, tags: Optional[dict[str, str]] = None
+    ) -> List[FeatureService]:
         """
         Retrieves the list of feature services from the registry.
+
+        Args:
+            tags: Filter by tags.
 
         Returns:
             A list of feature services.
         """
-        return self._registry.list_feature_services(self.project)
+        return self._registry.list_feature_services(self.project, tags=tags)
 
     def list_all_feature_views(
-        self, allow_cache: bool = False
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
         """
         Retrieves the list of feature views from the registry.
@@ -249,14 +260,17 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        return self._list_all_feature_views(allow_cache)
+        return self._list_all_feature_views(allow_cache, tags=tags)
 
-    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
+    def list_feature_views(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
+            tags: Filter by tags.
 
         Returns:
             A list of feature views.
@@ -265,27 +279,72 @@ class FeatureStore:
             "list_feature_views will make breaking changes. Please use list_batch_feature_views instead. "
             "list_feature_views will behave like list_all_feature_views in the future."
         )
-        return utils._list_feature_views(self._registry, self.project, allow_cache)
+        return utils._list_feature_views(
+            self._registry, self.project, allow_cache, tags=tags
+        )
+
+    def list_batch_feature_views(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[FeatureView]:
+        """
+        Retrieves the list of feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of feature views.
+        """
+        return self._list_batch_feature_views(allow_cache=allow_cache, tags=tags)
 
     def _list_all_feature_views(
         self,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
         all_feature_views = (
-            utils._list_feature_views(self._registry, self.project, allow_cache)
-            + self._list_stream_feature_views(allow_cache)
-            + self.list_on_demand_feature_views(allow_cache)
+            utils._list_feature_views(
+                self._registry, self.project, allow_cache, tags=tags
+            )
+            + self._list_stream_feature_views(allow_cache, tags=tags)
+            + self.list_on_demand_feature_views(allow_cache, tags=tags)
         )
         return all_feature_views
+
+    def _list_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[FeatureView]:
+        logging.warning(
+            "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
+            "_list_feature_views will behave like _list_all_feature_views in the future."
+        )
+        feature_views = []
+        for fv in self._registry.list_feature_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        ):
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
+                fv.entities = []
+                fv.entity_columns = []
+            feature_views.append(fv)
+        return feature_views
 
     def _list_batch_feature_views(
         self,
         allow_cache: bool = False,
         hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache
+            self.project, allow_cache=allow_cache, tags=tags
         ):
             if (
                 hide_dummy_entity
@@ -301,10 +360,11 @@ class FeatureStore:
         self,
         allow_cache: bool = False,
         hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         stream_feature_views = []
         for sfv in self._registry.list_stream_feature_views(
-            self.project, allow_cache=allow_cache
+            self.project, allow_cache=allow_cache, tags=tags
         ):
             if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
                 sfv.entities = []
@@ -313,20 +373,24 @@ class FeatureStore:
         return stream_feature_views
 
     def list_on_demand_feature_views(
-        self, allow_cache: bool = False
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[OnDemandFeatureView]:
         """
         Retrieves the list of on demand feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+            tags: Filter by tags.
 
         Returns:
             A list of on demand feature views.
         """
         return self._registry.list_on_demand_feature_views(
-            self.project, allow_cache=allow_cache
+            self.project, allow_cache=allow_cache, tags=tags
         )
 
     def list_stream_feature_views(
-        self, allow_cache: bool = False
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[StreamFeatureView]:
         """
         Retrieves the list of stream feature views from the registry.
@@ -334,19 +398,24 @@ class FeatureStore:
         Returns:
             A list of stream feature views.
         """
-        return self._list_stream_feature_views(allow_cache)
+        return self._list_stream_feature_views(allow_cache, tags=tags)
 
-    def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
+    def list_data_sources(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[DataSource]:
         """
         Retrieves the list of data sources from the registry.
 
         Args:
             allow_cache: Whether to allow returning data sources from a cached registry.
+            tags: Filter by tags.
 
         Returns:
             A list of data sources.
         """
-        return self._registry.list_data_sources(self.project, allow_cache=allow_cache)
+        return self._registry.list_data_sources(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
 
     def get_entity(self, name: str, allow_registry_cache: bool = False) -> Entity:
         """

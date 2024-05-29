@@ -285,7 +285,7 @@ def test_apply_entity_success(test_registry):
     assert len(project_metadata[0].project_uuid) == 36
     assert_project_uuid(project, project_uuid, test_registry)
 
-    entities = test_registry.list_entities(project)
+    entities = test_registry.list_entities(project, tags=entity.tags)
     assert_project_uuid(project, project_uuid, test_registry)
 
     entity = entities[0]
@@ -359,7 +359,7 @@ def test_apply_feature_view_success(test_registry):
     # Register Feature View
     test_registry.apply_feature_view(fv1, project)
 
-    feature_views = test_registry.list_feature_views(project)
+    feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
 
     # List Feature Views
     assert (
@@ -530,7 +530,7 @@ def test_apply_data_source(test_registry):
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
 
-    registry_feature_views = test_registry.list_feature_views(project)
+    registry_feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
     registry_data_sources = test_registry.list_data_sources(project)
     assert len(registry_feature_views) == 1
     assert len(registry_data_sources) == 1
@@ -543,7 +543,7 @@ def test_apply_data_source(test_registry):
     batch_source.timestamp_field = "new_ts_col"
     test_registry.apply_data_source(batch_source, project, commit=False)
     test_registry.apply_feature_view(fv1, project, commit=True)
-    registry_feature_views = test_registry.list_feature_views(project)
+    registry_feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
     registry_data_sources = test_registry.list_data_sources(project)
     assert len(registry_feature_views) == 1
     assert len(registry_data_sources) == 1
@@ -656,7 +656,7 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Make sure fv1 is untouched
-    feature_views = test_registry.list_feature_views(project)
+    feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
 
     # List Feature Views
     assert (
@@ -722,6 +722,7 @@ def test_registry_cache(test_registry):
         path="file://feast/*",
         timestamp_field="ts_col",
         created_timestamp_column="timestamp",
+        tags={"team": "matchmaking"},
     )
 
     entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
@@ -758,10 +759,10 @@ def test_registry_cache(test_registry):
     test_registry.refresh(project)
     # Now objects exist
     registry_feature_views_cached = test_registry.list_feature_views(
-        project, allow_cache=True
+        project, allow_cache=True, tags=fv1.tags
     )
     registry_data_sources_cached = test_registry.list_data_sources(
-        project, allow_cache=True
+        project, allow_cache=True, tags=batch_source.tags
     )
     assert len(registry_feature_views_cached) == 1
     assert len(registry_data_sources_cached) == 1
@@ -819,7 +820,7 @@ def test_apply_stream_feature_view_success(test_registry):
         mode="spark",
         source=stream_source,
         udf=simple_udf,
-        tags={},
+        tags={"team": "matchmaking"},
     )
 
     project = "project"
@@ -827,7 +828,9 @@ def test_apply_stream_feature_view_success(test_registry):
     # Register Feature View
     test_registry.apply_feature_view(sfv, project)
 
-    stream_feature_views = test_registry.list_stream_feature_views(project)
+    stream_feature_views = test_registry.list_stream_feature_views(
+        project, tags=sfv.tags
+    )
 
     # List Feature Views
     assert len(stream_feature_views) == 1
@@ -864,7 +867,7 @@ def test_commit():
     validate_project_uuid(project_uuid, test_registry)
 
     # Retrieving the entity should still succeed
-    entities = test_registry.list_entities(project, allow_cache=True)
+    entities = test_registry.list_entities(project, allow_cache=True, tags=entity.tags)
     entity = entities[0]
     assert (
         len(entities) == 1
@@ -899,7 +902,7 @@ def test_commit():
     registry_with_same_store = Registry("project", registry_config, None)
 
     # Retrieving the entity should now succeed
-    entities = registry_with_same_store.list_entities(project)
+    entities = registry_with_same_store.list_entities(project, tags=entity.tags)
     entity = entities[0]
     assert (
         len(entities) == 1

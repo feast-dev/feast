@@ -117,6 +117,7 @@ message GetEntityRequest {
 message ListEntitiesRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListEntitiesResponse {
@@ -146,6 +147,7 @@ message GetDataSourceRequest {
 message ListDataSourcesRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListDataSourcesResponse {
@@ -179,6 +181,7 @@ message GetFeatureViewRequest {
 message ListFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListFeatureViewsResponse {
@@ -202,6 +205,7 @@ message GetStreamFeatureViewRequest {
 message ListStreamFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListStreamFeatureViewsResponse {
@@ -219,6 +223,7 @@ message GetOnDemandFeatureViewRequest {
 message ListOnDemandFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListOnDemandFeatureViewsResponse {
@@ -242,6 +247,7 @@ message GetFeatureServiceRequest {
 message ListFeatureServicesRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListFeatureServicesResponse {
