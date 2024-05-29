@@ -65,12 +65,15 @@ class OfflineServer(fl.FlightServerBase):
         else:
             logger.warning(f"No 'api' field in command: {command}")
 
-    def get_feature_view_by_name(self, fv_name: str, project: str) -> FeatureView:
+    def get_feature_view_by_name(
+        self, fv_name: str, name_alias: str, project: str
+    ) -> FeatureView:
         """
         Retrieves a feature view by name, including all subclasses of FeatureView.
 
         Args:
-            name: Name of feature view
+            fv_name: Name of feature view
+            name_alias: Alias to be applied to the projection of the registered view
             project: Feast project that this feature view belongs to
 
         Returns:
@@ -78,7 +81,16 @@ class OfflineServer(fl.FlightServerBase):
             none is found
         """
         try:
-            return self.store.registry.get_feature_view(name=fv_name, project=project)
+            fv = self.store.registry.get_feature_view(name=fv_name, project=project)
+            if name_alias is not None:
+                for fs in self.store.registry.list_feature_services(project=project):
+                    for p in fs.feature_view_projections:
+                        if p.name_alias == name_alias:
+                            logger.debug(
+                                f"Found matching FeatureService {fs.name} with projection {p}"
+                            )
+                            fv = fv.with_projection(p)
+            return fv
         except Exception:
             try:
                 return self.store.registry.get_stream_feature_view(
@@ -91,13 +103,15 @@ class OfflineServer(fl.FlightServerBase):
                 raise e
 
     def list_feature_views_by_name(
-        self, feature_view_names: List[str], project: str
+        self, feature_view_names: List[str], name_aliases: List[str], project: str
     ) -> List[FeatureView]:
         return [
             remove_dummies(
-                self.get_feature_view_by_name(fv_name=fv_name, project=project)
+                self.get_feature_view_by_name(
+                    fv_name=fv_name, name_alias=name_aliases[index], project=project
+                )
             )
-            for fv_name in feature_view_names
+            for index, fv_name in enumerate(feature_view_names)
         ]
 
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
@@ -119,13 +133,18 @@ class OfflineServer(fl.FlightServerBase):
             logger.debug(f"do_get: entity_df is {entity_df}")
 
             feature_view_names = command["feature_view_names"]
+            logger.debug(f"do_get: feature_view_names is {feature_view_names}")
+            name_aliases = command["name_aliases"]
+            logger.debug(f"do_get: name_aliases is {name_aliases}")
             feature_refs = command["feature_refs"]
             logger.debug(f"do_get: feature_refs is {feature_refs}")
             project = command["project"]
             logger.debug(f"do_get: project is {project}")
             full_feature_names = command["full_feature_names"]
             feature_views = self.list_feature_views_by_name(
-                feature_view_names=feature_view_names, project=project
+                feature_view_names=feature_view_names,
+                name_aliases=name_aliases,
+                project=project,
             )
             logger.debug(f"do_get: feature_views is {feature_views}")
 

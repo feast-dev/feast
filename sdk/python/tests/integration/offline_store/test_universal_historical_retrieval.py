@@ -160,25 +160,22 @@ def test_historical_features_main(
         timestamp_precision=timedelta(milliseconds=1),
     )
 
-    if not isinstance(
-        environment.data_source_creator, RemoteOfflineStoreDataSourceCreator
-    ):
-        assert_feature_service_correctness(
-            store,
-            feature_service,
-            full_feature_names,
-            entity_df_with_request_data,
-            expected_df,
-            event_timestamp,
-        )
-        assert_feature_service_entity_mapping_correctness(
-            store,
-            feature_service_entity_mapping,
-            full_feature_names,
-            entity_df_with_request_data,
-            full_expected_df,
-            event_timestamp,
-        )
+    assert_feature_service_correctness(
+        store,
+        feature_service,
+        full_feature_names,
+        entity_df_with_request_data,
+        expected_df,
+        event_timestamp,
+    )
+    assert_feature_service_entity_mapping_correctness(
+        store,
+        feature_service_entity_mapping,
+        full_feature_names,
+        entity_df_with_request_data,
+        full_expected_df,
+        event_timestamp,
+    )
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
 
     validate_dataframes(

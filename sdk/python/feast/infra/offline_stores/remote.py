@@ -39,6 +39,7 @@ class RemoteRetrievalJob(RetrievalJob):
         self,
         client: fl.FlightClient,
         feature_view_names: List[str],
+        name_aliases: List[Optional[str]],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         project: str,
@@ -47,6 +48,7 @@ class RemoteRetrievalJob(RetrievalJob):
         # Initialize the client connection
         self.client = client
         self.feature_view_names = feature_view_names
+        self.name_aliases = name_aliases
         self.feature_refs = feature_refs
         self.entity_df = entity_df
         self.project = project
@@ -83,6 +85,7 @@ class RemoteRetrievalJob(RetrievalJob):
             "command_id": command_id,
             "api": "get_historical_features",
             "feature_view_names": self.feature_view_names,
+            "name_aliases": self.name_aliases,
             "feature_refs": self.feature_refs,
             "project": self.project,
             "full_feature_names": self._full_feature_names,
@@ -126,9 +129,11 @@ class RemoteOfflineStore(OfflineStore):
         logger.info(f"Connecting FlightClient at {location}")
 
         feature_view_names = [fv.name for fv in feature_views]
+        name_aliases = [fv.projection.name_alias for fv in feature_views]
         return RemoteRetrievalJob(
             client=client,
             feature_view_names=feature_view_names,
+            name_aliases=name_aliases,
             feature_refs=feature_refs,
             entity_df=entity_df,
             project=project,
