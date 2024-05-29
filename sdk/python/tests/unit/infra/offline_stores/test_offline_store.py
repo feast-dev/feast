@@ -214,12 +214,16 @@ def retrieval_job(request, environment):
             host="localhost",
             port=0,
         )
-        environment.test_repo_config.offline_store = offline_store_config
+        environment.config._offline_store = offline_store_config
         return RemoteRetrievalJob(
             client=MagicMock(),
             feature_refs=[
                 "str:str",
             ],
+            feature_view_names=[
+                "str:str",
+            ],
+            project="project",
             entity_df=pd.DataFrame.from_dict(
                 {
                     "id": [1],
