@@ -1880,10 +1880,24 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-
+        (
+            requested_feature_views,
+            _,
+        ) = self._get_feature_views_to_use(
+            features=[feature], allow_cache=True, hide_dummy_entity=False
+        )
         requested_feature_view = (
             feature.split(":")[0] if isinstance(feature, str) else feature
         )
+        feature_view_validated = False
+        for feature_view in requested_feature_views:
+            if feature_view.name == requested_feature_view:
+                feature_view_validated = True
+                requested_feature_view = feature_view
+        if not feature_view_validated:
+            raise ValueError(
+                f"Feature view {requested_feature_view} not found in the registry."
+                )
         requested_feature = (
             feature.split(":")[1] if isinstance(feature, str) else feature
         )
