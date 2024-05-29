@@ -19,9 +19,6 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
-    RemoteOfflineStoreDataSourceCreator,
-)
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
