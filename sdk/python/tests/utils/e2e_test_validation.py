@@ -176,7 +176,6 @@ def make_feature_store_yaml(
     online_store: Optional[Union[str, Dict]],
 ):
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = online_store
 
     config = RepoConfig(
         registry=str(Path(repo_dir_name) / "registry.db"),
