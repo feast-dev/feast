@@ -218,9 +218,10 @@ class BigtableOnlineStore(OnlineStore):
         logger.info(f"Time to read rows using async v2 client: {time.perf_counter() - start}")
 
         process_start = time.perf_counter()
-        final_result = []  # will end up containing tuples (event_ts, res)
+        final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
-        async for row in rows:
+        i = 0
+        async for row in rows: 
             chunks = row.chunks
             for chunk in chunks:
                 # if row key exists, we're on a new row, we can get the event timestamp for this row and clear res
@@ -228,7 +229,8 @@ class BigtableOnlineStore(OnlineStore):
                 qualifier = chunk.qualifier
                 if row_key.decode() != '':
                     if event_ts:
-                        final_result.append((event_ts, res))
+                        final_result[i] = (event_ts, res)
+                        i += 1
                     res = dict()
                     qualifier = chunk.qualifier
                     if qualifier is None:
@@ -252,10 +254,7 @@ class BigtableOnlineStore(OnlineStore):
                         val = ValueProto()
                         val.ParseFromString(feature_value)
                         res[qualifier.decode()] = val
-            final_result.append((event_ts, res))
-        if final_result == []:
-            logger.info(f"Time to process rows using async v2 client: {time.perf_counter() - process_start}")
-            return [(None, None)]
+            final_result[i] = (event_ts, res)
                         
         logger.info(f"Time to process rows using async v2 client: {time.perf_counter() - process_start}")
         return final_result
