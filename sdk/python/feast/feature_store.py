@@ -1881,7 +1881,7 @@ class FeatureStore:
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
         (
-            requested_feature_views,
+            available_feature_views,
             _,
         ) = self._get_feature_views_to_use(
             features=[feature], allow_cache=True, hide_dummy_entity=False
@@ -1890,8 +1890,8 @@ class FeatureStore:
             feature.split(":")[0] if isinstance(feature, str) else feature
         )
         feature_view_validated = False
-        for feature_view in requested_feature_views:
-            if feature_view.name == requested_feature_view:
+        for feature_view in available_feature_views:
+            if isinstance(requested_feature_view, str) and feature_view.name == requested_feature_view:
                 feature_view_validated = True
                 requested_feature_view = feature_view
         if not feature_view_validated:

@@ -328,6 +328,11 @@ class SqliteOnlineStore(OnlineStore):
         """)
 
         cur.execute(
+            f"""
+            INSERT INTO vec_example(rowid, vector_value) 
+            select rowid, vector_value from {table_name}
+        """)
+        cur.execute(
             """
             INSERT INTO vec_example(rowid, vector_value) 
                 VALUES (?, ?)
