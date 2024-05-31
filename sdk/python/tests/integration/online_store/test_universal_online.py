@@ -476,7 +476,7 @@ def test_online_retrieval_with_event_timestamps(environment, universal_data_sour
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis"])
+@pytest.mark.universal_online_stores(only=["redis", "dynamodb"])
 def test_async_online_retrieval_with_event_timestamps(
     environment, universal_data_sources
 ):
