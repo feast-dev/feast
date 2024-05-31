@@ -40,8 +40,6 @@ dnspython==2.6.1
     # via email-validator
 email-validator==2.1.1
     # via fastapi
-exceptiongroup==1.2.1
-    # via anyio
 fastapi==0.111.0
     # via
     #   feast (setup.py)
@@ -69,9 +67,7 @@ idna==3.7
     #   httpx
     #   requests
 importlib-metadata==7.1.0
-    # via
-    #   dask
-    #   typeguard
+    # via dask
 jinja2==3.1.4
     # via
     #   feast (setup.py)
@@ -178,8 +174,6 @@ tenacity==8.3.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
-tomli==2.0.1
-    # via mypy
 toolz==0.12.1
     # via
     #   dask
@@ -194,16 +188,13 @@ types-protobuf==5.26.0.20240422
     # via mypy-protobuf
 typing-extensions==4.11.0
     # via
-    #   anyio
     #   fastapi
     #   mypy
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
-    #   starlette
     #   typeguard
     #   typer
-    #   uvicorn
 tzdata==2024.1
     # via pandas
 ujson==5.9.0
