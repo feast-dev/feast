@@ -34,6 +34,21 @@ offline_store:
 
 The full set of configuration options is available in [SnowflakeOfflineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.offline_stores.snowflake.SnowflakeOfflineStoreConfig).
 
+
+## Limitation
+Please be aware that here is a restriction/limitation for using SQL query string in Feast with Snowflake. Try to avoid the usage of single quote in SQL query string. For example, the following query string will fail:
+```
+SELECT
+    some_column
+FROM
+    some_table
+WHERE
+    other_column = 'value'
+```
+That 'value' will fail in Snowflake.
+
+
+
 ## Functionality Matrix
 
 The set of functionality supported by offline stores is described in detail [here](overview.md#functionality).
