@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import sqlite_vec
+from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from pydantic import StrictStr
 
 from feast import Entity
@@ -35,7 +36,6 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
-from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -420,7 +420,9 @@ def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
-def serialize_f32(vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int) -> bytes:
+def serialize_f32(
+    vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int
+) -> bytes:
     """serializes a list of floats into a compact "raw bytes" format"""
     return struct.pack(f"{vector_length}f", *vector)
 
