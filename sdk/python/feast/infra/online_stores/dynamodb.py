@@ -286,6 +286,9 @@ class DynamoDBOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         table_name = _get_table_name(online_config, config, table)
 
+        def to_tbl_resp(raw_client_response):
+            return {"entity_id": raw_client_response["entity_id"]["S"]}
+
         async with self._get_aiodynamodb_client(online_config.region) as client:
             while True:
                 batch = list(itertools.islice(entity_ids_iter, batch_size))
@@ -300,7 +303,7 @@ class DynamoDBOnlineStore(OnlineStore):
                     RequestItems=batch_entity_ids,
                 )
                 batch_result = self._process_batch_get_response(
-                    table_name, response, entity_ids, batch
+                    table_name, response, entity_ids, batch, to_tbl_response=to_tbl_resp
                 )
                 result.extend(batch_result)
         return result
@@ -325,13 +328,19 @@ class DynamoDBOnlineStore(OnlineStore):
             )
         return self._dynamodb_resource
 
-    def _sort_dynamodb_response(self, responses: list, order: list) -> Any:
+    def _sort_dynamodb_response(
+        self,
+        responses: list,
+        order: list,
+        to_tbl_response: Callable = lambda raw_dict: raw_dict,
+    ) -> Any:
         """DynamoDB Batch Get Item doesn't return items in a particular order."""
         # Assign an index to order
         order_with_index = {value: idx for idx, value in enumerate(order)}
         # Sort table responses by index
         table_responses_ordered: Any = [
-            (order_with_index[tbl_res["entity_id"]], tbl_res) for tbl_res in responses
+            (order_with_index[tbl_res["entity_id"]], tbl_res)
+            for tbl_res in map(to_tbl_response, responses)
         ]
         table_responses_ordered = sorted(
             table_responses_ordered, key=lambda tup: tup[0]
@@ -368,13 +377,17 @@ class DynamoDBOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
-    def _process_batch_get_response(self, table_name, response, entity_ids, batch):
+    def _process_batch_get_response(
+        self, table_name, response, entity_ids, batch, **sort_kwargs
+    ):
         response = response.get("Responses")
         table_responses = response.get(table_name)
 
         batch_result = []
         if table_responses:
-            table_responses = self._sort_dynamodb_response(table_responses, entity_ids)
+            table_responses = self._sort_dynamodb_response(
+                table_responses, entity_ids, **sort_kwargs
+            )
             entity_idx = 0
             for tbl_res in table_responses:
                 entity_id = tbl_res["entity_id"]
