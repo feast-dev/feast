@@ -244,7 +244,7 @@ class DynamoDBOnlineStore(OnlineStore):
             # No more items to insert
             if len(batch) == 0:
                 break
-            batch_entity_ids = self._to_batch_get_payload(
+            batch_entity_ids = self._to_resource_batch_get_payload(
                 online_config, table_instance.name, batch
             )
             response = dynamodb_resource.batch_get_item(
@@ -293,7 +293,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 # No more items to insert
                 if len(batch) == 0:
                     break
-                batch_entity_ids = self._to_batch_get_payload(
+                batch_entity_ids = self._to_client_batch_get_payload(
                     online_config, table_name, batch
                 )
                 response = await client.batch_get_item(
@@ -405,10 +405,19 @@ class DynamoDBOnlineStore(OnlineStore):
         ]
 
     @staticmethod
-    def _to_batch_get_payload(online_config, table_name, batch):
+    def _to_resource_batch_get_payload(online_config, table_name, batch):
         return {
             table_name: {
                 "Keys": [{"entity_id": entity_id} for entity_id in batch],
+                "ConsistentRead": online_config.consistent_reads,
+            }
+        }
+
+    @staticmethod
+    def _to_client_batch_get_payload(online_config, table_name, batch):
+        return {
+            table_name: {
+                "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
                 "ConsistentRead": online_config.consistent_reads,
             }
         }
