@@ -229,7 +229,7 @@ class DynamoDBOnlineStore(OnlineStore):
                     "ConsistentRead": online_config.consistent_reads,
                 }
             }
-            response = batch_get_item.batch_get_item(
+            response = batch_get_item(
                 RequestItems=batch_entity_ids,
             )
             response = response.get("Responses")
