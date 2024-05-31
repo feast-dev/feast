@@ -17,7 +17,7 @@ import sqlite3
 import struct
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import sqlite_vec
 from pydantic import StrictStr
@@ -48,8 +48,11 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
-    vss_enabled: Optional[bool] = False
+    vec_enabled: Optional[bool] = False
     """ (optional) Enable or disable sqlite-vss for vector search"""
+
+    vector_len: Optional[int] = 512
+    """ (optional) Length of the vector to be stored in the database"""
 
 
 class SqliteOnlineStore(OnlineStore):
@@ -79,7 +82,7 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            self._conn.enable_load_extension(True)
+            self._conn.enable_load_extension(True)  # type: ignore
             sqlite_vec.load(self._conn)
 
         return self._conn
@@ -91,7 +94,7 @@ class SqliteOnlineStore(OnlineStore):
         data: List[
             Tuple[
                 EntityKeyProto,
-                Dict[str, Union[FloatListProto, ValueProto]],
+                Dict[str, ValueProto],
                 datetime,
                 Optional[datetime],
             ]
@@ -114,8 +117,10 @@ class SqliteOnlineStore(OnlineStore):
 
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
-                    if config.online_store.vss_enabled:
-                        vector_bin = serialize_f32(val.val)
+                    if config.online_store.vec_enabled:
+                        vector_bin = serialize_f32(
+                            val.float_list_val.val, config.online_store.vector_len
+                        )  # type: ignore
                         conn.execute(
                             f"""
                                     UPDATE {table_name}
@@ -311,20 +316,20 @@ class SqliteOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if not config.online_store.vss_enabled:
+        if not config.online_store.vec_enabled:
             raise ValueError("sqlite-vss is not enabled in the online store config")
 
         conn = self._get_conn(config)
         cur = conn.cursor()
 
         # Convert the embedding to a binary format instead of using SerializeToString()
-        query_embedding_bin = serialize_f32(embedding)
+        query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
         table_name = _table_id(project, table)
 
         cur.execute(
-            """
+            f"""
             CREATE VIRTUAL TABLE vec_example using vec0(
-                vector_value float[10]
+                vector_value float[{config.online_store.vector_len}]
         );
         """
         )
@@ -350,7 +355,6 @@ class SqliteOnlineStore(OnlineStore):
             f"""
             select
                 fv.entity_key,
-                f.rowid,
                 f.vector_value,
                 fv.value,
                 f.distance,
@@ -382,11 +386,12 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        for entity_key, _, vector_val, string_value, distance, event_ts in rows:
-            deserialized_val = deserialize_f32(vector_val)
+        for entity_key, _, string_value, distance, event_ts in rows:
             feature_value_proto = ValueProto()
             feature_value_proto.ParseFromString(string_value if string_value else b"")
-            vector_value_proto = FloatListProto(val=deserialized_val)
+            vector_value_proto = ValueProto(
+                float_list_val=FloatListProto(val=embedding)
+            )
             distance_value_proto = ValueProto(float_val=distance)
 
             result.append(
@@ -414,14 +419,15 @@ def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
-def serialize_f32(vector: List[float]) -> bytes:
+def serialize_f32(vector: List[float], vector_length: int) -> bytes:
     """serializes a list of floats into a compact "raw bytes" format"""
-    return struct.pack("%sf" % len(vector), *vector)
+    return struct.pack(f"{vector_length}f", *vector)
 
 
-def deserialize_f32(byte_vector: bytes) -> List[float]:
+def deserialize_f32(byte_vector: bytes, vector_length: int) -> List[float]:
     """deserializes a list of floats from a compact "raw bytes" format"""
-    return list(struct.unpack(f"{len(byte_vector) // 4}f", byte_vector))
+    num_floats = vector_length // 4  # 4 bytes per float
+    return list(struct.unpack(f"{num_floats}f", byte_vector))
 
 
 class SqliteTable(InfraObject):

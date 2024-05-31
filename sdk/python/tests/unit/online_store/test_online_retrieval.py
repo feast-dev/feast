@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import FloatList
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
@@ -423,12 +423,14 @@ def test_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
-    vector_length = 10
+    n = 10  # number of samples - note: we'll actually double it
+    vector_length = 8
     runner = CliRunner()
     with runner.local_repo(
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
-        store.config.online_store.vss_enabled = True
+        store.config.online_store.vec_enabled = True
+        store.config.online_store.vector_len = vector_length
         # Write some data to two tables
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
 
@@ -438,7 +440,7 @@ def test_get_online_documents() -> None:
             EntityKeyProto(
                 join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
             )
-            for i in range(10)
+            for i in range(n)
         ]
         data = []
         for item_key in item_keys:
@@ -446,9 +448,11 @@ def test_get_online_documents() -> None:
                 (
                     item_key,
                     {
-                        "Embeddings": FloatList(
-                            val=np.random.random(
-                                vector_length,
+                        "Embeddings": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=np.random.random(
+                                    vector_length,
+                                )
                             )
                         )
                     },
@@ -463,6 +467,23 @@ def test_get_online_documents() -> None:
             data=data,
             progress=None,
         )
+        documents_df = pd.DataFrame(
+            {
+                "item_id": [str(i) for i in range(n)],
+                "Embeddings": [
+                    np.random.random(
+                        vector_length,
+                    )
+                    for i in range(n)
+                ],
+                "event_timestamp": [datetime.utcnow() for _ in range(n)],
+            }
+        )
+
+        store.write_to_online_store(
+            feature_view_name="document_embeddings",
+            df=documents_df,
+        )
 
         document_table = store._provider._online_store._conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' and name like '%_document_embeddings';"
@@ -474,23 +495,11 @@ def test_get_online_documents() -> None:
                 f"select * from {document_table_name}"
             ).fetchall()
         )
-        assert record_count == len(data)
+        assert record_count == len(data) + documents_df.shape[0]
 
-        query = np.array(
-            [
-                0.17517076,
-                -0.1259909,
-                0.01954236,
-                0.03045186,
-                -0.00074535,
-                -0.02715777,
-                -0.04582673,
-                0.01173803,
-                -0.0573408,
-                0.02616226,
-            ]
+        query = np.random.random(
+            vector_length,
         )
-        # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
             feature="document_embeddings:Embeddings", query=query, top_k=3
         ).to_dict()
