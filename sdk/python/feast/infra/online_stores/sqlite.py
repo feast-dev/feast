@@ -327,6 +327,7 @@ class SqliteOnlineStore(OnlineStore):
         );
         """)
 
+        # Currently I can only insert the embedding value without crashing SQLite, will report a bug
         cur.execute(
             f"""
             INSERT INTO vec_example(rowid, vector_value) 
@@ -343,17 +344,26 @@ class SqliteOnlineStore(OnlineStore):
         # Have to join this with the {table_name} to get the feature name and entity_key
         # Also the `top_k` doesn't appear to be working for some reason
         cur.execute(
-            """
-        select
-            rowid as entity_key,
-            null as value,
-            vector_value,
-            distance,
-            datetime('now') event_ts
-        from vec_example
-        where vector_value match ?
-        order by distance
-        limit ?;
+            f"""
+            select
+                fv.entity_key,
+                f.rowid,
+                f.vector_value,
+                fv.value, 
+                f.distance,
+                fv.event_ts
+            from (
+                select
+                    rowid,
+                    vector_value,
+                    distance
+                from vec_example
+                where vector_value match ?
+                order by distance
+                limit ? 
+            ) f
+            left join {table_name} fv
+            on f.rowid = fv.rowid 
         """,
             (query_embedding_bin, top_k)
         )
@@ -369,11 +379,11 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        for entity_key, val_bin, vector_val, distance, event_ts in rows:
+        for entity_key, _, vector_val, string_value, distance, event_ts in rows:
+            deserialized_val = deserialize_f32(vector_val)
             feature_value_proto = ValueProto()
-            # feature_value_proto.ParseFromString(val_bin)
-
-            vector_value_proto = FloatListProto(val=vector_val)
+            feature_value_proto.ParseFromString(string_value if string_value else b'')
+            vector_value_proto = FloatListProto(val=deserialized_val)
             distance_value_proto = ValueProto(float_val=distance)
 
             result.append(
@@ -405,6 +415,9 @@ def serialize_f32(vector: List[float]) -> bytes:
     """serializes a list of floats into a compact "raw bytes" format"""
     return struct.pack("%sf" % len(vector), *vector)
 
+def deserialize_f32(byte_vector: bytes) -> List[float]:
+    """deserializes a list of floats from a compact "raw bytes" format"""
+    return list(struct.unpack(f"{len(byte_vector) // 4}f", byte_vector))
 
 class SqliteTable(InfraObject):
     """

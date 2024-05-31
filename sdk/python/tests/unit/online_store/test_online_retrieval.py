@@ -477,4 +477,5 @@ def test_get_online_documents() -> None:
         ).to_dict()
 
         assert "Embeddings" in result
-        assert result["driver_id"] == [0]
+        assert "distance" in result
+        assert len(result["distance"]) == 3
