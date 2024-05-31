@@ -209,7 +209,7 @@ class DynamoDBOnlineStore(OnlineStore):
         self._write_batch_non_duplicates(table_instance, data, progress, config)
 
     def _read_batches(
-        self, online_config, entity_ids, table_name, table_client
+        self, online_config, entity_ids, table_name, batch_get_item
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
@@ -229,7 +229,7 @@ class DynamoDBOnlineStore(OnlineStore):
                     "ConsistentRead": online_config.consistent_reads,
                 }
             }
-            response = table_client.batch_get_item(
+            response = batch_get_item.batch_get_item(
                 RequestItems=batch_entity_ids,
             )
             response = response.get("Responses")
@@ -297,7 +297,7 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config,
             entity_ids,
             table_instance.name,
-            dynamodb_resource,
+            dynamodb_resource.batch_get_item,
         )
 
     async def online_read_async(
@@ -337,7 +337,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 online_config,
                 entity_ids,
                 _get_table_name(online_config, config, table),
-                client,
+                lambda **kwargs: (await client(**kwargs)),
             )
 
     def _get_aioboto_session(self):
