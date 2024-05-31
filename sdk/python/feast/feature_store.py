@@ -1891,13 +1891,16 @@ class FeatureStore:
         )
         feature_view_validated = False
         for feature_view in available_feature_views:
-            if isinstance(requested_feature_view, str) and feature_view.name == requested_feature_view:
+            if (
+                isinstance(requested_feature_view, str)
+                and feature_view.name == requested_feature_view
+            ):
                 feature_view_validated = True
                 requested_feature_view = feature_view
         if not feature_view_validated:
             raise ValueError(
                 f"Feature view {requested_feature_view} not found in the registry."
-                )
+            )
         requested_feature = (
             feature.split(":")[1] if isinstance(feature, str) else feature
         )

@@ -89,7 +89,12 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         data: List[
-            Tuple[EntityKeyProto, Dict[str, Union[FloatListProto, ValueProto]], datetime, Optional[datetime]]
+            Tuple[
+                EntityKeyProto,
+                Dict[str, Union[FloatListProto, ValueProto]],
+                datetime,
+                Optional[datetime],
+            ]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
@@ -312,10 +317,6 @@ class SqliteOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         cur = conn.cursor()
 
-        # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
-
-
         # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding)
         table_name = _table_id(project, table)
@@ -325,20 +326,22 @@ class SqliteOnlineStore(OnlineStore):
             CREATE VIRTUAL TABLE vec_example using vec0(
                 vector_value float[10]
         );
-        """)
+        """
+        )
 
         # Currently I can only insert the embedding value without crashing SQLite, will report a bug
         cur.execute(
             f"""
-            INSERT INTO vec_example(rowid, vector_value) 
+            INSERT INTO vec_example(rowid, vector_value)
             select rowid, vector_value from {table_name}
-        """)
+        """
+        )
         cur.execute(
             """
-            INSERT INTO vec_example(rowid, vector_value) 
+            INSERT INTO vec_example(rowid, vector_value)
                 VALUES (?, ?)
         """,
-            (0, query_embedding_bin)
+            (0, query_embedding_bin),
         )
 
         # Have to join this with the {table_name} to get the feature name and entity_key
@@ -349,7 +352,7 @@ class SqliteOnlineStore(OnlineStore):
                 fv.entity_key,
                 f.rowid,
                 f.vector_value,
-                fv.value, 
+                fv.value,
                 f.distance,
                 fv.event_ts
             from (
@@ -360,12 +363,12 @@ class SqliteOnlineStore(OnlineStore):
                 from vec_example
                 where vector_value match ?
                 order by distance
-                limit ? 
+                limit ?
             ) f
             left join {table_name} fv
-            on f.rowid = fv.rowid 
+            on f.rowid = fv.rowid
         """,
-            (query_embedding_bin, top_k)
+            (query_embedding_bin, top_k),
         )
 
         rows = cur.fetchall()
@@ -382,7 +385,7 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key, _, vector_val, string_value, distance, event_ts in rows:
             deserialized_val = deserialize_f32(vector_val)
             feature_value_proto = ValueProto()
-            feature_value_proto.ParseFromString(string_value if string_value else b'')
+            feature_value_proto.ParseFromString(string_value if string_value else b"")
             vector_value_proto = FloatListProto(val=deserialized_val)
             distance_value_proto = ValueProto(float_val=distance)
 
@@ -415,9 +418,11 @@ def serialize_f32(vector: List[float]) -> bytes:
     """serializes a list of floats into a compact "raw bytes" format"""
     return struct.pack("%sf" % len(vector), *vector)
 
+
 def deserialize_f32(byte_vector: bytes) -> List[float]:
     """deserializes a list of floats from a compact "raw bytes" format"""
     return list(struct.unpack(f"{len(byte_vector) // 4}f", byte_vector))
+
 
 class SqliteTable(InfraObject):
     """

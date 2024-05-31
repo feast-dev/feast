@@ -122,6 +122,7 @@ document_embeddings = FeatureView(
     ttl=timedelta(hours=24),
 )
 
+
 @on_demand_feature_view(
     sources=[customer_profile],
     schema=[Field(name="on_demand_age", dtype=Int64)],

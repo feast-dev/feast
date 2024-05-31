@@ -22,7 +22,7 @@ def test_get_online_features() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -279,7 +279,7 @@ def test_online_to_df():
 
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         # Write three tables to online store
         driver_locations_fv = store.get_feature_view(name="driver_locations")
@@ -426,7 +426,7 @@ def test_get_online_documents() -> None:
     vector_length = 10
     runner = CliRunner()
     with runner.local_repo(
-            get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
         store.config.online_store.vss_enabled = True
         # Write some data to two tables
@@ -437,14 +437,21 @@ def test_get_online_documents() -> None:
         item_keys = [
             EntityKeyProto(
                 join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
-            ) for i in range(10)
+            )
+            for i in range(10)
         ]
         data = []
         for item_key in item_keys:
             data.append(
                 (
                     item_key,
-                    {"Embeddings": FloatList(val=np.random.random(vector_length, ))},
+                    {
+                        "Embeddings": FloatList(
+                            val=np.random.random(
+                                vector_length,
+                            )
+                        )
+                    },
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
@@ -463,17 +470,29 @@ def test_get_online_documents() -> None:
         assert len(document_table) == 1
         document_table_name = document_table[0][0]
         record_count = len(
-            store._provider._online_store._conn.execute(f"select * from {document_table_name}").fetchall())
+            store._provider._online_store._conn.execute(
+                f"select * from {document_table_name}"
+            ).fetchall()
+        )
         assert record_count == len(data)
 
         query = np.array(
-            [0.17517076, -0.1259909, 0.01954236, 0.03045186, -0.00074535, -0.02715777, -0.04582673, 0.01173803,
-             -0.0573408, 0.02616226])
+            [
+                0.17517076,
+                -0.1259909,
+                0.01954236,
+                0.03045186,
+                -0.00074535,
+                -0.02715777,
+                -0.04582673,
+                0.01173803,
+                -0.0573408,
+                0.02616226,
+            ]
+        )
         # Retrieve two features using two keys, one valid one non-existing
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings",
-            query=query,
-            top_k=3
+            feature="document_embeddings:Embeddings", query=query, top_k=3
         ).to_dict()
 
         assert "Embeddings" in result
