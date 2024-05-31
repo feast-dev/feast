@@ -34,6 +34,7 @@ from feast.utils import get_user_agent
 try:
     import boto3
     from aiobotocore import session
+    from boto3.dynamodb.types import TypeDeserializer
     from botocore.config import Config
     from botocore.exceptions import ClientError
 except ImportError as e:
@@ -286,8 +287,14 @@ class DynamoDBOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         table_name = _get_table_name(online_config, config, table)
 
+        deserialize = TypeDeserializer().deserialize
+
         def to_tbl_resp(raw_client_response):
-            return {"entity_id": raw_client_response["entity_id"]["S"]}
+            return {
+                "entity_id": deserialize(raw_client_response["entity_id"]),
+                "event_ts": deserialize(raw_client_response["event_ts"]),
+                "values": deserialize(raw_client_response["values"]),
+            }
 
         async with self._get_aiodynamodb_client(online_config.region) as client:
             while True:
