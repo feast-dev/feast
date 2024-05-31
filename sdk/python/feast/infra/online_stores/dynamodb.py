@@ -35,6 +35,7 @@ try:
     import boto3
     from botocore.config import Config
     from botocore.exceptions import ClientError
+    from aiobotocore import session
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -80,6 +81,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
     _dynamodb_client = None
     _dynamodb_resource = None
+    _aioboto_session = None
 
     def update(
         self,
@@ -206,38 +208,9 @@ class DynamoDBOnlineStore(OnlineStore):
         )
         self._write_batch_non_duplicates(table_instance, data, progress, config)
 
-    def online_read(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        """
-        Retrieve feature values from the online DynamoDB store.
-
-        Args:
-            config: The RepoConfig for the current FeatureStore.
-            table: Feast FeatureView.
-            entity_keys: a list of entity keys that should be read from the FeatureStore.
-        """
-        online_config = config.online_store
-        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
-        dynamodb_resource = self._get_dynamodb_resource(
-            online_config.region, online_config.endpoint_url
-        )
-        table_instance = dynamodb_resource.Table(
-            _get_table_name(online_config, config, table)
-        )
-
+    def _read_batches(self, online_config, entity_ids, table_name, batch_get_item) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        entity_ids = [
-            compute_entity_id(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
-            for entity_key in entity_keys
-        ]
+
         batch_size = online_config.batch_size
         entity_ids_iter = iter(entity_ids)
         while True:
@@ -249,16 +222,16 @@ class DynamoDBOnlineStore(OnlineStore):
             if len(batch) == 0:
                 break
             batch_entity_ids = {
-                table_instance.name: {
+                table_name: {
                     "Keys": [{"entity_id": entity_id} for entity_id in batch],
                     "ConsistentRead": online_config.consistent_reads,
                 }
             }
-            response = dynamodb_resource.batch_get_item(
+            response = batch_get_item(
                 RequestItems=batch_entity_ids,
             )
             response = response.get("Responses")
-            table_responses = response.get(table_instance.name)
+            table_responses = response.get(table_name)
             if table_responses:
                 table_responses = self._sort_dynamodb_response(
                     table_responses, entity_ids
@@ -285,6 +258,93 @@ class DynamoDBOnlineStore(OnlineStore):
             batch_result.extend(batch_size_nones)
             result.extend(batch_result)
         return result
+
+    def online_read(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Retrieve feature values from the online DynamoDB store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            entity_keys: a list of entity keys that should be read from the FeatureStore.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region, online_config.endpoint_url
+        )
+        table_instance = dynamodb_resource.Table(
+            _get_table_name(online_config, config, table)
+        )
+
+        entity_ids = [
+            compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
+
+        return self._read_batches(
+            online_config,
+            entity_ids,
+            table_instance.name,
+            dynamodb_resource.batch_get_item,
+        )
+
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Reads features values for the given entity keys asynchronously.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            entity_keys: The list of entity keys for which feature values should be read.
+            requested_features: The list of features that should be read.
+
+        Returns:
+            A list of the same length as entity_keys. Each item in the list is a tuple where the first
+            item is the event timestamp for the row, and the second item is a dict mapping feature names
+            to values, which are returned in proto format.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        entity_ids = [
+            compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
+
+        async with self._get_aiodynamodb_client(online_config.region) as client:
+            return self._read_batches(
+                online_config,
+                entity_ids,
+                _get_table_name(online_config, config, table),
+                client.batch_get_item
+            )
+
+    def _get_aioboto_session(self):
+        if self._aioboto_session is None:
+            self._aioboto_session = session.get_session()
+        return self._aioboto_session
+
+    def _get_aiodynamodb_client(self, region: str):
+        return self._get_aioboto_session().create_client("dynamodb", region_name=region)
 
     def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
         if self._dynamodb_client is None:
