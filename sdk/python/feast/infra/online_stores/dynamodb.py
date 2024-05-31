@@ -33,9 +33,9 @@ from feast.utils import get_user_agent
 
 try:
     import boto3
+    from aiobotocore import session
     from botocore.config import Config
     from botocore.exceptions import ClientError
-    from aiobotocore import session
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -208,7 +208,9 @@ class DynamoDBOnlineStore(OnlineStore):
         )
         self._write_batch_non_duplicates(table_instance, data, progress, config)
 
-    def _read_batches(self, online_config, entity_ids, table_name, batch_get_item) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    def _read_batches(
+        self, online_config, entity_ids, table_name, batch_get_item
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
         batch_size = online_config.batch_size
@@ -335,7 +337,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 online_config,
                 entity_ids,
                 _get_table_name(online_config, config, table),
-                client.batch_get_item
+                client.batch_get_item,
             )
 
     def _get_aioboto_session(self):
