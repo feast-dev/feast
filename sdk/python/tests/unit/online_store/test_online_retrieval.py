@@ -1,12 +1,12 @@
 import os
+import sqlite3
 import time
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import sqlite3
-import sqlite_vec
 import pytest
+import sqlite_vec
 from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
