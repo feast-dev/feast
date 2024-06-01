@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import sqlite3
 import sqlite_vec
 import pytest
 from pandas.testing import assert_frame_equal
@@ -508,3 +509,34 @@ def test_get_online_documents() -> None:
         assert "Embeddings" in result
         assert "distance" in result
         assert len(result["distance"]) == 3
+
+
+def test_sqlite_vec_import() -> None:
+    db = sqlite3.connect(":memory:")
+    db.enable_load_extension(True)
+    sqlite_vec.load(db)
+
+    db.execute("""
+    create virtual table vec_examples using vec0(
+      sample_embedding float[8]
+    );
+    """)
+    db.execute("""
+    insert into vec_examples(rowid, sample_embedding)
+    values
+        (1, '[-0.200, 0.250, 0.341, -0.211, 0.645, 0.935, -0.316, -0.924]'),
+        (2, '[0.443, -0.501, 0.355, -0.771, 0.707, -0.708, -0.185, 0.362]'),
+        (3, '[0.716, -0.927, 0.134, 0.052, -0.669, 0.793, -0.634, -0.162]'),
+        (4, '[-0.710, 0.330, 0.656, 0.041, -0.990, 0.726, 0.385, -0.958]');
+    """)
+    result = db.execute("""
+        select
+            rowid,
+            distance
+        from vec_examples
+        where sample_embedding match '[0.890, 0.544, 0.825, 0.961, 0.358, 0.0196, 0.521, 0.175]'
+        order by distance
+        limit 2;
+    """).fetchall()
+    result = [(rowid, round(distance, 2)) for rowid, distance in result]
+    assert result == [(2, 2.39), (1, 2.39)]
