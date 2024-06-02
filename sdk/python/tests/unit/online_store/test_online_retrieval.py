@@ -521,6 +521,7 @@ def test_sqlite_vec_import() -> None:
       sample_embedding float[8]
     );
     """)
+    
     db.execute("""
     insert into vec_examples(rowid, sample_embedding)
     values
@@ -529,6 +530,12 @@ def test_sqlite_vec_import() -> None:
         (3, '[0.716, -0.927, 0.134, 0.052, -0.669, 0.793, -0.634, -0.162]'),
         (4, '[-0.710, 0.330, 0.656, 0.041, -0.990, 0.726, 0.385, -0.958]');
     """)
+    
+    sqlite_version, vec_version = db.execute(
+        "select sqlite_version(), vec_version()"
+    ).fetchone()
+    print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
+    
     result = db.execute("""
         select
             rowid,
