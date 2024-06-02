@@ -45,7 +45,7 @@ FROM
 WHERE
     other_column = 'value'
 ```
-That 'value' will fail in Snowflake.
+That 'value' will fail in Snowflake. Instead, please use pairs of dollar signs like `$$value$$` as [mentioned in Snowflake document](https://docs.snowflake.com/en/sql-reference/data-types-text#label-dollar-quoted-string-constants).  
 
 
 
