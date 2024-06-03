@@ -125,8 +125,13 @@ class BigtableOnlineStore(OnlineStore):
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
         client = self._get_client_async(online_config=config.online_store, pool_size=pool_size)
+        logger.info(f"Time to get client using async v1 client: {time.perf_counter() - start}")
+
+        start = time.perf_counter()
         async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
             logger.info(f"Time to get client & table using async v1 client: {time.perf_counter() - start}")
+
+            start = time.perf_counter()
             row_keys = [
                 self._compute_row_key(
                     entity_key=entity_key,
@@ -139,6 +144,9 @@ class BigtableOnlineStore(OnlineStore):
             row_filter = data_row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
             query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
 
+            logger.info(f"Time to compute row keys & query using async v1 client: {time.perf_counter() - start}")
+            
+            start = time.perf_counter()
             rows = await bt_table.read_rows(
                 query=query
             )
@@ -186,13 +194,19 @@ class BigtableOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        profiling_res = dict()
         start = time.perf_counter()
         client = self._get_client_async_v2()
+        logger.info(f"Time to get client using async v2 client: {time.perf_counter() - start}")
+        profiling_res["t1"] = time.perf_counter() - start
+        start = time.perf_counter()
         instance_id = config.online_store.instance
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
         project_name = config.online_store.project_id
-        logger.info(f"Time to get client & table async v2 client: {time.perf_counter() - start}")
+        logger.info(f"Time to get table & instance async v2 client: {time.perf_counter() - start}")
+        profiling_res["t2"] = time.perf_counter() - start
+        start = time.perf_counter()
         row_keys = [
                 self._compute_row_key(
                     entity_key=entity_key,
@@ -211,12 +225,15 @@ class BigtableOnlineStore(OnlineStore):
             }
         )
 
+        logger.info(f"Time to get row keys & query & request async v2 client: {time.perf_counter() - start}")
+        profiling_res["t3"] = time.perf_counter() - start
+        start = time.perf_counter()
         rows = await client.read_rows(
             request=request
         )
 
         logger.info(f"Time to read rows using async v2 client: {time.perf_counter() - start}")
-
+        profiling_res["t4"] = time.perf_counter() - start
         process_start = time.perf_counter()
         final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
@@ -257,7 +274,8 @@ class BigtableOnlineStore(OnlineStore):
             final_result[i] = (event_ts, res)
                         
         logger.info(f"Time to process rows using async v2 client: {time.perf_counter() - process_start}")
-        return final_result
+        profiling_res["t5"] = time.perf_counter() - start
+        return final_result, profiling_res
 
 
     def _process_bt_row(
