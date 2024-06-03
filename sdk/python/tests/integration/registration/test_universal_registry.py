@@ -135,6 +135,35 @@ def pg_registry():
 
     container.start()
 
+    registry_config = _given_registry_config_for_pg_sql(container)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+@pytest.fixture(scope="session")
+def pg_registry_async():
+    container = (
+        DockerContainer("postgres:latest")
+        .with_exposed_ports(5432)
+        .with_env("POSTGRES_USER", POSTGRES_USER)
+        .with_env("POSTGRES_PASSWORD", POSTGRES_PASSWORD)
+        .with_env("POSTGRES_DB", POSTGRES_DB)
+    )
+
+    container.start()
+
+    registry_config = _given_registry_config_for_pg_sql(container, 2, True)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+def _given_registry_config_for_pg_sql(
+    container, cache_ttl_seconds=2, allow_async_cache=False
+):
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
         container=container,
@@ -146,15 +175,13 @@ def pg_registry():
     container_port = container.get_exposed_port(5432)
     container_host = container.get_container_host_ip()
 
-    registry_config = RegistryConfig(
+    return RegistryConfig(
         registry_type="sql",
+        cache_ttl_seconds=cache_ttl_seconds,
+        allow_async_cache=allow_async_cache,
         path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
-
-    yield SqlRegistry(registry_config, "project", None)
-
-    container.stop()
 
 
 @pytest.fixture(scope="session")
@@ -162,7 +189,28 @@ def mysql_registry():
     container = MySqlContainer("mysql:latest")
     container.start()
 
-    # testing for the database to exist and ready to connect and start testing.
+    registry_config = _given_registry_config_for_mysql(container)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+@pytest.fixture(scope="session")
+def mysql_registry_async():
+    container = MySqlContainer("mysql:latest")
+    container.start()
+
+    registry_config = _given_registry_config_for_mysql(container, 2, True)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+def _given_registry_config_for_mysql(
+    container, cache_ttl_seconds=2, allow_async_cache=False
+):
     import sqlalchemy
 
     engine = sqlalchemy.create_engine(
@@ -170,15 +218,13 @@ def mysql_registry():
     )
     engine.connect()
 
-    registry_config = RegistryConfig(
+    return RegistryConfig(
         registry_type="sql",
         path=container.get_connection_url(),
+        cache_ttl_seconds=cache_ttl_seconds,
+        allow_async_cache=allow_async_cache,
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
-
-    yield SqlRegistry(registry_config, "project", None)
-
-    container.stop()
 
 
 @pytest.fixture(scope="session")
@@ -263,6 +309,17 @@ sql_fixtures = [
         marks=pytest.mark.xdist_group(name="mysql_registry"),
     ),
     lazy_fixture("sqlite_registry"),
+]
+
+async_sql_fixtures = [
+    pytest.param(
+        lazy_fixture("pg_registry_async"),
+        marks=pytest.mark.xdist_group(name="pg_registry_async"),
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry_async"),
+        marks=pytest.mark.xdist_group(name="mysql_registry_async"),
+    ),
 ]
 
 
@@ -767,6 +824,44 @@ def test_registry_cache(test_registry):
     assert len(registry_data_sources_cached) == 1
     registry_feature_view = registry_feature_views_cached[0]
     assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources_cached[0]
+    assert registry_data_source == batch_source
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    async_sql_fixtures,
+)
+def test_registry_cache_async(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    project = "project"
+
+    # Register data source
+    test_registry.apply_data_source(batch_source, project)
+    registry_data_sources_cached = test_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    # async ttl yet to expire, so cache miss
+    assert len(registry_data_sources_cached) == 0
+
+    # Wait for cache to be refreshed
+    time.sleep(4)
+    # Now objects exist
+    registry_data_sources_cached = test_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    assert len(registry_data_sources_cached) == 1
     registry_data_source = registry_data_sources_cached[0]
     assert registry_data_source == batch_source
 

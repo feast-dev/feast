@@ -1,4 +1,5 @@
 import logging
+import threading
 from abc import abstractmethod
 from datetime import datetime, timedelta
 from threading import Lock
@@ -21,9 +22,7 @@ logger = logging.getLogger(__name__)
 
 class CachingRegistry(BaseRegistry):
     def __init__(
-        self,
-        project: str,
-        cache_ttl_seconds: int,
+        self, project: str, cache_ttl_seconds: int, allow_async_cache: bool = False
     ):
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
@@ -32,6 +31,9 @@ class CachingRegistry(BaseRegistry):
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
+        self.allow_async_cache = allow_async_cache
+        if allow_async_cache:
+            threading.Timer(cache_ttl_seconds, self.refresh).start()
 
     @abstractmethod
     def _get_data_source(self, name: str, project: str) -> DataSource:
@@ -289,6 +291,8 @@ class CachingRegistry(BaseRegistry):
         self.cached_registry_proto_created = datetime.utcnow()
 
     def _refresh_cached_registry_if_necessary(self):
+        if self.allow_async_cache:
+            return
         with self._refresh_lock:
             expired = (
                 self.cached_registry_proto is None
