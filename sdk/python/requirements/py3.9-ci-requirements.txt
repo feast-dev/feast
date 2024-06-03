@@ -875,7 +875,7 @@ sqlalchemy-views==0.3.2
     # via ibis-framework
 sqlglot==20.11.0
     # via ibis-framework
-sqlite-vec==0.0.1a9
+sqlite-vec==0.0.1a10
     # via feast (setup.py)
 stack-data==0.6.3
     # via ipython
