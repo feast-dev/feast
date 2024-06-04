@@ -234,6 +234,7 @@ class BigtableOnlineStore(OnlineStore):
 
         logger.info(f"Time to read rows using async v2 client: {time.perf_counter() - start}")
         profiling_res["t4"] = time.perf_counter() - start
+
         process_start = time.perf_counter()
         final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
@@ -244,37 +245,29 @@ class BigtableOnlineStore(OnlineStore):
                 # if row key exists, we're on a new row, we can get the event timestamp for this row and clear res
                 row_key = chunk.row_key
                 qualifier = chunk.qualifier
-                if row_key.decode() != '':
+                # if row key doesn't exist, we're still on the same row
+                # if qualifier doesn't exist, we're on the same row and same feature
+                # for every row, we just want the most recent version of each feature
+                if row_key != b'':
                     if event_ts:
                         final_result[i] = (event_ts, res)
                         i += 1
                     res = dict()
-                    qualifier = chunk.qualifier
-                    if qualifier is None:
-                        pass
-                    elif qualifier.decode() == "event_ts":
-                        event_ts = datetime.fromisoformat(chunk.value.decode())
-                    elif qualifier.decode() != '':
-                        feature_value = chunk.value
-                        val = ValueProto()
-                        val.ParseFromString(feature_value)
-                        res[qualifier.decode()] = val
-                else:
-                    # if row key doesn't exist, we're still on the same row
-                    # if qualifier doesn't exist, we're on the same row and same feature
-                    # for every row, we just want the most recent version of each feature
-                    if qualifier is None:
-                        pass
-                    elif qualifier.decode() != '':
-                        # we're on the same row, but there might be a new feature we want
-                        feature_value = chunk.value
-                        val = ValueProto()
-                        val.ParseFromString(feature_value)
-                        res[qualifier.decode()] = val
+
+                if qualifier is None:
+                    pass
+                elif qualifier == b"event_ts":
+                    event_ts = datetime.fromisoformat(chunk.value.decode())
+                elif qualifier != b'':
+                    # we're on the same row, but there might be a new feature we want
+                    feature_value = chunk.value
+                    val = ValueProto()
+                    val.ParseFromString(feature_value)
+                    res[qualifier.decode()] = val
             final_result[i] = (event_ts, res)
                         
         logger.info(f"Time to process rows using async v2 client: {time.perf_counter() - process_start}")
-        profiling_res["t5"] = time.perf_counter() - start
+        profiling_res["t5"] = time.perf_counter() - process_start
         return final_result, profiling_res
 
 
