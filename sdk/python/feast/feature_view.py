@@ -21,7 +21,7 @@ from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import utils
-from feast.base_feature_view import BaseFeatureView
+from feast.base_feature_view import BaseFeatureView, FeatureViewType
 from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
@@ -78,6 +78,7 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        feature_view_type: The type of the feature view, one of "Batch", "On Demand", or "Stream". Defaults to "Batch".
     """
 
     name: str
@@ -92,6 +93,7 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    feature_view_type: FeatureViewType
 
     def __init__(
         self,
@@ -105,6 +107,7 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        feature_view_type: FeatureViewType = FeatureViewType.BATCH,
     ):
         """
         Creates a FeatureView object.
@@ -126,6 +129,7 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            feature_view_type (optional): The type of the feature view, one of "Batch", "On Demand", or "Streaming". Defaults to "Batch".
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -133,6 +137,7 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+        self.feature_view_type = feature_view_type
         schema = schema or []
 
         # Initialize data sources.
@@ -206,6 +211,7 @@ class FeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            feature_view_type=feature_view_type,
         )
         self.online = online
         self.materialization_intervals = []
@@ -221,6 +227,7 @@ class FeatureView(BaseFeatureView):
             schema=self.schema,
             tags=self.tags,
             online=self.online,
+            feature_view_type=self.feature_view_type,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -228,6 +235,7 @@ class FeatureView(BaseFeatureView):
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
+        fv.feature_view_type = copy.copy(self.feature_view_type)
         return fv
 
     def __eq__(self, other):
@@ -246,6 +254,7 @@ class FeatureView(BaseFeatureView):
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+            or self.feature_view_type != other.feature_view_type
         ):
             return False
 
@@ -341,6 +350,7 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            feature_view_type=self.feature_view_type.value,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -356,6 +366,10 @@ class FeatureView(BaseFeatureView):
             interval_proto.start_time.FromDatetime(interval[0])
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
+        if self.feature_view_type:
+            meta.feature_view_type = self.feature_view_type
+        else:
+            meta.feature_view_type = FeatureViewType.BATCH
         return meta
 
     def get_ttl_duration(self):
@@ -394,6 +408,7 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
+            feature_view_type=feature_view_proto.spec.feature_view_type,
         )
         if stream_source:
             feature_view.stream_source = stream_source

@@ -13,6 +13,7 @@
 # limitations under the License.
 from abc import ABC, abstractmethod
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional, Type, Union
 
 from google.protobuf.json_format import MessageToJson
@@ -27,6 +28,12 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
+
+
+class FeatureViewType(Enum):
+    BATCH = "Batch"
+    ON_DEMAND = "On Demand"
+    STREAM = "Stream"
 
 
 class BaseFeatureView(ABC):
@@ -55,6 +62,7 @@ class BaseFeatureView(ABC):
     projection: FeatureViewProjection
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+    feature_view_type: Optional[FeatureViewType]
 
     @abstractmethod
     def __init__(
@@ -65,6 +73,7 @@ class BaseFeatureView(ABC):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        feature_view_type: FeatureViewType = FeatureViewType.BATCH,
     ):
         """
         Creates a BaseFeatureView object.
@@ -76,6 +85,7 @@ class BaseFeatureView(ABC):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the base feature view, typically the email of the
                 primary maintainer.
+            feature_view_type (optional): The type of the feature view. Defaults to BATCH.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -89,6 +99,7 @@ class BaseFeatureView(ABC):
         self.projection = FeatureViewProjection.from_definition(self)
         self.created_timestamp = None
         self.last_updated_timestamp = None
+        self.feature_view_type = feature_view_type or FeatureViewType.BATCH
 
     @property
     @abstractmethod

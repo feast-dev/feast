@@ -13,7 +13,7 @@ from feast import flags_helper, utils
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.feature_view import FeatureView
+from feast.feature_view import FeatureView, FeatureViewType
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
@@ -61,6 +61,7 @@ class StreamFeatureView(FeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
+        feature_view_type: The type of the feature view, one of "Batch", "On Demand", or "Streaming". Defaults to "Stream".
     """
 
     name: str
@@ -81,6 +82,7 @@ class StreamFeatureView(FeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[PandasTransformation]
+    feature_view_type = FeatureViewType.STREAM
 
     def __init__(
         self,
@@ -100,6 +102,7 @@ class StreamFeatureView(FeatureView):
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Union[PandasTransformation]] = None,
+        feature_view_type=FeatureViewType.STREAM,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -128,6 +131,7 @@ class StreamFeatureView(FeatureView):
         self.udf = udf
         self.udf_string = udf_string
         self.feature_transformation = feature_transformation
+        self.feature_view_type = feature_view_type
 
         super().__init__(
             name=name,
@@ -139,6 +143,7 @@ class StreamFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
+            feature_view_type=feature_view_type,
         )
 
     def __eq__(self, other):
@@ -159,6 +164,7 @@ class StreamFeatureView(FeatureView):
             or self.udf.__code__.co_code != other.udf.__code__.co_code
             or self.udf_string != other.udf_string
             or self.aggregations != other.aggregations
+            or self.feature_view_type != other.feature_view_type
         ):
             return False
 
@@ -215,6 +221,7 @@ class StreamFeatureView(FeatureView):
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
             mode=self.mode,
+            feature_view_type=self.feature_view_type,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -241,11 +248,6 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
-        # feature_transformation = (
-        #     sfv_proto.spec.feature_transformation.user_defined_function.body_text
-        #     if sfv_proto.spec.HasField("feature_transformation")
-        #     else None
-        # )
         stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -272,6 +274,7 @@ class StreamFeatureView(FeatureView):
                 for agg_proto in sfv_proto.spec.aggregations
             ],
             timestamp_field=sfv_proto.spec.timestamp_field,
+            feature_view_type=sfv_proto.spec.feature_view_type,
         )
 
         if batch_source:
@@ -324,6 +327,7 @@ class StreamFeatureView(FeatureView):
             source=self.stream_source if self.stream_source else self.batch_source,
             udf=self.udf,
             feature_transformation=self.feature_transformation,
+            feature_view_type=self.feature_view_type,
         )
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
@@ -349,6 +353,7 @@ def stream_feature_view(
     aggregations: Optional[List[Aggregation]] = None,
     mode: Optional[str] = "spark",
     timestamp_field: Optional[str] = "",
+    feature_view_type=FeatureViewType.STREAM,
 ):
     """
     Creates an StreamFeatureView object with the given user function as udf.
@@ -381,6 +386,7 @@ def stream_feature_view(
             aggregations=aggregations,
             mode=mode,
             timestamp_field=timestamp_field,
+            feature_view_type=feature_view_type,
         )
         functools.update_wrapper(wrapper=stream_feature_view_obj, wrapped=user_function)
         return stream_feature_view_obj

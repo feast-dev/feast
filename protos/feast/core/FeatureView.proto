@@ -61,6 +61,7 @@ message FeatureViewSpec {
 
     // Owner of the feature view.
     string owner = 11;
+    string feature_view_type = 13;
 
     // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between

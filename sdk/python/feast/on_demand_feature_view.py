@@ -11,7 +11,7 @@ import pandas as pd
 import pyarrow
 from typeguard import typechecked
 
-from feast.base_feature_view import BaseFeatureView
+from feast.base_feature_view import BaseFeatureView, FeatureViewType
 from feast.data_source import RequestSource
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
@@ -71,6 +71,7 @@ class OnDemandFeatureView(BaseFeatureView):
     description: str
     tags: dict[str, str]
     owner: str
+    feature_view_type: FeatureViewType
 
     def __init__(  # noqa: C901
         self,
@@ -93,6 +94,7 @@ class OnDemandFeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[dict[str, str]] = None,
         owner: str = "",
+        feature_view_type: FeatureViewType = FeatureViewType.ON_DEMAND,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -113,6 +115,7 @@ class OnDemandFeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
+            feature_view_type: The type of the feature view, one of "Batch", "On Demand", or "Streaming". Defaults to "On Demand".
         """
         super().__init__(
             name=name,
@@ -120,6 +123,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            feature_view_type=feature_view_type,
         )
 
         self.mode = mode.lower()
@@ -174,6 +178,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            feature_view_type=self.feature_view_type,
         )
         fv.projection = copy.copy(self.projection)
         return fv
@@ -193,6 +198,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.source_request_sources != other.source_request_sources
             or self.mode != other.mode
             or self.feature_transformation != other.feature_transformation
+            or self.feature_view_type != other.feature_view_type
         ):
             return False
 
@@ -246,6 +252,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            feature_view_type=FeatureViewType.ON_DEMAND,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -350,6 +357,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
+            feature_view_type=on_demand_feature_view_proto.spec.feature_view_type,
         )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
@@ -664,6 +672,7 @@ def on_demand_feature_view(
             description=description,
             tags=tags,
             owner=owner,
+            feature_view_type=FeatureViewType.ON_DEMAND,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function
