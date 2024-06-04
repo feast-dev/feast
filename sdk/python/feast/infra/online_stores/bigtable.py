@@ -245,6 +245,7 @@ class BigtableOnlineStore(OnlineStore):
         self, row: Optional[bigtable.row.PartialRowData]
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res = {}
+
         if row is None:
             return (None, None)
 
@@ -256,6 +257,7 @@ class BigtableOnlineStore(OnlineStore):
             val = ValueProto()
             val.ParseFromString(feature_value.value)
             res[feature_name.decode()] = val
+
         return (event_ts, res)
 
     @log_exceptions_and_usage(online_store="bigtable")
