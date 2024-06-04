@@ -2,7 +2,6 @@ import hashlib
 import logging
 from concurrent import futures
 from datetime import datetime
-import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 import google
@@ -98,7 +97,6 @@ class BigtableOnlineStore(OnlineStore):
                 else None
             ),
         )
-        logger.info(f"Time to read rows using sync client: {time.perf_counter() - start}")
 
         # The BigTable client library only returns rows for keys that are found. This
         # means that it's our responsibility to match the returned rows to the original
@@ -120,18 +118,13 @@ class BigtableOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         # Potential performance improvement opportunity described in
         # https://github.com/feast-dev/feast/issues/3259
-        start = time.perf_counter()
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
         client = self._get_client_async(online_config=config.online_store, pool_size=pool_size)
-        logger.info(f"Time to get client using async v1 client: {time.perf_counter() - start}")
 
-        start = time.perf_counter()
         async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
-            logger.info(f"Time to get client & table using async v1 client: {time.perf_counter() - start}")
 
-            start = time.perf_counter()
             row_keys = [
                 self._compute_row_key(
                     entity_key=entity_key,
@@ -144,14 +137,9 @@ class BigtableOnlineStore(OnlineStore):
             row_filter = data_row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
             query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
 
-            logger.info(f"Time to compute row keys & query using async v1 client: {time.perf_counter() - start}")
-            
-            start = time.perf_counter()
             rows = await bt_table.read_rows(
                 query=query
             )
-
-            logger.info(f"Time to read rows using async v1 client: {time.perf_counter() - start}")
 
             # The BigTable client library only returns rows for keys that are found. This
             # means that it's our responsibility to match the returned rows to the original
@@ -161,7 +149,6 @@ class BigtableOnlineStore(OnlineStore):
                 row.row_key: row for row in rows
             }
 
-            process_start = time.perf_counter()
             final_result = []
             for key in row_keys:
                 res = {}
@@ -183,7 +170,6 @@ class BigtableOnlineStore(OnlineStore):
                         val.ParseFromString(feature_value)
                         res[feature_name.decode()] = val
                     final_result.append((event_ts, res))
-            logger.info(f"Time to process rows from async v1 client: {time.perf_counter() - process_start}")
             return final_result
         
     @log_exceptions_and_usage(online_store="bigtable")
@@ -194,19 +180,13 @@ class BigtableOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        profiling_res = dict()
-        start = time.perf_counter()
+
         client = self._get_client_async_v2()
-        logger.info(f"Time to get client using async v2 client: {time.perf_counter() - start}")
-        profiling_res["t1"] = time.perf_counter() - start
-        start = time.perf_counter()
         instance_id = config.online_store.instance
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
         project_name = config.online_store.project_id
-        logger.info(f"Time to get table & instance async v2 client: {time.perf_counter() - start}")
-        profiling_res["t2"] = time.perf_counter() - start
-        start = time.perf_counter()
+
         row_keys = [
                 self._compute_row_key(
                     entity_key=entity_key,
@@ -215,6 +195,7 @@ class BigtableOnlineStore(OnlineStore):
                 )
                 for entity_key in entity_keys
             ]
+        
         query = ReadRowsQuery(row_keys=row_keys)
         request = ReadRowsRequest(
             {
@@ -225,17 +206,10 @@ class BigtableOnlineStore(OnlineStore):
             }
         )
 
-        logger.info(f"Time to get row keys & query & request async v2 client: {time.perf_counter() - start}")
-        profiling_res["t3"] = time.perf_counter() - start
-        start = time.perf_counter()
         rows = await client.read_rows(
             request=request
         )
 
-        logger.info(f"Time to read rows using async v2 client: {time.perf_counter() - start}")
-        profiling_res["t4"] = time.perf_counter() - start
-
-        process_start = time.perf_counter()
         final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
         i = 0
@@ -265,17 +239,14 @@ class BigtableOnlineStore(OnlineStore):
                     val.ParseFromString(feature_value)
                     res[qualifier.decode()] = val
             final_result[i] = (event_ts, res)
-                        
-        logger.info(f"Time to process rows using async v2 client: {time.perf_counter() - process_start}")
-        profiling_res["t5"] = time.perf_counter() - process_start
-        return final_result, profiling_res
+
+        return final_result
 
 
     def _process_bt_row(
         self, row: Optional[bigtable.row.PartialRowData]
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         res = {}
-        start = time.perf_counter()
         if row is None:
             return (None, None)
 
@@ -287,7 +258,6 @@ class BigtableOnlineStore(OnlineStore):
             val = ValueProto()
             val.ParseFromString(feature_value.value)
             res[feature_name.decode()] = val
-        logger.info(f"Time to process results from sync client: {time.perf_counter() - start}")
         return (event_ts, res)
 
     @log_exceptions_and_usage(online_store="bigtable")

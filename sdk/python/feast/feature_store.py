@@ -2561,7 +2561,7 @@ class FeatureStore:
         ]
 
         # Fetch data for Entities.
-        read_rows, profiling_res = await provider.online_read_async_v2(
+        read_rows = await provider.online_read_async_v2(
             config=self.config,
             table=table,
             entity_keys=entity_key_protos,
