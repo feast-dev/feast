@@ -67,14 +67,12 @@ class BigtableOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         # Potential performance improvement opportunity described in
         # https://github.com/feast-dev/feast/issues/3259
-        start = time.perf_counter()
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
         bt_table = bt_instance.table(bt_table_name)
-        logger.info(f"Time to get client & table using sync client: {time.perf_counter() - start}")
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
