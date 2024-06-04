@@ -1,17 +1,30 @@
 import ast
+import json
+import logging
+import traceback
+from datetime import datetime
+from typing import Any, Dict, List
 
 import pyarrow as pa
-import pyarrow.flight
+import pyarrow.flight as fl
 
-from feast import FeatureStore
+from feast import FeatureStore, FeatureView, utils
+from feast.feature_logging import FeatureServiceLoggingSource
+from feast.feature_view import DUMMY_ENTITY_NAME
+from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
+from feast.saved_dataset import SavedDatasetStorage
+
+logger = logging.getLogger(__name__)
 
 
-class OfflineServer(pa.flight.FlightServerBase):
-    def __init__(self, location=None):
-        super(OfflineServer, self).__init__(location)
+class OfflineServer(fl.FlightServerBase):
+    def __init__(self, store: FeatureStore, location: str, **kwargs):
+        super(OfflineServer, self).__init__(location, **kwargs)
         self._location = location
-        self.flights = {}
-        self.store = FeatureStore
+        # A dictionary of configured flights, e.g. API calls received and not yet served
+        self.flights: Dict[str, Any] = {}
+        self.store = store
+        self.offline_store = get_offline_store_from_config(store.config.offline_store)
 
     @classmethod
     def descriptor_to_key(self, descriptor):
@@ -21,58 +34,296 @@ class OfflineServer(pa.flight.FlightServerBase):
             tuple(descriptor.path or tuple()),
         )
 
-    def _make_flight_info(self, key, descriptor, table):
-        endpoints = [pyarrow.flight.FlightEndpoint(repr(key), [self._location])]
-        mock_sink = pyarrow.MockOutputStream()
-        stream_writer = pyarrow.RecordBatchStreamWriter(mock_sink, table.schema)
-        stream_writer.write_table(table)
-        stream_writer.close()
-        data_size = mock_sink.size()
+    def _make_flight_info(self, key, descriptor, params):
+        endpoints = [fl.FlightEndpoint(repr(key), [self._location])]
+        # TODO calculate actual schema from the given features
+        schema = pa.schema([])
 
-        return pyarrow.flight.FlightInfo(
-            table.schema, descriptor, endpoints, table.num_rows, data_size
-        )
+        return fl.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
     def get_flight_info(self, context, descriptor):
         key = OfflineServer.descriptor_to_key(descriptor)
         if key in self.flights:
-            table = self.flights[key]
-            return self._make_flight_info(key, descriptor, table)
+            params = self.flights[key]
+            return self._make_flight_info(key, descriptor, params)
         raise KeyError("Flight not found.")
 
     def list_flights(self, context, criteria):
         for key, table in self.flights.items():
             if key[1] is not None:
-                descriptor = pyarrow.flight.FlightDescriptor.for_command(key[1])
+                descriptor = fl.FlightDescriptor.for_command(key[1])
             else:
-                descriptor = pyarrow.flight.FlightDescriptor.for_path(*key[2])
+                descriptor = fl.FlightDescriptor.for_path(*key[2])
 
             yield self._make_flight_info(key, descriptor, table)
 
+    # Expects to receive request parameters and stores them in the flights dictionary
+    # Indexed by the unique command
     def do_put(self, context, descriptor, reader, writer):
         key = OfflineServer.descriptor_to_key(descriptor)
-        self.flights[key] = reader.read_all()
 
+        command = json.loads(key[1])
+        if "api" in command:
+            data = reader.read_all()
+            logger.debug(f"do_put: command is{command}, data is {data}")
+            self.flights[key] = data
+        else:
+            logger.warning(f"No 'api' field in command: {command}")
+
+    def get_feature_view_by_name(
+        self, fv_name: str, name_alias: str, project: str
+    ) -> FeatureView:
+        """
+        Retrieves a feature view by name, including all subclasses of FeatureView.
+
+        Args:
+            fv_name: Name of feature view
+            name_alias: Alias to be applied to the projection of the registered view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        try:
+            fv = self.store.registry.get_feature_view(name=fv_name, project=project)
+            if name_alias is not None:
+                for fs in self.store.registry.list_feature_services(project=project):
+                    for p in fs.feature_view_projections:
+                        if p.name_alias == name_alias:
+                            logger.debug(
+                                f"Found matching FeatureService {fs.name} with projection {p}"
+                            )
+                            fv = fv.with_projection(p)
+            return fv
+        except Exception:
+            try:
+                return self.store.registry.get_stream_feature_view(
+                    name=fv_name, project=project
+                )
+            except Exception as e:
+                logger.error(
+                    f"Cannot find any FeatureView by name {fv_name} in project {project}"
+                )
+                raise e
+
+    def list_feature_views_by_name(
+        self, feature_view_names: List[str], name_aliases: List[str], project: str
+    ) -> List[FeatureView]:
+        return [
+            remove_dummies(
+                self.get_feature_view_by_name(
+                    fv_name=fv_name, name_alias=name_aliases[index], project=project
+                )
+            )
+            for index, fv_name in enumerate(feature_view_names)
+        ]
+
+    # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
+    # and returns the stream of data
     def do_get(self, context, ticket):
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
+            logger.error(f"Unknown key {key}")
             return None
 
-        entity_df_key = self.flights[key]
-        entity_df = pa.Table.to_pandas(entity_df_key)
-        # Get feature data
-        features_key = (2, b"features_descriptor", ())
-        if features_key in self.flights:
-            features_data = self.flights[features_key]
-            features = pa.RecordBatch.to_pylist(features_data)
-            features = [item["features"] for item in features]
+        command = json.loads(key[1])
+        api = command["api"]
+        logger.debug(f"get command is {command}")
+        logger.debug(f"requested api is {api}")
+        if api == "get_historical_features":
+            training_df = self.get_historical_features(command, key)
+        elif api == "pull_all_from_table_or_query":
+            training_df = self.pull_all_from_table_or_query(command)
+        elif api == "pull_latest_from_table_or_query":
+            training_df = self.pull_latest_from_table_or_query(command)
         else:
-            features = None
+            raise NotImplementedError
 
-        training_df = self.store.get_historical_features(entity_df, features).to_df()
         table = pa.Table.from_pandas(training_df)
 
-        return pa.flight.RecordBatchStream(table)
+        # Get service is consumed, so we clear the corresponding flight and data
+        del self.flights[key]
+        return fl.RecordBatchStream(table)
+
+    def offline_write_batch(self, command, key):
+        try:
+            feature_view_names = command["feature_view_names"]
+            name_aliases = command["name_aliases"]
+            project = self.store.config.project
+            feature_views = self.list_feature_views_by_name(
+                feature_view_names=feature_view_names,
+                name_aliases=name_aliases,
+                project=project,
+            )
+
+            table = self.flights[key]
+            self.offline_store.offline_write_batch(
+                self.store.config, feature_views[0], table, command["progress"]
+            )
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def write_logged_features(self, command, key):
+        try:
+            table = self.flights[key]
+            feature_service = self.store.get_feature_service(
+                command["feature_service_name"]
+            )
+
+            self.offline_store.write_logged_features(
+                config=self.store.config,
+                data=table,
+                source=FeatureServiceLoggingSource(
+                    feature_service, self.store.config.project
+                ),
+                logging_config=feature_service.logging_config,
+                registry=self.store.registry,
+            )
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def pull_all_from_table_or_query(self, command):
+        try:
+            return self._pull_all_from_table_or_query(command).to_df()
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def _pull_all_from_table_or_query(self, command):
+        return self.offline_store.pull_all_from_table_or_query(
+            self.store.config,
+            self.store.get_data_source(command["data_source_name"]),
+            command["join_key_columns"],
+            command["feature_name_columns"],
+            command["timestamp_field"],
+            utils.make_tzaware(datetime.fromisoformat(command["start_date"])),
+            utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
+        )
+
+    def pull_latest_from_table_or_query(self, command):
+        try:
+            return self._pull_latest_from_table_or_query(command).to_df()
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def _pull_latest_from_table_or_query(self, command):
+        return self.offline_store.pull_latest_from_table_or_query(
+            self.store.config,
+            self.store.get_data_source(command["data_source_name"]),
+            command["join_key_columns"],
+            command["feature_name_columns"],
+            command["timestamp_field"],
+            command["created_timestamp_column"],
+            utils.make_tzaware(datetime.fromisoformat(command["start_date"])),
+            utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
+        )
+
+    def list_actions(self, context):
+        return [
+            (
+                "offline_write_batch",
+                "Writes the specified arrow table to the data source underlying the specified feature view.",
+            ),
+            (
+                "write_logged_features",
+                "Writes logged features to a specified destination in the offline store.",
+            ),
+            (
+                "persist",
+                "Synchronously executes the underlying query and persists the result in the same offline store at the "
+                "specified destination.",
+            ),
+        ]
+
+    def get_historical_features(self, command, key):
+        try:
+            ret_job = self._get_historical_features(command, key)
+            training_df = ret_job.to_df()
+
+            return training_df
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def _get_historical_features(self, command, key):
+        # Extract parameters from the internal flights dictionary
+        entity_df_value = self.flights[key]
+        entity_df = pa.Table.to_pandas(entity_df_value)
+        feature_view_names = command["feature_view_names"]
+        name_aliases = command["name_aliases"]
+        feature_refs = command["feature_refs"]
+        project = command["project"]
+        full_feature_names = command["full_feature_names"]
+        feature_views = self.list_feature_views_by_name(
+            feature_view_names=feature_view_names,
+            name_aliases=name_aliases,
+            project=project,
+        )
+        retJob = self.store._get_provider().get_historical_features(
+            config=self.store.config,
+            feature_views=feature_views,
+            feature_refs=feature_refs,
+            entity_df=entity_df,
+            registry=self.store.registry,
+            project=project,
+            full_feature_names=full_feature_names,
+        )
+        return retJob
+
+    def persist(self, command, key):
+        try:
+            api = command["api"]
+            if api == "get_historical_features":
+                ret_job = self._get_historical_features(command, key)
+            elif api == "pull_latest_from_table_or_query":
+                ret_job = self._pull_latest_from_table_or_query(command)
+            elif api == "pull_all_from_table_or_query":
+                ret_job = self._pull_all_from_table_or_query(command)
+            else:
+                raise NotImplementedError
+
+            data_source = self.store.get_data_source(command["data_source_name"])
+            storage = SavedDatasetStorage.from_data_source(data_source)
+            ret_job.persist(storage, command["allow_overwrite"], command["timeout"])
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def do_action(self, context, action):
+        command_descriptor = fl.FlightDescriptor.deserialize(action.body.to_pybytes())
+
+        key = OfflineServer.descriptor_to_key(command_descriptor)
+        command = json.loads(key[1])
+        logger.info(f"do_action command is {command}")
+
+        if action.type == "offline_write_batch":
+            self.offline_write_batch(command, key)
+        elif action.type == "write_logged_features":
+            self.write_logged_features(command, key)
+        elif action.type == "persist":
+            self.persist(command, key)
+        else:
+            raise NotImplementedError
+
+
+def remove_dummies(fv: FeatureView) -> FeatureView:
+    """
+    Removes dummmy IDs from FeatureView instances created with FeatureView.from_proto
+    """
+    if DUMMY_ENTITY_NAME in fv.entities:
+        fv.entities = []
+        fv.entity_columns = []
+    return fv
 
 
 def start_server(
@@ -81,6 +332,6 @@ def start_server(
     port: int,
 ):
     location = "grpc+tcp://{}:{}".format(host, port)
-    server = OfflineServer(location)
-    print("Serving on", location)
+    server = OfflineServer(store, location)
+    logger.info(f"Offline store server serving on {location}")
     server.serve()

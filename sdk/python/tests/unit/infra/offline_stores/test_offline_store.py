@@ -215,17 +215,26 @@ def retrieval_job(request, environment):
             port=0,
         )
         environment.config._offline_store = offline_store_config
+
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "id": [1],
+                "event_timestamp": ["datetime"],
+                "val_to_add": [1],
+            }
+        )
+
         return RemoteRetrievalJob(
             client=MagicMock(),
-            feature_refs=[
-                "str:str",
-            ],
-            entity_df=pd.DataFrame.from_dict(
-                {
-                    "id": [1],
-                    "event_timestamp": ["datetime"],
-                    "val_to_add": [1],
-                }
+            api_parameters={
+                "str": "str",
+            },
+            api="api",
+            table=pyarrow.Table.from_pandas(entity_df),
+            entity_df=entity_df,
+            metadata=RetrievalMetadata(
+                features=["1", "2", "3", "4"],
+                keys=["1", "2", "3", "4"],
             ),
         )
     else:

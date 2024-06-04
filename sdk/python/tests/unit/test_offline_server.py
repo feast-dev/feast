@@ -9,6 +9,7 @@ import pyarrow.flight as flight
 import pytest
 
 from feast import FeatureStore
+from feast.feature_logging import FeatureServiceLoggingSource
 from feast.infra.offline_stores.remote import (
     RemoteOfflineStore,
     RemoteOfflineStoreConfig,
@@ -43,7 +44,23 @@ def test_offline_server_is_alive(environment, empty_offline_server, arrow_client
     actions = list(client.list_actions())
     flights = list(client.list_flights())
 
-    assertpy.assert_that(actions).is_empty()
+    assertpy.assert_that(actions).is_equal_to(
+        [
+            (
+                "offline_write_batch",
+                "Writes the specified arrow table to the data source underlying the specified feature view.",
+            ),
+            (
+                "write_logged_features",
+                "Writes logged features to a specified destination in the offline store.",
+            ),
+            (
+                "persist",
+                "Synchronously executes the underlying query and persists the result in the same offline store at the "
+                "specified destination.",
+            ),
+        ]
+    )
     assertpy.assert_that(flights).is_empty()
 
 
@@ -81,7 +98,7 @@ def remote_feature_store(offline_server):
     return store
 
 
-def test_get_historical_features():
+def test_remote_offline_store_apis():
     with tempfile.TemporaryDirectory() as temp_dir:
         store = default_store(str(temp_dir))
         location = "grpc+tcp://localhost:0"
@@ -179,10 +196,9 @@ def _test_offline_write_batch(temp_dir, fs: FeatureStore):
     data_df = pd.read_parquet(data_file)
     feature_view = fs.get_feature_view("driver_hourly_stats")
 
-    with pytest.raises(NotImplementedError):
-        RemoteOfflineStore.offline_write_batch(
-            fs.config, feature_view, pa.Table.from_pandas(data_df), progress=None
-        )
+    RemoteOfflineStore.offline_write_batch(
+        fs.config, feature_view, pa.Table.from_pandas(data_df), progress=None
+    )
 
 
 def _test_write_logged_features(temp_dir, fs: FeatureStore):
@@ -192,14 +208,13 @@ def _test_write_logged_features(temp_dir, fs: FeatureStore):
     data_df = pd.read_parquet(data_file)
     feature_service = fs.get_feature_service("driver_activity_v1")
 
-    with pytest.raises(NotImplementedError):
-        RemoteOfflineStore.write_logged_features(
-            config=fs.config,
-            data=pa.Table.from_pandas(data_df),
-            source=feature_service,
-            logging_config=None,
-            registry=fs.registry,
-        )
+    RemoteOfflineStore.write_logged_features(
+        config=fs.config,
+        data=pa.Table.from_pandas(data_df),
+        source=FeatureServiceLoggingSource(feature_service, fs.config.project),
+        logging_config=feature_service.logging_config,
+        registry=fs.registry,
+    )
 
 
 def _test_pull_latest_from_table_or_query(temp_dir, fs: FeatureStore):
@@ -207,17 +222,16 @@ def _test_pull_latest_from_table_or_query(temp_dir, fs: FeatureStore):
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=15)
-    with pytest.raises(NotImplementedError):
-        RemoteOfflineStore.pull_latest_from_table_or_query(
-            config=fs.config,
-            data_source=data_source,
-            join_key_columns=[],
-            feature_name_columns=[],
-            timestamp_field="event_timestamp",
-            created_timestamp_column="created",
-            start_date=start_date,
-            end_date=end_date,
-        )
+    RemoteOfflineStore.pull_latest_from_table_or_query(
+        config=fs.config,
+        data_source=data_source,
+        join_key_columns=[],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+        start_date=start_date,
+        end_date=end_date,
+    ).to_df()
 
 
 def _test_pull_all_from_table_or_query(temp_dir, fs: FeatureStore):
@@ -225,13 +239,12 @@ def _test_pull_all_from_table_or_query(temp_dir, fs: FeatureStore):
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=15)
-    with pytest.raises(NotImplementedError):
-        RemoteOfflineStore.pull_all_from_table_or_query(
-            config=fs.config,
-            data_source=data_source,
-            join_key_columns=[],
-            feature_name_columns=[],
-            timestamp_field="event_timestamp",
-            start_date=start_date,
-            end_date=end_date,
-        )
+    RemoteOfflineStore.pull_all_from_table_or_query(
+        config=fs.config,
+        data_source=data_source,
+        join_key_columns=[],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        start_date=start_date,
+        end_date=end_date,
+    ).to_df()
