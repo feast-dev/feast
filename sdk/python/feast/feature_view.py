@@ -396,6 +396,13 @@ class FeatureView(BaseFeatureView):
             if feature_view_proto.spec.HasField("stream_source")
             else None
         )
+
+        feature_view_type = (
+            FeatureViewType(feature_view_proto.spec.feature_view_type)
+            if feature_view_proto.spec.feature_view_type != ""
+            else FeatureViewType.BATCH
+        )
+
         feature_view = cls(
             name=feature_view_proto.spec.name,
             description=feature_view_proto.spec.description,
@@ -408,7 +415,7 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
-            feature_view_type=feature_view_proto.spec.feature_view_type,
+            feature_view_type=feature_view_type,
         )
         if stream_source:
             feature_view.stream_source = stream_source

@@ -248,6 +248,13 @@ class StreamFeatureView(FeatureView):
             if sfv_proto.spec.HasField("user_defined_function")
             else None
         )
+
+        feature_view_type = (
+            FeatureViewType(sfv_proto.spec.feature_view_type)
+            if sfv_proto.spec.feature_view_type != ""
+            else FeatureViewType.STREAM
+        )
+
         stream_feature_view = cls(
             name=sfv_proto.spec.name,
             description=sfv_proto.spec.description,
@@ -274,7 +281,7 @@ class StreamFeatureView(FeatureView):
                 for agg_proto in sfv_proto.spec.aggregations
             ],
             timestamp_field=sfv_proto.spec.timestamp_field,
-            feature_view_type=sfv_proto.spec.feature_view_type,
+            feature_view_type=feature_view_type,
         )
 
         if batch_source:

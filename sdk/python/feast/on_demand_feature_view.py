@@ -252,7 +252,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-            feature_view_type=FeatureViewType.ON_DEMAND,
+            feature_view_type=self.feature_view_type.value,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -342,6 +342,12 @@ class OnDemandFeatureView(BaseFeatureView):
         else:
             raise ValueError("At least one transformation type needs to be provided")
 
+        feature_view_type = (
+            FeatureViewType(on_demand_feature_view_proto.spec.feature_view_type)
+            if on_demand_feature_view_proto.spec.feature_view_type != ""
+            else FeatureViewType.ON_DEMAND
+        )
+
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
             schema=[
@@ -357,7 +363,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
-            feature_view_type=on_demand_feature_view_proto.spec.feature_view_type,
+            feature_view_type=feature_view_type,
         )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
