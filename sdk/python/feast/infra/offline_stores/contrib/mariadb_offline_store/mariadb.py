@@ -34,7 +34,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pa_to_mariadb_type
-from feast.usage import log_exceptions_and_usage
 
 # Make sure warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -66,7 +65,6 @@ class MariaDBOfflineStore(OfflineStore):
     """
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mariadb")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -112,7 +110,6 @@ class MariaDBOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mariadb")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -146,7 +143,6 @@ class MariaDBOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mariadb")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -234,7 +230,6 @@ class MariaDBOfflineStore(OfflineStore):
         raise NotImplementedError()
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="mariadb")
     def offline_write_batch(
         config: RepoConfig,
         feature_view: FeatureView,
