@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -263,3 +263,60 @@ def test_from_proto_backwards_compatible_udf():
         reserialized_proto.feature_transformation.udf_string
         == on_demand_feature_view.feature_transformation.udf_string
     )
+
+
+def test_update_meta():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    sources = [feature_view]
+    stored_on_demand_feature_view = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        description="test",
+        mode="python",
+    )
+    current_time = datetime.now()
+    stored_on_demand_feature_view.created_timestamp = current_time - timedelta(days=1)
+    stored_on_demand_feature_view.last_updated_timestamp = current_time - timedelta(
+        days=1
+    )
+    stored_on_demand_feature_view_proto = stored_on_demand_feature_view.to_proto()
+    serialized_proto = stored_on_demand_feature_view_proto.SerializeToString()
+
+    updated_on_demand_feature_view = OnDemandFeatureView(
+        name="my-on-demand-feature-view-1",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        description="test",
+        mode="python",
+    )
+    updated_on_demand_feature_view.last_updated_timestamp = current_time
+
+    updated_on_demand_feature_view.update_meta(serialized_proto)
+
+    assert (
+        updated_on_demand_feature_view.created_timestamp
+        == stored_on_demand_feature_view.created_timestamp
+    )
+    assert updated_on_demand_feature_view.last_updated_timestamp == current_time

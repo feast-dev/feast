@@ -167,6 +167,20 @@ class StreamFeatureView(FeatureView):
     def __hash__(self) -> int:
         return super().__hash__()
 
+    def update_meta(self, stored_proto: bytes):
+        stream_feature_view_proto = StreamFeatureViewProto.FromString(stored_proto)
+        self.created_timestamp = (
+            stream_feature_view_proto.meta.created_timestamp.ToDatetime()
+        )
+
+        for interval in stream_feature_view_proto.meta.materialization_intervals:
+            self.materialization_intervals.append(
+                (
+                    interval.start_time.ToDatetime(),
+                    interval.end_time.ToDatetime(),
+                )
+            )
+
     def to_proto(self):
         meta = self.to_proto_meta()
         ttl_duration = self.get_ttl_duration()

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from typeguard import TypeCheckError
@@ -117,3 +117,50 @@ def test_hash():
 def test_field_types():
     with pytest.raises(TypeCheckError):
         Field(name="name", dtype=ValueType.INT32)
+
+
+def test_update_meta():
+    batch_source = FileSource(path="some path")
+    # Create a feature view that is already present in the SQL registry
+    stored_feature_view = FeatureView(
+        name="my-feature-view", entities=[], ttl=timedelta(days=1), source=batch_source
+    )
+    current_time = datetime.now()
+    stored_feature_view.created_timestamp = current_time - timedelta(days=1)
+    stored_feature_view.last_updated_timestamp = current_time
+    start_date = current_time - timedelta(days=1)
+    end_date = current_time
+    stored_feature_view.materialization_intervals.append((start_date, end_date))
+
+    stored_feature_view_proto = stored_feature_view.to_proto()
+    serialized_proto = stored_feature_view_proto.SerializeToString()
+
+    # Update the entity i.e. here it's simply the name
+    updated_feature_view = FeatureView(
+        name="my-feature-view-1",
+        entities=[],
+        ttl=timedelta(days=1),
+        source=batch_source,
+    )
+
+    updated_feature_view.last_updated_timestamp = current_time
+    updated_feature_view.materialization_intervals = []
+
+    updated_feature_view.update_meta(serialized_proto)
+
+    assert (
+        updated_feature_view.created_timestamp == stored_feature_view.created_timestamp
+    )
+    assert updated_feature_view.last_updated_timestamp == current_time
+    assert (
+        updated_feature_view.materialization_intervals is not None
+        and len(updated_feature_view.materialization_intervals) == 1
+    )
+    assert (
+        updated_feature_view.materialization_intervals[0][0]
+        == stored_feature_view.materialization_intervals[0][0]
+    )
+    assert (
+        updated_feature_view.materialization_intervals[0][1]
+        == stored_feature_view.materialization_intervals[0][1]
+    )

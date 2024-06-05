@@ -78,6 +78,14 @@ def validate_offline_online_store_consistency(
 
     # run materialize_incremental()
     fs.materialize_incremental(feature_views=[fv.name], end_date=now)
+    updated_fv = fs.registry.get_feature_view(fv.name, fs.project)
+
+    # Check if created_timestamp and materialization_intervals was updated by the registry
+    assert (
+        updated_fv.created_timestamp is not None
+        and updated_fv.materialization_intervals is not None
+        and len(updated_fv.materialization_intervals) > 0
+    )
 
     # check result of materialize_incremental()
     _check_offline_and_online_features(

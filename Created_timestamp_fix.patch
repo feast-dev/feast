@@ -1,0 +1,626 @@
+Subject: [PATCH] Created_timestamp fix
+---
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/requirements/py3.8-ci-requirements.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/requirements/py3.8-ci-requirements.txt b/feature-lifecycle-codebase/Feast/feast/sdk/python/requirements/py3.8-ci-requirements.txt
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/requirements/py3.8-ci-requirements.txt	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/requirements/py3.8-ci-requirements.txt	
+@@ -529,7 +529,7 @@
+     #   mypy
+ mypy-protobuf==3.1
+     # via feast (setup.py)
+-mysqlclient==2.1.1
++mysqlclient==2.2.3
+     # via feast (setup.py)
+ nbclassic==1.0.0
+     # via notebook
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_service.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_service.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_service.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_service.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_service.py	
+@@ -221,6 +221,12 @@
+ 
+         return fs
+ 
++    def update_meta(self, stored_proto):
++        feature_service_proto = self.FromString(stored_proto["feature_service_proto"])
++        self.created_timestamp = (
++            feature_service_proto.meta.created_timestamp.ToDatetime()
++        )
++
+     def to_proto(self) -> FeatureServiceProto:
+         """
+         Converts a feature service to its protobuf representation.
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_service.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_service.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_service.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_service.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_service.py	
+@@ -4,6 +4,13 @@
+ from feast.infra.offline_stores.file_source import FileSource
+ from feast.types import Float32
+ from tests.utils.test_wrappers import no_warnings
++from feast.protos.feast.core.FeatureService_pb2 import FeatureService as FeatureServiceProto
++from feast.protos.feast.core.FeatureService_pb2 import (
++    FeatureServiceMeta as FeatureServiceMetaProto,
++)
++from feast.protos.feast.core.FeatureService_pb2 import (
++    FeatureServiceSpec as FeatureServiceSpecProto,
++)
+ 
+ 
+ def test_feature_service_with_description():
+@@ -72,3 +79,13 @@
+     _ = FeatureService(
+         name="my-feature-service", features=[feature_view[["feature1", "feature2"]]]
+     )
++def test_update_meta():
++    # Create a feature service with no materialization intervals
++    feature_service = FeatureService(name="test_feature_service", features=[])
++    feature_service_proto = FeatureServiceProto(
++        spec=FeatureServiceSpecProto(name="test_feature_service", features=[]),
++        meta=FeatureServiceMetaProto(created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())))
++    )
++    stored_proto = {"feature_service_proto": feature_service_proto.SerializeToString()}
++    feature_service.update_meta(stored_proto)
++    assert feature_service.created_timestamp is not None
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/entity.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/entity.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/entity.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/entity.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/entity.py	
+@@ -169,6 +169,12 @@
+ 
+         return entity
+ 
++    def update_meta(self, stored_proto):
++        entity_proto = self.FromString(stored_proto["entity_proto"])
++        self.created_timestamp = (
++            entity_proto.meta.created_timestamp.ToDatetime()
++        )
++
+     def to_proto(self) -> EntityProto:
+         """
+         Converts an entity object to its protobuf representation.
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/infra/registry/sql.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/infra/registry/sql.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/infra/registry/sql.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/infra/registry/sql.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/infra/registry/sql.py	
+@@ -998,6 +998,8 @@
+                 obj.last_updated_timestamp = update_datetime
+ 
+             if row:
++                if proto_field_name in ["entity_proto","feature_view_proto","feature_service_proto"]:
++                    obj.update_meta(row)
+                 values = {
+                     proto_field_name: obj.to_proto().SerializeToString(),
+                     "last_updated_timestamp": update_time,
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_views.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_views.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_views.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_views.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_feature_views.py	
+@@ -1,17 +1,34 @@
+-from datetime import timedelta
++from datetime import timedelta, datetime
+ 
+ import pytest
++from google.protobuf.internal.well_known_types import Timestamp
+ from pydantic import ValidationError
+ 
+ from feast.aggregation import Aggregation
+ from feast.batch_feature_view import BatchFeatureView
+-from feast.data_format import AvroFormat
++from feast.data_format import AvroFormat, ParquetFormat
+ from feast.data_source import KafkaSource, PushSource
+ from feast.entity import Entity
+ from feast.feature_view import FeatureView
+ from feast.field import Field
+ from feast.infra.offline_stores.file_source import FileSource
+ from feast.protos.feast.types.Value_pb2 import ValueType
++from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
++from feast.protos.feast.core.FeatureView_pb2 import (
++    FeatureViewMeta as FeatureViewMetaProto,
++)
++from feast.protos.feast.core.FeatureView_pb2 import (
++    FeatureViewSpec as FeatureViewSpecProto,
++)
++from feast.protos.feast.core.FeatureView_pb2 import (
++    MaterializationInterval as MaterializationIntervalProto,
++)
++from feast.protos.feast.core.StreamFeatureView_pb2 import (
++    StreamFeatureView as StreamFeatureViewProto,
++)
++from feast.protos.feast.core.StreamFeatureView_pb2 import (
++    StreamFeatureViewSpec as StreamFeatureViewSpecProto,
++)
+ from feast.stream_feature_view import StreamFeatureView, stream_feature_view
+ from feast.types import Float32
+ 
+@@ -278,3 +295,94 @@
+ def test_field_types():
+     with pytest.raises(ValidationError):
+         Field(name="name", dtype=ValueType.INT32)
++
++
++def test_update_meta_with_feature_view():
++    # Create a feature view with no materialization intervals
++    feature_view = FeatureView(name="test_feature_view", entities=["entity1"], ttl=timedelta(days=1),
++                               source="test_source")
++    feature_view_proto = FeatureViewProto(
++        spec=FeatureViewSpecProto(name="test_feature_view", entities=["entity1"], ttl=timedelta(days=1).total_seconds(),
++                                  source="test_source"),
++        meta=FeatureViewMetaProto(created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++                                  materialization_intervals=[])
++    )
++    stored_proto = {"feature_view_proto": feature_view_proto.SerializeToString()}
++    feature_view.update_meta(stored_proto)
++    assert feature_view.created_timestamp is not None
++    assert feature_view.materialization_intervals is None
++
++    # Simulate feature view getting materialized, i.e: materialization intervals is not empty
++    batch_source = FileSource(path="some path")
++    updated_feature_view = FeatureView(name="test_feature_view", entities=["entity1"], ttl=timedelta(days=1),
++                                       source=batch_source)
++    start_date = datetime.now() - timedelta(days=1)
++    end_date = datetime.now()
++    start_time = Timestamp(seconds=int(start_date).timestamp())
++    end_time = Timestamp(seconds=int(end_date.timestamp()))
++    updated_feature_view_proto = FeatureViewProto(
++        spec=FeatureViewSpecProto(name="test_feature_view", entities=["entity1"], ttl=timedelta(days=1).total_seconds(),
++                                  source="test_source"),
++        meta=FeatureViewMetaProto(
++            created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++            materialization_intervals=[
++                MaterializationIntervalProto(
++                    start_time=start_time,
++                    end_time=end_time
++                )
++            ]
++        )
++    )
++    stored_proto = {"feature_view_proto": updated_feature_view_proto.SerializeToString()}
++    updated_feature_view.update_meta(stored_proto)
++    assert feature_view.created_timestamp is not None
++    assert feature_view.last_updated_timestamp is not None
++    assert feature_view.materialization_intervals is not None and len(feature_view.materialization_intervals) == 1
++    assert feature_view.materialization_intervals[0][0] == start_date
++    assert feature_view.materialization_intervals[0][1] == end_date
++
++
++def test_update_meta_with_stream_feature_view():
++    # Create a stream feature view with no materialization intervals
++    batch_source = FileSource(path="some path")
++    stream_feature_view = StreamFeatureView(name="test_stream_feature_view", entities=["entity1"],
++                                            ttl=timedelta(days=1), source=batch_source)
++    stream_feature_view_proto = StreamFeatureViewProto(
++        spec=StreamFeatureViewSpecProto(name="test_stream_feature_view", entities=["entity1"],
++                                        ttl=timedelta(days=1).total_seconds(), source="test_source"),
++        meta=FeatureViewMetaProto(created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++                                  materialization_intervals=[])
++    )
++    stored_proto = {"stream_feature_view_proto": stream_feature_view_proto.SerializeToString()}
++    stream_feature_view.update_meta(stored_proto)
++    assert stream_feature_view.created_timestamp is not None
++    assert stream_feature_view.materialization_intervals is None
++
++    # Simulate stream feature view getting materialized, i.e: materialization intervals is not empty
++    updated_stream_feature_view = StreamFeatureView(name="test_stream_feature_view", entities=["entity1"],
++                                                    ttl=timedelta(days=1), source="test_source")
++    start_date = datetime.now() - timedelta(days=1)
++    end_date = datetime.now()
++    start_time = Timestamp(seconds=int(start_date).timestamp())
++    end_time = Timestamp(seconds=int(end_date.timestamp()))
++    updated_stream_feature_view_proto = StreamFeatureViewProto(
++        spec=StreamFeatureViewSpecProto(name="test_stream_feature_view", entities=["entity1"],
++                                        ttl=timedelta(days=1).total_seconds(), source="test_source"),
++        meta=FeatureViewMetaProto(
++            created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++            materialization_intervals=[
++                MaterializationIntervalProto(
++                    start_time=start_time,
++                    end_time=end_time
++                )
++            ]
++        )
++    )
++    stored_proto = {"stream_feature_view_proto": updated_stream_feature_view_proto.SerializeToString()}
++    updated_stream_feature_view.update_meta(stored_proto)
++    assert updated_stream_feature_view.created_timestamp is not None
++    assert updated_stream_feature_view.last_updated_timestamp is not None
++    assert updated_stream_feature_view.materialization_intervals is not None and len(
++        updated_stream_feature_view.materialization_intervals) == 1
++    assert updated_stream_feature_view.materialization_intervals[0][0] == start_date
++    assert updated_stream_feature_view.materialization_intervals[0][1] == end_date
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/saved_dataset.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/saved_dataset.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/saved_dataset.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/saved_dataset.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/saved_dataset.py	
+@@ -140,6 +140,17 @@
+ 
+         return True
+ 
++    def update_meta(self, stored_proto):
++        saved_dataset_proto = self.FromString(stored_proto["saved_dataset_proto"])
++        self.created_timestamp = (
++            saved_dataset_proto.meta.created_timestamp.ToDatetime()
++        )
++        self.min_event_timestamp = (
++                saved_dataset_proto.meta.min_event_timestamp.ToDatetime()
++            )
++        self.max_event_timestamp = (
++                saved_dataset_proto.meta.max_event_timestamp.ToDatetime()
++            )
+     @staticmethod
+     def from_proto(saved_dataset_proto: SavedDatasetProto):
+         """
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_entity.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_entity.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_entity.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_entity.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_entity.py	
+@@ -16,7 +16,13 @@
+ 
+ from feast.entity import Entity
+ from feast.value_type import ValueType
+-
++from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
++from feast.protos.feast.core.Entity_pb2 import (
++    EntityMeta as EntityMetaProto,
++)
++from feast.protos.feast.core.Entity_pb2 import (
++    EntitySpecV2 as EntitySpecProto,
++)
+ 
+ def test_join_key_default():
+     entity = Entity(name="my-entity", description="My entity")
+@@ -73,3 +79,14 @@
+ 
+     s4 = {entity1, entity2, entity3, entity4}
+     assert len(s4) == 3
++
++def test_update_meta_with_entity():
++    # Create an entity with no materialization intervals
++    entity = Entity(name="test_entity", join_keys=["key"], value_type=ValueType.INT32)
++    entity_proto = EntityProto(
++        spec=EntitySpecProto(name="test_entity", value_type=ValueType.INT32.value, join_key="key"),
++        meta=EntityMetaProto(created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())))
++    )
++    stored_proto = {"entity_proto": entity_proto.SerializeToString()}
++    entity.update_meta(stored_proto)
++    assert entity.created_timestamp is not None
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/stream_feature_view.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/stream_feature_view.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/stream_feature_view.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/stream_feature_view.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/stream_feature_view.py	
+@@ -74,22 +74,22 @@
+     udf_string: Optional[str]
+ 
+     def __init__(
+-        self,
+-        *,
+-        name: str,
+-        source: DataSource,
+-        entities: Optional[Union[List[Entity], List[str]]] = None,
+-        ttl: timedelta = timedelta(days=0),
+-        tags: Optional[Dict[str, str]] = None,
+-        online: Optional[bool] = True,
+-        description: Optional[str] = "",
+-        owner: Optional[str] = "",
+-        schema: Optional[List[Field]] = None,
+-        aggregations: Optional[List[Aggregation]] = None,
+-        mode: Optional[str] = "spark",
+-        timestamp_field: Optional[str] = "",
+-        udf: Optional[FunctionType] = None,
+-        udf_string: Optional[str] = "",
++            self,
++            *,
++            name: str,
++            source: DataSource,
++            entities: Optional[Union[List[Entity], List[str]]] = None,
++            ttl: timedelta = timedelta(days=0),
++            tags: Optional[Dict[str, str]] = None,
++            online: Optional[bool] = True,
++            description: Optional[str] = "",
++            owner: Optional[str] = "",
++            schema: Optional[List[Field]] = None,
++            aggregations: Optional[List[Aggregation]] = None,
++            mode: Optional[str] = "spark",
++            timestamp_field: Optional[str] = "",
++            udf: Optional[FunctionType] = None,
++            udf_string: Optional[str] = "",
+     ):
+         if not flags_helper.is_test():
+             warnings.warn(
+@@ -99,8 +99,8 @@
+             )
+ 
+         if (
+-            type(source).__name__ not in SUPPORTED_STREAM_SOURCES
+-            and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
++                type(source).__name__ not in SUPPORTED_STREAM_SOURCES
++                and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
+         ):
+             raise ValueError(
+                 f"Stream feature views need a stream source, expected one of {SUPPORTED_STREAM_SOURCES} "
+@@ -143,11 +143,11 @@
+             return False
+ 
+         if (
+-            self.mode != other.mode
+-            or self.timestamp_field != other.timestamp_field
+-            or self.udf.__code__.co_code != other.udf.__code__.co_code
+-            or self.udf_string != other.udf_string
+-            or self.aggregations != other.aggregations
++                self.mode != other.mode
++                or self.timestamp_field != other.timestamp_field
++                or self.udf.__code__.co_code != other.udf.__code__.co_code
++                or self.udf_string != other.udf_string
++                or self.aggregations != other.aggregations
+         ):
+             return False
+ 
+@@ -156,6 +156,20 @@
+     def __hash__(self) -> int:
+         return super().__hash__()
+ 
++    def update_meta(self, stored_proto):
++        stream_feature_view_proto = self.FromString(stored_proto["feature_view_proto"])
++        self.created_timestamp = (
++            stream_feature_view_proto.meta.created_timestamp.ToDatetime()
++        )
++
++        for interval in stream_feature_view_proto.meta.materialization_intervals:
++            self.materialization_intervals.append(
++                (
++                    utils.make_tzaware(interval.start_time.ToDatetime()),
++                    utils.make_tzaware(interval.end_time.ToDatetime()),
++                )
++            )
++
+     def to_proto(self):
+         meta = self.to_proto_meta()
+         ttl_duration = self.get_ttl_duration()
+@@ -301,18 +315,18 @@
+ 
+ 
+ def stream_feature_view(
+-    *,
+-    entities: Optional[Union[List[Entity], List[str]]] = None,
+-    ttl: Optional[timedelta] = None,
+-    tags: Optional[Dict[str, str]] = None,
+-    online: Optional[bool] = True,
+-    description: Optional[str] = "",
+-    owner: Optional[str] = "",
+-    schema: Optional[List[Field]] = None,
+-    source: Optional[DataSource] = None,
+-    aggregations: Optional[List[Aggregation]] = None,
+-    mode: Optional[str] = "spark",
+-    timestamp_field: Optional[str] = "",
++        *,
++        entities: Optional[Union[List[Entity], List[str]]] = None,
++        ttl: Optional[timedelta] = None,
++        tags: Optional[Dict[str, str]] = None,
++        online: Optional[bool] = True,
++        description: Optional[str] = "",
++        owner: Optional[str] = "",
++        schema: Optional[List[Field]] = None,
++        source: Optional[DataSource] = None,
++        aggregations: Optional[List[Aggregation]] = None,
++        mode: Optional[str] = "spark",
++        timestamp_field: Optional[str] = "",
+ ):
+     """
+     Creates an StreamFeatureView object with the given user function as udf.
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/on_demand_feature_view.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/on_demand_feature_view.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/on_demand_feature_view.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/on_demand_feature_view.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/on_demand_feature_view.py	
+@@ -171,6 +171,12 @@
+     def __hash__(self):
+         return super().__hash__()
+ 
++    def update_meta(self, stored_proto):
++        on_demand_feature_view_proto = self.FromString(stored_proto["feature_view_proto"])
++        self.created_timestamp = (
++            on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
++        )
++
+     def to_proto(self) -> OnDemandFeatureViewProto:
+         """
+         Converts an on demand feature view object to its protobuf representation.
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/base_feature_view.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/base_feature_view.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/base_feature_view.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/base_feature_view.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/base_feature_view.py	
+@@ -51,13 +51,13 @@
+ 
+     @abstractmethod
+     def __init__(
+-        self,
+-        *,
+-        name: str,
+-        features: Optional[List[Field]] = None,
+-        description: str = "",
+-        tags: Optional[Dict[str, str]] = None,
+-        owner: str = "",
++            self,
++            *,
++            name: str,
++            features: Optional[List[Field]] = None,
++            description: str = "",
++            tags: Optional[Dict[str, str]] = None,
++            owner: str = "",
+     ):
+         """
+         Creates a BaseFeatureView object.
+@@ -140,12 +140,12 @@
+             )
+ 
+         if (
+-            self.name != other.name
+-            or sorted(self.features) != sorted(other.features)
+-            or self.projection != other.projection
+-            or self.description != other.description
+-            or self.tags != other.tags
+-            or self.owner != other.owner
++                self.name != other.name
++                or sorted(self.features) != sorted(other.features)
++                or self.projection != other.projection
++                or self.description != other.description
++                or self.tags != other.tags
++                or self.owner != other.owner
+         ):
+             return False
+ 
+@@ -229,3 +229,6 @@
+         cp.projection = feature_view_projection
+ 
+         return cp
++
++    def update_obj_meta(self, row):
++        pass
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_on_demand_feature_view.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_on_demand_feature_view.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_on_demand_feature_view.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_on_demand_feature_view.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/tests/unit/test_on_demand_feature_view.py	
+@@ -11,6 +11,7 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
++from datetime import timedelta
+ 
+ import pandas as pd
+ 
+@@ -19,7 +20,16 @@
+ from feast.infra.offline_stores.file_source import FileSource
+ from feast.on_demand_feature_view import OnDemandFeatureView
+ from feast.types import Float32
+-
++from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureView as OnDemandFeatureViewProto
++from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
++    OnDemandFeatureViewMeta as OnDemandFeatureViewMetaProto,
++)
++from feast.protos.feast.core.OnDemandFeatureView_pb2  import (
++    OnDemandFeatureViewSpec as OnDemandFeatureViewSpecProto,
++)
++from feast.protos.feast.core.FeatureView_pb2 import (
++    MaterializationInterval as MaterializationIntervalProto,
++)
+ 
+ def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
+     df = pd.DataFrame()
+@@ -105,3 +115,42 @@
+         on_demand_feature_view_4,
+     }
+     assert len(s4) == 3
++
++def test_update_meta():
++    # Create an on demand feature view with no materialization intervals
++    on_demand_feature_view = OnDemandFeatureView(name="test_on_demand_feature_view", entities=["entity1"], ttl=timedelta(days=1), source="test_source")
++    on_demand_feature_view_proto = OnDemandFeatureViewProto(
++        spec=OnDemandFeatureViewSpecProto(name="test_on_demand_feature_view", entities=["entity1"], ttl=timedelta(days=1).total_seconds(), source="test_source"),
++        meta=OnDemandFeatureViewMetaProto(created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++                                          materialization_intervals=[])
++    )
++    stored_proto = {"on_demand_feature_view_proto": on_demand_feature_view_proto.SerializeToString()}
++    on_demand_feature_view.update_meta(stored_proto)
++    assert on_demand_feature_view.created_timestamp is not None
++    assert on_demand_feature_view.materialization_intervals is None
++
++    # Simulate on demand feature view getting materialized, i.e: materialization intervals is not empty
++    updated_on_demand_feature_view = OnDemandFeatureView(name="test_on_demand_feature_view", entities=["entity1"], ttl=timedelta(days=1), source="test_source")
++    start_date = datetime.now() - timedelta(days=1)
++    end_date = datetime.now()
++    start_time = Timestamp(seconds=int(start_date).timestamp())
++    end_time= Timestamp(seconds=int(end_date.timestamp()))
++    updated_on_demand_feature_view_proto = OnDemandFeatureViewProto(
++        spec=OnDemandFeatureViewSpecProto(name="test_on_demand_feature_view", entities=["entity1"], ttl=timedelta(days=1).total_seconds(), source="test_source"),
++        meta=OnDemandFeatureViewMetaProto(
++            created_timestamp=Timestamp(seconds=int(datetime.now().timestamp())),
++            materialization_intervals=[
++                MaterializationIntervalProto(
++                    start_time=start_time,
++                    end_time=end_time
++                )
++            ]
++        )
++    )
++    stored_proto = {"on_demand_feature_view_proto": updated_on_demand_feature_view_proto.SerializeToString()}
++    updated_on_demand_feature_view.update_meta(stored_proto)
++    assert updated_on_demand_feature_view.created_timestamp is not None
++    assert updated_on_demand_feature_view.last_updated_timestamp is not None
++    assert updated_on_demand_feature_view.materialization_intervals is not None and len(updated_on_demand_feature_view.materialization_intervals) == 1
++    assert updated_on_demand_feature_view.materialization_intervals[0][0] == start_date
++    assert updated_on_demand_feature_view.materialization_intervals[0][1] == end_date
+Index: feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_view.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_view.py b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_view.py
+--- a/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_view.py	
++++ b/feature-lifecycle-codebase/Feast/feast/sdk/python/feast/feature_view.py	
+@@ -332,6 +332,19 @@
+ 
+         return cp
+ 
++    def update_meta(self, stored_proto):
++        feature_view_proto = self.FromString(stored_proto["feature_view_proto"])
++        self.created_timestamp = (
++                feature_view_proto.meta.created_timestamp.ToDatetime()
++            )
++
++        for interval in feature_view_proto.meta.materialization_intervals:
++            self.materialization_intervals.append(
++                (
++                    utils.make_tzaware(interval.start_time.ToDatetime()),
++                    utils.make_tzaware(interval.end_time.ToDatetime()),
++                )
++            )
+     def to_proto(self) -> FeatureViewProto:
+         """
+         Converts a feature view object to its protobuf representation.

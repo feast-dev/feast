@@ -687,6 +687,13 @@ class SqlRegistry(CachingRegistry):
                 obj.last_updated_timestamp = update_datetime
 
             if row:
+                if proto_field_name in [
+                    "entity_proto",
+                    "saved_dataset_proto",
+                    "feature_view_proto",
+                    "feature_service_proto",
+                ]:
+                    obj.update_meta(row._mapping[proto_field_name])
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
