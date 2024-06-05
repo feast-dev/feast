@@ -1,3 +1,4 @@
+import atexit
 import logging
 import threading
 from abc import abstractmethod
@@ -33,7 +34,7 @@ class CachingRegistry(BaseRegistry):
         )
         self.allow_async_cache = allow_async_cache
         if allow_async_cache:
-            threading.Timer(cache_ttl_seconds, self.refresh).start()
+            self._start_async_refresh(cache_ttl_seconds)
 
     @abstractmethod
     def _get_data_source(self, name: str, project: str) -> DataSource:
@@ -312,3 +313,12 @@ class CachingRegistry(BaseRegistry):
             if expired:
                 logger.info("Registry cache expired, so refreshing")
                 self.refresh()
+
+    def _start_async_refresh(self, cache_ttl_seconds):
+        self.registry_refresh_thread = threading.Timer(cache_ttl_seconds, self.refresh)
+        self.registry_refresh_thread.setDaemon(True)
+        self.registry_refresh_thread.start()
+        atexit.register(self._exit_handler)
+
+    def _exit_handler(self):
+        self.registry_refresh_thread.cancel()
