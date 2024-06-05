@@ -366,10 +366,6 @@ class FeatureView(BaseFeatureView):
             interval_proto.start_time.FromDatetime(interval[0])
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
-        if self.feature_view_type:
-            meta.feature_view_type = self.feature_view_type
-        else:
-            meta.feature_view_type = FeatureViewType.BATCH
         return meta
 
     def get_ttl_duration(self):
