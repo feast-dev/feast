@@ -257,26 +257,62 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        return self._list_feature_views(allow_cache)
+        return self._list_batch_feature_views(allow_cache)
+
 
     def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
+            self,
+            allow_cache: bool = False,
+            hide_dummy_entity: bool = True,
+    ) -> List[FeatureView]:
+        return self._list_batch_feature_views(allow_cache)
+
+
+    def list_all_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
+        """
+        Retrieves the list of feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+
+        Returns:
+            A list of feature views.
+        """
+        return self._list_all_feature_views(allow_cache)
+
+
+    def list_batch_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
+        """
+        Retrieves the list of batch feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+
+        Returns:
+            A list of feature views.
+        """
+        return self._list_batch_feature_views(allow_cache)
+
+    def _list_batch_feature_views(
+            self,
+            allow_cache: bool = False,
+            hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
         feature_views = []
         for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache
+                self.project, allow_cache=allow_cache
         ):
             if (
-                hide_dummy_entity
-                and fv.entities
-                and fv.entities[0] == DUMMY_ENTITY_NAME
+                    hide_dummy_entity
+                    and fv.entities
+                    and fv.entities[0] == DUMMY_ENTITY_NAME
             ):
                 fv.entities = []
                 fv.entity_columns = []
             feature_views.append(fv)
         return feature_views
+
+
 
     def _list_stream_feature_views(
         self,
@@ -316,6 +352,23 @@ class FeatureStore:
             A list of stream feature views.
         """
         return self._list_stream_feature_views(allow_cache)
+
+
+    def _list_all_feature_views(
+            self,
+            allow_cache: bool = False,
+            hide_dummy_entity: bool = True,
+    ) -> List[FeatureView]:
+        """
+        Retrieves the list of all feature views from the registry.
+
+        Returns:
+            A list of all feature views.
+        """
+        return self._list_batch_feature_views(allow_cache, hide_dummy_entity) + \
+            self._list_stream_feature_views(allow_cache, hide_dummy_entity) + \
+            self.list_on_demand_feature_views(allow_cache)
+
 
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
         """
