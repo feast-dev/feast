@@ -141,7 +141,8 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
         self.minio = MinioContainer()
         self.minio.start()
         client = self.minio.get_client()
-        client.make_bucket("test")
+        if not client.bucket_exists("test"):
+            client.make_bucket("test")
         host_ip = self.minio.get_container_host_ip()
         exposed_port = self.minio.get_exposed_port(self.minio.port)
         self.endpoint_url = f"http://{host_ip}:{exposed_port}"

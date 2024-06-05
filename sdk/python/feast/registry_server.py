@@ -1,16 +1,34 @@
 from concurrent import futures
+from datetime import datetime
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
 
 from feast import FeatureStore
+from feast.data_source import DataSource
+from feast.entity import Entity
+from feast.feature_service import FeatureService
+from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
+from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 
 
 class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
-    def __init__(self, store: FeatureStore) -> None:
+    def __init__(self, registry: BaseRegistry) -> None:
         super().__init__()
-        self.proxied_registry = store.registry
+        self.proxied_registry = registry
+
+    def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
+        self.proxied_registry.apply_entity(
+            entity=Entity.from_proto(request.entity),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
 
     def GetEntity(self, request: RegistryServer_pb2.GetEntityRequest, context):
         return self.proxied_registry.get_entity(
@@ -27,6 +45,22 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def DeleteEntity(self, request: RegistryServer_pb2.DeleteEntityRequest, context):
+        self.proxied_registry.delete_entity(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
+    def ApplyDataSource(
+        self, request: RegistryServer_pb2.ApplyDataSourceRequest, context
+    ):
+        self.proxied_registry.apply_data_source(
+            data_source=DataSource.from_proto(request.data_source),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
+
     def GetDataSource(self, request: RegistryServer_pb2.GetDataSourceRequest, context):
         return self.proxied_registry.get_data_source(
             name=request.name, project=request.project, allow_cache=request.allow_cache
@@ -42,12 +76,38 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def DeleteDataSource(
+        self, request: RegistryServer_pb2.DeleteDataSourceRequest, context
+    ):
+        self.proxied_registry.delete_data_source(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
     def GetFeatureView(
         self, request: RegistryServer_pb2.GetFeatureViewRequest, context
     ):
         return self.proxied_registry.get_feature_view(
             name=request.name, project=request.project, allow_cache=request.allow_cache
         ).to_proto()
+
+    def ApplyFeatureView(
+        self, request: RegistryServer_pb2.ApplyFeatureViewRequest, context
+    ):
+        feature_view_type = request.WhichOneof("base_feature_view")
+        if feature_view_type == "feature_view":
+            feature_view = FeatureView.from_proto(request.feature_view)
+        elif feature_view_type == "on_demand_feature_view":
+            feature_view = OnDemandFeatureView.from_proto(
+                request.on_demand_feature_view
+            )
+        elif feature_view_type == "stream_feature_view":
+            feature_view = StreamFeatureView.from_proto(request.stream_feature_view)
+
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view, project=request.project, commit=request.commit
+        )
+        return Empty()
 
     def ListFeatureViews(self, request, context):
         return RegistryServer_pb2.ListFeatureViewsResponse(
@@ -58,6 +118,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 )
             ]
         )
+
+    def DeleteFeatureView(
+        self, request: RegistryServer_pb2.DeleteFeatureViewRequest, context
+    ):
+        self.proxied_registry.delete_feature_view(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
 
     def GetStreamFeatureView(
         self, request: RegistryServer_pb2.GetStreamFeatureViewRequest, context
@@ -93,6 +161,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def ApplyFeatureService(
+        self, request: RegistryServer_pb2.ApplyFeatureServiceRequest, context
+    ):
+        self.proxied_registry.apply_feature_service(
+            feature_service=FeatureService.from_proto(request.feature_service),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
+
     def GetFeatureService(
         self, request: RegistryServer_pb2.GetFeatureServiceRequest, context
     ):
@@ -111,6 +189,24 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 )
             ]
         )
+
+    def DeleteFeatureService(
+        self, request: RegistryServer_pb2.DeleteFeatureServiceRequest, context
+    ):
+        self.proxied_registry.delete_feature_service(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
+    def ApplySavedDataset(
+        self, request: RegistryServer_pb2.ApplySavedDatasetRequest, context
+    ):
+        self.proxied_registry.apply_saved_dataset(
+            saved_dataset=SavedDataset.from_proto(request.saved_dataset),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
 
     def GetSavedDataset(
         self, request: RegistryServer_pb2.GetSavedDatasetRequest, context
@@ -131,6 +227,26 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def DeleteSavedDataset(
+        self, request: RegistryServer_pb2.DeleteSavedDatasetRequest, context
+    ):
+        self.proxied_registry.delete_saved_dataset(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
+    def ApplyValidationReference(
+        self, request: RegistryServer_pb2.ApplyValidationReferenceRequest, context
+    ):
+        self.proxied_registry.apply_validation_reference(
+            validation_reference=ValidationReference.from_proto(
+                request.validation_reference
+            ),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
+
     def GetValidationReference(
         self, request: RegistryServer_pb2.GetValidationReferenceRequest, context
     ):
@@ -150,6 +266,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def DeleteValidationReference(
+        self, request: RegistryServer_pb2.DeleteValidationReferenceRequest, context
+    ):
+        self.proxied_registry.delete_validation_reference(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
     def ListProjectMetadata(
         self, request: RegistryServer_pb2.ListProjectMetadataRequest, context
     ):
@@ -162,10 +286,38 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ]
         )
 
+    def ApplyMaterialization(
+        self, request: RegistryServer_pb2.ApplyMaterializationRequest, context
+    ):
+        self.proxied_registry.apply_materialization(
+            feature_view=FeatureView.from_proto(request.feature_view),
+            project=request.project,
+            start_date=datetime.fromtimestamp(
+                request.start_date.seconds + request.start_date.nanos / 1e9
+            ),
+            end_date=datetime.fromtimestamp(
+                request.end_date.seconds + request.end_date.nanos / 1e9
+            ),
+            commit=request.commit,
+        )
+        return Empty()
+
+    def UpdateInfra(self, request: RegistryServer_pb2.UpdateInfraRequest, context):
+        self.proxied_registry.update_infra(
+            infra=Infra.from_proto(request.infra),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
+
     def GetInfra(self, request: RegistryServer_pb2.GetInfraRequest, context):
         return self.proxied_registry.get_infra(
             project=request.project, allow_cache=request.allow_cache
         ).to_proto()
+
+    def Commit(self, request, context):
+        self.proxied_registry.commit()
+        return Empty()
 
     def Refresh(self, request, context):
         self.proxied_registry.refresh(request.project)
@@ -178,7 +330,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 def start_server(store: FeatureStore, port: int):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
-        RegistryServer(store), server
+        RegistryServer(store.registry), server
     )
     server.add_insecure_port(f"[::]:{port}")
     server.start()

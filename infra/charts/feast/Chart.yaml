@@ -1,7 +1,7 @@
 apiVersion: v1
 description: Feature store for machine learning
 name: feast
-version: 0.37.1
+version: 0.38.0
 keywords:
   - machine learning
   - big data

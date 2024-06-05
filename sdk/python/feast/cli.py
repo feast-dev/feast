@@ -646,12 +646,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Disable the Uvicorn access log",
 )
 @click.option(
-    "--no-feature-log",
-    is_flag=True,
-    show_default=True,
-    help="Disable logging served features",
-)
-@click.option(
     "--workers",
     "-w",
     type=click.INT,
@@ -681,7 +675,6 @@ def serve_command(
     port: int,
     type_: str,
     no_access_log: bool,
-    no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int = 5,
@@ -694,7 +687,6 @@ def serve_command(
         port=port,
         type_=type_,
         no_access_log=no_access_log,
-        no_feature_log=no_feature_log,
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
         registry_ttl_sec=registry_ttl_sec,
