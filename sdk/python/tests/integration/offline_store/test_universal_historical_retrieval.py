@@ -381,7 +381,12 @@ def test_historical_features_persisting(
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
+    storage = environment.data_source_creator.create_saved_dataset_destination()
+
     store.apply([driver(), customer(), location(), *feature_views.values()])
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
@@ -404,7 +409,7 @@ def test_historical_features_persisting(
     saved_dataset = store.create_saved_dataset(
         from_=job,
         name="saved_dataset",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         tags={"env": "test"},
         allow_overwrite=True,
     )

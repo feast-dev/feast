@@ -1174,11 +1174,6 @@ class FeatureStore:
         dataset.min_event_timestamp = from_.metadata.min_event_timestamp
         dataset.max_event_timestamp = from_.metadata.max_event_timestamp
 
-        # Added to handle the case that the offline store is remote
-        self._registry.apply_data_source(
-            storage.to_data_source(), self.project, commit=True
-        )
-
         from_.persist(storage=storage, allow_overwrite=allow_overwrite)
 
         dataset = dataset.with_retrieval_job(
