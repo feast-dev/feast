@@ -131,71 +131,61 @@ class OfflineServer(fl.FlightServerBase):
         api = command["api"]
         logger.debug(f"get command is {command}")
         logger.debug(f"requested api is {api}")
-        if api == "get_historical_features":
-            training_df = self.get_historical_features(command, key)
-        elif api == "pull_all_from_table_or_query":
-            training_df = self.pull_all_from_table_or_query(command)
-        elif api == "pull_latest_from_table_or_query":
-            training_df = self.pull_latest_from_table_or_query(command)
-        else:
-            raise NotImplementedError
+        try:
+            if api == OfflineServer.get_historical_features.__name__:
+                df = self.get_historical_features(command, key).to_df()
+            elif api == OfflineServer.pull_all_from_table_or_query.__name__:
+                df = self.pull_all_from_table_or_query(command).to_df()
+            elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
+                df = self.pull_latest_from_table_or_query(command).to_df()
+            else:
+                raise NotImplementedError
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
 
-        table = pa.Table.from_pandas(training_df)
+        table = pa.Table.from_pandas(df)
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
         return fl.RecordBatchStream(table)
 
     def offline_write_batch(self, command, key):
-        try:
-            feature_view_names = command["feature_view_names"]
-            name_aliases = command["name_aliases"]
-            project = self.store.config.project
-            feature_views = self.list_feature_views_by_name(
-                feature_view_names=feature_view_names,
-                name_aliases=name_aliases,
-                project=project,
-            )
+        feature_view_names = command["feature_view_names"]
+        assert len(feature_view_names) == 1
+        name_aliases = command["name_aliases"]
+        assert len(name_aliases) == 1
+        project = self.store.config.project
+        feature_views = self.list_feature_views_by_name(
+            feature_view_names=feature_view_names,
+            name_aliases=name_aliases,
+            project=project,
+        )
 
-            table = self.flights[key]
-            self.offline_store.offline_write_batch(
-                self.store.config, feature_views[0], table, command["progress"]
-            )
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
+        assert len(feature_views) == 1
+        table = self.flights[key]
+        self.offline_store.offline_write_batch(
+            self.store.config, feature_views[0], table, command["progress"]
+        )
 
     def write_logged_features(self, command, key):
-        try:
-            table = self.flights[key]
-            feature_service = self.store.get_feature_service(
-                command["feature_service_name"]
-            )
+        table = self.flights[key]
+        feature_service = self.store.get_feature_service(
+            command["feature_service_name"]
+        )
 
-            self.offline_store.write_logged_features(
-                config=self.store.config,
-                data=table,
-                source=FeatureServiceLoggingSource(
-                    feature_service, self.store.config.project
-                ),
-                logging_config=feature_service.logging_config,
-                registry=self.store.registry,
-            )
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
+        self.offline_store.write_logged_features(
+            config=self.store.config,
+            data=table,
+            source=FeatureServiceLoggingSource(
+                feature_service, self.store.config.project
+            ),
+            logging_config=feature_service.logging_config,
+            registry=self.store.registry,
+        )
 
     def pull_all_from_table_or_query(self, command):
-        try:
-            return self._pull_all_from_table_or_query(command).to_df()
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
-
-    def _pull_all_from_table_or_query(self, command):
         return self.offline_store.pull_all_from_table_or_query(
             self.store.config,
             self.store.get_data_source(command["data_source_name"]),
@@ -207,14 +197,6 @@ class OfflineServer(fl.FlightServerBase):
         )
 
     def pull_latest_from_table_or_query(self, command):
-        try:
-            return self._pull_latest_from_table_or_query(command).to_df()
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
-
-    def _pull_latest_from_table_or_query(self, command):
         return self.offline_store.pull_latest_from_table_or_query(
             self.store.config,
             self.store.get_data_source(command["data_source_name"]),
@@ -229,32 +211,21 @@ class OfflineServer(fl.FlightServerBase):
     def list_actions(self, context):
         return [
             (
-                "offline_write_batch",
+                OfflineServer.offline_write_batch.__name__,
                 "Writes the specified arrow table to the data source underlying the specified feature view.",
             ),
             (
-                "write_logged_features",
+                OfflineServer.write_logged_features.__name__,
                 "Writes logged features to a specified destination in the offline store.",
             ),
             (
-                "persist",
+                OfflineServer.persist.__name__,
                 "Synchronously executes the underlying query and persists the result in the same offline store at the "
                 "specified destination.",
             ),
         ]
 
     def get_historical_features(self, command, key):
-        try:
-            ret_job = self._get_historical_features(command, key)
-            training_df = ret_job.to_df()
-
-            return training_df
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
-
-    def _get_historical_features(self, command, key):
         # Extract parameters from the internal flights dictionary
         entity_df_value = self.flights[key]
         entity_df = pa.Table.to_pandas(entity_df_value)
@@ -268,7 +239,7 @@ class OfflineServer(fl.FlightServerBase):
             name_aliases=name_aliases,
             project=project,
         )
-        retJob = self.store._get_provider().get_historical_features(
+        retJob = self.offline_store.get_historical_features(
             config=self.store.config,
             feature_views=feature_views,
             feature_refs=feature_refs,
@@ -282,12 +253,12 @@ class OfflineServer(fl.FlightServerBase):
     def persist(self, command, key):
         try:
             api = command["api"]
-            if api == "get_historical_features":
-                ret_job = self._get_historical_features(command, key)
-            elif api == "pull_latest_from_table_or_query":
-                ret_job = self._pull_latest_from_table_or_query(command)
-            elif api == "pull_all_from_table_or_query":
-                ret_job = self._pull_all_from_table_or_query(command)
+            if api == OfflineServer.get_historical_features.__name__:
+                ret_job = self.get_historical_features(command, key)
+            elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
+                ret_job = self.pull_latest_from_table_or_query(command)
+            elif api == OfflineServer.pull_all_from_table_or_query.__name__:
+                ret_job = self.pull_all_from_table_or_query(command)
             else:
                 raise NotImplementedError
 
@@ -306,14 +277,22 @@ class OfflineServer(fl.FlightServerBase):
         command = json.loads(key[1])
         logger.info(f"do_action command is {command}")
 
-        if action.type == "offline_write_batch":
-            self.offline_write_batch(command, key)
-        elif action.type == "write_logged_features":
-            self.write_logged_features(command, key)
-        elif action.type == "persist":
-            self.persist(command, key)
-        else:
-            raise NotImplementedError
+        try:
+            if action.type == OfflineServer.offline_write_batch.__name__:
+                self.offline_write_batch(command, key)
+            elif action.type == OfflineServer.write_logged_features.__name__:
+                self.write_logged_features(command, key)
+            elif action.type == OfflineServer.persist.__name__:
+                self.persist(command, key)
+            else:
+                raise NotImplementedError
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+    def do_drop_dataset(self, dataset):
+        pass
 
 
 def remove_dummies(fv: FeatureView) -> FeatureView:

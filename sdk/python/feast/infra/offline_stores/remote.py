@@ -82,7 +82,6 @@ class RemoteRetrievalJob(RetrievalJob):
 
     @property
     def full_feature_names(self) -> bool:
-        logger.info(f"{self.api_parameters}")
         return self.api_parameters["full_feature_names"]
 
     def persist(
@@ -91,6 +90,10 @@ class RemoteRetrievalJob(RetrievalJob):
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
     ):
+        """
+        Arrow flight action is being used to perform the persist action remotely
+        """
+
         api_parameters = {
             "data_source_name": storage.to_data_source().name,
             "allow_overwrite": allow_overwrite,
@@ -110,8 +113,9 @@ class RemoteRetrievalJob(RetrievalJob):
         )
         bytes = command_descriptor.serialize()
 
-        self.client.do_action(pa.flight.Action("persist", bytes))
-        logger.info("end of persist()")
+        self.client.do_action(
+            pa.flight.Action(RemoteRetrievalJob.persist.__name__, bytes)
+        )
 
 
 class RemoteOfflineStore(OfflineStore):
@@ -128,9 +132,7 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
+        client = RemoteOfflineStore.init_client(config)
 
         feature_view_names = [fv.name for fv in feature_views]
         name_aliases = [fv.projection.name_alias for fv in feature_views]
@@ -145,7 +147,7 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            api="get_historical_features",
+            api=OfflineStore.get_historical_features.__name__,
             api_parameters=api_parameters,
             entity_df=entity_df,
             metadata=_create_retrieval_metadata(feature_refs, entity_df),
@@ -164,9 +166,7 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
+        client = RemoteOfflineStore.init_client(config)
 
         api_parameters = {
             "data_source_name": data_source.name,
@@ -179,7 +179,7 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            api="pull_all_from_table_or_query",
+            api=OfflineStore.pull_all_from_table_or_query.__name__,
             api_parameters=api_parameters,
         )
 
@@ -197,9 +197,7 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
+        client = RemoteOfflineStore.init_client(config)
 
         api_parameters = {
             "data_source_name": data_source.name,
@@ -213,7 +211,7 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            api="pull_latest_from_table_or_query",
+            api=OfflineStore.pull_latest_from_table_or_query.__name__,
             api_parameters=api_parameters,
         )
 
@@ -232,16 +230,16 @@ class RemoteOfflineStore(OfflineStore):
             data = pyarrow.parquet.read_table(data, use_threads=False, pre_buffer=False)
 
         # Initialize the client connection
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
+        client = RemoteOfflineStore.init_client(config)
 
         api_parameters = {
             "feature_service_name": source._feature_service.name,
         }
 
+        api_name = OfflineStore.write_logged_features.__name__
+
         command_descriptor = _call_put(
-            api="write_logged_features",
+            api=api_name,
             api_parameters=api_parameters,
             client=client,
             table=data,
@@ -249,7 +247,7 @@ class RemoteOfflineStore(OfflineStore):
         )
         bytes = command_descriptor.serialize()
 
-        client.do_action(pa.flight.Action("write_logged_features", bytes))
+        client.do_action(pa.flight.Action(api_name, bytes))
 
     @staticmethod
     def offline_write_batch(
@@ -261,9 +259,7 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
+        client = RemoteOfflineStore.init_client(config)
 
         feature_view_names = [feature_view.name]
         name_aliases = [feature_view.projection.name_alias]
@@ -274,8 +270,9 @@ class RemoteOfflineStore(OfflineStore):
             "name_aliases": name_aliases,
         }
 
+        api_name = OfflineStore.offline_write_batch.__name__
         command_descriptor = _call_put(
-            api="offline_write_batch",
+            api=api_name,
             api_parameters=api_parameters,
             client=client,
             table=table,
@@ -283,7 +280,14 @@ class RemoteOfflineStore(OfflineStore):
         )
         bytes = command_descriptor.serialize()
 
-        client.do_action(pa.flight.Action("offline_write_batch", bytes))
+        client.do_action(pa.flight.Action(api_name, bytes))
+
+    @staticmethod
+    def init_client(config):
+        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
+        client = fl.connect(location=location)
+        logger.info(f"Connecting FlightClient at {location}")
+        return client
 
 
 def _create_retrieval_metadata(feature_refs: List[str], entity_df: pd.DataFrame):
