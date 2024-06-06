@@ -247,28 +247,7 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project)
 
-    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
-        """
-        Retrieves the list of feature views from the registry.
-
-        Args:
-            allow_cache: Whether to allow returning entities from a cached registry.
-
-        Returns:
-            A list of feature views.
-        """
-        return self._list_batch_feature_views(allow_cache)
-
-    def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-    ) -> List[FeatureView]:
-        return self._list_batch_feature_views(allow_cache)
-
-    def list_all_feature_views(
-        self, allow_cache: bool = False
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+    def list_all_feature_views(self, allow_cache: bool = False) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
         """
         Retrieves the list of feature views from the registry.
 
@@ -280,9 +259,9 @@ class FeatureStore:
         """
         return self._list_all_feature_views(allow_cache)
 
-    def list_batch_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
+    def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
-        Retrieves the list of batch feature views from the registry.
+        Retrieves the list of feature views from the registry.
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry.
@@ -290,9 +269,20 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        return self._list_batch_feature_views(allow_cache)
+        return self._list_feature_views(allow_cache)
 
-    def _list_batch_feature_views(
+    def _list_all_feature_views(
+        self,
+        allow_cache: bool = False,
+    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+        all_feature_views = (
+            self._list_feature_views(allow_cache)
+            + self._list_stream_feature_views(allow_cache)
+            + self.list_on_demand_feature_views(allow_cache)
+        )
+        return all_feature_views
+
+    def _list_feature_views(
         self,
         allow_cache: bool = False,
         hide_dummy_entity: bool = True,
@@ -349,23 +339,6 @@ class FeatureStore:
             A list of stream feature views.
         """
         return self._list_stream_feature_views(allow_cache)
-
-    def _list_all_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
-        """
-        Retrieves the list of all feature views from the registry.
-
-        Returns:
-            A list of all feature views.
-        """
-        return (
-            self._list_batch_feature_views(allow_cache, hide_dummy_entity)
-            + self._list_stream_feature_views(allow_cache, hide_dummy_entity)
-            + self.list_on_demand_feature_views(allow_cache)
-        )
 
     def list_data_sources(self, allow_cache: bool = False) -> List[DataSource]:
         """
