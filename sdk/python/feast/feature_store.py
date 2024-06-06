@@ -2569,13 +2569,11 @@ class FeatureStore:
 
         registry_server.start_server(self, port)
 
-
     def serve_offline(self, host: str, port: int) -> None:
         """Start offline server locally on a given port."""
         from feast import offline_server
 
         offline_server.start_server(self, host, port)
-
 
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
