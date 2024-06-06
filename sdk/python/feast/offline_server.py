@@ -153,9 +153,11 @@ class OfflineServer(fl.FlightServerBase):
 
     def offline_write_batch(self, command, key):
         feature_view_names = command["feature_view_names"]
-        assert len(feature_view_names) == 1
+        assert (
+            len(feature_view_names) == 1
+        ), "feature_view_names list should only have one item"
         name_aliases = command["name_aliases"]
-        assert len(name_aliases) == 1
+        assert len(name_aliases) == 1, "name_aliases list should only have one item"
         project = self.store.config.project
         feature_views = self.list_feature_views_by_name(
             feature_view_names=feature_view_names,
