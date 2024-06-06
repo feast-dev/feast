@@ -247,7 +247,9 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project)
 
-    def list_all_feature_views(self, allow_cache: bool = False) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+    def list_all_feature_views(
+        self, allow_cache: bool = False
+    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
         """
         Retrieves the list of feature views from the registry.
 
