@@ -1,5 +1,7 @@
 import os
+import platform
 import sqlite3
+import sys
 import time
 from datetime import datetime
 
@@ -421,7 +423,8 @@ def test_online_to_df():
         assert_frame_equal(result_df[ordered_column], expected_df)
 
 
-def test_get_online_documents() -> None:
+@pytest.mark.skipif(sys.version_info != (3, 10) and platform.platform != "Darwin")
+def test_sqlite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
@@ -499,18 +502,19 @@ def test_get_online_documents() -> None:
         )
         assert record_count == len(data) + documents_df.shape[0]
 
-        # query = np.random.random(
-        #     vector_length,
-        # )
-        # result = store.retrieve_online_documents(
-        #     feature="document_embeddings:Embeddings", query=query, top_k=3
-        # ).to_dict()
-        #
-        # assert "Embeddings" in result
-        # assert "distance" in result
-        # assert len(result["distance"]) == 3
+        query = np.random.random(
+            vector_length,
+        )
+        result = store.retrieve_online_documents(
+            feature="document_embeddings:Embeddings", query=query, top_k=3
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
 
 
+@pytest.mark.skipif(sys.version_info != (3, 10) and platform.platform != "Darwin")
 def test_sqlite_vec_import() -> None:
     db = sqlite3.connect(":memory:")
     db.enable_load_extension(True)
@@ -521,7 +525,7 @@ def test_sqlite_vec_import() -> None:
       sample_embedding float[8]
     );
     """)
-    
+
     db.execute("""
     insert into vec_examples(rowid, sample_embedding)
     values
@@ -530,13 +534,13 @@ def test_sqlite_vec_import() -> None:
         (3, '[0.716, -0.927, 0.134, 0.052, -0.669, 0.793, -0.634, -0.162]'),
         (4, '[-0.710, 0.330, 0.656, 0.041, -0.990, 0.726, 0.385, -0.958]');
     """)
-    
+
     sqlite_version, vec_version = db.execute(
         "select sqlite_version(), vec_version()"
     ).fetchone()
-    assert vec_version == 'v0.0.1-alpha.10'
+    assert vec_version == "v0.0.1-alpha.10"
     print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
-    
+
     result = db.execute("""
         select
             rowid,
