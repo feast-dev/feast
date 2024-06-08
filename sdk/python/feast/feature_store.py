@@ -13,6 +13,7 @@
 # limitations under the License.
 import copy
 import itertools
+import logging
 import os
 import warnings
 from collections import Counter, defaultdict
@@ -271,6 +272,10 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
+        logging.warning(
+            "list_feature_views will make breaking changes. Please use list_batch_feature_views instead. "
+            "list_feature_views will behave like list_all_feature_views in the future."
+        )
         return self._list_feature_views(allow_cache)
 
     def _list_all_feature_views(
@@ -285,6 +290,29 @@ class FeatureStore:
         return all_feature_views
 
     def _list_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+    ) -> List[FeatureView]:
+        logging.warning(
+            "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
+            "_list_feature_views will behave like _list_all_feature_views in the future."
+        )
+        feature_views = []
+        for fv in self._registry.list_feature_views(
+            self.project, allow_cache=allow_cache
+        ):
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
+                fv.entities = []
+                fv.entity_columns = []
+            feature_views.append(fv)
+        return feature_views
+
+    def _list_batch_feature_views(
         self,
         allow_cache: bool = False,
         hide_dummy_entity: bool = True,
