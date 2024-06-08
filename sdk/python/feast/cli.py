@@ -645,12 +645,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Disable the Uvicorn access log",
 )
 @click.option(
-    "--no-feature-log",
-    is_flag=True,
-    show_default=True,
-    help="Disable logging served features",
-)
-@click.option(
     "--workers",
     "-w",
     type=click.INT,
