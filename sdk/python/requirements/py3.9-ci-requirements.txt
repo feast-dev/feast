@@ -350,7 +350,16 @@ idna==3.7
 imagesize==1.4.1
     # via sphinx
 importlib-metadata==7.1.0
-    # via dask
+    # via
+    #   build
+    #   dask
+    #   jupyter-client
+    #   jupyter-lsp
+    #   jupyterlab
+    #   jupyterlab-server
+    #   nbconvert
+    #   sphinx
+    #   typeguard
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.4
@@ -993,6 +1002,7 @@ types-urllib3==1.26.25.14
     # via types-requests
 typing-extensions==4.11.0
     # via
+    #   aioitertools
     #   anyio
     #   async-lru
     #   azure-core
@@ -1000,11 +1010,13 @@ typing-extensions==4.11.0
     #   fastapi
     #   great-expectations
     #   ibis-framework
+    #   ipython
     #   mypy
     #   pydantic
     #   pydantic-core
     #   snowflake-connector-python
     #   sqlalchemy
+    #   starlette
     #   testcontainers
     #   typeguard
     #   typer
@@ -1033,6 +1045,7 @@ urllib3==1.26.18
     #   requests
     #   responses
     #   rockset
+    #   snowflake-connector-python
     #   testcontainers
 uvicorn[standard]==0.29.0
     # via

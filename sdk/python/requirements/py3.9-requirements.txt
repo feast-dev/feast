@@ -69,7 +69,9 @@ idna==3.7
     #   httpx
     #   requests
 importlib-metadata==7.1.0
-    # via dask
+    # via
+    #   dask
+    #   typeguard
 jinja2==3.1.4
     # via
     #   feast (setup.py)
@@ -198,6 +200,7 @@ typing-extensions==4.11.0
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
+    #   starlette
     #   typeguard
     #   typer
     #   uvicorn
