@@ -159,6 +159,10 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
+            assert len(self.store.list_all_feature_views()) == 4
+            assert len(self.store.list_feature_views()) == 1
+            assert len(self.store.list_on_demand_feature_views()) == 3
+            assert len(self.store.list_stream_feature_views()) == 0
 
     def test_python_pandas_parity(self):
         entity_rows = [
