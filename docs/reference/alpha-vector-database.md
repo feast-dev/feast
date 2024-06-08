@@ -13,7 +13,9 @@ Below are supported vector databases and implemented features:
 | Elasticsearch   | [x]       | [x]      |
 | Milvus          | [ ]       | [ ]      |
 | Faiss           | [ ]       | [ ]      |
+| SQLite          | [x]       | [ ]      |
 
+Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.   
 
 ## Example
 
