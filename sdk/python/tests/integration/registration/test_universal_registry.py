@@ -309,11 +309,20 @@ def test_apply_entity_success(test_registry):
     assert entity.created_timestamp == entity.last_updated_timestamp
 
     # Update entity
-    entity.description = "Car driver ID"
-    test_registry.apply_entity(entity, project)
+    updated_entity = Entity(
+        name="driver_car_id",
+        description="Car driver Id",
+        tags={"team": "matchmaking"},
+    )
+    test_registry.apply_entity(updated_entity, project)
+
+    updated_entity = test_registry.get_entity("driver_car_id", project)
 
     # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
-    assert entity.created_timestamp is not None
+    assert (
+        updated_entity.created_timestamp is not None
+        and updated_entity.created_timestamp == entity.created_timestamp
+    )
 
     test_registry.delete_entity("driver_car_id", project)
     assert_project_uuid(project, project_uuid, test_registry)
@@ -671,6 +680,8 @@ def test_modify_feature_views_success(test_registry):
         data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
         return data
 
+    existing_odfv = test_registry.get_on_demand_feature_view("odfv1", project)
+
     # Apply the modified odfv
     test_registry.apply_feature_view(odfv1, project)
 
@@ -705,6 +716,11 @@ def test_modify_feature_views_success(test_registry):
         and list(request_schema.values())[0] == ValueType.INT32
     )
 
+    assert (
+        feature_view.created_timestamp is not None
+        and feature_view.created_timestamp == existing_odfv.created_timestamp
+    )
+
     # Make sure fv1 is untouched
     feature_views = test_registry.list_feature_views(project)
 
@@ -726,7 +742,7 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Modify fv1 by changing a single dtype
-    fv1 = FeatureView(
+    updated_fv1 = FeatureView(
         name="my_feature_view_1",
         schema=[
             Field(name="test", dtype=Int64),
@@ -739,32 +755,35 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Apply the modified fv1
-    test_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(updated_fv1, project)
 
     # Verify feature view after modification
-    feature_views = test_registry.list_feature_views(project)
+    updated_feature_views = test_registry.list_feature_views(project)
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "my_feature_view_1"
-        and feature_views[0].features[0].name == "fs1_my_feature_1"
-        and feature_views[0].features[0].dtype == String
-        and feature_views[0].entities[0] == "fs1_my_entity_1"
+        len(updated_feature_views) == 1
+        and updated_feature_views[0].name == "my_feature_view_1"
+        and updated_feature_views[0].features[0].name == "fs1_my_feature_1"
+        and updated_feature_views[0].features[0].dtype == String
+        and updated_feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
-    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
+    updated_feature_view = test_registry.get_feature_view("my_feature_view_1", project)
     assert (
-        feature_view.name == "my_feature_view_1"
-        and feature_view.features[0].name == "fs1_my_feature_1"
-        and feature_view.features[0].dtype == String
-        and feature_view.entities[0] == "fs1_my_entity_1"
+        updated_feature_view.name == "my_feature_view_1"
+        and updated_feature_view.features[0].name == "fs1_my_feature_1"
+        and updated_feature_view.features[0].dtype == String
+        and updated_feature_view.entities[0] == "fs1_my_entity_1"
     )
 
     # The created_timestamp for the feature view should be set to the created_timestamp value stored from the
     # previous apply
 
-    assert feature_view.created_timestamp is not None
+    assert (
+        updated_feature_view.created_timestamp is not None
+        and updated_feature_view.created_timestamp == feature_view.created_timestamp
+    )
 
     # Modify sfv by changing the dtype
 
@@ -795,34 +814,40 @@ def test_modify_feature_views_success(test_registry):
         tags={},
     )
 
+    existing_sfv = test_registry.get_stream_feature_view(
+        "test kafka stream feature view", project
+    )
     # Apply the modified sfv
     test_registry.apply_feature_view(sfv, project)
 
     # Verify feature view after modification
-    feature_views = test_registry.list_stream_feature_views(project)
+    updated_stream_feature_views = test_registry.list_stream_feature_views(project)
 
     # List Feature Views
     assert (
-        len(feature_views) == 1
-        and feature_views[0].name == "test kafka stream feature view"
-        and feature_views[0].features[0].name == "dummy_field"
-        and feature_views[0].features[0].dtype == String
-        and feature_views[0].entities[0] == "sfv_my_entity_1"
+        len(updated_stream_feature_views) == 1
+        and updated_stream_feature_views[0].name == "test kafka stream feature view"
+        and updated_stream_feature_views[0].features[0].name == "dummy_field"
+        and updated_stream_feature_views[0].features[0].dtype == String
+        and updated_stream_feature_views[0].entities[0] == "sfv_my_entity_1"
     )
 
-    feature_view = test_registry.get_stream_feature_view(
+    updated_sfv = test_registry.get_stream_feature_view(
         "test kafka stream feature view", project
     )
     assert (
-        feature_view.name == "test kafka stream feature view"
-        and feature_view.features[0].name == "dummy_field"
-        and feature_view.features[0].dtype == String
-        and feature_view.entities[0] == "sfv_my_entity_1"
+        updated_sfv.name == "test kafka stream feature view"
+        and updated_sfv.features[0].name == "dummy_field"
+        and updated_sfv.features[0].dtype == String
+        and updated_sfv.entities[0] == "sfv_my_entity_1"
     )
 
     # The created_timestamp for the stream feature view should be set to the created_timestamp value stored from the
     # previous apply
-    assert feature_view.created_timestamp is not None
+    assert (
+        updated_sfv.created_timestamp is not None
+        and updated_sfv.created_timestamp == existing_sfv.created_timestamp
+    )
 
     test_registry.teardown()
 
@@ -1059,10 +1084,6 @@ def test_modify_feature_service_success(test_registry):
     assert len(feature_services) == 1
     assert feature_services[0] == fs
 
-    test_registry.delete_feature_service("my_feature_service_1", project)
-    feature_services = test_registry.list_feature_services(project)
-    assert len(feature_services) == 0
-
     # Modify Feature Service by removing a feature
     fs = FeatureService(
         name="my_feature_service_1", features=[feature_view[["feature1"]]]
@@ -1071,14 +1092,18 @@ def test_modify_feature_service_success(test_registry):
     # Apply modified Feature Service
     test_registry.apply_feature_service(fs, project)
 
-    feature_services = test_registry.list_feature_services(project)
+    updated_feature_services = test_registry.list_feature_services(project)
 
     # Verify Feature Services
-    assert len(feature_services) == 1
-    assert feature_services[0] == fs
+    assert len(updated_feature_services) == 1
+    assert updated_feature_services[0] == fs
     # The created_timestamp for the feature service should be set to the created_timestamp value stored from the
     # previous apply
-    assert feature_services[0].created_timestamp is not None
+    assert (
+        updated_feature_services[0].created_timestamp is not None
+        and updated_feature_services[0].created_timestamp
+        == feature_services[0].created_timestamp
+    )
 
     test_registry.teardown()
 

@@ -238,6 +238,3 @@ class BaseFeatureView(ABC):
         cp.projection = feature_view_projection
 
         return cp
-
-    def update_meta(self, serialized_proto: bytes):
-        pass

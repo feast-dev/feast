@@ -693,7 +693,16 @@ class SqlRegistry(CachingRegistry):
                     "feature_view_proto",
                     "feature_service_proto",
                 ]:
-                    obj.update_meta(row._mapping[proto_field_name])
+                    deserialized_proto = self.deserialize_registry_values(
+                        row._mapping[proto_field_name], type(obj)
+                    )
+                    obj.created_timestamp = (
+                        deserialized_proto.meta.created_timestamp.ToDatetime()
+                    )
+                    if isinstance(obj, (FeatureView, StreamFeatureView)):
+                        obj.update_materialization_intervals(
+                            deserialized_proto.meta.materialization_intervals
+                        )
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,

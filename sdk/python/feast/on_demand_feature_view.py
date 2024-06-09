@@ -201,12 +201,6 @@ class OnDemandFeatureView(BaseFeatureView):
     def __hash__(self):
         return super().__hash__()
 
-    def update_meta(self, stored_proto: bytes):
-        on_demand_feature_view_proto = OnDemandFeatureViewProto.FromString(stored_proto)
-        self.created_timestamp = (
-            on_demand_feature_view_proto.meta.created_timestamp.ToDatetime()
-        )
-
     def to_proto(self) -> OnDemandFeatureViewProto:
         """
         Converts an on demand feature view object to its protobuf representation.

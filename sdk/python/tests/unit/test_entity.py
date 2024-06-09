@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime, timedelta
 
 import assertpy
 import pytest
@@ -75,25 +74,3 @@ def test_hash():
 
     s4 = {entity1, entity2, entity3, entity4}
     assert len(s4) == 3
-
-
-def test_update_meta_with_entity():
-    # Create an entity that is already present in the SQL registry
-    stored_entity = Entity(
-        name="my-entity", join_keys=["key"], value_type=ValueType.INT32
-    )
-    current_time = datetime.now()
-    stored_entity.created_timestamp = current_time - timedelta(days=1)
-    stored_entity.last_updated_timestamp = current_time - timedelta(days=1)
-    stored_entity_proto = stored_entity.to_proto()
-    serialized_proto = stored_entity_proto.SerializeToString()
-
-    # Update the entity i.e. here it's simply the name
-    updated_entity = Entity(
-        name="my-entity-1", join_keys=["key"], value_type=ValueType.INT32
-    )
-    updated_entity.last_updated_timestamp = current_time
-
-    updated_entity.update_meta(serialized_proto)
-    assert updated_entity.created_timestamp == stored_entity.created_timestamp
-    assert updated_entity.last_updated_timestamp == current_time

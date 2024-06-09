@@ -119,48 +119,51 @@ def test_field_types():
         Field(name="name", dtype=ValueType.INT32)
 
 
-def test_update_meta():
+def test_update_materialization_intervals():
     batch_source = FileSource(path="some path")
+    entity = Entity(name="entity_1", description="Some entity")
     # Create a feature view that is already present in the SQL registry
     stored_feature_view = FeatureView(
-        name="my-feature-view", entities=[], ttl=timedelta(days=1), source=batch_source
-    )
-    current_time = datetime.now()
-    stored_feature_view.created_timestamp = current_time - timedelta(days=1)
-    stored_feature_view.last_updated_timestamp = current_time
-    start_date = current_time - timedelta(days=1)
-    end_date = current_time
-    stored_feature_view.materialization_intervals.append((start_date, end_date))
-
-    stored_feature_view_proto = stored_feature_view.to_proto()
-    serialized_proto = stored_feature_view_proto.SerializeToString()
-
-    # Update the entity i.e. here it's simply the name
-    updated_feature_view = FeatureView(
-        name="my-feature-view-1",
-        entities=[],
+        name="my-feature-view",
+        entities=[entity],
         ttl=timedelta(days=1),
         source=batch_source,
     )
 
-    updated_feature_view.last_updated_timestamp = current_time
-    updated_feature_view.materialization_intervals = []
+    # Update the Feature View without modifying anything
+    updated_feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[entity],
+        ttl=timedelta(days=1),
+        source=batch_source,
+    )
+    updated_feature_view.update_materialization_intervals(
+        stored_feature_view.to_proto().meta.materialization_intervals
+    )
+    assert len(updated_feature_view.materialization_intervals) == 0
 
-    updated_feature_view.update_meta(serialized_proto)
+    current_time = datetime.now()
+    start_date = current_time - timedelta(days=1)
+    end_date = current_time
+    updated_feature_view.materialization_intervals.append((start_date, end_date))
 
-    assert (
-        updated_feature_view.created_timestamp == stored_feature_view.created_timestamp
+    # Update the Feature View, i.e. simply update the name
+    second_updated_feature_view = FeatureView(
+        name="my-feature-view-1",
+        entities=[entity],
+        ttl=timedelta(days=1),
+        source=batch_source,
     )
-    assert updated_feature_view.last_updated_timestamp == current_time
+
+    second_updated_feature_view.update_materialization_intervals(
+        updated_feature_view.to_proto().meta.materialization_intervals
+    )
+    assert len(second_updated_feature_view.materialization_intervals) == 1
     assert (
-        updated_feature_view.materialization_intervals is not None
-        and len(updated_feature_view.materialization_intervals) == 1
+        second_updated_feature_view.materialization_intervals[0][0]
+        == second_updated_feature_view.materialization_intervals[0][0]
     )
     assert (
-        updated_feature_view.materialization_intervals[0][0]
-        == stored_feature_view.materialization_intervals[0][0]
-    )
-    assert (
-        updated_feature_view.materialization_intervals[0][1]
-        == stored_feature_view.materialization_intervals[0][1]
+        second_updated_feature_view.materialization_intervals[0][1]
+        == second_updated_feature_view.materialization_intervals[0][1]
     )

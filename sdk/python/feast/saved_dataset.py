@@ -140,16 +140,6 @@ class SavedDataset:
 
         return True
 
-    def update_meta(self, stored_proto: bytes):
-        saved_dataset_proto = SavedDatasetProto.FromString(stored_proto)
-        self.created_timestamp = saved_dataset_proto.meta.created_timestamp.ToDatetime()
-        self.min_event_timestamp = (
-            saved_dataset_proto.meta.min_event_timestamp.ToDatetime()
-        )
-        self.max_event_timestamp = (
-            saved_dataset_proto.meta.max_event_timestamp.ToDatetime()
-        )
-
     @staticmethod
     def from_proto(saved_dataset_proto: SavedDatasetProto):
         """

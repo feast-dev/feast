@@ -252,7 +252,7 @@ def test_stream_feature_view_copy():
     assert sfv == copy.copy(sfv)
 
 
-def test_update_meta():
+def test_update_materialization_intervals():
     entity = Entity(name="driver_entity", join_keys=["test_key"])
     stream_source = KafkaSource(
         name="kafka",
@@ -286,14 +286,9 @@ def test_update_meta():
         tags={},
     )
     current_time = datetime.now()
-    stored_stream_feature_view.created_timestamp = current_time - timedelta(days=1)
-    stored_stream_feature_view.last_updated_timestamp = current_time - timedelta(days=1)
-
     start_date = current_time - timedelta(days=1)
     end_date = current_time
     stored_stream_feature_view.materialization_intervals.append((start_date, end_date))
-    stored_stream_feature_view_proto = stored_stream_feature_view.to_proto()
-    serialized_proto = stored_stream_feature_view_proto.SerializeToString()
 
     # # Update the stream feature view i.e. here it's simply the name
     updated_stream_feature_view = StreamFeatureView(
@@ -317,16 +312,11 @@ def test_update_meta():
         udf=simple_udf,
         tags={},
     )
-    updated_stream_feature_view.last_updated_timestamp = current_time
-    updated_stream_feature_view.materialization_intervals = []
 
-    updated_stream_feature_view.update_meta(serialized_proto)
-
-    assert (
-        updated_stream_feature_view.created_timestamp
-        == stored_stream_feature_view.created_timestamp
+    updated_stream_feature_view.update_materialization_intervals(
+        stored_stream_feature_view.to_proto().meta.materialization_intervals
     )
-    assert updated_stream_feature_view.last_updated_timestamp == current_time
+
     assert (
         updated_stream_feature_view.materialization_intervals is not None
         and len(stored_stream_feature_view.materialization_intervals) == 1

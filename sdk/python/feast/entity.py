@@ -167,10 +167,6 @@ class Entity:
 
         return entity
 
-    def update_meta(self, stored_proto: bytes):
-        entity_proto = EntityProto.FromString(stored_proto)
-        self.created_timestamp = entity_proto.meta.created_timestamp.ToDatetime()
-
     def to_proto(self) -> EntityProto:
         """
         Converts an entity object to its protobuf representation.

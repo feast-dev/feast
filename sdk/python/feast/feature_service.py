@@ -219,12 +219,6 @@ class FeatureService:
 
         return fs
 
-    def update_meta(self, stored_proto: bytes):
-        feature_service_proto = FeatureServiceProto.FromString(stored_proto)
-        self.created_timestamp = (
-            feature_service_proto.meta.created_timestamp.ToDatetime()
-        )
-
     def to_proto(self) -> FeatureServiceProto:
         """
         Converts a feature service to its protobuf representation.

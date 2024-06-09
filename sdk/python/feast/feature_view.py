@@ -311,14 +311,12 @@ class FeatureView(BaseFeatureView):
 
         return cp
 
-    def update_meta(self, stored_proto: bytes):
-        feature_view_proto = FeatureViewProto.FromString(stored_proto)
-        self.created_timestamp = feature_view_proto.meta.created_timestamp.ToDatetime()
-
-        for interval in feature_view_proto.meta.materialization_intervals:
-            self.materialization_intervals.append(
-                (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
-            )
+    def update_materialization_intervals(self, existing_materialization_intervals):
+        if existing_materialization_intervals:
+            for interval in existing_materialization_intervals:
+                self.materialization_intervals.append(
+                    (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
+                )
 
     def to_proto(self) -> FeatureViewProto:
         """
