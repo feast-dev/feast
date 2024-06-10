@@ -481,8 +481,9 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
-        self.conn.enable_load_extension(True)
-        sqlite_vec.load(self.conn)
+        if sys.version_info[0:2] == (3, 10):
+            self.conn.enable_load_extension(True)
+            sqlite_vec.load(self.conn)
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
