@@ -61,14 +61,38 @@ class OfflineServer(fl.FlightServerBase):
     # Indexed by the unique command
     def do_put(self, context, descriptor, reader, writer):
         key = OfflineServer.descriptor_to_key(descriptor)
-
         command = json.loads(key[1])
         if "api" in command:
             data = reader.read_all()
             logger.debug(f"do_put: command is{command}, data is {data}")
             self.flights[key] = data
+
+            self._call_api(command, key)
         else:
             logger.warning(f"No 'api' field in command: {command}")
+
+    def _call_api(self, command, key):
+        remove_data = False
+        try:
+            api = command["api"]
+            if api == OfflineServer.offline_write_batch.__name__:
+                self.offline_write_batch(command, key)
+                remove_data = True
+            elif api == OfflineServer.write_logged_features.__name__:
+                self.write_logged_features(command, key)
+                remove_data = True
+            elif api == OfflineServer.persist.__name__:
+                self.persist(command["retrieve_func"], command, key)
+                remove_data = True
+        except Exception as e:
+            remove_data = True
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+        finally:
+            if remove_data:
+                # Get service is consumed, so we clear the corresponding flight and data
+                del self.flights[key]
 
     def get_feature_view_by_name(
         self, fv_name: str, name_alias: str, project: str
@@ -133,19 +157,17 @@ class OfflineServer(fl.FlightServerBase):
         logger.debug(f"requested api is {api}")
         try:
             if api == OfflineServer.get_historical_features.__name__:
-                df = self.get_historical_features(command, key).to_df()
+                table = self.get_historical_features(command, key).to_arrow()
             elif api == OfflineServer.pull_all_from_table_or_query.__name__:
-                df = self.pull_all_from_table_or_query(command).to_df()
+                table = self.pull_all_from_table_or_query(command).to_arrow()
             elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
-                df = self.pull_latest_from_table_or_query(command).to_df()
+                table = self.pull_latest_from_table_or_query(command).to_arrow()
             else:
                 raise NotImplementedError
         except Exception as e:
             logger.exception(e)
             traceback.print_exc()
             raise e
-
-        table = pa.Table.from_pandas(df)
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
@@ -252,14 +274,15 @@ class OfflineServer(fl.FlightServerBase):
         )
         return retJob
 
-    def persist(self, command, key):
+    def persist(self, retrieve_func, command, key):
         try:
-            api = command["api"]
-            if api == OfflineServer.get_historical_features.__name__:
+            if retrieve_func == OfflineServer.get_historical_features.__name__:
                 ret_job = self.get_historical_features(command, key)
-            elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
+            elif (
+                retrieve_func == OfflineServer.pull_latest_from_table_or_query.__name__
+            ):
                 ret_job = self.pull_latest_from_table_or_query(command)
-            elif api == OfflineServer.pull_all_from_table_or_query.__name__:
+            elif retrieve_func == OfflineServer.pull_all_from_table_or_query.__name__:
                 ret_job = self.pull_all_from_table_or_query(command)
             else:
                 raise NotImplementedError
@@ -273,25 +296,7 @@ class OfflineServer(fl.FlightServerBase):
             raise e
 
     def do_action(self, context, action):
-        command_descriptor = fl.FlightDescriptor.deserialize(action.body.to_pybytes())
-
-        key = OfflineServer.descriptor_to_key(command_descriptor)
-        command = json.loads(key[1])
-        logger.info(f"do_action command is {command}")
-
-        try:
-            if action.type == OfflineServer.offline_write_batch.__name__:
-                self.offline_write_batch(command, key)
-            elif action.type == OfflineServer.write_logged_features.__name__:
-                self.write_logged_features(command, key)
-            elif action.type == OfflineServer.persist.__name__:
-                self.persist(command, key)
-            else:
-                raise NotImplementedError
-        except Exception as e:
-            logger.exception(e)
-            traceback.print_exc()
-            raise e
+        pass
 
     def do_drop_dataset(self, dataset):
         pass

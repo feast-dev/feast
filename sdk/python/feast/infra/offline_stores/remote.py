@@ -104,17 +104,14 @@ class RemoteRetrievalJob(RetrievalJob):
         for key, value in self.api_parameters.items():
             api_parameters[key] = value
 
-        command_descriptor = _call_put(
-            api=self.api,
+        api_parameters["retrieve_func"] = self.api
+
+        _call_put(
+            api=RemoteRetrievalJob.persist.__name__,
             api_parameters=api_parameters,
             client=self.client,
             table=self.table,
             entity_df=self.entity_df,
-        )
-        bytes = command_descriptor.serialize()
-
-        self.client.do_action(
-            pa.flight.Action(RemoteRetrievalJob.persist.__name__, bytes)
         )
 
 
@@ -236,18 +233,13 @@ class RemoteOfflineStore(OfflineStore):
             "feature_service_name": source._feature_service.name,
         }
 
-        api_name = OfflineStore.write_logged_features.__name__
-
-        command_descriptor = _call_put(
-            api=api_name,
+        _call_put(
+            api=OfflineStore.write_logged_features.__name__,
             api_parameters=api_parameters,
             client=client,
             table=data,
             entity_df=None,
         )
-        bytes = command_descriptor.serialize()
-
-        client.do_action(pa.flight.Action(api_name, bytes))
 
     @staticmethod
     def offline_write_batch(
@@ -270,17 +262,13 @@ class RemoteOfflineStore(OfflineStore):
             "name_aliases": name_aliases,
         }
 
-        api_name = OfflineStore.offline_write_batch.__name__
-        command_descriptor = _call_put(
-            api=api_name,
+        _call_put(
+            api=OfflineStore.offline_write_batch.__name__,
             api_parameters=api_parameters,
             client=client,
             table=table,
             entity_df=None,
         )
-        bytes = command_descriptor.serialize()
-
-        client.do_action(pa.flight.Action(api_name, bytes))
 
     @staticmethod
     def init_client(config):
