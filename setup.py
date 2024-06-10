@@ -96,8 +96,8 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
-SQLITE_REQUIRED = [
-    "-vec==v0.0.1-alpha.10",
+SQLITE_VEC_REQUIRED = [
+    "sqlite-vec==v0.0.1-alpha.10",
 ]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
@@ -217,7 +217,7 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
-    + SQLITE_REQUIRED
+    + SQLITE_VEC_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -385,7 +385,7 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
-        "sqlite_vec": SQLITE_REQUIRED,
+        "sqlite_vec": SQLITE_VEC_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
