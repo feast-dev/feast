@@ -424,7 +424,7 @@ def test_online_to_df():
 
 
 @pytest.mark.skipif(
-    sys.version_info[0:2] != (3, 10) and platform.system != "Darwin",
+    sys.version_info[0:2] != (3, 10) and platform.system() != "Darwin",
     reason="Only works on Python 3.10 and MacOS",
 )
 def test_sqlite_get_online_documents() -> None:
@@ -518,7 +518,7 @@ def test_sqlite_get_online_documents() -> None:
 
 
 @pytest.mark.skipif(
-    sys.version_info[0:2] != (3, 10) and platform.system != "Darwin",
+    sys.version_info[0:2] != (3, 10) and platform.system() != "Darwin",
     reason="Only works on Python 3.10 and MacOS",
 )
 def test_sqlite_vec_import() -> None:
