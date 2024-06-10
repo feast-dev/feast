@@ -13,9 +13,9 @@
 # limitations under the License.
 import itertools
 import os
-import sys
 import sqlite3
 import struct
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -84,7 +84,7 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if sys.version_info[0] == 3 and sys.version_info < 11:
+            if sys.version_info.major == 3 and sys.version_info.minor < 11:
                 self._conn.enable_load_extension(True)  # type: ignore
                 sqlite_vec.load(self._conn)
 
