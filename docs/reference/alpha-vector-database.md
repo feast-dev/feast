@@ -121,5 +121,9 @@ If you are using `pyenv` to manage your Python versions, you can install the SQL
 PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
     LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
     CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
-    pyenv install
+    pyenv install 3.10.14
+```
+And you can the Feast install package via:
+```bash
+pip install feast[sqlite_vec]
 ```

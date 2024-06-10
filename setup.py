@@ -56,7 +56,6 @@ REQUIRED = [
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
-    "sqlite-vec==v0.0.1-alpha.10",
     "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
@@ -97,6 +96,9 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
+SQLITE_REQUIRED = [
+    "-vec==v0.0.1-alpha.10",
+]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
@@ -215,6 +217,7 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
+    + SQLITE_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -382,6 +385,7 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
+        "sqlite_vec": SQLITE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
