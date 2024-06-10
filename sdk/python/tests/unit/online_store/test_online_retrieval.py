@@ -431,6 +431,7 @@ def test_sqlite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
+    print(sys.version_info, platform.system())
     n = 10  # number of samples - note: we'll actually double it
     vector_length = 8
     runner = CliRunner()
@@ -522,6 +523,7 @@ def test_sqlite_get_online_documents() -> None:
     reason="Only works on Python 3.10 and MacOS",
 )
 def test_sqlite_vec_import() -> None:
+    print(sys.version_info, platform.system())
     db = sqlite3.connect(":memory:")
     db.enable_load_extension(True)
     sqlite_vec.load(db)
