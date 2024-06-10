@@ -431,7 +431,10 @@ def test_sqlite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
-    print(sys.version_info, platform.system())
+    print(
+        sys.version_info, platform.system(),
+        sys.version_info[0:2] != (3, 10) and platform.system() != "Darwin",
+    )
     n = 10  # number of samples - note: we'll actually double it
     vector_length = 8
     runner = CliRunner()
