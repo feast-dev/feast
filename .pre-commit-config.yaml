@@ -7,13 +7,13 @@ repos:
         name: Format
         stages: [ push ]
         language: system
-        entry: make format
+        entry: make format-python
         pass_filenames: false
       - id: lint
         name: Lint
         stages: [ push ]
         language: system
-        entry: make lint
+        entry: make lint-python
         pass_filenames: false
       - id: template
         name: Build Templates
