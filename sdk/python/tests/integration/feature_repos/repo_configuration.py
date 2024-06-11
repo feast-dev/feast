@@ -500,9 +500,7 @@ def construct_test_environment(
         aws_registry_path = os.getenv(
             "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
         )
-        registry: Union[str, RegistryConfig] = (
-            f"{aws_registry_path}/{project}/registry.db"
-        )
+        registry = RegistryConfig(path=f"{aws_registry_path}/{project}/registry.db")
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),
