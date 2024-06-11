@@ -193,7 +193,7 @@ class SqlRegistry(CachingRegistry):
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
-            allow_async_cache=registry_config.allow_async_cache,
+            cache_mode=registry_config.cache_mode,
         )
 
     def teardown(self):

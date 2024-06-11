@@ -154,7 +154,7 @@ def pg_registry_async():
 
     container.start()
 
-    registry_config = _given_registry_config_for_pg_sql(container, 2, True)
+    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread")
 
     yield SqlRegistry(registry_config, "project", None)
 
@@ -162,7 +162,7 @@ def pg_registry_async():
 
 
 def _given_registry_config_for_pg_sql(
-    container, cache_ttl_seconds=2, allow_async_cache=False
+    container, cache_ttl_seconds=2, cache_mode="sync"
 ):
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
@@ -178,7 +178,7 @@ def _given_registry_config_for_pg_sql(
     return RegistryConfig(
         registry_type="sql",
         cache_ttl_seconds=cache_ttl_seconds,
-        allow_async_cache=allow_async_cache,
+        cache_mode=cache_mode,
         path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
@@ -201,16 +201,14 @@ def mysql_registry_async():
     container = MySqlContainer("mysql:latest")
     container.start()
 
-    registry_config = _given_registry_config_for_mysql(container, 2, True)
+    registry_config = _given_registry_config_for_mysql(container, 2, "thread")
 
     yield SqlRegistry(registry_config, "project", None)
 
     container.stop()
 
 
-def _given_registry_config_for_mysql(
-    container, cache_ttl_seconds=2, allow_async_cache=False
-):
+def _given_registry_config_for_mysql(container, cache_ttl_seconds=2, cache_mode="sync"):
     import sqlalchemy
 
     engine = sqlalchemy.create_engine(
@@ -222,7 +220,7 @@ def _given_registry_config_for_mysql(
         registry_type="sql",
         path=container.get_connection_url(),
         cache_ttl_seconds=cache_ttl_seconds,
-        allow_async_cache=allow_async_cache,
+        cache_mode=cache_mode,
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
@@ -835,7 +833,7 @@ def test_registry_cache(test_registry):
     "test_registry",
     async_sql_fixtures,
 )
-def test_registry_cache_async(test_registry):
+def test_registry_cache_thread_async(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         name="test_source",

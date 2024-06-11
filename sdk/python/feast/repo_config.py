@@ -9,7 +9,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StrictBool,
     StrictInt,
     StrictStr,
     ValidationError,
@@ -131,7 +130,7 @@ class RegistryConfig(FeastBaseModel):
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
-    allow_async_cache: StrictBool = False
+    cache_mode: StrictStr = "sync"
 
 
 class RepoConfig(FeastBaseModel):
