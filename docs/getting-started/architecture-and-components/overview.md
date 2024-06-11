@@ -30,5 +30,7 @@ A complete Feast deployment contains the following components:
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets. For feature retrieval and materialization, Feast does not manage the offline store directly, but runs queries against it. However, offline stores can be configured to support writes if Feast configures logging functionality of served features.
 
 {% hint style="info" %}
-Java and Go Clients are also available for online feature retrieval.
+Java and Go Clients are also available for online feature retrieval. 
+
+In general, we recommend [using Python](language.md) for your Feature Store microservice.
 {% endhint %}
