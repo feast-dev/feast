@@ -1,19 +1,22 @@
+import logging
 import os.path
 import shutil
+import subprocess
 import tempfile
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import yaml
 from minio import Minio
-from multiprocess import Process
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 
-from feast import FeatureStore, FileSource, RepoConfig
+from feast import FileSource, RepoConfig
 from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -24,13 +27,14 @@ from feast.infra.offline_stores.file_source import (
     SavedDatasetFileStorage,
 )
 from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
-from feast.offline_server import start_server
 from feast.repo_config import FeastConfigBaseModel, RegistryConfig
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 class FileDataSourceCreator(DataSourceCreator):
@@ -363,31 +367,44 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.server_port: int = 0
-        self.proc: Process = None
+        self.proc = None
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
-
-        fs = FeatureStore(
-            config=RepoConfig(
-                project=self.project_name,
-                provider="local",
-                offline_store=parent_offline_config,
-                registry=registry.path,
-                entity_key_serialization_version=2,
-            )
+        config = RepoConfig(
+            project=self.project_name,
+            provider="local",
+            offline_store=parent_offline_config,
+            registry=registry.path,
+            entity_key_serialization_version=2,
         )
+
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "w") as outfile:
+            yaml.dump(config.dict(by_alias=True), outfile)
+        repo_path = str(repo_path.resolve())
+
         self.server_port = free_port()
         host = "0.0.0.0"
-        self.proc = Process(
-            target=start_server,
-            args=(fs, host, self.server_port),
+        cmd = [
+            "feast",
+            "-c" + repo_path,
+            "serve_offline",
+            "--host",
+            host,
+            "--port",
+            str(self.server_port),
+        ]
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
         )
-        self.proc.start()
+
+        _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
             lambda: (None, check_port_open(host, self.server_port)),
-            timeout_secs=10,
+            timeout_secs=_time_out_sec,
+            timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
         return "grpc+tcp://{}:{}".format(host, self.server_port)
 

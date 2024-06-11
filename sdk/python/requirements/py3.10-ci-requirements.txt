@@ -486,8 +486,6 @@ multidict==6.0.5
     #   yarl
 multipledispatch==1.0.0
     # via ibis-framework
-multiprocess==0.70.16
-    # via feast (setup.py)
 mypy==1.10.0
     # via
     #   feast (setup.py)
