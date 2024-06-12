@@ -751,9 +751,7 @@ def test_modify_feature_views_success(test_registry):
         "my_feature_view_1", project
     )
 
-    # Check if:
-    # 1. Materialization_intervals was updated by the registry
-    # 2. created_timestamp is set to the created_timestamp value stored from the previous apply
+    # Check if created_timestamp, along with materialized_intervals are updated
     assert (
         materialized_feature_view.created_timestamp is not None
         and materialized_feature_view.created_timestamp
@@ -775,6 +773,10 @@ def test_modify_feature_views_success(test_registry):
         source=batch_source,
         ttl=timedelta(minutes=5),
     )
+
+    # Check that these fields are empty before apply
+    assert updated_fv1.created_timestamp is None
+    assert len(updated_fv1.materialization_intervals) == 0
 
     # Apply the modified fv1
     test_registry.apply_feature_view(updated_fv1, project)
@@ -800,12 +802,35 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Check if materialization_intervals and created_timestamp values propagates on each apply
+    # materialization_intervals will populate only when it's empty
     assert (
         updated_feature_view.created_timestamp is not None
         and updated_feature_view.created_timestamp == feature_view.created_timestamp
         and len(updated_feature_view.materialization_intervals) == 1
         and updated_feature_view.materialization_intervals[0][0] == start_date
         and updated_feature_view.materialization_intervals[0][1] == end_date
+    )
+
+    # Simulate materialization a second time
+    current_date = datetime.utcnow()
+    end_date_1 = current_date.replace(tzinfo=utc)
+    start_date_1 = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    test_registry.apply_materialization(
+        updated_feature_view, project, start_date_1, end_date_1
+    )
+    materialized_feature_view_1 = test_registry.get_feature_view(
+        "my_feature_view_1", project
+    )
+
+    assert (
+        materialized_feature_view_1.created_timestamp is not None
+        and materialized_feature_view_1.created_timestamp
+        == feature_view.created_timestamp
+        and len(materialized_feature_view_1.materialization_intervals) == 2
+        and materialized_feature_view_1.materialization_intervals[0][0] == start_date
+        and materialized_feature_view_1.materialization_intervals[0][1] == end_date
+        and materialized_feature_view_1.materialization_intervals[1][0] == start_date_1
+        and materialized_feature_view_1.materialization_intervals[1][1] == end_date_1
     )
 
     # Modify sfv by changing the dtype

@@ -314,7 +314,10 @@ class FeatureView(BaseFeatureView):
     def update_materialization_intervals(
         self, existing_materialization_intervals: List[Tuple[datetime, datetime]]
     ):
-        if len(existing_materialization_intervals) > 0:
+        if (
+            len(existing_materialization_intervals) > 0
+            and len(self.materialization_intervals) == 0
+        ):
             for interval in existing_materialization_intervals:
                 self.materialization_intervals.append((interval[0], interval[1]))
 
