@@ -423,11 +423,11 @@ class Registry(BaseRegistry):
                         existing_feature_view_proto
                     )
                     feature_view.created_timestamp = (
-                        existing_feature_view.created_timestamp.replace(tzinfo=None)
+                        existing_feature_view.created_timestamp
                     )
                     if isinstance(feature_view, (FeatureView, StreamFeatureView)):
                         feature_view.update_materialization_intervals(
-                            existing_feature_view_proto.meta.materialization_intervals
+                            existing_feature_view.materialization_intervals
                         )
                     feature_view_proto = feature_view.to_proto()
                     feature_view_proto.spec.project = project

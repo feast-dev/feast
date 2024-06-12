@@ -701,7 +701,9 @@ class SqlRegistry(CachingRegistry):
                     )
                     if isinstance(obj, (FeatureView, StreamFeatureView)):
                         obj.update_materialization_intervals(
-                            deserialized_proto.meta.materialization_intervals
+                            type(obj)
+                            .from_proto(deserialized_proto)
+                            .materialization_intervals
                         )
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),

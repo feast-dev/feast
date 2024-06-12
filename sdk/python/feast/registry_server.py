@@ -3,6 +3,7 @@ from datetime import datetime
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
+from pytz import utc
 
 from feast import FeatureStore
 from feast.data_source import DataSource
@@ -293,10 +294,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             feature_view=FeatureView.from_proto(request.feature_view),
             project=request.project,
             start_date=datetime.fromtimestamp(
-                request.start_date.seconds + request.start_date.nanos / 1e9
+                request.start_date.seconds + request.start_date.nanos / 1e9, tz=utc
             ),
             end_date=datetime.fromtimestamp(
-                request.end_date.seconds + request.end_date.nanos / 1e9
+                request.end_date.seconds + request.end_date.nanos / 1e9, tz=utc
             ),
             commit=request.commit,
         )

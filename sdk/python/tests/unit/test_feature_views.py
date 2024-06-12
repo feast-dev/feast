@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import pytest
 from typeguard import TypeCheckError
 
+from feast import utils
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
@@ -138,13 +139,13 @@ def test_update_materialization_intervals():
         source=batch_source,
     )
     updated_feature_view.update_materialization_intervals(
-        stored_feature_view.to_proto().meta.materialization_intervals
+        stored_feature_view.materialization_intervals
     )
     assert len(updated_feature_view.materialization_intervals) == 0
 
-    current_time = datetime.now()
-    start_date = current_time - timedelta(days=1)
-    end_date = current_time
+    current_time = datetime.utcnow()
+    start_date = utils.make_tzaware(current_time - timedelta(days=1))
+    end_date = utils.make_tzaware(current_time)
     updated_feature_view.materialization_intervals.append((start_date, end_date))
 
     # Update the Feature View, i.e. simply update the name
@@ -156,14 +157,14 @@ def test_update_materialization_intervals():
     )
 
     second_updated_feature_view.update_materialization_intervals(
-        updated_feature_view.to_proto().meta.materialization_intervals
+        updated_feature_view.materialization_intervals
     )
     assert len(second_updated_feature_view.materialization_intervals) == 1
     assert (
         second_updated_feature_view.materialization_intervals[0][0]
-        == second_updated_feature_view.materialization_intervals[0][0]
+        == updated_feature_view.materialization_intervals[0][0]
     )
     assert (
         second_updated_feature_view.materialization_intervals[0][1]
-        == second_updated_feature_view.materialization_intervals[0][1]
+        == updated_feature_view.materialization_intervals[0][1]
     )

@@ -14,7 +14,7 @@
 import logging
 import os
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tempfile import mkstemp
 from unittest import mock
 
@@ -22,6 +22,7 @@ import grpc_testing
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
+from pytz import utc
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
@@ -783,6 +784,28 @@ def test_modify_feature_views_success(test_registry):
     assert (
         updated_feature_view.created_timestamp is not None
         and updated_feature_view.created_timestamp == feature_view.created_timestamp
+        and len(updated_feature_view.materialization_intervals) == 0
+    )
+
+    # Simulate materialization
+    current_date = datetime.utcnow()
+    end_date = current_date.replace(tzinfo=utc)
+    start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    test_registry.apply_materialization(
+        updated_feature_view, project, start_date, end_date
+    )
+    materialized_feature_view = test_registry.get_feature_view(
+        "my_feature_view_1", project
+    )
+
+    # Check if materialization_intervals was updated by the registry
+    assert (
+        materialized_feature_view.created_timestamp is not None
+        and materialized_feature_view.created_timestamp
+        == feature_view.created_timestamp
+        and len(materialized_feature_view.materialization_intervals) > 0
+        and materialized_feature_view.materialization_intervals[0][0] == start_date
+        and materialized_feature_view.materialization_intervals[0][1] == end_date
     )
 
     # Modify sfv by changing the dtype
@@ -844,12 +867,12 @@ def test_modify_feature_views_success(test_registry):
 
     # The created_timestamp for the stream feature view should be set to the created_timestamp value stored from the
     # previous apply
+    # Materialization_intervals is not set
     assert (
         updated_sfv.created_timestamp is not None
         and updated_sfv.created_timestamp == existing_sfv.created_timestamp
+        and len(updated_sfv.materialization_intervals) == 0
     )
-
-    test_registry.teardown()
 
 
 @pytest.mark.integration

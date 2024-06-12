@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from feast import utils
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
@@ -285,12 +286,12 @@ def test_update_materialization_intervals():
         udf=simple_udf,
         tags={},
     )
-    current_time = datetime.now()
-    start_date = current_time - timedelta(days=1)
-    end_date = current_time
+    current_time = datetime.utcnow()
+    start_date = utils.make_tzaware(current_time - timedelta(days=1))
+    end_date = utils.make_tzaware(current_time)
     stored_stream_feature_view.materialization_intervals.append((start_date, end_date))
 
-    # # Update the stream feature view i.e. here it's simply the name
+    # Update the stream feature view i.e. here it's simply the name
     updated_stream_feature_view = StreamFeatureView(
         name="test kafka stream feature view updated",
         entities=[entity],
@@ -314,7 +315,7 @@ def test_update_materialization_intervals():
     )
 
     updated_stream_feature_view.update_materialization_intervals(
-        stored_stream_feature_view.to_proto().meta.materialization_intervals
+        stored_stream_feature_view.materialization_intervals
     )
 
     assert (

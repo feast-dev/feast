@@ -311,12 +311,12 @@ class FeatureView(BaseFeatureView):
 
         return cp
 
-    def update_materialization_intervals(self, existing_materialization_intervals):
-        if existing_materialization_intervals:
+    def update_materialization_intervals(
+        self, existing_materialization_intervals: List[Tuple[datetime, datetime]]
+    ):
+        if len(existing_materialization_intervals) > 0:
             for interval in existing_materialization_intervals:
-                self.materialization_intervals.append(
-                    (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
-                )
+                self.materialization_intervals.append((interval[0], interval[1]))
 
     def to_proto(self) -> FeatureViewProto:
         """
