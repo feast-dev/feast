@@ -742,6 +742,27 @@ def test_modify_feature_views_success(test_registry):
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
+    # Simulate materialization
+    current_date = datetime.utcnow()
+    end_date = current_date.replace(tzinfo=utc)
+    start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    test_registry.apply_materialization(feature_view, project, start_date, end_date)
+    materialized_feature_view = test_registry.get_feature_view(
+        "my_feature_view_1", project
+    )
+
+    # Check if:
+    # 1. Materialization_intervals was updated by the registry
+    # 2. created_timestamp is set to the created_timestamp value stored from the previous apply
+    assert (
+        materialized_feature_view.created_timestamp is not None
+        and materialized_feature_view.created_timestamp
+        == feature_view.created_timestamp
+        and len(materialized_feature_view.materialization_intervals) > 0
+        and materialized_feature_view.materialization_intervals[0][0] == start_date
+        and materialized_feature_view.materialization_intervals[0][1] == end_date
+    )
+
     # Modify fv1 by changing a single dtype
     updated_fv1 = FeatureView(
         name="my_feature_view_1",
@@ -778,34 +799,13 @@ def test_modify_feature_views_success(test_registry):
         and updated_feature_view.entities[0] == "fs1_my_entity_1"
     )
 
-    # The created_timestamp for the feature view should be set to the created_timestamp value stored from the
-    # previous apply
-
+    # Check if materialization_intervals and created_timestamp values propagates on each apply
     assert (
         updated_feature_view.created_timestamp is not None
         and updated_feature_view.created_timestamp == feature_view.created_timestamp
-        and len(updated_feature_view.materialization_intervals) == 0
-    )
-
-    # Simulate materialization
-    current_date = datetime.utcnow()
-    end_date = current_date.replace(tzinfo=utc)
-    start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
-    test_registry.apply_materialization(
-        updated_feature_view, project, start_date, end_date
-    )
-    materialized_feature_view = test_registry.get_feature_view(
-        "my_feature_view_1", project
-    )
-
-    # Check if materialization_intervals was updated by the registry
-    assert (
-        materialized_feature_view.created_timestamp is not None
-        and materialized_feature_view.created_timestamp
-        == feature_view.created_timestamp
-        and len(materialized_feature_view.materialization_intervals) > 0
-        and materialized_feature_view.materialization_intervals[0][0] == start_date
-        and materialized_feature_view.materialization_intervals[0][1] == end_date
+        and len(updated_feature_view.materialization_intervals) == 1
+        and updated_feature_view.materialization_intervals[0][0] == start_date
+        and updated_feature_view.materialization_intervals[0][1] == end_date
     )
 
     # Modify sfv by changing the dtype
