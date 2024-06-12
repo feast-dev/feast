@@ -257,12 +257,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
         extra_dimensions: List[Dict[str, Any]] = [{}]
 
         if "python_server" in metafunc.fixturenames:
-            extra_dimensions.extend(
-                [
-                    {"python_feature_server": True},
-                    {"python_feature_server": True, "provider": "aws"},
-                ]
-            )
+            extra_dimensions.extend([{"python_feature_server": True}])
 
         configs = []
         if offline_stores:
@@ -276,17 +271,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             "online_store_creator": online_store_creator,
                             **dim,
                         }
-
-                        # aws lambda works only with dynamo
-                        if (
-                            config.get("python_feature_server")
-                            and config.get("provider") == "aws"
-                            and (
-                                not isinstance(online_store, dict)
-                                or online_store["type"] != "dynamodb"
-                            )
-                        ):
-                            continue
 
                         c = IntegrationTestRepoConfig(**config)
 
