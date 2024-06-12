@@ -854,7 +854,7 @@ def test_registry_cache_thread_async(test_registry):
     assert len(registry_data_sources_cached) == 0
 
     # Wait for cache to be refreshed
-    time.sleep(8)
+    time.sleep(4)
     # Now objects exist
     registry_data_sources_cached = test_registry.list_data_sources(
         project, allow_cache=True
