@@ -335,14 +335,20 @@ def _send_retrieve_remote(
     return _call_get(client, command_descriptor)
 
 
-def _call_get(client, command_descriptor):
+def _call_get(client: fl.FlightClient, command_descriptor: fl.FlightDescriptor):
     flight = client.get_flight_info(command_descriptor)
     ticket = flight.endpoints[0].ticket
     reader = client.do_get(ticket)
     return reader.read_all()
 
 
-def _call_put(api, api_parameters, client, entity_df, table):
+def _call_put(
+    api: str,
+    api_parameters: Dict[str, Any],
+    client: fl.FlightClient,
+    entity_df: Union[pd.DataFrame, str],
+    table: pa.Table,
+):
     # Generate unique command identifier
     command_id = str(uuid.uuid4())
     command = {
@@ -364,7 +370,7 @@ def _call_put(api, api_parameters, client, entity_df, table):
 
 
 def _put_parameters(
-    command_descriptor,
+    command_descriptor: fl.FlightDescriptor,
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
     client: fl.FlightClient,
