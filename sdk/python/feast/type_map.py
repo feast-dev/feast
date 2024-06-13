@@ -407,8 +407,8 @@ def _python_value_to_proto_value(
                 return [
                     (
                         ProtoValue(
-                            **{field_name: proto_type(val=[bool(e) for e in value])}
-                        )  # type: ignore
+                            **{field_name: proto_type(val=[bool(e) for e in value])}  # type: ignore
+                        )
                         if value is not None
                         else ProtoValue()
                     )
