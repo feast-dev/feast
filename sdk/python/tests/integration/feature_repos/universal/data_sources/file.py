@@ -416,7 +416,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 
     def teardown(self):
         super().teardown()
-        if self.proc is not None and self.proc.is_alive():
+        if self.proc is not None:
             self.proc.kill()
 
             # wait server to free the port
