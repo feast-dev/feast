@@ -1,5 +1,60 @@
 # Changelog
 
+# [0.38.0](https://github.com/feast-dev/feast/compare/v0.37.0...v0.38.0) (2024-05-24)
+
+
+### Bug Fixes
+
+* Add vector database doc ([#4165](https://github.com/feast-dev/feast/issues/4165)) ([37f36b6](https://github.com/feast-dev/feast/commit/37f36b681bde0c1ae83303803c89d3ed0b2ac8a9))
+* Change checkout action back to v3 from v5 which isn't released yet ([#4147](https://github.com/feast-dev/feast/issues/4147)) ([9523fff](https://github.com/feast-dev/feast/commit/9523fff2dda2e0d53bffa7f5c0d6f2f69f6b8c02))
+* Change numpy version <1.25 dependency to <2 in setup.py ([#4085](https://github.com/feast-dev/feast/issues/4085)) ([2ba71ff](https://github.com/feast-dev/feast/commit/2ba71fff5f76ed05066e94f3b11d08bc30b54b39)), closes [#4084](https://github.com/feast-dev/feast/issues/4084)
+* Changed the code the way mysql container is initialized.  ([#4140](https://github.com/feast-dev/feast/issues/4140)) ([8b5698f](https://github.com/feast-dev/feast/commit/8b5698fefa965fc08fdb5e07d739d0ca276a3522)), closes [#4126](https://github.com/feast-dev/feast/issues/4126)
+* Correct nightly install command, move all installs to uv ([#4164](https://github.com/feast-dev/feast/issues/4164)) ([c86d594](https://github.com/feast-dev/feast/commit/c86d594613b0fb1425451def4fc1d7a7496eea92))
+* Default value is not set in Redis connection string using environment variable ([#4136](https://github.com/feast-dev/feast/issues/4136)) ([95acfb4](https://github.com/feast-dev/feast/commit/95acfb4cefc10f96f8ed61f148e24b238d400a68)), closes [#3669](https://github.com/feast-dev/feast/issues/3669)
+* Get container host addresses from testcontainers (java) ([#4125](https://github.com/feast-dev/feast/issues/4125)) ([9184dde](https://github.com/feast-dev/feast/commit/9184dde1fcd57de5765c850615eb5e70cbafe70f))
+* Get rid of empty string `name_alias` during feature view projection deserialization  ([#4116](https://github.com/feast-dev/feast/issues/4116)) ([65056ce](https://github.com/feast-dev/feast/commit/65056cea6c4537834a1c40be2ad37e1659310a47))
+* Helm chart `feast-feature-server`, improve Service template name ([#4161](https://github.com/feast-dev/feast/issues/4161)) ([dedc164](https://github.com/feast-dev/feast/commit/dedc1645ef1f38aa9b50a0cf55e4bc23ec60d5ad))
+* Improve the code related to on-demand-featureview. ([#4203](https://github.com/feast-dev/feast/issues/4203)) ([d91d7e0](https://github.com/feast-dev/feast/commit/d91d7e0da69d15c7aa14e736b608ed9f5ece3504))
+* Integration tests for async sdk method ([#4201](https://github.com/feast-dev/feast/issues/4201)) ([08c44ae](https://github.com/feast-dev/feast/commit/08c44ae35a4a91228f9f78c7323b4b7a73ef33aa))
+* Make sure schema is used when calling `get_table_query_string` method for Snowflake datasource ([#4131](https://github.com/feast-dev/feast/issues/4131)) ([c1579c7](https://github.com/feast-dev/feast/commit/c1579c77324cebb0514422235956812403316c80))
+* Make sure schema is used when generating `from_expression` for Snowflake ([#4177](https://github.com/feast-dev/feast/issues/4177)) ([5051da7](https://github.com/feast-dev/feast/commit/5051da75de81deed19b25fbc2826d504a8ebdc8b))
+* Pass native input values to `get_online_features` from feature server ([#4117](https://github.com/feast-dev/feast/issues/4117)) ([60756cb](https://github.com/feast-dev/feast/commit/60756cb4637a7961b6caffef3242e2886e77f78a))
+* Pass region to S3 client only if set (Java) ([#4151](https://github.com/feast-dev/feast/issues/4151)) ([b8087f7](https://github.com/feast-dev/feast/commit/b8087f7a181977e0e4d3bd29c857d8e137af1de2))
+* Pgvector patch ([#4108](https://github.com/feast-dev/feast/issues/4108)) ([ad45bb4](https://github.com/feast-dev/feast/commit/ad45bb4ac2dd83b530adda6196f85d46decaf98e))
+* Update doc ([#4153](https://github.com/feast-dev/feast/issues/4153)) ([e873636](https://github.com/feast-dev/feast/commit/e873636b4a5f3a05666f9284c31e488f27257ed0))
+* Update master-only benchmark bucket name due to credential update ([#4183](https://github.com/feast-dev/feast/issues/4183)) ([e88f1e3](https://github.com/feast-dev/feast/commit/e88f1e39778300fb443f1db230fe9589b74d9ed6))
+* Updating the instructions for quickstart guide. ([#4120](https://github.com/feast-dev/feast/issues/4120)) ([0c30e96](https://github.com/feast-dev/feast/commit/0c30e96da144babe725a3f168c05d2fbeca65507))
+* Upgrading the test container so that local tests works with updated d… ([#4155](https://github.com/feast-dev/feast/issues/4155)) ([93ddb11](https://github.com/feast-dev/feast/commit/93ddb11bf5a182cea44435147e39f40b30a69db7))
+
+
+### Features
+
+* Add a Kubernetes Operator for the Feast Feature Server ([#4145](https://github.com/feast-dev/feast/issues/4145)) ([4a696dc](https://github.com/feast-dev/feast/commit/4a696dc4b0fd96d51872a5e629ab5f3ca785d708))
+* Add delta format to `FileSource`, add support for it in ibis/duckdb ([#4123](https://github.com/feast-dev/feast/issues/4123)) ([2b6f1d0](https://github.com/feast-dev/feast/commit/2b6f1d0945e8dbf13d01e045f87c5e58546b4af6))
+* Add materialization support to ibis/duckdb ([#4173](https://github.com/feast-dev/feast/issues/4173)) ([369ca98](https://github.com/feast-dev/feast/commit/369ca98d88a5cb3c67b2363232b7c2eddfc4f333))
+* Add optional private key params to Snowflake config ([#4205](https://github.com/feast-dev/feast/issues/4205)) ([20f5419](https://github.com/feast-dev/feast/commit/20f5419d30c32b533e91043a9690007a84000512))
+* Add s3 remote storage export for duckdb ([#4195](https://github.com/feast-dev/feast/issues/4195)) ([6a04c48](https://github.com/feast-dev/feast/commit/6a04c48b4b84fb9905df638e5c4041c12532b053))
+* Adding DatastoreOnlineStore 'database' argument. ([#4180](https://github.com/feast-dev/feast/issues/4180)) ([e739745](https://github.com/feast-dev/feast/commit/e739745482fed1b9c2d7b788ebb088041118c642))
+* Adding get_online_features_async to feature store sdk ([#4172](https://github.com/feast-dev/feast/issues/4172)) ([311efc5](https://github.com/feast-dev/feast/commit/311efc5005b24d1fc9bc389ee7579e102e2cd4ea))
+* Adding support for dictionary writes to online store  ([#4156](https://github.com/feast-dev/feast/issues/4156)) ([abfac01](https://github.com/feast-dev/feast/commit/abfac011ad1f94caef001539591d03b1552f65e5))
+* Elasticsearch vector database ([#4188](https://github.com/feast-dev/feast/issues/4188)) ([bf99640](https://github.com/feast-dev/feast/commit/bf99640c0bcfd9ee7c1e66d24cb791bfa0e5ac4a))
+* Enable other distance metrics for Vector DB and Update docs ([#4170](https://github.com/feast-dev/feast/issues/4170)) ([ba9f4ef](https://github.com/feast-dev/feast/commit/ba9f4efd5eccd0548a39521a145c6573ac90c221))
+* Feast/IKV datetime edgecase errors ([#4211](https://github.com/feast-dev/feast/issues/4211)) ([bdae562](https://github.com/feast-dev/feast/commit/bdae562ea4582d8e47763736b639c70e56d79b2d))
+* Feast/IKV documenation language changes ([#4149](https://github.com/feast-dev/feast/issues/4149)) ([690a621](https://github.com/feast-dev/feast/commit/690a6212e9f2b14fc4bf65513e5d30e70e229d0a))
+* Feast/IKV online store contrib plugin integration ([#4068](https://github.com/feast-dev/feast/issues/4068)) ([f2b4eb9](https://github.com/feast-dev/feast/commit/f2b4eb94add8f86afa4e168236e8fcd11968510e))
+* Feast/IKV online store documentation ([#4146](https://github.com/feast-dev/feast/issues/4146)) ([73601e4](https://github.com/feast-dev/feast/commit/73601e45e2fc57dc889644b1d28115b3c94bd8ea))
+* Feast/IKV upgrade client version ([#4200](https://github.com/feast-dev/feast/issues/4200)) ([0e42150](https://github.com/feast-dev/feast/commit/0e4215060f97b7629015ab65ac526dfef0a1f7d4))
+* Incorporate substrait ODFVs into ibis-based offline store queries ([#4102](https://github.com/feast-dev/feast/issues/4102)) ([c3a102f](https://github.com/feast-dev/feast/commit/c3a102f1b1941c8681ec876b54d7d16a32862925))
+* Isolate input-dependent calculations in `get_online_features` ([#4041](https://github.com/feast-dev/feast/issues/4041)) ([2a6edea](https://github.com/feast-dev/feast/commit/2a6edeae42a2ebba7d9fc69af917bdc41ae6ecb0))
+* Make arrow primary interchange for online ODFV execution ([#4143](https://github.com/feast-dev/feast/issues/4143)) ([3fdb716](https://github.com/feast-dev/feast/commit/3fdb71631fbb1b9cfb8d1cad69dbc2d2d50cea0d))
+* Move data source validation entrypoint to offline store ([#4197](https://github.com/feast-dev/feast/issues/4197)) ([a17725d](https://github.com/feast-dev/feast/commit/a17725daec9e7355591e7ff2bc57202d5fa3f0c1))
+* Upgrading python version to 3.11, adding support for 3.11 as well. ([#4159](https://github.com/feast-dev/feast/issues/4159)) ([4b1634f](https://github.com/feast-dev/feast/commit/4b1634f4da7ba47a29dfd4a0d573dfe515a8863d)), closes [#4152](https://github.com/feast-dev/feast/issues/4152) [#4114](https://github.com/feast-dev/feast/issues/4114)
+
+
+### Reverts
+
+* Reverts "fix: Using version args to install the correct feast version" ([#4112](https://github.com/feast-dev/feast/issues/4112)) ([b66baa4](https://github.com/feast-dev/feast/commit/b66baa46f48c72f4704bfe3980a8df49e1a06507)), closes [#3953](https://github.com/feast-dev/feast/issues/3953)
+
 ## [0.37.1](https://github.com/feast-dev/feast/compare/v0.37.0...v0.37.1) (2024-04-17)
 
 

@@ -1,0 +1,10 @@
+project: offline_server
+# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
+registry: ../offline_server/feature_repo/data/registry.db
+# The provider primarily specifies default offline / online stores & storing the registry in a given cloud
+provider: local
+offline_store:
+    type: remote
+    host: localhost
+    port: 8815
+entity_key_serialization_version: 2

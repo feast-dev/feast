@@ -27,6 +27,7 @@ from pygments import formatters, highlight, lexers
 from feast import utils
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
@@ -645,12 +646,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Disable the Uvicorn access log",
 )
 @click.option(
-    "--no-feature-log",
-    is_flag=True,
-    show_default=True,
-    help="Disable logging served features",
-)
-@click.option(
     "--workers",
     "-w",
     type=click.INT,
@@ -680,7 +675,6 @@ def serve_command(
     port: int,
     type_: str,
     no_access_log: bool,
-    no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int = 5,
@@ -693,7 +687,6 @@ def serve_command(
         port=port,
         type_=type_,
         no_access_log=no_access_log,
-        no_feature_log=no_feature_log,
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
         registry_ttl_sec=registry_ttl_sec,
@@ -771,6 +764,34 @@ def serve_registry_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_registry(port)
+
+
+@cli.command("serve_offline")
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="127.0.0.1",
+    show_default=True,
+    help="Specify a host for the server",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_OFFLINE_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_offline_command(
+    ctx: click.Context,
+    host: str,
+    port: int,
+):
+    """Start a remote server locally on a given host, port."""
+    store = create_feature_store(ctx)
+
+    store.serve_offline(host, port)
 
 
 @cli.command("validate")

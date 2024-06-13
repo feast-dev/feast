@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from feast.type_map import (
@@ -79,3 +80,10 @@ def test_python_values_to_proto_values_bytes_to_list(values, value_type, expecte
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
+
+
+def test_python_values_to_proto_values_int_list_with_null_not_supported():
+    df = pd.DataFrame({"column": [1, 2, None]})
+    arr = df["column"].to_numpy()
+    with pytest.raises(TypeError):
+        _ = python_values_to_proto_values(arr, ValueType.INT32_LIST)

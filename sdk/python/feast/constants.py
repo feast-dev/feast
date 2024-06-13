@@ -41,6 +41,9 @@ DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT = 6569
 # Default registry server port
 DEFAULT_REGISTRY_SERVER_PORT = 6570
 
+# Default offline server port
+DEFAULT_OFFLINE_SERVER_PORT = 8815
+
 # Environment variable for feature server docker image tag
 DOCKER_IMAGE_TAG_ENV_NAME: str = "FEAST_SERVER_DOCKER_IMAGE_TAG"
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 import copy
 import itertools
+import logging
 import os
 import warnings
 from collections import Counter, defaultdict
@@ -247,6 +248,20 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project)
 
+    def list_all_feature_views(
+        self, allow_cache: bool = False
+    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+        """
+        Retrieves the list of feature views from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning entities from a cached registry.
+
+        Returns:
+            A list of feature views.
+        """
+        return self._list_all_feature_views(allow_cache)
+
     def list_feature_views(self, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieves the list of feature views from the registry.
@@ -257,9 +272,47 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
+        logging.warning(
+            "list_feature_views will make breaking changes. Please use list_batch_feature_views instead. "
+            "list_feature_views will behave like list_all_feature_views in the future."
+        )
         return self._list_feature_views(allow_cache)
 
+    def _list_all_feature_views(
+        self,
+        allow_cache: bool = False,
+    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+        all_feature_views = (
+            self._list_feature_views(allow_cache)
+            + self._list_stream_feature_views(allow_cache)
+            + self.list_on_demand_feature_views(allow_cache)
+        )
+        return all_feature_views
+
     def _list_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+    ) -> List[FeatureView]:
+        logging.warning(
+            "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
+            "_list_feature_views will behave like _list_all_feature_views in the future."
+        )
+        feature_views = []
+        for fv in self._registry.list_feature_views(
+            self.project, allow_cache=allow_cache
+        ):
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
+                fv.entities = []
+                fv.entity_columns = []
+            feature_views.append(fv)
+        return feature_views
+
+    def _list_batch_feature_views(
         self,
         allow_cache: bool = False,
         hide_dummy_entity: bool = True,
@@ -1881,18 +1934,28 @@ class FeatureStore:
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
         (
-            requested_feature_views,
+            available_feature_views,
             _,
         ) = self._get_feature_views_to_use(
             features=[feature], allow_cache=True, hide_dummy_entity=False
         )
+        requested_feature_view_name = (
+            feature.split(":")[0] if isinstance(feature, str) else feature
+        )
+        for feature_view in available_feature_views:
+            if feature_view.name == requested_feature_view_name:
+                requested_feature_view = feature_view
+        if not requested_feature_view:
+            raise ValueError(
+                f"Feature view {requested_feature_view} not found in the registry."
+            )
         requested_feature = (
             feature.split(":")[1] if isinstance(feature, str) else feature
         )
         provider = self._get_provider()
         document_features = self._retrieve_from_online_store(
             provider,
-            requested_feature_views[0],
+            requested_feature_view,
             requested_feature,
             query,
             top_k,
@@ -2448,12 +2511,11 @@ class FeatureStore:
         self,
         host: str,
         port: int,
-        type_: str,
-        no_access_log: bool,
-        no_feature_log: bool,
-        workers: int,
-        keep_alive_timeout: int,
-        registry_ttl_sec: int,
+        type_: str = "http",
+        no_access_log: bool = True,
+        workers: int = 1,
+        keep_alive_timeout: int = 30,
+        registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2506,6 +2568,12 @@ class FeatureStore:
         from feast import registry_server
 
         registry_server.start_server(self, port)
+
+    def serve_offline(self, host: str, port: int) -> None:
+        """Start offline server locally on a given port."""
+        from feast import offline_server
+
+        offline_server.start_server(self, host, port)
 
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
