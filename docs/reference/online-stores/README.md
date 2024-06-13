@@ -61,3 +61,7 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 {% content-ref url="scylladb.md" %}
 [scylladb.md](scylladb.md)
 {% endcontent-ref %}
+
+{% content-ref url="remote.md" %}
+[remote.md](remote.md)
+{% endcontent-ref %}

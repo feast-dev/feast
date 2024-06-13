@@ -96,6 +96,7 @@
   * [Datastore](reference/online-stores/datastore.md)
   * [DynamoDB](reference/online-stores/dynamodb.md)
   * [Bigtable](reference/online-stores/bigtable.md)
+  * [Remote](reference/online-stores/remote.md)
   * [PostgreSQL (contrib)](reference/online-stores/postgres.md)
   * [Cassandra + Astra DB (contrib)](reference/online-stores/cassandra.md) 
   * [MySQL (contrib)](reference/online-stores/mysql.md)
