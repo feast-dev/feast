@@ -65,7 +65,6 @@ class EmbeddedOnlineFeatureServer:
         request_data: Dict[str, Union[List[Any], Value_pb2.RepeatedValue]],
         full_feature_names: bool = False,
     ):
-
         if feature_service:
             join_keys_types = self._service.GetEntityTypesMapByFeatureService(
                 feature_service.name
@@ -252,7 +251,12 @@ def transformation_callback(
     # the typeguard requirement.
     full_feature_names = bool(full_feature_names)
 
-    output = odfv.get_transformed_features_df(
+    if odfv.mode != "pandas":
+        raise Exception(
+            f"OnDemandFeatureView mode '{odfv.mode} not supported by EmbeddedOnlineFeatureServer."
+        )
+
+    output = odfv.get_transformed_features_df(  # type: ignore
         input_record.to_pandas(), full_feature_names=full_feature_names
     )
     output_record = pa.RecordBatch.from_pandas(output)

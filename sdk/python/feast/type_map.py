@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 # null timestamps get converted to -9223372036854775808
-NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
+NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
@@ -113,7 +114,10 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
 
 
 def python_type_to_feast_value_type(
-    name: str, value: Any = None, recurse: bool = True, type_name: Optional[str] = None
+    name: str,
+    value: Optional[Any] = None,
+    recurse: bool = True,
+    type_name: Optional[str] = None,
 ) -> ValueType:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
@@ -297,7 +301,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
@@ -320,7 +324,7 @@ def _python_datetime_to_int_timestamp(
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
-            int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))
+            int_timestamps.append(value.astype("datetime64[s]").astype(np.int_))  # type: ignore[attr-defined]
         elif isinstance(value, type(np.nan)):
             int_timestamps.append(NULL_TIMESTAMP_INT_VALUE)
         else:
@@ -352,6 +356,19 @@ def _python_value_to_proto_value(
             proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
                 feast_value_type
             ]
+
+            # Bytes to array type conversion
+            if isinstance(sample, (bytes, bytearray)):
+                # Bytes of an array containing elements of bytes not supported
+                if feast_value_type == ValueType.BYTES_LIST:
+                    raise _type_err(sample, ValueType.BYTES_LIST)
+
+                json_value = json.loads(sample)
+                if isinstance(json_value, list):
+                    if feast_value_type == ValueType.BOOL_LIST:
+                        json_value = [bool(item) for item in json_value]
+                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
+                raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
                 type(item) in valid_types for item in sample
@@ -632,6 +649,7 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
+        "super": ValueType.BYTES,
         # skip date, geometry, hllsketch, time, timetz
     }
 
@@ -666,6 +684,14 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "FLOAT": f"feast_{project_name}_snowflake_float_to_double_proto",
         "BOOL": f"feast_{project_name}_snowflake_boolean_to_bool_proto",
         "UNIX_TIMESTAMP": f"feast_{project_name}_snowflake_timestamp_to_unix_timestamp_proto",
+        "BYTES_LIST": f"feast_{project_name}_snowflake_array_bytes_to_list_bytes_proto",
+        "STRING_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "INT32_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int32_proto",
+        "INT64_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int64_proto",
+        "DOUBLE_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "FLOAT_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "BOOL_LIST": f"feast_{project_name}_snowflake_array_boolean_to_list_bool_proto",
+        "UNIX_TIMESTAMP_LIST": f"feast_{project_name}_snowflake_array_timestamp_to_list_unix_timestamp_proto",
     }
     return name_map[value_name].upper()
 
@@ -727,7 +753,7 @@ def _non_empty_value(value: Any) -> bool:
 
 def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
     # TODO not all spark types are convertible
-    # Current non-convertible types: interval, map, struct, structfield, decimal, binary
+    # Current non-convertible types: interval, map, struct, structfield, binary
     type_map: Dict[str, ValueType] = {
         "null": ValueType.UNKNOWN,
         "byte": ValueType.BYTES,
@@ -737,6 +763,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
+        "decimal": ValueType.DOUBLE,
         "float": ValueType.FLOAT,
         "boolean": ValueType.BOOL,
         "timestamp": ValueType.UNIX_TIMESTAMP,
@@ -745,10 +772,15 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<int>": ValueType.INT32_LIST,
         "array<bigint>": ValueType.INT64_LIST,
         "array<double>": ValueType.DOUBLE_LIST,
+        "array<decimal>": ValueType.DOUBLE_LIST,
         "array<float>": ValueType.FLOAT_LIST,
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
     }
+    if spark_type_as_str.startswith("decimal"):
+        spark_type_as_str = "decimal"
+    if spark_type_as_str.startswith("array<decimal"):
+        spark_type_as_str = "array<decimal>"
     # TODO: Find better way of doing this.
     if not isinstance(spark_type_as_str, str) or spark_type_as_str not in type_map:
         return ValueType.NULL

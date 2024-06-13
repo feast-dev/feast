@@ -11,12 +11,10 @@ from .protos.feast.core.Entity_pb2 import EntitySpecV2
 from .protos.feast.core.FeatureService_pb2 import FeatureServiceSpec
 from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
-from .protos.feast.core.RequestFeatureView_pb2 import RequestFeatureViewSpec
 from .protos.feast.core.StreamFeatureView_pb2 import StreamFeatureViewSpec
 from .protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
-from .request_feature_view import RequestFeatureView
 from .saved_dataset import ValidationReference
 from .stream_feature_view import StreamFeatureView
 
@@ -24,7 +22,6 @@ from .stream_feature_view import StreamFeatureView
 FeastObject = Union[
     FeatureView,
     OnDemandFeatureView,
-    RequestFeatureView,
     BatchFeatureView,
     StreamFeatureView,
     Entity,
@@ -36,7 +33,6 @@ FeastObject = Union[
 FeastObjectSpecProto = Union[
     FeatureViewSpec,
     OnDemandFeatureViewSpec,
-    RequestFeatureViewSpec,
     StreamFeatureViewSpec,
     EntitySpecV2,
     FeatureServiceSpec,

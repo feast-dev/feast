@@ -415,3 +415,15 @@ class EntityDFNotDateTime(Exception):
 class PushSourceNotFoundException(Exception):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
+
+
+class ReadOnlyRegistryException(Exception):
+    def __init__(self):
+        super().__init__("Registry implementation is read-only.")
+
+
+class DataFrameSerializationError(Exception):
+    def __init__(self, input_dict: dict):
+        super().__init__(
+            f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
+        )

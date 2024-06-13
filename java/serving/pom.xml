@@ -16,8 +16,8 @@
   ~
   -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -119,6 +119,19 @@
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
       <version>5.0.1</version>
+    </dependency>
+
+    <!-- azure blob storage -->
+    <!-- https://mvnrepository.com/artifact/com.azure/azure-storage-blob -->
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-storage-blob</artifactId>
+      <version>12.25.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-identity</artifactId>
+      <version>1.11.3</version>
     </dependency>
 
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
@@ -356,11 +369,11 @@
       <version>2.7.4</version>
       <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>io.lettuce</groupId>
-          <artifactId>lettuce-core</artifactId>
-          <version>6.0.2.RELEASE</version>
-      </dependency>
+    <dependency>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
+      <version>6.0.2.RELEASE</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>

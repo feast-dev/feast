@@ -1,6 +1,9 @@
 from datetime import timedelta
 
+import pandas as pd
+
 from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Int64, String
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
@@ -97,6 +100,17 @@ customer_driver_combined = FeatureView(
     source=customer_driver_combined_source,
     tags={},
 )
+
+
+@on_demand_feature_view(
+    sources=[customer_profile],
+    schema=[Field(name="on_demand_age", dtype=Int64)],
+    mode="pandas",
+)
+def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
+    outputs = pd.DataFrame()
+    outputs["on_demand_age"] = inputs["age"] + 1
+    return outputs
 
 
 all_drivers_feature_service = FeatureService(

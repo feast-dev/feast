@@ -1,10 +1,9 @@
-FROM python:3.8
+FROM python:3.11
 
 RUN apt update && \
         apt install -y \
         jq \
         python3-dev \
-        default-libmysqlclient-dev \
         build-essential
 
 RUN pip install pip --upgrade
@@ -17,3 +16,4 @@ RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | 
 RUN apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
 RUN apt update
 RUN apt -y install libarrow-dev
+RUN mkdir -m 775 /.cache

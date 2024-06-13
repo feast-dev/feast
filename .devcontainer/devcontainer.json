@@ -7,10 +7,7 @@
     },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.9"
-    },
-    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {
-      "version": "latest"
     }
   },
-  "postCreateCommand": "brew install mysql && pip install -e '.[dev]' && make compile-protos-python"
+  "postCreateCommand": "pip install -e '.[dev]' && make compile-protos-python"
 }

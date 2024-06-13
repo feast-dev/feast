@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package feast.registry;
+
+import "google/protobuf/empty.proto";
+import "feast/core/Registry.proto";
+import "feast/core/Entity.proto";
+import "feast/core/DataSource.proto";
+import "feast/core/FeatureView.proto";
+import "feast/core/StreamFeatureView.proto";
+import "feast/core/OnDemandFeatureView.proto";
+import "feast/core/FeatureService.proto";
+import "feast/core/SavedDataset.proto";
+import "feast/core/ValidationProfile.proto";
+import "feast/core/InfraObject.proto";
+
+service RegistryServer{
+  // Entity RPCs
+  rpc GetEntity (GetEntityRequest) returns (feast.core.Entity) {}
+  rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse) {}
+  
+  // DataSource RPCs
+  rpc GetDataSource (GetDataSourceRequest) returns (feast.core.DataSource) {}
+  rpc ListDataSources (ListDataSourcesRequest) returns (ListDataSourcesResponse) {}
+
+  // FeatureView RPCs
+  rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
+  rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
+
+  // StreamFeatureView RPCs
+  rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
+  rpc ListStreamFeatureViews (ListStreamFeatureViewsRequest) returns (ListStreamFeatureViewsResponse) {}
+
+  // OnDemandFeatureView RPCs
+  rpc GetOnDemandFeatureView (GetOnDemandFeatureViewRequest) returns (feast.core.OnDemandFeatureView) {}
+  rpc ListOnDemandFeatureViews (ListOnDemandFeatureViewsRequest) returns (ListOnDemandFeatureViewsResponse) {}
+
+  // FeatureService RPCs
+  rpc GetFeatureService (GetFeatureServiceRequest) returns (feast.core.FeatureService) {}
+  rpc ListFeatureServices (ListFeatureServicesRequest) returns (ListFeatureServicesResponse) {}
+
+  // SavedDataset RPCs
+  rpc GetSavedDataset (GetSavedDatasetRequest) returns (feast.core.SavedDataset) {}
+  rpc ListSavedDatasets (ListSavedDatasetsRequest) returns (ListSavedDatasetsResponse) {}
+
+  // ValidationReference RPCs
+  rpc GetValidationReference (GetValidationReferenceRequest) returns (feast.core.ValidationReference) {}
+  rpc ListValidationReferences (ListValidationReferencesRequest) returns (ListValidationReferencesResponse) {}
+
+  rpc ListProjectMetadata (ListProjectMetadataRequest) returns (ListProjectMetadataResponse) {}
+  rpc GetInfra (GetInfraRequest) returns (feast.core.Infra) {}
+  rpc Refresh (RefreshRequest) returns (google.protobuf.Empty) {}
+  rpc Proto (google.protobuf.Empty) returns (feast.core.Registry) {}
+
+}
+
+message RefreshRequest {
+  string project = 1;
+}
+
+message GetInfraRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListProjectMetadataRequest {
+  string project = 1;
+  bool allow_cache = 2;    
+}
+
+message ListProjectMetadataResponse {
+  repeated feast.core.ProjectMetadata project_metadata = 1;     
+}
+
+message GetEntityRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListEntitiesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListEntitiesResponse {
+    repeated feast.core.Entity entities = 1;
+}
+
+// DataSources
+
+message GetDataSourceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListDataSourcesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListDataSourcesResponse {
+    repeated feast.core.DataSource data_sources = 1;
+}
+
+// FeatureViews
+
+message GetFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListFeatureViewsResponse {
+    repeated feast.core.FeatureView feature_views = 1;
+}
+
+// StreamFeatureView
+
+message GetStreamFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListStreamFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListStreamFeatureViewsResponse {
+    repeated feast.core.StreamFeatureView stream_feature_views = 1;
+}
+
+// OnDemandFeatureView
+
+message GetOnDemandFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListOnDemandFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListOnDemandFeatureViewsResponse {
+    repeated feast.core.OnDemandFeatureView on_demand_feature_views = 1;
+}
+
+// FeatureServices
+
+message GetFeatureServiceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListFeatureServicesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListFeatureServicesResponse {
+    repeated feast.core.FeatureService feature_services = 1;
+}
+
+// SavedDataset
+
+message GetSavedDatasetRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListSavedDatasetsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListSavedDatasetsResponse {
+    repeated feast.core.SavedDataset saved_datasets = 1;
+}
+
+// ValidationReference
+
+message GetValidationReferenceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListValidationReferencesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListValidationReferencesResponse {
+    repeated feast.core.ValidationReference validation_references = 1;
+}

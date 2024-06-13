@@ -18,14 +18,14 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: "3.8"
+          python-version: "3.11"
           architecture: x64
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
@@ -53,7 +53,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Lint java
@@ -63,7 +63,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -95,9 +95,9 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
-      PYTHON: 3.8
+      PYTHON: 3.11
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -107,33 +107,27 @@ jobs:
           java-package: jdk
           architecture: x64
       - name: Setup Python (to call feast apply)
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: 3.8
+          python-version: 3.11
           architecture: x64
-      - name: Get pip cache dir
-        id: pip-cache
+      - name: Install uv
         run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get uv cache dir
+        id: uv-cache
+        run: |
+          echo "::set-output name=dir::$(uv cache dir)"
+      - name: uv cache
+        uses: actions/cache@v4
         with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
-      - name: Install pip-tools
-        run: pip install pip-tools
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+
       - name: Install Python dependencies
-        run: make install-python-ci-dependencies
-      - uses: actions/cache@v2
+        run: make install-python-ci-dependencies-uv
+      - uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
