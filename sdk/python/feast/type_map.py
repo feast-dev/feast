@@ -406,7 +406,9 @@ def _python_value_to_proto_value(
                 # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
                 return [
                     (
-                        ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
+                        ProtoValue(
+                            **{field_name: proto_type(val=[bool(e) for e in value])}
+                        )  # type: ignore
                         if value is not None
                         else ProtoValue()
                     )
