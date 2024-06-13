@@ -27,6 +27,7 @@ from pygments import formatters, highlight, lexers
 from feast import utils
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
@@ -763,6 +764,34 @@ def serve_registry_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_registry(port)
+
+
+@cli.command("serve_offline")
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="127.0.0.1",
+    show_default=True,
+    help="Specify a host for the server",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_OFFLINE_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_offline_command(
+    ctx: click.Context,
+    host: str,
+    port: int,
+):
+    """Start a remote server locally on a given host, port."""
+    store = create_feature_store(ctx)
+
+    store.serve_offline(host, port)
 
 
 @cli.command("validate")

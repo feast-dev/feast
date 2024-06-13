@@ -29,6 +29,10 @@ from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
     RedshiftRetrievalJob,
 )
+from feast.infra.offline_stores.remote import (
+    RemoteOfflineStoreConfig,
+    RemoteRetrievalJob,
+)
 from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
     SnowflakeRetrievalJob,
@@ -104,6 +108,7 @@ class MockRetrievalJob(RetrievalJob):
         PostgreSQLRetrievalJob,
         SparkRetrievalJob,
         TrinoRetrievalJob,
+        RemoteRetrievalJob,
     ]
 )
 def retrieval_job(request, environment):
@@ -202,6 +207,35 @@ def retrieval_job(request, environment):
             client=MagicMock(),
             config=environment.config,
             full_feature_names=False,
+        )
+    elif request.param is RemoteRetrievalJob:
+        offline_store_config = RemoteOfflineStoreConfig(
+            type="remote",
+            host="localhost",
+            port=0,
+        )
+        environment.config._offline_store = offline_store_config
+
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "id": [1],
+                "event_timestamp": ["datetime"],
+                "val_to_add": [1],
+            }
+        )
+
+        return RemoteRetrievalJob(
+            client=MagicMock(),
+            api_parameters={
+                "str": "str",
+            },
+            api="api",
+            table=pyarrow.Table.from_pandas(entity_df),
+            entity_df=entity_df,
+            metadata=RetrievalMetadata(
+                features=["1", "2", "3", "4"],
+                keys=["1", "2", "3", "4"],
+            ),
         )
     else:
         return request.param()

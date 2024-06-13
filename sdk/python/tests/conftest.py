@@ -305,10 +305,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 @pytest.fixture
 def feature_server_endpoint(environment):
-    if (
-        not environment.python_feature_server
-        or environment.test_repo_config.provider != "local"
-    ):
+    if not environment.python_feature_server or environment.provider != "local":
         yield environment.feature_store.get_feature_server_endpoint()
         return
 
