@@ -14,7 +14,7 @@ You should meet your users where they are. Python’s popularity in the machine 
 
 Precomputing features is the recommended optimal path to ensure low latency performance. Reducing feature serving to a lightweight database lookup is the ideal pattern, which means the marginal overhead of Python should be tolerable. Precomputation ensures product experiences for downstream services are also fast. Slow user experiences are bad user experiences. Precompute and persist data as much as you can.
 
-## 3. Serving features in another language can lead to skew.
+## 3. Serving features in another language can lead to skew
 Ensuring that features used during model training (offline serving) and online serving are available in production to make real-time predictions is critical. When features are initially developed, they are typically written in Python. This is due to the convenience and efficiency provided by Python's data manipulation libraries. However, in a production environment, there is often interest or pressure to rewrite these features in a different language, like Java, Go, or C++, for performance reasons. This reimplementation introduces a significant risk: training and serving skew.
 
 Training and serving skew occurs when there are discrepancies between the features used during model training and those used during prediction. This can lead to degraded model performance, unreliable predictions, and reduced velocity in releasing new features and new models. The process of rewriting features in another language is prone to errors and inconsistencies, which exacerbate this issue.
