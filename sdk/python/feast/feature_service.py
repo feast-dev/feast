@@ -201,7 +201,6 @@ class FeatureService:
             logging_config=LoggingConfig.from_proto(
                 feature_service_proto.spec.logging_config
             ),
-            metadata=dict(feature_service_proto.spec.metadata),
         )
         fs.feature_view_projections.extend(
             [
@@ -240,7 +239,6 @@ class FeatureService:
                 projection.to_proto() for projection in self.feature_view_projections
             ],
             tags=self.tags,
-            metadata=self.metadata,
             description=self.description,
             owner=self.owner,
             logging_config=(
