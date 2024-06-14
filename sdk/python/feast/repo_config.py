@@ -64,6 +64,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
     "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
+    "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {

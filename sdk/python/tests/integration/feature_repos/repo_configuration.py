@@ -136,9 +136,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
-] = {
-    "sqlite": ({"type": "sqlite"}, None),
-}
+] = {"sqlite": ({"type": "sqlite"}, None)}
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
@@ -155,7 +153,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
-
     # Uncomment to test using private Rockset account. Currently not enabled as
     # there is no dedicated Rockset instance for CI testing and there is no
     # containerized version of Rockset.
@@ -489,7 +486,6 @@ def construct_test_environment(
                 "arn:aws:iam::402087665549:role/lambda_execution_role",
             ),
         )
-
     else:
         feature_server = LocalFeatureServerConfig(
             feature_logging=FeatureLoggingConfig(enabled=True)
