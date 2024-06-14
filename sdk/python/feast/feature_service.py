@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
@@ -48,7 +48,6 @@ class FeatureService:
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
     logging_config: Optional[LoggingConfig] = None
-    metadata: Optional[Dict[str, Any]] = None
 
     def __init__(
         self,
@@ -241,9 +240,9 @@ class FeatureService:
             tags=self.tags,
             description=self.description,
             owner=self.owner,
-            logging_config=(
-                self.logging_config.to_proto() if self.logging_config else None
-            ),
+            logging_config=self.logging_config.to_proto()
+            if self.logging_config
+            else None,
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)
