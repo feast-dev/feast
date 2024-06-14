@@ -85,7 +85,8 @@ def conv_rate_plus_100_feature_view(
         schema=[] if infer_features else _features,
         sources=sources,
         feature_transformation=PandasTransformation(
-            udf=conv_rate_plus_100, udf_string="raw udf source"
+            udf=conv_rate_plus_100,
+            udf_string="raw udf source",  # type: ignore
         )
         if not use_substrait_odfv
         else SubstraitTransformation.from_ibis(conv_rate_plus_100_ibis, sources),
@@ -124,10 +125,11 @@ def similarity_feature_view(
 
     return OnDemandFeatureView(
         name=similarity.__name__,
-        sources=sources,
+        sources=sources,  # type: ignore
         schema=[] if infer_features else _fields,
         feature_transformation=PandasTransformation(
-            udf=similarity, udf_string="similarity raw udf"
+            udf=similarity,
+            udf_string="similarity raw udf",  # type: ignore
         ),
     )
 

@@ -18,6 +18,9 @@ fullnameOverride: ""
 # feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml
 feature_store_yaml_base64: ""
 
+# feast_mode -- Feast supported deployment modes - online (default), offline, ui and registry
+feast_mode: "online"
+
 podAnnotations: {}
 
 podSecurityContext: {}

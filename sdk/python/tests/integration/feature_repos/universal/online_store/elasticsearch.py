@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 
 from testcontainers.elasticsearch import ElasticSearchContainer
 
@@ -14,7 +14,7 @@ class ElasticSearchOnlineStoreCreator(OnlineStoreCreator):
             "elasticsearch:8.3.3",
         ).with_exposed_ports(9200)
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> Dict[str, Any]:
         self.container.start()
         return {
             "host": "localhost",
