@@ -2,7 +2,6 @@ import json
 import sys
 import threading
 import traceback
-import warnings
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
