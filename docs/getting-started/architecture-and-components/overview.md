@@ -34,5 +34,5 @@ Java and Go Clients are also available for online feature retrieval.
 
 In general, we recommend [using Python](language.md) for your Feature Store microservice.
 
-As mentioned in the document, precomputing features is the recommended optimal path to ensure low latency performance. Reducing feature serving to a lightweight database lookup is the ideal pattern, which means the marginal overhead of Python should be tolerable.
+As mentioned in the document, precomputing features is the recommended optimal path to ensure low latency performance. Reducing feature serving to a lightweight database lookup is the ideal pattern, which means the marginal overhead of Python should be tolerable. Because of this we believe the pros of Python outweigh the costs, as reimplementing feature logic is undesirable.
 {% endhint %}
