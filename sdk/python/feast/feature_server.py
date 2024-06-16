@@ -4,7 +4,7 @@ import threading
 import traceback
 import warnings
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List, Optional, Any, Union
 
 import pandas as pd
 from dateutil import parser
@@ -47,8 +47,8 @@ class MaterializeIncrementalRequest(BaseModel):
 
 
 def get_app(
-    store: "feast.FeatureStore",
-    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+        store: "feast.FeatureStore",
+        registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -86,15 +86,7 @@ def get_app(
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
         try:
-            body = json.loads(body)
-            # Initialize parameters for FeatureStore.get_online_features(...) call
-            if "feature_service" in body:
-                features = store.get_feature_service(
-                    body["feature_service"], allow_cache=True
-                )
-            else:
-                features = body["features"]
-
+            features, body = _get_features_from_body(store, body)
             full_feature_names = body.get("full_feature_names", False)
 
             response_proto = store._get_online_features(
@@ -165,6 +157,27 @@ def get_app(
             # Raise HTTPException to return the error message to the client
             raise HTTPException(status_code=500, detail=str(e))
 
+    @app.post("/get-predictions")
+    def get_predictions_endpoint(body=Depends(get_body)):
+        try:
+            body, features = _get_features_from_body(store, body)
+
+            predictions = _get_predictions(
+                store=store,
+                entity=body["entities"],
+                model_name=body["model_name"],
+                inputs=features,
+                log_features=body["log_features"],
+                force_recompute=body["force_recompute"],
+            )
+
+            return Response(content=json.dumps(predictions), media_type="application/json")
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
     @app.get("/health")
     def health():
         return Response(status_code=status.HTTP_200_OK)
@@ -203,6 +216,7 @@ def get_app(
 if sys.platform != "win32":
     import gunicorn.app.base
 
+
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
         def __init__(self, store: "feast.FeatureStore", **options):
             self._app = get_app(
@@ -224,13 +238,13 @@ if sys.platform != "win32":
 
 
 def start_server(
-    store: "feast.FeatureStore",
-    host: str,
-    port: int,
-    no_access_log: bool,
-    workers: int,
-    keep_alive_timeout: int,
-    registry_ttl_sec: int,
+        store: "feast.FeatureStore",
+        host: str,
+        port: int,
+        no_access_log: bool,
+        workers: int,
+        keep_alive_timeout: int,
+        registry_ttl_sec: int,
 ):
     if sys.platform != "win32":
         FeastServeApplication(
@@ -246,3 +260,68 @@ def start_server(
 
         app = get_app(store, registry_ttl_sec)
         uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+
+
+def _get_features_from_body(store: "feast.FeatureStore", body: Request):
+    body = json.loads(body)
+    # Initialize parameters for FeatureStore.get_online_features(...) call
+    if "feature_service" in body:
+        features = store.get_feature_service(
+            body["feature_service"], allow_cache=True
+        )
+    else:
+        features = body["features"]
+    return features, body
+
+def _get_predictions(
+        store: "feast.FeatureStore",
+        entities: pd.DataFrame,
+        model_name: str,
+        model: Any,
+        inputs: Union[pd.DataFrame, List[dict[str, Any]]],
+        log_features: bool = True,
+        force_recompute: bool = True,
+) -> Union[float, List[float], List[str]]:
+    # Convert inputs to DataFrame if necessary
+    if isinstance(inputs, dict):
+        df_inputs = pd.DataFrame([inputs])
+    elif isinstance(inputs, list):
+        df_inputs = pd.DataFrame(inputs)
+    else:
+        raise ValueError("Inputs must be a dictionary or a list of dictionaries")
+
+    if force_recompute:
+        # Fetch features from the offline store
+        features = store.get_online_features(
+            entity_rows=[entities],
+            feature_refs=features,
+        ).to_dict()
+
+        features = store._get_online_features(
+            features=features,
+            entity_values=entities,
+            full_feature_names=full_feature_names,
+        ).to_dict()
+        # Merge features with inputs
+        df_inputs = pd.merge(df_inputs, features, on="entity_id")
+        score_df = df_inputs[["feature1", "feature2", "feature3"]]
+        # Predict using the model
+        predictions = model.predict(score_df)
+    else:
+        store.get_online_features(
+            entity_rows=[entity],
+            features=[
+                "model_name:prediction",
+            ]
+        )
+
+    # Log features to the offline store if needed
+    if log_features:
+        # Assuming store is a global variable or can be accessed here
+        store.push(
+            push_source_name="model_predictions",
+            df=df_inputs.assign(predictions=predictions.tolist()),
+            to=PushMode.OFFLINE
+        )
+
+    return predictions.tolist()
