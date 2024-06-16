@@ -7,7 +7,7 @@ from feast.protos.feast.types.Value_pb2 import ValueType
 
 
 def _serialize_val(
-        value_type, v: ValueProto, entity_key_serialization_version=1
+    value_type, v: ValueProto, entity_key_serialization_version=1
 ) -> Tuple[bytes, int]:
     if value_type == "string_val":
         return v.string_val.encode("utf8"), ValueType.STRING
@@ -31,7 +31,7 @@ def _deserialize_value(value_type, value_bytes) -> ValueProto:
         value = struct.unpack("<i", value_bytes)[0]
         return ValueProto(int32_val=value)
     elif value_type == ValueType.STRING:
-        value = value_bytes.decode('utf-8')
+        value = value_bytes.decode("utf-8")
         return ValueProto(string_val=value)
     elif value_type == ValueType.BYTES:
         return ValueProto(bytes_val=value_bytes)
@@ -56,7 +56,7 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
 
 
 def serialize_entity_key(
-        entity_key: EntityKeyProto, entity_key_serialization_version=1
+    entity_key: EntityKeyProto, entity_key_serialization_version=1
 ) -> bytes:
     """
     Serialize entity key to a bytestring so it can be used as a lookup key in a hash table.
@@ -92,7 +92,9 @@ def serialize_entity_key(
     return b"".join(output)
 
 
-def deserialize_entity_key(serialized_entity_key: bytes, entity_key_serialization_version=3) -> EntityKeyProto:
+def deserialize_entity_key(
+    serialized_entity_key: bytes, entity_key_serialization_version=3
+) -> EntityKeyProto:
     """
     Deserialize entity key from a bytestring. This function can only be used with entity_key_serialization_version > 2.
     Args:
@@ -114,32 +116,31 @@ def deserialize_entity_key(serialized_entity_key: bytes, entity_key_serializatio
         offset += 4
 
         # Read the length of the key
-        key_length = struct.unpack_from('<I', serialized_entity_key, offset)[0]
+        key_length = struct.unpack_from("<I", serialized_entity_key, offset)[0]
         offset += 4
 
         if key_type == ValueType.STRING:
-            key = struct.unpack_from(f'<{key_length}s', serialized_entity_key, offset)[0]
-            keys.append(key.decode('utf-8').rstrip('\x00'))
+            key = struct.unpack_from(f"<{key_length}s", serialized_entity_key, offset)[
+                0
+            ]
+            keys.append(key.decode("utf-8").rstrip("\x00"))
             offset += key_length
         else:
             raise ValueError(f"Unsupported key type: {key_type}")
 
-        value_type, = struct.unpack_from('<I', serialized_entity_key, offset)
+        (value_type,) = struct.unpack_from("<I", serialized_entity_key, offset)
         offset += 4
 
-        value_length, = struct.unpack_from('<I', serialized_entity_key, offset)
+        (value_length,) = struct.unpack_from("<I", serialized_entity_key, offset)
         offset += 4
 
         # Read the value based on its type and length
-        value_bytes = serialized_entity_key[offset:offset + value_length]
+        value_bytes = serialized_entity_key[offset : offset + value_length]
         value = _deserialize_value(value_type, value_bytes)
         values.append(value)
         offset += value_length
 
-    return EntityKeyProto(
-        join_keys=keys,
-        entity_values=values
-    )
+    return EntityKeyProto(join_keys=keys, entity_values=values)
 
 
 def get_list_val_str(val):
