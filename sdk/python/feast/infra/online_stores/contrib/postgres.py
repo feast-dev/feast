@@ -338,7 +338,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         feature_name,
                         value,
                         vector_value,
-                        vector_value <-> %s as distance,
+                        vector_value {distance_metric_sql} %s as distance,
                         event_ts FROM {table_name}
                     WHERE feature_name = {feature_name}
                     ORDER BY distance
