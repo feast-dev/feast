@@ -1,6 +1,6 @@
 import pytest
 
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import serialize_entity_key, deserialize_entity_key
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
@@ -9,14 +9,14 @@ def test_serialize_entity_key():
     # Should be fine
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**15))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
         ),
         entity_key_serialization_version=2,
     )
     # True int64, but should also be fine.
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
         ),
         entity_key_serialization_version=2,
     )
@@ -25,6 +25,20 @@ def test_serialize_entity_key():
     with pytest.raises(BaseException):
         serialize_entity_key(
             EntityKeyProto(
-                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
             ),
         )
+
+
+def test_deserialize_entity_key():
+    serialized_entity_key = serialize_entity_key(
+        EntityKeyProto(
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
+        ),
+        entity_key_serialization_version=3,
+    )
+
+    deserialized_entity_key = deserialize_entity_key(serialized_entity_key, entity_key_serialization_version=3)
+    assert deserialized_entity_key == EntityKeyProto(
+        join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
+    )
