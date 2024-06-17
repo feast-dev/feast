@@ -131,6 +131,7 @@ class RegistryConfig(FeastBaseModel):
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
     cache_mode: StrictStr = "sync"
+    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
 
 
 class RepoConfig(FeastBaseModel):
