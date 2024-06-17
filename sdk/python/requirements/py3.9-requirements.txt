@@ -177,7 +177,7 @@ tzdata==2024.1
     # via pandas
 ujson==5.9.0
     # via fastapi
-urllib3==2.2.1
+urllib3==1.26.19
     # via requests
 uvicorn[standard]==0.29.0
     # via
