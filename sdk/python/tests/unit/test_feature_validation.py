@@ -1,7 +1,7 @@
 import pytest
 
 from feast.errors import FeatureNameCollisionError
-from feast.feature_store import _validate_feature_refs
+from feast.utils import _validate_feature_refs
 
 
 def test_feature_name_collision_on_historical_retrieval():
