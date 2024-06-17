@@ -331,6 +331,17 @@ test-python-universal-cassandra-no-cloud-providers:
 				not test_snowflake" \
  			sdk/python/tests
 
+test-python-universal-singlestore-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.singlestore_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
+		python -m pytest -n 8 --integration \
+			-k "not test_universal_cli and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_snowflake" \
+			sdk/python/tests
+
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 

@@ -64,4 +64,7 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 
 {% content-ref url="remote.md" %}
 [remote.md](remote.md)
+
+{% content-ref url="singlestore.md" %}
+[singlestore.md](singlestore.md)
 {% endcontent-ref %}

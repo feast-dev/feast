@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    feast.infra.registry.contrib.azure
+   feast.infra.registry.contrib.postgres
 
 Module contents
 ---------------

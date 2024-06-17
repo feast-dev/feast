@@ -68,7 +68,9 @@ botocore==1.34.99
     #   moto
     #   s3transfer
 build==1.2.1
-    # via pip-tools
+    # via
+    #   pip-tools
+    #   singlestoredb
 cachecontrol==0.14.0
     # via firebase-admin
 cachetools==5.3.3
@@ -514,6 +516,8 @@ pandas==2.2.2
     #   snowflake-connector-python
 pandocfilters==1.5.1
     # via nbconvert
+parsimonious==0.10.0
+    # via singlestoredb
 parso==0.8.4
     # via jedi
 parsy==2.1
@@ -619,6 +623,7 @@ pygments==2.18.0
 pyjwt[crypto]==2.8.0
     # via
     #   msal
+    #   singlestoredb
     #   snowflake-connector-python
 pymssql==2.3.0
 pymysql==1.1.1
@@ -714,6 +719,7 @@ requests==2.31.0
     #   msal
     #   requests-oauthlib
     #   responses
+    #   singlestoredb
     #   snowflake-connector-python
     #   sphinx
     #   trino
@@ -756,8 +762,10 @@ setuptools==70.0.0
     #   grpcio-tools
     #   kubernetes
     #   pip-tools
+    #   singlestoredb
 shellingham==1.5.4
     # via typer
+singlestoredb==1.3.1
 six==1.16.0
     # via
     #   asttokens
@@ -805,6 +813,8 @@ sqlalchemy-views==0.3.2
 sqlglot==20.11.0
     # via ibis-framework
 sqlite-vec==0.0.1a10
+sqlparams==6.0.1
+    # via singlestoredb
 stack-data==0.6.3
     # via ipython
 starlette==0.37.2
@@ -832,6 +842,7 @@ tomli==2.0.1
     #   pip-tools
     #   pytest
     #   pytest-env
+    #   singlestoredb
 tomlkit==0.12.5
     # via snowflake-connector-python
 toolz==0.12.1
@@ -960,7 +971,9 @@ websockets==12.0
 werkzeug==3.0.3
     # via moto
 wheel==0.43.0
-    # via pip-tools
+    # via
+    #   pip-tools
+    #   singlestoredb
 widgetsnbextension==4.0.11
     # via ipywidgets
 wrapt==1.16.0
