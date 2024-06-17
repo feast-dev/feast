@@ -10,6 +10,7 @@ Subpackages
    feast.infra.online_stores.contrib.cassandra_online_store
    feast.infra.online_stores.contrib.hazelcast_online_store
    feast.infra.online_stores.contrib.hbase_online_store
+   feast.infra.online_stores.contrib.ikv_online_store
    feast.infra.online_stores.contrib.mysql_online_store
    feast.infra.online_stores.contrib.rockset_online_store
 
@@ -20,6 +21,22 @@ feast.infra.online\_stores.contrib.cassandra\_repo\_configuration module
 ------------------------------------------------------------------------
 
 .. automodule:: feast.infra.online_stores.contrib.cassandra_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.elasticsearch module
+-------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.elasticsearch
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.elasticsearch\_repo\_configuration module
+----------------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.elasticsearch_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
@@ -48,6 +65,14 @@ feast.infra.online\_stores.contrib.mysql\_repo\_configuration module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.online\_stores.contrib.pgvector\_repo\_configuration module
+-----------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.pgvector_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.online\_stores.contrib.postgres module
 --------------------------------------------------
 
@@ -60,14 +85,6 @@ feast.infra.online\_stores.contrib.postgres\_repo\_configuration module
 -----------------------------------------------------------------------
 
 .. automodule:: feast.infra.online_stores.contrib.postgres_repo_configuration
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.infra.online\_stores.contrib.rockset\_repo\_configuration module
-----------------------------------------------------------------------
-
-.. automodule:: feast.infra.online_stores.contrib.rockset_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

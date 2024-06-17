@@ -1,10 +1,10 @@
 feast.infra.materialization.contrib package
-==========================================
+===========================================
 
-Subpackages
------------
+Module contents
+---------------
 
-.. toctree::
-   :maxdepth: 4
-
-   feast.infra.materialization.contrib.bytewax
+.. automodule:: feast.infra.materialization.contrib
+   :members:
+   :undoc-members:
+   :show-inheritance:
