@@ -162,12 +162,10 @@ def get_app(
         try:
             body, features = _get_features_from_body(store, body)
 
-            predictions = _get_predictions(
-                store=store,
-                features=features,
-                entity=body["entities"],
+            predictions = store.get_predictions(
                 model_name=body["model_name"],
-                inputs=features,
+                features=features,
+                entity_rows=body["entities"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
             )
@@ -273,37 +271,3 @@ def _get_features_from_body(store: "feast.FeatureStore", body: Request):
         features = body["features"]
     return features, body
 
-
-def _get_predictions(
-    store: "feast.FeatureStore",
-    features: str,
-    entities: pd.DataFrame,
-    model_name: str,
-    model: Any,
-    force_recompute: bool = True,
-    log_features: bool = True,
-) -> pd.DataFrame:
-    # Get model features
-    model_features = store.get_feature_service(model_name)
-    if force_recompute:
-        # Fetch features from the offline store
-        prediction_df = store.get_online_features(
-            entity_rows=[entities],
-            feature_refs=features,
-        ).to_df()
-        # Predict using the model
-        predictions = model.predict(prediction_df)
-        prediction_df["predictions"] = predictions
-        # Log features to the offline store if needed (on computations)
-        if log_features:
-            # Assuming store is a global variable or can be accessed here
-            store.push(
-                push_source_name=model_features, df=prediction_df, to=PushMode.OFFLINE
-            )
-    else:
-        prediction_df = store.get_online_features(
-            entity_rows=[entities],
-            features=model_features,
-        )
-
-    return prediction_df

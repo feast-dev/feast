@@ -2689,6 +2689,53 @@ class FeatureStore:
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
 
+    def get_predictions(
+        self,
+        model_name: FeatureService,
+        features: Union[List[str], FeatureService],
+        entity_rows: List[Dict[str, Any]],
+        full_feature_names: bool = False,
+        force_recompute: bool = True,
+        log_features: bool = True,
+    ) -> OnlineResponse:
+        '''
+        @on_demand_feature_view(
+           sources=[
+               data_source_1,
+               data_source_2,
+           ],
+           schema=[
+             Field(name='prediction', dtype=Float64),
+           ],
+           mode="python",
+        )
+        def run_inference(data_source_1: dict[str, float], data_source_2: dict[str, float]) -> dict[str, float]:
+            # Run inference
+            output = model.predict({**data_source_1, **data_source_2}).to_dict()
+            return output
+        '''
+        # Get the feature views to use
+        if force_recompute:
+            # Fetch features from the offline store
+            prediction_df = store.get_online_features(
+                entity_rows=[entities],
+                feature_refs=features,
+            ).to_df()
+            # Predict using the model
+            predictions = model.predict(prediction_df)
+            prediction_df["predictions"] = predictions
+            # Log features to the offline store if needed (on computations)
+            if log_features:
+                # Assuming store is a global variable or can be accessed here
+                store.push(
+                    push_source_name=model_features, df=prediction_df, to=PushMode.OFFLINE
+                )
+        else:
+            prediction_df = store.get_online_features(
+                entity_rows=[entities],
+                features=model_features,
+            )
+        return OnlineResponse(prediction_df)
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
     set_of_row_lengths = {len(v) for v in join_key_values.values()}
