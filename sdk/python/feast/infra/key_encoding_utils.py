@@ -20,7 +20,7 @@ def _serialize_val(
             return struct.pack("<l", v.int64_val), ValueType.INT64
         return struct.pack("<q", v.int64_val), ValueType.INT64
     else:
-        raise ValueError(f"Value type not supported for Firestore: {v}")
+        raise ValueError(f"Value type not supported for feast feature store: {v}")
 
 
 def _deserialize_value(value_type, value_bytes) -> ValueProto:

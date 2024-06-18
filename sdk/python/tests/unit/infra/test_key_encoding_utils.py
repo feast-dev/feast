@@ -1,22 +1,24 @@
 import pytest
 
-from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key
+from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key, _serialize_val, \
+    _deserialize_value
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import ValueType
 
 
 def test_serialize_entity_key():
     # Should be fine
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**15))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
         ),
         entity_key_serialization_version=2,
     )
     # True int64, but should also be fine.
     serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
         ),
         entity_key_serialization_version=2,
     )
@@ -25,7 +27,7 @@ def test_serialize_entity_key():
     with pytest.raises(BaseException):
         serialize_entity_key(
             EntityKeyProto(
-                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**31))]
+                join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 31))]
             ),
         )
 
@@ -33,7 +35,7 @@ def test_serialize_entity_key():
 def test_deserialize_entity_key():
     serialized_entity_key = serialize_entity_key(
         EntityKeyProto(
-            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**15))]
+            join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
         ),
         entity_key_serialization_version=3,
     )
@@ -42,5 +44,48 @@ def test_deserialize_entity_key():
         serialized_entity_key, entity_key_serialization_version=3
     )
     assert deserialized_entity_key == EntityKeyProto(
-        join_keys=["user"], entity_values=[ValueProto(int64_val=int(2**15))]
+        join_keys=["user"], entity_values=[ValueProto(int64_val=int(2 ** 15))]
     )
+
+
+def test_serialize_value():
+    v, t = _serialize_val("string_val", ValueProto(string_val="test"))
+    assert t == ValueType.STRING
+    assert v == b"test"
+
+    v, t = _serialize_val("bytes_val", ValueProto(bytes_val=b"test"))
+    assert t == ValueType.BYTES
+    assert v == b"test"
+
+    v, t = _serialize_val("int32_val", ValueProto(int32_val=1))
+    assert t == ValueType.INT32
+    assert v == b"\x01\x00\x00\x00"
+
+    # default entity_key_serialization_version is 1, so the result should be 4 bytes
+    v, t = _serialize_val("int64_val", ValueProto(int64_val=1))
+    assert t == ValueType.INT64
+    assert v == b"\x01\x00\x00\x00"
+
+    # current entity_key_serialization_version is 2, so the result should be 8 bytes
+    v, t = _serialize_val("int64_val", ValueProto(int64_val=1), entity_key_serialization_version=2)
+    assert t == ValueType.INT64
+    assert v == b"\x01\x00\x00\x00\x00\x00\x00\x00"
+
+    # new entity_key_serialization_version is 3, the result should be same as version 2
+    v, t = _serialize_val("int64_val", ValueProto(int64_val=1), entity_key_serialization_version=3)
+    assert t == ValueType.INT64
+    assert v == b"\x01\x00\x00\x00\x00\x00\x00\x00"
+
+
+def test_deserialize_value():
+    v = _deserialize_value(ValueType.STRING, b"test")
+    assert v.string_val == "test"
+
+    v = _deserialize_value(ValueType.BYTES, b"test")
+    assert v.bytes_val == b"test"
+
+    v = _deserialize_value(ValueType.INT32, b"\x01\x00\x00\x00")
+    assert v.int32_val == 1
+
+    v = _deserialize_value(ValueType.INT64, b"\x01\x00\x00\x00\x00\x00\x00\x00")
+    assert v.int64_val == 1
