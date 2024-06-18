@@ -1,9 +1,15 @@
 package server
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+func TestHello(t *testing.T) {
+	fmt.Println("Hello world")
+	assert.Equal(t, false, true)
+}
 
 func TestUnmarshalJSON(t *testing.T) {
 	u := repeatedValue{}
