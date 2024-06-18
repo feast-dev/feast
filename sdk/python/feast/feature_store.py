@@ -2250,66 +2250,7 @@ class FeatureStore:
                         values.append(feature_data[feature_name])
             read_row_protos.append((event_timestamps, statuses, values))
         return read_row_protos
-    
-    async def _read_from_online_store_async(
-        self,
-        entity_rows: Iterable[Mapping[str, Value]],
-        provider: Provider,
-        requested_features: List[str],
-        table: FeatureView,
-        pool_size: int = 3
-    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
-        """Read and process data from the OnlineStore for a given FeatureView.
 
-        This method guarantees that the order of the data in each element of the
-        List returned is the same as the order of `requested_features`.
-
-        This method assumes that `provider.online_read` returns data for each
-        combination of Entities in `entity_rows` in the same order as they
-        are provided.
-        """
-        # Instantiate one EntityKeyProto per Entity.
-        entity_key_protos = [
-            EntityKeyProto(join_keys=row.keys(), entity_values=row.values())
-            for row in entity_rows
-        ]
-
-        # Fetch data for Entities.
-        read_rows = await provider.online_read_async(
-            config=self.config,
-            table=table,
-            entity_keys=entity_key_protos,
-            requested_features=requested_features,
-            pool_size=pool_size
-        )
-
-        # Each row is a set of features for a given entity key. We only need to convert
-        # the data to Protobuf once.
-        null_value = Value()
-        read_row_protos = []
-        for read_row in read_rows:
-            row_ts_proto = Timestamp()
-            row_ts, feature_data = read_row
-            # TODO (Ly): reuse whatever timestamp if row_ts is None?
-            if row_ts is not None:
-                row_ts_proto.FromDatetime(row_ts)
-            event_timestamps = [row_ts_proto] * len(requested_features)
-            if feature_data is None:
-                statuses = [FieldStatus.NOT_FOUND] * len(requested_features)
-                values = [null_value] * len(requested_features)
-            else:
-                statuses = []
-                values = []
-                for feature_name in requested_features:
-                    # Make sure order of data is the same as requested_features.
-                    if feature_name not in feature_data:
-                        statuses.append(FieldStatus.NOT_FOUND)
-                        values.append(null_value)
-                    else:
-                        statuses.append(FieldStatus.PRESENT)
-                        values.append(feature_data[feature_name])
-            read_row_protos.append((event_timestamps, statuses, values))
-        return read_row_protos
     
     async def _read_from_online_store_async_v2(
         self,
