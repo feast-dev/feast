@@ -1911,183 +1911,6 @@ class FeatureStore:
         )
         return OnlineResponse(online_features_response)
     
-    async def _get_online_features_async(
-        self,
-        features: Union[List[str], FeatureService],
-        entity_values: Mapping[
-            str, Union[Sequence[Any], Sequence[Value], RepeatedValue]
-        ],
-        full_feature_names: bool = False,
-        native_entity_values: bool = True,
-        pool_size: int = 3
-    ):
-        # Extract Sequence from RepeatedValue Protobuf.
-        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
-            k: list(v) if isinstance(v, Sequence) else list(v.val)
-            for k, v in entity_values.items()
-        }
-
-        _feature_refs = self._get_features(features, allow_cache=True)
-        (
-            requested_feature_views,
-            requested_request_feature_views,
-            requested_on_demand_feature_views,
-        ) = self._get_feature_views_to_use(
-            features=features, allow_cache=True, hide_dummy_entity=False
-        )
-
-        if requested_request_feature_views:
-            warnings.warn(
-                "Request feature view is deprecated. "
-                "Please use request data source instead",
-                DeprecationWarning,
-            )
-
-        (
-            entity_name_to_join_key_map,
-            entity_type_map,
-            join_keys_set,
-        ) = self._get_entity_maps(requested_feature_views)
-
-        entity_proto_values: Dict[str, List[Value]]
-        if native_entity_values:
-            # Convert values to Protobuf once.
-            entity_proto_values = {
-                k: python_values_to_proto_values(
-                    v, entity_type_map.get(k, ValueType.UNKNOWN)
-                )
-                for k, v in entity_value_lists.items()
-            }
-        else:
-            entity_proto_values = entity_value_lists
-
-        num_rows = _validate_entity_values(entity_proto_values)
-        _validate_feature_refs(_feature_refs, full_feature_names)
-        (
-            grouped_refs,
-            grouped_odfv_refs,
-            grouped_request_fv_refs,
-            _,
-        ) = _group_feature_refs(
-            _feature_refs,
-            requested_feature_views,
-            requested_request_feature_views,
-            requested_on_demand_feature_views,
-        )
-        set_usage_attribute("odfv", bool(grouped_odfv_refs))
-        set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
-
-        # All requested features should be present in the result.
-        requested_result_row_names = {
-            feat_ref.replace(":", "__") for feat_ref in _feature_refs
-        }
-        if not full_feature_names:
-            requested_result_row_names = {
-                name.rpartition("__")[-1] for name in requested_result_row_names
-            }
-
-        feature_views = list(view for view, _ in grouped_refs)
-
-        needed_request_data, needed_request_fv_features = self.get_needed_request_data(
-            grouped_odfv_refs, grouped_request_fv_refs
-        )
-
-        join_key_values: Dict[str, List[Value]] = {}
-        request_data_features: Dict[str, List[Value]] = {}
-        # Entity rows may be either entities or request data.
-        for join_key_or_entity_name, values in entity_proto_values.items():
-            # Found request data
-            if (
-                join_key_or_entity_name in needed_request_data
-                or join_key_or_entity_name in needed_request_fv_features
-            ):
-                if join_key_or_entity_name in needed_request_fv_features:
-                    # If the data was requested as a feature then
-                    # make sure it appears in the result.
-                    requested_result_row_names.add(join_key_or_entity_name)
-                request_data_features[join_key_or_entity_name] = values
-            else:
-                if join_key_or_entity_name in join_keys_set:
-                    join_key = join_key_or_entity_name
-                else:
-                    try:
-                        join_key = entity_name_to_join_key_map[join_key_or_entity_name]
-                    except KeyError:
-                        raise EntityNotFoundException(
-                            join_key_or_entity_name, self.project
-                        )
-                    else:
-                        warnings.warn(
-                            "Using entity name is deprecated. Use join_key instead."
-                        )
-
-                # All join keys should be returned in the result.
-                requested_result_row_names.add(join_key)
-                join_key_values[join_key] = values
-
-        self.ensure_request_data_values_exist(
-            needed_request_data, needed_request_fv_features, request_data_features
-        )
-
-        # Populate online features response proto with join keys and request data features
-        online_features_response = GetOnlineFeaturesResponse(results=[])
-        self._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data=dict(**join_key_values, **request_data_features),
-        )
-
-        # Add the Entityless case after populating result rows to avoid having to remove
-        # it later.
-        entityless_case = DUMMY_ENTITY_NAME in [
-            entity_name
-            for feature_view in feature_views
-            for entity_name in feature_view.entities
-        ]
-        if entityless_case:
-            join_key_values[DUMMY_ENTITY_ID] = python_values_to_proto_values(
-                [DUMMY_ENTITY_VAL] * num_rows, DUMMY_ENTITY.value_type
-            )
-
-        provider = self._get_provider()
-        for table, requested_features in grouped_refs:
-            # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = self._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
-            )
-
-            # Fetch feature data for the minimum set of Entities.
-            feature_data = await self._read_from_online_store_async(
-                table_entity_values,
-                provider,
-                requested_features,
-                table,
-                pool_size
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
-            self._populate_response_from_feature_data(
-                feature_data,
-                idxs,
-                online_features_response,
-                full_feature_names,
-                requested_features,
-                table,
-            )
-
-        if grouped_odfv_refs:
-            self._augment_response_with_on_demand_transforms(
-                online_features_response,
-                _feature_refs,
-                requested_on_demand_feature_views,
-                full_feature_names,
-            )
-
-        self._drop_unneeded_columns(
-            online_features_response, requested_result_row_names
-        )
-        return OnlineResponse(online_features_response)
 
     async def _get_online_features_async_v2(
         self,
@@ -2098,132 +1921,21 @@ class FeatureStore:
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
-        # Extract Sequence from RepeatedValue Protobuf.
-        entity_value_lists: Dict[str, Union[List[Any], List[Value]]] = {
-            k: list(v) if isinstance(v, Sequence) else list(v.val)
-            for k, v in entity_values.items()
-        }
-
-        _feature_refs = self._get_features(features, allow_cache=True)
-        (
-            requested_feature_views,
-            requested_request_feature_views,
-            requested_on_demand_feature_views,
-        ) = self._get_feature_views_to_use(
-            features=features, allow_cache=True, hide_dummy_entity=False
-        )
-
-        if requested_request_feature_views:
-            warnings.warn(
-                "Request feature view is deprecated. "
-                "Please use request data source instead",
-                DeprecationWarning,
-            )
 
         (
-            entity_name_to_join_key_map,
-            entity_type_map,
-            join_keys_set,
-        ) = self._get_entity_maps(requested_feature_views)
-
-        entity_proto_values: Dict[str, List[Value]]
-        if native_entity_values:
-            # Convert values to Protobuf once.
-            entity_proto_values = {
-                k: python_values_to_proto_values(
-                    v, entity_type_map.get(k, ValueType.UNKNOWN)
-                )
-                for k, v in entity_value_lists.items()
-            }
-        else:
-            entity_proto_values = entity_value_lists
-
-        num_rows = _validate_entity_values(entity_proto_values)
-        _validate_feature_refs(_feature_refs, full_feature_names)
-        (
+            join_key_values,
             grouped_refs,
-            grouped_odfv_refs,
-            grouped_request_fv_refs,
-            _,
-        ) = _group_feature_refs(
-            _feature_refs,
-            requested_feature_views,
-            requested_request_feature_views,
+            entity_name_to_join_key_map,
             requested_on_demand_feature_views,
+            feature_refs,
+            requested_result_row_names,
+            online_features_response,
+        ) = self._prepare_entities_to_read_from_online_store(
+            features=features,
+            entity_values=entity_values,
+            full_feature_names=full_feature_names,
+            native_entity_values=native_entity_values,
         )
-        set_usage_attribute("odfv", bool(grouped_odfv_refs))
-        set_usage_attribute("request_fv", bool(grouped_request_fv_refs))
-
-        # All requested features should be present in the result.
-        requested_result_row_names = {
-            feat_ref.replace(":", "__") for feat_ref in _feature_refs
-        }
-        if not full_feature_names:
-            requested_result_row_names = {
-                name.rpartition("__")[-1] for name in requested_result_row_names
-            }
-
-        feature_views = list(view for view, _ in grouped_refs)
-
-        needed_request_data, needed_request_fv_features = self.get_needed_request_data(
-            grouped_odfv_refs, grouped_request_fv_refs
-        )
-
-        join_key_values: Dict[str, List[Value]] = {}
-        request_data_features: Dict[str, List[Value]] = {}
-        # Entity rows may be either entities or request data.
-        for join_key_or_entity_name, values in entity_proto_values.items():
-            # Found request data
-            if (
-                join_key_or_entity_name in needed_request_data
-                or join_key_or_entity_name in needed_request_fv_features
-            ):
-                if join_key_or_entity_name in needed_request_fv_features:
-                    # If the data was requested as a feature then
-                    # make sure it appears in the result.
-                    requested_result_row_names.add(join_key_or_entity_name)
-                request_data_features[join_key_or_entity_name] = values
-            else:
-                if join_key_or_entity_name in join_keys_set:
-                    join_key = join_key_or_entity_name
-                else:
-                    try:
-                        join_key = entity_name_to_join_key_map[join_key_or_entity_name]
-                    except KeyError:
-                        raise EntityNotFoundException(
-                            join_key_or_entity_name, self.project
-                        )
-                    else:
-                        warnings.warn(
-                            "Using entity name is deprecated. Use join_key instead."
-                        )
-
-                # All join keys should be returned in the result.
-                requested_result_row_names.add(join_key)
-                join_key_values[join_key] = values
-
-        self.ensure_request_data_values_exist(
-            needed_request_data, needed_request_fv_features, request_data_features
-        )
-
-        # Populate online features response proto with join keys and request data features
-        online_features_response = GetOnlineFeaturesResponse(results=[])
-        self._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data=dict(**join_key_values, **request_data_features),
-        )
-
-        # Add the Entityless case after populating result rows to avoid having to remove
-        # it later.
-        entityless_case = DUMMY_ENTITY_NAME in [
-            entity_name
-            for feature_view in feature_views
-            for entity_name in feature_view.entities
-        ]
-        if entityless_case:
-            join_key_values[DUMMY_ENTITY_ID] = python_values_to_proto_values(
-                [DUMMY_ENTITY_VAL] * num_rows, DUMMY_ENTITY.value_type
-            )
 
         provider = self._get_provider()
         for table, requested_features in grouped_refs:
@@ -2252,10 +1964,10 @@ class FeatureStore:
                 table,
             )
 
-        if grouped_odfv_refs:
+        if requested_on_demand_feature_views:
             self._augment_response_with_on_demand_transforms(
                 online_features_response,
-                _feature_refs,
+                feature_refs,
                 requested_on_demand_feature_views,
                 full_feature_names,
             )
