@@ -97,7 +97,8 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
 from feast.version import get_version
-from feast.usage import log_exceptions_and_usage
+from feast.
+# from feast.usage import log_exceptions_and_usage
 
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1518,7 +1519,7 @@ class FeatureStore:
             native_entity_values=True,
         )
     
-    @log_exceptions_and_usage
+    # @log_exceptions_and_usage
     async def get_online_features_async(
         self,
         features: Union[List[str], FeatureService],
@@ -1584,7 +1585,7 @@ class FeatureStore:
         )
     
     
-    @log_exceptions_and_usage
+    # @log_exceptions_and_usage
     async def get_online_features_async_v2(
         self,
         features: Union[List[str], FeatureService],
