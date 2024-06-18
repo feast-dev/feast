@@ -84,13 +84,19 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
 
         Args:
             allow_cache: Whether to allow returning entities from a cached registry
             project: Filter entities based on project name
+            tags: Filter by tags
 
         Returns:
             List of entities
@@ -143,7 +149,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         """
         Retrieve a list of data sources from the registry
@@ -151,6 +160,7 @@ class BaseRegistry(ABC):
         Args:
             project: Filter data source based on project name
             allow_cache: Whether to allow returning data sources from a cached registry
+            tags: Filter by tags
 
         Returns:
             List of data sources
@@ -203,7 +213,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         """
         Retrieve a list of feature services from the registry
@@ -211,6 +224,7 @@ class BaseRegistry(ABC):
         Args:
             allow_cache: Whether to allow returning entities from a cached registry
             project: Filter entities based on project name
+            tags: Filter by tags
 
         Returns:
             List of feature services
@@ -265,7 +279,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -273,6 +290,7 @@ class BaseRegistry(ABC):
         Args:
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
+            tags: Filter by tags
 
         Returns:
             List of stream feature views
@@ -300,7 +318,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         """
         Retrieve a list of on demand feature views from the registry
@@ -308,6 +329,7 @@ class BaseRegistry(ABC):
         Args:
             project: Filter on demand feature views based on project name
             allow_cache: Whether to allow returning on demand feature views from a cached registry
+            tags: Filter by tags
 
         Returns:
             List of on demand feature views
@@ -335,7 +357,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -343,6 +368,7 @@ class BaseRegistry(ABC):
         Args:
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
+            tags: Filter by tags
 
         Returns:
             List of feature views
@@ -598,7 +624,8 @@ class BaseRegistry(ABC):
                 self._message_to_sorted_dict(data_source.to_proto())
             )
         for entity in sorted(
-            self.list_entities(project=project), key=lambda entity: entity.name
+            self.list_entities(project=project),
+            key=lambda entity: entity.name,
         ):
             registry_dict["entities"].append(
                 self._message_to_sorted_dict(entity.to_proto())

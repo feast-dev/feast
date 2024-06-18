@@ -59,5 +59,5 @@ some_stats_service = FeatureService(
         driver_hourly_stats_view[["conv_rate"]],
         global_stats_feature_view[["num_rides"]],
     ],
-    tags={"release": "production"},
+    tags={"release": "qa"},
 )

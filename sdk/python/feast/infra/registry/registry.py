@@ -272,19 +272,27 @@ class Registry(BaseRegistry):
         if commit:
             self.commit()
 
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_entities(registry_proto, project)
+        return proto_registry_utils.list_entities(registry_proto, project, tags)
 
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_data_sources(registry_proto, project)
+        return proto_registry_utils.list_data_sources(registry_proto, project, tags)
 
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
@@ -344,12 +352,15 @@ class Registry(BaseRegistry):
             self.commit()
 
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_feature_services(registry_proto, project)
+        return proto_registry_utils.list_feature_services(registry_proto, project, tags)
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
@@ -418,21 +429,29 @@ class Registry(BaseRegistry):
             self.commit()
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_stream_feature_views(registry_proto, project)
+        return proto_registry_utils.list_stream_feature_views(
+            registry_proto, project, tags
+        )
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.list_on_demand_feature_views(
-            registry_proto, project
+            registry_proto, project, tags
         )
 
     def get_on_demand_feature_view(
@@ -513,12 +532,15 @@ class Registry(BaseRegistry):
         raise FeatureViewNotFoundException(feature_view.name, project)
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_feature_views(registry_proto, project)
+        return proto_registry_utils.list_feature_views(registry_proto, project, tags)
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False

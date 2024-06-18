@@ -10,6 +10,7 @@ from typing import Any, Callable, List, Literal, Optional, Set, Union
 from pydantic import ConfigDict, Field, StrictStr
 
 import feast
+from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -619,34 +620,50 @@ class SnowflakeRegistry(BaseRegistry):
 
     # list operations
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_data_sources(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
-            "DATA_SOURCES", project, DataSourceProto, DataSource, "DATA_SOURCE_PROTO"
+            "DATA_SOURCES",
+            project,
+            DataSourceProto,
+            DataSource,
+            "DATA_SOURCE_PROTO",
+            tags=tags,
         )
 
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_entities(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
-            "ENTITIES", project, EntityProto, Entity, "ENTITY_PROTO"
+            "ENTITIES", project, EntityProto, Entity, "ENTITY_PROTO", tags=tags
         )
 
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_services(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_SERVICES",
@@ -654,15 +671,19 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureServiceProto,
             FeatureService,
             "FEATURE_SERVICE_PROTO",
+            tags=tags,
         )
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_VIEWS",
@@ -670,15 +691,19 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureViewProto,
             FeatureView,
             "FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "ON_DEMAND_FEATURE_VIEWS",
@@ -686,6 +711,7 @@ class SnowflakeRegistry(BaseRegistry):
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
             "ON_DEMAND_FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_saved_datasets(
@@ -705,12 +731,15 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "STREAM_FEATURE_VIEWS",
@@ -718,6 +747,7 @@ class SnowflakeRegistry(BaseRegistry):
             StreamFeatureViewProto,
             StreamFeatureView,
             "STREAM_FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_validation_references(
@@ -738,6 +768,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_class: Any,
         python_class: Any,
         proto_field_name: str,
+        tags: Optional[dict[str, str]] = None,
     ):
         self._maybe_init_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
@@ -750,14 +781,15 @@ class SnowflakeRegistry(BaseRegistry):
                     project_id = '{project}'
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
-
             if not df.empty:
-                return [
-                    python_class.from_proto(
+                objects = []
+                for row in df.iterrows():
+                    obj = python_class.from_proto(
                         proto_class.FromString(row[1][proto_field_name])
                     )
-                    for row in df.iterrows()
-                ]
+                    if utils.has_all_tags(obj.tags, tags):
+                        objects.append(obj)
+                return objects
         return []
 
     def apply_materialization(

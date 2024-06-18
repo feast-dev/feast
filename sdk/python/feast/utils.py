@@ -18,6 +18,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 import pandas as pd
@@ -742,6 +743,7 @@ def _list_feature_views(
     project,
     allow_cache: bool = False,
     hide_dummy_entity: bool = True,
+    tags: Optional[dict[str, str]] = None,
 ) -> List["FeatureView"]:
     from feast.feature_view import DUMMY_ENTITY_NAME
 
@@ -750,7 +752,7 @@ def _list_feature_views(
         "_list_feature_views will behave like _list_all_feature_views in the future."
     )
     feature_views = []
-    for fv in registry.list_feature_views(project, allow_cache=allow_cache):
+    for fv in registry.list_feature_views(project, allow_cache=allow_cache, tags=tags):
         if hide_dummy_entity and fv.entities and fv.entities[0] == DUMMY_ENTITY_NAME:
             fv.entities = []
             fv.entity_columns = []
@@ -1021,3 +1023,32 @@ def _convert_rows_to_protobuf(
                     values.append(feature_data[feature_name])
         read_row_protos.append((event_timestamps, statuses, values))
     return read_row_protos
+
+
+def has_all_tags(
+    object_tags: dict[str, str], requested_tags: Optional[dict[str, str]] = None
+) -> bool:
+    if requested_tags is None:
+        return True
+    return all(object_tags.get(key, None) == val for key, val in requested_tags.items())
+
+
+def tags_list_to_dict(
+    tags_list: Optional[list[str]] = None,
+) -> Optional[dict[str, str]]:
+    if not tags_list:
+        return None
+    tags_dict: dict[str, str] = {}
+    for tags_str in tags_list:
+        tags_dict.update(tags_str_to_dict(tags_str))
+    return tags_dict
+
+
+def tags_str_to_dict(tags: str = "") -> dict[str, str]:
+    tags_list = tags.strip().strip("()").replace('"', "").replace("'", "").split(",")
+    return {
+        key.strip(): value.strip()
+        for key, value in dict(
+            cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
+        ).items()
+    }
