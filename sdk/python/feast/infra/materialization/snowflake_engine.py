@@ -7,14 +7,14 @@ from typing import Callable, List, Literal, Optional, Sequence, Union
 import click
 import pandas as pd
 from colorama import Fore, Style
-from pydantic import Field, StrictStr
+from pydantic import ConfigDict, Field, StrictStr
 from pytz import utc
 from tqdm import tqdm
 
 import feast
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
@@ -67,14 +67,18 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
+    private_key: Optional[str] = None
+    """ Snowflake private key file path"""
+
+    private_key_passphrase: Optional[str] = None
+    """ Snowflake private key file passphrase"""
+
     database: StrictStr
     """ Snowflake database name """
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 @dataclass
@@ -171,7 +175,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         entities: Sequence[Entity],
     ):
-
         stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"DROP STAGE IF EXISTS {stage_path}"
@@ -232,8 +235,9 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ):
-        assert isinstance(feature_view, BatchFeatureView) or isinstance(
-            feature_view, FeatureView
+        assert (
+            isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, FeatureView)
         ), "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
 
         entities = []
@@ -276,7 +280,11 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
             fv_latest_values_sql = offline_job.to_sql()
 
-            if feature_view.entity_columns:
+            if (
+                feature_view.entity_columns[0].name == DUMMY_ENTITY_ID
+            ):  # entityless Feature View's placeholder entity
+                entities_to_write = 1
+            else:
                 join_keys = [entity.name for entity in feature_view.entity_columns]
                 unique_entities = '"' + '", "'.join(join_keys) + '"'
 
@@ -289,10 +297,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
                 with GetSnowflakeConnection(self.repo_config.offline_store) as conn:
                     entities_to_write = conn.cursor().execute(query).fetchall()[0][0]
-            else:
-                entities_to_write = (
-                    1  # entityless feature view has a placeholder entity
-                )
 
             if feature_view.batch_source.field_mapping is not None:
                 fv_latest_mapped_values_sql = _run_snowflake_field_mapping(
@@ -352,7 +356,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         feature_batch: list,
         project: str,
     ) -> str:
-
         if feature_view.batch_source.created_timestamp_column:
             fv_created_str = f',"{feature_view.batch_source.created_timestamp_column}"'
         else:
@@ -479,7 +482,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         feature_view: Union[StreamFeatureView, FeatureView],
         pbar: tqdm,
     ) -> None:
-
         feature_names = [feature.name for feature in feature_view.features]
 
         with GetSnowflakeConnection(repo_config.batch_engine) as conn:

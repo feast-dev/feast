@@ -2,7 +2,6 @@ import uuid
 from functools import wraps
 from typing import List, Optional
 
-from feast import usage
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -19,7 +18,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -46,7 +44,6 @@ def registry_proto_cache(func):
 
 def init_project_metadata(cached_registry_proto: RegistryProto, project: str):
     new_project_uuid = f"{uuid.uuid4()}"
-    usage.set_current_project_uuid(new_project_uuid)
     cached_registry_proto.project_metadata.append(
         ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
     )
@@ -96,16 +93,6 @@ def get_stream_feature_view(
             and feature_view_proto.spec.project == project
         ):
             return StreamFeatureView.from_proto(feature_view_proto)
-    raise FeatureViewNotFoundException(name, project)
-
-
-def get_request_feature_view(registry_proto: RegistryProto, name: str, project: str):
-    for feature_view_proto in registry_proto.feature_views:
-        if (
-            feature_view_proto.spec.name == name
-            and feature_view_proto.spec.project == project
-        ):
-            return RequestFeatureView.from_proto(feature_view_proto)
     raise FeatureViewNotFoundException(name, project)
 
 
@@ -177,19 +164,6 @@ def list_feature_views(
     for feature_view_proto in registry_proto.feature_views:
         if feature_view_proto.spec.project == project:
             feature_views.append(FeatureView.from_proto(feature_view_proto))
-    return feature_views
-
-
-@registry_proto_cache
-def list_request_feature_views(
-    registry_proto: RegistryProto, project: str
-) -> List[RequestFeatureView]:
-    feature_views: List[RequestFeatureView] = []
-    for request_feature_view_proto in registry_proto.request_feature_views:
-        if request_feature_view_proto.spec.project == project:
-            feature_views.append(
-                RequestFeatureView.from_proto(request_feature_view_proto)
-            )
     return feature_views
 
 

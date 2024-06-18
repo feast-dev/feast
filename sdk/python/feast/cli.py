@@ -14,6 +14,7 @@
 import json
 import logging
 from datetime import datetime
+from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,14 +22,15 @@ import click
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
-from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+from feast.constants import (
+    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_REGISTRY_SERVER_PORT,
+)
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -41,7 +43,6 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
-from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--feature-store-yaml",
+    "-f",
     help="Override the directory where the CLI should look for the feature_store.yaml file.",
 )
 @click.pass_context
@@ -160,7 +162,7 @@ def ui(
     host: str,
     port: int,
     registry_ttl_sec: int,
-    root_path: Optional[str] = "",
+    root_path: str = "",
 ):
     """
     Shows the Feast UI over the current directory
@@ -377,7 +379,6 @@ def feature_view_list(ctx: click.Context):
     table = []
     for feature_view in [
         *store.list_feature_views(),
-        *store.list_request_feature_views(),
         *store.list_on_demand_feature_views(),
     ]:
         entities = set()
@@ -593,6 +594,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "cassandra",
             "rockset",
             "hazelcast",
+            "ikv",
         ],
         case_sensitive=False,
     ),
@@ -731,6 +733,8 @@ def listen_command(
     registry_ttl_sec: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
+    from feast.infra.contrib.grpc_server import get_grpc_server
+
     store = create_feature_store(ctx)
     server = get_grpc_server(address, store, max_workers, registry_ttl_sec)
     server.start()
@@ -751,6 +755,22 @@ def serve_transformations_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_transformations(port)
+
+
+@cli.command("serve_registry")
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_REGISTRY_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_registry_command(ctx: click.Context, port: int):
+    """Start a registry server locally on a given port."""
+    store = create_feature_store(ctx)
+
+    store.serve_registry(port)
 
 
 @cli.command("validate")
@@ -787,12 +807,12 @@ def validate(
     """
     store = create_feature_store(ctx)
 
-    feature_service = store.get_feature_service(name=feature_service)
-    reference = store.get_validation_reference(reference)
+    _feature_service = store.get_feature_service(name=feature_service)
+    _reference = store.get_validation_reference(reference)
 
     result = store.validate_logged_features(
-        source=feature_service,
-        reference=reference,
+        source=_feature_service,
+        reference=_reference,
         start=maybe_local_tz(datetime.fromisoformat(start_ts)),
         end=maybe_local_tz(datetime.fromisoformat(end_ts)),
         throw_exception=False,
@@ -811,27 +831,6 @@ def validate(
     print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
     print(colorful_json)
     exit(1)
-
-
-@cli.command("repo-upgrade", cls=NoOptionDefaultFormat)
-@click.option(
-    "--write",
-    is_flag=True,
-    default=False,
-    help="Upgrade a feature repo to use the API expected by feast 0.23.",
-)
-@click.pass_context
-def repo_upgrade(ctx: click.Context, write: bool):
-    """
-    Upgrade a feature repo in place.
-    """
-    repo = ctx.obj["CHDIR"]
-    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
-    cli_check_repo(repo, fs_yaml_file)
-    try:
-        RepoUpgrader(repo, write).upgrade()
-    except FeastProviderLoginError as e:
-        print(str(e))
 
 
 if __name__ == "__main__":

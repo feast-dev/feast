@@ -1,7 +1,4 @@
-try:
-    from importlib.metadata import PackageNotFoundError, version
-except ModuleNotFoundError:
-    from importlib_metadata import PackageNotFoundError, version  # type: ignore
+from importlib.metadata import PackageNotFoundError, version
 
 
 def get_version():

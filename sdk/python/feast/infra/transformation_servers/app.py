@@ -56,8 +56,10 @@ if isinstance(registry, dict) and registry.get("cache_ttl_seconds", 0) > 0:
     async_refresh()
 
 # Start the feature transformation server
-port = (
-    os.environ.get(FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME)
-    or DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+port = int(
+    os.environ.get(
+        FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME,
+        DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    )
 )
 store.serve_transformations(port)

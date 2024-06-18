@@ -12,7 +12,6 @@ def _test_config(config_text, expect_error: Optional[str]):
     Try loading a repo config and check raised error against a regex.
     """
     with tempfile.TemporaryDirectory() as repo_dir_name:
-
         repo_path = Path(repo_dir_name)
 
         repo_config = repo_path / "feature_store.yaml"
@@ -45,8 +44,7 @@ def test_nullable_online_store_aws():
         entity_key_serialization_version: 2
         """
         ),
-        expect_error="__root__ -> offline_store -> __root__\n"
-        "  please specify either cluster_id & user if using provisioned clusters, or workgroup if using serverless (type=value_error)",
+        expect_error="4 validation errors for RepoConfig\nregion\n  Field required",
     )
 
 
@@ -154,8 +152,7 @@ def test_extra_field():
             path: "online_store.db"
         """
         ),
-        expect_error="__root__ -> online_store -> that_field_should_not_be_here\n"
-        "  extra fields not permitted (type=value_error.extra)",
+        expect_error="1 validation error for RepoConfig\nthat_field_should_not_be_here\n  Extra inputs are not permitted",
     )
 
 
@@ -186,7 +183,7 @@ def test_bad_type():
             path: 100500
         """
         ),
-        expect_error="__root__ -> online_store -> path\n  str type expected",
+        expect_error="1 validation error for RepoConfig\npath\n  Input should be a valid string",
     )
 
 
@@ -201,9 +198,7 @@ def test_no_project():
         entity_key_serialization_version: 2
         """
         ),
-        expect_error="1 validation error for RepoConfig\n"
-        "project\n"
-        "  field required (type=value_error.missing)",
+        expect_error="1 validation error for RepoConfig\nproject\n  Field required",
     )
 
 

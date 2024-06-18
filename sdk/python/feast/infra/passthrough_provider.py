@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from feast import importer
 from feast.batch_feature_view import BatchFeatureView
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
@@ -26,7 +27,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import StreamFeatureView
-from feast.usage import RatioSampler, log_exceptions_and_usage, set_usage_attribute
 from feast.utils import (
     _convert_arrow_to_proto,
     _run_pyarrow_field_mapping,
@@ -42,8 +42,6 @@ class PassthroughProvider(Provider):
     """
 
     def __init__(self, config: RepoConfig):
-        super().__init__(config)
-
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
@@ -70,7 +68,7 @@ class PassthroughProvider(Provider):
         if self._batch_engine:
             return self._batch_engine
         else:
-            engine_config = self.repo_config._batch_engine_config
+            engine_config = self.repo_config.batch_engine_config
             config_is_dict = False
             if isinstance(engine_config, str):
                 engine_config_type = engine_config
@@ -114,8 +112,6 @@ class PassthroughProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        set_usage_attribute("provider", self.__class__.__name__)
-
         # Call update only if there is an online store
         if self.online_store:
             self.online_store.update(
@@ -141,7 +137,6 @@ class PassthroughProvider(Provider):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ) -> None:
-        set_usage_attribute("provider", self.__class__.__name__)
         if self.online_store:
             self.online_store.teardown(self.repo_config, tables, entities)
         if self.batch_engine:
@@ -156,7 +151,6 @@ class PassthroughProvider(Provider):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        set_usage_attribute("provider", self.__class__.__name__)
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
@@ -167,22 +161,18 @@ class PassthroughProvider(Provider):
         data: pa.Table,
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        set_usage_attribute("provider", self.__class__.__name__)
-
         if self.offline_store:
             self.offline_store.__class__.offline_write_batch(
                 config, feature_view, data, progress
             )
 
-    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
-        set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.online_store:
             result = self.online_store.online_read(
@@ -223,12 +213,46 @@ class PassthroughProvider(Provider):
             )
         return result
 
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List:
+        result = []
+        if self.online_store:
+            result = await self.online_store.online_read_async(
+                config, table, entity_keys, requested_features
+            )
+        return result
+
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List:
+        result = []
+        if self.online_store:
+            result = self.online_store.retrieve_online_documents(
+                config,
+                table,
+                requested_feature,
+                query,
+                top_k,
+                distance_metric,
+            )
+        return result
+
     def ingest_df(
         self,
         feature_view: FeatureView,
         df: pd.DataFrame,
     ):
-        set_usage_attribute("provider", self.__class__.__name__)
         table = pa.Table.from_pandas(df)
 
         if feature_view.batch_source.field_mapping is not None:
@@ -247,8 +271,6 @@ class PassthroughProvider(Provider):
         )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
-        set_usage_attribute("provider", self.__class__.__name__)
-
         if feature_view.batch_source.field_mapping is not None:
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
@@ -266,7 +288,6 @@ class PassthroughProvider(Provider):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
-        set_usage_attribute("provider", self.__class__.__name__)
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
@@ -296,8 +317,6 @@ class PassthroughProvider(Provider):
         project: str,
         full_feature_names: bool,
     ) -> RetrievalJob:
-        set_usage_attribute("provider", self.__class__.__name__)
-
         job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
@@ -313,8 +332,6 @@ class PassthroughProvider(Provider):
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
-        set_usage_attribute("provider", self.__class__.__name__)
-
         feature_name_columns = [
             ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
             for ref in dataset.features
@@ -379,3 +396,10 @@ class PassthroughProvider(Provider):
             start_date=make_tzaware(start_date),
             end_date=make_tzaware(end_date),
         )
+
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        self.offline_store.validate_data_source(config=config, data_source=data_source)

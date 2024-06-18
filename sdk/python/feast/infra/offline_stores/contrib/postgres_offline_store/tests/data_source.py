@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional
+from typing import Dict, Literal, Optional
 
 import pandas as pd
 import pytest
@@ -7,11 +7,13 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLSource,
 )
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
+from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -24,6 +26,10 @@ logger = logging.getLogger(__name__)
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
 POSTGRES_DB = "test"
+
+
+class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
+    type: Literal["postgres"] = "postgres"
 
 
 @pytest.fixture(scope="session")
@@ -52,6 +58,9 @@ def postgres_container():
 
 
 class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
+    def create_logged_features_destination(self) -> LoggingDestination:
+        return None  # type: ignore
+
     def __init__(
         self, project_name: str, fixture_request: pytest.FixtureRequest, **kwargs
     ):
@@ -82,10 +91,10 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -106,17 +115,17 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.project_name}_{suffix}"
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> PostgreSQLOnlineStoreConfig:
         assert self.container
-        return {
-            "type": "postgres",
-            "host": "localhost",
-            "port": self.container.get_exposed_port(5432),
-            "database": POSTGRES_DB,
-            "db_schema": "feature_store",
-            "user": POSTGRES_USER,
-            "password": POSTGRES_PASSWORD,
-        }
+        return PostgreSQLOnlineStoreConfig(
+            type="postgres",
+            host="localhost",
+            port=self.container.get_exposed_port(5432),
+            database=POSTGRES_DB,
+            db_schema="feature_store",
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+        )
 
     def create_saved_dataset_destination(self):
         # FIXME: ...

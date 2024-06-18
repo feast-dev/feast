@@ -29,12 +29,6 @@ FEAST_FS_YAML_FILE_PATH_ENV_NAME: str = "FEAST_FS_YAML_FILE_PATH"
 # Environment variable for registry
 REGISTRY_ENV_NAME: str = "REGISTRY_BASE64"
 
-# Environment variable for toggling usage
-FEAST_USAGE = "FEAST_USAGE"
-
-# Default value for FEAST_USAGE when environment variable is not set
-DEFAULT_FEAST_USAGE_VALUE = "True"
-
 # Environment variable for the path for overwriting universal test configs
 FULL_REPO_CONFIGS_MODULE_ENV_NAME: str = "FULL_REPO_CONFIGS_MODULE"
 
@@ -44,5 +38,11 @@ FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME: str = "FEATURE_TRANSFORMATION_SERVE
 # Default FTS port
 DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT = 6569
 
+# Default registry server port
+DEFAULT_REGISTRY_SERVER_PORT = 6570
+
 # Environment variable for feature server docker image tag
 DOCKER_IMAGE_TAG_ENV_NAME: str = "FEAST_SERVER_DOCKER_IMAGE_TAG"
+
+# Default feature server registry ttl (seconds)
+DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5

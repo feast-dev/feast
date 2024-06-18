@@ -23,7 +23,6 @@ def handler(event, context):
     print("Received event: " + json.dumps(event, indent=2), flush=True)
 
     try:
-
         config_base64 = event[FEATURE_STORE_YAML_ENV_NAME]
 
         config_bytes = base64.b64decode(config_base64)

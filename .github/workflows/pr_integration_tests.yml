@@ -14,14 +14,14 @@ on:
 
 jobs:
   build-docker-image:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
       github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -47,21 +47,21 @@ jobs:
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
       - name: Cache Public ECR Image
-        id: lambda_python_3_9
+        id: lambda_python_3_11
         uses: actions/cache@v2
         with:
           path: ~/cache
-          key: lambda_python_3_9
+          key: lambda_python_3_11
       - name: Handle Cache Miss (pull public ECR image & save it to tar file)
         if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/cache
-          docker pull public.ecr.aws/lambda/python:3.9
-          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+          docker pull public.ecr.aws/lambda/python:3.11
+          docker save public.ecr.aws/lambda/python:3.11 -o ~/cache/lambda_python_3_11.tar
       - name: Handle Cache Hit (load docker image from tar file)
         if: steps.cache-primes.outputs.cache-hit == 'true'
         run: |
-          docker load -i ~/cache/lambda_python_3_9.tar
+          docker load -i ~/cache/lambda_python_3_11.tar
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -76,7 +76,7 @@ jobs:
     outputs:
       DOCKER_IMAGE_TAG: ${{ steps.image-tag.outputs.DOCKER_IMAGE_TAG }}
   integration-test-python:
-    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
@@ -86,7 +86,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8" ]
+        python-version: [ "3.11" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -102,7 +102,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -110,7 +110,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -133,27 +133,19 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Get pip cache dir
-        id: pip-cache
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get uv cache dir
+        id: uv-cache
         run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
+          echo "::set-output name=dir::$(uv cache dir)"
+      - name: uv cache
+        uses: actions/cache@v4
         with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
-      - name: Install pip-tools
-        run: pip install pip-tools
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies
+        run: make install-python-ci-dependencies-uv
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
@@ -167,4 +159,4 @@ jobs:
           SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
           SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread
+        run: make test-python-integration
