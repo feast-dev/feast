@@ -97,6 +97,8 @@ from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
 from feast.version import get_version
+from feast.usage import log_exceptions_and_usage
+
 
 warnings.simplefilter("once", DeprecationWarning)
 

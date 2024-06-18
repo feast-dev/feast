@@ -32,6 +32,7 @@ from feast.utils import (
     _run_pyarrow_field_mapping,
     make_tzaware,
 )
+from feast.usage import log_exceptions_and_usage
 
 DEFAULT_BATCH_SIZE = 10_000
 
