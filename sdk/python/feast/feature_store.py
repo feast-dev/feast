@@ -1518,71 +1518,6 @@ class FeatureStore:
             native_entity_values=True,
         )
     
-    # @log_exceptions_and_usage
-    async def get_online_features_async(
-        self,
-        features: Union[List[str], FeatureService],
-        entity_rows: List[Dict[str, Any]],
-        full_feature_names: bool = False,
-        pool_size: int = 3
-    ) -> OnlineResponse:
-        """
-        Retrieves the latest online feature data.
-
-        Note: This method will download the full feature registry the first time it is run. If you are using a
-        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
-        duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
-        passed), then a new registry will be downloaded synchronously by this method. This download may
-        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
-        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
-        infinity (cache forever).
-
-        Args:
-            features: The list of features that should be retrieved from the online store. These features can be
-                specified either as a list of string feature references or as a feature service. String feature
-                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
-            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
-            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
-                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
-                changes to "customer_fv__daily_transactions").
-
-        Returns:
-            OnlineResponse containing the feature data in records.
-
-        Raises:
-            Exception: No entity with the specified name exists.
-
-        Examples:
-            Retrieve online features from an online store.
-
-            >>> from feast import FeatureStore, RepoConfig
-            >>> fs = FeatureStore(repo_path="project/feature_repo")
-            >>> online_response = fs.get_online_features(
-            ...     features=[
-            ...         "driver_hourly_stats:conv_rate",
-            ...         "driver_hourly_stats:acc_rate",
-            ...         "driver_hourly_stats:avg_daily_trips",
-            ...     ],
-            ...     entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}, {"driver_id": 1004}],
-            ... )
-            >>> online_response_dict = online_response.to_dict()
-        """
-        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-        for entity_row in entity_rows:
-            for key, value in entity_row.items():
-                try:
-                    columnar[key].append(value)
-                except KeyError as e:
-                    raise ValueError("All entity_rows must have the same keys.") from e
-
-        return await self._get_online_features_async(
-            features=features,
-            entity_values=columnar,
-            full_feature_names=full_feature_names,
-            native_entity_values=True,
-            pool_size=pool_size
-        )
-    
     
     # @log_exceptions_and_usage
     async def get_online_features_async_v2(
@@ -1976,6 +1911,7 @@ class FeatureStore:
             online_features_response, requested_result_row_names
         )
         return OnlineResponse(online_features_response)
+
 
     async def _get_online_features_async(
         self,
