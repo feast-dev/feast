@@ -2689,7 +2689,7 @@ class FeatureStore:
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
 
-    def get_predictions(
+    def get_online_predictions(
         self,
         model_name: FeatureService,
         features: Union[List[str], FeatureService],
@@ -2735,7 +2735,11 @@ class FeatureStore:
                 entity_rows=[entities],
                 features=model_features,
             )
+            # if null we need to compute it, presumably for the first time
         return OnlineResponse(prediction_df)
+
+    def get_online_inference(*args, **kwargs):
+        return self.get_online_predictions(*args, **kwargs)
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
     set_of_row_lengths = {len(v) for v in join_key_values.values()}

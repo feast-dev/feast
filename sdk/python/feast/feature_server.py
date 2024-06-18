@@ -157,12 +157,12 @@ def get_app(
             # Raise HTTPException to return the error message to the client
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.post("/get-predictions")
+    @app.post("/get-online-predictions")
     def get_predictions_endpoint(body=Depends(get_body)):
         try:
             body, features = _get_features_from_body(store, body)
 
-            predictions = store.get_predictions(
+            predictions = store.get_online_predictions(
                 model_name=body["model_name"],
                 features=features,
                 entity_rows=body["entities"],
