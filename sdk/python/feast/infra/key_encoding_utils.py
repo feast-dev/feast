@@ -66,6 +66,15 @@ def serialize_entity_key(
     serialize to the same byte string[1].
 
     [1] https://developers.google.com/protocol-buffers/docs/encoding
+
+    Args:
+        entity_key_serialization_version: version of the entity key serialization
+        version 1: int64 values are serialized as 4 bytes
+        version 2: int64 values are serialized as 8 bytes
+        version 3: entity_key size is added to the serialization for deserialization purposes
+        entity_key: EntityKeyProto
+
+    Returns: bytes of the serialized entity key
     """
     sorted_keys, sorted_values = zip(
         *sorted(zip(entity_key.join_keys, entity_key.entity_values))
@@ -106,7 +115,7 @@ def deserialize_entity_key(
     """
     if entity_key_serialization_version <= 2:
         raise ValueError(
-            "Deserialization of entity key with version <= 2 is not supported. Please use version > 2."
+            "Deserialization of entity key with version <= 2 is not supported. Please use version > 2 by setting entity_key_serialization_version=3"
         )
     offset = 0
     keys = []
