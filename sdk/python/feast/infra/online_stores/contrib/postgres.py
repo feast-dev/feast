@@ -4,11 +4,10 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import psycopg2
 import pytz
-from psycopg2 import sql
-from psycopg2.extras import execute_values
-from psycopg2.pool import SimpleConnectionPool
+from psycopg import sql
+from psycopg.connection import Connection
+from psycopg_pool import ConnectionPool
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -39,8 +38,8 @@ class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
 
 
 class PostgreSQLOnlineStore(OnlineStore):
-    _conn: Optional[psycopg2._psycopg.connection] = None
-    _conn_pool: Optional[SimpleConnectionPool] = None
+    _conn: Optional[Connection] = None
+    _conn_pool: Optional[ConnectionPool] = None
 
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):
@@ -96,8 +95,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             batch_size = 5000
             for i in range(0, len(insert_values), batch_size):
                 cur_batch = insert_values[i : i + batch_size]
-                execute_values(
-                    cur,
+                cur.executemany(
                     sql.SQL(
                         """
                         INSERT INTO {}
@@ -112,7 +110,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                         """,
                     ).format(sql.Identifier(_table_id(project, table))),
                     cur_batch,
-                    page_size=batch_size,
                 )
                 conn.commit()
                 if progress:
