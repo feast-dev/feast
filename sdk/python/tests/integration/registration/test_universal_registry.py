@@ -149,7 +149,7 @@ def pg_registry():
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
+        path=f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
