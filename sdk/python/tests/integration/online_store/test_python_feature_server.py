@@ -65,7 +65,7 @@ def test_get_online_predictions(python_fs_client):
         ],
         "entities": {"driver_id": [5001, 5002]},
         "model_name": "driver_model",
-        "force_recompute": False,
+        "force_recompute": True,
         "log_features": True,
     }
     response = python_fs_client.post(

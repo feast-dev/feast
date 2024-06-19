@@ -4,7 +4,7 @@ import threading
 import traceback
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import pandas as pd
 from dateutil import parser

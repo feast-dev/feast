@@ -1,10 +1,11 @@
 from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
 from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Array, Float32, Int64, String
+from feast.types import Array, Float32, Float64, Int64, String
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
 # at the paths for these file sources. Since these paths are effectively fake, this example
@@ -131,6 +132,15 @@ document_embeddings = FeatureView(
 def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     outputs = pd.DataFrame()
     outputs["on_demand_age"] = inputs["age"] + 1
+    return outputs
+
+@on_demand_feature_view(
+    sources=[customer_profile],
+    schema=[Field(name="predictions", dtype=Float64)],
+    mode="python",
+)
+def risk_score(inputs: dict[str, Any]) -> dict[str, Any]:
+    outputs = {"predictions": [1.0 for _ in inputs["age"]]}
     return outputs
 
 

@@ -2691,7 +2691,7 @@ class FeatureStore:
 
     def get_online_predictions(
         self,
-        model_name: FeatureService,
+        model_fields: List[str],
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         full_feature_names: bool = False,
@@ -2733,7 +2733,7 @@ class FeatureStore:
         else:
             prediction_df = store.get_online_features(
                 entity_rows=[entities],
-                features=model_features,
+                features=model_fields,
             )
             # if null we need to compute it, presumably for the first time
         return OnlineResponse(prediction_df)
