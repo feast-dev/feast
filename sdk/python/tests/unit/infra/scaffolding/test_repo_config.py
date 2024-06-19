@@ -33,36 +33,6 @@ def _test_config(config_text, expect_error: Optional[str]):
         return rc
 
 
-def test_nullable_online_store_aws():
-    _test_config(
-        dedent(
-            """
-        project: foo
-        registry: "registry.db"
-        provider: aws
-        online_store: null
-        entity_key_serialization_version: 2
-        """
-        ),
-        expect_error="4 validation errors for RepoConfig\nregion\n  Field required",
-    )
-
-
-def test_nullable_online_store_gcp():
-    _test_config(
-        dedent(
-            """
-        project: foo
-        registry: "registry.db"
-        provider: gcp
-        online_store: null
-        entity_key_serialization_version: 2
-        """
-        ),
-        expect_error=None,
-    )
-
-
 def test_nullable_online_store_local():
     _test_config(
         dedent(
@@ -123,20 +93,6 @@ def test_local_config_with_full_online_class_directly():
         expect_error=None,
     )
     assert isinstance(c.online_store, SqliteOnlineStoreConfig)
-
-
-def test_gcp_config():
-    _test_config(
-        dedent(
-            """
-        project: foo
-        registry: gs://registry.db
-        provider: gcp
-        entity_key_serialization_version: 2
-        """
-        ),
-        expect_error=None,
-    )
 
 
 def test_extra_field():
@@ -223,4 +179,19 @@ def test_invalid_project_name():
         """
         ),
         expect_error="alphanumerical values ",
+    )
+
+
+def test_no_provider():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        online_store:
+            path: "blah"
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
     )
