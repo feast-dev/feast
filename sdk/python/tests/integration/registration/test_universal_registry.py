@@ -14,7 +14,7 @@
 import logging
 import os
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tempfile import mkstemp
 from unittest import mock
 
@@ -22,12 +22,13 @@ import grpc_testing
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
+from pytz import utc
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 from testcontainers.mysql import MySqlContainer
 
-from feast import FileSource, RequestSource
+from feast import FeatureService, FileSource, RequestSource
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
@@ -307,6 +308,22 @@ def test_apply_entity_success(test_registry):
 
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
     assert entity.created_timestamp == entity.last_updated_timestamp
+
+    # Update entity
+    updated_entity = Entity(
+        name="driver_car_id",
+        description="Car driver Id",
+        tags={"team": "matchmaking"},
+    )
+    test_registry.apply_entity(updated_entity, project)
+
+    updated_entity = test_registry.get_entity("driver_car_id", project)
+
+    # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
+    assert (
+        updated_entity.created_timestamp is not None
+        and updated_entity.created_timestamp == entity.created_timestamp
+    )
 
     test_registry.delete_entity("driver_car_id", project)
     assert_project_uuid(project, project_uuid, test_registry)
@@ -601,11 +618,54 @@ def test_modify_feature_views_success(test_registry):
         data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
         return data
 
+    def simple_udf(x: int):
+        return x + 3
+
+    entity_sfv = Entity(name="sfv_my_entity_1", join_keys=["test_key"])
+
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+        watermark_delay_threshold=timedelta(days=1),
+    )
+
+    sfv = StreamFeatureView(
+        name="test kafka stream feature view",
+        entities=[entity_sfv],
+        ttl=timedelta(days=30),
+        owner="test@example.com",
+        online=True,
+        schema=[Field(name="dummy_field", dtype=Float32)],
+        description="desc",
+        aggregations=[
+            Aggregation(
+                column="dummy_field",
+                function="max",
+                time_window=timedelta(days=1),
+            ),
+            Aggregation(
+                column="dummy_field2",
+                function="count",
+                time_window=timedelta(days=24),
+            ),
+        ],
+        timestamp_field="event_timestamp",
+        mode="spark",
+        source=stream_source,
+        udf=simple_udf,
+        tags={},
+    )
+
     project = "project"
 
     # Register Feature Views
     test_registry.apply_feature_view(odfv1, project)
     test_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(sfv, project)
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
@@ -620,6 +680,8 @@ def test_modify_feature_views_success(test_registry):
         data["odfv1_my_feature_1"] = feature_df["my_input_1"].astype("float")
         data["odfv1_my_feature_2"] = feature_df["my_input_1"].astype("int32")
         return data
+
+    existing_odfv = test_registry.get_on_demand_feature_view("odfv1", project)
 
     # Apply the modified odfv
     test_registry.apply_feature_view(odfv1, project)
@@ -655,6 +717,11 @@ def test_modify_feature_views_success(test_registry):
         and list(request_schema.values())[0] == ValueType.INT32
     )
 
+    assert (
+        feature_view.created_timestamp is not None
+        and feature_view.created_timestamp == existing_odfv.created_timestamp
+    )
+
     # Make sure fv1 is untouched
     feature_views = test_registry.list_feature_views(project, tags=fv1.tags)
 
@@ -675,7 +742,162 @@ def test_modify_feature_views_success(test_registry):
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
-    test_registry.teardown()
+    # Simulate materialization
+    current_date = datetime.utcnow()
+    end_date = current_date.replace(tzinfo=utc)
+    start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    test_registry.apply_materialization(feature_view, project, start_date, end_date)
+    materialized_feature_view = test_registry.get_feature_view(
+        "my_feature_view_1", project
+    )
+
+    # Check if created_timestamp, along with materialized_intervals are updated
+    assert (
+        materialized_feature_view.created_timestamp is not None
+        and materialized_feature_view.created_timestamp
+        == feature_view.created_timestamp
+        and len(materialized_feature_view.materialization_intervals) > 0
+        and materialized_feature_view.materialization_intervals[0][0] == start_date
+        and materialized_feature_view.materialization_intervals[0][1] == end_date
+    )
+
+    # Modify fv1 by changing a single dtype
+    updated_fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=String),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    # Check that these fields are empty before apply
+    assert updated_fv1.created_timestamp is None
+    assert len(updated_fv1.materialization_intervals) == 0
+
+    # Apply the modified fv1
+    test_registry.apply_feature_view(updated_fv1, project)
+
+    # Verify feature view after modification
+    updated_feature_views = test_registry.list_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(updated_feature_views) == 1
+        and updated_feature_views[0].name == "my_feature_view_1"
+        and updated_feature_views[0].features[0].name == "fs1_my_feature_1"
+        and updated_feature_views[0].features[0].dtype == String
+        and updated_feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    updated_feature_view = test_registry.get_feature_view("my_feature_view_1", project)
+    assert (
+        updated_feature_view.name == "my_feature_view_1"
+        and updated_feature_view.features[0].name == "fs1_my_feature_1"
+        and updated_feature_view.features[0].dtype == String
+        and updated_feature_view.entities[0] == "fs1_my_entity_1"
+    )
+
+    # Check if materialization_intervals and created_timestamp values propagates on each apply
+    # materialization_intervals will populate only when it's empty
+    assert (
+        updated_feature_view.created_timestamp is not None
+        and updated_feature_view.created_timestamp == feature_view.created_timestamp
+        and len(updated_feature_view.materialization_intervals) == 1
+        and updated_feature_view.materialization_intervals[0][0] == start_date
+        and updated_feature_view.materialization_intervals[0][1] == end_date
+    )
+
+    # Simulate materialization a second time
+    current_date = datetime.utcnow()
+    end_date_1 = current_date.replace(tzinfo=utc)
+    start_date_1 = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    test_registry.apply_materialization(
+        updated_feature_view, project, start_date_1, end_date_1
+    )
+    materialized_feature_view_1 = test_registry.get_feature_view(
+        "my_feature_view_1", project
+    )
+
+    assert (
+        materialized_feature_view_1.created_timestamp is not None
+        and materialized_feature_view_1.created_timestamp
+        == feature_view.created_timestamp
+        and len(materialized_feature_view_1.materialization_intervals) == 2
+        and materialized_feature_view_1.materialization_intervals[0][0] == start_date
+        and materialized_feature_view_1.materialization_intervals[0][1] == end_date
+        and materialized_feature_view_1.materialization_intervals[1][0] == start_date_1
+        and materialized_feature_view_1.materialization_intervals[1][1] == end_date_1
+    )
+
+    # Modify sfv by changing the dtype
+
+    sfv = StreamFeatureView(
+        name="test kafka stream feature view",
+        entities=[entity_sfv],
+        ttl=timedelta(days=30),
+        owner="test@example.com",
+        online=True,
+        schema=[Field(name="dummy_field", dtype=String)],
+        description="desc",
+        aggregations=[
+            Aggregation(
+                column="dummy_field",
+                function="max",
+                time_window=timedelta(days=1),
+            ),
+            Aggregation(
+                column="dummy_field2",
+                function="count",
+                time_window=timedelta(days=24),
+            ),
+        ],
+        timestamp_field="event_timestamp",
+        mode="spark",
+        source=stream_source,
+        udf=simple_udf,
+        tags={},
+    )
+
+    existing_sfv = test_registry.get_stream_feature_view(
+        "test kafka stream feature view", project
+    )
+    # Apply the modified sfv
+    test_registry.apply_feature_view(sfv, project)
+
+    # Verify feature view after modification
+    updated_stream_feature_views = test_registry.list_stream_feature_views(project)
+
+    # List Feature Views
+    assert (
+        len(updated_stream_feature_views) == 1
+        and updated_stream_feature_views[0].name == "test kafka stream feature view"
+        and updated_stream_feature_views[0].features[0].name == "dummy_field"
+        and updated_stream_feature_views[0].features[0].dtype == String
+        and updated_stream_feature_views[0].entities[0] == "sfv_my_entity_1"
+    )
+
+    updated_sfv = test_registry.get_stream_feature_view(
+        "test kafka stream feature view", project
+    )
+    assert (
+        updated_sfv.name == "test kafka stream feature view"
+        and updated_sfv.features[0].name == "dummy_field"
+        and updated_sfv.features[0].dtype == String
+        and updated_sfv.entities[0] == "sfv_my_entity_1"
+    )
+
+    # The created_timestamp for the stream feature view should be set to the created_timestamp value stored from the
+    # previous apply
+    # Materialization_intervals is not set
+    assert (
+        updated_sfv.created_timestamp is not None
+        and updated_sfv.created_timestamp == existing_sfv.created_timestamp
+        and len(updated_sfv.materialization_intervals) == 0
+    )
 
 
 @pytest.mark.integration
@@ -825,7 +1047,7 @@ def test_apply_stream_feature_view_success(test_registry):
 
     project = "project"
 
-    # Register Feature View
+    # Register Stream Feature View
     test_registry.apply_feature_view(sfv, project)
 
     stream_feature_views = test_registry.list_stream_feature_views(
@@ -839,6 +1061,100 @@ def test_apply_stream_feature_view_success(test_registry):
     test_registry.delete_feature_view("test kafka stream feature view", project)
     stream_feature_views = test_registry.list_stream_feature_views(project)
     assert len(stream_feature_views) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_apply_feature_service_success(test_registry):
+    # Create Feature Service
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my_feature_view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    fs = FeatureService(
+        name="my_feature_service_1", features=[feature_view[["feature1", "feature2"]]]
+    )
+    project = "project"
+
+    # Register Feature Service
+    test_registry.apply_feature_service(fs, project)
+
+    feature_services = test_registry.list_feature_services(project)
+
+    # List Feature Services
+    assert len(feature_services) == 1
+    assert feature_services[0] == fs
+
+    # Delete Feature Service
+    test_registry.delete_feature_service("my_feature_service_1", project)
+    feature_services = test_registry.list_feature_services(project)
+    assert len(feature_services) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_modify_feature_service_success(test_registry):
+    # Create Feature Service
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my_feature_view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    fs = FeatureService(
+        name="my_feature_service_1", features=[feature_view[["feature1", "feature2"]]]
+    )
+    project = "project"
+
+    # Register Feature service
+    test_registry.apply_feature_service(fs, project)
+
+    feature_services = test_registry.list_feature_services(project)
+
+    # List Feature Services
+    assert len(feature_services) == 1
+    assert feature_services[0] == fs
+
+    # Modify Feature Service by removing a feature
+    fs = FeatureService(
+        name="my_feature_service_1", features=[feature_view[["feature1"]]]
+    )
+
+    # Apply modified Feature Service
+    test_registry.apply_feature_service(fs, project)
+
+    updated_feature_services = test_registry.list_feature_services(project)
+
+    # Verify Feature Services
+    assert len(updated_feature_services) == 1
+    assert updated_feature_services[0] == fs
+    # The created_timestamp for the feature service should be set to the created_timestamp value stored from the
+    # previous apply
+    assert (
+        updated_feature_services[0].created_timestamp is not None
+        and updated_feature_services[0].created_timestamp
+        == feature_services[0].created_timestamp
+    )
 
     test_registry.teardown()
 

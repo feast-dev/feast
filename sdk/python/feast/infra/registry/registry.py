@@ -265,9 +265,13 @@ class Registry(BaseRegistry):
                 existing_entity_proto.spec.name == entity_proto.spec.name
                 and existing_entity_proto.spec.project == project
             ):
+                entity.created_timestamp = (
+                    existing_entity_proto.meta.created_timestamp.ToDatetime()
+                )
+                entity_proto = entity.to_proto()
+                entity_proto.spec.project = project
                 del self.cached_registry_proto.entities[idx]
                 break
-
         self.cached_registry_proto.entities.append(entity_proto)
         if commit:
             self.commit()
@@ -346,6 +350,11 @@ class Registry(BaseRegistry):
                 == feature_service_proto.spec.name
                 and existing_feature_service_proto.spec.project == project
             ):
+                feature_service.created_timestamp = (
+                    existing_feature_service_proto.meta.created_timestamp.ToDatetime()
+                )
+                feature_service_proto = feature_service.to_proto()
+                feature_service_proto.spec.project = project
                 del registry.feature_services[idx]
         registry.feature_services.append(feature_service_proto)
         if commit:
@@ -421,6 +430,18 @@ class Registry(BaseRegistry):
                 ):
                     return
                 else:
+                    existing_feature_view = type(feature_view).from_proto(
+                        existing_feature_view_proto
+                    )
+                    feature_view.created_timestamp = (
+                        existing_feature_view.created_timestamp
+                    )
+                    if isinstance(feature_view, (FeatureView, StreamFeatureView)):
+                        feature_view.update_materialization_intervals(
+                            existing_feature_view.materialization_intervals
+                        )
+                    feature_view_proto = feature_view.to_proto()
+                    feature_view_proto.spec.project = project
                     del existing_feature_views_of_same_type[idx]
                     break
 
@@ -660,6 +681,17 @@ class Registry(BaseRegistry):
                 existing_saved_dataset_proto.spec.name == saved_dataset_proto.spec.name
                 and existing_saved_dataset_proto.spec.project == project
             ):
+                saved_dataset.created_timestamp = (
+                    existing_saved_dataset_proto.meta.created_timestamp.ToDatetime()
+                )
+                saved_dataset.min_event_timestamp = (
+                    existing_saved_dataset_proto.meta.min_event_timestamp.ToDatetime()
+                )
+                saved_dataset.max_event_timestamp = (
+                    existing_saved_dataset_proto.meta.max_event_timestamp.ToDatetime()
+                )
+                saved_dataset_proto = saved_dataset.to_proto()
+                saved_dataset_proto.spec.project = project
                 del self.cached_registry_proto.saved_datasets[idx]
                 break
 

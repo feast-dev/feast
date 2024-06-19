@@ -713,6 +713,24 @@ class SqlRegistry(CachingRegistry):
                 obj.last_updated_timestamp = update_datetime
 
             if row:
+                if proto_field_name in [
+                    "entity_proto",
+                    "saved_dataset_proto",
+                    "feature_view_proto",
+                    "feature_service_proto",
+                ]:
+                    deserialized_proto = self.deserialize_registry_values(
+                        row._mapping[proto_field_name], type(obj)
+                    )
+                    obj.created_timestamp = (
+                        deserialized_proto.meta.created_timestamp.ToDatetime()
+                    )
+                    if isinstance(obj, (FeatureView, StreamFeatureView)):
+                        obj.update_materialization_intervals(
+                            type(obj)
+                            .from_proto(deserialized_proto)
+                            .materialization_intervals
+                        )
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
