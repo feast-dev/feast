@@ -17,9 +17,6 @@
 # Maximum interval(secs) to wait between retries for retry function
 MAX_WAIT_INTERVAL: str = "60"
 
-AWS_LAMBDA_FEATURE_SERVER_IMAGE = "feastdev/feature-server-python-aws"
-AWS_LAMBDA_FEATURE_SERVER_REPOSITORY = "feast-python-server"
-
 # feature_store.yaml environment variable name for remote feature server
 FEATURE_STORE_YAML_ENV_NAME: str = "FEATURE_STORE_YAML_BASE64"
 
@@ -43,9 +40,6 @@ DEFAULT_REGISTRY_SERVER_PORT = 6570
 
 # Default offline server port
 DEFAULT_OFFLINE_SERVER_PORT = 8815
-
-# Environment variable for feature server docker image tag
-DOCKER_IMAGE_TAG_ENV_NAME: str = "FEAST_SERVER_DOCKER_IMAGE_TAG"
 
 # Default feature server registry ttl (seconds)
 DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5
