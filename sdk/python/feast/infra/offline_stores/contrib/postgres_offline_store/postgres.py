@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
-from psycopg2 import sql
+from psycopg import sql
 from pytz import utc
 
 from feast.data_source import DataSource
