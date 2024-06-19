@@ -18,7 +18,6 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -146,25 +145,14 @@ type getOnlineFeaturesRequest struct {
 func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *httpServer {
 	return &httpServer{fs: fs, loggingService: loggingService}
 }
-func logWithSpanContext(span tracer.Span) zerolog.Logger {
 
-	spanContext := span.Context()
-
-	var logger = zerolog.New(os.Stderr).With().
-		Int64("trace_id", int64(spanContext.TraceID())).
-		Int64("span_id", int64(spanContext.SpanID())).
-		Timestamp().
-		Logger()
-
-	return logger
-}
 func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
 	defer span.Finish(tracer.WithError(err))
 
-	logSpanContext := logWithSpanContext(span)
+	logSpanContext := LogWithSpanContext(span)
 
 	if r.Method != "POST" {
 		http.NotFound(w, r)
@@ -175,7 +163,6 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 
 	status := false
 	if statusQuery != "" {
-		var err error
 		status, err = strconv.ParseBool(statusQuery)
 		if err != nil {
 			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")

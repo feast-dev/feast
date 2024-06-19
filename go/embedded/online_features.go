@@ -259,7 +259,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 
 // StartGprcServer starts gRPC server with disabled feature logging and blocks the thread
 func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
-	return s.StartGprcServerWithLogging(host, port, nil, LoggingOptions{})
+	return s.StartGrpcServerWithLogging(host, port, nil, LoggingOptions{})
 }
 
 // StartGprcServerWithLoggingDefaultOpts starts gRPC server with enabled feature logging but default configuration for logging
@@ -271,7 +271,7 @@ func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string
 		WriteInterval:   logging.DefaultOptions.WriteInterval,
 		FlushInterval:   logging.DefaultOptions.FlushInterval,
 	}
-	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
+	return s.StartGrpcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
 }
 
 func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) (*logging.LoggingService, error) {
@@ -295,9 +295,9 @@ func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallba
 	return loggingService, nil
 }
 
-// StartGprcServerWithLogging starts gRPC server with enabled feature logging
+// StartGrpcServerWithLogging starts gRPC server with enabled feature logging
 // Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
-func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
 	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -309,7 +309,7 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(server.GrpcServerInterceptor))
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := healthcheck.NewHealthChecker()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
