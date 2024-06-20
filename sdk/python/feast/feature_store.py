@@ -2695,9 +2695,9 @@ class FeatureStore:
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         model: Any,
-        full_feature_names: bool = False,
-        force_recompute: bool = True,
-        log_features: bool = True,
+        full_feature_names: bool,
+        force_recompute: bool,
+        log_features: bool,
     ) -> OnlineResponse:
         # Get the feature views to use
         if force_recompute:
@@ -2724,7 +2724,7 @@ class FeatureStore:
             # TODO: if null we need to compute it, presumably for the first time
         return prediction_response
 
-    def get_online_inference(*args, **kwargs):
+    def get_online_inference(self, *args, **kwargs):
         return self.get_online_predictions(*args, **kwargs)
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
