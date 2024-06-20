@@ -44,6 +44,7 @@ class PostgreSQLOnlineStore(OnlineStore):
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig):
         assert config.online_store.type == "postgres"
+
         if config.online_store.conn_type == ConnectionType.pool:
             if not self._conn_pool:
                 self._conn_pool = _get_connection_pool(config.online_store)
