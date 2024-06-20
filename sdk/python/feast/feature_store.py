@@ -2691,7 +2691,7 @@ class FeatureStore:
 
     def get_online_predictions(
         self,
-        model_fields: List[str],
+        model_field: str,
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         model: Any,
@@ -2702,26 +2702,27 @@ class FeatureStore:
         # Get the feature views to use
         if force_recompute:
             # Fetch features from the offline store
-            prediction_df = self.get_online_features(
+            prediction_response = self.get_online_features(
                 entity_rows=entity_rows,
                 features=features,
-            ).to_df()
+            )
             # Predict using the model
-            predictions = model.predict(prediction_df)
-            prediction_df["predictions"] = predictions
+            predictions = model.predict(prediction_response.to_df())
+            prediction_response["predictions"] = predictions[model_field]
             # Log features to the offline store if needed (on computations)
             if log_features:
-                # Assuming store is a global variable or can be accessed here
-                self.push(
-                    push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
-                )
+                # TODO: actually log the features and the score
+                print("log features")
+                # self.push(
+                #     push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
+                # )
         else:
-            prediction_df = self.get_online_features(
+            prediction_response = self.get_online_features(
                 entity_rows=entity_rows,
                 features=model_fields,
             )
-            # if null we need to compute it, presumably for the first time
-        return OnlineResponse(prediction_df)
+            # TODO: if null we need to compute it, presumably for the first time
+        return prediction_response
 
     def get_online_inference(*args, **kwargs):
         return self.get_online_predictions(*args, **kwargs)
