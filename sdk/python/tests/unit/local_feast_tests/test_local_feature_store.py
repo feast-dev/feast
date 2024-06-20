@@ -134,7 +134,7 @@ def test_apply_feature_view(test_feature_store):
     tags_filter = utils.tags_str_to_dict("('team:matchmaking',)")
     assert tags_filter == tags_dict
     tags_filter = utils.tags_list_to_dict(("team:matchmaking", "test"))
-    assert tags_dict == tags_dict
+    assert tags_filter == tags_dict
 
     # List Feature Views
     feature_views = test_feature_store.list_batch_feature_views(tags=tags_filter)
