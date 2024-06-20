@@ -2695,10 +2695,12 @@ class FeatureStore:
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
         model: Any,
-        full_feature_names: bool,
         force_recompute: bool,
         log_features: bool,
     ) -> OnlineResponse:
+        logging.warning(
+            "This feature is in alpha and may make breaking changes in the future."
+        )
         # Get the feature views to use
         if force_recompute:
             # Fetch features from the offline store
@@ -2708,7 +2710,7 @@ class FeatureStore:
             )
             # Predict using the model
             predictions = model.predict(prediction_response.to_df())
-            prediction_response["predictions"] = predictions[model_field]
+            setattr(prediction_response, model_field, predictions[model_field])
             # Log features to the offline store if needed (on computations)
             if log_features:
                 # TODO: actually log the features and the score
@@ -2719,13 +2721,14 @@ class FeatureStore:
         else:
             prediction_response = self.get_online_features(
                 entity_rows=entity_rows,
-                features=model_fields,
+                features=model_field,
             )
             # TODO: if null we need to compute it, presumably for the first time
         return prediction_response
 
     def get_online_inference(self, *args, **kwargs):
         return self.get_online_predictions(*args, **kwargs)
+
 
 def _validate_entity_values(join_key_values: Dict[str, List[Value]]):
     set_of_row_lengths = {len(v) for v in join_key_values.values()}

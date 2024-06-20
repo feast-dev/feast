@@ -134,6 +134,7 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     outputs["on_demand_age"] = inputs["age"] + 1
     return outputs
 
+
 @on_demand_feature_view(
     sources=[customer_profile],
     schema=[

@@ -267,6 +267,7 @@ def test_get_online_features() -> None:
         # Restore registry.db so that teardown works
         os.rename(store.config.registry.path + "_fake", store.config.registry.path)
 
+
 def test_online_to_df():
     """
     Test dataframe conversion. Make sure the response columns and rows are
@@ -558,6 +559,7 @@ def test_sqlite_vec_import() -> None:
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
 
+
 def test_get_online_predictions():
     """
     Test reading from the online store in local mode.
@@ -641,6 +643,7 @@ def test_get_online_predictions():
                     "risk_score:predictions": [0.1, 0.2],
                     "risk_score:model_version": [1, 1],
                 }
+
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_predictions(
             model_field="risk_score:predictions",
@@ -655,7 +658,6 @@ def test_get_online_predictions():
                 {"driver_id": 1, "customer_id": 5},
             ],
             model=DemoModel(),
-            full_feature_names=False,
             force_recompute=True,
             log_features=True,
         ).to_dict()

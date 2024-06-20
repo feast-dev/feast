@@ -270,4 +270,3 @@ def _get_features_from_body(store: "feast.FeatureStore", body: Request):
     else:
         features = body["features"]
     return features, body
-

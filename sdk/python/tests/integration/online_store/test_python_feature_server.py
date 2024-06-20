@@ -54,6 +54,7 @@ def test_get_online_features(python_fs_client):
         == request_data_dict["entities"]["driver_id"]
     )
 
+
 # @pytest.mark.integration
 # @pytest.mark.universal_online_stores
 def test_get_online_predictions(python_fs_client):
@@ -93,6 +94,7 @@ def test_get_online_predictions(python_fs_client):
         results[results_driver_id_index]["values"]
         == request_data_dict["entities"]["driver_id"]
     )
+
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
