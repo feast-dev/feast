@@ -14,6 +14,7 @@ spec:
     {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
+        instrumentation.opentelemetry.io/inject-python: "true"
     {{- end }}
       labels:
         {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
@@ -33,6 +34,7 @@ spec:
           env:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
+<<<<<<< HEAD
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
@@ -53,6 +55,11 @@ spec:
             - "-h"
             - "0.0.0.0"
             {{- end }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.feast-test.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"  
+          command: ["feast", "serve", "-h", "0.0.0.0"]
           ports:
             - name: {{ .Values.feast_mode }}
               {{- if eq .Values.feast_mode "offline" }}

@@ -14,9 +14,15 @@
 import itertools
 import logging
 import os
+import resource
+import threading
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
+import time
+from collections import Counter, defaultdict
+from datetime import timedelta, datetime
+import psutil
 from typing import (
     Any,
     Callable,
@@ -45,6 +51,7 @@ from feast.data_source import (
     PushMode,
     PushSource,
 )
+from prometheus_client import Gauge, start_http_server
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
@@ -104,6 +111,11 @@ class FeatureStore:
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
+
+    # Define prometheus metrics
+    # request_duration = Histogram('feast_request_duration_seconds', 'Histogram of request durations in seconds')
+    cpu_usage_gauge = Gauge('feast_feature_server_cpu_usage', 'CPU usage of the Feast feature server')
+    memory_usage_gauge = Gauge('feast_feature_server_memory_usage', 'Memory usage of the Feast feature server')
 
     def __init__(
         self,
@@ -2130,6 +2142,21 @@ class FeatureStore:
 
         return views_to_use 
 
+    def monitor_resources(self, interval: int = 5):
+        """Function to monitor and update CPU and memory usage metrics."""
+        print(f"Start monitor_resources({interval})")
+        p = psutil.Process()
+        print(f"PID is {p.pid}")
+        while True:
+            with p.oneshot():
+                cpu_usage = p.cpu_percent()
+                memory_usage = p.memory_percent()
+                print(f"cpu_usage is {cpu_usage}")
+                print(f"memory_usage is {memory_usage}")
+                self.cpu_usage_gauge.set(cpu_usage)
+                self.memory_usage_gauge.set(memory_usage)
+            time.sleep(interval)
+
 
     def serve(
         self,
@@ -2142,6 +2169,17 @@ class FeatureStore:
         registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
+        print("Start Prometheus Server")
+        start_http_server(8000)
+
+        print("Start a background thread to monitor CPU and memory usage")
+        monitoring_thread = threading.Thread(
+           target=self.monitor_resources, args=(5,), daemon=True
+        )
+        monitoring_thread.start()
+
+        # self.setup_otlp_metrics()
+        
         type_ = type_.lower()
         if type_ != "http":
             raise ValueError(

@@ -1,0 +1,55 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelcol
+  namespace: feast-test
+spec:
+  mode: statefulset
+  targetAllocator:
+    enabled: true
+    serviceAccount: opentelemetry-targetallocator-sa
+    prometheusCR:
+      enabled: true
+      podMonitorSelector: {}
+      serviceMonitorSelector: {}
+      ## If uncommented, only service monitors with this label will get picked up
+      #   app: my-app
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc: {}
+          http: {}
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otel-collector'
+              scrape_interval: 10s
+              static_configs:
+              - targets: [ '0.0.0.0:8888' ]
+
+    processors:
+      batch: {}
+
+    exporters:
+      otlp/ls:
+        endpoint: "ingest.lightstep.com:443"
+        headers:
+          "lightstep-access-token": "${LS_TOKEN}"
+      logging:
+        verbosity: detailed
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/ls, logging]
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: []
+          exporters: [otlp/ls, logging]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/ls, logging]

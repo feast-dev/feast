@@ -1,0 +1,20 @@
+# API: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#monitoring.coreos.com/v1.PodMonitor
+# Example: https://github.com/prometheus-community/windows_exporter/blob/f6b91e5cb0f710550777c7ff261c21e6296c27a9/kubernetes/windows-exporter-podmonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: pm-example
+  namespace: feast-test
+  labels:
+    app.kubernetes.io/name: py-prometheus-app
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  namespaceSelector:
+      matchNames:
+        - opentelemetry
+  podMetricsEndpoints:
+    - port: py-server-port
+      path: /metrics

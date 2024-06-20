@@ -1,0 +1,81 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sm-example
+  namespace: feast-test
+  labels:
+    app.kubernetes.io/name: py-prometheus-app
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  namespaceSelector:
+      matchNames:
+        - opentelemetry
+  endpoints:
+    - port: prom
+      path: /metrics
+    - port: py-client-port
+      interval: 15s
+    - port: py-server-port
+---
+## I commented out the ServiceMonitor definitions below, but still wanted
+## to keep them around to show that you can either create separate ServiceMonitors
+## for each service, or create a single ServiceMonitor for everything.
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: sm-py-prometheus-app
+#   namespace: opentelemetry
+#   labels:
+#     app.kubernetes.io/name: py-prometheus-app
+#     release: prometheus
+# spec:
+#   selector:
+#     matchLabels:
+#       app.kubernetes.io/name: py-prometheus-app
+#   namespaceSelector:
+#       matchNames:
+#         - opentelemetry
+#   endpoints:
+#     - port: prom
+#       path: /metrics
+# ---
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: sm-py-otel-client
+#   namespace: opentelemetry
+#   labels:
+#     app.kubernetes.io/name: py-otel-client
+#     release: prometheus
+# spec:
+#   selector:
+#     matchLabels:
+#       app.kubernetes.io/name: py-otel-client
+#   namespaceSelector:
+#       matchNames:
+#         - opentelemetry
+#   endpoints:
+#     - port: py-client-port
+#       interval: 15s
+# ---
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: sm-py-otel-server
+#   namespace: opentelemetry
+#   labels:
+#     app.kubernetes.io/name: py-otel-server
+#     release: prometheus
+# spec:
+#   selector:
+#     matchLabels:
+#       app.kubernetes.io/name: py-otel-server
+#   namespaceSelector:
+#       matchNames:
+#         - opentelemetry
+#   endpoints:
+#     - port: py-server-port
+#       interval: 15s
