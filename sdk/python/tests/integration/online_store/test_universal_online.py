@@ -39,13 +39,18 @@ from tests.utils.data_source_test_creator import prep_file_source
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["postgres"])
+@pytest.mark.parametrize(
+    "conn_type",
+    [ConnectionType.singleton, ConnectionType.pool],
+    ids=lambda v: f"conn_type:{v}",
+)
 def test_connection_pool_online_stores(
-    environment, universal_data_sources, fake_ingest_data
+    environment, universal_data_sources, fake_ingest_data, conn_type
 ):
     if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
         return
     fs = environment.feature_store
-    fs.config.online_store.conn_type = ConnectionType.pool
+    fs.config.online_store.conn_type = conn_type
     fs.config.online_store.min_conn = 1
     fs.config.online_store.max_conn = 10
 
