@@ -63,55 +63,56 @@ class PostgreSQLOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
+        batch_size: int = 5000,
     ) -> None:
-        project = config.project
+        # Format insert values
+        insert_values = []
+        for entity_key, values, timestamp, created_ts in data:
+            entity_key_bin = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            timestamp = _to_naive_utc(timestamp)
+            if created_ts is not None:
+                created_ts = _to_naive_utc(created_ts)
 
-        with self._get_conn(config) as conn, conn.cursor() as cur:
-            insert_values = []
-            for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                )
-                timestamp = _to_naive_utc(timestamp)
-                if created_ts is not None:
-                    created_ts = _to_naive_utc(created_ts)
-
-                for feature_name, val in values.items():
-                    vector_val = None
-                    if config.online_store.pgvector_enabled:
-                        vector_val = get_list_val_str(val)
-                    insert_values.append(
-                        (
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            vector_val,
-                            timestamp,
-                            created_ts,
-                        )
+            for feature_name, val in values.items():
+                vector_val = None
+                if config.online_store.pgvector_enabled:
+                    vector_val = get_list_val_str(val)
+                insert_values.append(
+                    (
+                        entity_key_bin,
+                        feature_name,
+                        val.SerializeToString(),
+                        vector_val,
+                        timestamp,
+                        created_ts,
                     )
-            # Control the batch so that we can update the progress
-            batch_size = 5000
+                )
+
+        # Create insert query
+        sql_query = sql.SQL(
+            """
+            INSERT INTO {}
+            (entity_key, feature_name, value, vector_value, event_ts, created_ts)
+            VALUES %s
+            ON CONFLICT (entity_key, feature_name) DO
+            UPDATE SET
+                value = EXCLUDED.value,
+                vector_value = EXCLUDED.vector_value,
+                event_ts = EXCLUDED.event_ts,
+                created_ts = EXCLUDED.created_ts;
+        """
+        ).format(sql.Identifier(_table_id(config.project, table)))
+
+        # Push data in batches to online store
+        with self._get_conn(config) as conn, conn.cursor() as cur:
             for i in range(0, len(insert_values), batch_size):
                 cur_batch = insert_values[i : i + batch_size]
-                cur.executemany(
-                    sql.SQL(
-                        """
-                        INSERT INTO {}
-                        (entity_key, feature_name, value, vector_value, event_ts, created_ts)
-                        VALUES %s
-                        ON CONFLICT (entity_key, feature_name) DO
-                        UPDATE SET
-                            value = EXCLUDED.value,
-                            vector_value = EXCLUDED.vector_value,
-                            event_ts = EXCLUDED.event_ts,
-                            created_ts = EXCLUDED.created_ts;
-                        """,
-                    ).format(sql.Identifier(_table_id(project, table))),
-                    cur_batch,
-                )
+                cur.executemany(sql_query, cur_batch)
                 conn.commit()
+
                 if progress:
                     progress(len(cur_batch))
 
