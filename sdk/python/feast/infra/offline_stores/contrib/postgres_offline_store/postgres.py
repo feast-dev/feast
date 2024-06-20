@@ -274,7 +274,7 @@ class PostgreSQLRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             with _get_conn(self.config.offline_store) as conn, conn.cursor() as cur:
-                conn.set_session(readonly=True)
+                conn.read_only = True
                 cur.execute(query)
                 fields = [
                     (c.name, pg_type_code_to_arrow(c.type_code))

@@ -82,7 +82,7 @@ def get_query_schema(config: PostgreSQLConfig, sql_query: str) -> Dict[str, np.d
     new table
     """
     with _get_conn(config) as conn:
-        conn.set_session(readonly=True)
+        conn.read_only = True
         df = pd.read_sql(
             f"SELECT * FROM {sql_query} LIMIT 0",
             conn,
