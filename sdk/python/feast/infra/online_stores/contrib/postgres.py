@@ -96,7 +96,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             """
             INSERT INTO {}
             (entity_key, feature_name, value, vector_value, event_ts, created_ts)
-            VALUES %s
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (entity_key, feature_name) DO
             UPDATE SET
                 value = EXCLUDED.value,
