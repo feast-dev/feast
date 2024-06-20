@@ -267,111 +267,6 @@ def test_get_online_features() -> None:
         # Restore registry.db so that teardown works
         os.rename(store.config.registry.path + "_fake", store.config.registry.path)
 
-def test_get_online_predictions():
-    """
-    Test reading from the online store in local mode.
-    """
-    runner = CliRunner()
-    with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
-    ) as store:
-        # Write some data to two tables
-        driver_locations_fv = store.get_feature_view(name="driver_locations")
-        customer_profile_fv = store.get_feature_view(name="customer_profile")
-        customer_driver_combined_fv = store.get_feature_view(
-            name="customer_driver_combined"
-        )
-
-        provider = store._get_provider()
-
-        driver_key = EntityKeyProto(
-            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
-        )
-        provider.online_write_batch(
-            config=store.config,
-            table=driver_locations_fv,
-            data=[
-                (
-                    driver_key,
-                    {
-                        "lat": ValueProto(double_val=0.1),
-                        "lon": ValueProto(string_val="1.0"),
-                    },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
-                )
-            ],
-            progress=None,
-        )
-
-        customer_key = EntityKeyProto(
-            join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
-        )
-        provider.online_write_batch(
-            config=store.config,
-            table=customer_profile_fv,
-            data=[
-                (
-                    customer_key,
-                    {
-                        "avg_orders_day": ValueProto(float_val=1.0),
-                        "name": ValueProto(string_val="John"),
-                        "age": ValueProto(int64_val=3),
-                    },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
-                )
-            ],
-            progress=None,
-        )
-
-        customer_key = EntityKeyProto(
-            join_keys=["customer_id", "driver_id"],
-            entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
-        )
-        provider.online_write_batch(
-            config=store.config,
-            table=customer_driver_combined_fv,
-            data=[
-                (
-                    customer_key,
-                    {"trips": ValueProto(int64_val=7)},
-                    datetime.utcnow(),
-                    datetime.utcnow(),
-                )
-            ],
-            progress=None,
-        )
-
-        # Retrieve two features using two keys, one valid one non-existing
-        result = store.get_online_predictions(
-            model_name="risk_score:prediction",
-            features=[
-                "driver_locations:lon",
-                "customer_profile:avg_orders_day",
-                "customer_profile:name",
-                "customer_driver_combined:trips",
-                "risk_score:predictions",
-            ],
-            entity_rows=[
-                {"driver_id": 1, "customer_id": "5"},
-                {"driver_id": 1, "customer_id": 5},
-            ],
-            full_feature_names=False,
-            force_recompute=True,
-            log_features=True,
-        ).to_dict()
-
-        assert "lon" in result
-        assert "avg_orders_day" in result
-        assert "name" in result
-        assert result["driver_id"] == [1, 1]
-        assert result["customer_id"] == ["5", "5"]
-        assert result["lon"] == ["1.0", "1.0"]
-        assert result["avg_orders_day"] == [1.0, 1.0]
-        assert result["name"] == ["John", "John"]
-        assert result["trips"] == [7, 7]
-
 def test_online_to_df():
     """
     Test dataframe conversion. Make sure the response columns and rows are
@@ -662,3 +557,110 @@ def test_sqlite_vec_import() -> None:
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
+
+def test_get_online_predictions():
+    """
+    Test reading from the online store in local mode.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        # Write some data to two tables
+        driver_locations_fv = store.get_feature_view(name="driver_locations")
+        customer_profile_fv = store.get_feature_view(name="customer_profile")
+        customer_driver_combined_fv = store.get_feature_view(
+            name="customer_driver_combined"
+        )
+
+        provider = store._get_provider()
+
+        driver_key = EntityKeyProto(
+            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=driver_locations_fv,
+            data=[
+                (
+                    driver_key,
+                    {
+                        "lat": ValueProto(double_val=0.1),
+                        "lon": ValueProto(string_val="1.0"),
+                    },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        customer_key = EntityKeyProto(
+            join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_profile_fv,
+            data=[
+                (
+                    customer_key,
+                    {
+                        "avg_orders_day": ValueProto(float_val=1.0),
+                        "name": ValueProto(string_val="John"),
+                        "age": ValueProto(int64_val=3),
+                    },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        customer_key = EntityKeyProto(
+            join_keys=["customer_id", "driver_id"],
+            entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_driver_combined_fv,
+            data=[
+                (
+                    customer_key,
+                    {"trips": ValueProto(int64_val=7)},
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        # Retrieve two features using two keys, one valid one non-existing
+        result = store.get_online_predictions(
+            model_fields=[
+                "risk_score:predictions",
+                "risk_score:model_version",
+            ],
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[
+                {"driver_id": 1, "customer_id": "5"},
+                {"driver_id": 1, "customer_id": 5},
+            ],
+            full_feature_names=False,
+            force_recompute=True,
+            log_features=True,
+        ).to_dict()
+
+        assert "lon" in result
+        assert "avg_orders_day" in result
+        assert "name" in result
+        assert result["driver_id"] == [1, 1]
+        assert result["customer_id"] == ["5", "5"]
+        assert result["lon"] == ["1.0", "1.0"]
+        assert result["avg_orders_day"] == [1.0, 1.0]
+        assert result["name"] == ["John", "John"]
+        assert result["trips"] == [7, 7]

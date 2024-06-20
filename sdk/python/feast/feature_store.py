@@ -2694,32 +2694,17 @@ class FeatureStore:
         model_fields: List[str],
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
+        model: Any,
         full_feature_names: bool = False,
         force_recompute: bool = True,
         log_features: bool = True,
     ) -> OnlineResponse:
-        '''
-        @on_demand_feature_view(
-           sources=[
-               data_source_1,
-               data_source_2,
-           ],
-           schema=[
-             Field(name='prediction', dtype=Float64),
-           ],
-           mode="python",
-        )
-        def run_inference(data_source_1: dict[str, float], data_source_2: dict[str, float]) -> dict[str, float]:
-            # Run inference
-            output = model.predict({**data_source_1, **data_source_2}).to_dict()
-            return output
-        '''
         # Get the feature views to use
         if force_recompute:
             # Fetch features from the offline store
-            prediction_df = store.get_online_features(
-                entity_rows=[entities],
-                feature_refs=features,
+            prediction_df = self.get_online_features(
+                entity_rows=entity_rows,
+                features=features,
             ).to_df()
             # Predict using the model
             predictions = model.predict(prediction_df)
@@ -2727,12 +2712,12 @@ class FeatureStore:
             # Log features to the offline store if needed (on computations)
             if log_features:
                 # Assuming store is a global variable or can be accessed here
-                store.push(
-                    push_source_name=model_features, df=prediction_df, to=PushMode.OFFLINE
+                self.push(
+                    push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
                 )
         else:
-            prediction_df = store.get_online_features(
-                entity_rows=[entities],
+            prediction_df = self.get_online_features(
+                entity_rows=entity_rows,
                 features=model_fields,
             )
             # if null we need to compute it, presumably for the first time

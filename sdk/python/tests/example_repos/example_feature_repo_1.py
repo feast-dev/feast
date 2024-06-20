@@ -136,11 +136,17 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
 
 @on_demand_feature_view(
     sources=[customer_profile],
-    schema=[Field(name="predictions", dtype=Float64)],
+    schema=[
+        Field(name="predictions", dtype=Float64),
+        Field(name="model_version", dtype=String),
+    ],
     mode="python",
 )
 def risk_score(inputs: dict[str, Any]) -> dict[str, Any]:
-    outputs = {"predictions": [1.0 for _ in inputs["age"]]}
+    outputs = {
+        "predictions": [1.0 for _ in inputs["age"]],
+        "model_version": ["0.0.0" for _ in inputs["age"]],
+    }
     return outputs
 
 
