@@ -170,7 +170,9 @@ class PostgreSQLOnlineStore(OnlineStore):
             # when we iterate through the keys since they are in the correct order
             values_dict = defaultdict(list)
             for row in rows if rows is not None else []:
-                values_dict[row[0].tobytes()].append(row[1:])
+                values_dict[
+                    row[0] if isinstance(row[0], bytes) else row[0].tobytes()
+                ].append(row[1:])
 
             for key in keys:
                 if key in values_dict:
