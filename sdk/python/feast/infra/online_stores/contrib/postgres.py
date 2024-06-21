@@ -2,7 +2,17 @@ import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import pytz
 from psycopg import sql
@@ -42,7 +52,7 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn_pool: Optional[ConnectionPool] = None
 
     @contextlib.contextmanager
-    def _get_conn(self, config: RepoConfig):
+    def _get_conn(self, config: RepoConfig) -> Generator[Connection, Any, Any]:
         assert config.online_store.type == "postgres"
 
         if config.online_store.conn_type == ConnectionType.pool:
