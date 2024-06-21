@@ -2089,16 +2089,18 @@ class FeatureStore:
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
         )
+        assert ":" in model_field, "model_field must be full feature reference; i.e., feature_view:feature_name)"
+        model_feature_name = model_field.split(":")[1]
         # Get the feature views to use
         if force_recompute:
             # Fetch features from the offline store
             prediction_response = self.get_online_features(
                 entity_rows=entity_rows,
-                features=features,
+                features=features + [model_field],
             )
             # Predict using the model
             predictions = model.predict(prediction_response.to_df())
-            setattr(prediction_response, model_field, predictions[model_field])
+            setattr(prediction_response, model_feature_name, predictions[model_field])
             # Log features to the offline store if needed (on computations)
             if log_features:
                 # TODO: actually log the features and the score
