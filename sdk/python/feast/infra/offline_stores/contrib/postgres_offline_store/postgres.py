@@ -1,5 +1,4 @@
 import contextlib
-import logging
 from dataclasses import asdict
 from datetime import datetime
 from typing import (

@@ -27,7 +27,6 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 from testcontainers.mysql import MySqlContainer
-from tests.integration.feature_repos.universal.entities import driver
 
 from feast import FeatureService, FileSource, RequestSource
 from feast.data_format import AvroFormat, ParquetFormat
@@ -48,6 +47,7 @@ from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import Aggregation, StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
+from tests.integration.feature_repos.universal.entities import driver
 
 
 @pytest.fixture
