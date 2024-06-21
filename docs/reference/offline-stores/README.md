@@ -22,10 +22,6 @@ Please see [Offline Store](../../getting-started/architecture-and-components/off
 [redshift.md](redshift.md)
 {% endcontent-ref %}
 
-{% content-ref url="duckdb.md" %}
-[duckdb.md](duckdb.md)
-{% endcontent-ref %}
-
 {% content-ref url="spark.md" %}
 [spark.md](spark.md)
 {% endcontent-ref %}

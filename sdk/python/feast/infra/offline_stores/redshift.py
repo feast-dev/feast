@@ -9,7 +9,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     Optional,
     Tuple,
     Union,
@@ -20,7 +19,8 @@ import pandas as pd
 import pyarrow
 import pyarrow as pa
 from dateutil import parser
-from pydantic import StrictStr, model_validator
+from pydantic import StrictStr, root_validator
+from pydantic.typing import Literal
 from pytz import utc
 
 from feast import OnDemandFeatureView, RedshiftSource
@@ -42,6 +42,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.usage import log_exceptions_and_usage
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -50,13 +51,13 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["redshift"] = "redshift"
     """ Offline store type selector"""
 
-    cluster_id: Optional[StrictStr] = None
+    cluster_id: Optional[StrictStr]
     """ Redshift cluster identifier, for provisioned clusters """
 
-    user: Optional[StrictStr] = None
+    user: Optional[StrictStr]
     """ Redshift user name, only required for provisioned clusters """
 
-    workgroup: Optional[StrictStr] = None
+    workgroup: Optional[StrictStr]
     """ Redshift workgroup identifier, for serverless """
 
     region: StrictStr
@@ -71,16 +72,16 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
     iam_role: StrictStr
     """ IAM Role for Redshift, granting it access to S3 """
 
-    @model_validator(mode="after")
-    def require_cluster_and_user_or_workgroup(self):
+    @root_validator
+    def require_cluster_and_user_or_workgroup(cls, values):
         """
         Provisioned Redshift clusters:  Require cluster_id and user, ignore workgroup
         Serverless Redshift:  Require workgroup, ignore cluster_id and user
         """
         cluster_id, user, workgroup = (
-            self.cluster_id,
-            self.user,
-            self.workgroup,
+            values.get("cluster_id"),
+            values.get("user"),
+            values.get("workgroup"),
         )
         if not (cluster_id and user) and not workgroup:
             raise ValueError(
@@ -89,11 +90,12 @@ class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
         elif cluster_id and workgroup:
             raise ValueError("cannot specify both cluster_id and workgroup")
 
-        return self
+        return values
 
 
 class RedshiftOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="redshift")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -152,6 +154,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="redshift")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -192,6 +195,7 @@ class RedshiftOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="redshift")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -422,6 +426,7 @@ class RedshiftRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
+    @log_exceptions_and_usage
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_df(
@@ -436,6 +441,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
+    @log_exceptions_and_usage
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             return aws_utils.unload_redshift_query_to_pa(
@@ -450,6 +456,7 @@ class RedshiftRetrievalJob(RetrievalJob):
                 query,
             )
 
+    @log_exceptions_and_usage
     def to_s3(self) -> str:
         """Export dataset to S3 in Parquet format and return path"""
         if self.on_demand_feature_views:
@@ -470,6 +477,7 @@ class RedshiftRetrievalJob(RetrievalJob):
             )
             return self._s3_path
 
+    @log_exceptions_and_usage
     def to_redshift(self, table_name: str) -> None:
         """Save dataset as a new Redshift table"""
         if self.on_demand_feature_views:

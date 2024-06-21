@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, FilePath, SecretStr, StrictBool, StrictStr, model_validator
+from pydantic import Field, FilePath, SecretStr, StrictBool, StrictStr, root_validator
 from trino.auth import (
     BasicAuthentication,
     CertificateAuthentication,
@@ -31,15 +31,16 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.usage import log_exceptions_and_usage
 
 
 class BasicAuthModel(FeastConfigBaseModel):
     username: StrictStr
-    password: StrictStr
+    password: SecretStr
 
 
 class KerberosAuthModel(FeastConfigBaseModel):
@@ -97,14 +98,14 @@ class AuthConfig(FeastConfigBaseModel):
     type: Literal["kerberos", "basic", "jwt", "oauth2", "certificate"]
     config: Optional[Dict[StrictStr, Any]]
 
-    @model_validator(mode="after")
-    def config_only_nullable_for_oauth2(self):
-        auth_type = self.type
-        auth_config = self.config
+    @root_validator
+    def config_only_nullable_for_oauth2(cls, values):
+        auth_type = values["type"]
+        auth_config = values["config"]
         if auth_type != "oauth2" and auth_config is None:
             raise ValueError(f"config cannot be null for auth type '{auth_type}'")
 
-        return self
+        return values
 
     def to_trino_auth(self):
         auth_type = self.type
@@ -265,6 +266,7 @@ class TrinoRetrievalJob(RetrievalJob):
 
 class TrinoOfflineStore(OfflineStore):
     @staticmethod
+    @log_exceptions_and_usage(offline_store="trino")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -314,12 +316,13 @@ class TrinoOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="trino")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
-        registry: BaseRegistry,
+        registry: Registry,
         project: str,
         full_feature_names: bool = False,
     ) -> TrinoRetrievalJob:
@@ -399,6 +402,7 @@ class TrinoOfflineStore(OfflineStore):
         )
 
     @staticmethod
+    @log_exceptions_and_usage(offline_store="trino")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

@@ -12,6 +12,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 
 
 class HazelcastOnlineStoreCreator(OnlineStoreCreator):
+
     cluster_name: str = ""
     container: DockerContainer = None
 

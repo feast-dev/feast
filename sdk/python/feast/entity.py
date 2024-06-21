@@ -20,6 +20,7 @@ from typeguard import typechecked
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -51,6 +52,7 @@ class Entity:
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
+    @log_exceptions
     def __init__(
         self,
         *,

@@ -1,5 +1,8 @@
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _version
+try:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _version
+except ModuleNotFoundError:
+    from importlib_metadata import PackageNotFoundError, version as _version  # type: ignore
 
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
@@ -19,6 +22,7 @@ from .feature_view import FeatureView
 from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .repo_config import RepoConfig
+from .request_feature_view import RequestFeatureView
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
 
@@ -45,6 +49,7 @@ __all__ = [
     "BigQuerySource",
     "FileSource",
     "RedshiftSource",
+    "RequestFeatureView",
     "SnowflakeSource",
     "PushSource",
     "RequestSource",

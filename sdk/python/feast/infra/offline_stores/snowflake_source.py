@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type_check
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from typeguard import typechecked
 
@@ -191,10 +191,8 @@ class SnowflakeSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL."""
-        if self.database and self.schema and self.table:
+        if self.database and self.table:
             return f'"{self.database}"."{self.schema}"."{self.table}"'
-        elif self.schema and self.table:
-            return f'"{self.schema}"."{self.table}"'
         elif self.table:
             return f'"{self.table}"'
         else:
@@ -204,7 +202,6 @@ class SnowflakeSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.snowflake_type_to_feast_value_type
 
-    @no_type_check
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
@@ -226,7 +223,7 @@ class SnowflakeSource(DataSource):
             query = f"SELECT * FROM {self.get_table_query_string()} LIMIT 5"
             cursor = execute_snowflake_statement(conn, query)
 
-            metadata: List[Dict[str, Any]] = [
+            metadata = [
                 {
                     "column_name": column.name,
                     "type_code": column.type_code,
@@ -282,12 +279,12 @@ class SnowflakeSource(DataSource):
                 else:
                     row["snowflake_type"] = "NUMBERwSCALE"
 
-            elif row["type_code"] in [5, 9, 12]:
+            elif row["type_code"] in [5, 9, 10, 12]:
                 error = snowflake_unsupported_map[row["type_code"]]
                 raise NotImplementedError(
                     f"The following Snowflake Data Type is not supported: {error}"
                 )
-            elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 10, 11, 13]:
+            elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 11, 13]:
                 row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
             else:
                 raise NotImplementedError(
@@ -295,8 +292,7 @@ class SnowflakeSource(DataSource):
                 )
 
         return [
-            (str(column["column_name"]), str(column["snowflake_type"]))
-            for column in metadata
+            (column["column_name"], column["snowflake_type"]) for column in metadata
         ]
 
 
@@ -309,7 +305,6 @@ snowflake_type_code_map = {
     6: "TIMESTAMP_LTZ",
     7: "TIMESTAMP_TZ",
     8: "TIMESTAMP_NTZ",
-    10: "ARRAY",
     11: "BINARY",
     13: "BOOLEAN",
 }
@@ -317,6 +312,7 @@ snowflake_type_code_map = {
 snowflake_unsupported_map = {
     5: "VARIANT -- Try converting to VARCHAR",
     9: "OBJECT -- Try converting to VARCHAR",
+    10: "ARRAY -- Try converting to VARCHAR",
     12: "TIME -- Try converting to VARCHAR",
 }
 
@@ -397,6 +393,7 @@ class SavedDatasetSnowflakeStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
+
         return SavedDatasetSnowflakeStorage(
             table_ref=SnowflakeOptions.from_proto(storage_proto.snowflake_storage).table
         )

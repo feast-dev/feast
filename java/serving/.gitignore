@@ -35,6 +35,3 @@ feast-serving.jar
 
 ## Feast Temporary Files ##
 /temp/
-
-## Generated test data ##
-**/*.parquet

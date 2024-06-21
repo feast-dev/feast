@@ -1,14 +1,14 @@
-import warnings
+import pytest
 
 
 def no_warnings(func):
     def wrapper_no_warnings(*args, **kwargs):
-        with warnings.catch_warnings(record=True) as record:
+        with pytest.warns(None) as warnings:
             func(*args, **kwargs)
 
-        if len(record) > 0:
+        if len(warnings) > 0:
             raise AssertionError(
-                "Warnings were raised: " + ", ".join([str(w) for w in record])
+                "Warnings were raised: " + ", ".join([str(w) for w in warnings])
             )
 
     return wrapper_no_warnings

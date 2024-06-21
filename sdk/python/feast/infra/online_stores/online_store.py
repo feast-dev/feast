@@ -80,31 +80,6 @@ class OnlineStore(ABC):
         """
         pass
 
-    async def online_read_async(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        """
-        Reads features values for the given entity keys asynchronously.
-
-        Args:
-            config: The config for the current feature store.
-            table: The feature view whose feature values should be read.
-            entity_keys: The list of entity keys for which feature values should be read.
-            requested_features: The list of features that should be read.
-
-        Returns:
-            A list of the same length as entity_keys. Each item in the list is a tuple where the first
-            item is the event timestamp for the row, and the second item is a dict mapping feature names
-            to values, which are returned in proto format.
-        """
-        raise NotImplementedError(
-            f"Online store {self.__class__.__name__} does not support online read async"
-        )
-
     @abstractmethod
     def update(
         self,
@@ -159,39 +134,3 @@ class OnlineStore(ABC):
             entities: Entities whose corresponding infrastructure should be deleted.
         """
         pass
-
-    def retrieve_online_documents(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        requested_feature: str,
-        embedding: List[float],
-        top_k: int,
-        distance_metric: Optional[str] = None,
-    ) -> List[
-        Tuple[
-            Optional[datetime],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-        ]
-    ]:
-        """
-        Retrieves online feature values for the specified embeddings.
-
-        Args:
-            distance_metric: distance metric to use for retrieval.
-            config: The config for the current feature store.
-            table: The feature view whose feature values should be read.
-            requested_feature: The name of the feature whose embeddings should be used for retrieval.
-            embedding: The embeddings to use for retrieval.
-            top_k: The number of documents to retrieve.
-
-        Returns:
-            object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple
-            where the first item is the event timestamp for the row, and the second item is a dict of feature
-            name to embeddings.
-        """
-        raise NotImplementedError(
-            f"Online store {self.__class__.__name__} does not support online retrieval"
-        )

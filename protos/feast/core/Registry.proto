@@ -27,6 +27,7 @@ import "feast/core/FeatureTable.proto";
 import "feast/core/FeatureView.proto";
 import "feast/core/InfraObject.proto";
 import "feast/core/OnDemandFeatureView.proto";
+import "feast/core/RequestFeatureView.proto";
 import "feast/core/StreamFeatureView.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/SavedDataset.proto";
@@ -40,6 +41,7 @@ message Registry {
     repeated FeatureView feature_views = 6;
     repeated DataSource data_sources = 12;
     repeated OnDemandFeatureView on_demand_feature_views = 8;
+    repeated RequestFeatureView request_feature_views = 9;
     repeated StreamFeatureView stream_feature_views = 14;
     repeated FeatureService feature_services = 7;
     repeated SavedDataset saved_datasets = 11;

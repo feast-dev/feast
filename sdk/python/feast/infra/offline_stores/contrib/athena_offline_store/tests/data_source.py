@@ -22,6 +22,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class AthenaDataSourceCreator(DataSourceCreator):
+
     tables: List[str] = []
 
     def __init__(self, project_name: str, *args, **kwargs):
@@ -31,7 +32,7 @@ class AthenaDataSourceCreator(DataSourceCreator):
         data_source = os.getenv("ATHENA_DATA_SOURCE", "AwsDataCatalog")
         database = os.getenv("ATHENA_DATABASE", "default")
         workgroup = os.getenv("ATHENA_WORKGROUP", "primary")
-        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-int-bucket")
+        bucket_name = os.getenv("ATHENA_S3_BUCKET_NAME", "feast-integration-tests")
 
         self.client = aws_utils.get_athena_data_client(region)
         self.s3 = aws_utils.get_s3_resource(region)
@@ -47,11 +48,12 @@ class AthenaDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
+        suffix: Optional[str] = None,
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+        field_mapping: Dict[str, str] = None,
     ) -> DataSource:
+
         table_name = destination_name
         s3_target = (
             self.offline_store_config.s3_staging_location

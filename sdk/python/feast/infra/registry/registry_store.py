@@ -17,7 +17,7 @@ class RegistryStore(ABC):
         Returns:
             Returns either the registry proto stored at the registry path, or an empty registry proto.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def update_registry_proto(self, registry_proto: RegistryProto):
@@ -40,7 +40,7 @@ class RegistryStore(ABC):
 
 class NoopRegistryStore(RegistryStore):
     def get_registry_proto(self) -> RegistryProto:
-        return RegistryProto()
+        pass
 
     def update_registry_proto(self, registry_proto: RegistryProto):
         pass

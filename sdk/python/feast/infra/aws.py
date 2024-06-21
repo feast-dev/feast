@@ -13,6 +13,7 @@ from feast.constants import (
     AWS_LAMBDA_FEATURE_SERVER_IMAGE,
     AWS_LAMBDA_FEATURE_SERVER_REPOSITORY,
     DOCKER_IMAGE_TAG_ENV_NAME,
+    FEAST_USAGE,
     FEATURE_STORE_YAML_ENV_NAME,
 )
 from feast.entity import Entity
@@ -28,6 +29,7 @@ from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.registry.registry import get_registry_store_class_from_scheme
 from feast.infra.registry.s3 import S3RegistryStore
 from feast.infra.utils import aws_utils
+from feast.usage import log_exceptions_and_usage
 from feast.version import get_version
 
 try:
@@ -41,6 +43,7 @@ _logger = logging.getLogger(__name__)
 
 
 class AwsProvider(PassthroughProvider):
+    @log_exceptions_and_usage(provider="AwsProvider")
     def update_infra(
         self,
         project: str,
@@ -137,7 +140,12 @@ class AwsProvider(PassthroughProvider):
                 Code={"ImageUri": image_uri},
                 PackageType="Image",
                 MemorySize=1769,
-                Environment={"Variables": {FEATURE_STORE_YAML_ENV_NAME: config_base64}},
+                Environment={
+                    "Variables": {
+                        FEATURE_STORE_YAML_ENV_NAME: config_base64,
+                        FEAST_USAGE: "False",
+                    }
+                },
                 Tags={
                     "feast-owned": "True",
                     "project": project,
@@ -192,6 +200,7 @@ class AwsProvider(PassthroughProvider):
                 SourceArn=f"arn:aws:execute-api:{region}:{account_id}:{api_id}/*/*/get-online-features",
             )
 
+    @log_exceptions_and_usage(provider="AwsProvider")
     def teardown_infra(
         self,
         project: str,
@@ -220,6 +229,7 @@ class AwsProvider(PassthroughProvider):
                 _logger.info("  Tearing down AWS API Gateway...")
                 aws_utils.delete_api_gateway(api_gateway_client, api["ApiId"])
 
+    @log_exceptions_and_usage(provider="AwsProvider")
     def get_feature_server_endpoint(self) -> Optional[str]:
         project = self.repo_config.project
         resource_name = _get_lambda_name(project)

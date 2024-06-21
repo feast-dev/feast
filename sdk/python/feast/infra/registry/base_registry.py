@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from google.protobuf.json_format import MessageToJson
-from google.protobuf.message import Message
+from proto import Message
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -30,10 +29,9 @@ from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.substrait_transformation import SubstraitTransformation
 
 
 class BaseRegistry(ABC):
@@ -53,7 +51,6 @@ class BaseRegistry(ABC):
             project: Feast project that this entity belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def delete_entity(self, name: str, project: str, commit: bool = True):
@@ -65,7 +62,6 @@ class BaseRegistry(ABC):
             project: Feast project that this entity belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
@@ -81,7 +77,6 @@ class BaseRegistry(ABC):
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
@@ -95,7 +90,6 @@ class BaseRegistry(ABC):
         Returns:
             List of entities
         """
-        raise NotImplementedError
 
     # Data source operations
     @abstractmethod
@@ -110,7 +104,6 @@ class BaseRegistry(ABC):
             project: Feast project that this data source belongs to
             commit: Whether to immediately commit to the registry
         """
-        raise NotImplementedError
 
     @abstractmethod
     def delete_data_source(self, name: str, project: str, commit: bool = True):
@@ -122,7 +115,6 @@ class BaseRegistry(ABC):
             project: Feast project that this data source belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_data_source(
@@ -139,7 +131,6 @@ class BaseRegistry(ABC):
         Returns:
             Returns either the specified data source, or raises an exception if none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_data_sources(
@@ -155,7 +146,6 @@ class BaseRegistry(ABC):
         Returns:
             List of data sources
         """
-        raise NotImplementedError
 
     # Feature service operations
     @abstractmethod
@@ -169,7 +159,6 @@ class BaseRegistry(ABC):
             feature_service: A feature service that will be registered
             project: Feast project that this entity belongs to
         """
-        raise NotImplementedError
 
     @abstractmethod
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
@@ -181,7 +170,6 @@ class BaseRegistry(ABC):
             project: Feast project that this feature service belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_feature_service(
@@ -199,7 +187,6 @@ class BaseRegistry(ABC):
             Returns either the specified feature service, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_feature_services(
@@ -215,7 +202,6 @@ class BaseRegistry(ABC):
         Returns:
             List of feature services
         """
-        raise NotImplementedError
 
     # Feature view operations
     @abstractmethod
@@ -230,7 +216,6 @@ class BaseRegistry(ABC):
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
@@ -242,13 +227,12 @@ class BaseRegistry(ABC):
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     # stream feature view operations
     @abstractmethod
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> StreamFeatureView:
+    ):
         """
         Retrieves a stream feature view.
 
@@ -261,7 +245,6 @@ class BaseRegistry(ABC):
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_stream_feature_views(
@@ -277,7 +260,6 @@ class BaseRegistry(ABC):
         Returns:
             List of stream feature views
         """
-        raise NotImplementedError
 
     # on demand feature view operations
     @abstractmethod
@@ -296,7 +278,6 @@ class BaseRegistry(ABC):
             Returns either the specified on demand feature view, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_on_demand_feature_views(
@@ -312,7 +293,6 @@ class BaseRegistry(ABC):
         Returns:
             List of on demand feature views
         """
-        raise NotImplementedError
 
     # regular feature view operations
     @abstractmethod
@@ -331,7 +311,6 @@ class BaseRegistry(ABC):
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_feature_views(
@@ -347,7 +326,37 @@ class BaseRegistry(ABC):
         Returns:
             List of feature views
         """
-        raise NotImplementedError
+
+    # request feature view operations
+    @abstractmethod
+    def get_request_feature_view(self, name: str, project: str) -> RequestFeatureView:
+        """
+        Retrieves a request feature view.
+
+        Args:
+            name: Name of request feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+
+    @abstractmethod
+    def list_request_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[RequestFeatureView]:
+        """
+        Retrieve a list of request feature views from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+
+        Returns:
+            List of request feature views
+        """
 
     @abstractmethod
     def apply_materialization(
@@ -368,7 +377,6 @@ class BaseRegistry(ABC):
             end_date (datetime): End date of the materialization interval to track
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     # Saved dataset operations
     @abstractmethod
@@ -386,7 +394,6 @@ class BaseRegistry(ABC):
             project: Feast project that this dataset belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_saved_dataset(
@@ -404,7 +411,6 @@ class BaseRegistry(ABC):
             Returns either the specified SavedDataset, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     def delete_saved_dataset(self, name: str, project: str, allow_cache: bool = False):
         """
@@ -419,7 +425,6 @@ class BaseRegistry(ABC):
             Returns either the specified SavedDataset, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     @abstractmethod
     def list_saved_datasets(
@@ -435,7 +440,6 @@ class BaseRegistry(ABC):
         Returns:
             Returns the list of SavedDatasets
         """
-        raise NotImplementedError
 
     # Validation reference operations
     @abstractmethod
@@ -453,7 +457,6 @@ class BaseRegistry(ABC):
             project: Feast project that this dataset belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
@@ -465,7 +468,6 @@ class BaseRegistry(ABC):
             project: Feast project that this object belongs to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_validation_reference(
@@ -483,12 +485,12 @@ class BaseRegistry(ABC):
             Returns either the specified ValidationReference, or raises an exception if
             none is found
         """
-        raise NotImplementedError
 
     # TODO: Needs to be implemented.
     def list_validation_references(
         self, project: str, allow_cache: bool = False
     ) -> List[ValidationReference]:
+
         """
         Retrieve a list of validation references from the registry
 
@@ -499,9 +501,7 @@ class BaseRegistry(ABC):
         Returns:
             List of request feature views
         """
-        raise NotImplementedError
 
-    @abstractmethod
     def list_project_metadata(
         self, project: str, allow_cache: bool = False
     ) -> List[ProjectMetadata]:
@@ -515,7 +515,6 @@ class BaseRegistry(ABC):
         Returns:
             List of project metadata
         """
-        raise NotImplementedError
 
     @abstractmethod
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
@@ -527,7 +526,6 @@ class BaseRegistry(ABC):
             project: Feast project that the Infra object refers to
             commit: Whether the change should be persisted immediately
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
@@ -541,7 +539,6 @@ class BaseRegistry(ABC):
         Returns:
             The stored Infra object.
         """
-        raise NotImplementedError
 
     @abstractmethod
     def apply_user_metadata(
@@ -549,12 +546,14 @@ class BaseRegistry(ABC):
         project: str,
         feature_view: BaseFeatureView,
         metadata_bytes: Optional[bytes],
-    ): ...
+    ):
+        ...
 
     @abstractmethod
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
-    ) -> Optional[bytes]: ...
+    ) -> Optional[bytes]:
+        ...
 
     @abstractmethod
     def proto(self) -> RegistryProto:
@@ -564,17 +563,14 @@ class BaseRegistry(ABC):
         Returns:
             The registry proto object.
         """
-        raise NotImplementedError
 
     @abstractmethod
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""
-        raise NotImplementedError
 
     @abstractmethod
     def refresh(self, project: Optional[str] = None):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
-        raise NotImplementedError
 
     @staticmethod
     def _message_to_sorted_dict(message: Message) -> Dict[str, Any]:
@@ -626,51 +622,28 @@ class BaseRegistry(ABC):
             key=lambda on_demand_feature_view: on_demand_feature_view.name,
         ):
             odfv_dict = self._message_to_sorted_dict(on_demand_feature_view.to_proto())
-            # We are logging a warning because the registry object may be read from a proto that is not updated
-            # i.e., we have to submit dual writes but in order to ensure the read behavior succeeds we have to load
-            # both objects to compare any changes in the registry
-            warnings.warn(
-                "We will be deprecating the usage of spec.userDefinedFunction in a future release please upgrade cautiously.",
-                DeprecationWarning,
+
+            odfv_dict["spec"]["userDefinedFunction"][
+                "body"
+            ] = on_demand_feature_view.udf_string
+            registry_dict["onDemandFeatureViews"].append(odfv_dict)
+        for request_feature_view in sorted(
+            self.list_request_feature_views(project=project),
+            key=lambda request_feature_view: request_feature_view.name,
+        ):
+            registry_dict["requestFeatureViews"].append(
+                self._message_to_sorted_dict(request_feature_view.to_proto())
             )
-            if on_demand_feature_view.feature_transformation:
-                if isinstance(
-                    on_demand_feature_view.feature_transformation, PandasTransformation
-                ):
-                    if "userDefinedFunction" not in odfv_dict["spec"]:
-                        odfv_dict["spec"]["userDefinedFunction"] = {}
-                    odfv_dict["spec"]["userDefinedFunction"]["body"] = (
-                        on_demand_feature_view.feature_transformation.udf_string
-                    )
-                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
-                        "body"
-                    ] = on_demand_feature_view.feature_transformation.udf_string
-                elif isinstance(
-                    on_demand_feature_view.feature_transformation,
-                    SubstraitTransformation,
-                ):
-                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
-                        "body"
-                    ] = on_demand_feature_view.feature_transformation.substrait_plan
-                else:
-                    odfv_dict["spec"]["featureTransformation"]["userDefinedFunction"][
-                        "body"
-                    ] = None
-                    odfv_dict["spec"]["featureTransformation"]["substraitPlan"][
-                        "body"
-                    ] = None
-                registry_dict["onDemandFeatureViews"].append(odfv_dict)
         for stream_feature_view in sorted(
             self.list_stream_feature_views(project=project),
             key=lambda stream_feature_view: stream_feature_view.name,
         ):
             sfv_dict = self._message_to_sorted_dict(stream_feature_view.to_proto())
 
-            sfv_dict["spec"]["userDefinedFunction"]["body"] = (
-                stream_feature_view.udf_string
-            )
+            sfv_dict["spec"]["userDefinedFunction"][
+                "body"
+            ] = stream_feature_view.udf_string
             registry_dict["streamFeatureViews"].append(sfv_dict)
-
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):

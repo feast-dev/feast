@@ -17,7 +17,6 @@
 """
 Hazelcast online store for Feast.
 """
-
 import base64
 import threading
 from datetime import datetime, timezone
@@ -35,6 +34,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.usage import log_exceptions_and_usage
 
 # Exception messages
 EXCEPTION_HAZELCAST_UNEXPECTED_CONFIGURATION_CLASS = (
@@ -142,6 +142,7 @@ class HazelcastOnlineStore(OnlineStore):
                         )
         return self._client
 
+    @log_exceptions_and_usage(online_store="hazelcast")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -199,6 +200,7 @@ class HazelcastOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+
         online_store_config = config.online_store
         if not isinstance(online_store_config, HazelcastOnlineStoreConfig):
             raise HazelcastInvalidConfig(

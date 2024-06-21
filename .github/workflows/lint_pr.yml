@@ -7,14 +7,9 @@ on:
       - edited
       - synchronize
 
-permissions:
-  # read-only perms specified due to use of pull_request_target in lieu of security label check
-  pull-requests: read
-
 jobs:
   validate-title:
-    if:
-      github.repository == 'feast-dev/feast'
+    if: github.repository == 'feast-dev/feast'
     name: Validate PR title
     runs-on: ubuntu-latest
     steps:

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "feast-feature-server.fullname" . }}
+  name: {{ include "feast-feature-server.name" . }}
   labels:
     {{- include "feast-feature-server.labels" . | nindent 4 }}
 spec:

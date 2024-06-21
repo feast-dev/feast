@@ -29,7 +29,6 @@ import "feast/core/FeatureView.proto";
 import "feast/core/Feature.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Aggregation.proto";
-import "feast/core/Transformation.proto";
 
 message StreamFeatureView {
     // User-specified specifications of this feature view.
@@ -78,8 +77,7 @@ message StreamFeatureViewSpec {
     bool online = 12;
 
     // Serialized function that is encoded in the streamfeatureview
-    UserDefinedFunction user_defined_function = 13 [deprecated = true];
-
+    UserDefinedFunction user_defined_function = 13;
 
     // Mode of execution
     string mode = 14;
@@ -89,8 +87,5 @@ message StreamFeatureViewSpec {
 
     // Timestamp field for aggregation
     string timestamp_field = 16;
-
-    // Oneof with {user_defined_function, on_demand_substrait_transformation}
-    FeatureTransformationV2 feature_transformation = 17;
 }
 

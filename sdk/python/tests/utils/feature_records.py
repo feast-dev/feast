@@ -260,7 +260,7 @@ def get_expected_training_df(
     if "val_to_add" in expected_df.columns:
         expected_df[
             get_response_feature_name("conv_rate_plus_val_to_add", full_feature_names)
-        ] = expected_df[conv_feature_name] + expected_df["val_to_add"]
+        ] = (expected_df[conv_feature_name] + expected_df["val_to_add"])
 
     return expected_df
 
@@ -291,6 +291,7 @@ def assert_feature_service_correctness(
     expected_df,
     event_timestamp,
 ):
+
     job_from_df = store.get_historical_features(
         entity_df=entity_df,
         features=store.get_feature_service(feature_service.name),

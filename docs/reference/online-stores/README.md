@@ -22,10 +22,6 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
-{% content-ref url="ikv.md" %}
-[ikv.md](ikv.md)
-{% endcontent-ref %}
-
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
@@ -58,6 +54,4 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 [hazelcast.md](hazelcast.md)
 {% endcontent-ref %}
 
-{% content-ref url="scylladb.md" %}
-[scylladb.md](scylladb.md)
-{% endcontent-ref %}
+

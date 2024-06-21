@@ -123,54 +123,43 @@ Note that this means if you are midway through working through a PR and rebase, 
 Setting up your development environment for Feast Python SDK / CLI:
 1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
    - Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
-   - _Alternatively_ - To use [podman](https://podman.io/) on a Fedora or RHEL machine, follow this [guide](https://github.com/feast-dev/feast/issues/4190)
-2. Ensure that you have `make` and Python (3.9 or above) installed.
+2. Ensure that you have `make`, Python (3.8 and above) with `pip`, installed.
 3. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
   ```sh
   # create & activate a virtual environment
   python -m venv venv/
   source venv/bin/activate
   ```
-4. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
-5. Install uv
-It is recommended to use uv for managing python dependencies.
-```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-or
-```ssh
-pip install uv
-```
-6. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
+4. Upgrade `pip` if outdated
+  ```sh
+  pip install --upgrade pip
+  ```
+5. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
+6. Install pip-tools
+  ```sh
+  pip install pip-tools
+  ```
+7. (Optional): Install Node & Yarn. Then run the following to build Feast UI artifacts for use in `feast ui`
 ```
 make build-ui
 ```
-7. (Optional) install pixi
-pixi is necessary to run step 8 for all python versions at once.
+8. Install mysql (needed for ci dependencies)
 ```sh
-curl -fsSL https://pixi.sh/install.sh | bash
+brew install mysql
 ```
-8. (Optional): Recompile python lock files
-If you make changes to requirements or simply want to update python lock files to reflect latest versioons.
-```sh
-make lock-python-dependencies-all
-``` 
 9. Install development dependencies for Feast Python SDK / CLI
-This will install package versions from the lock file, install editable version of feast and compile protobufs.
 ```sh
-make install-python-ci-dependencies-uv
+pip install -e ".[dev]"
 ```
-10. Spin up Docker Image
-```sh
-docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .
-```
+
+This will allow the installed feast version to automatically reflect changes to your local development version of Feast without needing to reinstall everytime you make code changes.
 
 ### Code Style & Linting
 Feast Python SDK / CLI codebase:
 - Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
 - Has type annotations as enforced by `mypy`
-- Has imports sorted by `ruff` (see [isort (I) rules](https://docs.astral.sh/ruff/rules/#isort-i))
-- Is lintable by `ruff`
+- Has imports sorted by `isort`
+- Is lintable by `flake8`
 
 To ensure your Python code conforms to Feast Python code standards:
 - Autoformat your code to conform to the code style:
@@ -188,7 +177,7 @@ make lint-python
 ### Unit Tests
 Unit tests (`pytest`) for the Feast Python SDK / CLI can run as follows:
 ```sh
-make test-python-unit
+make test-python
 ```
 
 > :warning: Local configuration can interfere with Unit tests and cause them to fail:

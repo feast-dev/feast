@@ -1,7 +1,7 @@
 import logging
 import threading
 from concurrent import futures
-from typing import Optional, Union
+from typing import Optional
 
 import grpc
 import pandas as pd
@@ -9,7 +9,6 @@ from grpc_health.v1 import health, health_pb2_grpc
 
 from feast.data_source import PushMode
 from feast.errors import FeatureServiceNotFoundException, PushSourceNotFoundException
-from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.protos.feast.serving.GrpcServer_pb2 import (
     PushResponse,
@@ -101,10 +100,8 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
         if request.HasField("feature_service"):
             logger.info(f"Requesting feature service: {request.feature_service}")
             try:
-                features: Union[list[str], FeatureService] = (
-                    self.fs.get_feature_service(
-                        request.feature_service, allow_cache=True
-                    )
+                features = self.fs.get_feature_service(
+                    request.feature_service, allow_cache=True
                 )
             except FeatureServiceNotFoundException as e:
                 logger.error(f"Feature service {request.feature_service} not found")

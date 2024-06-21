@@ -20,6 +20,7 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class RedshiftDataSourceCreator(DataSourceCreator):
+
     tables: List[str] = []
 
     def __init__(self, project_name: str, *args, **kwargs):
@@ -30,30 +31,29 @@ class RedshiftDataSourceCreator(DataSourceCreator):
         self.s3 = aws_utils.get_s3_resource(os.getenv("AWS_REGION", "us-west-2"))
 
         self.offline_store_config = RedshiftOfflineStoreConfig(
-            cluster_id=os.getenv("AWS_CLUSTER_ID", "feast-int-bucket"),
+            cluster_id=os.getenv("AWS_CLUSTER_ID", "feast-integration-tests"),
             region=os.getenv("AWS_REGION", "us-west-2"),
             user=os.getenv("AWS_USER", "admin"),
             database=os.getenv("AWS_DB", "feast"),
             s3_staging_location=os.getenv(
                 "AWS_STAGING_LOCATION",
-                "s3://feast-int-bucket/redshift/tests/ingestion",
+                "s3://feast-integration-tests/redshift/tests/ingestion",
             ),
             iam_role=os.getenv(
-                "AWS_IAM_ROLE",
-                "arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
+                "AWS_IAM_ROLE", "arn:aws:iam::402087665549:role/redshift_s3_access_role"
             ),
-            workgroup="",
         )
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
+        suffix: Optional[str] = None,
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+        field_mapping: Dict[str, str] = None,
     ) -> DataSource:
+
         destination_name = self.get_prefixed_table_name(destination_name)
 
         aws_utils.upload_df_to_redshift(

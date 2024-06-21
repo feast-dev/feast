@@ -2,19 +2,20 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     StrictInt,
     StrictStr,
     ValidationError,
-    field_validator,
-    model_validator,
+    root_validator,
+    validator,
 )
+from pydantic.error_wrappers import ErrorWrapper
+from pydantic.typing import Dict, Optional
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
@@ -26,6 +27,7 @@ from feast.errors import (
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
+from feast.usage import log_exceptions
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -38,14 +40,13 @@ REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
-    "remote": "feast.infra.registry.remote.RemoteRegistry",
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.kubernetes_materialization_engine.KubernetesMaterializationEngine",
+    "bytewax": "feast.infra.materialization.contrib.bytewax.bytewax_materialization_engine.BytewaxMaterializationEngine",
     "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
 }
 
@@ -62,8 +63,6 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
     "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
-    "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -76,7 +75,6 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStore",
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
-    "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -95,13 +93,17 @@ FEATURE_SERVER_TYPE_FOR_PROVIDER = {
 class FeastBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
 
 
 class FeastConfigBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "forbid"
 
 
 class RegistryConfig(FeastBaseModel):
@@ -110,7 +112,7 @@ class RegistryConfig(FeastBaseModel):
     registry_type: StrictStr = "file"
     """ str: Provider name or a class name that implements Registry."""
 
-    registry_store_type: Optional[StrictStr] = None
+    registry_store_type: Optional[StrictStr]
     """ str: Provider name or a class name that implements RegistryStore. """
 
     path: StrictStr = ""
@@ -124,11 +126,8 @@ class RegistryConfig(FeastBaseModel):
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
-    s3_additional_kwargs: Optional[Dict[str, str]] = None
+    s3_additional_kwargs: Optional[Dict[str, str]]
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
-
-    sqlalchemy_config_kwargs: Dict[str, Any] = {}
-    """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
 
 class RepoConfig(FeastBaseModel):
@@ -143,7 +142,7 @@ class RepoConfig(FeastBaseModel):
     provider: StrictStr
     """ str: local or gcp or aws """
 
-    registry_config: Any = Field(alias="registry", default="data/registry.db")
+    _registry_config: Any = Field(alias="registry", default="data/registry.db")
     """ Configures the registry.
         Can be:
             1. str: a path to a file based registry (a local path, or remote object storage path, e.g. a GCS URI)
@@ -151,19 +150,19 @@ class RepoConfig(FeastBaseModel):
             3. SnowflakeRegistryConfig: Using a Snowflake table to store the registry
     """
 
-    online_config: Any = Field(None, alias="online_store")
+    _online_config: Any = Field(alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    offline_config: Any = Field(None, alias="offline_store")
+    _offline_config: Any = Field(alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
-    batch_engine_config: Any = Field(None, alias="batch_engine")
+    _batch_engine_config: Any = Field(alias="batch_engine")
     """ BatchMaterializationEngine: Batch materialization configuration (optional depending on provider)"""
 
-    feature_server: Optional[Any] = None
+    feature_server: Optional[Any]
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
-    flags: Any = None
+    flags: Any
     """ Flags (deprecated field): Feature flags for experimental features """
 
     repo_path: Optional[Path] = None
@@ -188,42 +187,42 @@ class RepoConfig(FeastBaseModel):
         self._registry = None
         if "registry" not in data:
             raise FeastRegistryNotSetError()
-        self.registry_config = data["registry"]
+        self._registry_config = data["registry"]
 
         self._offline_store = None
         if "offline_store" in data:
-            self.offline_config = data["offline_store"]
+            self._offline_config = data["offline_store"]
         else:
             if data["provider"] == "local":
-                self.offline_config = "file"
+                self._offline_config = "file"
             elif data["provider"] == "gcp":
-                self.offline_config = "bigquery"
+                self._offline_config = "bigquery"
             elif data["provider"] == "aws":
-                self.offline_config = "redshift"
+                self._offline_config = "redshift"
             elif data["provider"] == "azure":
-                self.offline_config = "mssql"
+                self._offline_config = "mssql"
 
         self._online_store = None
         if "online_store" in data:
-            self.online_config = data["online_store"]
+            self._online_config = data["online_store"]
         else:
             if data["provider"] == "local":
-                self.online_config = "sqlite"
+                self._online_config = "sqlite"
             elif data["provider"] == "gcp":
-                self.online_config = "datastore"
+                self._online_config = "datastore"
             elif data["provider"] == "aws":
-                self.online_config = "dynamodb"
+                self._online_config = "dynamodb"
             elif data["provider"] == "rockset":
-                self.online_config = "rockset"
+                self._online_config = "rockset"
 
         self._batch_engine = None
         if "batch_engine" in data:
-            self.batch_engine_config = data["batch_engine"]
+            self._batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
-            self.batch_engine_config = data["batch_engine_config"]
+            self._batch_engine_config = data["batch_engine_config"]
         else:
             # Defaults to using local in-process materialization engine.
-            self.batch_engine_config = "local"
+            self._batch_engine_config = "local"
 
         if isinstance(self.feature_server, Dict):
             self.feature_server = get_feature_server_config_from_type(
@@ -243,70 +242,71 @@ class RepoConfig(FeastBaseModel):
     @property
     def registry(self):
         if not self._registry:
-            if isinstance(self.registry_config, Dict):
-                if "registry_type" in self.registry_config:
+            if isinstance(self._registry_config, Dict):
+                if "registry_type" in self._registry_config:
                     self._registry = get_registry_config_from_type(
-                        self.registry_config["registry_type"]
-                    )(**self.registry_config)
+                        self._registry_config["registry_type"]
+                    )(**self._registry_config)
                 else:
                     # This may be a custom registry store, which does not need a 'registry_type'
-                    self._registry = RegistryConfig(**self.registry_config)
-            elif isinstance(self.registry_config, str):
+                    self._registry = RegistryConfig(**self._registry_config)
+            elif isinstance(self._registry_config, str):
                 # User passed in just a path to file registry
                 self._registry = get_registry_config_from_type("file")(
-                    path=self.registry_config
+                    path=self._registry_config
                 )
-            elif self.registry_config:
-                self._registry = self.registry_config
+            elif self._registry_config:
+                self._registry = self._registry_config
         return self._registry
 
     @property
     def offline_store(self):
         if not self._offline_store:
-            if isinstance(self.offline_config, Dict):
+            if isinstance(self._offline_config, Dict):
                 self._offline_store = get_offline_config_from_type(
-                    self.offline_config["type"]
-                )(**self.offline_config)
-            elif isinstance(self.offline_config, str):
+                    self._offline_config["type"]
+                )(**self._offline_config)
+            elif isinstance(self._offline_config, str):
                 self._offline_store = get_offline_config_from_type(
-                    self.offline_config
+                    self._offline_config
                 )()
-            elif self.offline_config:
-                self._offline_store = self.offline_config
+            elif self._offline_config:
+                self._offline_store = self._offline_config
         return self._offline_store
 
     @property
     def online_store(self):
         if not self._online_store:
-            if isinstance(self.online_config, Dict):
+            if isinstance(self._online_config, Dict):
                 self._online_store = get_online_config_from_type(
-                    self.online_config["type"]
-                )(**self.online_config)
-            elif isinstance(self.online_config, str):
-                self._online_store = get_online_config_from_type(self.online_config)()
-            elif self.online_config:
-                self._online_store = self.online_config
+                    self._online_config["type"]
+                )(**self._online_config)
+            elif isinstance(self._online_config, str):
+                self._online_store = get_online_config_from_type(self._online_config)()
+            elif self._online_config:
+                self._online_store = self._online_config
 
         return self._online_store
 
     @property
     def batch_engine(self):
         if not self._batch_engine:
-            if isinstance(self.batch_engine_config, Dict):
+            if isinstance(self._batch_engine_config, Dict):
                 self._batch_engine = get_batch_engine_config_from_type(
-                    self.batch_engine_config["type"]
-                )(**self.batch_engine_config)
-            elif isinstance(self.batch_engine_config, str):
+                    self._batch_engine_config["type"]
+                )(**self._batch_engine_config)
+            elif isinstance(self._batch_engine_config, str):
                 self._batch_engine = get_batch_engine_config_from_type(
-                    self.batch_engine_config
+                    self._batch_engine_config
                 )()
-            elif self.batch_engine_config:
+            elif self._batch_engine_config:
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
 
-    @model_validator(mode="before")
-    def _validate_online_store_config(cls, values: Any) -> Any:
+    @root_validator(pre=True)
+    @log_exceptions
+    def _validate_online_store_config(cls, values):
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to
         # impute the default online store type based on the selected provider. For the time being this method should be
@@ -347,12 +347,14 @@ class RepoConfig(FeastBaseModel):
             online_config_class = get_online_config_from_type(online_store_type)
             online_config_class(**values["online_store"])
         except ValidationError as e:
-            raise e
+            raise ValidationError(
+                [ErrorWrapper(e, loc="online_store")],
+                model=RepoConfig,
+            )
         return values
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_offline_store_config(cls, values: Any) -> Any:
+    @root_validator(pre=True)
+    def _validate_offline_store_config(cls, values):
         # Set empty offline_store config if it isn't set explicitly
         if "offline_store" not in values:
             values["offline_store"] = dict()
@@ -383,13 +385,15 @@ class RepoConfig(FeastBaseModel):
             offline_config_class = get_offline_config_from_type(offline_store_type)
             offline_config_class(**values["offline_store"])
         except ValidationError as e:
-            raise e
+            raise ValidationError(
+                [ErrorWrapper(e, loc="offline_store")],
+                model=RepoConfig,
+            )
 
         return values
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_feature_server_config(cls, values: Any) -> Any:
+    @root_validator(pre=True)
+    def _validate_feature_server_config(cls, values):
         # Having no feature server is the default.
         if "feature_server" not in values:
             return values
@@ -416,13 +420,15 @@ class RepoConfig(FeastBaseModel):
             )
             feature_server_config_class(**values["feature_server"])
         except ValidationError as e:
-            raise e
+            raise ValidationError(
+                [ErrorWrapper(e, loc="feature_server")],
+                model=RepoConfig,
+            )
 
         return values
 
-    @field_validator("project")
-    @classmethod
-    def _validate_project_name(cls, v: str) -> str:
+    @validator("project")
+    def _validate_project_name(cls, v):
         from feast.repo_operations import is_valid_name
 
         if not is_valid_name(v):
@@ -432,11 +438,10 @@ class RepoConfig(FeastBaseModel):
             )
         return v
 
-    @field_validator("flags")
-    @classmethod
-    def _validate_flags(cls, v: Optional[dict]) -> Optional[dict]:
-        if not isinstance(v, dict):
-            return v
+    @validator("flags")
+    def _validate_flags(cls, v):
+        if not isinstance(v, Dict):
+            return
 
         _logger.warning(
             "Flags are no longer necessary in Feast. Experimental features will log warnings instead."
@@ -458,7 +463,8 @@ class RepoConfig(FeastBaseModel):
                 sort_keys=False,
             )
 
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        allow_population_by_field_name = True
 
 
 class FeastConfigError(Exception):

@@ -22,7 +22,7 @@ from feast.errors import (
     RedshiftTableNameTooLong,
 )
 from feast.type_map import pa_to_athena_value_type, pa_to_redshift_value_type
-from feast.utils import get_user_agent
+from feast.usage import get_user_agent
 
 try:
     import boto3
@@ -351,14 +351,7 @@ def upload_arrow_table_to_redshift(
     else:
         # Write the PyArrow Table on disk in Parquet format and upload it to S3
         with tempfile.TemporaryFile(suffix=".parquet") as parquet_temp_file:
-            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
-            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
-            pq.write_table(
-                table,
-                parquet_temp_file,
-                coerce_timestamps="us",
-                allow_truncated_timestamps=True,
-            )
+            pq.write_table(table, parquet_temp_file)
             parquet_temp_file.seek(0)
             s3_resource.Object(bucket, key).put(Body=parquet_temp_file)
 
@@ -816,7 +809,7 @@ def execute_athena_query(
     database: str,
     workgroup: str,
     query: str,
-    temp_table: Optional[str] = None,
+    temp_table: str = None,
 ) -> str:
     """Execute athena statement synchronously. Waits for the query to finish.
 

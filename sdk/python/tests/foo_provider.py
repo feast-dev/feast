@@ -7,7 +7,6 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import Entity, FeatureService, FeatureView, RepoConfig
-from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
@@ -72,25 +71,16 @@ class FooProvider(Provider):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        return RetrievalJob()
+        pass
 
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        return []
-
-    async def online_read_async(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        return []
+        pass
 
     def retrieve_saved_dataset(self, config: RepoConfig, dataset: SavedDataset):
         pass
@@ -112,29 +102,4 @@ class FooProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ) -> RetrievalJob:
-        return RetrievalJob()
-
-    def retrieve_online_documents(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        requested_feature: str,
-        query: List[float],
-        top_k: int,
-        distance_metric: Optional[str] = None,
-    ) -> List[
-        Tuple[
-            Optional[datetime],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-        ]
-    ]:
-        return []
-
-    def validate_data_source(
-        self,
-        config: RepoConfig,
-        data_source: DataSource,
-    ):
         pass

@@ -13,20 +13,13 @@
 # limitations under the License.
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Type
 
 from google.protobuf.json_format import MessageToJson
-from google.protobuf.message import Message
+from proto import Message
 
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
-    OnDemandFeatureView as OnDemandFeatureViewProto,
-)
-from feast.protos.feast.core.StreamFeatureView_pb2 import (
-    StreamFeatureView as StreamFeatureViewProto,
-)
 
 
 class BaseFeatureView(ABC):
@@ -96,9 +89,7 @@ class BaseFeatureView(ABC):
         pass
 
     @abstractmethod
-    def to_proto(
-        self,
-    ) -> Union[FeatureViewProto, OnDemandFeatureViewProto, StreamFeatureViewProto]:
+    def to_proto(self) -> Message:
         pass
 
     @classmethod

@@ -105,6 +105,7 @@ def test_3rd_party_registry_store_with_fs_yaml_override_by_env_var() -> None:
 @contextmanager
 def setup_third_party_provider_repo(provider_name: str):
     with tempfile.TemporaryDirectory() as repo_dir_name:
+
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
 
@@ -140,6 +141,7 @@ def setup_third_party_registry_store_repo(
     registry_store: str, fs_yaml_file_name: str = "feature_store.yaml"
 ):
     with tempfile.TemporaryDirectory() as repo_dir_name:
+
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
 
