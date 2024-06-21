@@ -389,3 +389,13 @@ class DataFrameSerializationError(Exception):
         super().__init__(
             f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
         )
+
+
+class ZeroRowsQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero rows:\n{query}")
+
+
+class ZeroColumnQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero columns:\n{query}")
