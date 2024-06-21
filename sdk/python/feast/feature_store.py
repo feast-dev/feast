@@ -2109,7 +2109,7 @@ class FeatureStore:
         else:
             prediction_response = self.get_online_features(
                 entity_rows=entity_rows,
-                features=model_field,
+                features=[model_field],
             )
             # TODO: if null we need to compute it, presumably for the first time
         return prediction_response

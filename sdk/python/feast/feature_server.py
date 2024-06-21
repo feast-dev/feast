@@ -257,7 +257,7 @@ def start_server(
         uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
 
 
-def _get_features_from_body(store: "feast.FeatureStore", body: Request):
+def _get_features_from_body(store: "feast.FeatureStore", body):
     body = json.loads(body)
     # Initialize parameters for FeatureStore.get_online_features(...) call
     if "feature_service" in body:
