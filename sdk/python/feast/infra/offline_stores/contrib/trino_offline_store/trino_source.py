@@ -182,6 +182,7 @@ class TrinoSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+
         assert data_source.HasField("trino_options")
 
         return TrinoSource(

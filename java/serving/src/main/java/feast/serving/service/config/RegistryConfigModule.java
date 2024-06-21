@@ -18,9 +18,6 @@ package feast.serving.service.config;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.azure.identity.DefaultAzureCredentialBuilder;
-import com.azure.storage.blob.BlobServiceClient;
-import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.inject.AbstractModule;
@@ -41,37 +38,16 @@ public class RegistryConfigModule extends AbstractModule {
 
   @Provides
   public AmazonS3 awsStorage(ApplicationProperties applicationProperties) {
-    AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
-    String region = applicationProperties.getFeast().getAwsRegion();
-
-    if (region != null) {
-      builder = builder.withRegion(region);
-    }
-
-    return builder.build();
-  }
-
-  @Provides
-  public BlobServiceClient azureStorage(ApplicationProperties applicationProperties) {
-
-    BlobServiceClient blobServiceClient =
-        new BlobServiceClientBuilder()
-            .endpoint(
-                String.format(
-                    "https://%s.blob.core.windows.net",
-                    applicationProperties.getFeast().getAzureStorageAccount()))
-            .credential(new DefaultAzureCredentialBuilder().build())
-            .buildClient();
-
-    return blobServiceClient;
+    return AmazonS3ClientBuilder.standard()
+        .withRegion(applicationProperties.getFeast().getAwsRegion())
+        .build();
   }
 
   @Provides
   RegistryFile registryFile(
       ApplicationProperties applicationProperties,
       Provider<Storage> storageProvider,
-      Provider<AmazonS3> amazonS3Provider,
-      Provider<BlobServiceClient> azureProvider) {
+      Provider<AmazonS3> amazonS3Provider) {
 
     String registryPath = applicationProperties.getFeast().getRegistry();
     Optional<String> scheme = Optional.ofNullable(URI.create(registryPath).getScheme());
@@ -81,8 +57,6 @@ public class RegistryConfigModule extends AbstractModule {
         return new GSRegistryFile(storageProvider.get(), registryPath);
       case "s3":
         return new S3RegistryFile(amazonS3Provider.get(), registryPath);
-      case "az":
-        return new AzureRegistryFile(azureProvider.get(), registryPath);
       case "":
       case "file":
         return new LocalRegistryFile(registryPath);

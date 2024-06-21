@@ -30,13 +30,14 @@ jobs:
       next_version: ${{ steps.get_versions.outputs.next_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "lts/*"
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Release (Dry Run)
         id: get_versions
         run: |
@@ -58,11 +59,11 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: "lts/*"
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Bump file versions
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
@@ -99,11 +100,11 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: "lts/*"
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Bump file versions (temporarily for Web UI publish)
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
@@ -132,13 +133,14 @@ jobs:
       GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: "lts/*"
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
     - name: Set up Homebrew
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@master

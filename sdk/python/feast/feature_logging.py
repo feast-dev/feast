@@ -86,15 +86,15 @@ class FeatureServiceLoggingSource(LoggingSource):
                     fields[join_key] = FEAST_TYPE_TO_ARROW_TYPE[entity_column.dtype]
 
             for feature in projection.features:
-                fields[f"{projection.name_to_use()}__{feature.name}"] = (
-                    FEAST_TYPE_TO_ARROW_TYPE[feature.dtype]
-                )
-                fields[f"{projection.name_to_use()}__{feature.name}__timestamp"] = (
-                    PA_TIMESTAMP_TYPE
-                )
-                fields[f"{projection.name_to_use()}__{feature.name}__status"] = (
-                    pa.int32()
-                )
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}"
+                ] = FEAST_TYPE_TO_ARROW_TYPE[feature.dtype]
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}__timestamp"
+                ] = PA_TIMESTAMP_TYPE
+                fields[
+                    f"{projection.name_to_use()}__{feature.name}__status"
+                ] = pa.int32()
 
         # system columns
         fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=UTC)

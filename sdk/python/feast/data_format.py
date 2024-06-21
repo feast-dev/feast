@@ -43,8 +43,6 @@ class FileFormat(ABC):
         fmt = proto.WhichOneof("format")
         if fmt == "parquet_format":
             return ParquetFormat()
-        elif fmt == "delta_format":
-            return DeltaFormat()
         if fmt is None:
             return None
         raise NotImplementedError(f"FileFormat is unsupported: {fmt}")
@@ -66,18 +64,6 @@ class ParquetFormat(FileFormat):
 
     def __str__(self):
         return "parquet"
-
-
-class DeltaFormat(FileFormat):
-    """
-    Defines delta data format
-    """
-
-    def to_proto(self):
-        return FileFormatProto(delta_format=FileFormatProto.DeltaFormat())
-
-    def __str__(self):
-        return "delta"
 
 
 class StreamFormat(ABC):

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import enum
 import warnings
 from abc import ABC, abstractmethod
@@ -484,12 +485,12 @@ class KafkaSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        raise NotImplementedError
+        pass
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -533,12 +534,12 @@ class RequestSource(DataSource):
         self.schema = schema
 
     def validate(self, config: RepoConfig):
-        raise NotImplementedError
+        pass
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        pass
 
     def __eq__(self, other):
         if not isinstance(other, RequestSource):
@@ -576,6 +577,7 @@ class RequestSource(DataSource):
         )
 
     def to_proto(self) -> DataSourceProto:
+
         schema_pb = []
 
         if isinstance(self.schema, Dict):
@@ -608,12 +610,12 @@ class RequestSource(DataSource):
 @typechecked
 class KinesisSource(DataSource):
     def validate(self, config: RepoConfig):
-        raise NotImplementedError
+        pass
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
@@ -637,7 +639,7 @@ class KinesisSource(DataSource):
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        raise NotImplementedError
+        pass
 
     def get_table_query_string(self) -> str:
         raise NotImplementedError
@@ -770,12 +772,12 @@ class PushSource(DataSource):
         return super().__hash__()
 
     def validate(self, config: RepoConfig):
-        raise NotImplementedError
+        pass
 
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):

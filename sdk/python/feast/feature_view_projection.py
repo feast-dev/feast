@@ -53,7 +53,7 @@ class FeatureViewProjection:
     def from_proto(proto: FeatureViewProjectionProto):
         feature_view_projection = FeatureViewProjection(
             name=proto.feature_view_name,
-            name_alias=proto.feature_view_name_alias or None,
+            name_alias=proto.feature_view_name_alias,
             features=[],
             join_key_map=dict(proto.join_key_map),
             desired_features=[],

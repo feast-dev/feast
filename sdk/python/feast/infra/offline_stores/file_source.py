@@ -1,14 +1,12 @@
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-import pyarrow
-from packaging import version
 from pyarrow._fs import FileSystem
 from pyarrow._s3fs import S3FileSystem
 from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
 from feast import type_map
-from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
+from feast.data_format import FileFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -157,39 +155,18 @@ class FileSource(DataSource):
         filesystem, path = FileSource.create_filesystem_and_path(
             self.path, self.file_options.s3_endpoint_override
         )
-
-        # TODO why None check necessary
-        if self.file_format is None or isinstance(self.file_format, ParquetFormat):
-            if filesystem is None:
-                kwargs = (
-                    {"use_legacy_dataset": False}
-                    if version.parse(pyarrow.__version__) < version.parse("15.0.0")
-                    else {}
-                )
-
-                schema = ParquetDataset(path, **kwargs).schema
-                if hasattr(schema, "names") and hasattr(schema, "types"):
-                    # Newer versions of pyarrow doesn't have this method,
-                    # but this field is good enough.
-                    pass
-                else:
-                    schema = schema.to_arrow_schema()
+        # Adding support for different file format path
+        # based on S3 filesystem
+        if filesystem is None:
+            schema = ParquetDataset(path, use_legacy_dataset=False).schema
+            if hasattr(schema, "names") and hasattr(schema, "types"):
+                # Newer versions of pyarrow doesn't have this method,
+                # but this field is good enough.
+                pass
             else:
-                schema = ParquetDataset(path, filesystem=filesystem).schema
-        elif isinstance(self.file_format, DeltaFormat):
-            from deltalake import DeltaTable
-
-            storage_options = {
-                "AWS_ENDPOINT_URL": str(self.s3_endpoint_override),
-            }
-
-            schema = (
-                DeltaTable(self.path, storage_options=storage_options)
-                .schema()
-                .to_pyarrow()
-            )
+                schema = schema.to_arrow_schema()
         else:
-            raise Exception(f"Unknown FileFormat -> {self.file_format}")
+            schema = ParquetDataset(path, filesystem=filesystem).schema
 
         return zip(schema.names, map(str, schema.types))
 
@@ -206,7 +183,7 @@ class FileSource(DataSource):
             return None, path
 
     def get_table_query_string(self) -> str:
-        raise NotImplementedError
+        pass
 
 
 class FileOptions:

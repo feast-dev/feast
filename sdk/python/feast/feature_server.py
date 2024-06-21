@@ -1,24 +1,23 @@
 import json
-import sys
 import threading
 import traceback
 import warnings
-from contextlib import asynccontextmanager
 from typing import List, Optional
 
+import gunicorn.app.base
 import pandas as pd
 from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.json_format import MessageToDict, Parse
 from pydantic import BaseModel
 
 import feast
 from feast import proto_json, utils
-from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
+from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
 
 
 # TODO: deprecate this in favor of push features
@@ -46,21 +45,17 @@ class MaterializeIncrementalRequest(BaseModel):
     feature_views: Optional[List[str]] = None
 
 
-def get_app(
-    store: "feast.FeatureStore",
-    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
-):
+def get_app(store: "feast.FeatureStore", registry_ttl_sec: int = 5):
     proto_json.patch()
+
+    app = FastAPI()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
-    def stop_refresh():
-        nonlocal shutting_down
-        shutting_down = True
-        if active_timer:
-            active_timer.cancel()
+    async def get_body(request: Request):
+        return await request.body()
 
     def async_refresh():
         store.refresh_registry()
@@ -72,39 +67,46 @@ def get_app(
         active_timer = threading.Timer(registry_ttl_sec, async_refresh)
         active_timer.start()
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        async_refresh()
-        yield
-        stop_refresh()
+    @app.on_event("shutdown")
+    def shutdown_event():
+        nonlocal shutting_down
+        shutting_down = True
+        if active_timer:
+            active_timer.cancel()
 
-    app = FastAPI(lifespan=lifespan)
-
-    async def get_body(request: Request):
-        return await request.body()
+    async_refresh()
 
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
         try:
-            body = json.loads(body)
+            # Validate and parse the request data into GetOnlineFeaturesRequest Protobuf object
+            request_proto = GetOnlineFeaturesRequest()
+            Parse(body, request_proto)
+
             # Initialize parameters for FeatureStore.get_online_features(...) call
-            if "feature_service" in body:
+            if request_proto.HasField("feature_service"):
                 features = store.get_feature_service(
-                    body["feature_service"], allow_cache=True
+                    request_proto.feature_service, allow_cache=True
                 )
             else:
-                features = body["features"]
+                features = list(request_proto.features.val)
 
-            full_feature_names = body.get("full_feature_names", False)
+            full_feature_names = request_proto.full_feature_names
+
+            batch_sizes = [len(v.val) for v in request_proto.entities.values()]
+            num_entities = batch_sizes[0]
+            if any(batch_size != num_entities for batch_size in batch_sizes):
+                raise HTTPException(status_code=500, detail="Uneven number of columns")
 
             response_proto = store._get_online_features(
                 features=features,
-                entity_values=body["entities"],
+                entity_values=request_proto.entities,
                 full_feature_names=full_feature_names,
+                native_entity_values=False,
             ).proto
 
             # Convert the Protobuf object to JSON and return it
-            return MessageToDict(
+            return MessageToDict(  # type: ignore
                 response_proto, preserving_proto_field_name=True, float_precision=18
             )
         except Exception as e:
@@ -200,27 +202,24 @@ def get_app(
     return app
 
 
-if sys.platform != "win32":
-    import gunicorn.app.base
+class FeastServeApplication(gunicorn.app.base.BaseApplication):
+    def __init__(self, store: "feast.FeatureStore", **options):
+        self._app = get_app(
+            store=store,
+            registry_ttl_sec=options.get("registry_ttl_sec", 5),
+        )
+        self._options = options
+        super().__init__()
 
-    class FeastServeApplication(gunicorn.app.base.BaseApplication):
-        def __init__(self, store: "feast.FeatureStore", **options):
-            self._app = get_app(
-                store=store,
-                registry_ttl_sec=options["registry_ttl_sec"],
-            )
-            self._options = options
-            super().__init__()
+    def load_config(self):
+        for key, value in self._options.items():
+            if key.lower() in self.cfg.settings and value is not None:
+                self.cfg.set(key.lower(), value)
 
-        def load_config(self):
-            for key, value in self._options.items():
-                if key.lower() in self.cfg.settings and value is not None:
-                    self.cfg.set(key.lower(), value)
+        self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
 
-            self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
-
-        def load(self):
-            return self._app
+    def load(self):
+        return self._app
 
 
 def start_server(
@@ -230,19 +229,13 @@ def start_server(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    registry_ttl_sec: int,
+    registry_ttl_sec: int = 5,
 ):
-    if sys.platform != "win32":
-        FeastServeApplication(
-            store=store,
-            bind=f"{host}:{port}",
-            accesslog=None if no_access_log else "-",
-            workers=workers,
-            keepalive=keep_alive_timeout,
-            registry_ttl_sec=registry_ttl_sec,
-        ).run()
-    else:
-        import uvicorn
-
-        app = get_app(store, registry_ttl_sec)
-        uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+    FeastServeApplication(
+        store=store,
+        bind=f"{host}:{port}",
+        accesslog=None if no_access_log else "-",
+        workers=workers,
+        keepalive=keep_alive_timeout,
+        registry_ttl_sec=registry_ttl_sec,
+    ).run()

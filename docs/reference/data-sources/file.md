@@ -3,7 +3,11 @@
 ## Description
 
 File data sources are files on disk or on S3.
-Currently only Parquet and Delta formats are supported.
+Currently only Parquet files are supported.
+
+{% hint style="warning" %}
+FileSource is meant for development purposes only and is not optimized for production use.
+{% endhint %}
 
 ## Example
 

@@ -109,7 +109,7 @@ from feast import (
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
 
-# Define an entity for the driver. You can think of an entity as a primary key used to
+# Define an entity for the driver. You can think of entity as a primary key used to
 # fetch features.
 driver = Entity(name="driver", join_keys=["driver_id"])
 
@@ -138,13 +138,19 @@ driver_stats_fv = FeatureView(
     schema=[
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
-        Field(name="avg_daily_trips", dtype=Int64, description="Average daily trips"),
+        Field(name="avg_daily_trips", dtype=Int64),
     ],
     online=True,
     source=driver_stats_source,
     # Tags are user defined key/value pairs that are attached to each
     # feature view
     tags={"team": "driver_performance"},
+)
+
+# Defines a way to push data (to be available offline, online or both) into Feast.
+driver_stats_push_source = PushSource(
+    name="driver_stats_push_source",
+    batch_source=driver_stats_source,
 )
 
 # Define a request data source which encodes features / information only
@@ -184,51 +190,6 @@ driver_activity_v1 = FeatureService(
 )
 driver_activity_v2 = FeatureService(
     name="driver_activity_v2", features=[driver_stats_fv, transformed_conv_rate]
-)
-
-# Defines a way to push data (to be available offline, online or both) into Feast.
-driver_stats_push_source = PushSource(
-    name="driver_stats_push_source",
-    batch_source=driver_stats_source,
-)
-
-# Defines a slightly modified version of the feature view from above, where the source
-# has been changed to the push source. This allows fresh features to be directly pushed
-# to the online store for this feature view.
-driver_stats_fresh_fv = FeatureView(
-    name="driver_hourly_stats_fresh",
-    entities=[driver],
-    ttl=timedelta(days=1),
-    schema=[
-        Field(name="conv_rate", dtype=Float32),
-        Field(name="acc_rate", dtype=Float32),
-        Field(name="avg_daily_trips", dtype=Int64),
-    ],
-    online=True,
-    source=driver_stats_push_source,  # Changed from above
-    tags={"team": "driver_performance"},
-)
-
-
-# Define an on demand feature view which can generate new features based on
-# existing feature views and RequestSource features
-@on_demand_feature_view(
-    sources=[driver_stats_fresh_fv, input_request],  # relies on fresh version of FV
-    schema=[
-        Field(name="conv_rate_plus_val1", dtype=Float64),
-        Field(name="conv_rate_plus_val2", dtype=Float64),
-    ],
-)
-def transformed_conv_rate_fresh(inputs: pd.DataFrame) -> pd.DataFrame:
-    df = pd.DataFrame()
-    df["conv_rate_plus_val1"] = inputs["conv_rate"] + inputs["val_to_add"]
-    df["conv_rate_plus_val2"] = inputs["conv_rate"] + inputs["val_to_add_2"]
-    return df
-
-
-driver_activity_v3 = FeatureService(
-    name="driver_activity_v3",
-    features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
 )
 ```
 {% endtab %}
@@ -293,14 +254,10 @@ feast apply
 ```
 Created entity driver
 Created feature view driver_hourly_stats
-Created feature view driver_hourly_stats_fresh
 Created on demand feature view transformed_conv_rate
-Created on demand feature view transformed_conv_rate_fresh
-Created feature service driver_activity_v3
 Created feature service driver_activity_v1
 Created feature service driver_activity_v2
 
-Created sqlite table my_project_driver_hourly_stats_fresh
 Created sqlite table my_project_driver_hourly_stats
 ```
 {% endtab %}
@@ -377,40 +334,28 @@ print(training_df.head())
 ----- Feature schema -----
 
 <class 'pandas.core.frame.DataFrame'>
-RangeIndex: 3 entries, 0 to 2
-Data columns (total 10 columns):
- #   Column                              Non-Null Count  Dtype              
----  ------                              --------------  -----              
- 0   driver_id                           3 non-null      int64              
- 1   event_timestamp                     3 non-null      datetime64[ns, UTC]
- 2   label_driver_reported_satisfaction  3 non-null      int64              
- 3   val_to_add                          3 non-null      int64              
- 4   val_to_add_2                        3 non-null      int64              
- 5   conv_rate                           3 non-null      float32            
- 6   acc_rate                            3 non-null      float32            
- 7   avg_daily_trips                     3 non-null      int32              
- 8   conv_rate_plus_val1                 3 non-null      float64            
- 9   conv_rate_plus_val2                 3 non-null      float64            
-dtypes: datetime64[ns, UTC](1), float32(2), float64(2), int32(1), int64(4)
-memory usage: 336.0 bytes
+Int64Index: 3 entries, 0 to 2
+Data columns (total 6 columns):
+ #   Column                              Non-Null Count  Dtype
+---  ------                              --------------  -----
+ 0   event_timestamp                     3 non-null      datetime64[ns, UTC]
+ 1   driver_id                           3 non-null      int64
+ 2   label_driver_reported_satisfaction  3 non-null      int64
+ 3   conv_rate                           3 non-null      float32
+ 4   acc_rate                            3 non-null      float32
+ 5   avg_daily_trips                     3 non-null      int32
+dtypes: datetime64[ns, UTC](1), float32(2), int32(1), int64(2)
+memory usage: 132.0 bytes
 None
 
 ----- Example features -----
 
-   driver_id           event_timestamp  label_driver_reported_satisfaction  \
-0       1001 2021-04-12 10:59:42+00:00                                   1   
-1       1002 2021-04-12 08:12:10+00:00                                   5   
-2       1003 2021-04-12 16:40:26+00:00                                   3   
+                   event_timestamp  driver_id  ...  acc_rate  avg_daily_trips
+0 2021-08-23 15:12:55.489091+00:00       1003  ...  0.077863              741
+1 2021-08-23 15:49:55.489089+00:00       1002  ...  0.074327              113
+2 2021-08-23 16:14:55.489075+00:00       1001  ...  0.105046              347
 
-   val_to_add  val_to_add_2  conv_rate  acc_rate  avg_daily_trips  \
-0           1            10   0.800648  0.265174              643   
-1           2            20   0.644141  0.996602              765   
-2           3            30   0.855432  0.546345              954   
-
-   conv_rate_plus_val1  conv_rate_plus_val2  
-0             1.800648            10.800648  
-1             2.644141            20.644141  
-2             3.855432            30.855432  
+[3 rows x 6 columns]
 ```
 {% endtab %}
 {% endtabs %}
@@ -444,20 +389,10 @@ print(training_df.head())
 ```
 ----- Example features -----
 
-   driver_id                  event_timestamp  \
-0       1001 2024-04-19 14:58:16.452895+00:00   
-1       1002 2024-04-19 14:58:16.452895+00:00   
-2       1003 2024-04-19 14:58:16.452895+00:00   
-
-   label_driver_reported_satisfaction  val_to_add  val_to_add_2  conv_rate  \
-0                                   1           1            10   0.535773   
-1                                   5           2            20   0.171976   
-2                                   3           3            30   0.275669   
-
-   acc_rate  avg_daily_trips  conv_rate_plus_val1  conv_rate_plus_val2  
-0  0.689705              428             1.535773            10.535773  
-1  0.737113              369             2.171976            20.171976  
-2  0.156630              116             3.275669            30.275669  
+   driver_id                  event_timestamp  ... acc_rate  avg_daily_trips  conv_rate_plus_val1  
+0       1001 2022-08-08 18:22:06.555018+00:00  ... 0.864639              359             1.663844
+1       1002 2022-08-08 18:22:06.555018+00:00  ... 0.695982              311             2.151189 
+2       1003 2022-08-08 18:22:06.555018+00:00  ... 0.949191              789             3.769165 
 ```
 {% endtab %}
 {% endtabs %}
@@ -478,13 +413,11 @@ feast materialize-incremental $CURRENT_TIME
 {% tabs %}
 {% tab title="Output" %}
 ```bash
-Materializing 2 feature views to 2024-04-19 10:59:58-04:00 into the sqlite online store.
+Materializing 1 feature views to 2021-08-23 16:25:46+00:00 into the sqlite online
+store.
 
-driver_hourly_stats from 2024-04-18 15:00:46-04:00 to 2024-04-19 10:59:58-04:00:
-100%|████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 370.32it/s]
-driver_hourly_stats_fresh from 2024-04-18 15:00:46-04:00 to 2024-04-19 10:59:58-04:00:
-100%|███████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 1046.64it/s]
-Materializing 2 feature views to 2024-04-19 10:59:58-04:00 into the sqlite online store.
+driver_hourly_stats from 2021-08-22 16:25:47+00:00 to 2021-08-23 16:25:46+00:00:
+100%|████████████████████████████████████████████| 5/5 [00:00<00:00, 592.05it/s]
 ```
 {% endtab %}
 {% endtabs %}
@@ -525,11 +458,11 @@ pprint(feature_vector)
 {% tab title="Output" %}
 ```bash
 {
- 'acc_rate': [0.25351759791374207, 0.8949751853942871],
- 'avg_daily_trips': [712, 791],
- 'conv_rate': [0.5038306713104248, 0.9839504361152649],
+ 'acc_rate': [0.5732735991477966, 0.7828438878059387],
+ 'avg_daily_trips': [33, 984],
+ 'conv_rate': [0.15498852729797363, 0.6263588070869446],
  'driver_id': [1004, 1005]
- }
+}
 ```
 {% endtab %}
 {% endtabs %}
@@ -546,7 +479,7 @@ The `driver_activity_v1` feature service pulls all features from the `driver_hou
 ```python
 from feast import FeatureService
 driver_stats_fs = FeatureService(
-    name="driver_activity_v1", features=[driver_stats_fv]
+    name="driver_activity_v1", features=[driver_hourly_stats_view]
 )
 ```
 

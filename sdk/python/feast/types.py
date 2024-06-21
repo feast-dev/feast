@@ -50,10 +50,7 @@ class ComplexFeastType(ABC):
         return hash(self.to_value_type().value)
 
     def __eq__(self, other):
-        if isinstance(other, ComplexFeastType):
-            return self.to_value_type() == other.to_value_type()
-        else:
-            return False
+        return self.to_value_type() == other.to_value_type()
 
 
 class PrimitiveFeastType(Enum):

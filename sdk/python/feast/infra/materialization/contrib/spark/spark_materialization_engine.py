@@ -178,9 +178,9 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                     self.repo_config.batch_engine.partitions
                 )
 
-            spark_df.mapInPandas(
-                lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
-            ).count()  # dummy action to force evaluation
+            spark_df.foreachPartition(
+                lambda x: _process_by_partition(x, spark_serialized_artifacts)
+            )
 
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
@@ -200,6 +200,7 @@ class _SparkSerializedArtifacts:
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
+
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
 
@@ -224,40 +225,38 @@ class _SparkSerializedArtifacts:
         return feature_view, online_store, repo_config
 
 
-def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArtifacts):
-    for pdf in iterator:
-        if pdf.shape[0] == 0:
-            print("Skipping")
-            return
+def _process_by_partition(rows, spark_serialized_artifacts: _SparkSerializedArtifacts):
+    """Load pandas df to online store"""
 
-        table = pyarrow.Table.from_pandas(pdf)
+    # convert to pyarrow table
+    dicts = []
+    for row in rows:
+        dicts.append(row.asDict())
 
-        (
-            feature_view,
-            online_store,
-            repo_config,
-        ) = spark_serialized_artifacts.unserialize()
+    df = pd.DataFrame.from_records(dicts)
+    if df.shape[0] == 0:
+        print("Skipping")
+        return
 
-        if feature_view.batch_source.field_mapping is not None:
-            table = _run_pyarrow_field_mapping(
-                table, feature_view.batch_source.field_mapping
-            )
+    table = pyarrow.Table.from_pandas(df)
 
-        join_key_to_value_type = {
-            entity.name: entity.dtype.to_value_type()
-            for entity in feature_view.entity_columns
-        }
+    # unserialize artifacts
+    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
 
-        rows_to_write = _convert_arrow_to_proto(
-            table, feature_view, join_key_to_value_type
-        )
-        online_store.online_write_batch(
-            repo_config,
-            feature_view,
-            rows_to_write,
-            lambda x: None,
+    if feature_view.batch_source.field_mapping is not None:
+        table = _run_pyarrow_field_mapping(
+            table, feature_view.batch_source.field_mapping
         )
 
-    yield pd.DataFrame(
-        [pd.Series(range(1, 2))]
-    )  # dummy result because mapInPandas needs to return something
+    join_key_to_value_type = {
+        entity.name: entity.dtype.to_value_type()
+        for entity in feature_view.entity_columns
+    }
+
+    rows_to_write = _convert_arrow_to_proto(table, feature_view, join_key_to_value_type)
+    online_store.online_write_batch(
+        repo_config,
+        feature_view,
+        rows_to_write,
+        lambda x: None,
+    )

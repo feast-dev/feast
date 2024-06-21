@@ -11,7 +11,9 @@ from feast.types import Float64, Int64
 
 
 def test_end_to_end():
+
     try:
+
         # Before running this test method
         # 1. Upload the driver_stats.parquet file to your S3 bucket.
         # (https://github.com/feast-dev/feast-custom-offline-store-demo/tree/main/feature_repo/data)

@@ -41,19 +41,12 @@ np.random.seed(0)
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: f"full:{v}")
-@pytest.mark.parametrize(
-    "use_substrait_odfv", [True, False], ids=lambda v: f"substrait:{v}"
-)
-def test_historical_features_main(
-    environment, universal_data_sources, full_feature_names, use_substrait_odfv
-):
+def test_historical_features(environment, universal_data_sources, full_feature_names):
     store = environment.feature_store
 
     (entities, datasets, data_sources) = universal_data_sources
 
-    feature_views = construct_universal_feature_views(
-        data_sources, use_substrait_odfv=use_substrait_odfv
-    )
+    feature_views = construct_universal_feature_views(data_sources)
 
     entity_df_with_request_data = datasets.entity_df.copy(deep=True)
     entity_df_with_request_data["val_to_add"] = [
@@ -139,7 +132,8 @@ def test_historical_features_main(
 
     if job_from_df.supports_remote_storage_export():
         files = job_from_df.to_remote_storage()
-        assert len(files)  # 0  # This test should be way more detailed
+        print(files)
+        assert len(files) > 0  # This test should be way more detailed
 
     start_time = datetime.utcnow()
     actual_df_from_df_entities = job_from_df.to_df()
@@ -269,8 +263,8 @@ def test_historical_features_with_entities_from_query(
     if not orders_table:
         raise pytest.skip("Offline source is not sql-based")
 
-    data_source_creator = environment.data_source_creator
-    if isinstance(data_source_creator, SnowflakeDataSourceCreator):
+    data_source_creator = environment.test_repo_config.offline_store_creator
+    if data_source_creator.__name__ == SnowflakeDataSourceCreator.__name__:
         entity_df_query = f"""
         SELECT "customer_id", "driver_id", "order_id", "origin_id", "destination_id", "event_timestamp"
         FROM "{orders_table}"
@@ -346,11 +340,6 @@ def test_historical_features_with_entities_from_query(
 
     table_from_sql_entities = job_from_sql.to_arrow().to_pandas()
     for col in table_from_sql_entities.columns:
-        # check if col dtype is timezone naive
-        if pd.api.types.is_datetime64_dtype(table_from_sql_entities[col]):
-            table_from_sql_entities[col] = table_from_sql_entities[col].dt.tz_localize(
-                "UTC"
-            )
         expected_df_query[col] = expected_df_query[col].astype(
             table_from_sql_entities[col].dtype
         )
@@ -524,7 +513,7 @@ def test_historical_features_with_no_ttl(
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-def test_historical_features_containing_backfills(environment):
+def test_historical_features_from_bigquery_sources_containing_backfills(environment):
     store = environment.feature_store
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)

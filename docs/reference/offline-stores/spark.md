@@ -4,7 +4,7 @@
 
 The Spark offline store provides support for reading [SparkSources](../data-sources/spark.md).
 
-* Entity dataframes can be provided as a SQL query, Pandas dataframe or can be provided as a Pyspark dataframe. A Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
+* Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be converted to a Spark dataframe and processed as a temporary view.
 
 ## Disclaimer
 
@@ -30,8 +30,6 @@ offline_store:
         spark.sql.catalogImplementation: "hive"
         spark.sql.parser.quotedRegexColumnNames: "true"
         spark.sql.session.timeZone: "UTC"
-        spark.sql.execution.arrow.fallback.enabled: "true"
-        spark.sql.execution.arrow.pyspark.enabled: "true"
 online_store:
     path: data/online_store.db
 ```

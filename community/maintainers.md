@@ -9,12 +9,10 @@ In alphabetical order
 | Name           | GitHub Username  | Email                       | Organization       |
 | -------------- | ---------------- |-----------------------------| ------------------ |
 | Achal Shah     | `achals`         | achals@gmail.com            | Tecton             |
-| Edson Tirelli   | `etirelli`       | ed.tirelli@gmail.com          | Red Hat          |
-| Francisco Javier Arceo   | `franciscojavierarceo`       | arceofrancisco@gmail.com          | Affirm          |
-| Hao Xu   | `HaoXuAI`       | sduxuhao@gmail.com          | JPMorgan          |
-| Jeremy Ary   | `jeremyary`       | jeremy.ary@gmail.com          | Red Hat          |
-| Shuchu Han  | `shuchu`       | shuchu.han@gmail.com          | Independent          |
-| Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
+| Felix Wang     | `felixwang9817`  | wangfelix98@gmail.com       | Tecton             |
+| Kevin Zhang    | `kevjumba`       | kevin.zhang.13499@gmail.com | Tecton             |
+| Miles Adkins   | `sfc-gh-madkins` | miles.adkins@snowflake.com  | Snowflake          |
+| Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Tecton             |
 | Zhiling Chen   | `zhilingc`       | chnzhlng@gmail.com          | GetGround          |
 
 ## Emeritus Maintainers
@@ -31,6 +29,3 @@ In alphabetical order
 | Danny Chiao         | adchia          | danny@tecton.ai             | Tecton            |
 | David Liu           | mavysavydav     | davidyliuliu@gmail.com      | Twitter           |
 | Matt Delacour       | MattDelac       | mdelacour@hey.com           | Shopify           |
-| Miles Adkins        | sfc-gh-madkins  | miles.adkins@snowflake.com | Snowflake        |
-| Felix Wang     | `felixwang9817`  | wangfelix98@gmail.com       | Tecton             |
-| Kevin Zhang    | `kevjumba`       | kevin.zhang.13499@gmail.com | Tecton             |

@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS REGISTRY_PATH."ON_DEMAND_FEATURE_VIEWS" (
   PRIMARY KEY (on_demand_feature_view_name, project_id)
 );
 
+CREATE TABLE IF NOT EXISTS REGISTRY_PATH."REQUEST_FEATURE_VIEWS" (
+  request_feature_view_name VARCHAR,
+  project_id VARCHAR,
+  last_updated_timestamp TIMESTAMP_LTZ NOT NULL,
+  request_feature_view_proto BINARY NOT NULL,
+  user_metadata BINARY,
+  PRIMARY KEY (request_feature_view_name, project_id)
+);
+
 CREATE TABLE IF NOT EXISTS REGISTRY_PATH."SAVED_DATASETS" (
   saved_dataset_name VARCHAR,
   project_id VARCHAR,

@@ -55,6 +55,7 @@ def bootstrap():
         f'Should I upload example data to Snowflake (overwriting "{project_name}_feast_driver_hourly_stats" table)?',
         default=True,
     ):
+
         snowflake_conn = snowflake.connector.connect(
             account=snowflake_deployment_url,
             user=snowflake_user,

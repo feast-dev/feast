@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 import pytest
@@ -64,10 +64,10 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
+        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+        field_mapping: Dict[str, str] = None,
+        **kwargs,
     ) -> DataSource:
         # Make sure the field mapping is correct and convert the datetime datasources.
         if timestamp_field in df:
@@ -83,7 +83,7 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         engine = create_engine(connection_string)
         destination_name = self.get_prefixed_table_name(destination_name)
         # Create table
-        engine.execute(_df_to_create_table_sql(df, destination_name))  # type: ignore
+        engine.execute(_df_to_create_table_sql(df, destination_name))
 
         # Upload dataframe to azure table
         df.to_sql(destination_name, engine, index=False, if_exists="append")
@@ -99,10 +99,10 @@ class MsSqlDataSourceCreator(DataSourceCreator):
         )
 
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        raise NotImplementedError
+        pass
 
     def get_prefixed_table_name(self, destination_name: str) -> str:
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
-        raise NotImplementedError
+        pass

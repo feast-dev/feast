@@ -30,5 +30,5 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
     enabled: StrictBool = False
     """Whether the feature server should be launched."""
 
-    feature_logging: Optional[FeatureLoggingConfig] = None
+    feature_logging: Optional[FeatureLoggingConfig]
     """ Feature logging configuration """

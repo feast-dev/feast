@@ -50,7 +50,7 @@ Automatically format the code to conform the style guide by:
 
 ```sh
 # formats all code in the feast-java repository
-make format-java
+mvn spotless:apply
 ```
 
 > If you're using IntelliJ, you can import these [code style settings](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml)
@@ -66,7 +66,7 @@ Run all Unit tests:
 make test-java
 ```
 
-Run all Integration tests:
+Run all Integration tests (note: this also runs GCS + S3 based tests which should fail):
 ```
 make test-java-integration
 ```

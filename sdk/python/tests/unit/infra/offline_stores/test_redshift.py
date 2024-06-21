@@ -31,9 +31,7 @@ def test_offline_write_batch(
             user="user",
             iam_role="abcdef",
             s3_staging_location="s3://bucket/path",
-            workgroup="",
         ),
-        entity_key_serialization_version=2,
     )
 
     batch_source = RedshiftSource(

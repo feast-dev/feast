@@ -30,8 +30,6 @@ online_store:
     sslkey_path: /path/to/client-key.pem
     sslcert_path: /path/to/client-cert.pem
     sslrootcert_path: /path/to/server-ca.pem
-    pgvector_enabled: false
-    vector_len: 512
 ```
 {% endcode %}
 
@@ -62,35 +60,3 @@ Below is a matrix indicating which functionality is supported by the Postgres on
 | collocated by entity key                                  | no       |
 
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
-
-## PGVector
-The Postgres online store supports the use of [PGVector](https://github.com/pgvector/pgvector) for storing feature values.
-To enable PGVector, set `pgvector_enabled: true` in the online store configuration. 
-
-The `vector_len` parameter can be used to specify the length of the vector. The default value is 512.
-
-Please make sure to follow the instructions in the repository, which, as the time of this writing, requires you to 
-run `CREATE EXTENSION vector;` in the database.
-
-
-Then you can use `retrieve_online_documents` to retrieve the top k closest vectors to a query vector. 
-For the Retrieval Augmented  Generation (RAG) use-case, you have to embed the query prior to passing the query vector.
-
-{% code title="python" %}
-```python
-from feast import FeatureStore
-from feast.infra.online_stores.postgres import retrieve_online_documents
-
-feature_store = FeatureStore(repo_path=".")
-
-query_vector = [0.1, 0.2, 0.3, 0.4, 0.5]
-top_k = 5
-
-feature_values = retrieve_online_documents(
-    feature_store=feature_store,
-    feature_view_name="document_fv:embedding_float",
-    query_vector=query_vector,
-    top_k=top_k,
-)
-```
-{% endcode %}

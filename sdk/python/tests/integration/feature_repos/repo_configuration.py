@@ -1,5 +1,6 @@
 import dataclasses
 import importlib
+import json
 import os
 import tempfile
 import uuid
@@ -10,15 +11,13 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pandas as pd
 import pytest
+import yaml
 
 from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
-from feast.infra.feature_servers.base_config import (
-    BaseFeatureServerConfig,
-    FeatureLoggingConfig,
-)
+from feast.infra.feature_servers.base_config import FeatureLoggingConfig
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
@@ -32,9 +31,6 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
     BigQueryDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
-    DuckDBDataSourceCreator,
-    DuckDBDeltaDataSourceCreator,
-    DuckDBDeltaS3DataSourceCreator,
     FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
@@ -87,8 +83,8 @@ SNOWFLAKE_CONFIG = {
     "password": os.getenv("SNOWFLAKE_CI_PASSWORD", ""),
     "role": os.getenv("SNOWFLAKE_CI_ROLE", ""),
     "warehouse": os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
-    "database": os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
-    "schema": os.getenv("SNOWFLAKE_CI_SCHEMA_ONLINE", "ONLINE"),
+    "database": "FEAST",
+    "schema": "ONLINE",
 }
 
 BIGTABLE_CONFIG = {
@@ -103,15 +99,7 @@ ROCKSET_CONFIG = {
     "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
 }
 
-IKV_CONFIG = {
-    "type": "ikv",
-    "account_id": os.getenv("IKV_ACCOUNT_ID", ""),
-    "account_passkey": os.getenv("IKV_ACCOUNT_PASSKEY", ""),
-    "store_name": os.getenv("IKV_STORE_NAME", ""),
-    "mount_directory": os.getenv("IKV_MOUNT_DIR", ""),
-}
-
-OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]] = {
+OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, DataSourceCreator] = {
     "file": ("local", FileDataSourceCreator),
     "bigquery": ("gcp", BigQueryDataSourceCreator),
     "redshift": ("aws", RedshiftDataSourceCreator),
@@ -120,20 +108,10 @@ OFFLINE_STORE_TO_PROVIDER_CONFIG: Dict[str, Tuple[str, Type[DataSourceCreator]]]
 
 AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
-    ("local", DuckDBDataSourceCreator),
-    ("local", DuckDBDeltaDataSourceCreator),
 ]
 
-if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
-    AVAILABLE_OFFLINE_STORES.extend(
-        [
-            ("local", DuckDBDeltaS3DataSourceCreator),
-        ]
-    )
-
-
 AVAILABLE_ONLINE_STORES: Dict[
-    str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
+    str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
 ] = {
     "sqlite": ({"type": "sqlite"}, None),
 }
@@ -158,11 +136,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     # there is no dedicated Rockset instance for CI testing and there is no
     # containerized version of Rockset.
     # AVAILABLE_ONLINE_STORES["rockset"] = (ROCKSET_CONFIG, None)
-
-    # Uncomment to test using private IKV account. Currently not enabled as
-    # there is no dedicated IKV instance for CI testing and there is no
-    # containerized version of IKV.
-    # AVAILABLE_ONLINE_STORES["ikv"] = (IKV_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)
@@ -196,7 +169,7 @@ if full_repo_configs_module is not None:
         AVAILABLE_ONLINE_STORES = {
             c.online_store["type"]
             if isinstance(c.online_store, dict)
-            else c.online_store: (c.online_store, c.online_store_creator)  # type: ignore
+            else c.online_store: (c.online_store, c.online_store_creator)
             for c in FULL_REPO_CONFIGS
         }
 
@@ -355,7 +328,7 @@ class UniversalFeatureViews:
     customer: FeatureView
     global_fv: FeatureView
     driver: FeatureView
-    driver_odfv: Optional[OnDemandFeatureView]
+    driver_odfv: OnDemandFeatureView
     order: FeatureView
     location: FeatureView
     field_mapping: FeatureView
@@ -368,23 +341,17 @@ class UniversalFeatureViews:
 def construct_universal_feature_views(
     data_sources: UniversalDataSources,
     with_odfv: bool = True,
-    use_substrait_odfv: bool = False,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_hourly_stats_base_feature_view = (
         create_driver_hourly_stats_batch_feature_view(data_sources.driver)
     )
-
     return UniversalFeatureViews(
         customer=create_customer_daily_profile_feature_view(data_sources.customer),
         global_fv=create_global_stats_feature_view(data_sources.global_ds),
         driver=driver_hourly_stats,
         driver_odfv=conv_rate_plus_100_feature_view(
-            [
-                driver_hourly_stats_base_feature_view[["conv_rate"]],
-                create_conv_rate_request_source(),
-            ],
-            use_substrait_odfv=use_substrait_odfv,
+            [driver_hourly_stats_base_feature_view, create_conv_rate_request_source()]
         )
         if with_odfv
         else None,
@@ -398,47 +365,17 @@ def construct_universal_feature_views(
 @dataclass
 class Environment:
     name: str
-    project: str
-    provider: str
-    registry: RegistryConfig
+    test_repo_config: IntegrationTestRepoConfig
+    feature_store: FeatureStore
     data_source_creator: DataSourceCreator
-    online_store_creator: Optional[OnlineStoreCreator]
-    online_store: Optional[Union[str, Dict]]
-    batch_engine: Optional[Union[str, Dict]]
     python_feature_server: bool
     worker_id: str
-    feature_server: BaseFeatureServerConfig
-    entity_key_serialization_version: int
-    repo_dir_name: str
+    online_store_creator: Optional[OnlineStoreCreator] = None
     fixture_request: Optional[pytest.FixtureRequest] = None
 
     def __post_init__(self):
         self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
         self.start_date: datetime = self.end_date - timedelta(days=3)
-
-    def setup(self):
-        self.data_source_creator.setup(self.registry)
-
-        self.config = RepoConfig(
-            registry=self.registry,
-            project=self.project,
-            provider=self.provider,
-            offline_store=self.data_source_creator.create_offline_store_config(),
-            online_store=self.online_store_creator.create_online_store()
-            if self.online_store_creator
-            else self.online_store,
-            batch_engine=self.batch_engine,
-            repo_path=self.repo_dir_name,
-            feature_server=self.feature_server,
-            entity_key_serialization_version=self.entity_key_serialization_version,
-        )
-        self.feature_store = FeatureStore(config=self.config)
-
-    def teardown(self):
-        self.feature_store.teardown()
-        self.data_source_creator.teardown()
-        if self.online_store_creator:
-            self.online_store_creator.teardown()
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
@@ -467,20 +404,25 @@ def construct_test_environment(
     offline_creator: DataSourceCreator = test_repo_config.offline_store_creator(
         project, fixture_request=fixture_request
     )
+    offline_store_config = offline_creator.create_offline_store_config()
 
     if test_repo_config.online_store_creator:
         online_creator = test_repo_config.online_store_creator(
             project, fixture_request=fixture_request
         )
+        online_store = (
+            test_repo_config.online_store
+        ) = online_creator.create_online_store()
     else:
         online_creator = None
+        online_store = test_repo_config.online_store
 
     if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
         from feast.infra.feature_servers.aws_lambda.config import (
             AwsLambdaFeatureServerConfig,
         )
 
-        feature_server: Any = AwsLambdaFeatureServerConfig(
+        feature_server = AwsLambdaFeatureServerConfig(
             enabled=True,
             execution_role_name=os.getenv(
                 "AWS_LAMBDA_ROLE",
@@ -498,32 +440,46 @@ def construct_test_environment(
         test_repo_config.python_feature_server and test_repo_config.provider == "aws"
     ) or test_repo_config.registry_location == RegistryLocation.S3:
         aws_registry_path = os.getenv(
-            "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
+            "AWS_REGISTRY_PATH", "s3://feast-integration-tests/registries"
         )
-        registry: Union[str, RegistryConfig] = (
-            f"{aws_registry_path}/{project}/registry.db"
-        )
+        registry: Union[
+            str, RegistryConfig
+        ] = f"{aws_registry_path}/{project}/registry.db"
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),
             cache_ttl_seconds=1,
         )
 
+    config = RepoConfig(
+        registry=registry,
+        project=project,
+        provider=test_repo_config.provider,
+        offline_store=offline_store_config,
+        online_store=online_store,
+        batch_engine=test_repo_config.batch_engine,
+        repo_path=repo_dir_name,
+        feature_server=feature_server,
+        entity_key_serialization_version=entity_key_serialization_version,
+    )
+
+    # Create feature_store.yaml out of the config
+    with open(Path(repo_dir_name) / "feature_store.yaml", "w") as f:
+        yaml.safe_dump(json.loads(config.json()), f)
+
+    fs = FeatureStore(repo_dir_name)
+    # We need to initialize the registry, because if nothing is applied in the test before tearing down
+    # the feature store, that will cause the teardown method to blow up.
+    fs.registry._initialize_registry(project)
     environment = Environment(
         name=project,
-        provider=test_repo_config.provider,
+        test_repo_config=test_repo_config,
+        feature_store=fs,
         data_source_creator=offline_creator,
         python_feature_server=test_repo_config.python_feature_server,
         worker_id=worker_id,
         online_store_creator=online_creator,
         fixture_request=fixture_request,
-        project=project,
-        registry=registry,
-        feature_server=feature_server,
-        entity_key_serialization_version=entity_key_serialization_version,
-        repo_dir_name=repo_dir_name,
-        batch_engine=test_repo_config.batch_engine,
-        online_store=test_repo_config.online_store,
     )
 
     return environment

@@ -28,7 +28,7 @@ format: format-python format-java
 
 lint: lint-python lint-java
 
-test: test-python-unit test-java
+test: test-python test-java
 
 protos: compile-protos-python compile-protos-docs
 
@@ -38,16 +38,10 @@ build: protos build-java build-docker
 
 install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
-	pip install --no-deps -e .
-	python setup.py build_python_protos --inplace
-
-install-python-ci-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
-	uv pip install --system --no-deps -e .
-	python setup.py build_python_protos --inplace
+	COMPILE_GO=true python setup.py develop
 
 lock-python-ci-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -60,42 +54,40 @@ install-python:
 	python setup.py develop
 
 lock-python-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt 
-
-lock-python-dependencies-all:
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
+	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
 benchmark-python:
-	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 benchmark-python-local:
-	IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
-test-python-unit:
-	python -m pytest -n 8 --color=yes sdk/python/tests
+test-python:
+	FEAST_USAGE=False \
+	IS_TEST=True \
+	python -m pytest -n 8 sdk/python/tests \
 
 test-python-integration:
-	python -m pytest -n 8 --integration -k "(not snowflake or not test_historical_features_main) and not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 test-python-integration-local:
 	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		FEAST_IS_LOCAL_TEST=True \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
-		python -m pytest -n 8 --color=yes --integration \
+		python -m pytest -n 8 --integration \
 			-k "not gcs_registry and \
  				not s3_registry and \
  				not test_lambda_materialization and \
- 				not test_snowflake_materialization" \
+ 				not test_snowflake" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
 test-python-integration-container:
 	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
 		python -m pytest -n 8 --integration sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
@@ -104,6 +96,7 @@ test-python-universal-spark:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
@@ -127,6 +120,7 @@ test-python-universal-trino:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.trino_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.trino_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \
@@ -153,6 +147,7 @@ test-python-universal-mssql:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.mssql_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.mssql_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not gcs_registry and \
@@ -170,11 +165,12 @@ test-python-universal-athena:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.athena_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.athena_offline_store.tests \
+ 	FEAST_USAGE=False IS_TEST=True \
 	ATHENA_REGION=ap-northeast-2 \
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
 	ATHENA_WORKGROUP=primary \
-	ATHENA_S3_BUCKET_NAME=feast-int-bucket \
+	ATHENA_S3_BUCKET_NAME=feast-integration-tests \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_go_feature_server and \
 		    not test_logged_features_validation and \
@@ -189,11 +185,13 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-			
+
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
@@ -213,26 +211,9 @@ test-python-universal-postgres-offline:
 test-python-universal-postgres-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
-		python -m pytest -n 8 --integration \
- 			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
-				not test_reorder_columns and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not test_offline_write and \
-				not test_push_features_to_offline_store and \
-				not gcs_registry and \
-				not s3_registry and \
- 				not test_universal_types and \
-				not test_snowflake" \
- 			sdk/python/tests
-
- test-python-universal-pgvector-online:
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.pgvector_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.postgres_offline_store.tests \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -252,6 +233,8 @@ test-python-universal-postgres-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -271,6 +254,8 @@ test-python-universal-cassandra:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	FEAST_USAGE=False \
+	IS_TEST=True \
 	python -m pytest -x --integration \
 	sdk/python/tests
 
@@ -278,6 +263,8 @@ test-python-universal-hazelcast:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.hazelcast_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
+		FEAST_USAGE=False \
+		IS_TEST=True \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
  				not test_go_feature_server and \
@@ -297,6 +284,8 @@ test-python-universal-cassandra-no-cloud-providers:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	FEAST_USAGE=False \
+	IS_TEST=True \
 	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
 	  not test_apply_entity_integration               and \
@@ -310,36 +299,22 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_snowflake" \
 	sdk/python/tests
 
- test-python-universal-elasticsearch-online:
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.elasticsearch_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
-		python -m pytest -n 8 --integration \
- 			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
-				not test_reorder_columns and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not test_offline_write and \
-				not test_push_features_to_offline_store and \
-				not gcs_registry and \
-				not s3_registry and \
- 				not test_universal_types and \
-				not test_snowflake" \
- 			sdk/python/tests
-
 test-python-universal:
-	python -m pytest -n 8 --integration sdk/python/tests
+	FEAST_USAGE=False IS_TEST=True python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
+	# Sort
+	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/
+
+	# Format
+	cd ${ROOT_DIR}/sdk/python; python -m black --target-version py38 feast tests
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
+	cd ${ROOT_DIR}/sdk/python; python -m mypy
+	cd ${ROOT_DIR}/sdk/python; python -m isort feast/ tests/ --check-only
+	cd ${ROOT_DIR}/sdk/python; python -m flake8 feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m black --check feast tests
+
 # Java
 
 install-java-ci-dependencies:
@@ -372,13 +347,16 @@ start-trino-locally:
 	sleep 15
 
 test-trino-plugin-locally:
-	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests IS_TEST=True python -m pytest --integration tests/
+	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests FEAST_USAGE=False IS_TEST=True python -m pytest --integration tests/
 
 kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
 
 install-protoc-dependencies:
-	pip install --ignore-installed protobuf==4.24.0 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
+
+install-feast-ci-locally:
+	pip install -e ".[ci]"
 
 # Docker
 
@@ -418,18 +396,6 @@ build-feature-server-java-docker:
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
-
-push-feast-operator-docker:
-	cd infra/feast-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-push
-
-build-feast-operator-docker:
-	cd infra/feast-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-build
 
 # Dev images
 

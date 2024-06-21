@@ -381,7 +381,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
 2.  Make sure that your offline store doesn't break any unit tests first by running:
 
     ```
-    make test-python-unit
+    make test-python
     ```
 3.  Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
 
@@ -417,7 +417,7 @@ test-python-universal-spark:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.spark_repo_configuration \
 	PYTEST_PLUGINS=feast.infra.offline_stores.contrib.spark_offline_store.tests \
-    IS_TEST=True \
+ 	FEAST_USAGE=False IS_TEST=True \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_historical_retrieval_fails_on_validation and \
 			not test_historical_retrieval_with_validation and \

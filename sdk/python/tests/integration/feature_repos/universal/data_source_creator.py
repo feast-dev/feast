@@ -5,7 +5,7 @@ import pandas as pd
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
-from feast.repo_config import FeastConfigBaseModel, RegistryConfig
+from feast.repo_config import FeastConfigBaseModel
 from feast.saved_dataset import SavedDatasetStorage
 
 
@@ -20,7 +20,7 @@ class DataSourceCreator(ABC):
         destination_name: str,
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
+        field_mapping: Dict[str, str] = None,
         timestamp_field: Optional[str] = None,
     ) -> DataSource:
         """
@@ -42,23 +42,19 @@ class DataSourceCreator(ABC):
             A Data source object, pointing to a table or file that is uploaded/persisted for the purpose of the
             test.
         """
-        raise NotImplementedError
-
-    def setup(self, registry: RegistryConfig):
-        pass
+        ...
 
     @abstractmethod
     def create_offline_store_config(self) -> FeastConfigBaseModel:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        raise NotImplementedError
+        ...
 
-    @abstractmethod
     def create_logged_features_destination(self) -> LoggingDestination:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def teardown(self):
-        raise NotImplementedError
+        ...

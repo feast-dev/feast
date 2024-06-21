@@ -10,5 +10,6 @@ make build-java-no-tests REVISION=develop
 python -m pip install --upgrade pip setuptools wheel pip-tools
 make install-python
 python -m pip install -qr tests/requirements.txt
+export FEAST_USAGE="False"
 
 su -p postgres -c "PATH=$PATH HOME=/tmp pytest -v tests/e2e/ --feast-version develop"

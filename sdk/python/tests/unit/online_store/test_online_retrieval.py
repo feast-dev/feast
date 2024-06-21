@@ -124,17 +124,6 @@ def test_online() -> None:
 
         assert "trips" in result
 
-        result = store.get_online_features(
-            features=["customer_profile_pandas_odfv:on_demand_age"],
-            entity_rows=[{"driver_id": 1, "customer_id": "5"}],
-            full_feature_names=False,
-        ).to_dict()
-
-        assert "on_demand_age" in result
-        assert result["driver_id"] == [1]
-        assert result["customer_id"] == ["5"]
-        assert result["on_demand_age"] == [4]
-
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
@@ -287,7 +276,7 @@ def test_online_to_df():
         )
         provider = store._get_provider()
 
-        for d, c in zip(driver_ids, customer_ids):
+        for (d, c) in zip(driver_ids, customer_ids):
             """
             driver table:
                                     lon                    lat

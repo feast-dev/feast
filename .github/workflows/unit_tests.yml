@@ -7,38 +7,58 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9", "3.10", "3.11"]
-        os: [ ubuntu-latest, macos-13 ]
+        python-version: [ "3.8", "3.9", "3.10" ]
+        os: [ ubuntu-latest, macOS-latest ]
         exclude:
-          - os: macos-13
+          - os: macOS-latest
             python-version: "3.9"
+          - os: macOS-latest
+            python-version: "3.10"
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install uv
+      - name: Install mysql on macOS
+        if:  startsWith(matrix.os, 'macOS')
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
+          brew install mysql
+          PATH=$PATH:/usr/local/mysql/bin
+      - name: Work around Homebrew MySQL being broken
+        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
+        if:  startsWith(matrix.os, 'macOS')
         run: |
-          echo "::set-output name=dir::$(uv cache dir)"
-      - name: uv cache
-        uses: actions/cache@v4
+          brew install zlib
+          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
+      - name: Install pip-tools
+        run: pip install pip-tools
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-ci-dependencies
       - name: Test Python
-        run: make test-python-unit
+        run: pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests
 
 
   unit-test-ui:
@@ -46,7 +66,7 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: '17.x'

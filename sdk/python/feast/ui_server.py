@@ -1,8 +1,8 @@
 import json
 import threading
-from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
+import importlib_resources
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware

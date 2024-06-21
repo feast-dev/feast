@@ -43,39 +43,8 @@ def test_null_unix_timestamp_list():
     ),
 )
 def test_python_values_to_proto_values_bool(values):
+
     protos = python_values_to_proto_values(values, ValueType.BOOL)
     converted = feast_value_type_to_python_type(protos[0])
 
     assert converted is bool(values[0])
-
-
-@pytest.mark.parametrize(
-    "values, value_type, expected",
-    (
-        (np.array([b"[1,2,3]"]), ValueType.INT64_LIST, [1, 2, 3]),
-        (np.array([b"[1,2,3]"]), ValueType.INT32_LIST, [1, 2, 3]),
-        (np.array([b"[1.5,2.5,3.5]"]), ValueType.FLOAT_LIST, [1.5, 2.5, 3.5]),
-        (np.array([b"[1.5,2.5,3.5]"]), ValueType.DOUBLE_LIST, [1.5, 2.5, 3.5]),
-        (np.array([b'["a","b","c"]']), ValueType.STRING_LIST, ["a", "b", "c"]),
-        (np.array([b"[true,false]"]), ValueType.BOOL_LIST, [True, False]),
-        (np.array([b"[1,0]"]), ValueType.BOOL_LIST, [True, False]),
-        (np.array([None]), ValueType.STRING_LIST, None),
-        ([b"[1,2,3]"], ValueType.INT64_LIST, [1, 2, 3]),
-        ([b"[1,2,3]"], ValueType.INT32_LIST, [1, 2, 3]),
-        ([b"[1.5,2.5,3.5]"], ValueType.FLOAT_LIST, [1.5, 2.5, 3.5]),
-        ([b"[1.5,2.5,3.5]"], ValueType.DOUBLE_LIST, [1.5, 2.5, 3.5]),
-        ([b'["a","b","c"]'], ValueType.STRING_LIST, ["a", "b", "c"]),
-        ([b"[true,false]"], ValueType.BOOL_LIST, [True, False]),
-        ([b"[1,0]"], ValueType.BOOL_LIST, [True, False]),
-        ([None], ValueType.STRING_LIST, None),
-    ),
-)
-def test_python_values_to_proto_values_bytes_to_list(values, value_type, expected):
-    protos = python_values_to_proto_values(values, value_type)
-    converted = feast_value_type_to_python_type(protos[0])
-    assert converted == expected
-
-
-def test_python_values_to_proto_values_bytes_to_list_not_supported():
-    with pytest.raises(TypeError):
-        _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)

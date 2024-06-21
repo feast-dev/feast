@@ -2,40 +2,29 @@ import contextlib
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import psycopg2
 import pytz
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 from psycopg2.pool import SimpleConnectionPool
+from pydantic.schema import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
+from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-
-SUPPORTED_DISTANCE_METRICS_DICT = {
-    "cosine": "<=>",
-    "L1": "<+>",
-    "L2": "<->",
-    "inner_product": "<#>",
-}
+from feast.usage import log_exceptions_and_usage
 
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
-
-    # Whether to enable the pgvector extension for vector similarity search
-    pgvector_enabled: Optional[bool] = False
-
-    # If pgvector is enabled, the length of the vector field
-    vector_len: Optional[int] = 512
 
 
 class PostgreSQLOnlineStore(OnlineStore):
@@ -56,6 +45,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 self._conn = _get_conn(config.online_store)
             yield self._conn
 
+    @log_exceptions_and_usage(online_store="postgres")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -79,15 +69,11 @@ class PostgreSQLOnlineStore(OnlineStore):
                     created_ts = _to_naive_utc(created_ts)
 
                 for feature_name, val in values.items():
-                    vector_val = None
-                    if config.online_store.pgvector_enabled:
-                        vector_val = get_list_val_str(val)
                     insert_values.append(
                         (
                             entity_key_bin,
                             feature_name,
                             val.SerializeToString(),
-                            vector_val,
                             timestamp,
                             created_ts,
                         )
@@ -101,12 +87,11 @@ class PostgreSQLOnlineStore(OnlineStore):
                     sql.SQL(
                         """
                         INSERT INTO {}
-                        (entity_key, feature_name, value, vector_value, event_ts, created_ts)
+                        (entity_key, feature_name, value, event_ts, created_ts)
                         VALUES %s
                         ON CONFLICT (entity_key, feature_name) DO
                         UPDATE SET
                             value = EXCLUDED.value,
-                            vector_value = EXCLUDED.vector_value,
                             event_ts = EXCLUDED.event_ts,
                             created_ts = EXCLUDED.created_ts;
                         """,
@@ -114,10 +99,10 @@ class PostgreSQLOnlineStore(OnlineStore):
                     cur_batch,
                     page_size=batch_size,
                 )
-                conn.commit()
                 if progress:
                     progress(len(cur_batch))
 
+    @log_exceptions_and_usage(online_store="postgres")
     def online_read(
         self,
         config: RepoConfig,
@@ -188,6 +173,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         return result
 
+    @log_exceptions_and_usage(online_store="postgres")
     def update(
         self,
         config: RepoConfig,
@@ -226,11 +212,6 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
-                if config.online_store.pgvector_enabled:
-                    vector_value_type = f"vector({config.online_store.vector_len})"
-                else:
-                    # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
-                    vector_value_type = "BYTEA"
                 cur.execute(
                     sql.SQL(
                         """
@@ -239,7 +220,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                             entity_key BYTEA,
                             feature_name TEXT,
                             value BYTEA,
-                            vector_value {} NULL,
                             event_ts TIMESTAMPTZ,
                             created_ts TIMESTAMPTZ,
                             PRIMARY KEY(entity_key, feature_name)
@@ -248,7 +228,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                         """
                     ).format(
                         sql.Identifier(table_name),
-                        sql.SQL(vector_value_type),
                         sql.Identifier(f"{table_name}_ek"),
                         sql.Identifier(table_name),
                     )
@@ -271,116 +250,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         except Exception:
             logging.exception("Teardown failed")
             raise
-
-    def retrieve_online_documents(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        requested_feature: str,
-        embedding: List[float],
-        top_k: int,
-        distance_metric: Optional[str] = "L2",
-    ) -> List[
-        Tuple[
-            Optional[datetime],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-        ]
-    ]:
-        """
-
-        Args:
-            config: Feast configuration object
-            table: FeatureView object as the table to search
-            requested_feature: The requested feature as the column to search
-            embedding: The query embedding to search for
-            top_k: The number of items to return
-            distance_metric: The distance metric to use for the search.G
-        Returns:
-            List of tuples containing the event timestamp and the document feature
-
-        """
-        project = config.project
-
-        if not config.online_store.pgvector_enabled:
-            raise ValueError(
-                "pgvector is not enabled in the online store configuration"
-            )
-
-        if distance_metric not in SUPPORTED_DISTANCE_METRICS_DICT:
-            raise ValueError(
-                f"Distance metric {distance_metric} is not supported. Supported distance metrics are {SUPPORTED_DISTANCE_METRICS_DICT.keys()}"
-            )
-
-        distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
-        # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
-
-        result: List[
-            Tuple[
-                Optional[datetime],
-                Optional[ValueProto],
-                Optional[ValueProto],
-                Optional[ValueProto],
-            ]
-        ] = []
-        with self._get_conn(config) as conn, conn.cursor() as cur:
-            table_name = _table_id(project, table)
-
-            # Search query template to find the top k items that are closest to the given embedding
-            # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
-            cur.execute(
-                sql.SQL(
-                    """
-                    SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s as distance,
-                        event_ts FROM {table_name}
-                    WHERE feature_name = {feature_name}
-                    ORDER BY distance
-                    LIMIT {top_k};
-                    """
-                ).format(
-                    distance_metric_sql=distance_metric_sql,
-                    table_name=sql.Identifier(table_name),
-                    feature_name=sql.Literal(requested_feature),
-                    top_k=sql.Literal(top_k),
-                ),
-                (query_embedding_str,),
-            )
-            rows = cur.fetchall()
-
-            for (
-                entity_key,
-                feature_name,
-                value,
-                vector_value,
-                distance,
-                event_ts,
-            ) in rows:
-                # TODO Deserialize entity_key to return the entity in response
-                # entity_key_proto = EntityKeyProto()
-                # entity_key_proto_bin = bytes(entity_key)
-
-                feature_value_proto = ValueProto()
-                feature_value_proto.ParseFromString(bytes(value))
-
-                vector_value_proto = ValueProto(string_val=vector_value)
-                distance_value_proto = ValueProto(float_val=distance)
-                result.append(
-                    (
-                        event_ts,
-                        feature_value_proto,
-                        vector_value_proto,
-                        distance_value_proto,
-                    )
-                )
-
-        return result
 
 
 def _table_id(project: str, table: FeatureView) -> str:

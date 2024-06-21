@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -60,7 +60,7 @@ class BatchFeatureView(FeatureView):
         *,
         name: str,
         source: DataSource,
-        entities: Optional[List[Entity]] = None,
+        entities: Optional[Union[List[Entity], List[str]]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,

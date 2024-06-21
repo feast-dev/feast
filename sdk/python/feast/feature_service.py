@@ -19,6 +19,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceSpec as FeatureServiceSpecProto,
 )
+from feast.usage import log_exceptions
 
 
 @typechecked
@@ -49,12 +50,13 @@ class FeatureService:
     last_updated_timestamp: Optional[datetime] = None
     logging_config: Optional[LoggingConfig] = None
 
+    @log_exceptions
     def __init__(
         self,
         *,
         name: str,
         features: List[Union[FeatureView, OnDemandFeatureView]],
-        tags: Optional[Dict[str, str]] = None,
+        tags: Dict[str, str] = None,
         description: str = "",
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,

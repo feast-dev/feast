@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.11" ]
+        python-version: [ "3.8" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -25,7 +25,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -33,7 +33,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -43,18 +43,25 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      - name: Install uv
+      - name: Get pip cache dir
+        id: pip-cache
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "::set-output name=dir::$(uv cache dir)"
-      - name: uv cache
-        uses: actions/cache@v4
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
+      - name: Install pip-tools
+        run: pip install pip-tools
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -64,8 +71,13 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-ci-dependencies
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
@@ -80,6 +92,6 @@ jobs:
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
         run: |
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp"
 

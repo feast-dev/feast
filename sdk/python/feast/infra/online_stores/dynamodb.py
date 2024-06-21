@@ -14,9 +14,10 @@
 import itertools
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from pydantic import StrictBool, StrictStr
+from pydantic.typing import Literal, Union
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -29,7 +30,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import get_user_agent
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 try:
     import boto3
@@ -65,9 +66,6 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     consistent_reads: StrictBool = False
     """Whether to read from Dynamodb by forcing consistent reads"""
 
-    tags: Union[Dict[str, str], None] = None
-    """AWS resource tags added to each table"""
-
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -81,6 +79,7 @@ class DynamoDBOnlineStore(OnlineStore):
     _dynamodb_client = None
     _dynamodb_resource = None
 
+    @log_exceptions_and_usage(online_store="dynamodb")
     def update(
         self,
         config: RepoConfig,
@@ -106,18 +105,7 @@ class DynamoDBOnlineStore(OnlineStore):
         dynamodb_resource = self._get_dynamodb_resource(
             online_config.region, online_config.endpoint_url
         )
-        # Add Tags attribute to creation request only if configured to prevent
-        # TagResource permission issues, even with an empty Tags array.
-        kwargs = (
-            {
-                "Tags": [
-                    {"Key": key, "Value": value}
-                    for key, value in online_config.tags.items()
-                ]
-            }
-            if online_config.tags
-            else {}
-        )
+
         for table_instance in tables_to_keep:
             try:
                 dynamodb_resource.create_table(
@@ -127,7 +115,6 @@ class DynamoDBOnlineStore(OnlineStore):
                         {"AttributeName": "entity_id", "AttributeType": "S"}
                     ],
                     BillingMode="PAY_PER_REQUEST",
-                    **kwargs,
                 )
             except ClientError as ce:
                 # If the table creation fails with ResourceInUseException,
@@ -171,6 +158,7 @@ class DynamoDBOnlineStore(OnlineStore):
                 dynamodb_resource, _get_table_name(online_config, config, table)
             )
 
+    @log_exceptions_and_usage(online_store="dynamodb")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -206,6 +194,7 @@ class DynamoDBOnlineStore(OnlineStore):
         )
         self._write_batch_non_duplicates(table_instance, data, progress, config)
 
+    @log_exceptions_and_usage(online_store="dynamodb")
     def online_read(
         self,
         config: RepoConfig,
@@ -254,9 +243,10 @@ class DynamoDBOnlineStore(OnlineStore):
                     "ConsistentRead": online_config.consistent_reads,
                 }
             }
-            response = dynamodb_resource.batch_get_item(
-                RequestItems=batch_entity_ids,
-            )
+            with tracing_span(name="remote_call"):
+                response = dynamodb_resource.batch_get_item(
+                    RequestItems=batch_entity_ids,
+                )
             response = response.get("Responses")
             table_responses = response.get(table_instance.name)
             if table_responses:
@@ -298,12 +288,12 @@ class DynamoDBOnlineStore(OnlineStore):
             )
         return self._dynamodb_resource
 
-    def _sort_dynamodb_response(self, responses: list, order: list) -> Any:
+    def _sort_dynamodb_response(self, responses: list, order: list):
         """DynamoDB Batch Get Item doesn't return items in a particular order."""
         # Assign an index to order
         order_with_index = {value: idx for idx, value in enumerate(order)}
         # Sort table responses by index
-        table_responses_ordered: Any = [
+        table_responses_ordered = [
             (order_with_index[tbl_res["entity_id"]], tbl_res) for tbl_res in responses
         ]
         table_responses_ordered = sorted(
@@ -312,6 +302,7 @@ class DynamoDBOnlineStore(OnlineStore):
         _, table_responses_ordered = zip(*table_responses_ordered)
         return table_responses_ordered
 
+    @log_exceptions_and_usage(online_store="dynamodb")
     def _write_batch_non_duplicates(
         self,
         table_instance,

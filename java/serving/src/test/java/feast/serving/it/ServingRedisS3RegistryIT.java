@@ -17,8 +17,6 @@
 package feast.serving.it;
 
 import com.adobe.testing.s3mock.testcontainers.S3MockContainer;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -32,19 +30,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.junit.jupiter.Container;
 
 public class ServingRedisS3RegistryIT extends ServingBaseTests {
-  private static final String TEST_REGION = "us-east-1";
-  private static final String TEST_BUCKET = "test-bucket";
   @Container static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
-  private static final AWSStaticCredentialsProvider credentials =
-      new AWSStaticCredentialsProvider(new BasicAWSCredentials("anyAccessKey", "anySecretKey"));
 
   private static AmazonS3 createClient() {
     return AmazonS3ClientBuilder.standard()
         .withEndpointConfiguration(
             new AwsClientBuilder.EndpointConfiguration(
-                String.format("http://%s:%d", s3Mock.getHost(), s3Mock.getHttpServerPort()),
-                TEST_REGION))
-        .withCredentials(credentials)
+                String.format("http://localhost:%d", s3Mock.getHttpServerPort()), "us-east-1"))
         .enablePathStyleAccess()
         .build();
   }
@@ -56,13 +48,13 @@ public class ServingRedisS3RegistryIT extends ServingBaseTests {
     metadata.setContentType("application/protobuf");
 
     AmazonS3 s3Client = createClient();
-    s3Client.putObject(TEST_BUCKET, "registry.db", new ByteArrayInputStream(bytes), metadata);
+    s3Client.putObject("test-bucket", "registry.db", new ByteArrayInputStream(bytes), metadata);
   }
 
   @BeforeAll
   static void setUp() {
     AmazonS3 s3Client = createClient();
-    s3Client.createBucket(TEST_BUCKET);
+    s3Client.createBucket("test-bucket");
 
     putToStorage(registryProto);
   }
@@ -72,7 +64,7 @@ public class ServingRedisS3RegistryIT extends ServingBaseTests {
     final ApplicationProperties.FeastProperties feastProperties =
         TestUtils.createBasicFeastProperties(
             environment.getServiceHost("redis", 6379), environment.getServicePort("redis", 6379));
-    feastProperties.setRegistry(String.format("s3://%s/registry.db", TEST_BUCKET));
+    feastProperties.setRegistry("s3://test-bucket/registry.db");
 
     return feastProperties;
   }
@@ -90,9 +82,7 @@ public class ServingRedisS3RegistryIT extends ServingBaseTests {
         return AmazonS3ClientBuilder.standard()
             .withEndpointConfiguration(
                 new AwsClientBuilder.EndpointConfiguration(
-                    String.format("http://%s:%d", s3Mock.getHost(), s3Mock.getHttpServerPort()),
-                    TEST_REGION))
-            .withCredentials(credentials)
+                    String.format("http://localhost:%d", s3Mock.getHttpServerPort()), "us-east-1"))
             .enablePathStyleAccess()
             .build();
       }

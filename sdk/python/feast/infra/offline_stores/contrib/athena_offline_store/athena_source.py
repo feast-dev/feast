@@ -297,9 +297,9 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
     def __init__(
         self,
         table_ref: str,
-        query: Optional[str] = None,
-        database: Optional[str] = None,
-        data_source: Optional[str] = None,
+        query: str = None,
+        database: str = None,
+        data_source: str = None,
     ):
         self.athena_options = AthenaOptions(
             table=table_ref, query=query, database=database, data_source=data_source
@@ -307,6 +307,7 @@ class SavedDatasetAthenaStorage(SavedDatasetStorage):
 
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
+
         return SavedDatasetAthenaStorage(
             table_ref=AthenaOptions.from_proto(storage_proto.athena_storage).table
         )

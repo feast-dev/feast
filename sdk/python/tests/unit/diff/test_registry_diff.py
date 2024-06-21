@@ -137,14 +137,13 @@ def test_diff_odfv(simple_dataset_1):
         # if no code is changed
         assert len(feast_object_diffs.feast_object_property_diffs) == 3
         assert feast_object_diffs.feast_object_property_diffs[0].property_name == "name"
-        # Note we should only now be looking at changes for the feature_transformation field
         assert (
             feast_object_diffs.feast_object_property_diffs[1].property_name
-            == "feature_transformation.name"
+            == "user_defined_function.name"
         )
         assert (
             feast_object_diffs.feast_object_property_diffs[2].property_name
-            == "feature_transformation.body_text"
+            == "user_defined_function.body_text"
         )
 
 

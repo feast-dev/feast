@@ -20,17 +20,7 @@ Cassandra/Astra DB online store for Feast.
 
 import logging
 from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import (
@@ -44,6 +34,7 @@ from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
 from cassandra.query import PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
+from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -51,6 +42,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.usage import log_exceptions_and_usage, tracing_span
 
 # Error messages
 E_CASSANDRA_UNEXPECTED_CONFIGURATION_CLASS = (
@@ -318,6 +310,7 @@ class CassandraOnlineStore(OnlineStore):
         """
         pass
 
+    @log_exceptions_and_usage(online_store="cassandra")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -365,16 +358,18 @@ class CassandraOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
 
-        self._write_rows_concurrently(
-            config,
-            project,
-            table,
-            unroll_insertion_tuples(),
-        )
-        # correction for the last missing call to `progress`:
-        if progress:
-            progress(1)
+        with tracing_span(name="remote_call"):
+            self._write_rows_concurrently(
+                config,
+                project,
+                table,
+                unroll_insertion_tuples(),
+            )
+            # correction for the last missing call to `progress`:
+            if progress:
+                progress(1)
 
+    @log_exceptions_and_usage(online_store="cassandra")
     def online_read(
         self,
         config: RepoConfig,
@@ -404,13 +399,14 @@ class CassandraOnlineStore(OnlineStore):
             for entity_key in entity_keys
         ]
 
-        feature_rows_sequence = self._read_rows_by_entity_keys(
-            config,
-            project,
-            table,
-            entity_key_bins,
-            columns=["feature_name", "value", "event_ts"],
-        )
+        with tracing_span(name="remote_call"):
+            feature_rows_sequence = self._read_rows_by_entity_keys(
+                config,
+                project,
+                table,
+                entity_key_bins,
+                columns=["feature_name", "value", "event_ts"],
+            )
 
         for entity_key_bin, feature_rows in zip(entity_key_bins, feature_rows_sequence):
             res = {}
@@ -431,6 +427,7 @@ class CassandraOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
+    @log_exceptions_and_usage(online_store="cassandra")
     def update(
         self,
         config: RepoConfig,
@@ -451,10 +448,13 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            self._create_table(config, project, table)
+            with tracing_span(name="remote_call"):
+                self._create_table(config, project, table)
         for table in tables_to_delete:
-            self._drop_table(config, project, table)
+            with tracing_span(name="remote_call"):
+                self._drop_table(config, project, table)
 
+    @log_exceptions_and_usage(online_store="cassandra")
     def teardown(
         self,
         config: RepoConfig,
@@ -471,7 +471,8 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            self._drop_table(config, project, table)
+            with tracing_span(name="remote_call"):
+                self._drop_table(config, project, table)
 
     @staticmethod
     def _fq_table_name(keyspace: str, project: str, table: FeatureView) -> str:

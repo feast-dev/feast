@@ -17,19 +17,10 @@ from datetime import datetime
 from multiprocessing.pool import ThreadPool
 from queue import Empty, Queue
 from threading import Lock, Thread
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from pydantic import PositiveInt, StrictStr
+from pydantic.typing import Literal
 
 from feast import Entity, utils
 from feast.errors import FeastProviderLoginError
@@ -44,7 +35,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import get_user_agent
+from feast.usage import get_user_agent, log_exceptions_and_usage, tracing_span
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,9 +71,6 @@ class DatastoreOnlineStoreConfig(FeastConfigBaseModel):
     namespace: Optional[StrictStr] = None
     """ (optional) Datastore namespace """
 
-    database: Optional[StrictStr] = None
-    """ (optional) Firestore database """
-
     write_concurrency: Optional[PositiveInt] = 40
     """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
 
@@ -103,6 +91,7 @@ class DatastoreOnlineStore(OnlineStore):
 
     _client: Optional[datastore.Client] = None
 
+    @log_exceptions_and_usage(online_store="datastore")
     def update(
         self,
         config: RepoConfig,
@@ -157,12 +146,11 @@ class DatastoreOnlineStore(OnlineStore):
     def _get_client(self, online_config: DatastoreOnlineStoreConfig):
         if not self._client:
             self._client = _initialize_client(
-                online_config.project_id,
-                online_config.namespace,
-                online_config.database,
+                online_config.project_id, online_config.namespace
             )
         return self._client
 
+    @log_exceptions_and_usage(online_store="datastore")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -172,6 +160,7 @@ class DatastoreOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
@@ -253,6 +242,7 @@ class DatastoreOnlineStore(OnlineStore):
         if progress:
             progress(len(entities))
 
+    @log_exceptions_and_usage(online_store="datastore")
     def online_read(
         self,
         config: RepoConfig,
@@ -260,6 +250,7 @@ class DatastoreOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+
         online_config = config.online_store
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
@@ -280,7 +271,8 @@ class DatastoreOnlineStore(OnlineStore):
 
         # NOTE: get_multi doesn't return values in the same order as the keys in the request.
         # Also, len(values) can be less than len(keys) in the case of missing values.
-        values = client.get_multi(keys)
+        with tracing_span(name="remote_call"):
+            values = client.get_multi(keys)
         values_dict = {v.key: v for v in values} if values is not None else {}
         for key in keys:
             if key in values_dict:
@@ -345,14 +337,11 @@ def _delete_all_values(client, key):
 
 
 def _initialize_client(
-    project_id: Optional[str], namespace: Optional[str], database: Optional[str]
+    project_id: Optional[str], namespace: Optional[str]
 ) -> datastore.Client:
     try:
         client = datastore.Client(
-            project=project_id,
-            namespace=namespace,
-            database=database,
-            client_info=get_http_client_info(),
+            project=project_id, namespace=namespace, client_info=get_http_client_info()
         )
         return client
     except DefaultCredentialsError as e:
@@ -372,13 +361,11 @@ class DatastoreTable(InfraObject):
         name: The name of the table.
         project_id (optional): The GCP project id.
         namespace (optional): Datastore namespace.
-        database (optional): Firestore database.
     """
 
     project: str
     project_id: Optional[str]
     namespace: Optional[str]
-    database: Optional[str]
 
     def __init__(
         self,
@@ -386,13 +373,11 @@ class DatastoreTable(InfraObject):
         name: str,
         project_id: Optional[str] = None,
         namespace: Optional[str] = None,
-        database: Optional[str] = None,
     ):
         super().__init__(name)
         self.project = project
         self.project_id = project_id
         self.namespace = namespace
-        self.database = database
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         datastore_table_proto = self.to_proto()
@@ -409,8 +394,6 @@ class DatastoreTable(InfraObject):
             datastore_table_proto.project_id.value = self.project_id
         if self.namespace:
             datastore_table_proto.namespace.value = self.namespace
-        if self.database:
-            datastore_table_proto.database.value = self.database
         return datastore_table_proto
 
     @staticmethod
@@ -420,7 +403,7 @@ class DatastoreTable(InfraObject):
             name=infra_object_proto.datastore_table.name,
         )
 
-        # Distinguish between null and empty string, since project_id, namespace and database are StringValues.
+        # Distinguish between null and empty string, since project_id and namespace are StringValues.
         if infra_object_proto.datastore_table.HasField("project_id"):
             datastore_table.project_id = (
                 infra_object_proto.datastore_table.project_id.value
@@ -429,8 +412,6 @@ class DatastoreTable(InfraObject):
             datastore_table.namespace = (
                 infra_object_proto.datastore_table.namespace.value
             )
-        if infra_object_proto.datastore_table.HasField("database"):
-            datastore_table.database = infra_object_proto.datastore_table.database.value
 
         return datastore_table
 
@@ -446,13 +427,11 @@ class DatastoreTable(InfraObject):
             datastore_table.project_id = datastore_table_proto.project_id.value
         if datastore_table_proto.HasField("namespace"):
             datastore_table.namespace = datastore_table_proto.namespace.value
-        if datastore_table_proto.HasField("database"):
-            datastore_table.database = datastore_table_proto.database.value
 
         return datastore_table
 
     def update(self):
-        client = _initialize_client(self.project_id, self.namespace, self.database)
+        client = _initialize_client(self.project_id, self.namespace)
         key = client.key("Project", self.project, "Table", self.name)
         entity = datastore.Entity(
             key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
@@ -461,7 +440,7 @@ class DatastoreTable(InfraObject):
         client.put(entity)
 
     def teardown(self):
-        client = _initialize_client(self.project_id, self.namespace, self.database)
+        client = _initialize_client(self.project_id, self.namespace)
         key = client.key("Project", self.project, "Table", self.name)
         _delete_all_values(client, key)
 

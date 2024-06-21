@@ -9,7 +9,7 @@ import tempfile
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import List, Optional, Set, Union
+from typing import List, Set, Union
 
 import click
 from click.exceptions import BadParameter
@@ -29,7 +29,9 @@ from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
+from feast.request_feature_view import RequestFeatureView
 from feast.stream_feature_view import StreamFeatureView
+from feast.usage import log_exceptions_and_usage
 
 
 def py_path_to_module(path: Path) -> str:
@@ -112,6 +114,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
+        request_feature_views=[],
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -168,8 +171,8 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     res.data_sources.append(batch_source)
 
                 # Handle stream sources defined with feature views.
-                assert obj.stream_source
                 stream_source = obj.stream_source
+                assert stream_source
                 if not any((stream_source is ds) for ds in res.data_sources):
                     res.data_sources.append(stream_source)
             elif isinstance(obj, BatchFeatureView) and not any(
@@ -193,21 +196,26 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, RequestFeatureView) and not any(
+                (obj is rfv) for rfv in res.request_feature_views
+            ):
+                res.request_feature_views.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
     return res
 
 
+@log_exceptions_and_usage
 def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
 
     if not skip_source_validation:
-        provider = store._get_provider()
         data_sources = [t.batch_source for t in repo.feature_views]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
-            provider.validate_data_source(store.config, data_source)
+            data_source.validate(store.config)
 
     registry_diff, infra_diff, _ = store.plan(repo)
     click.echo(registry_diff.to_string())
@@ -242,6 +250,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            RequestFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -255,6 +264,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            RequestFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -281,11 +291,10 @@ def apply_total_with_repo_instance(
     skip_source_validation: bool,
 ):
     if not skip_source_validation:
-        provider = store._get_provider()
         data_sources = [t.batch_source for t in repo.feature_views]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
-            provider.validate_data_source(store.config, data_source)
+            data_source.validate(store.config)
 
     # For each object in the registry, determine whether it should be kept or deleted.
     (
@@ -321,6 +330,7 @@ def log_infra_changes(
         )
 
 
+@log_exceptions_and_usage
 def create_feature_store(
     ctx: click.Context,
 ) -> FeatureStore:
@@ -341,6 +351,7 @@ def create_feature_store(
         return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
 
+@log_exceptions_and_usage
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
@@ -349,12 +360,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
     )
 
 
-def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
+@log_exceptions_and_usage
+def teardown(repo_config: RepoConfig, repo_path: Path):
     # Cannot pass in both repo_path and repo_config to FeatureStore.
     feature_store = FeatureStore(repo_path=repo_path, config=None)
     feature_store.teardown()
 
 
+@log_exceptions_and_usage
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.registry
@@ -374,6 +387,7 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
         sys.exit(1)
 
 
+@log_exceptions_and_usage
 def init_repo(repo_name: str, template: str):
     import os
     from distutils.dir_util import copy_tree

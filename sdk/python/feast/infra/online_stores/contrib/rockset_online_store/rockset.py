@@ -33,6 +33,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,7 @@ class RocksetOnlineStore(OnlineStore):
 
     _rockset_client = None
 
+    @log_exceptions_and_usage(online_store="rockset")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -162,6 +164,7 @@ class RocksetOnlineStore(OnlineStore):
 
         return None
 
+    @log_exceptions_and_usage(online_store="rockset")
     def online_read(
         self,
         config: RepoConfig,
@@ -255,6 +258,7 @@ class RocksetOnlineStore(OnlineStore):
 
         return results_list
 
+    @log_exceptions_and_usage(online_store="rockset")
     def update(
         self,
         config: RepoConfig,
@@ -299,6 +303,7 @@ class RocksetOnlineStore(OnlineStore):
             rs, created_collections, online_config=online_config
         )
 
+    @log_exceptions_and_usage(online_store="rockset")
     def teardown(
         self,
         config: RepoConfig,

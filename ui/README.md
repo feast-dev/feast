@@ -46,7 +46,7 @@ ReactDOM.render(
 );
 ```
 
-When you start the React app, it will look for `projects-list.json` to find a list of your projects. The JSON should looks something like this.
+When you start the React app, it will look for `project-list.json` to find a list of your projects. The JSON should looks something like this.
 
 ```json
 {
@@ -60,8 +60,6 @@ When you start the React app, it will look for `projects-list.json` to find a li
   ]
 }
 ```
-
-* **Note** - `registryPath` only supports a file location or a url.
 
 ```
 // Start the React App

@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import utils
@@ -37,6 +36,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.types import from_value_type
+from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -93,13 +93,14 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
 
+    @log_exceptions
     def __init__(
         self,
         *,
         name: str,
         source: DataSource,
         schema: Optional[List[Field]] = None,
-        entities: Optional[List[Entity]] = None,
+        entities: List[Entity] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
         online: bool = True,
         description: str = "",
@@ -273,7 +274,7 @@ class FeatureView(BaseFeatureView):
             raise ValueError("Feature view has no entities.")
 
     @property
-    def proto_class(self) -> Type[Message]:
+    def proto_class(self) -> Type[FeatureViewProto]:
         return FeatureViewProto
 
     def with_join_key_map(self, join_key_map: Dict[str, str]):

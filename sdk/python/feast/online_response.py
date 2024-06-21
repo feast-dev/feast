@@ -15,7 +15,6 @@
 from typing import Any, Dict, List
 
 import pandas as pd
-import pyarrow as pa
 
 from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
@@ -50,7 +49,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into a dictionary form.
 
         Args:
-        include_event_timestamps: bool Optionally include feature timestamps in the dictionary
+        is_with_event_timestamps: bool Optionally include feature timestamps in the dictionary
         """
         response: Dict[str, List[Any]] = {}
 
@@ -74,17 +73,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
 
         Args:
-        include_event_timestamps: bool Optionally include feature timestamps in the dataframe
+        is_with_event_timestamps: bool Optionally include feature timestamps in the dataframe
         """
 
         return pd.DataFrame(self.to_dict(include_event_timestamps))
-
-    def to_arrow(self, include_event_timestamps: bool = False) -> pa.Table:
-        """
-        Converts GetOnlineFeaturesResponse features into pyarrow Table.
-
-        Args:
-        include_event_timestamps: bool Optionally include feature timestamps in the table
-        """
-
-        return pa.Table.from_pydict(self.to_dict(include_event_timestamps))

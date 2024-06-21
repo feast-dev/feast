@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import os
 import time
@@ -13,7 +12,6 @@ import pytest
 import requests
 from botocore.exceptions import BotoCoreError
 
-from feast import FeatureStore
 from feast.entity import Entity
 from feast.errors import FeatureNameCollisionError
 from feast.feature_service import FeatureService
@@ -27,10 +25,9 @@ from tests.integration.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import driver, item
+from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
-    create_item_embeddings_feature_view,
     driver_feature_view,
 )
 from tests.utils.data_source_test_creator import prep_file_source
@@ -402,15 +399,19 @@ def test_online_retrieval_with_shared_batch_source(environment, universal_data_s
         )
 
 
-def setup_feature_store_universal_feature_views(
-    environment, universal_data_sources
-) -> FeatureStore:
-    fs: FeatureStore = environment.feature_store
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_online_retrieval_with_event_timestamps(
+    environment, universal_data_sources, full_feature_names
+):
+    fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
     fs.apply([driver(), feature_views.driver, feature_views.global_fv])
 
+    # fake data to ingest into Online Store
     data = {
         "driver_id": [1, 2],
         "conv_rate": [0.5, 0.3],
@@ -427,11 +428,18 @@ def setup_feature_store_universal_feature_views(
     }
     df_ingest = pd.DataFrame(data)
 
+    # directly ingest data into the Online Store
     fs.write_to_online_store("driver_stats", df_ingest)
-    return fs
 
-
-def assert_feature_store_universal_feature_views_response(df: pd.DataFrame):
+    response = fs.get_online_features(
+        features=[
+            "driver_stats:avg_daily_trips",
+            "driver_stats:acc_rate",
+            "driver_stats:conv_rate",
+        ],
+        entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
+    )
+    df = response.to_df(True)
     assertpy.assert_that(len(df)).is_equal_to(2)
     assertpy.assert_that(df["driver_id"].iloc[0]).is_equal_to(1)
     assertpy.assert_that(df["driver_id"].iloc[1]).is_equal_to(2)
@@ -453,50 +461,6 @@ def assert_feature_store_universal_feature_views_response(df: pd.DataFrame):
     assertpy.assert_that(df["conv_rate" + TIMESTAMP_POSTFIX].iloc[1]).is_equal_to(
         1646263600
     )
-
-
-@pytest.mark.integration
-@pytest.mark.universal_online_stores
-def test_online_retrieval_with_event_timestamps(environment, universal_data_sources):
-    fs = setup_feature_store_universal_feature_views(
-        environment, universal_data_sources
-    )
-
-    response = fs.get_online_features(
-        features=[
-            "driver_stats:avg_daily_trips",
-            "driver_stats:acc_rate",
-            "driver_stats:conv_rate",
-        ],
-        entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
-    )
-    df = response.to_df(True)
-
-    assert_feature_store_universal_feature_views_response(df)
-
-
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis"])
-def test_async_online_retrieval_with_event_timestamps(
-    environment, universal_data_sources
-):
-    fs = setup_feature_store_universal_feature_views(
-        environment, universal_data_sources
-    )
-
-    response = asyncio.run(
-        fs.get_online_features_async(
-            features=[
-                "driver_stats:avg_daily_trips",
-                "driver_stats:acc_rate",
-                "driver_stats:conv_rate",
-            ],
-            entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
-        )
-    )
-    df = response.to_df(True)
-
-    assert_feature_store_universal_feature_views_response(df)
 
 
 @pytest.mark.integration
@@ -821,37 +785,3 @@ def assert_feature_service_entity_mapping_correctness(
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
             )
-
-
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
-def test_retrieve_online_documents(environment, fake_document_data):
-    fs = environment.feature_store
-    df, data_source = fake_document_data
-    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
-    fs.apply([item_embeddings_feature_view, item()])
-    fs.write_to_online_store("item_embeddings", df)
-
-    documents = fs.retrieve_online_documents(
-        feature="item_embeddings:embedding_float",
-        query=[1.0, 2.0],
-        top_k=2,
-        distance_metric="L2",
-    ).to_dict()
-    assert len(documents["embedding_float"]) == 2
-
-    documents = fs.retrieve_online_documents(
-        feature="item_embeddings:embedding_float",
-        query=[1.0, 2.0],
-        top_k=2,
-        distance_metric="L1",
-    ).to_dict()
-    assert len(documents["embedding_float"]) == 2
-
-    with pytest.raises(ValueError):
-        fs.retrieve_online_documents(
-            feature="item_embeddings:embedding_float",
-            query=[1.0, 2.0],
-            top_k=2,
-            distance_metric="wrong",
-        ).to_dict()

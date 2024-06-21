@@ -46,5 +46,5 @@ The full set of configuration options is available [here](https://rtd.feast.dev/
 
 ## Supported Types
 
-Snowflake data sources support all eight primitive types. Array types are also supported but not with type inference.
+Snowflake data sources support all eight primitive types, but currently do not support array types.
 For a comparison against other batch data sources, please see [here](overview.md#functionality-matrix).
