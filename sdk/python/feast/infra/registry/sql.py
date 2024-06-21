@@ -185,7 +185,8 @@ class SqlRegistry(CachingRegistry):
         repo_path: Optional[Path],
     ):
         assert registry_config is not None, "SqlRegistry needs a valid registry_config"
-
+        logger.warn("SQL engine being created again")
+        print("SQL engine being created again")
         self.engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
