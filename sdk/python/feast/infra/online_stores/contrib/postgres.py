@@ -48,6 +48,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         if config.online_store.conn_type == ConnectionType.pool:
             if not self._conn_pool:
                 self._conn_pool = _get_connection_pool(config.online_store)
+                self._conn_pool.open()
             connection = self._conn_pool.getconn()
             yield connection
             self._conn_pool.putconn(connection)
