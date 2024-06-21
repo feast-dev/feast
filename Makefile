@@ -390,6 +390,7 @@ compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
+	pip install --ignore-installed protobuf==4.23.4 grpcio-tools==1.47.0 mypy-protobuf==3.1.0
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
