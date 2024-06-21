@@ -669,6 +669,7 @@ def test_get_online_predictions():
         assert "lon" in result
         assert "avg_orders_day" in result
         assert "name" in result
+        assert result["risk_score:predictions"] == [0.1, 0.2]
         assert result["driver_id"] == [1, 1]
         assert result["customer_id"] == ["5", "5"]
         assert result["lon"] == ["1.0", "1.0"]
