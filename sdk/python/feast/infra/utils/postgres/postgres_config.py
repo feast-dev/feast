@@ -25,4 +25,4 @@ class PostgreSQLConfig(FeastConfigBaseModel):
     sslkey_path: Optional[StrictStr] = None
     sslcert_path: Optional[StrictStr] = None
     sslrootcert_path: Optional[StrictStr] = None
-    keepalives_idle: int = 0
+    keepalives_idle: Optional[int] = None

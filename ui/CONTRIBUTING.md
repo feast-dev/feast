@@ -91,7 +91,7 @@ The Feast UI is published as a module to NPM and can be found here: https://www.
 ### Requirements
 
 To publish a new version of the module, you will need:
-- to be part of the @feast-dev team in NPM. Ask `#feast-development` on http://slack.feast.dev to add you if necessary. 
+- to be part of the @feast-dev team in NPM.
 - to [login to your NPM account on the command line](https://docs.npmjs.com/cli/v8/commands/npm-adduser).
 
 ### Steps for Publishing

@@ -1,4 +1,3 @@
-import importlib.metadata
 import uuid
 from typing import Any, Callable, Type
 
@@ -8,6 +7,7 @@ from google.protobuf.json_format import (  # type: ignore
     _Parser,
     _Printer,
 )
+from importlib_metadata import version as importlib_version
 from packaging import version
 
 from feast.protos.feast.serving.ServingService_pb2 import FeatureList
@@ -118,7 +118,7 @@ def _patch_feast_value_json_encoding():
 
     # https://github.com/feast-dev/feast/issues/2484 Certain feast users need a higher version of protobuf but the
     # parameters of `from_json_object` changes in feast 3.20.1. This change gives users flexibility to use earlier versions.
-    current_version = importlib.metadata.distribution("protobuf").version
+    current_version = importlib_version("protobuf")
     if version.parse(current_version) < version.parse("3.20"):
         _patch_proto_json_encoding(Value, to_json_object, from_json_object)
     else:
@@ -168,7 +168,7 @@ def _patch_feast_repeated_value_json_encoding():
 
     # https://github.com/feast-dev/feast/issues/2484 Certain feast users need a higher version of protobuf but the
     # parameters of `from_json_object` changes in feast 3.20.1. This change gives users flexibility to use earlier versions.
-    current_version = importlib.metadata.distribution("protobuf").version
+    current_version = importlib_version("protobuf")
     if version.parse(current_version) < version.parse("3.20"):
         _patch_proto_json_encoding(RepeatedValue, to_json_object, from_json_object)
     else:
@@ -221,7 +221,7 @@ def _patch_feast_feature_list_json_encoding():
 
     # https://github.com/feast-dev/feast/issues/2484 Certain feast users need a higher version of protobuf but the
     # parameters of `from_json_object` changes in feast 3.20.1. This change gives users flexibility to use earlier versions.
-    current_version = importlib.metadata.distribution("protobuf").version
+    current_version = importlib_version("protobuf")
     if version.parse(current_version) < version.parse("3.20"):
         _patch_proto_json_encoding(FeatureList, to_json_object, from_json_object)
     else:

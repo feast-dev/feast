@@ -383,14 +383,14 @@ install-go-ci-dependencies:
 	python -m pip install "pybindgen==0.22.1" "protobuf<5,>3.20"
 
 install-protoc-dependencies:
-	pip install "protobuf<5,>3.20" "grpcio-tools>=1.47.0" "mypy-protobuf==3.1"
+	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
 
 compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
 	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
-	pip install --ignore-installed protobuf==4.23.4 grpcio-tools==1.47.0 mypy-protobuf==3.1.0
+	pip install --ignore-installed protobuf==4.23.4 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
