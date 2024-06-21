@@ -4,9 +4,10 @@ from typing import Any, Optional, Union, get_args
 
 from feast.feast_object import FeastObject
 
-ALL_RESOURCE_TYPES = "ALL"
-AuthzedResourceType = Union[ALL_RESOURCE_TYPES, FeastObject]
-
+"""
+Constant to refer to all the managed types.
+"""
+ALL_RESOURCE_TYPES = list(get_args(FeastObject))
 
 logger = logging.getLogger(__name__)
 
@@ -17,28 +18,30 @@ class AuthzedResource:
     based on the resource name and tags.
 
     Attributes:
-        type: the type of secured resource (must match one Feast class, as defined by the FeastObject type, or the `ALL` string)
+        type: the list of secured resource types (must match one Feast class, as defined by the FeastObject type)
         name_pattern: a regex to match the resource name. Defaults to None, meaning that no name filtering is applied
         required_tags: dictionary of key-value pairs that must match the resource tags. All these required_tags must be present as resource
         tags with the given value. Defaults to None, meaning that no tags filtering is applied.
     """
 
-    type: AuthzedResourceType
+    type: list[FeastObject]
     with_subclasses: bool
     name_pattern: Optional[str]
     required_tags: Optional[dict[str, str]]
 
     def __init__(
         self,
-        type: AuthzedResourceType,
+        type: Union[list[FeastObject], FeastObject],
         with_subclasses: bool = False,
         name_pattern: Optional[str] = None,
         required_tags: Optional[dict[str, str]] = None,
     ):
-        if type != ALL_RESOURCE_TYPES and type not in get_args(FeastObject):
-            raise ValueError(f"type '{type}' is not one of the managed types")
+        _type: list[FeastObject] = type if isinstance(type, list) else [type]
+        for t in _type:
+            if t not in get_args(FeastObject):
+                raise ValueError(f"{t} is not one of the managed types")
 
-        self.type = type
+        self.type = _type
         self.with_subclasses = with_subclasses
         self.name_pattern = _normalize_name_pattern(name_pattern)
         self.required_tags = _normalize_required_tags(required_tags)
@@ -67,8 +70,8 @@ class AuthzedResource:
             )
             return False
 
-        if self.type != ALL_RESOURCE_TYPES and not isinstance(resource, self.type):
-            logger.info(f"Resource does not match expected type {self.type}")
+        if not any(isinstance(resource, t) for t in self.type):
+            logger.info(f"Resource does not match any of the expected type {self.type}")
             return False
 
         if self.name_pattern is not None:
