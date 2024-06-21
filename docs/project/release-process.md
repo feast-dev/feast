@@ -16,14 +16,14 @@ If you were cutting Feast 0.22.3, for example, you might do:
 
 After this step, you will have all the changes you need in the branch.
 
-### 2. Pre-release verification
+### 2. Pre-release verification (currently broken)
 A lot of things can go wrong. One of the most common is getting the wheels to build correctly (and not accidentally 
 building dev wheels from improper tagging or local code changes during the release process).
 Another possible failure is that the Docker images might not build correctly.
 
 We verify the building the wheels and Docker images in **your fork** of Feast, not the main feast-dev/feast repo.
 
-#### For minor releases (e.g. v0.22.0)
+#### 2a. Verifying minor releases (e.g. v0.22.0)
 1. Merge upstream master changes into your **fork**. Make sure you are running the workflow off of your fork!
 2. Create a tag manually for the release on your fork. For example, if you are doing a release for version 0.22.0, create a tag by doing the following.
    - Checkout master branch and run `git tag v0.22.0`.
@@ -37,17 +37,7 @@ We verify the building the wheels and Docker images in **your fork** of Feast, n
 5. Run the workflow off of the tag you just created(`v0.22.0` in this case, **not** the master branch) and verify that 
    the workflow worked (i.e ensure that all jobs are green).
 
-#### For patch releases (e.g. v0.22.3)
-You should already have checked out the existing minor release branch from step 1 (e.g. `v0.22-branch`). 
-1. Push the minor release branch to your fork (`git push -u origin <branch>`).
-2. Add a patch release tag (e.g `v0.22.1`) by running `git tag <tag>`.
-   > This is important. If you don't have a tag, then the wheels you build will be **dev wheels**, which we can't
-   > push. The release process will automatically produce a tag for you via Semantic Release.
-3. Push tags to your **origin branch** (not the upstream feast-dev/feast branch) with `git push origin <tag>`.
-4. Kick off `build_wheels` workflow in your fork in the same way as is detailed in the last section, running the 
-   workflow from this tag you just pushed up.
-
-### 3. Release for Python and Java SDK
+### 2. Release for Python and Java SDK
 1. Generate a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or retrieve your saved personal access token.
    * The personal access token should have all of the permissions under the `repo` checkbox.
 2. Access the `Actions` tab on the main `feast-dev/feast` repo and find the `release` action.
@@ -81,7 +71,7 @@ so it helps to have a high level overview. See https://github.com/feast-dev/feas
 
 #### 4c: Update documentation
 
-In the Feast Gitbook (ask [Danny Chiao](https://tectonfeast.slack.com/team/U029405HFEU) in Slack for access):
+In the Feast Gitbook:
 1. Create a new space within the Feast collection
 2. Go to the overflow menu on the top -> Synchronize with Git
    1. Specify GitHub as the provider

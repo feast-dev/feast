@@ -51,13 +51,6 @@ The compatibility policy for Feast can be found [here](compatibility.md), and sh
 ## Community
 See [Contribution process](./contributing.md) and [Community](../community.md) for details on how to get more involved in the community.
 
-A quick few highlights:
-- [RFCs](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA)
-- [Community Slack](https://slack.feast.dev/)
-- [Feast Dev Mailing List](https://groups.google.com/g/feast-dev)
-- [Community Calendar](https://calendar.google.com/calendar/u/0?cid=ZTFsZHVhdGM3MDU3YTJucTBwMzNqNW5rajBAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ)
-  - Includes biweekly community calls at 10AM PST
-
 ## Making a pull request
 We use the convention that the assignee of a PR is the person with the next action.
 

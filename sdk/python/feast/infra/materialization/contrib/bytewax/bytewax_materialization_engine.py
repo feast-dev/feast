@@ -61,6 +61,12 @@ class BytewaxMaterializationEngineConfig(FeastConfigBaseModel):
     include_security_context_capabilities: bool = True
     """ (optional)  Include security context capabilities in the init and job container spec """
 
+    labels: dict = {}
+    """ (optional) additional labels to append to kubernetes objects """
+
+    max_parallelism: int = 10
+    """ (optional) Maximum number of pods  (default 10) allowed to run in parallel per job"""
+
 
 class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def __init__(
@@ -82,7 +88,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.online_store = online_store
 
         # TODO: Configure k8s here
-        k8s_config.load_kube_config()
+        k8s_config.load_config()
 
         self.k8s_client = client.api_client.ApiClient()
         self.v1 = client.CoreV1Api(self.k8s_client)
@@ -193,14 +199,13 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             {"paths": paths, "feature_view": feature_view.name}
         )
 
+        labels = {"feast-bytewax-materializer": "configmap"}
         configmap_manifest = {
             "kind": "ConfigMap",
             "apiVersion": "v1",
             "metadata": {
                 "name": f"feast-{job_id}",
-                "labels": {
-                    "feast-bytewax-materializer": "configmap",
-                },
+                "labels": {**labels, **self.batch_engine_config.labels},
             },
             "data": {
                 "feature_store.yaml": feature_store_configuration,
@@ -257,27 +262,25 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 "drop": ["ALL"],
             }
 
+        job_labels = {"feast-bytewax-materializer": "job"}
+        pod_labels = {"feast-bytewax-materializer": "pod"}
         job_definition = {
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
                 "name": f"dataflow-{job_id}",
                 "namespace": namespace,
-                "labels": {
-                    "feast-bytewax-materializer": "job",
-                },
+                "labels": {**job_labels, **self.batch_engine_config.labels},
             },
             "spec": {
                 "ttlSecondsAfterFinished": 3600,
                 "completions": pods,
-                "parallelism": pods,
+                "parallelism": min(pods, self.batch_engine_config.max_parallelism),
                 "completionMode": "Indexed",
                 "template": {
                     "metadata": {
                         "annotations": self.batch_engine_config.annotations,
-                        "labels": {
-                            "feast-bytewax-materializer": "pod",
-                        },
+                        "labels": {**pod_labels, **self.batch_engine_config.labels},
                     },
                     "spec": {
                         "restartPolicy": "Never",

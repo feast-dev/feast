@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib.metadata
 import json
 import logging
 from datetime import datetime
@@ -22,12 +21,14 @@ import click
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
+from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
 from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
+from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -67,7 +68,7 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--log-level",
-    default="info",
+    default="warning",
     help="The logging level. One of DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive).",
 )
 @click.option(
@@ -85,8 +86,6 @@ def cli(
     Feast CLI
 
     For more information, see our public docs at https://docs.feast.dev/
-
-    For any questions, you can reach us at https://slack.feast.dev/
     """
     ctx.ensure_object(dict)
     ctx.obj["CHDIR"] = Path.cwd() if chdir is None else Path(chdir).absolute()
@@ -121,7 +120,7 @@ def version():
     """
     Display Feast SDK version
     """
-    print(f'Feast SDK Version: "{importlib.metadata.distribution("eg-feast").version}"')
+    print(f'Feast SDK Version: "{importlib_version("eg-feast")}"')
 
 
 @cli.command()
@@ -706,6 +705,36 @@ def serve_command(
         raise Exception(
             "Failed to start feature server with exception: " + str(exception)
         )
+
+
+@cli.command("listen")
+@click.option(
+    "--address",
+    "-a",
+    type=click.STRING,
+    default="localhost:50051",
+    show_default=True,
+    help="Address of the gRPC server",
+)
+@click.option(
+    "--max_workers",
+    "-w",
+    type=click.INT,
+    default=10,
+    show_default=False,
+    help="The maximum number of threads that can be used to execute the gRPC calls",
+)
+@click.pass_context
+def listen_command(
+    ctx: click.Context,
+    address: str,
+    max_workers: int,
+):
+    """Start a gRPC feature server to ingest streaming features on given address"""
+    store = create_feature_store(ctx)
+    server = get_grpc_server(address, store, max_workers)
+    server.start()
+    server.wait_for_termination()
 
 
 @cli.command("serve_transformations")
