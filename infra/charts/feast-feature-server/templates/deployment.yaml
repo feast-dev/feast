@@ -34,7 +34,6 @@ spec:
           env:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
-<<<<<<< HEAD
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
