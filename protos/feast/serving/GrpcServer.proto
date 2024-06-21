@@ -1,6 +1,10 @@
 syntax = "proto3";
 
+package grpc.connector;
+
 import "feast/serving/ServingService.proto";
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 
 message PushRequest {
     map<string, string> features = 1;

@@ -331,7 +331,7 @@ idna==3.4
     #   snowflake-connector-python
 imagesize==1.4.1
     # via sphinx
-importlib_resources==6.0.1
+importlib_resources==6.1.1
 importlib-metadata==6.8.0
     # via
     #   dask
