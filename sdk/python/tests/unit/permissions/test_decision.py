@@ -1,0 +1,111 @@
+import assertpy
+
+from feast.permissions.decision import DecisionEvaluator, DecisionStrategy
+
+
+def test_affirmative():
+    evaluator = DecisionEvaluator(DecisionStrategy.AFFIRMATIVE, 3)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    assertpy.assert_that(evaluator.grant()).is_equal_to((True, []))
+
+    evaluator = DecisionEvaluator(DecisionStrategy.AFFIRMATIVE, 3)
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(False)
+    assertpy.assert_that(explanations).is_length(3)
+
+
+def test_unanimous():
+    evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    assertpy.assert_that(evaluator.grant()).is_equal_to((True, []))
+
+    evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(False)
+    assertpy.assert_that(explanations).is_length(1)
+
+
+def test_consensus():
+    evaluator = DecisionEvaluator(DecisionStrategy.CONSENSUS, 1)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    assertpy.assert_that(evaluator.grant()).is_equal_to((True, []))
+
+    evaluator = DecisionEvaluator(DecisionStrategy.CONSENSUS, 1)
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(False)
+    assertpy.assert_that(explanations).is_length(1)
+
+    evaluator = DecisionEvaluator(DecisionStrategy.CONSENSUS, 5)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(True)
+    assertpy.assert_that(explanations).is_length(2)
+
+    evaluator = DecisionEvaluator(DecisionStrategy.CONSENSUS, 5)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(False)
+    assertpy.assert_that(explanations).is_length(3)
+
+
+def test_additional_votes_are_discarded():
+    evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 2)
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_false()
+    evaluator.add_grant("vote", True, "")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    assertpy.assert_that(evaluator.grant()).is_equal_to((True, []))
+
+    evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 2)
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    evaluator.add_grant("vote", False, "a message")
+    assertpy.assert_that(evaluator.is_decided()).is_true()
+    grant, explanations = evaluator.grant()
+    assertpy.assert_that(grant).is_equal_to(False)
+    assertpy.assert_that(explanations).is_length(1)
