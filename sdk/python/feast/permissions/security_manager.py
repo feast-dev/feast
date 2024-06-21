@@ -90,7 +90,7 @@ class SecurityManager:
         result, explain = enforce_policy(
             role_manager=self._role_manager,
             permissions=self._permissions,
-            user=self.current_user,
+            user=self.current_user if self.current_user is not None else "",
             resource=resource,
             actions=actions if isinstance(actions, list) else [actions],
         )

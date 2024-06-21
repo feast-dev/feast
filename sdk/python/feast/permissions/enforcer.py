@@ -79,3 +79,5 @@ def _evaluate_permission_grant(
         evaluator.add_grant(f"Policy ({policy})", grant_decision, explanation)
         if evaluator.is_decided():
             return evaluator.grant()
+
+    return True, []

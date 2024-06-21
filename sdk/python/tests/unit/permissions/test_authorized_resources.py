@@ -8,7 +8,7 @@ from feast import (
     FeatureStore,
 )
 from feast.feast_object import FeastObject
-from feast.permissions.permission import (
+from feast.permissions.authorized_resource import (
     ALL_RESOURCE_TYPES,
     AuthzedResource,
 )
@@ -22,7 +22,6 @@ def test_authorized_resource_types():
         AuthzedResource(FeatureStore)
 
     # Valid types
-    AuthzedResource("ALL")
     AuthzedResource(ALL_RESOURCE_TYPES)
     for t in get_args(FeastObject):
         AuthzedResource(t)

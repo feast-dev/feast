@@ -1,9 +1,9 @@
 import enum
 from abc import ABC
-from typing import Optional, Union
+from typing import Union
 
 from feast.feast_object import FeastObject
-from feast.permissions.authorized_resource import ALL_RESOURCE_TYPES, AuthzedResource
+from feast.permissions.authorized_resource import AuthzedResource
 from feast.permissions.decision import DecisionStrategy
 from feast.permissions.policy import AllowAll, Policy
 
@@ -18,9 +18,9 @@ class AuthzedAction(enum.Enum):
     READ = "read"  # Access the instance state
     UPDATE = "update"  # Update the instance state
     DELETE = "delete"  # Deelete an instance
-    QUERY = "query"  # Query both online and online stores
+    QUERY = "query"  # Query both online and offline stores
     QUERY_ONLINE = "query_online"  # Query the online store only
-    QUERY_OFFLINE = "query_online"  # Query the offline store only
+    QUERY_OFFLINE = "query_offline"  # Query the offline store only
     WRITE = "write"  # Query on any store
     WRITE_ONLINE = "write_online"  # Write to the online store only
     WRITE_OFFLINE = "write_offline"  # Write to the offline store only
@@ -33,14 +33,14 @@ class Permission(ABC):
 
     Attributes:
         name: The permission name (can be duplicated, used for logging troubleshooting)
-        resources: The list of protected resource (as `AuthzedResource` type). Defaults to `ALL`.
+        resources: The list of protected resource (as `AuthzedResource` type).
         actions: The actions authorized by this permission. Defaults to `AuthzedAction.ALL`.
         policies: The policies to be applied to validate a client request.
         decision_strategy: The strategy to apply in case of multiple policies.
     """
 
     _name: str
-    _resources: list[AuthzedResource]
+    _resources: list[FeastObject]
     _actions: list[AuthzedAction]
     _policies: list[Policy]
     _decision_strategy: DecisionStrategy
@@ -48,14 +48,10 @@ class Permission(ABC):
     def __init__(
         self,
         name: str,
-        resources: Optional[
-            Union[str, list[AuthzedResource], AuthzedResource]
-        ] = ALL_RESOURCE_TYPES,
-        actions: Optional[
-            Union[list[AuthzedAction], AuthzedAction]
-        ] = AuthzedAction.ALL,
-        policies: Optional[Union[list[Policy], Policy]] = AllowAll,
-        decision_strategy: Optional[DecisionStrategy] = DecisionStrategy.UNANIMOUS,
+        resources: Union[list[AuthzedResource], AuthzedResource],
+        actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
+        policies: Union[list[Policy], Policy] = AllowAll,
+        decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS,
     ):
         if not resources:
             raise ValueError("The list 'resources' must be non-empty.")

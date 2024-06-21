@@ -1,5 +1,6 @@
 import enum
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class DecisionEvaluator:
         self,
         decision_strategy: DecisionStrategy,
         num_of_voters: int,
-    ) -> (bool, list[str]):
+    ):
         self.num_of_voters = num_of_voters
 
         self.grant_count = 0
@@ -41,7 +42,7 @@ class DecisionEvaluator:
             if decision_strategy == DecisionStrategy.UNANIMOUS
             else num_of_voters // 2 + 1
         )
-        self.grant_decision = None
+        self.grant_decision: Optional[bool] = None
         self.explanations: list[str] = []
         logger.info(
             f"Decision evaluation started with grant_quorum={self.grant_quorum}, deny_quorum={self.deny_quorum}"
@@ -50,11 +51,11 @@ class DecisionEvaluator:
     def is_decided(self) -> bool:
         return self.grant_decision is not None
 
-    def grant(self) -> (bool, list[str]):
+    def grant(self) -> tuple[bool, list[str]]:
         logger.info(
             f"Decided grant is {self.grant_decision}, explanations={self.explanations}"
         )
-        return self.grant_decision, self.explanations
+        return bool(self.grant_decision), self.explanations
 
     def add_grant(self, label, grant: bool, explanation: str):
         if self.is_decided():

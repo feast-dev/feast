@@ -9,7 +9,7 @@ class Policy(ABC):
     """
 
     @abstractmethod
-    def validate_user(self, user: str, **kwargs) -> (bool, str):
+    def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
         """
         Converts data source config in protobuf spec to a DataSource class object.
 
@@ -40,16 +40,23 @@ class RoleBasedPolicy(Policy):
         self.roles = roles
 
     def get_roles(self) -> list[str]:
-        self.roles
+        return self.roles
 
-    def validate_user(self, user: str, **kwargs) -> (bool, str):
-        rm: RoleManager = kwargs.get("role_manager")
-        result = rm.has_roles_for_user(user, self.roles)
+    def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
+        if "role_manager" not in kwargs:
+            raise ValueError("Missing keywork argument 'role_manager'")
+        if not isinstance(kwargs["role_manager"], RoleManager):
+            raise ValueError(
+                f"The keywork argument 'role_manager' is not of the expected type {RoleManager.__name__}"
+            )
+        rm = kwargs.get("role_manager")
+        if isinstance(rm, RoleManager):
+            result = rm.has_roles_for_user(user, self.roles)
         explain = "" if result else f"Requires roles {self.roles}"
         return (result, explain)
 
 
-def allow_all(self, user: str, **kwargs) -> (bool, str):
+def allow_all(self, user: str, **kwargs) -> tuple[bool, str]:
     return True, ""
 
 

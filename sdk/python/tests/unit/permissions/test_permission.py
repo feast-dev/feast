@@ -41,32 +41,35 @@ def test_permission_defaults():
 
 
 def test_permission_validity():
+    all_resources = AuthzedResource(type=ALL_RESOURCE_TYPES)
     # Invalid values
     with pytest.raises(ValueError):
         Permission(name="test", resources=None)
     with pytest.raises(ValueError):
         Permission(name="test", resources=[])
     with pytest.raises(ValueError):
-        Permission(name="test", actions=None)
+        Permission(name="test", resources=all_resources, actions=None)
     with pytest.raises(ValueError):
-        Permission(name="test", actions=[])
+        Permission(name="test", resources=all_resources, actions=[])
     with pytest.raises(ValueError):
-        Permission(name="test", policies=None)
+        Permission(name="test", resources=all_resources, policies=None)
     with pytest.raises(ValueError):
-        Permission(name="test", policies=[])
+        Permission(name="test", resources=all_resources, policies=[])
     with pytest.raises(ValueError):
-        Permission(name="test", decision_strategy=None)
-    with pytest.raises(ValueError):
-        Permission(name="test", decision_strategy="invalid")
+        Permission(name="test", resources=all_resources, decision_strategy="invalid")
 
     # Valid values
     Permission(name="test", resources=AuthzedResource("ALL"))
     Permission(
         name="test", resources=[AuthzedResource("ALL"), AuthzedResource(FeatureView)]
     )
-    Permission(name="test", actions=AuthzedAction.ALL)
-    Permission(name="test", actions=[AuthzedAction.ALL])
-    Permission(name="test", actions=[AuthzedAction.CREATE, AuthzedAction.DELETE])
+    Permission(name="test", resources=all_resources, actions=AuthzedAction.ALL)
+    Permission(name="test", resources=all_resources, actions=[AuthzedAction.ALL])
+    Permission(
+        name="test",
+        resources=all_resources,
+        actions=[AuthzedAction.CREATE, AuthzedAction.DELETE],
+    )
 
 
 def test_permission_normalized_args():
