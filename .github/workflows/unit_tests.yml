@@ -30,10 +30,10 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon /swapfile
           sudo swapon --show
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -53,9 +53,6 @@ jobs:
         run: |
           brew install zlib
           ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade pip
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -70,6 +67,9 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Install pip-tools
         run: |
           pip install -U pip-tools
@@ -122,17 +122,17 @@ jobs:
             sudo apt install -y -V pkg-config
       - name: Test
         run: make test-go
-        
+
   unit-test-ui:
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: "17.x"
-          registry-url: "https://registry.npmjs.org"
+          node-version: '17.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install

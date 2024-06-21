@@ -42,11 +42,7 @@ A formal governance structure helps us to
 
 On a high level, the key moving parts of the community are:
 - **GitHub activity** (issues + pull requests) 
-- **Slack community** ([slack.feast.dev](slack.feast.dev))
-  - `#feast-development` is where design discussions happen amongst contributors
-  - Other Slack channels exist for users to ask and answer questions.
 - **RFCs** ([drive folder](https://drive.google.com/drive/u/0/folders/1msUsgmDbVBaysmhBlg9lklYLLTMk4bC3)) for detailed discussions
-- **Community calls** (biweekly) to discuss best practices, contributions, and announce changes
 - **Maintainer syncs** (monthly) for [maintainers](maintainers.md) to discuss project direction and health
 
 With this structure, users and contributors largely self-organize and contribute changes as per [lazy consensus](#lazy-consensus). If there is active opposition and unresolvable conflict, then maintainers step in to break ties or make decisions.
@@ -60,10 +56,6 @@ Feast is a meritocratic, consensus-based community project.
 Anyone interested in the project can join the community to:
 - contribute to the project design
 - participate in the decision-making process. 
-
-The general decision making workflow is as follows:
-
-<img src="governance.png" width=600></img>
 
 > **Note**: There may not always a corresponding CODEOWNER for the affected code, in which case the responsibility falls on other maintainers or contributors with write access to review + merge the PR
 
@@ -96,7 +88,7 @@ In addition to their actions as users, contributors may also find themselves doi
 *   Writing, editing, translating or reviewing the documentation
 *   Organizing events or evangelizing the project
 
-Contributors engage with the project through the issue tracker and slack community, or by writing or editing documentation. They submit changes to the project itself via Pull Requests (PRs), which will be considered for inclusion in the project by existing maintainers (see next section). 
+Contributors engage with the project through the issue tracker or by writing or editing documentation. They submit changes to the project itself via Pull Requests (PRs), which will be considered for inclusion in the project by existing maintainers (see next section). 
 
 Contributors should follow the following guides when creating PRs:
 - [Contribution Process](https://docs.feast.dev/project/contributing)
@@ -116,27 +108,14 @@ Maintainers are community members who have shown that they are committed to Feas
 
 > **Note**: maintainers, like other contributors, must make changes to Feast via pull requests (with code review). This applies to all changes to documentation, code, configuration, governance, etc. 
 
-### Types of maintainers
-
-There are two kinds of maintainers
-
-1. **Project maintainers** control overall project organization and resolving disputes. They also
-     - Attend a regular maintainers sync 
-     - Participate in strategic planning, approve changes to the governance model, and manage the copyrights within the project outputs.
-     - (optional) Attend community calls
-     - (optional) Planning project roadmaps and articulating vision
-     - (optional) Guide design decisions to reinforce key project values (e.g. simplicity)
-2. **Area maintainers** own a specific technical area (which may span code modules), often specifically targeting a user journey or tech stack. They
-   - are generally point people in GitHub or Slack on discussions in that area (e.g. tagged in `#feast-development`)
-   - (optional) help drive roadmap decisions
-
-> **Note:** project maintainers may also be area maintainers, but this does not give their ideas increased weight over other area maintainers. 
-
-Decisions that need tie breakers may require intervention via project maintainers majority consensus.
+Maintainers control overall project organization and resolving disputes. They also
+- Attend a regular maintainers sync
+- Participate in strategic planning, approve changes to the governance model, and manage the copyrights within the project outputs.
+- (optional) Planning project roadmaps and articulating vision
+- (optional) Guide design decisions to reinforce key project values (e.g. simplicity)
 
 ### Optional maintainer responsibilities
 Other optional activites a maintainer (project or area maintainer) may participate in:
-  *   Monitor email aliases and our Slack (#feast-general, #feast-development, #feast-beginners).
   *   Perform code reviews for other maintainers and the community. The areas of specialization listed in [OWNERS.md](OWNERS.md) can be used to help with routing an issue/question to the right person.
   *   Triage GitHub issues, applying [labels]([https://github.com/feast-dev/feast/labels](https://github.com/feast-dev/feast/labels)) to each new item. Labels are extremely useful for future issue follow ups. Adding labels is somewhat subjective, so please use your best judgment. 
   *   Triage build issues, filing issues for known flaky builds or bugs, fixing or finding someone to fix any master build breakages.

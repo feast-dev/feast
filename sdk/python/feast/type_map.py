@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
+import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -53,8 +53,6 @@ if TYPE_CHECKING:
 # null timestamps get converted to -9223372036854775808
 NULL_TIMESTAMP_INT_VALUE = np.datetime64("NaT").astype(int)
 
-logger = logging.getLogger(__name__)
-
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     """
@@ -79,11 +77,9 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     # Convert UNIX_TIMESTAMP values to `datetime`
     if val_attr == "unix_timestamp_list_val":
         val = [
-            (
-                datetime.fromtimestamp(v, tz=timezone.utc)
-                if v != NULL_TIMESTAMP_INT_VALUE
-                else None
-            )
+            datetime.fromtimestamp(v, tz=timezone.utc)
+            if v != NULL_TIMESTAMP_INT_VALUE
+            else None
             for v in val
         ]
     elif val_attr == "unix_timestamp_val":
@@ -261,10 +257,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
     return type_map[type_str]
 
 
-def _type_err(item, dtype, values):
-    raise TypeError(
-        f'Value "{item}" from "{values}" is of type {type(item)} not of type {dtype}'
-    )
+def _type_err(item, dtype):
+    raise TypeError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
 
 PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE: Dict[
@@ -298,15 +292,13 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.INT32: ("int32_val", lambda x: int(x), None),
     ValueType.INT64: (
         "int64_val",
-        lambda x: (
-            int(x.timestamp())
-            if isinstance(x, pd._libs.tslibs.timestamps.Timestamp)
-            else int(x)
-        ),
+        lambda x: int(x.timestamp())
+        if isinstance(x, pd._libs.tslibs.timestamps.Timestamp)
+        else int(x),
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64}),
+    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
@@ -362,49 +354,48 @@ def _python_value_to_proto_value(
                 feast_value_type
             ]
 
+            # Bytes to array type conversion
+            if isinstance(sample, (bytes, bytearray)):
+                # Bytes of an array containing elements of bytes not supported
+                if feast_value_type == ValueType.BYTES_LIST:
+                    raise _type_err(sample, ValueType.BYTES_LIST)
+
+                json_value = json.loads(sample)
+                if isinstance(json_value, list):
+                    if feast_value_type == ValueType.BOOL_LIST:
+                        json_value = [bool(item) for item in json_value]
+                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
+                raise _type_err(sample, valid_types[0])
+
             if sample is not None and not all(
                 type(item) in valid_types for item in sample
             ):
-                for item in sample:
-                    if type(item) not in valid_types:
-                        if feast_value_type in [
-                            ValueType.INT32_LIST,
-                            ValueType.INT64_LIST,
-                        ]:
-                            if not any(np.isnan(item) for item in sample):
-                                logger.error(
-                                    "Array of Int32 or Int64 type has NULL values. Numpy upcasts to Float64 automatically."
-                                )
-                        raise _type_err(item, valid_types, sample)
+                first_invalid = next(
+                    item for item in sample if type(item) not in valid_types
+                )
+                raise _type_err(first_invalid, valid_types[0])
 
             if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
-
+                int_timestamps_lists = (
+                    _python_datetime_to_int_timestamp(value) for value in values
+                )
                 return [
-                    (
-                        # ProtoValue does actually accept `np.int_` but the typing complains.
-                        ProtoValue(unix_timestamp_list_val=Int64List(val=_python_datetime_to_int_timestamp(value)))  # type: ignore
-                        if value is not None
-                        else ProtoValue()
-                    )
-                    for value in values
+                    # ProtoValue does actually accept `np.int_` but the typing complains.
+                    ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
+                    for ts in int_timestamps_lists
                 ]
-
             if feast_value_type == ValueType.BOOL_LIST:
                 # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
                 return [
-                    (
-                        ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
-                        if value is not None
-                        else ProtoValue()
-                    )
+                    ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
+                    if value is not None
+                    else ProtoValue()
                     for value in values
                 ]
             return [
-                (
-                    ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
-                    if value is not None
-                    else ProtoValue()
-                )
+                ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
+                if value is not None
+                else ProtoValue()
                 for value in values
             ]
 
@@ -439,28 +430,27 @@ def _python_value_to_proto_value(
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
-                (
-                    ProtoValue(
-                        **{
-                            field_name: func(
-                                bool(value) if type(value) is np.bool_ else value  # type: ignore
-                            )
-                        }
-                    )
-                    if not pd.isnull(value)
-                    else ProtoValue()
+                ProtoValue(
+                    **{
+                        field_name: func(
+                            bool(value) if type(value) is np.bool_ else value  # type: ignore
+                        )
+                    }
                 )
+                if not pd.isnull(value)
+                else ProtoValue()
                 for value in values
             ]
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
-            return [
-                (
-                    ProtoValue(**{field_name: func(value)})
-                    if not pd.isnull(value)
-                    else ProtoValue()
-                )
-                for value in values
-            ]
+            out = []
+            for value in values:
+                if isinstance(value, ProtoValue):
+                    out.append(value)
+                elif not pd.isnull(value):
+                    out.append(ProtoValue(**{field_name: func(value)}))
+                else:
+                    out.append(ProtoValue())
+            return out
 
     raise Exception(f"Unsupported data type: ${str(type(values[0]))}")
 
@@ -555,6 +545,7 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
         "DATETIME": ValueType.UNIX_TIMESTAMP,
         "TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "INTEGER": ValueType.INT64,
+        "NUMERIC": ValueType.INT64,
         "INT64": ValueType.INT64,
         "STRING": ValueType.STRING,
         "FLOAT": ValueType.DOUBLE,
@@ -654,6 +645,7 @@ def redshift_to_feast_value_type(redshift_type_as_str: str) -> ValueType:
         "varchar": ValueType.STRING,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "timestamptz": ValueType.UNIX_TIMESTAMP,
+        "super": ValueType.BYTES,
         # skip date, geometry, hllsketch, time, timetz
     }
 
@@ -688,6 +680,14 @@ def _convert_value_name_to_snowflake_udf(value_name: str, project_name: str) -> 
         "FLOAT": f"feast_{project_name}_snowflake_float_to_double_proto",
         "BOOL": f"feast_{project_name}_snowflake_boolean_to_bool_proto",
         "UNIX_TIMESTAMP": f"feast_{project_name}_snowflake_timestamp_to_unix_timestamp_proto",
+        "BYTES_LIST": f"feast_{project_name}_snowflake_array_bytes_to_list_bytes_proto",
+        "STRING_LIST": f"feast_{project_name}_snowflake_array_varchar_to_list_string_proto",
+        "INT32_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int32_proto",
+        "INT64_LIST": f"feast_{project_name}_snowflake_array_number_to_list_int64_proto",
+        "DOUBLE_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "FLOAT_LIST": f"feast_{project_name}_snowflake_array_float_to_list_double_proto",
+        "BOOL_LIST": f"feast_{project_name}_snowflake_array_boolean_to_list_bool_proto",
+        "UNIX_TIMESTAMP_LIST": f"feast_{project_name}_snowflake_array_timestamp_to_list_unix_timestamp_proto",
     }
     return name_map[value_name].upper()
 
@@ -900,13 +900,26 @@ def feast_value_type_to_pa(
 
 
 def pg_type_code_to_pg_type(code: int) -> str:
-    return {
+    """Map the postgres type code a Feast type string
+
+    Rather than raise an exception on an unknown type, we return the
+    string representation of the type code. This way rather than raising
+    an exception on unknown types, Feast will just skip the problem columns.
+
+    Note that json and jsonb are not supported but this shows up in the
+    log as a warning. Since postgres allows custom types we return an unknown for those cases.
+
+    See: https://jdbc.postgresql.org/documentation/publicapi/index.html?constant-values.html
+    """
+    PG_TYPE_MAP = {
         16: "boolean",
         17: "bytea",
         20: "bigint",
         21: "smallint",
         23: "integer",
         25: "text",
+        114: "json",
+        199: "json[]",
         700: "real",
         701: "double precision",
         1000: "boolean[]",
@@ -932,7 +945,11 @@ def pg_type_code_to_pg_type(code: int) -> str:
         1700: "numeric",
         2950: "uuid",
         2951: "uuid[]",
-    }[code]
+        3802: "jsonb",
+        3807: "jsonb[]",
+    }
+
+    return PG_TYPE_MAP.get(code, "unknown")
 
 
 def pg_type_code_to_arrow(code: int) -> str:

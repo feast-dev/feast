@@ -51,20 +51,21 @@ def get_app(
 
     async_refresh()
 
-    ui_dir = importlib_resources.files(__name__) / "ui/build/"
-    # Initialize with the projects-list.json file
-    with open(str(ui_dir) + "projects-list.json", mode="w") as f:
-        projects_dict = {
-            "projects": [
-                {
-                    "name": "Project",
-                    "description": "Test project",
-                    "id": project_id,
-                    "registryPath": f"{root_path}/registry",
-                }
-            ]
-        }
-        f.write(json.dumps(projects_dict))
+    ui_dir_ref = importlib_resources.files(__name__) / "ui/build/"
+    with importlib_resources.as_file(ui_dir_ref) as ui_dir:
+        # Initialize with the projects-list.json file
+        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
+            projects_dict = {
+                "projects": [
+                    {
+                        "name": "Project",
+                        "description": "Test project",
+                        "id": project_id,
+                        "registryPath": f"{root_path}/registry",
+                    }
+                ]
+            }
+            f.write(json.dumps(projects_dict))
 
     @app.get("/registry")
     def read_registry():
@@ -80,7 +81,7 @@ def get_app(
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
     def catch_all():
-        filename = ui_dir + "index.html"
+        filename = ui_dir.joinpath("index.html")
 
         with open(filename) as f:
             content = f.read()

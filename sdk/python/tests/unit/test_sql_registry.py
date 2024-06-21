@@ -81,7 +81,7 @@ def pg_registry():
 @pytest.fixture(scope="session")
 def mysql_registry():
     container = (
-        DockerContainer("mysql:8.1.0")
+        DockerContainer("mysql:latest")
         .with_exposed_ports(3306)
         .with_env("MYSQL_RANDOM_ROOT_PASSWORD", "true")
         .with_env("MYSQL_USER", POSTGRES_USER)
@@ -91,8 +91,8 @@ def mysql_registry():
 
     container.start()
 
-    # The log string uses '8.1.*' since the version might be changed as new Docker images are pushed.
-    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '8.1.*'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"
+    # The log string uses '8.0.*' since the version might be changed as new Docker images are pushed.
+    log_string_to_wait_for = "/usr/sbin/mysqld: ready for connections. Version: '(\d+(\.\d+){1,2})'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306"  # noqa: W605
     waited = wait_for_logs(
         container=container,
         predicate=log_string_to_wait_for,
@@ -615,8 +615,17 @@ def test_registry_cache(sql_registry):
     # Register data source and feature view
     sql_registry.apply_data_source(batch_source, project)
     sql_registry.apply_feature_view(fv1, project)
+    registry_feature_views_cached = sql_registry.list_feature_views(
+        project, allow_cache=True
+    )
+    registry_data_sources_cached = sql_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    # Not refreshed cache, so cache miss
+    assert len(registry_feature_views_cached) == 0
+    assert len(registry_data_sources_cached) == 0
     sql_registry.refresh(project)
-    # Now objects should exist
+    # Now objects exist
     registry_feature_views_cached = sql_registry.list_feature_views(
         project, allow_cache=True
     )

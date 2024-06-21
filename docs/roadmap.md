@@ -3,7 +3,6 @@
 The list below contains the functionality that contributors are planning to develop for Feast.
 
 * We welcome contribution to all items in the roadmap!
-* Have questions about the roadmap? Go to the Slack channel to ask on #feast-development.
 
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
@@ -33,6 +32,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Datastore](https://docs.feast.dev/reference/online-stores/datastore)
   * [x] [Bigtable](https://docs.feast.dev/reference/online-stores/bigtable)
   * [x] [SQLite](https://docs.feast.dev/reference/online-stores/sqlite)
+  * [x] [Dragonfly](https://docs.feast.dev/reference/online-stores/dragonfly)
   * [x] [Azure Cache for Redis (community plugin)](https://github.com/Azure/feast-azure)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Cassandra / AstraDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/cassandra)

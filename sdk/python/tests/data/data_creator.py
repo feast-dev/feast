@@ -59,6 +59,7 @@ def get_feature_values_for_dtype(
         "int64": [1, 2, 3, 4, 5],
         "float": [1.0, None, 3.0, 4.0, 5.0],
         "string": ["1", None, "3", "4", "5"],
+        "bytes": [b"1", None, b"3", b"4", b"5"],
         "bool": [True, None, False, True, False],
         "datetime": [
             datetime(1980, 1, 1),
