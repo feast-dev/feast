@@ -3,9 +3,8 @@ from contextvars import ContextVar
 from typing import List, Optional, Union
 
 from feast.feast_object import FeastObject
-from feast.permissions.authorized_resource import is_of_expected_type
 from feast.permissions.enforcer import enforce_policy
-from feast.permissions.permission import AuthzedAction, Permission
+from feast.permissions.permission import AuthzedAction, Permission, is_of_expected_type
 from feast.permissions.role_manager import RoleManager
 
 logger = logging.getLogger(__name__)

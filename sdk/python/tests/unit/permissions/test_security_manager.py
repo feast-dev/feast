@@ -4,7 +4,6 @@ import assertpy
 import pytest
 
 from feast import FeatureView
-from feast.permissions.authorized_resource import AuthzedResource
 from feast.permissions.permission import AuthzedAction, Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.permissions.role_manager import RoleManager
@@ -37,7 +36,8 @@ def security_manager() -> SecurityManager:
     permissions.append(
         Permission(
             name="reader",
-            resources=AuthzedResource(type=FeatureView, with_subclasses=True),
+            types=FeatureView,
+            with_subclasses=True,
             policies=[RoleBasedPolicy(roles=["reader"])],
             actions=[AuthzedAction.READ],
         )
