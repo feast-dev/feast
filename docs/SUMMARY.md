@@ -118,9 +118,7 @@
 * [Feature servers](reference/feature-servers/README.md)
   * [Python feature server](reference/feature-servers/python-feature-server.md)
   * [\[Alpha\] Go feature server](reference/feature-servers/go-feature-server.md)
-  * [\[Alpha\] AWS Lambda feature server](reference/feature-servers/alpha-aws-lambda-feature-server.md)
   * [Offline Feature Server](reference/feature-servers/offline-feature-server)
-
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)

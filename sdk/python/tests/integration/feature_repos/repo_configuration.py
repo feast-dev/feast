@@ -474,27 +474,12 @@ def construct_test_environment(
     else:
         online_creator = None
 
-    if test_repo_config.python_feature_server and test_repo_config.provider == "aws":
-        from feast.infra.feature_servers.aws_lambda.config import (
-            AwsLambdaFeatureServerConfig,
-        )
-
-        feature_server: Any = AwsLambdaFeatureServerConfig(
-            enabled=True,
-            execution_role_name=os.getenv(
-                "AWS_LAMBDA_ROLE",
-                "arn:aws:iam::402087665549:role/lambda_execution_role",
-            ),
-        )
-    else:
-        feature_server = LocalFeatureServerConfig(
-            feature_logging=FeatureLoggingConfig(enabled=True)
-        )
+    feature_server = LocalFeatureServerConfig(
+        feature_logging=FeatureLoggingConfig(enabled=True)
+    )
 
     repo_dir_name = tempfile.mkdtemp()
-    if (
-        test_repo_config.python_feature_server and test_repo_config.provider == "aws"
-    ) or test_repo_config.registry_location == RegistryLocation.S3:
+    if test_repo_config.registry_location == RegistryLocation.S3:
         aws_registry_path = os.getenv(
             "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
         )

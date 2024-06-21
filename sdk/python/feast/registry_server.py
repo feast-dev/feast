@@ -3,6 +3,7 @@ from datetime import datetime
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
+from pytz import utc
 
 from feast import FeatureStore
 from feast.data_source import DataSource
@@ -35,12 +36,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=request.allow_cache
         ).to_proto()
 
-    def ListEntities(self, request, context):
+    def ListEntities(self, request: RegistryServer_pb2.ListEntitiesRequest, context):
         return RegistryServer_pb2.ListEntitiesResponse(
             entities=[
                 entity.to_proto()
                 for entity in self.proxied_registry.list_entities(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -66,12 +69,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=request.allow_cache
         ).to_proto()
 
-    def ListDataSources(self, request, context):
+    def ListDataSources(
+        self, request: RegistryServer_pb2.ListDataSourcesRequest, context
+    ):
         return RegistryServer_pb2.ListDataSourcesResponse(
             data_sources=[
                 data_source.to_proto()
                 for data_source in self.proxied_registry.list_data_sources(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -109,12 +116,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         return Empty()
 
-    def ListFeatureViews(self, request, context):
+    def ListFeatureViews(
+        self, request: RegistryServer_pb2.ListFeatureViewsRequest, context
+    ):
         return RegistryServer_pb2.ListFeatureViewsResponse(
             feature_views=[
                 feature_view.to_proto()
                 for feature_view in self.proxied_registry.list_feature_views(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -134,12 +145,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=request.allow_cache
         ).to_proto()
 
-    def ListStreamFeatureViews(self, request, context):
+    def ListStreamFeatureViews(
+        self, request: RegistryServer_pb2.ListStreamFeatureViewsRequest, context
+    ):
         return RegistryServer_pb2.ListStreamFeatureViewsResponse(
             stream_feature_views=[
                 stream_feature_view.to_proto()
                 for stream_feature_view in self.proxied_registry.list_stream_feature_views(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -151,12 +166,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=request.allow_cache
         ).to_proto()
 
-    def ListOnDemandFeatureViews(self, request, context):
+    def ListOnDemandFeatureViews(
+        self, request: RegistryServer_pb2.ListOnDemandFeatureViewsRequest, context
+    ):
         return RegistryServer_pb2.ListOnDemandFeatureViewsResponse(
             on_demand_feature_views=[
                 on_demand_feature_view.to_proto()
                 for on_demand_feature_view in self.proxied_registry.list_on_demand_feature_views(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -185,7 +204,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             feature_services=[
                 feature_service.to_proto()
                 for feature_service in self.proxied_registry.list_feature_services(
-                    project=request.project, allow_cache=request.allow_cache
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 )
             ]
         )
@@ -293,10 +314,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             feature_view=FeatureView.from_proto(request.feature_view),
             project=request.project,
             start_date=datetime.fromtimestamp(
-                request.start_date.seconds + request.start_date.nanos / 1e9
+                request.start_date.seconds + request.start_date.nanos / 1e9, tz=utc
             ),
             end_date=datetime.fromtimestamp(
-                request.end_date.seconds + request.end_date.nanos / 1e9
+                request.end_date.seconds + request.end_date.nanos / 1e9, tz=utc
             ),
             commit=request.commit,
         )

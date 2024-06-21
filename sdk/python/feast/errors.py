@@ -350,32 +350,6 @@ class ConflictingFeatureViewNames(Exception):
         )
 
 
-class RepoConfigPathDoesNotExist(Exception):
-    def __init__(self):
-        super().__init__("The repo_path attribute does not exist for the repo_config.")
-
-
-class AwsLambdaDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS Lambda function {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class AwsAPIGatewayDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS API Gateway {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class IncompatibleRegistryStoreClass(Exception):
-    def __init__(self, actual_class: str, expected_class: str):
-        super().__init__(
-            f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
-        )
-
-
 class FeastInvalidInfraObjectType(Exception):
     def __init__(self):
         super().__init__("Could not identify the type of the InfraObject.")

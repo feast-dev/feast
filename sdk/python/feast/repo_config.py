@@ -82,14 +82,10 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
-    "aws_lambda": "feast.infra.feature_servers.aws_lambda.config.AwsLambdaFeatureServerConfig",
-    "gcp_cloudrun": "feast.infra.feature_servers.gcp_cloudrun.config.GcpCloudRunFeatureServerConfig",
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
 }
 
 FEATURE_SERVER_TYPE_FOR_PROVIDER = {
-    "aws": "aws_lambda",
-    "gcp": "gcp_cloudrun",
     "local": "local",
 }
 
@@ -175,10 +171,12 @@ class RepoConfig(FeastBaseModel):
     used when writing data to the online store.
     A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.
     A value of 2 uses a newer serialization scheme, supported as of Feast 0.23.
-    The main difference between the two scheme is that the serialization scheme v1 stored `long` values as `int`s,
-    which would result in errors trying to serialize a range of values.
-    v2 fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
+    A value of 3 uses the latest serialization scheme, supported as of Feast 0.38.
+    The main difference between the three schema is that
+    v1: the serialization scheme v1 stored `long` values as `int`s, which would result in errors trying to serialize a range of values.
+    v2: fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
     feature values for entities that have already been written into the online store.
+    v3: add entity_key value length to serialized bytes to enable deserialization, which can be used in retrieval of entity_key in document retrieval.
     """
 
     coerce_tz_aware: Optional[bool] = True

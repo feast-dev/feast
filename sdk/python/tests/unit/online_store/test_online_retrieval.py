@@ -17,6 +17,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
+from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
@@ -95,6 +96,9 @@ def test_get_online_features() -> None:
             ],
             progress=None,
         )
+
+        assert len(store.list_entities()) == 3
+        assert len(store.list_entities(tags=TAGS)) == 2
 
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_features(
