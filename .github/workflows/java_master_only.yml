@@ -18,11 +18,11 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: "3.8"
@@ -53,7 +53,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Lint java
@@ -63,7 +63,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -86,7 +86,7 @@ jobs:
             ${{ runner.os }}-ut-maven-
       - name: Test java
         run: make test-java-with-coverage
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: java-coverage-report
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
@@ -97,7 +97,7 @@ jobs:
     env:
       PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -107,14 +107,14 @@ jobs:
           java-package: jdk
           architecture: x64
       - name: Setup Python (to call feast apply)
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         id: setup-python
         with:
           python-version: 3.8
           architecture: x64
       - name: Upgrade pip version
         run: |
-          pip install --upgrade pip
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |

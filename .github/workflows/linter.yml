@@ -8,10 +8,10 @@ jobs:
     env:
       PYTHON: 3.8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: "3.8"
           architecture: x64
@@ -22,7 +22,7 @@ jobs:
           go-version: 1.19.7
       - name: Upgrade pip version
         run: |
-          pip install --upgrade pip
+          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |
