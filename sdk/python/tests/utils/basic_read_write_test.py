@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 from feast.feature_store import FeatureStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.utils import _utc_now
 
 
 def basic_rw_test(
@@ -65,13 +66,13 @@ def basic_rw_test(
 
     """ 1. Basic test: write value, read it back """
 
-    time_1 = datetime.utcnow()
+    time_1 = _utc_now()
     _driver_rw_test(
         event_ts=time_1, created_ts=time_1, write=(1.1, "3.1"), expect_read=(1.1, "3.1")
     )
 
     """ Values with an new event_ts should overwrite older ones """
-    time_3 = datetime.utcnow()
+    time_3 = _utc_now()
     _driver_rw_test(
         event_ts=time_1 + timedelta(hours=1),
         created_ts=time_3,

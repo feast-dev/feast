@@ -47,6 +47,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -217,7 +218,7 @@ class Registry(BaseRegistry):
             if self.cached_registry_proto
             else RegistryProto()
         )
-        new_registry.cached_registry_proto_created = datetime.utcnow()
+        new_registry.cached_registry_proto_created = _utc_now()
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
@@ -248,7 +249,7 @@ class Registry(BaseRegistry):
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         entity.is_valid()
 
-        now = datetime.utcnow()
+        now = _utc_now()
         if not entity.created_timestamp:
             entity.created_timestamp = now
         entity.last_updated_timestamp = now
@@ -334,7 +335,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
-        now = datetime.utcnow()
+        now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
         feature_service.last_updated_timestamp = now
@@ -390,7 +391,7 @@ class Registry(BaseRegistry):
     ):
         feature_view.ensure_valid()
 
-        now = datetime.utcnow()
+        now = _utc_now()
         if not feature_view.created_timestamp:
             feature_view.created_timestamp = now
         feature_view.last_updated_timestamp = now
@@ -517,7 +518,7 @@ class Registry(BaseRegistry):
                 existing_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )
-                existing_feature_view.last_updated_timestamp = datetime.utcnow()
+                existing_feature_view.last_updated_timestamp = _utc_now()
                 feature_view_proto = existing_feature_view.to_proto()
                 feature_view_proto.spec.project = project
                 del self.cached_registry_proto.feature_views[idx]
@@ -539,7 +540,7 @@ class Registry(BaseRegistry):
                 existing_stream_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )
-                existing_stream_feature_view.last_updated_timestamp = datetime.utcnow()
+                existing_stream_feature_view.last_updated_timestamp = _utc_now()
                 stream_feature_view_proto = existing_stream_feature_view.to_proto()
                 stream_feature_view_proto.spec.project = project
                 del self.cached_registry_proto.stream_feature_views[idx]
@@ -664,7 +665,7 @@ class Registry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
-        now = datetime.utcnow()
+        now = _utc_now()
         if not saved_dataset.created_timestamp:
             saved_dataset.created_timestamp = now
         saved_dataset.last_updated_timestamp = now
@@ -812,7 +813,7 @@ class Registry(BaseRegistry):
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.utcnow()
+            self.cached_registry_proto_created = _utc_now()
 
         # Initialize project metadata if needed
         assert self.cached_registry_proto
@@ -848,7 +849,7 @@ class Registry(BaseRegistry):
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
                 and (
-                    datetime.utcnow()
+                    _utc_now()
                     > (
                         self.cached_registry_proto_created
                         + self.cached_registry_proto_ttl
@@ -871,7 +872,7 @@ class Registry(BaseRegistry):
             logger.info("Registry cache expired, so refreshing")
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.utcnow()
+            self.cached_registry_proto_created = _utc_now()
 
             if not project:
                 return registry_proto

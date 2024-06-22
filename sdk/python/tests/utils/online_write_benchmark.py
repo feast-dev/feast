@@ -2,7 +2,7 @@ import os
 import random
 import string
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import click
 import pyarrow as pa
@@ -16,7 +16,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Int32
-from feast.utils import _convert_arrow_to_proto
+from feast.utils import _convert_arrow_to_proto, _utc_now
 
 
 def create_driver_hourly_stats_feature_view(source):
@@ -69,7 +69,7 @@ def benchmark_writes():
 
         provider = store._get_provider()
 
-        end_date = datetime.utcnow()
+        end_date = _utc_now()
         start_date = end_date - timedelta(days=14)
         customers = list(range(100))
         data = create_driver_hourly_stats_df(customers, start_date, end_date)
