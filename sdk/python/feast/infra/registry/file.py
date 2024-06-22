@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
+from feast.utils import _utc_now
 
 
 class FileRegistryStore(RegistryStore):
@@ -37,7 +37,7 @@ class FileRegistryStore(RegistryStore):
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        registry_proto.last_updated.FromDatetime(_utc_now())
         file_dir = self._filepath.parent
         file_dir.mkdir(exist_ok=True)
         with open(self._filepath, mode="wb", buffering=0) as f:

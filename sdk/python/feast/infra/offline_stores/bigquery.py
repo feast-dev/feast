@@ -45,7 +45,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import get_user_agent
+from feast.utils import _utc_now, get_user_agent
 
 from .bigquery_source import (
     BigQueryLoggingDestination,
@@ -701,7 +701,7 @@ def _upload_entity_df(
 
     # Ensure that the table expires after some time
     table = client.get_table(table=table_name)
-    table.expires = datetime.utcnow() + timedelta(minutes=30)
+    table.expires = _utc_now() + timedelta(minutes=30)
     client.update_table(table, ["expires"])
 
     return table

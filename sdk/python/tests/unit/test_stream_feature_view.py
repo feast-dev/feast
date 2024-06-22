@@ -1,9 +1,8 @@
 import copy
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
-from feast import utils
 from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
@@ -16,6 +15,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 )
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
+from feast.utils import _utc_now, make_tzaware
 
 
 def test_create_batch_feature_view():
@@ -286,9 +286,9 @@ def test_update_materialization_intervals():
         udf=simple_udf,
         tags={},
     )
-    current_time = datetime.utcnow()
-    start_date = utils.make_tzaware(current_time - timedelta(days=1))
-    end_date = utils.make_tzaware(current_time)
+    current_time = _utc_now()
+    start_date = make_tzaware(current_time - timedelta(days=1))
+    end_date = make_tzaware(current_time)
     stored_stream_feature_view.materialization_intervals.append((start_date, end_date))
 
     # Update the stream feature view i.e. here it's simply the name

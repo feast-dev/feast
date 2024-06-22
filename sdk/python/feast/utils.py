@@ -1052,3 +1052,7 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
             cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
         ).items()
     }
+
+
+def _utc_now() -> datetime:
+    return datetime.utcnow()

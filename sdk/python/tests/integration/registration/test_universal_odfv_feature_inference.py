@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pandas as pd
 import pytest
 
@@ -7,6 +5,7 @@ from feast import Field
 from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float64
+from feast.utils import _utc_now
 from tests.integration.feature_repos.universal.entities import customer, driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
@@ -50,8 +49,8 @@ def test_infer_odfv_list_features(environment, infer_features, tmp_path):
             "item_id": [0],
             "embedding_float": [fake_embedding],
             "embedding_double": [fake_embedding],
-            "event_timestamp": [pd.Timestamp(datetime.utcnow())],
-            "created": [pd.Timestamp(datetime.utcnow())],
+            "event_timestamp": [pd.Timestamp(_utc_now())],
+            "created": [pd.Timestamp(_utc_now())],
         }
     )
     output_path = f"{tmp_path}/items.parquet"

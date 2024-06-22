@@ -8,6 +8,7 @@ from feast import Field
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.types import Array, Bool, Bytes, Float64, Int32, Int64, String, UnixTimestamp
+from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -146,7 +147,7 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
 
         print(f"Split datetime: {split_dt}")
-        now = datetime.utcnow()
+        now = _utc_now()
 
         full_feature_names = True
         start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
@@ -231,7 +232,7 @@ def test_snowflake_materialization_entityless_fv():
 
         print(f"Split datetime: {split_dt}")
 
-        now = datetime.utcnow()
+        now = _utc_now()
 
         start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
         end_date = split_dt

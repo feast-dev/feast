@@ -10,6 +10,7 @@ import yaml
 from pytz import utc
 
 from feast import FeatureStore, FeatureView, RepoConfig
+from feast.utils import _utc_now
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -31,7 +32,7 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 def validate_offline_online_store_consistency(
     fs: FeatureStore, fv: FeatureView, split_dt: datetime
 ) -> None:
-    now = datetime.utcnow()
+    now = _utc_now()
 
     full_feature_names = True
     check_offline_store: bool = True
