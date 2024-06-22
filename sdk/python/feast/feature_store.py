@@ -86,6 +86,7 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import ValueType, python_values_to_proto_values
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1509,7 +1510,7 @@ class FeatureStore:
         provider = self._get_provider()
         provider.ingest_df_to_offline_store(feature_view, table)
 
-    def get_online_features(
+    def get_unserialized_online_features_response(
         self,
         features: Union[List[str], FeatureService],
         entity_rows: Union[
@@ -1517,60 +1518,8 @@ class FeatureStore:
             Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
         ],
         full_feature_names: bool = False,
-    ) -> OnlineResponse:
-        """
-        Retrieves the latest online feature data.
-
-        Note: This method will download the full feature registry the first time it is run. If you are using a
-        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
-        duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
-        passed), then a new registry will be downloaded synchronously by this method. This download may
-        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
-        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
-        infinity (cache forever).
-
-        Args:
-            features: The list of features that should be retrieved from the online store. These features can be
-                specified either as a list of string feature references or as a feature service. String feature
-                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
-            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
-            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
-                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
-                changes to "customer_fv__daily_transactions").
-
-        Returns:
-            OnlineResponse containing the feature data in records.
-
-        Raises:
-            Exception: No entity with the specified name exists.
-
-        Examples:
-            Retrieve online features from an online store.
-
-            >>> from feast import FeatureStore, RepoConfig
-            >>> fs = FeatureStore(repo_path="project/feature_repo")
-            >>> online_response = fs.get_online_features(
-            ...     features=[
-            ...         "driver_hourly_stats:conv_rate",
-            ...         "driver_hourly_stats:acc_rate",
-            ...         "driver_hourly_stats:avg_daily_trips",
-            ...     ],
-            ...     entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}, {"driver_id": 1004}],
-            ... )
-            >>> online_response_dict = online_response.to_dict()
-        """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
-
-            entity_rows = columnar
+    ) -> GetOnlineFeaturesResponse:
+        entity_rows = _convert_list_of_dicts_to_dicts_of_lists(entity_rows)
 
         (
             join_key_values,
@@ -1627,6 +1576,63 @@ class FeatureStore:
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
+        return online_features_response
+
+    def get_online_features(
+        self,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
+        ],
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
+        """
+        Retrieves the latest online feature data.
+
+        Note: This method will download the full feature registry the first time it is run. If you are using a
+        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
+        duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
+        passed), then a new registry will be downloaded synchronously by this method. This download may
+        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
+        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
+        infinity (cache forever).
+
+        Args:
+            features: The list of features that should be retrieved from the online store. These features can be
+                specified either as a list of string feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
+            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
+
+        Returns:
+            OnlineResponse containing the feature data in records.
+
+        Raises:
+            Exception: No entity with the specified name exists.
+
+        Examples:
+            Retrieve online features from an online store.
+
+            >>> from feast import FeatureStore, RepoConfig
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
+            >>> online_response = fs.get_online_features(
+            ...     features=[
+            ...         "driver_hourly_stats:conv_rate",
+            ...         "driver_hourly_stats:acc_rate",
+            ...         "driver_hourly_stats:avg_daily_trips",
+            ...     ],
+            ...     entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}, {"driver_id": 1004}],
+            ... )
+            >>> online_response_dict = online_response.to_dict()
+        """
+        online_features_response = self.get_unserialized_online_features_response(
+            features,
+            entity_rows,
+            full_feature_names,
+        )
         return OnlineResponse(online_features_response)
 
     async def get_online_features_async(
@@ -1664,18 +1670,7 @@ class FeatureStore:
         Raises:
             Exception: No entity with the specified name exists.
         """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
-
-            entity_rows = columnar
+        entity_rows = _convert_list_of_dicts_to_dicts_of_lists(entity_rows)
 
         (
             join_key_values,
@@ -2085,26 +2080,40 @@ class FeatureStore:
         model: Any,
         force_recompute: bool,
         log_features: bool,
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
         )
-        assert ":" in model_field, "model_field must be full feature reference; i.e., feature_view:feature_name)"
+        assert (
+            ":" in model_field
+        ), "model_field must be full feature reference; i.e., feature_view:feature_name)"
         model_feature_name = model_field.split(":")[1]
-        # Get the feature views to use
+
         if force_recompute:
             # Fetch features from the offline store
-            prediction_response = self.get_online_features(
+            prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
                 features=features + [model_field],
+                full_feature_names=full_feature_names,
             )
-            # Predict using the model
-            predictions = model.predict(prediction_response.to_df())
-            setattr(prediction_response, model_feature_name, predictions[model_field])
+            # Executing the prediction
+            predictions = model.predict(OnlineResponse(prediction_response).to_dict())
+            # Storing it in the metadata and output
+            prediction_response.metadata.feature_names.val.append(model_feature_name)
+            prediction_response.results.append(
+                GetOnlineFeaturesResponse.FeatureVector(
+                    values=python_values_to_proto_values(
+                        predictions[model_field], ValueType.UNKNOWN
+                    ),
+                    statuses=[FieldStatus.PRESENT],
+                    event_timestamps=[Timestamp()],
+                )
+            )
             # Log features to the offline store if needed (on computations)
             if log_features:
-                # TODO: actually log the features and the score
-                print("log features")
+                # TODO: actually log the features and the predictions to enable model and feature replay here
+                pass
                 # self.push(
                 #     push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
                 # )
@@ -2114,7 +2123,7 @@ class FeatureStore:
                 features=[model_field],
             )
             # TODO: if null we need to compute it, presumably for the first time
-        return prediction_response
+        return OnlineResponse(prediction_response)
 
     def get_online_inference(self, *args, **kwargs):
         return self.get_online_predictions(*args, **kwargs)
@@ -2162,3 +2171,20 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
+
+
+def _convert_list_of_dicts_to_dicts_of_lists(
+    entity_rows: List[Dict[str, Any]],
+) -> Dict[str, List[Any]]:
+    if isinstance(entity_rows, list):
+        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+        for entity_row in entity_rows:
+            for key, value in entity_row.items():
+                try:
+                    columnar[key].append(value)
+                except KeyError as e:
+                    raise ValueError("All entity_rows must have the same keys.") from e
+
+        entity_rows = columnar
+
+    return entity_rows
