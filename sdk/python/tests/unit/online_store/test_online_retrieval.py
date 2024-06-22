@@ -642,7 +642,6 @@ def test_get_online_predictions():
 
         class DemoModel:
             def predict(self, features):
-                print(features)
                 return {
                     "risk_score:predictions": [0.1, 0.2],
                     "risk_score:model_version": [1, 1],
@@ -669,7 +668,7 @@ def test_get_online_predictions():
         assert "lon" in result
         assert "avg_orders_day" in result
         assert "name" in result
-        assert result["risk_score:predictions"] == [0.1, 0.2]
+        assert result["predictions"] == [0.1, 0.2]
         assert result["driver_id"] == [1, 1]
         assert result["customer_id"] == ["5", "5"]
         assert result["lon"] == ["1.0", "1.0"]
