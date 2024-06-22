@@ -2094,7 +2094,7 @@ class FeatureStore:
             # Fetch features from the offline store
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
-                features=features + [model_field],
+                features=features,
                 full_feature_names=full_feature_names,
             )
             # Executing the prediction
@@ -2118,7 +2118,7 @@ class FeatureStore:
                 #     push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
                 # )
         else:
-            prediction_response = self.get_online_features(
+            prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
                 features=[model_field],
             )
@@ -2174,8 +2174,14 @@ def _validate_data_sources(data_sources: List[DataSource]):
 
 
 def _convert_list_of_dicts_to_dicts_of_lists(
-    entity_rows: List[Dict[str, Any]],
-) -> Dict[str, List[Any]]:
+    entity_rows: Union[
+        List[Dict[str, Any]],
+        Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
+    ],
+) -> Union[
+    Dict[str, List[Any]],
+    Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
+]:
     if isinstance(entity_rows, list):
         columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
         for entity_row in entity_rows:
