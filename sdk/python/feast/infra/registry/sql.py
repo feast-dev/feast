@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Union
@@ -903,7 +903,7 @@ class SqlRegistry(CachingRegistry):
                 return None
             update_time = int(row._mapping["last_updated_timestamp"])
 
-            return datetime.utcfromtimestamp(update_time)
+            return datetime.fromtimestamp(update_time, tz=timezone.utc)
 
     def _get_all_projects(self) -> Set[str]:
         projects = set()
