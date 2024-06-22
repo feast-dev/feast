@@ -1519,7 +1519,7 @@ class FeatureStore:
         ],
         full_feature_names: bool = False,
     ) -> GetOnlineFeaturesResponse:
-        entity_rows = _convert_list_of_dicts_to_dicts_of_lists(entity_rows)
+        entity_rows = utils._convert_list_of_dicts_to_dicts_of_lists(entity_rows)
 
         (
             join_key_values,
@@ -1670,7 +1670,7 @@ class FeatureStore:
         Raises:
             Exception: No entity with the specified name exists.
         """
-        entity_rows = _convert_list_of_dicts_to_dicts_of_lists(entity_rows)
+        entity_rows = utils._convert_list_of_dicts_to_dicts_of_lists(entity_rows)
 
         (
             join_key_values,
@@ -2171,26 +2171,3 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
-
-
-def _convert_list_of_dicts_to_dicts_of_lists(
-    entity_rows: Union[
-        List[Dict[str, Any]],
-        Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
-    ],
-) -> Union[
-    Dict[str, List[Any]],
-    Mapping[str, Union[Sequence[Any], Sequence[Value], RepeatedValue]],
-]:
-    if isinstance(entity_rows, list):
-        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-        for entity_row in entity_rows:
-            for key, value in entity_row.items():
-                try:
-                    columnar[key].append(value)
-                except KeyError as e:
-                    raise ValueError("All entity_rows must have the same keys.") from e
-
-        entity_rows = columnar
-
-    return entity_rows

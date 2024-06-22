@@ -1052,3 +1052,26 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
             cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
         ).items()
     }
+
+
+def _convert_list_of_dicts_to_dicts_of_lists(
+    entity_rows: Union[
+        List[Dict[str, Any]],
+        Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValueProto]],
+    ],
+) -> Union[
+    Dict[str, List[Any]],
+    Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValueProto]],
+]:
+    if isinstance(entity_rows, list):
+        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+        for entity_row in entity_rows:
+            for key, value in entity_row.items():
+                try:
+                    columnar[key].append(value)
+                except KeyError as e:
+                    raise ValueError("All entity_rows must have the same keys.") from e
+
+        entity_rows = columnar
+
+    return entity_rows
