@@ -11,6 +11,10 @@ image:
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
   tag: 0.39.0
 
+namespaceSelector:
+  matchNames:
+    - "default-namespace"
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -37,6 +41,11 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
+
+otel:
+  exporter:
+    endpoint: "http://otel-collector.feast-test.svc.cluster.local:4317"
+    insecure: "true"
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

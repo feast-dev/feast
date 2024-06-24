@@ -5,7 +5,7 @@ metadata:
   namespace: feast-test
 spec:
   exporter:
-    endpoint: http://otelcol-collector.opentelemetry.svc.cluster.local:4318
+    endpoint: http://otelcol-collector.{{ .Values.namespaceSelector.matchNames }}.svc.cluster.local:4318
   env:
   propagators:
     - tracecontext
