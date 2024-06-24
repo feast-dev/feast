@@ -664,7 +664,7 @@ pyjwt[crypto]==2.8.0
     # via
     #   msal
     #   snowflake-connector-python
-pymilvus==2.2.14
+pymilvus==2.3.7
     # via eg-feast (setup.py)
 pymssql==2.2.10
     # via feast (setup.py)

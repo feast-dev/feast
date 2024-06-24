@@ -154,7 +154,7 @@ HAZELCAST_REQUIRED = [
 ]
 
 
-MILVUS_REQUIRED = ["pymilvus==2.3.0", "bidict==0.22.1"]
+MILVUS_REQUIRED = ["pymilvus>=2.3.0", "bidict==0.22.1"]
 
 ELASTICSEARCH_REQUIRED = [
     "elasticsearch==8.8",
