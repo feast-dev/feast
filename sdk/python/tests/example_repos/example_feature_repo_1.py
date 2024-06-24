@@ -35,14 +35,7 @@ driver_locations_push_source = PushSource(
 )
 
 rag_documents_source = FileSource(
-    name="rag_documents_source",
     path="data/rag_documents.parquet",
-    timestamp_field="event_timestamp",
-)
-
-predictions_source = FileSource(
-    name="predictions_source",
-    path="data/predictions.parquet",
     timestamp_field="event_timestamp",
 )
 
@@ -148,30 +141,3 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     outputs = pd.DataFrame()
     outputs["on_demand_age"] = inputs["age"] + 1
     return outputs
-
-
-@on_demand_feature_view(
-    sources=[customer_profile],
-    schema=[
-        Field(name="predictions", dtype=Float64),
-        Field(name="model_version", dtype=String),
-    ],
-    mode="python",
-)
-def risk_score_calculator(inputs: dict[str, Any]) -> dict[str, Any]:
-    outputs = {
-        "predictions": [sum(values) for values in zip(*(inputs[k] for k in ["avg_orders_day", "age"]))],
-        "model_version": ["1.0.0"] * len(inputs["avg_orders_day"])
-    }
-    return outputs
-
-
-stored_risk_predictions = FeatureView(
-    name="stored_risk_predictions",
-    entities=[customer],
-    schema=[
-        Field(name="predictions", dtype=Float32),
-    ],
-    source=predictions_source,
-    ttl=timedelta(hours=24),
-)

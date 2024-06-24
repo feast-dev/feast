@@ -570,36 +570,12 @@ def test_get_online_predictions():
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_3.py"), "file"
     ) as store:
         # Write some data to two tables
-        driver_locations_fv = store.get_feature_view(name="driver_locations")
         customer_profile_fv = store.get_feature_view(name="customer_profile")
-        customer_driver_combined_fv = store.get_feature_view(
-            name="customer_driver_combined"
-        )
-
+        customer_predictions_fv = store.get_feature_view(name="stored_customer_predictions")
         provider = store._get_provider()
-
-        driver_key = EntityKeyProto(
-            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
-        )
-        provider.online_write_batch(
-            config=store.config,
-            table=driver_locations_fv,
-            data=[
-                (
-                    driver_key,
-                    {
-                        "lat": ValueProto(double_val=0.1),
-                        "lon": ValueProto(string_val="1.0"),
-                    },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
-                )
-            ],
-            progress=None,
-        )
 
         customer_key = EntityKeyProto(
             join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
@@ -611,9 +587,11 @@ def test_get_online_predictions():
                 (
                     customer_key,
                     {
-                        "avg_orders_day": ValueProto(float_val=1.0),
+                        "avg_orders_day": ValueProto(
+                            float_val= 3.0
+                        ),
                         "name": ValueProto(string_val="John"),
-                        "age": ValueProto(int64_val=3),
+                        "age": ValueProto(int64_val=35),
                     },
                     datetime.utcnow(),
                     datetime.utcnow(),
@@ -621,18 +599,16 @@ def test_get_online_predictions():
             ],
             progress=None,
         )
-
-        customer_key = EntityKeyProto(
-            join_keys=["customer_id", "driver_id"],
-            entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
-        )
         provider.online_write_batch(
             config=store.config,
-            table=customer_driver_combined_fv,
+            table=customer_predictions_fv,
             data=[
                 (
                     customer_key,
-                    {"trips": ValueProto(int64_val=7)},
+                    {
+                        "predictions": ValueProto(float_val=1.0),
+                        "model_version": ValueProto(string_val="1.0.0"),
+                    },
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
@@ -662,7 +638,6 @@ def test_get_online_predictions():
         assert "avg_orders_day" in result
         assert "name" in result
         assert result["predictions"] == [0.1, 0.2]
-        assert result["driver_id"] == [1, 1]
         assert result["customer_id"] == ["5", "5"]
         assert result["lon"] == ["1.0", "1.0"]
         assert result["avg_orders_day"] == [1.0, 1.0]
