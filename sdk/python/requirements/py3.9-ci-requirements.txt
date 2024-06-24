@@ -599,7 +599,7 @@ proto-plus==1.22.3
     #   google-cloud-bigtable
     #   google-cloud-datastore
     #   google-cloud-firestore
-protobuf==4.23.3
+protobuf==4.23.4
     # via
     #   eg-feast (setup.py)
     #   google-api-core
