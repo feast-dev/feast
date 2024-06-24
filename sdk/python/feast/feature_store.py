@@ -2083,18 +2083,6 @@ class FeatureStore:
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
         )
-        # 0. retrieve the score from the FV
-        # 1. if recalculate, pass in the features to the ODFV
-        # 2. recalculate the model score, write to FV
-        # 3. log if log_features
-        # 4. store it in the main FV
-        # so we'll need to get the features, model feature view, and the model ODFV
-        # The model ODFV should be a model or something else
-        # so call needs:
-        # model feature view
-        # model features
-        # model on demand feature view name
-
         assert (
             ":" in model_feature_name
         ), "model_feature_name must be full feature reference; i.e., feature_view:feature_name)"
@@ -2107,6 +2095,7 @@ class FeatureStore:
                 features=features_and_model_field,
                 full_feature_names=False,
             )
+            # TODO: write the feature back to `prediction_feature_name`
             # Log features to the offline store if needed (on computations)
             if log_features:
                 # TODO: actually log the features and the predictions to enable model and feature replay here

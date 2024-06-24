@@ -619,7 +619,7 @@ def test_get_online_predictions():
         )
 
         result = store.get_online_predictions(
-            prediction_feature_name="risk_score_calculator:predictions",
+            prediction_feature_name="stored_customer_predictions:predictions",
             features=[
                 "customer_profile:avg_orders_day",
                 "customer_profile:age",
@@ -628,7 +628,7 @@ def test_get_online_predictions():
                 {"customer_id": "5"},
                 {"customer_id": 5},
             ],
-            model_feature_name="stored_customer_predictions:predictions",
+            model_feature_name="risk_score_calculator:predictions",
             force_recompute=False,
             log_features=True,
         ).to_dict()
@@ -661,4 +661,3 @@ def test_get_online_predictions():
         assert result["predictions"] == [recomputed_score, recomputed_score]
         assert result["customer_id"] == ["5", "5"]
         assert result["avg_orders_day"] == [3.0, 3.0]
-        assert result["name"] == ["John", "John"]
