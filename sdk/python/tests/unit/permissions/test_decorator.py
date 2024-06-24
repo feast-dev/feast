@@ -4,12 +4,12 @@ import assertpy
 import pytest
 
 from feast import FeatureView
+from feast.permissions.decorator import require_permissions
 from feast.permissions.permission import AuthzedAction, Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.permissions.role_manager import RoleManager
 from feast.permissions.security_manager import (
     SecurityManager,
-    require_permissions,
     set_security_manager,
 )
 
