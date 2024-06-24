@@ -5,7 +5,7 @@ metadata:
   namespace: feast-test
 spec:
   exporter:
-    endpoint: http://otelcol-collector.{{ .Values.namespaceSelector.matchNames }}.svc.cluster.local:4318
+    endpoint: http://otelcol-collector.{{ .Values.namespaceSelector.matchNames }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
   env:
   propagators:
     - tracecontext

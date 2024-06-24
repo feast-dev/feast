@@ -13,7 +13,7 @@ spec:
       podMonitorSelector: {}
       serviceMonitorSelector: {}
       ## If uncommented, only service monitors with this label will get picked up
-      #   app: my-app
+      #   app: feast
   config:
     receivers:
       otlp:
