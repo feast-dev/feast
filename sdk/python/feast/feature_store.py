@@ -2074,41 +2074,39 @@ class FeatureStore:
 
     def get_online_predictions(
         self,
-        model_field: str,
+        prediction_feature_name: str,
         features: Union[List[str], FeatureService],
         entity_rows: List[Dict[str, Any]],
-        model: Any,
+        model_feature_name: str,
         force_recompute: bool,
         log_features: bool,
-        full_feature_names: bool = False,
     ) -> OnlineResponse:
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
         )
+        # 0. retrieve the score from the FV
+        # 1. if recalculate, pass in the features to the ODFV
+        # 2. recalculate the model score, write to FV
+        # 3. log if log_features
+        # 4. store it in the main FV
+        # so we'll need to get the features, model feature view, and the model ODFV
+        # The model ODFV should be a model or something else
+        # so call needs:
+            # model feature view
+            # model features
+            # model on demand feature view name
+
         assert (
-            ":" in model_field
-        ), "model_field must be full feature reference; i.e., feature_view:feature_name)"
-        model_feature_name = model_field.split(":")[1]
+            ":" in model_feature_name
+        ), "model_feature_name must be full feature reference; i.e., feature_view:feature_name)"
 
         if force_recompute:
             # Fetch features from the offline store
+            features_and_model_field = features + [model_feature_name]
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
-                features=features,
-                full_feature_names=full_feature_names,
-            )
-            # Executing the prediction
-            predictions = model.predict(OnlineResponse(prediction_response).to_dict())
-            # Storing it in the metadata and output
-            prediction_response.metadata.feature_names.val.append(model_feature_name)
-            prediction_response.results.append(
-                GetOnlineFeaturesResponse.FeatureVector(
-                    values=python_values_to_proto_values(
-                        predictions[model_field], ValueType.UNKNOWN
-                    ),
-                    statuses=[FieldStatus.PRESENT],
-                    event_timestamps=[Timestamp()],
-                )
+                features=features_and_model_field,
+                full_feature_names=False,
             )
             # Log features to the offline store if needed (on computations)
             if log_features:
@@ -2120,7 +2118,7 @@ class FeatureStore:
         else:
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
-                features=[model_field],
+                features=[prediction_feature_name],
             )
             # TODO: if null we need to compute it, presumably for the first time
         return OnlineResponse(prediction_response)

@@ -40,6 +40,12 @@ rag_documents_source = FileSource(
     timestamp_field="event_timestamp",
 )
 
+predictions_source = FileSource(
+    name="predictions_source",
+    path="data/predictions.parquet",
+    timestamp_field="event_timestamp",
+)
+
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
     join_keys=["driver_id"],
@@ -84,6 +90,12 @@ pushed_driver_locations = FeatureView(
     online=True,
     source=driver_locations_push_source,
     tags={},
+)
+
+all_drivers_feature_service = FeatureService(
+    name="driver_locations_service",
+    features=[driver_locations],
+    tags=TAGS,
 )
 
 customer_profile = FeatureView(
@@ -146,16 +158,20 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     ],
     mode="python",
 )
-def risk_score(inputs: dict[str, Any]) -> dict[str, Any]:
+def risk_score_calculator(inputs: dict[str, Any]) -> dict[str, Any]:
     outputs = {
-        "predictions": [1.0 for _ in inputs["age"]],
-        "model_version": ["0.0.0" for _ in inputs["age"]],
+        "predictions": [sum(values) for values in zip(*(inputs[k] for k in ["avg_orders_day", "age"]))],
+        "model_version": ["1.0.0"] * len(inputs["avg_orders_day"])
     }
     return outputs
 
 
-all_drivers_feature_service = FeatureService(
-    name="driver_locations_service",
-    features=[driver_locations],
-    tags=TAGS,
+stored_risk_predictions = FeatureView(
+    name="stored_risk_predictions",
+    entities=[customer],
+    schema=[
+        Field(name="predictions", dtype=Float32),
+    ],
+    source=predictions_source,
+    ttl=timedelta(hours=24),
 )

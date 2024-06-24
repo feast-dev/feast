@@ -640,16 +640,9 @@ def test_get_online_predictions():
             progress=None,
         )
 
-        class DemoModel:
-            def predict(self, features):
-                return {
-                    "risk_score:predictions": [0.1, 0.2],
-                    "risk_score:model_version": [1, 1],
-                }
-
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_predictions(
-            model_field="risk_score:predictions",
+            prediction_feature_name="risk_score_calculator:predictions",
             features=[
                 "driver_locations:lon",
                 "customer_profile:avg_orders_day",
@@ -660,7 +653,7 @@ def test_get_online_predictions():
                 {"driver_id": 1, "customer_id": "5"},
                 {"driver_id": 1, "customer_id": 5},
             ],
-            model=DemoModel(),
+            model_feature_name="stored_risk_predictions:stored_risk_predictions",
             force_recompute=True,
             log_features=True,
         ).to_dict()

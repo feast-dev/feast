@@ -64,8 +64,8 @@ def test_get_online_predictions(python_fs_client):
             "driver_stats:acc_rate",
             "driver_stats:avg_daily_trips",
         ],
-        "entities": {"driver_id": [5001, 5002]},
-        "model_name": "driver_model",
+        "entity_rows": {"driver_id": [5001, 5002]},
+        "model_field": "driver_model",
         "force_recompute": True,
         "log_features": True,
     }

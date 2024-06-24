@@ -160,7 +160,7 @@ def get_app(
             predictions = store.get_online_predictions(
                 model_name=body["model_name"],
                 features=features,
-                entity_rows=body["entities"],
+                entity_rows=body["entity_rows"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
             )
