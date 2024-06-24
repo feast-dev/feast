@@ -86,7 +86,6 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import ValueType, python_values_to_proto_values
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -2092,9 +2091,9 @@ class FeatureStore:
         # so we'll need to get the features, model feature view, and the model ODFV
         # The model ODFV should be a model or something else
         # so call needs:
-            # model feature view
-            # model features
-            # model on demand feature view name
+        # model feature view
+        # model features
+        # model on demand feature view name
 
         assert (
             ":" in model_feature_name

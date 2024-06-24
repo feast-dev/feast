@@ -28,12 +28,6 @@ customer_predictions_source = FileSource(
     timestamp_field="event_timestamp",
 )
 
-predictions_source = FileSource(
-    name="predictions_source",
-    path="data/driver_locations.parquet",
-    timestamp_field="event_timestamp",
-)
-
 customer_profile = FeatureView(
     name="customer_profile",
     entities=[customer],
@@ -75,7 +69,10 @@ stored_customer_predictions = FeatureView(
 )
 def risk_score_calculator(inputs: dict[str, Any]) -> dict[str, Any]:
     outputs = {
-        "predictions": [sum(values) for values in zip(*(inputs[k] for k in ["avg_orders_day", "age"]))],
-        "model_version": ["1.0.0"] * len(inputs["avg_orders_day"])
+        "predictions": [
+            sum(values)
+            for values in zip(*(inputs[k] for k in ["avg_orders_day", "age"]))
+        ],
+        "model_version": ["1.0.0"] * len(inputs["avg_orders_day"]),
     }
     return outputs
