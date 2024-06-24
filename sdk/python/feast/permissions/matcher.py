@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Optional, Union, get_args
+from typing import Any, Optional, get_args
 from unittest.mock import Mock
 
 from feast.feast_object import FeastObject
@@ -96,7 +96,7 @@ def resource_match_config(
 
 def actions_match_config(
     actions: list[AuthzedAction],
-    allowed_actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
+    allowed_actions: list[AuthzedAction],
 ) -> bool:
     if AuthzedAction.ALL in allowed_actions:
         return True
