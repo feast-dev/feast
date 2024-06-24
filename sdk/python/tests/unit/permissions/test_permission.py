@@ -15,7 +15,7 @@ from feast.permissions.permission import (
     DecisionStrategy,
     Permission,
 )
-from feast.permissions.policy import AllowAll
+from feast.permissions.policy import AllowAll, Policy
 
 
 def test_global_decision_strategy():
@@ -45,32 +45,31 @@ def test_defaults():
     assertpy.assert_that(p.decision_strategy).is_equal_to(DecisionStrategy.UNANIMOUS)
 
 
-def test_validity():
-    # Invalid values
-    with pytest.raises(ValueError):
-        Permission(name="test", types=None)
-    with pytest.raises(ValueError):
-        Permission(name="test", types=[])
-    with pytest.raises(ValueError):
-        Permission(name="test", actions=None)
-    with pytest.raises(ValueError):
-        Permission(name="test", actions=[])
-    with pytest.raises(ValueError):
-        Permission(name="test", policies=None)
-    with pytest.raises(ValueError):
-        Permission(name="test", policies=[])
-    with pytest.raises(ValueError):
-        Permission(name="test", decision_strategy="invalid")
-
-    # Valid values
-    Permission(name="test", types=ALL_RESOURCE_TYPES)
-    Permission(name="test", types=[FeatureView, FeatureService])
-    Permission(name="test", actions=AuthzedAction.ALL)
-    Permission(name="test", actions=[AuthzedAction.ALL])
-    Permission(
-        name="test",
-        actions=[AuthzedAction.CREATE, AuthzedAction.DELETE],
-    )
+@pytest.mark.parametrize(
+    "dict, result",
+    [
+        ({"types": None}, False),
+        ({"types": []}, False),
+        ({"types": ALL_RESOURCE_TYPES}, True),
+        ({"types": [FeatureView, FeatureService]}, True),
+        ({"actions": None}, False),
+        ({"actions": []}, False),
+        ({"actions": AuthzedAction.ALL}, True),
+        ({"actions": [AuthzedAction.ALL]}, True),
+        ({"actions": [AuthzedAction.CREATE, AuthzedAction.DELETE]}, True),
+        ({"policies": None}, False),
+        ({"policies": []}, False),
+        ({"policies": Mock(spec=Policy)}, True),
+        ({"policies": [Mock(spec=Policy)]}, True),
+        ({"decision_strategy": DecisionStrategy.AFFIRMATIVE}, True),
+    ],
+)
+def test_validity(dict, result):
+    if not result:
+        with pytest.raises(ValueError):
+            Permission(name="test", **dict)
+    else:
+        Permission(name="test", **dict)
 
 
 def test_normalized_args():
@@ -86,93 +85,77 @@ def test_normalized_args():
     assertpy.assert_that(type(p.policies)).is_equal_to(list)
 
 
-def test_match_resource():
+@pytest.mark.parametrize(
+    "resource, result",
+    [
+        (None, False),
+        ("invalid string", False),
+        ("ALL", False),
+        ("ALL", False),
+    ]
+    + [(Mock(spec=t), True) for t in get_args(FeastObject)],
+)
+def test_match_resource(resource, result):
     p = Permission(name="test")
-    resource = None
-    assertpy.assert_that(p.match_resource(resource)).is_false()
-    resource = "invalid string"
-    assertpy.assert_that(p.match_resource(resource)).is_false()
-    resource = "ALL"
-    assertpy.assert_that(p.match_resource(resource)).is_false()
+    assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
+
+@pytest.mark.parametrize(
+    "pattern, name, match",
+    [
+        ("test.*", "test", True),
+        ("test.*", "test1", True),
+        ("test.*", "wrongtest", False),
+        (".*test.*", "wrongtest", True),
+    ],
+)
+def test_resource_match_with_name_filter(pattern, name, match):
+    p = Permission(name="test", name_pattern=pattern)
     for t in get_args(FeastObject):
         resource = Mock(spec=t)
-        resource.name = "test"
-        assertpy.assert_that(p.match_resource(resource)).is_true()
+        resource.name = name
+        assertpy.assert_that(p.match_resource(resource)).is_equal_to(match)
 
 
-def test_resource_match_with_name_filter():
-    p = Permission(name="test", name_pattern="test.*")
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test"
-        assertpy.assert_that(p.match_resource(resource)).is_true()
-
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test1"
-        assertpy.assert_that(p.match_resource(resource)).is_true()
-
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "wrongtest"
-        assertpy.assert_that(p.match_resource(resource)).is_false()
-
-    p = Permission(name="test", name_pattern=".*test.*")
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "wrongtest"
-        assertpy.assert_that(p.match_resource(resource)).is_true()
-
-
-def test_resource_match_with_tags():
+@pytest.mark.parametrize(
+    ("required_tags, tags, result"),
+    [
+        ({"owner": "dev"}, {}, False),
+        ({"owner": "dev"}, {"owner": "master"}, False),
+        ({"owner": "dev"}, {"owner": "dev", "other": 1}, True),
+        ({"owner": "dev", "dep": 1}, {"owner": "dev", "other": 1}, False),
+        ({"owner": "dev", "dep": 1}, {"owner": "dev", "other": 1, "dep": 1}, True),
+    ],
+)
+def test_resource_match_with_tags(required_tags, tags, result):
     # Missing tags
-    p = Permission(name="test", required_tags={"owner": "dev"})
+    p = Permission(name="test", required_tags=required_tags)
     for t in get_args(FeastObject):
         resource = Mock(spec=t)
         resource.name = "test"
-        resource.tags = {}
-        assertpy.assert_that(p.match_resource(resource)).is_false()
-
-    # Wrong tag value
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test"
-        resource.tags = {"owner": "master"}
-        assertpy.assert_that(p.match_resource(resource)).is_false()
-
-    # All matching tags
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test"
-        resource.tags = {"owner": "dev", "other": 1}
-        assertpy.assert_that(p.match_resource(resource)).is_true()
-
-    # One missing tag
-    p = Permission(name="test", required_tags={"owner": "dev", "dep": 1})
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test"
-        resource.tags = {"owner": "dev", "other": 1}
-        assertpy.assert_that(p.match_resource(resource)).is_false()
-
-    # All matching tags
-    for t in get_args(FeastObject):
-        resource = Mock(spec=t)
-        resource.name = "test"
-        resource.tags = {"owner": "dev", "other": 1, "dep": 1}
-        assertpy.assert_that(p.match_resource(resource)).is_true()
+        resource.tags = tags
+        assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 
-def test_match_actions():
-    p = Permission(name="test")
-
-    for action in AuthzedAction.__members__.values():
-        assertpy.assert_that(p.match_actions(actions=action)).is_true()
-
-    p = Permission(name="test", actions=[AuthzedAction.CREATE, AuthzedAction.DELETE])
-    assertpy.assert_that(
-        p.match_actions(actions=[AuthzedAction.CREATE, AuthzedAction.DELETE])
-    ).is_true()
-    assertpy.assert_that(p.match_actions(actions=[AuthzedAction.CREATE])).is_true()
-    assertpy.assert_that(p.match_actions(actions=[AuthzedAction.DELETE])).is_true()
+@pytest.mark.parametrize(
+    ("permitted_actions, actions, result"),
+    [(AuthzedAction.ALL, a, True) for a in AuthzedAction.__members__.values()]
+    + [
+        (
+            [AuthzedAction.CREATE, AuthzedAction.DELETE],
+            [AuthzedAction.CREATE, AuthzedAction.DELETE],
+            True,
+        ),
+        ([AuthzedAction.CREATE, AuthzedAction.DELETE], [AuthzedAction.CREATE], True),
+        ([AuthzedAction.CREATE, AuthzedAction.DELETE], [AuthzedAction.DELETE], True),
+        ([AuthzedAction.CREATE, AuthzedAction.DELETE], [AuthzedAction.UPDATE], False),
+        (
+            [AuthzedAction.CREATE, AuthzedAction.DELETE],
+            [AuthzedAction.CREATE, AuthzedAction.DELETE, AuthzedAction.UPDATE],
+            False,
+        ),
+    ],
+)
+def test_match_actions(permitted_actions, actions, result):
+    p = Permission(name="test", actions=permitted_actions)
+    assertpy.assert_that(p.match_actions(actions=actions)).is_equal_to(result)

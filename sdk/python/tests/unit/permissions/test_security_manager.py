@@ -26,6 +26,10 @@ class SecuredFeatureView(FeatureView):
     def read_protected(self) -> bool:
         return True
 
+    @require_permissions(actions=[AuthzedAction.WRITE])
+    def write_protected(self) -> bool:
+        return True
+
     def unprotected(self) -> bool:
         return True
 
@@ -40,6 +44,15 @@ def security_manager() -> SecurityManager:
             with_subclasses=True,
             policies=[RoleBasedPolicy(roles=["reader"])],
             actions=[AuthzedAction.READ],
+        )
+    )
+    permissions.append(
+        Permission(
+            name="writer",
+            types=FeatureView,
+            with_subclasses=True,
+            policies=[RoleBasedPolicy(roles=["writer"])],
+            actions=[AuthzedAction.WRITE],
         )
     )
 
@@ -57,34 +70,30 @@ def feature_view() -> FeatureView:
     return SecuredFeatureView("secured", {})
 
 
-def test_no_user(security_manager, feature_view):
+@pytest.mark.parametrize(
+    "user, can_read, can_write",
+    [
+        (None, False, False),
+        ("r", True, False),
+        ("w", False, True),
+        ("rw", True, True),
+    ],
+)
+def test_access_SecuredFeatureView(
+    security_manager, feature_view, user, can_read, can_write
+):
+    sm = security_manager
     fv = feature_view
 
-    with pytest.raises(PermissionError):
+    sm.set_current_user(user)
+    if can_read:
         fv.read_protected()
-    assertpy.assert_that(fv.unprotected()).is_true()
-
-
-def test_reader_user(security_manager, feature_view):
-    sm = security_manager
-    fv = feature_view
-    sm.set_current_user("r")
-    fv.read_protected()
-    assertpy.assert_that(fv.unprotected()).is_true()
-
-
-def test_writer_user(security_manager, feature_view):
-    sm = security_manager
-    fv = feature_view
-    sm.set_current_user("w")
-    with pytest.raises(PermissionError):
-        fv.read_protected()
-    assertpy.assert_that(fv.unprotected()).is_true()
-
-
-def test_reader_writer_user(security_manager, feature_view):
-    sm = security_manager
-    fv = feature_view
-    sm.set_current_user("rw")
-    fv.read_protected()
+    else:
+        with pytest.raises(PermissionError):
+            fv.read_protected()
+    if can_write:
+        fv.write_protected()
+    else:
+        with pytest.raises(PermissionError):
+            fv.write_protected()
     assertpy.assert_that(fv.unprotected()).is_true()
