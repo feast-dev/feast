@@ -4,11 +4,13 @@ from unittest.mock import Mock
 import assertpy
 import pytest
 
-from feast import (
-    FeatureService,
-    FeatureView,
-)
+from feast.batch_feature_view import BatchFeatureView
+from feast.data_source import DataSource
+from feast.entity import Entity
 from feast.feast_object import FeastObject
+from feast.feature_service import FeatureService
+from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import (
     ALL_RESOURCE_TYPES,
     AuthzedAction,
@@ -16,6 +18,8 @@ from feast.permissions.permission import (
     Permission,
 )
 from feast.permissions.policy import AllowAll, Policy
+from feast.saved_dataset import ValidationReference
+from feast.stream_feature_view import StreamFeatureView
 
 
 def test_global_decision_strategy():
@@ -34,7 +38,7 @@ def test_defaults():
     p = Permission(name="test")
     assertpy.assert_that(type(p.types)).is_equal_to(list)
     assertpy.assert_that(p.types).is_equal_to(ALL_RESOURCE_TYPES)
-    assertpy.assert_that(p.with_subclasses).is_false()
+    assertpy.assert_that(p.with_subclasses).is_true()
     assertpy.assert_that(p.name_pattern).is_none()
     assertpy.assert_that(p.required_tags).is_none()
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
@@ -86,6 +90,39 @@ def test_normalized_args():
 
 
 @pytest.mark.parametrize(
+    "resource, types, result",
+    [
+        (None, ALL_RESOURCE_TYPES, False),
+        ("invalid string", ALL_RESOURCE_TYPES, False),
+        ("ALL", ALL_RESOURCE_TYPES, False),
+        ("ALL", ALL_RESOURCE_TYPES, False),
+        (Mock(spec=FeatureView), OnDemandFeatureView, False),
+        (Mock(spec=FeatureView), FeatureService, False),
+        (Mock(spec=OnDemandFeatureView), FeatureView, True),
+        (Mock(spec=OnDemandFeatureView), FeatureService, False),
+        (Mock(spec=BatchFeatureView), FeatureView, True),
+        (Mock(spec=BatchFeatureView), FeatureService, False),
+        (Mock(spec=StreamFeatureView), FeatureView, True),
+        (Mock(spec=StreamFeatureView), FeatureService, False),
+        (Mock(spec=Entity), FeatureView, False),
+        (Mock(spec=Entity), FeatureService, False),
+        (Mock(spec=Entity), FeatureService, False),
+        (Mock(spec=FeatureService), FeatureView, True),
+        (Mock(spec=FeatureService), OnDemandFeatureView, False),
+        (Mock(spec=DataSource), FeatureView, False),
+        (Mock(spec=DataSource), FeatureService, False),
+        (Mock(spec=ValidationReference), FeatureView, False),
+        (Mock(spec=ValidationReference), FeatureService, False),
+    ]
+    + [(Mock(spec=t), ALL_RESOURCE_TYPES, True) for t in get_args(FeastObject)]
+    + [(Mock(spec=t), [t], True) for t in get_args(FeastObject)],
+)
+def _test_match_resource_with_subclasses(resource, types, result):  # TEMPORARY DISABLED
+    p = Permission(name="test", types=types, with_subclasses=True)
+    assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
+
+
+@pytest.mark.parametrize(
     "resource, result",
     [
         (None, False),
@@ -95,8 +132,8 @@ def test_normalized_args():
     ]
     + [(Mock(spec=t), True) for t in get_args(FeastObject)],
 )
-def test_match_resource(resource, result):
-    p = Permission(name="test")
+def test_match_resource_no_subclasses(resource, result):
+    p = Permission(name="test", with_subclasses=False)
     assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 

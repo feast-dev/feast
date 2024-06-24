@@ -3,8 +3,9 @@ from contextvars import ContextVar
 from typing import List, Optional, Union
 
 from feast.feast_object import FeastObject
+from feast.permissions.action import AuthzedAction
 from feast.permissions.enforcer import enforce_policy
-from feast.permissions.permission import AuthzedAction, Permission
+from feast.permissions.permission import Permission
 from feast.permissions.role_manager import RoleManager
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,16 @@ class SecurityManager:
         )
         if not result:
             raise PermissionError(explain)
+
+
+def assert_permissions(
+    resource: FeastObject,
+    actions: Union[AuthzedAction, List[AuthzedAction]],
+):
+    sm = get_security_manager()
+    if sm is None:
+        return True
+    return sm.assert_permissions(resource=resource, actions=actions)
 
 
 """

@@ -1,8 +1,9 @@
 import logging
 from typing import Union
 
-from feast.permissions.permission import AuthzedAction, is_of_expected_type
-from feast.permissions.security_manager import get_security_manager
+from feast.permissions.action import AuthzedAction
+from feast.permissions.matcher import is_a_feast_object
+from feast.permissions.security_manager import assert_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +20,17 @@ def require_permissions(actions: Union[list[AuthzedAction], AuthzedAction]):
         def permission_checker(*args, **kwargs):
             logger.debug(f"permission_checker for {args}, {kwargs}")
             resource = args[0]
-            if not is_of_expected_type(resource):
+            if not is_a_feast_object(resource):
                 raise NotImplementedError(
                     f"The first argument is not of a managed type but {type(resource)}"
                 )
 
-            sm = get_security_manager()
-            if sm is None:
-                return True
-
-            sm.assert_permissions(
+            return assert_permissions(
                 resource=resource,
                 actions=actions,
             )
             logger.debug(
-                f"User {sm.current_user} can invoke {actions} on {resource.name}:{type(resource)} "
+                f"Current User can invoke {actions} on {resource.name}:{type(resource)} "
             )
             result = func(*args, **kwargs)
             return result

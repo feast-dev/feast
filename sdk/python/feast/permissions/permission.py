@@ -1,32 +1,14 @@
-import enum
 import logging
-import re
 from abc import ABC
-from typing import Any, Optional, Union, get_args
+from typing import Optional, Union, get_args
 
 from feast.feast_object import FeastObject
+from feast.permissions.action import AuthzedAction
 from feast.permissions.decision import DecisionStrategy
+from feast.permissions.matcher import actions_match_config, resource_match_config
 from feast.permissions.policy import AllowAll, Policy
 
 logger = logging.getLogger(__name__)
-
-
-class AuthzedAction(enum.Enum):
-    """
-    Identifies the type of action being secured by the permissions framework, according to the familiar CRUD and Feast terminology.
-    """
-
-    ALL = "all"  # All actions
-    CREATE = "create"  # Create an instance
-    READ = "read"  # Access the instance state
-    UPDATE = "update"  # Update the instance state
-    DELETE = "delete"  # Deelete an instance
-    QUERY = "query"  # Query both online and offline stores
-    QUERY_ONLINE = "query_online"  # Query the online store only
-    QUERY_OFFLINE = "query_offline"  # Query the offline store only
-    WRITE = "write"  # Query on any store
-    WRITE_ONLINE = "write_online"  # Write to the online store only
-    WRITE_OFFLINE = "write_offline"  # Write to the offline store only
 
 
 """
@@ -43,6 +25,7 @@ class Permission(ABC):
     Attributes:
         name: The permission name (can be duplicated, used for logging troubleshooting)
         types: The list of protected resource  types as defined by the `FeastObject` type. Defaults to all managed types (e.g. the `ALL_RESOURCE_TYPES` constant)
+        with_subclasses: If `True`, it includes subclasses of the given types in the match, otherwise only precise type match is applied. Defaults to `True`.
         name_pattern: a regex to match the resource name. Defaults to None, meaning that no name filtering is applied
         required_tags: dictionary of key-value pairs that must match the resource tags. All these required_tags must be present as resource
         tags with the given value. Defaults to None, meaning that no tags filtering is applied.
@@ -64,7 +47,7 @@ class Permission(ABC):
         self,
         name: str,
         types: Union[list[FeastObject], FeastObject] = ALL_RESOURCE_TYPES,
-        with_subclasses: bool = False,
+        with_subclasses: bool = True,
         name_pattern: Optional[str] = None,
         required_tags: Optional[dict[str, str]] = None,
         actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
@@ -139,73 +122,19 @@ class Permission(ABC):
         return self._decision_strategy
 
     def match_resource(self, resource: FeastObject) -> bool:
-        if resource is None:
-            logger.warning(f"None passed to {self.match_resource.__name__}")
-            return False
-
-        if not is_of_expected_type(resource):
-            logger.warning(
-                f"Given resource is not of a managed type but {type(resource)}"
-            )
-            return False
-
-        t = tuple(self.types)
-        # mypy check ignored because of https://github.com/python/mypy/issues/11673, or it raises "Argument 2 to "isinstance" has incompatible type "tuple[Featu ..."
-        if not isinstance(resource, t):  # type: ignore
-            logger.info(
-                f"Resource does not match any of the expected type {self.types}"
-            )
-            return False
-
-        if self.name_pattern is not None:
-            if hasattr(resource, "name"):
-                if isinstance(resource.name, str):
-                    match = bool(re.fullmatch(self.name_pattern, resource.name))
-                    if not match:
-                        logger.info(
-                            f"Resource name {resource.name} does not match pattern {self.name_pattern}"
-                        )
-                        return False
-                else:
-                    logger.warning(
-                        f"Resource {resource} has no `name` attribute of unexpected type {type(resource.name)}"
-                    )
-            else:
-                logger.warning(f"Resource {resource} has no `name` attribute")
-
-        if self.required_tags:
-            if hasattr(resource, "tags"):
-                if isinstance(resource.tags, dict):
-                    for tag in self.required_tags.keys():
-                        required_value = self.required_tags.get(tag)
-                        actual_value = resource.tags.get(tag)
-                        if required_value != actual_value:
-                            logger.info(
-                                f"Unmatched value {actual_value} for tag {tag}: expected {required_value}"
-                            )
-                            return False
-                else:
-                    logger.warning(
-                        f"Resource {resource} has no `tags` attribute of unexpected type {type(resource.tags)}"
-                    )
-            else:
-                logger.warning(f"Resource {resource} has no `tags` attribute")
-
-        return True
+        return resource_match_config(
+            resource=resource,
+            expected_types=self.types,
+            with_subclasses=self.with_subclasses,
+            name_pattern=self.name_pattern,
+            required_tags=self.required_tags,
+        )
 
     def match_actions(self, actions: list[AuthzedAction]) -> bool:
-        if AuthzedAction.ALL in self._actions:
-            return True
-
-        return all(a in self._actions for a in actions)
-
-
-def is_of_expected_type(resource: Any):
-    for t in get_args(FeastObject):
-        # Use isinstance to pass Mock validation
-        if isinstance(resource, t):
-            return True
-    return False
+        return actions_match_config(
+            allowed_actions=self.actions,
+            actions=actions,
+        )
 
 
 def _normalize_name_pattern(name_pattern: Optional[str]):
