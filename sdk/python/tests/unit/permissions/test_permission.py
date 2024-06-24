@@ -96,44 +96,126 @@ def test_normalized_args():
         ("invalid string", ALL_RESOURCE_TYPES, False),
         ("ALL", ALL_RESOURCE_TYPES, False),
         ("ALL", ALL_RESOURCE_TYPES, False),
-        (Mock(spec=FeatureView), OnDemandFeatureView, False),
-        (Mock(spec=FeatureView), FeatureService, False),
-        (Mock(spec=OnDemandFeatureView), FeatureView, True),
-        (Mock(spec=OnDemandFeatureView), FeatureService, False),
-        (Mock(spec=BatchFeatureView), FeatureView, True),
-        (Mock(spec=BatchFeatureView), FeatureService, False),
-        (Mock(spec=StreamFeatureView), FeatureView, True),
-        (Mock(spec=StreamFeatureView), FeatureService, False),
-        (Mock(spec=Entity), FeatureView, False),
-        (Mock(spec=Entity), FeatureService, False),
-        (Mock(spec=Entity), FeatureService, False),
-        (Mock(spec=FeatureService), FeatureView, True),
-        (Mock(spec=FeatureService), OnDemandFeatureView, False),
-        (Mock(spec=DataSource), FeatureView, False),
-        (Mock(spec=DataSource), FeatureService, False),
-        (Mock(spec=ValidationReference), FeatureView, False),
-        (Mock(spec=ValidationReference), FeatureService, False),
+        (
+            Mock(spec=FeatureView),
+            [t for t in get_args(FeastObject) if t not in [FeatureView]],
+            False,
+        ),
+        (
+            Mock(spec=OnDemandFeatureView),
+            [t for t in get_args(FeastObject) if t not in [OnDemandFeatureView]],
+            False,
+        ),  # OnDemandFeatureView is a BaseFeatureView
+        (
+            Mock(spec=BatchFeatureView),
+            FeatureView,
+            True,
+        ),  # BatchFeatureView is a FeatureView
+        (
+            Mock(spec=BatchFeatureView),
+            [
+                t
+                for t in get_args(FeastObject)
+                if t not in [FeatureView, BatchFeatureView]
+            ],
+            False,
+        ),
+        (
+            Mock(spec=StreamFeatureView),
+            FeatureView,
+            True,
+        ),  # StreamFeatureView is a FeatureView
+        (
+            Mock(spec=StreamFeatureView),
+            [
+                t
+                for t in get_args(FeastObject)
+                if t not in [FeatureView, StreamFeatureView]
+            ],
+            False,
+        ),
+        (
+            Mock(spec=Entity),
+            [t for t in get_args(FeastObject) if t not in [Entity]],
+            False,
+        ),
+        (
+            Mock(spec=FeatureService),
+            [t for t in get_args(FeastObject) if t not in [FeatureService]],
+            False,
+        ),
+        (
+            Mock(spec=DataSource),
+            [t for t in get_args(FeastObject) if t not in [DataSource]],
+            False,
+        ),
+        (
+            Mock(spec=ValidationReference),
+            [t for t in get_args(FeastObject) if t not in [ValidationReference]],
+            False,
+        ),
     ]
     + [(Mock(spec=t), ALL_RESOURCE_TYPES, True) for t in get_args(FeastObject)]
     + [(Mock(spec=t), [t], True) for t in get_args(FeastObject)],
 )
-def _test_match_resource_with_subclasses(resource, types, result):  # TEMPORARY DISABLED
+def test_match_resource_with_subclasses(resource, types, result):
     p = Permission(name="test", types=types, with_subclasses=True)
     assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 
 @pytest.mark.parametrize(
-    "resource, result",
+    "resource, types, result",
     [
-        (None, False),
-        ("invalid string", False),
-        ("ALL", False),
-        ("ALL", False),
+        (None, ALL_RESOURCE_TYPES, False),
+        ("invalid string", ALL_RESOURCE_TYPES, False),
+        ("ALL", ALL_RESOURCE_TYPES, False),
+        ("ALL", ALL_RESOURCE_TYPES, False),
+        (
+            Mock(spec=FeatureView),
+            [t for t in get_args(FeastObject) if t not in [FeatureView]],
+            False,
+        ),
+        (
+            Mock(spec=OnDemandFeatureView),
+            [t for t in get_args(FeastObject) if t not in [OnDemandFeatureView]],
+            False,
+        ),
+        (
+            Mock(spec=BatchFeatureView),
+            [t for t in get_args(FeastObject) if t not in [BatchFeatureView]],
+            False,
+        ),
+        (
+            Mock(spec=StreamFeatureView),
+            [t for t in get_args(FeastObject) if t not in [StreamFeatureView]],
+            False,
+        ),
+        (
+            Mock(spec=Entity),
+            [t for t in get_args(FeastObject) if t not in [Entity]],
+            False,
+        ),
+        (
+            Mock(spec=FeatureService),
+            [t for t in get_args(FeastObject) if t not in [FeatureService]],
+            False,
+        ),
+        (
+            Mock(spec=DataSource),
+            [t for t in get_args(FeastObject) if t not in [DataSource]],
+            False,
+        ),
+        (
+            Mock(spec=ValidationReference),
+            [t for t in get_args(FeastObject) if t not in [ValidationReference]],
+            False,
+        ),
     ]
-    + [(Mock(spec=t), True) for t in get_args(FeastObject)],
+    + [(Mock(spec=t), ALL_RESOURCE_TYPES, True) for t in get_args(FeastObject)]
+    + [(Mock(spec=t), [t], True) for t in get_args(FeastObject)],
 )
-def test_match_resource_no_subclasses(resource, result):
-    p = Permission(name="test", with_subclasses=False)
+def test_match_resource_no_subclasses(resource, types, result):
+    p = Permission(name="test", types=types, with_subclasses=False)
     assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 

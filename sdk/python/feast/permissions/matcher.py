@@ -17,6 +17,18 @@ def is_a_feast_object(resource: Any):
     return False
 
 
+def _get_type(resource: FeastObject) -> Any:
+    is_mock = isinstance(resource, Mock)
+    if not is_mock:
+        return type(resource)
+    else:
+        return getattr(resource, "_spec_class", None)
+
+
+def _is_abstract_type(type: Any) -> bool:
+    return bool(getattr(type, "__abstractmethods__", False))
+
+
 def resource_match_config(
     resource: FeastObject,
     expected_types: list[FeastObject],
@@ -28,9 +40,17 @@ def resource_match_config(
         logger.warning(f"None passed to {resource_match_config.__name__}")
         return False
 
+    _type = _get_type(resource)
     if not is_a_feast_object(resource):
-        logger.warning(f"Given resource is not of a managed type but {type(resource)}")
+        logger.warning(f"Given resource is not of a managed type but {_type}")
         return False
+
+    is_abstract = _is_abstract_type(_type)
+    if is_abstract and not with_subclasses:
+        logger.debug(
+            f"Overriding default configuration for abstract type {_type}: with_subclasses=True"
+        )
+        with_subclasses = True
 
     if with_subclasses:
         # mypy check ignored because of https://github.com/python/mypy/issues/11673, or it raises "Argument 2 to "isinstance" has incompatible type "tuple[Featu ..."
