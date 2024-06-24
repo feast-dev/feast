@@ -83,8 +83,8 @@ SNOWFLAKE_CONFIG = {
     "password": os.getenv("SNOWFLAKE_CI_PASSWORD", ""),
     "role": os.getenv("SNOWFLAKE_CI_ROLE", ""),
     "warehouse": os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
-    "database": "FEAST",
-    "schema": "ONLINE",
+    "database": os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
+    "schema": os.getenv("SNOWFLAKE_CI_SCHEMA_ONLINE", "ONLINE"),
 }
 
 BIGTABLE_CONFIG = {

@@ -20,9 +20,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.19.7
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
       - name: Get pip cache dir
         id: pip-cache
         run: |

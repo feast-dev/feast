@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type
 
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import utils
@@ -294,7 +295,7 @@ class FeatureView(BaseFeatureView):
             raise ValueError("Feature view has no entities.")
 
     @property
-    def proto_class(self) -> Type[FeatureViewProto]:
+    def proto_class(self) -> Type[Message]:
         return FeatureViewProto
 
     def with_join_key_map(self, join_key_map: Dict[str, str]):

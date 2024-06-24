@@ -20,7 +20,6 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v3
       - name: Increase swapfile
         # Increase ubuntu's swapfile to avoid running out of resources which causes the action to terminate
         if: startsWith(matrix.os, 'ubuntu')
@@ -31,7 +30,7 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon /swapfile
           sudo swapon --show
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v3
@@ -44,13 +43,13 @@ jobs:
         with:
           go-version: 1.19.7
       - name: Install mysql on macOS
-        if:  startsWith(matrix.os, 'macOS')
+        if: startsWith(matrix.os, 'macOS')
         run: |
           brew install mysql
           PATH=$PATH:/usr/local/mysql/bin
       - name: Work around Homebrew MySQL being broken
         # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
-        if:  startsWith(matrix.os, 'macOS')
+        if: startsWith(matrix.os, 'macOS')
         run: |
           brew install zlib
           ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib

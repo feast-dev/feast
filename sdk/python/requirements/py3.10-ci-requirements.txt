@@ -4,95 +4,66 @@
 #
 #    pip-compile --extra=ci --output-file=sdk/python/requirements/py3.10-ci-requirements.txt
 #
-adal==1.2.7
-    # via msrestazure
-adlfs==0.5.9
-    # via feast (setup.py)
-aiohttp==3.8.5
-    # via
-    #   adlfs
-    #   gcsfs
-aiosignal==1.3.1
-    # via aiohttp
 alabaster==0.7.13
     # via sphinx
 altair==4.2.0
     # via great-expectations
 anyio==4.0.0
     # via
-    #   httpcore
+    #   httpx
     #   jupyter-server
     #   starlette
     #   watchfiles
 appdirs==1.4.4
     # via fissix
-appnope==0.1.3
-    # via
-    #   ipykernel
-    #   ipython
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
     # via argon2-cffi
-arrow==1.2.3
+arrow==1.3.0
     # via isoduration
 asn1crypto==1.5.1
-    # via
-    #   oscrypto
-    #   snowflake-connector-python
+    # via snowflake-connector-python
 assertpy==1.1
     # via feast (setup.py)
-asttokens==2.4.0
+asttokens==2.4.1
     # via stack-data
 async-lru==2.0.4
     # via jupyterlab
 async-timeout==4.0.3
-    # via
-    #   aiohttp
-    #   redis
+    # via redis
 attrs==23.1.0
     # via
-    #   aiohttp
     #   bowler
     #   jsonschema
     #   referencing
 avro==1.10.0
     # via feast (setup.py)
-azure-core==1.29.4
+azure-core==1.29.5
     # via
-    #   adlfs
     #   azure-identity
     #   azure-storage-blob
-    #   msrest
-azure-datalake-store==0.0.53
-    # via adlfs
-azure-identity==1.14.0
-    # via
-    #   adlfs
-    #   feast (setup.py)
-azure-storage-blob==12.17.0
-    # via
-    #   adlfs
-    #   eg-feast (setup.py)
-babel==2.12.1
+azure-identity==1.15.0
+    # via feast (setup.py)
+azure-storage-blob==12.19.0
+    # via feast (setup.py)
+babel==2.13.1
     # via
     #   jupyterlab-server
     #   sphinx
-backcall==0.2.0
-    # via ipython
 beautifulsoup4==4.12.2
     # via nbconvert
 bidict==0.22.1
     # via feast (setup.py)
 black==22.12.0
     # via eg-feast (setup.py)
-bleach==6.0.0
+bleach==6.1.0
     # via nbconvert
-boto3==1.28.43
+boto3==1.29.2
     # via
     #   eg-feast (setup.py)
     #   moto
-botocore==1.31.43
+botocore==1.32.2
     # via
     #   boto3
     #   moto
@@ -107,7 +78,7 @@ bytewax==0.15.1
     # via feast (setup.py)
 cachecontrol==0.13.1
     # via firebase-admin
-cachetools==5.3.1
+cachetools==5.3.2
     # via google-auth
 cassandra-driver==3.28.0
     # via feast (setup.py)
@@ -117,20 +88,17 @@ certifi==2023.7.22
     #   httpx
     #   kubernetes
     #   minio
-    #   msrest
     #   requests
     #   snowflake-connector-python
-cffi==1.15.1
+cffi==1.16.0
     # via
     #   argon2-cffi-bindings
-    #   azure-datalake-store
     #   cryptography
     #   snowflake-connector-python
 cfgv==3.4.0
     # via pre-commit
-charset-normalizer==3.2.0
+charset-normalizer==3.3.2
     # via
-    #   aiohttp
     #   requests
     #   snowflake-connector-python
 click==8.1.7
@@ -144,21 +112,22 @@ click==8.1.7
     #   moreorless
     #   pip-tools
     #   uvicorn
-cloudpickle==2.2.1
+cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
     # via
     #   eg-feast (setup.py)
     #   great-expectations
-comm==0.1.4
+comm==0.2.0
     # via
     #   ipykernel
     #   ipywidgets
-coverage[toml]==7.3.1
-    # via pytest-cov
-cryptography==41.0.3
+coverage[toml]==7.3.2
     # via
-    #   adal
+    #   coverage
+    #   pytest-cov
+cryptography==41.0.6
+    # via
     #   azure-identity
     #   azure-storage-blob
     #   feast (setup.py)
@@ -170,16 +139,14 @@ cryptography==41.0.3
     #   snowflake-connector-python
     #   types-pyopenssl
     #   types-redis
-dask==2023.9.1
+dask==2023.11.0
     # via feast (setup.py)
 db-dtypes==1.1.1
     # via google-cloud-bigquery
-debugpy==1.7.0
+debugpy==1.8.0
     # via ipykernel
 decorator==5.1.1
-    # via
-    #   gcsfs
-    #   ipython
+    # via ipython
 defusedxml==0.7.1
     # via nbconvert
 deprecation==2.1.0
@@ -203,27 +170,26 @@ elasticsearch==8.8.0
     # via eg-feast (setup.py)
 entrypoints==0.4
     # via altair
-exceptiongroup==1.1.3
 environs==9.5.0
     # via pymilvus
-exceptiongroup==1.1.2
+exceptiongroup==1.1.3
     # via
     #   anyio
     #   ipython
     #   pytest
 execnet==2.0.2
     # via pytest-xdist
-executing==1.2.0
+executing==2.0.1
     # via stack-data
 fastapi==0.100.1
     # via eg-feast (setup.py)
-fastavro==1.8.2
+fastavro==1.9.0
     # via
     #   eg-feast (setup.py)
     #   pandavro
-fastjsonschema==2.18.0
+fastjsonschema==2.19.0
     # via nbformat
-filelock==3.12.3
+filelock==3.13.1
     # via
     #   snowflake-connector-python
     #   virtualenv
@@ -235,22 +201,15 @@ flake8==6.1.0
     # via eg-feast (setup.py)
 fqdn==1.5.1
     # via jsonschema
-frozenlist==1.4.0
+fsspec==2023.9.2
     # via
-    #   aiohttp
-    #   aiosignal
-fsspec==2022.1.0
-    # via
-    #   adlfs
     #   dask
-    #   gcsfs
-gcsfs==2022.1.0
-    # via eg-feast (setup.py)
+    #   feast (setup.py)
 geojson==2.5.0
     # via rockset
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.11.1
+google-api-core[grpc]==2.14.0
     # via
     #   eg-feast (setup.py)
     #   firebase-admin
@@ -262,24 +221,22 @@ google-api-core[grpc]==2.11.1
     #   google-cloud-datastore
     #   google-cloud-firestore
     #   google-cloud-storage
-google-api-python-client==2.98.0
+google-api-python-client==2.108.0
     # via firebase-admin
-google-auth==2.22.0
+google-auth==2.23.4
     # via
-    #   gcsfs
     #   google-api-core
     #   google-api-python-client
     #   google-auth-httplib2
-    #   google-auth-oauthlib
     #   google-cloud-core
     #   google-cloud-storage
     #   kubernetes
-google-auth-httplib2==0.1.0
+google-auth-httplib2==0.1.1
     # via google-api-python-client
-google-auth-oauthlib==1.0.0
-    # via gcsfs
-google-cloud-bigquery[pandas]==3.11.4
-    # via feast (setup.py)
+google-cloud-bigquery[pandas]==3.12.0
+    # via
+    #   feast (setup.py)
+    #   google-cloud-bigquery
 google-cloud-bigquery-storage==2.22.0
     # via feast (setup.py)
 google-cloud-bigtable==2.21.0
@@ -293,20 +250,21 @@ google-cloud-core==2.3.3
     #   google-cloud-storage
 google-cloud-datastore==2.18.0
     # via feast (setup.py)
-google-cloud-firestore==2.11.1
+google-cloud-firestore==2.13.1
     # via firebase-admin
-google-cloud-storage==2.10.0
+google-cloud-storage==2.13.0
     # via
     #   eg-feast (setup.py)
     #   firebase-admin
-    #   gcsfs
 google-crc32c==1.5.0
-    # via google-resumable-media
+    # via
+    #   google-cloud-storage
+    #   google-resumable-media
 google-resumable-media==2.6.0
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
-googleapis-common-protos[grpc]==1.60.0
+googleapis-common-protos[grpc]==1.61.0
     # via
     #   eg-feast (setup.py)
     #   google-api-core
@@ -314,12 +272,11 @@ googleapis-common-protos[grpc]==1.60.0
     #   grpcio-status
 great-expectations==0.15.50
     # via feast (setup.py)
-    # via eg-feast (setup.py)
-greenlet==2.0.2
+greenlet==3.0.1
     # via sqlalchemy
-grpc-google-iam-v1==0.12.6
+grpc-google-iam-v1==0.12.7
     # via google-cloud-bigtable
-grpcio==1.58.0
+grpcio==1.59.2
     # via
     #   eg-feast (setup.py)
     #   google-api-core
@@ -331,15 +288,15 @@ grpcio==1.58.0
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
-grpcio-health-checking==1.58.0
+grpcio-health-checking==1.59.2
     # via feast (setup.py)
-grpcio-reflection==1.58.0
+grpcio-reflection==1.59.2
     # via feast (setup.py)
-grpcio-status==1.58.0
+grpcio-status==1.59.2
     # via google-api-core
-grpcio-testing==1.58.0
+grpcio-testing==1.59.2
     # via feast (setup.py)
-grpcio-tools==1.58.0
+grpcio-tools==1.59.2
     # via feast (setup.py)
 gunicorn==21.2.0
     # via feast (setup.py)
@@ -353,17 +310,17 @@ hazelcast-python-client==5.3.0
     # via feast (setup.py)
 hiredis==2.2.3
     # via feast (setup.py)
-httpcore==0.17.3
+httpcore==1.0.2
     # via httpx
 httplib2==0.22.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-httptools==0.6.0
+httptools==0.6.1
     # via uvicorn
-httpx==0.24.1
+httpx==0.25.1
     # via feast (setup.py)
-identify==2.5.27
+identify==2.5.31
     # via pre-commit
 idna==3.4
     # via
@@ -372,38 +329,36 @@ idna==3.4
     #   jsonschema
     #   requests
     #   snowflake-connector-python
-    #   yarl
 imagesize==1.4.1
     # via sphinx
+importlib_resources==6.1.1
 importlib-metadata==6.8.0
     # via
     #   dask
     #   feast (setup.py)
     #   great-expectations
-importlib-resources==6.0.1
+importlib-resources==6.1.1
     # via feast (setup.py)
 iniconfig==2.0.0
     # via pytest
-ipykernel==6.25.2
+ipykernel==6.26.0
     # via jupyterlab
-ipython==8.15.0
+ipython==8.17.2
     # via
     #   great-expectations
     #   ipykernel
     #   ipywidgets
-ipywidgets==8.1.0
+ipywidgets==8.1.1
     # via great-expectations
 isodate==0.6.1
-    # via
-    #   azure-storage-blob
-    #   msrest
+    # via azure-storage-blob
 isoduration==20.11.0
     # via jsonschema
 isort==5.12.0
     # via feast (setup.py)
-jedi==0.19.0
+jedi==0.19.1
     # via ipython
-jinja2==3.1.2
+jinja2==3.1.3
     # via
     #   altair
     #   eg-feast (setup.py)
@@ -426,7 +381,7 @@ jsonpointer==2.4
     # via
     #   jsonpatch
     #   jsonschema
-jsonschema[format-nongpl]==4.19.0
+jsonschema[format-nongpl]==4.20.0
     # via
     #   altair
     #   eg-feast (setup.py)
@@ -434,14 +389,14 @@ jsonschema[format-nongpl]==4.19.0
     #   jupyter-events
     #   jupyterlab-server
     #   nbformat
-jsonschema-specifications==2023.7.1
+jsonschema-specifications==2023.11.1
     # via jsonschema
-jupyter-client==8.3.1
+jupyter-client==8.6.0
     # via
     #   ipykernel
     #   jupyter-server
     #   nbclient
-jupyter-core==5.3.1
+jupyter-core==5.5.0
     # via
     #   ipykernel
     #   jupyter-client
@@ -450,11 +405,11 @@ jupyter-core==5.3.1
     #   nbclient
     #   nbconvert
     #   nbformat
-jupyter-events==0.7.0
+jupyter-events==0.9.0
     # via jupyter-server
-jupyter-lsp==2.2.0
+jupyter-lsp==2.2.2
     # via jupyterlab
-jupyter-server==2.7.3
+jupyter-server==2.11.2
     # via
     #   jupyter-lsp
     #   jupyterlab
@@ -463,21 +418,21 @@ jupyter-server==2.7.3
     #   notebook-shim
 jupyter-server-terminals==0.4.4
     # via jupyter-server
-jupyterlab==4.0.5
+jupyterlab==4.0.8
     # via notebook
 jupyterlab-pygments==0.2.2
     # via nbconvert
-jupyterlab-server==2.24.0
+jupyterlab-server==2.25.1
     # via
     #   jupyterlab
     #   notebook
-jupyterlab-widgets==3.0.8
+jupyterlab-widgets==3.0.9
     # via ipywidgets
 kubernetes==20.13.0
     # via eg-feast (setup.py)
 locket==1.0.0
     # via partd
-makefun==1.15.1
+makefun==1.15.2
     # via great-expectations
 markupsafe==2.1.3
     # via
@@ -496,7 +451,7 @@ milvus==2.2.12
     # via eg-feast (setup.py)
 minio==7.1.0
     # via feast (setup.py)
-mistune==3.0.1
+mistune==3.0.2
     # via
     #   great-expectations
     #   nbconvert
@@ -506,25 +461,16 @@ mock==2.0.0
     # via eg-feast (setup.py)
 moreorless==0.4.0
     # via bowler
-moto==4.2.2
+moto==4.2.9
     # via feast (setup.py)
-msal==1.23.0
+msal==1.25.0
     # via
-    #   azure-datalake-store
     #   azure-identity
     #   msal-extensions
 msal-extensions==1.0.0
     # via azure-identity
-msgpack==1.0.5
+msgpack==1.0.7
     # via cachecontrol
-msrest==0.7.1
-    # via msrestazure
-msrestazure==0.6.4
-    # via adlfs
-multidict==6.0.4
-    # via
-    #   aiohttp
-    #   yarl
 multiprocess==0.70.15
     # via bytewax
 mypy==0.982
@@ -535,13 +481,13 @@ mypy-extensions==1.0.0
     # via
     #   black
     #   mypy
-mypy-protobuf==3.1
+mypy-protobuf==3.1.0
     # via feast (setup.py)
 mysqlclient==2.2.0
     # via feast (setup.py)
-nbclient==0.8.0
+nbclient==0.9.0
     # via nbconvert
-nbconvert==7.8.0
+nbconvert==7.11.0
     # via jupyter-server
 nbformat==5.9.2
     # via
@@ -549,11 +495,11 @@ nbformat==5.9.2
     #   jupyter-server
     #   nbclient
     #   nbconvert
-nest-asyncio==1.5.7
+nest-asyncio==1.5.8
     # via ipykernel
 nodeenv==1.8.0
     # via pre-commit
-notebook==7.0.3
+notebook==7.0.6
     # via great-expectations
 notebook-shim==0.2.3
     # via
@@ -571,11 +517,9 @@ numpy==1.24.4
     #   scipy
 oauthlib==3.2.2
     # via requests-oauthlib
-oscrypto==1.3.0
-    # via snowflake-connector-python
 overrides==7.4.0
     # via jupyter-server
-packaging==23.1
+packaging==23.2
     # via
     #   build
     #   dask
@@ -610,19 +554,17 @@ pandocfilters==1.5.0
     # via nbconvert
 parso==0.8.3
     # via jedi
-partd==1.4.0
+partd==1.4.1
     # via dask
 pathspec==0.11.2
     # via black
-pbr==5.11.1
+pbr==6.0.0
     # via mock
 pexpect==4.8.0
     # via ipython
-pickleshare==0.7.5
-    # via ipython
 pip-tools==7.3.0
     # via feast (setup.py)
-platformdirs==3.8.1
+platformdirs==3.11.0
     # via
     #   black
     #   jupyter-core
@@ -632,13 +574,13 @@ pluggy==1.3.0
     # via pytest
 ply==3.11
     # via thriftpy2
-portalocker==2.7.0
+portalocker==2.8.2
     # via msal-extensions
 pre-commit==3.3.1
     # via feast (setup.py)
-prometheus-client==0.17.1
+prometheus-client==0.18.0
     # via jupyter-server
-prompt-toolkit==3.0.39
+prompt-toolkit==3.0.41
     # via ipython
 proto-plus==1.22.3
     # via
@@ -671,7 +613,7 @@ psutil==5.9.0
     # via
     #   eg-feast (setup.py)
     #   ipykernel
-psycopg2-binary==2.9.7
+psycopg2-binary==2.9.9
     # via feast (setup.py)
 ptyprocess==0.7.0
     # via
@@ -685,7 +627,7 @@ py-cpuinfo==9.0.0
     # via pytest-benchmark
 py4j==0.10.9.7
     # via pyspark
-pyarrow==10.0.1
+pyarrow==14.0.1
     # via
     #   db-dtypes
     #   eg-feast (setup.py)
@@ -703,9 +645,7 @@ pycodestyle==2.11.0
     # via flake8
 pycparser==2.21
     # via cffi
-pycryptodomex==3.18.0
-    # via snowflake-connector-python
-pydantic==1.10.12
+pydantic==1.10.13
     # via
     #   eg-feast (setup.py)
     #   fastapi
@@ -720,18 +660,17 @@ pygments==2.16.1
     #   sphinx
 pyjwt[crypto]==2.8.0
     # via
-    #   adal
     #   msal
     #   snowflake-connector-python
-pymilvus==2.2.14
+pymilvus==2.3.7
     # via eg-feast (setup.py)
-pymssql==2.2.8
+pymssql==2.2.10
     # via feast (setup.py)
 pymysql==1.1.0
     # via feast (setup.py)
-pyodbc==4.0.39
-    # via eg-feast (setup.py)
-pyopenssl==23.2.0
+pyodbc==5.0.1
+    # via feast (setup.py)
+pyopenssl==23.3.0
     # via snowflake-connector-python
 pyparsing==3.1.1
     # via
@@ -739,9 +678,9 @@ pyparsing==3.1.1
     #   httplib2
 pyproject-hooks==1.0.0
     # via build
-pyspark==3.4.1
+pyspark==3.5.0
     # via feast (setup.py)
-pytest==7.4.2
+pytest==7.4.3
     # via
     #   eg-feast (setup.py)
     #   pytest-benchmark
@@ -762,12 +701,11 @@ pytest-mock==1.10.4
 pytest-ordering==0.6
     # via eg-feast (setup.py)
 pytest-timeout==1.4.2
-    # via eg-feast (setup.py)
-pytest-xdist==3.3.1
-    # via eg-feast (setup.py)
+    # via feast (setup.py)
+pytest-xdist==3.4.0
+    # via feast (setup.py)
 python-dateutil==2.8.2
     # via
-    #   adal
     #   arrow
     #   botocore
     #   google-cloud-bigquery
@@ -806,23 +744,19 @@ pyzmq==25.1.1
     #   jupyter-server
 redis==4.6.0
     # via feast (setup.py)
-referencing==0.30.2
+referencing==0.31.0
     # via
     #   jsonschema
     #   jsonschema-specifications
     #   jupyter-events
-regex==2023.8.8
+regex==2023.10.3
     # via feast (setup.py)
 requests==2.31.0
     # via
-    #   adal
-    #   adlfs
     #   azure-core
-    #   azure-datalake-store
     #   cachecontrol
     #   docker
-    #   eg-feast (setup.py)
-    #   gcsfs
+    #   feast (setup.py)
     #   google-api-core
     #   google-cloud-bigquery
     #   google-cloud-storage
@@ -831,18 +765,14 @@ requests==2.31.0
     #   kubernetes
     #   moto
     #   msal
-    #   msrest
     #   requests-oauthlib
     #   responses
     #   snowflake-connector-python
     #   sphinx
     #   trino
 requests-oauthlib==1.3.1
-    # via
-    #   google-auth-oauthlib
-    #   kubernetes
-    #   msrest
-responses==0.23.3
+    # via kubernetes
+responses==0.24.1
     # via moto
 rfc3339-validator==0.1.4
     # via
@@ -854,7 +784,7 @@ rfc3986-validator==0.1.1
     #   jupyter-events
 rockset==2.1.0
     # via feast (setup.py)
-rpds-py==0.10.2
+rpds-py==0.13.0
     # via
     #   jsonschema
     #   referencing
@@ -862,9 +792,9 @@ rsa==4.9
     # via google-auth
 ruamel-yaml==0.17.17
     # via great-expectations
-s3transfer==0.6.2
+s3transfer==0.7.0
     # via boto3
-scipy==1.11.2
+scipy==1.11.3
     # via great-expectations
 send2trash==1.8.2
     # via jupyter-server
@@ -875,13 +805,10 @@ six==1.16.0
     #   bleach
     #   cassandra-driver
     #   geomet
-    #   google-auth
-    #   google-auth-httplib2
     #   happybase
     #   isodate
     #   kubernetes
     #   mock
-    #   msrestazure
     #   pandavro
     #   python-dateutil
     #   rfc3339-validator
@@ -889,12 +816,13 @@ six==1.16.0
 sniffio==1.3.0
     # via
     #   anyio
-    #   httpcore
     #   httpx
 snowballstemmer==2.2.0
     # via sphinx
-snowflake-connector-python[pandas]==3.1.1
-    # via feast (setup.py)
+snowflake-connector-python[pandas]==3.5.0
+    # via
+    #   feast (setup.py)
+    #   snowflake-connector-python
 sortedcontainers==2.4.0
     # via snowflake-connector-python
 soupsieve==2.5
@@ -919,11 +847,13 @@ sphinxcontrib-qthelp==1.0.6
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.9
     # via sphinx
-sqlalchemy[mypy]==1.4.49
-    # via feast (setup.py)
-sqlalchemy2-stubs==0.0.2a35
+sqlalchemy[mypy]==1.4.50
+    # via
+    #   feast (setup.py)
+    #   sqlalchemy
+sqlalchemy2-stubs==0.0.2a37
     # via sqlalchemy
-stack-data==0.6.2
+stack-data==0.6.3
     # via ipython
 starlette==0.27.0
     # via fastapi
@@ -931,13 +861,13 @@ tabulate==0.9.0
     # via feast (setup.py)
 tenacity==8.2.3
     # via feast (setup.py)
-terminado==0.17.1
+terminado==0.18.0
     # via
     #   jupyter-server
     #   jupyter-server-terminals
 testcontainers==3.7.1
-    # via eg-feast (setup.py)
-thriftpy2==0.4.16
+    # via feast (setup.py)
+thriftpy2==0.4.17
     # via happybase
 tinycss2==1.2.1
     # via nbconvert
@@ -952,7 +882,7 @@ tomli==2.0.1
     #   pip-tools
     #   pyproject-hooks
     #   pytest
-tomlkit==0.12.1
+tomlkit==0.12.3
     # via snowflake-connector-python
 toolz==0.12.0
     # via
@@ -971,7 +901,7 @@ tqdm==4.66.1
     # via
     #   eg-feast (setup.py)
     #   great-expectations
-traitlets==5.9.0
+traitlets==5.13.0
     # via
     #   comm
     #   ipykernel
@@ -986,8 +916,8 @@ traitlets==5.9.0
     #   nbclient
     #   nbconvert
     #   nbformat
-trino==0.326.0
-    # via eg-feast (setup.py)
+trino==0.327.0
+    # via feast (setup.py)
 typeguard==2.13.3
     # via eg-feast (setup.py)
 types-protobuf==3.19.22
@@ -996,40 +926,39 @@ types-protobuf==3.19.22
     #   mypy-protobuf
 types-pymysql==1.1.0.1
     # via feast (setup.py)
-types-pyopenssl==23.2.0.2
+types-pyopenssl==23.3.0.0
     # via types-redis
 types-python-dateutil==2.8.19.14
-    # via feast (setup.py)
-types-pytz==2023.3.0.1
-    # via feast (setup.py)
-types-pyyaml==6.0.12.11
     # via
-    #   eg-feast (setup.py)
-    #   responses
-types-redis==4.6.0.5
+    #   arrow
+    #   feast (setup.py)
+types-pytz==2023.3.1.1
     # via feast (setup.py)
-types-requests==2.31.0.2
+types-pyyaml==6.0.12.12
     # via feast (setup.py)
-types-setuptools==68.2.0.0
+types-redis==4.6.0.10
+    # via feast (setup.py)
+types-requests==2.31.0.0
+    # via feast (setup.py)
+types-setuptools==68.2.0.1
     # via feast (setup.py)
 types-tabulate==0.9.0.3
     # via feast (setup.py)
 types-urllib3==1.26.25.14
     # via types-requests
-typing-extensions==4.7.1
+typing-extensions==4.8.0
     # via
     #   async-lru
     #   azure-core
     #   azure-storage-blob
     #   fastapi
-    #   filelock
     #   great-expectations
     #   mypy
     #   pydantic
     #   snowflake-connector-python
     #   sqlalchemy2-stubs
     #   uvicorn
-tzlocal==5.0.1
+tzlocal==5.2
     # via
     #   great-expectations
     #   trino
@@ -1039,12 +968,11 @@ uri-template==1.3.0
     # via jsonschema
 uritemplate==4.1.1
     # via google-api-python-client
-urllib3==1.26.16
+urllib3==1.26.18
     # via
     #   botocore
     #   docker
-    #   eg-feast (setup.py)
-    #   google-auth
+    #   feast (setup.py)
     #   great-expectations
     #   kubernetes
     #   minio
@@ -1052,17 +980,21 @@ urllib3==1.26.16
     #   responses
     #   rockset
     #   snowflake-connector-python
-uvicorn[standard]==0.23.2
-    # via feast (setup.py)
-uvloop==0.17.0
+uvicorn[standard]==0.24.0.post1
+    # via
+    #   feast (setup.py)
+    #   uvicorn
+uvloop==0.19.0
     # via uvicorn
-virtualenv==20.24.2
-    # via pre-commit
+virtualenv==20.23.0
+    # via
+    #   feast (setup.py)
+    #   pre-commit
 volatile==2.1.0
     # via bowler
-watchfiles==0.20.0
+watchfiles==0.21.0
     # via uvicorn
-wcwidth==0.2.6
+wcwidth==0.2.10
     # via prompt-toolkit
 webcolors==1.13
     # via jsonschema
@@ -1070,26 +1002,26 @@ webencodings==0.5.1
     # via
     #   bleach
     #   tinycss2
-websocket-client==1.6.2
+websocket-client==1.6.4
     # via
     #   docker
     #   jupyter-server
     #   kubernetes
-websockets==11.0.3
+websockets==12.0
     # via uvicorn
-werkzeug==2.3.7
+werkzeug==3.0.1
     # via moto
-wheel==0.41.2
+wheel==0.41.3
     # via pip-tools
-widgetsnbextension==4.0.8
+widgetsnbextension==4.0.9
     # via ipywidgets
-wrapt==1.15.0
+wrapt==1.16.0
     # via testcontainers
 xmltodict==0.13.0
     # via moto
 yarl==1.9.2
     # via aiohttp
-zipp==3.16.2
+zipp==3.17.0
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:

@@ -81,7 +81,7 @@ def get_app(
     # For all other paths (such as paths that would otherwise be handled by react router), pass to React
     @app.api_route("/p/{path_name:path}", methods=["GET"])
     def catch_all():
-        filename = ui_dir + "index.html"
+        filename = ui_dir.joinpath("index.html")
 
         with open(filename) as f:
             content = f.read()

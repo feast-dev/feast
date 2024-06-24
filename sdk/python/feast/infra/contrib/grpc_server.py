@@ -1,12 +1,14 @@
 import logging
+import threading
 from concurrent import futures
+from typing import Optional
 
 import grpc
 import pandas as pd
 from grpc_health.v1 import health, health_pb2_grpc
 
 from feast.data_source import PushMode
-from feast.errors import PushSourceNotFoundException
+from feast.errors import FeatureServiceNotFoundException, PushSourceNotFoundException
 from feast.feature_store import FeatureStore
 from feast.protos.feast.serving.GrpcServer_pb2 import (
     PushResponse,
@@ -16,6 +18,12 @@ from feast.protos.feast.serving.GrpcServer_pb2_grpc import (
     GrpcFeatureServerServicer,
     add_GrpcFeatureServerServicer_to_server,
 )
+from feast.protos.feast.serving.ServingService_pb2 import (
+    GetOnlineFeaturesRequest,
+    GetOnlineFeaturesResponse,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def parse(features):
@@ -28,9 +36,15 @@ def parse(features):
 class GrpcFeatureServer(GrpcFeatureServerServicer):
     fs: FeatureStore
 
-    def __init__(self, fs: FeatureStore):
+    _shuting_down: bool = False
+    _active_timer: Optional[threading.Timer] = None
+
+    def __init__(self, fs: FeatureStore, registry_ttl_sec: int = 5):
         self.fs = fs
+        self.registry_ttl_sec = registry_ttl_sec
         super().__init__()
+
+        self._async_refresh()
 
     def Push(self, request, context):
         try:
@@ -53,19 +67,19 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                 to=to,
             )
         except PushSourceNotFoundException as e:
-            logging.exception(str(e))
+            logger.exception(str(e))
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             context.set_details(str(e))
             return PushResponse(status=False)
         except Exception as e:
-            logging.exception(str(e))
+            logger.exception(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return PushResponse(status=False)
         return PushResponse(status=True)
 
     def WriteToOnlineStore(self, request, context):
-        logging.warning(
+        logger.warning(
             "write_to_online_store is deprecated. Please consider using Push instead"
         )
         try:
@@ -76,16 +90,55 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
                 allow_registry_cache=request.allow_registry_cache,
             )
         except Exception as e:
-            logging.exception(str(e))
+            logger.exception(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return PushResponse(status=False)
         return WriteToOnlineStoreResponse(status=True)
 
+    def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
+        if request.HasField("feature_service"):
+            logger.info(f"Requesting feature service: {request.feature_service}")
+            try:
+                features = self.fs.get_feature_service(
+                    request.feature_service, allow_cache=True
+                )
+            except FeatureServiceNotFoundException as e:
+                logger.error(f"Feature service {request.feature_service} not found")
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(str(e))
+                return GetOnlineFeaturesResponse()
+        else:
+            features = list(request.features.val)
 
-def get_grpc_server(address: str, fs: FeatureStore, max_workers: int):
+        result = self.fs._get_online_features(
+            features,
+            request.entities,
+            request.full_feature_names,
+        ).proto
+
+        return result
+
+    def _async_refresh(self):
+        self.fs.refresh_registry()
+        if self._shuting_down:
+            return
+        self._active_timer = threading.Timer(self.registry_ttl_sec, self._async_refresh)
+        self._active_timer.start()
+
+
+def get_grpc_server(
+    address: str,
+    fs: FeatureStore,
+    max_workers: int,
+    registry_ttl_sec: int,
+):
+    logger.info(f"Initializing gRPC server on {address}")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
-    add_GrpcFeatureServerServicer_to_server(GrpcFeatureServer(fs), server)
+    add_GrpcFeatureServerServicer_to_server(
+        GrpcFeatureServer(fs, registry_ttl_sec=registry_ttl_sec),
+        server,
+    )
     health_servicer = health.HealthServicer(
         experimental_non_blocking=True,
         experimental_thread_pool=futures.ThreadPoolExecutor(max_workers=max_workers),

@@ -76,6 +76,7 @@ jobs:
 
       - name: Install dependencies
         run: make install-python-ci-dependencies
+
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:

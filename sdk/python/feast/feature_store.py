@@ -304,7 +304,11 @@ class FeatureStore:
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
-            if hide_dummy_entity and fv.entities[0] == DUMMY_ENTITY_NAME:
+            if (
+                hide_dummy_entity
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
                 fv.entities = []
                 fv.entity_columns = []
             feature_views.append(fv)
@@ -1137,7 +1141,7 @@ class FeatureStore:
         set_usage_attribute("request_fv", bool(request_feature_views))
 
         # Check that the right request data is present in the entity_df
-        if isinstance(entity_df, pd.DataFrame):
+        if type(entity_df) == pd.DataFrame:
             if self.config.coerce_tz_aware:
                 entity_df = utils.make_df_tzaware(cast(pd.DataFrame, entity_df))
             for fv in request_feature_views:
@@ -2098,11 +2102,9 @@ class FeatureStore:
         """
         # Add the feature names to the response.
         requested_feature_refs = [
-            (
-                f"{table.projection.name_to_use()}__{feature_name}"
-                if full_feature_names
-                else feature_name
-            )
+            f"{table.projection.name_to_use()}__{feature_name}"
+            if full_feature_names
+            else feature_name
             for feature_name in requested_features
         ]
         online_features_response.metadata.feature_names.val.extend(
@@ -2300,6 +2302,7 @@ class FeatureStore:
         no_feature_log: bool,
         workers: int,
         keep_alive_timeout: int,
+        registry_ttl_sec: int,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -2349,6 +2352,7 @@ class FeatureStore:
                 no_access_log=no_access_log,
                 workers=workers,
                 keep_alive_timeout=keep_alive_timeout,
+                registry_ttl_sec=registry_ttl_sec,
             )
 
     def _teardown_go_server(self):

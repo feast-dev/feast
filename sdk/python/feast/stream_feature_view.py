@@ -3,9 +3,10 @@ import functools
 import warnings
 from datetime import datetime, timedelta
 from types import FunctionType
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import dill
+from google.protobuf.message import Message
 from typeguard import typechecked
 
 from feast import flags_helper, utils
@@ -298,6 +299,10 @@ class StreamFeatureView(FeatureView):
         )
         fv.projection = copy.copy(self.projection)
         return fv
+
+    @property
+    def proto_class(self) -> Type[Message]:
+        return StreamFeatureViewProto
 
 
 def stream_feature_view(
