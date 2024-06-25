@@ -190,6 +190,7 @@ class SqlRegistry(CachingRegistry):
         self.engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
+        logger.warn("New sqlalchemy engine is created.")
         metadata.create_all(self.engine)
         super().__init__(
             project=project, cache_ttl_seconds=registry_config.cache_ttl_seconds
