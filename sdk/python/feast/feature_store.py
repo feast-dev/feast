@@ -2088,7 +2088,9 @@ class FeatureStore:
             ":" in model_feature_name
         ), "model_feature_name must be full feature reference; i.e., feature_view:feature_name)"
         if isinstance(features, FeatureService):
-            raise TypeError("FeatureService is not yet a supported type for get_online_predictions")
+            raise TypeError(
+                "FeatureService is not yet a supported type for get_online_predictions"
+            )
 
         if force_recompute:
             features_and_model_field = features + [model_feature_name]
