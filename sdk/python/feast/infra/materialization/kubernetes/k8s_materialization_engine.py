@@ -414,6 +414,14 @@ class KubernetesMaterializationEngine(BatchMaterializationEngine):
                                 "name": self._configmap_name(job_id),
                             },
                         ],
+                        "tolerations": [
+                            {
+                                "key": "bytewax",
+                                "operator": "Equal",
+                                "value": "instance",
+                                "effect": "NoSchedule",
+                            }
+                        ],
                     },
                 },
             },
