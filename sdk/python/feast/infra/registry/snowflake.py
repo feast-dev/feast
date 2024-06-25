@@ -2,7 +2,7 @@ import logging
 import os
 import uuid
 from binascii import hexlify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
 from typing import Any, Callable, List, Literal, Optional, Set, Union
@@ -994,7 +994,7 @@ class SnowflakeRegistry(BaseRegistry):
         if df.empty:
             return None
 
-        return datetime.utcfromtimestamp(int(df.squeeze()))
+        return datetime.fromtimestamp(int(df.squeeze()), tz=timezone.utc)
 
     def _infer_fv_classes(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):
