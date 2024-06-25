@@ -2074,11 +2074,12 @@ class FeatureStore:
     def get_online_predictions(
         self,
         prediction_feature_name: str,
-        features: Union[List[str], FeatureService],
+        features: List[str],
         entity_rows: List[Dict[str, Any]],
         model_feature_name: str,
         force_recompute: bool,
         log_features: bool,
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
@@ -2086,27 +2087,30 @@ class FeatureStore:
         assert (
             ":" in model_feature_name
         ), "model_feature_name must be full feature reference; i.e., feature_view:feature_name)"
+        if isinstance(features, FeatureService):
+            raise TypeError("FeatureService is not yet a supported type for get_online_predictions")
 
         if force_recompute:
-            # Fetch features from the offline store
             features_and_model_field = features + [model_feature_name]
+
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
                 features=features_and_model_field,
-                full_feature_names=False,
+                full_feature_names=full_feature_names,
             )
             # TODO: write the feature back to `prediction_feature_name`
             # Log features to the offline store if needed (on computations)
             if log_features:
                 # TODO: actually log the features and the predictions to enable model and feature replay here
-                pass
                 # self.push(
                 #     push_source_name=model_fields, df=prediction_df, to=PushMode.OFFLINE
                 # )
+                pass
         else:
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
                 features=[prediction_feature_name],
+                full_feature_names=full_feature_names,
             )
             # TODO: if null we need to compute it, presumably for the first time
         return OnlineResponse(prediction_response)
