@@ -42,7 +42,7 @@ def security_manager() -> SecurityManager:
             name="reader",
             types=FeatureView,
             with_subclasses=True,
-            policies=[RoleBasedPolicy(roles=["reader"])],
+            policy=RoleBasedPolicy(roles=["reader"]),
             actions=[AuthzedAction.READ],
         )
     )
@@ -51,7 +51,7 @@ def security_manager() -> SecurityManager:
             name="writer",
             types=FeatureView,
             with_subclasses=True,
-            policies=[RoleBasedPolicy(roles=["writer"])],
+            policy=RoleBasedPolicy(roles=["writer"]),
             actions=[AuthzedAction.WRITE],
         )
     )

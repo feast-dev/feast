@@ -44,15 +44,13 @@ def enforce_policy(
             Permission.get_global_decision_strategy(), len(matching_permissions)
         )
         for p in matching_permissions:
-            permission_grant, permission_explanations = _evaluate_permission_grant(
-                p,
-                role_manager=role_manager,
-                user=user,
+            permission_grant, permission_explanation = p.policy.validate_user(
+                user=user, role_manager=role_manager
             )
             evaluator.add_grant(
                 f"Permission ({p.name})",
                 permission_grant,
-                f"Permission {p.name} denied access: {','.join(permission_explanations)}",
+                f"Permission {p.name} denied access: {permission_explanation}",
             )
 
             if evaluator.is_decided():
@@ -62,22 +60,3 @@ def enforce_policy(
         message = f"No permissions defined to manage {actions} on {type(resource)}:{resource.name}."
         logger.info(f"**PERMISSION GRANTED**: {message}")
     return (True, "")
-
-
-def _evaluate_permission_grant(
-    permission: Permission,
-    role_manager: RoleManager,
-    user: str,
-) -> tuple[bool, list[str]]:
-    evaluator = DecisionEvaluator(
-        permission.decision_strategy, len(permission.policies)
-    )
-    for policy in permission.policies:
-        grant_decision, explanation = policy.validate_user(
-            user, role_manager=role_manager
-        )
-        evaluator.add_grant(f"Policy ({policy})", grant_decision, explanation)
-        if evaluator.is_decided():
-            return evaluator.grant()
-
-    return True, []

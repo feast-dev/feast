@@ -44,9 +44,8 @@ def test_defaults():
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(p.actions[0]).is_equal_to(AuthzedAction.ALL)
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
-    assertpy.assert_that(type(p.policies)).is_equal_to(list)
-    assertpy.assert_that(p.policies[0]).is_equal_to(AllowAll)
-    assertpy.assert_that(p.decision_strategy).is_equal_to(DecisionStrategy.UNANIMOUS)
+    assertpy.assert_that(isinstance(p.policy, Policy)).is_true()
+    assertpy.assert_that(p.policy).is_equal_to(AllowAll)
 
 
 @pytest.mark.parametrize(
@@ -61,11 +60,9 @@ def test_defaults():
         ({"actions": AuthzedAction.ALL}, True),
         ({"actions": [AuthzedAction.ALL]}, True),
         ({"actions": [AuthzedAction.CREATE, AuthzedAction.DELETE]}, True),
-        ({"policies": None}, False),
-        ({"policies": []}, False),
-        ({"policies": Mock(spec=Policy)}, True),
-        ({"policies": [Mock(spec=Policy)]}, True),
-        ({"decision_strategy": DecisionStrategy.AFFIRMATIVE}, True),
+        ({"policy": None}, False),
+        ({"policy": []}, False),
+        ({"policy": Mock(spec=Policy)}, True),
     ],
 )
 def test_validity(dict, result):
@@ -84,9 +81,6 @@ def test_normalized_args():
     p = Permission(name="test", actions=AuthzedAction.CREATE)
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(p.actions).is_equal_to([AuthzedAction.CREATE])
-
-    p = Permission(name="test", policies=Mock())
-    assertpy.assert_that(type(p.policies)).is_equal_to(list)
 
 
 @pytest.mark.parametrize(

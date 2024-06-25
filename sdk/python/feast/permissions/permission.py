@@ -19,7 +19,7 @@ ALL_RESOURCE_TYPES = list(get_args(FeastObject))
 
 class Permission(ABC):
     """
-    The Permission class defines the authorization policies to be validated whenever the identified actions are
+    The Permission class defines the authorization policy to be validated whenever the identified actions are
     requested on the matching resources.
 
     Attributes:
@@ -30,8 +30,7 @@ class Permission(ABC):
         required_tags: dictionary of key-value pairs that must match the resource tags. All these required_tags must be present as resource
         tags with the given value. Defaults to None, meaning that no tags filtering is applied.
         actions: The actions authorized by this permission. Defaults to `AuthzedAction.ALL`.
-        policies: The policies to be applied to validate a client request.
-        decision_strategy: The strategy to apply in case of multiple policies.
+        policy: The policy to be applied to validate a client request.
     """
 
     _name: str
@@ -40,8 +39,7 @@ class Permission(ABC):
     _name_pattern: Optional[str]
     _required_tags: Optional[dict[str, str]]
     _actions: list[AuthzedAction]
-    _policies: list[Policy]
-    _decision_strategy: DecisionStrategy
+    _policy: Policy
 
     def __init__(
         self,
@@ -51,8 +49,7 @@ class Permission(ABC):
         name_pattern: Optional[str] = None,
         required_tags: Optional[dict[str, str]] = None,
         actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
-        policies: Union[list[Policy], Policy] = AllowAll,
-        decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS,
+        policy: Policy = AllowAll,
     ):
         if not types:
             raise ValueError("The list 'types' must be non-empty.")
@@ -61,20 +58,15 @@ class Permission(ABC):
                 raise ValueError(f"{t} is not one of the managed types")
         if actions is None or not actions:
             raise ValueError("The list 'actions' must be non-empty.")
-        if not policies:
-            raise ValueError("The list 'policies' must be non-empty.")
-        if decision_strategy not in DecisionStrategy.__members__.values():
-            raise ValueError(
-                "The 'decision_strategy' must be one of the allowed values."
-            )
+        if not policy:
+            raise ValueError("The list 'policy' must be non-empty.")
         self._name = name
         self._types = types if isinstance(types, list) else [types]
         self._with_subclasses = with_subclasses
         self._name_pattern = _normalize_name_pattern(name_pattern)
         self._required_tags = _normalize_required_tags(required_tags)
         self._actions = actions if isinstance(actions, list) else [actions]
-        self._policies = policies if isinstance(policies, list) else [policies]
-        self._decision_strategy = decision_strategy
+        self._policy = policy
 
     _global_decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS
 
@@ -114,12 +106,8 @@ class Permission(ABC):
         return self._actions
 
     @property
-    def policies(self) -> list[Policy]:
-        return self._policies
-
-    @property
-    def decision_strategy(self) -> DecisionStrategy:
-        return self._decision_strategy
+    def policy(self) -> Policy:
+        return self._policy
 
     def match_resource(self, resource: FeastObject) -> bool:
         return resource_match_config(
