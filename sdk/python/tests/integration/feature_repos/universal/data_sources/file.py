@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.minio import MinioContainer
 
 from feast import FileSource
 from feast.data_format import DeltaFormat, ParquetFormat
@@ -132,6 +133,74 @@ class DeltaFileSourceCreator(FileDataSourceCreator):
         d = tempfile.mkdtemp(prefix=self.project_name)
         self.keep.append(d)
         return FileLoggingDestination(path=d)
+
+
+class DeltaS3FileSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        self.minio = MinioContainer()
+        self.minio.start()
+        client = self.minio.get_client()
+        client.make_bucket("test")
+        host_ip = self.minio.get_container_host_ip()
+        exposed_port = self.minio.get_exposed_port(self.minio.port)
+        self.endpoint_url = f"http://{host_ip}:{exposed_port}"
+
+        self.mock_environ = {
+            "AWS_ACCESS_KEY_ID": self.minio.access_key,
+            "AWS_SECRET_ACCESS_KEY": self.minio.secret_key,
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_REGION": "us-east-1",
+            "AWS_ALLOW_HTTP": "true",
+            "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
+        }
+
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        created_timestamp_column="created_ts",
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
+    ) -> DataSource:
+        from deltalake.writer import write_deltalake
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        storage_options = {
+            "AWS_ACCESS_KEY_ID": self.minio.access_key,
+            "AWS_SECRET_ACCESS_KEY": self.minio.secret_key,
+            "AWS_ENDPOINT_URL": self.endpoint_url,
+        }
+
+        path = f"s3://test/{str(uuid.uuid4())}/{destination_name}"
+
+        write_deltalake(path, df, storage_options=storage_options)
+
+        return FileSource(
+            file_format=DeltaFormat(),
+            path=path,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+            s3_endpoint_override=self.endpoint_url,
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        return SavedDatasetFileStorage(
+            path=f"s3://test/{str(uuid.uuid4())}",
+            file_format=DeltaFormat(),
+            s3_endpoint_override=self.endpoint_url,
+        )
+
+    # LoggingDestination is parquet-only
+    def create_logged_features_destination(self) -> LoggingDestination:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return FileLoggingDestination(path=d)
+
+    def teardown(self):
+        self.minio.stop()
 
 
 class FileParquetDatasetSourceCreator(FileDataSourceCreator):
@@ -272,4 +341,13 @@ class DuckDBDataSourceCreator(FileDataSourceCreator):
 class DuckDBDeltaDataSourceCreator(DeltaFileSourceCreator):
     def create_offline_store_config(self):
         self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config
+
+
+class DuckDBDeltaS3DataSourceCreator(DeltaS3FileSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig(
+            staging_location="s3://test/staging",
+            staging_location_endpoint_override=self.endpoint_url,
+        )
         return self.duckdb_offline_store_config

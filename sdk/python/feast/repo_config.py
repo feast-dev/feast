@@ -27,7 +27,6 @@ from feast.errors import (
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
-from feast.usage import log_exceptions
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -68,6 +67,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "milvus": "feast.expediagroup.vectordb.milvus_online_store.MilvusOnlineStore",
     "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
+    "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
@@ -331,7 +331,6 @@ class RepoConfig(FeastBaseModel):
         return self._batch_engine
 
     @model_validator(mode="before")
-    @log_exceptions
     def _validate_online_store_config(cls, values: Any) -> Any:
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to

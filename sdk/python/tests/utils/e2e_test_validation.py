@@ -3,19 +3,13 @@ import os
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
-import pytest
 import yaml
 from pytz import utc
 
-from feast import FeatureStore, FeatureView, FileSource, RepoConfig
-from feast.data_format import ParquetFormat
-from feast.entity import Entity
-from feast.field import Field
-from feast.infra.registry.registry import Registry
-from feast.types import Array, Bytes, Int64, String
+from feast import FeatureStore, FeatureView, RepoConfig
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -176,17 +170,18 @@ def _check_offline_and_online_features(
 
 def make_feature_store_yaml(
     project,
-    test_repo_config,
     repo_dir_name: Path,
     offline_creator: DataSourceCreator,
+    provider: str,
+    online_store: Optional[Union[str, Dict]],
 ):
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = test_repo_config.online_store
+    online_store = online_store
 
     config = RepoConfig(
         registry=str(Path(repo_dir_name) / "registry.db"),
         project=project,
-        provider=test_repo_config.provider,
+        provider=provider,
         offline_store=offline_store_config,
         online_store=online_store,
         repo_path=str(Path(repo_dir_name)),
@@ -234,64 +229,3 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             ),
         ]
     )
-
-
-def validate_registry_data_source_apply(test_registry: Registry):
-    # Create Feature Views
-    batch_source = FileSource(
-        name="test_source",
-        file_format=ParquetFormat(),
-        path="file://feast/*",
-        timestamp_field="ts_col",
-        created_timestamp_column="timestamp",
-    )
-
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
-
-    fv1 = FeatureView(
-        name="my_feature_view_1",
-        schema=[
-            Field(name="fs1_my_feature_1", dtype=Int64),
-            Field(name="fs1_my_feature_2", dtype=String),
-            Field(name="fs1_my_feature_3", dtype=Array(String)),
-            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-        ],
-        entities=[entity],
-        tags={"team": "matchmaking"},
-        source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
-    project = "project"
-
-    # Register data source and feature view
-    test_registry.apply_data_source(batch_source, project, commit=False)
-    test_registry.apply_feature_view(fv1, project, commit=True)
-
-    registry_feature_views = test_registry.list_feature_views(project)
-    registry_data_sources = test_registry.list_data_sources(project)
-    assert len(registry_feature_views) == 1
-    assert len(registry_data_sources) == 1
-    registry_feature_view = registry_feature_views[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_data_source = registry_data_sources[0]
-    assert registry_data_source == batch_source
-
-    # Check that change to batch source propagates
-    batch_source.timestamp_field = "new_ts_col"
-    test_registry.apply_data_source(batch_source, project, commit=False)
-    test_registry.apply_feature_view(fv1, project, commit=True)
-    registry_feature_views = test_registry.list_feature_views(project)
-    registry_data_sources = test_registry.list_data_sources(project)
-    assert len(registry_feature_views) == 1
-    assert len(registry_data_sources) == 1
-    registry_feature_view = registry_feature_views[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_batch_source = test_registry.list_data_sources(project)[0]
-    assert registry_batch_source == batch_source
-
-    test_registry.teardown()
-
-    # Will try to reload registry, which will fail because the file has been deleted
-    with pytest.raises(FileNotFoundError):
-        test_registry._get_registry_proto(project=project)

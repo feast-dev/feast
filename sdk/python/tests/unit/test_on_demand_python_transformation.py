@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -82,8 +82,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 schema=[Field(name="conv_rate_plus_acc_python", dtype=Float64)],
                 mode="python",
             )
-            def python_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = {
+            def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
+                output: dict[str, Any] = {
                     "conv_rate_plus_acc_python": [
                         conv_rate + acc_rate
                         for conv_rate, acc_rate in zip(
@@ -101,8 +101,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 ],
                 mode="python",
             )
-            def python_demo_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = {
+            def python_demo_view(inputs: dict[str, Any]) -> dict[str, Any]:
+                output: dict[str, Any] = {
                     "conv_rate_plus_val1_python": [
                         conv_rate + acc_rate
                         for conv_rate, acc_rate in zip(
@@ -125,8 +125,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 ],
                 mode="python",
             )
-            def python_singleton_view(inputs: Dict[str, Any]) -> Dict[str, Any]:
-                output: Dict[str, Any] = dict(conv_rate_plus_acc_python=float("-inf"))
+            def python_singleton_view(inputs: dict[str, Any]) -> dict[str, Any]:
+                output: dict[str, Any] = dict(conv_rate_plus_acc_python=float("-inf"))
                 output["conv_rate_plus_acc_python_singleton"] = (
                     inputs["conv_rate"] + inputs["acc_rate"]
                 )
@@ -134,7 +134,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
 
             with pytest.raises(TypeError):
                 # Note the singleton view will fail as the type is
-                # expected to be a List which can be confirmed in _infer_features_dict
+                # expected to be a list which can be confirmed in _infer_features_dict
                 self.store.apply(
                     [
                         driver,

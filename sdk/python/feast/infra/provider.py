@@ -8,6 +8,7 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureService, errors
+from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.importer import import_class
@@ -231,6 +232,30 @@ class Provider(ABC):
         pass
 
     @abstractmethod
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Reads features values for the given entity keys asynchronously.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            entity_keys: The list of entity keys for which feature values should be read.
+            requested_features: The list of features that should be read.
+
+        Returns:
+            A list of the same length as entity_keys. Each item in the list is a tuple where the first
+            item is the event timestamp for the row, and the second item is a dict mapping feature names
+            to values, which are returned in proto format.
+        """
+        pass
+
+    @abstractmethod
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
@@ -304,6 +329,7 @@ class Provider(ABC):
         requested_feature: str,
         query: List[float],
         top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -313,17 +339,33 @@ class Provider(ABC):
         ]
     ]:
         """
-        Searches for the top-k nearest neighbors of the given document in the online document store.
+        Searches for the top-k most similar documents in the online document store.
 
         Args:
+            distance_metric: distance metric to use for the search.
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_feature: the requested document feature name.
             query: The query embedding to search for.
-            top_k: The number of nearest neighbors to return.
+            top_k: The number of documents to return.
 
         Returns:
             A list of dictionaries, where each dictionary contains the document feature.
+        """
+        pass
+
+    @abstractmethod
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        """
+        Validates the underlying data source.
+
+        Args:
+            config: Configuration object used to configure a feature store.
+            data_source: DataSource object that needs to be validated
         """
         pass
 

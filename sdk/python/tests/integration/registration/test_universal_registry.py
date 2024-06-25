@@ -13,30 +13,108 @@
 # limitations under the License.
 import logging
 import os
-import sys
+import time
 from datetime import timedelta
+from tempfile import mkstemp
+from unittest import mock
 
+import grpc_testing
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.minio import MinioContainer
 from testcontainers.mysql import MySqlContainer
 
 from feast import FileSource, RequestSource
-from feast.data_format import ParquetFormat
+from feast.data_format import AvroFormat, ParquetFormat
+from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.infra_object import Infra
 from feast.infra.online_stores.sqlite import SqliteTable
+from feast.infra.registry.registry import Registry
+from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
+from feast.registry_server import RegistryServer
 from feast.repo_config import RegistryConfig
+from feast.stream_feature_view import Aggregation, StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
 from feast.value_type import ValueType
 from tests.integration.feature_repos.universal.entities import driver
+
+
+@pytest.fixture
+def local_registry() -> Registry:
+    fd, registry_path = mkstemp()
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    return Registry("project", registry_config, None)
+
+
+@pytest.fixture
+def gcs_registry() -> Registry:
+    from google.cloud import storage
+
+    storage_client = storage.Client()
+    bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
+    bucket = storage_client.bucket(bucket_name)
+    bucket = storage_client.create_bucket(bucket)
+    bucket.add_lifecycle_delete_rule(
+        age=14
+    )  # delete buckets automatically after 14 days
+    bucket.patch()
+    bucket.blob("registry.db")
+    registry_config = RegistryConfig(
+        path=f"gs://{bucket_name}/registry.db", cache_ttl_seconds=600
+    )
+    return Registry("project", registry_config, None)
+
+
+@pytest.fixture
+def s3_registry() -> Registry:
+    aws_registry_path = os.getenv(
+        "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
+    )
+    registry_config = RegistryConfig(
+        path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
+        cache_ttl_seconds=600,
+    )
+    return Registry("project", registry_config, None)
+
+
+@pytest.fixture(scope="session")
+def minio_registry() -> Registry:
+    bucket_name = "test-bucket"
+
+    container = MinioContainer()
+    container.start()
+    client = container.get_client()
+    client.make_bucket(bucket_name)
+
+    container_host = container.get_container_host_ip()
+    exposed_port = container.get_exposed_port(container.port)
+
+    registry_config = RegistryConfig(
+        path=f"s3://{bucket_name}/registry.db", cache_ttl_seconds=600
+    )
+
+    mock_environ = {
+        "FEAST_S3_ENDPOINT_URL": f"http://{container_host}:{exposed_port}",
+        "AWS_ACCESS_KEY_ID": container.access_key,
+        "AWS_SECRET_ACCESS_KEY": container.secret_key,
+        "AWS_SESSION_TOKEN": "",
+    }
+
+    with mock.patch.dict(os.environ, mock_environ):
+        yield Registry("project", registry_config, None)
+
+    container.stop()
+
 
 POSTGRES_USER = "test"
 POSTGRES_PASSWORD = "test"
@@ -113,19 +191,71 @@ def sqlite_registry():
     yield SqlRegistry(registry_config, "project", None)
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
-@pytest.mark.parametrize(
-    "sql_registry",
-    [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("sqlite_registry"),
-    ],
-)
-def test_apply_entity_success(sql_registry):
+class GrpcMockChannel:
+    def __init__(self, service, servicer):
+        self.service = service
+        self.test_server = grpc_testing.server_from_dictionary(
+            {service: servicer},
+            grpc_testing.strict_real_time(),
+        )
+
+    def unary_unary(
+        self, method: str, request_serializer=None, response_deserializer=None
+    ):
+        method_name = method.split("/")[-1]
+        method_descriptor = self.service.methods_by_name[method_name]
+
+        def handler(request):
+            rpc = self.test_server.invoke_unary_unary(
+                method_descriptor, (), request, None
+            )
+
+            response, trailing_metadata, code, details = rpc.termination()
+            return response
+
+        return handler
+
+
+@pytest.fixture
+def mock_remote_registry():
+    fd, registry_path = mkstemp()
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    proxied_registry = Registry("project", registry_config, None)
+
+    registry = RemoteRegistry(
+        registry_config=RemoteRegistryConfig(path=""), project=None, repo_path=None
+    )
+    mock_channel = GrpcMockChannel(
+        RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"],
+        RegistryServer(registry=proxied_registry),
+    )
+    registry.stub = RegistryServer_pb2_grpc.RegistryServerStub(mock_channel)
+    yield registry
+
+
+if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "False":
+    all_fixtures = ["s3_registry", "gcs_registry"]
+else:
+    all_fixtures = [
+        "local_registry",
+        "minio_registry",
+        "pg_registry",
+        "mysql_registry",
+        "sqlite_registry",
+        "mock_remote_registry",
+    ]
+
+
+# sql_fixtures = [
+#     "pg_registry",
+#     "mysql_registry",
+#     "sqlite_registry",
+# ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", [lazy_fixture(f) for f in all_fixtures])
+def test_apply_entity_success(test_registry):
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",
@@ -135,15 +265,15 @@ def test_apply_entity_success(sql_registry):
     project = "project"
 
     # Register Entity
-    sql_registry.apply_entity(entity, project)
-    project_metadata = sql_registry.list_project_metadata(project=project)
+    test_registry.apply_entity(entity, project)
+    project_metadata = test_registry.list_project_metadata(project=project)
     assert len(project_metadata) == 1
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
-    assert_project_uuid(project, project_uuid, sql_registry)
+    assert_project_uuid(project, project_uuid, test_registry)
 
-    entities = sql_registry.list_entities(project)
-    assert_project_uuid(project, project_uuid, sql_registry)
+    entities = test_registry.list_entities(project)
+    assert_project_uuid(project, project_uuid, test_registry)
 
     entity = entities[0]
     assert (
@@ -154,7 +284,7 @@ def test_apply_entity_success(sql_registry):
         and entity.tags["team"] == "matchmaking"
     )
 
-    entity = sql_registry.get_entity("driver_car_id", project)
+    entity = test_registry.get_entity("driver_car_id", project)
     assert (
         entity.name == "driver_car_id"
         and entity.description == "Car driver id"
@@ -165,34 +295,27 @@ def test_apply_entity_success(sql_registry):
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
     assert entity.created_timestamp == entity.last_updated_timestamp
 
-    sql_registry.delete_entity("driver_car_id", project)
-    assert_project_uuid(project, project_uuid, sql_registry)
-    entities = sql_registry.list_entities(project)
-    assert_project_uuid(project, project_uuid, sql_registry)
+    test_registry.delete_entity("driver_car_id", project)
+    assert_project_uuid(project, project_uuid, test_registry)
+    entities = test_registry.list_entities(project)
+    assert_project_uuid(project, project_uuid, test_registry)
     assert len(entities) == 0
 
-    sql_registry.teardown()
+    test_registry.teardown()
 
 
-def assert_project_uuid(project, project_uuid, sql_registry):
-    project_metadata = sql_registry.list_project_metadata(project=project)
+def assert_project_uuid(project, project_uuid, test_registry):
+    project_metadata = test_registry.list_project_metadata(project=project)
     assert len(project_metadata) == 1
     assert project_metadata[0].project_uuid == project_uuid
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
+@pytest.mark.integration
 @pytest.mark.parametrize(
-    "sql_registry",
-    [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("sqlite_registry"),
-    ],
+    "test_registry",
+    [lazy_fixture(f) for f in all_fixtures],
 )
-def test_apply_feature_view_success(sql_registry):
+def test_apply_feature_view_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -221,9 +344,9 @@ def test_apply_feature_view_success(sql_registry):
     project = "project"
 
     # Register Feature View
-    sql_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(fv1, project)
 
-    feature_views = sql_registry.list_feature_views(project)
+    feature_views = test_registry.list_feature_views(project)
 
     # List Feature Views
     assert (
@@ -240,7 +363,7 @@ def test_apply_feature_view_success(sql_registry):
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
-    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
@@ -260,33 +383,35 @@ def test_apply_feature_view_success(sql_registry):
 
     # Modify the feature view and apply again to test if diffing the online store table works
     fv1.ttl = timedelta(minutes=6)
-    sql_registry.apply_feature_view(fv1, project)
-    feature_views = sql_registry.list_feature_views(project)
+    test_registry.apply_feature_view(fv1, project)
+    feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 1
-    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
     assert feature_view.ttl == timedelta(minutes=6)
 
     # Delete feature view
-    sql_registry.delete_feature_view("my_feature_view_1", project)
-    feature_views = sql_registry.list_feature_views(project)
+    test_registry.delete_feature_view("my_feature_view_1", project)
+    feature_views = test_registry.list_feature_views(project)
     assert len(feature_views) == 0
 
-    sql_registry.teardown()
+    test_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
+@pytest.mark.integration
 @pytest.mark.parametrize(
-    "sql_registry",
+    "test_registry",
     [
-        lazy_fixture("mysql_registry"),
+        # lazy_fixture("local_registry"),
+        # lazy_fixture("gcs_registry"),
+        # lazy_fixture("s3_registry"),
+        # lazy_fixture("minio_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("mysql_registry"),
         lazy_fixture("sqlite_registry"),
+        # lazy_fixture("mock_remote_registry"),
     ],
 )
-def test_apply_on_demand_feature_view_success(sql_registry):
+def test_apply_on_demand_feature_view_success(test_registry):
     # Create Feature Views
     driver_stats = FileSource(
         name="driver_stats_source",
@@ -326,18 +451,18 @@ def test_apply_on_demand_feature_view_success(sql_registry):
     project = "project"
 
     with pytest.raises(FeatureViewNotFoundException):
-        sql_registry.get_user_metadata(project, location_features_from_push)
+        test_registry.get_user_metadata(project, location_features_from_push)
 
     # Register Feature View
-    sql_registry.apply_feature_view(location_features_from_push, project)
+    test_registry.apply_feature_view(location_features_from_push, project)
 
-    assert not sql_registry.get_user_metadata(project, location_features_from_push)
+    assert not test_registry.get_user_metadata(project, location_features_from_push)
 
     b = "metadata".encode("utf-8")
-    sql_registry.apply_user_metadata(project, location_features_from_push, b)
-    assert sql_registry.get_user_metadata(project, location_features_from_push) == b
+    test_registry.apply_user_metadata(project, location_features_from_push, b)
+    assert test_registry.get_user_metadata(project, location_features_from_push) == b
 
-    feature_views = sql_registry.list_on_demand_feature_views(project)
+    feature_views = test_registry.list_on_demand_feature_views(project)
 
     # List Feature Views
     assert (
@@ -347,7 +472,7 @@ def test_apply_on_demand_feature_view_success(sql_registry):
         and feature_views[0].features[0].dtype == String
     )
 
-    feature_view = sql_registry.get_on_demand_feature_view(
+    feature_view = test_registry.get_on_demand_feature_view(
         "location_features_from_push", project
     )
     assert (
@@ -356,26 +481,82 @@ def test_apply_on_demand_feature_view_success(sql_registry):
         and feature_view.features[0].dtype == String
     )
 
-    sql_registry.delete_feature_view("location_features_from_push", project)
-    feature_views = sql_registry.list_on_demand_feature_views(project)
+    test_registry.delete_feature_view("location_features_from_push", project)
+    feature_views = test_registry.list_on_demand_feature_views(project)
     assert len(feature_views) == 0
 
-    sql_registry.teardown()
+    test_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
+@pytest.mark.integration
 @pytest.mark.parametrize(
-    "sql_registry",
-    [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("sqlite_registry"),
-    ],
+    "test_registry",
+    [lazy_fixture(f) for f in all_fixtures],
 )
-def test_modify_feature_views_success(sql_registry):
+def test_apply_data_source(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    test_registry.apply_feature_view(fv1, project, commit=True)
+
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources[0]
+    assert registry_data_source == batch_source
+
+    # Check that change to batch source propagates
+    batch_source.timestamp_field = "new_ts_col"
+    test_registry.apply_data_source(batch_source, project, commit=False)
+    test_registry.apply_feature_view(fv1, project, commit=True)
+    registry_feature_views = test_registry.list_feature_views(project)
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_feature_views) == 1
+    assert len(registry_data_sources) == 1
+    registry_feature_view = registry_feature_views[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_batch_source = test_registry.list_data_sources(project)[0]
+    assert registry_batch_source == batch_source
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture(f) for f in all_fixtures],
+)
+def test_modify_feature_views_success(test_registry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -419,8 +600,8 @@ def test_modify_feature_views_success(sql_registry):
     project = "project"
 
     # Register Feature Views
-    sql_registry.apply_feature_view(odfv1, project)
-    sql_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(odfv1, project)
+    test_registry.apply_feature_view(fv1, project)
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
@@ -437,10 +618,10 @@ def test_modify_feature_views_success(sql_registry):
         return data
 
     # Apply the modified odfv
-    sql_registry.apply_feature_view(odfv1, project)
+    test_registry.apply_feature_view(odfv1, project)
 
     # Check odfv
-    on_demand_feature_views = sql_registry.list_on_demand_feature_views(project)
+    on_demand_feature_views = test_registry.list_on_demand_feature_views(project)
 
     assert (
         len(on_demand_feature_views) == 1
@@ -456,7 +637,7 @@ def test_modify_feature_views_success(sql_registry):
         and list(request_schema.values())[0] == ValueType.INT32
     )
 
-    feature_view = sql_registry.get_on_demand_feature_view("odfv1", project)
+    feature_view = test_registry.get_on_demand_feature_view("odfv1", project)
     assert (
         feature_view.name == "odfv1"
         and feature_view.features[0].name == "odfv1_my_feature_1"
@@ -471,7 +652,7 @@ def test_modify_feature_views_success(sql_registry):
     )
 
     # Make sure fv1 is untouched
-    feature_views = sql_registry.list_feature_views(project)
+    feature_views = test_registry.list_feature_views(project)
 
     # List Feature Views
     assert (
@@ -482,7 +663,7 @@ def test_modify_feature_views_success(sql_registry):
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
-    feature_view = sql_registry.get_feature_view("my_feature_view_1", project)
+    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
@@ -490,171 +671,32 @@ def test_modify_feature_views_success(sql_registry):
         and feature_view.entities[0] == "fs1_my_entity_1"
     )
 
-    sql_registry.teardown()
+    test_registry.teardown()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
+@pytest.mark.integration
 @pytest.mark.parametrize(
-    "sql_registry",
+    "test_registry",
     [
-        lazy_fixture("mysql_registry"),
+        # lazy_fixture("local_registry"),
+        # lazy_fixture("gcs_registry"),
+        # lazy_fixture("s3_registry"),
+        # lazy_fixture("minio_registry"),
         lazy_fixture("pg_registry"),
+        lazy_fixture("mysql_registry"),
         lazy_fixture("sqlite_registry"),
+        # lazy_fixture("mock_remote_registry"),
     ],
 )
-def test_apply_data_source(sql_registry):
-    # Create Feature Views
-    batch_source = FileSource(
-        name="test_source",
-        file_format=ParquetFormat(),
-        path="file://feast/*",
-        timestamp_field="ts_col",
-        created_timestamp_column="timestamp",
-    )
-
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
-
-    fv1 = FeatureView(
-        name="my_feature_view_1",
-        schema=[
-            Field(name="test", dtype=Int64),
-            Field(name="fs1_my_feature_1", dtype=Int64),
-            Field(name="fs1_my_feature_2", dtype=String),
-            Field(name="fs1_my_feature_3", dtype=Array(String)),
-            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-        ],
-        entities=[entity],
-        tags={"team": "matchmaking"},
-        source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
-    project = "project"
-
-    # Register data source and feature view
-    sql_registry.apply_data_source(batch_source, project, commit=False)
-    sql_registry.apply_feature_view(fv1, project, commit=True)
-
-    registry_feature_views = sql_registry.list_feature_views(project)
-    registry_data_sources = sql_registry.list_data_sources(project)
-    assert len(registry_feature_views) == 1
-    assert len(registry_data_sources) == 1
-    registry_feature_view = registry_feature_views[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_data_source = registry_data_sources[0]
-    assert registry_data_source == batch_source
-
-    # Check that change to batch source propagates
-    batch_source.timestamp_field = "new_ts_col"
-    sql_registry.apply_data_source(batch_source, project, commit=False)
-    sql_registry.apply_feature_view(fv1, project, commit=True)
-    registry_feature_views = sql_registry.list_feature_views(project)
-    registry_data_sources = sql_registry.list_data_sources(project)
-    assert len(registry_feature_views) == 1
-    assert len(registry_data_sources) == 1
-    registry_feature_view = registry_feature_views[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_batch_source = sql_registry.list_data_sources(project)[0]
-    assert registry_batch_source == batch_source
-
-    sql_registry.teardown()
-
-
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
-@pytest.mark.parametrize(
-    "sql_registry",
-    [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("sqlite_registry"),
-    ],
-)
-def test_registry_cache(sql_registry):
-    # Create Feature Views
-    batch_source = FileSource(
-        name="test_source",
-        file_format=ParquetFormat(),
-        path="file://feast/*",
-        timestamp_field="ts_col",
-        created_timestamp_column="timestamp",
-    )
-
-    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
-
-    fv1 = FeatureView(
-        name="my_feature_view_1",
-        schema=[
-            Field(name="test", dtype=Int64),
-            Field(name="fs1_my_feature_1", dtype=Int64),
-            Field(name="fs1_my_feature_2", dtype=String),
-            Field(name="fs1_my_feature_3", dtype=Array(String)),
-            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-        ],
-        entities=[entity],
-        tags={"team": "matchmaking"},
-        source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
-    project = "project"
-
-    # Register data source and feature view
-    sql_registry.apply_data_source(batch_source, project)
-    sql_registry.apply_feature_view(fv1, project)
-    registry_feature_views_cached = sql_registry.list_feature_views(
-        project, allow_cache=True
-    )
-    registry_data_sources_cached = sql_registry.list_data_sources(
-        project, allow_cache=True
-    )
-    # Not refreshed cache, so cache miss
-    assert len(registry_feature_views_cached) == 0
-    assert len(registry_data_sources_cached) == 0
-    sql_registry.refresh(project)
-    # Now objects exist
-    registry_feature_views_cached = sql_registry.list_feature_views(
-        project, allow_cache=True
-    )
-    registry_data_sources_cached = sql_registry.list_data_sources(
-        project, allow_cache=True
-    )
-    assert len(registry_feature_views_cached) == 1
-    assert len(registry_data_sources_cached) == 1
-    registry_feature_view = registry_feature_views_cached[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_data_source = registry_data_sources_cached[0]
-    assert registry_data_source == batch_source
-
-    sql_registry.teardown()
-
-
-@pytest.mark.skipif(
-    sys.platform == "darwin" and "GITHUB_REF" in os.environ,
-    reason="does not run on mac github actions",
-)
-@pytest.mark.parametrize(
-    "sql_registry",
-    [
-        lazy_fixture("mysql_registry"),
-        lazy_fixture("pg_registry"),
-        lazy_fixture("sqlite_registry"),
-    ],
-)
-def test_update_infra(sql_registry):
+def test_update_infra(test_registry):
     # Create infra object
     project = "project"
-    infra = sql_registry.get_infra(project=project)
+    infra = test_registry.get_infra(project=project)
 
     assert len(infra.infra_objects) == 0
 
     # Should run update infra successfully
-    sql_registry.update_infra(infra, project)
+    test_registry.update_infra(infra, project)
 
     # Should run update infra successfully when adding
     new_infra = Infra()
@@ -664,9 +706,149 @@ def test_update_infra(sql_registry):
             name="my_table",
         )
     )
-    sql_registry.update_infra(new_infra, project)
-    infra = sql_registry.get_infra(project=project)
+    test_registry.update_infra(new_infra, project)
+    infra = test_registry.get_infra(project=project)
     assert len(infra.infra_objects) == 1
 
     # Try again since second time, infra should be not-empty
-    sql_registry.teardown()
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [
+        # lazy_fixture("local_registry"),
+        # lazy_fixture("gcs_registry"),
+        # lazy_fixture("s3_registry"),
+        # lazy_fixture("minio_registry"),
+        lazy_fixture("pg_registry"),
+        lazy_fixture("mysql_registry"),
+        lazy_fixture("sqlite_registry"),
+        # lazy_fixture("mock_remote_registry"),
+    ],
+)
+def test_registry_cache(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project)
+    test_registry.apply_feature_view(fv1, project)
+    registry_feature_views_cached = test_registry.list_feature_views(
+        project, allow_cache=True
+    )
+    registry_data_sources_cached = test_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    # Not refreshed cache, so cache miss
+    assert len(registry_feature_views_cached) == 0
+    assert len(registry_data_sources_cached) == 0
+    test_registry.refresh(project)
+    # Now objects exist
+    registry_feature_views_cached = test_registry.list_feature_views(
+        project, allow_cache=True
+    )
+    registry_data_sources_cached = test_registry.list_data_sources(
+        project, allow_cache=True
+    )
+    assert len(registry_feature_views_cached) == 1
+    assert len(registry_data_sources_cached) == 1
+    registry_feature_view = registry_feature_views_cached[0]
+    assert registry_feature_view.batch_source == batch_source
+    registry_data_source = registry_data_sources_cached[0]
+    assert registry_data_source == batch_source
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture(f) for f in all_fixtures],
+)
+def test_apply_stream_feature_view_success(test_registry):
+    # Create Feature Views
+    def simple_udf(x: int):
+        return x + 3
+
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+        watermark_delay_threshold=timedelta(days=1),
+    )
+
+    sfv = StreamFeatureView(
+        name="test kafka stream feature view",
+        entities=[entity],
+        ttl=timedelta(days=30),
+        owner="test@example.com",
+        online=True,
+        schema=[Field(name="dummy_field", dtype=Float32)],
+        description="desc",
+        aggregations=[
+            Aggregation(
+                column="dummy_field",
+                function="max",
+                time_window=timedelta(days=1),
+            ),
+            Aggregation(
+                column="dummy_field2",
+                function="count",
+                time_window=timedelta(days=24),
+            ),
+        ],
+        timestamp_field="event_timestamp",
+        mode="spark",
+        source=stream_source,
+        udf=simple_udf,
+        tags={},
+    )
+
+    project = "project"
+
+    # Register Feature View
+    test_registry.apply_feature_view(sfv, project)
+
+    stream_feature_views = test_registry.list_stream_feature_views(project)
+
+    # List Feature Views
+    assert len(stream_feature_views) == 1
+    assert stream_feature_views[0] == sfv
+
+    test_registry.delete_feature_view("test kafka stream feature view", project)
+    stream_feature_views = test_registry.list_stream_feature_views(project)
+    assert len(stream_feature_views) == 0
+
+    test_registry.teardown()

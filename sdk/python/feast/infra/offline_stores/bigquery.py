@@ -45,7 +45,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import get_user_agent, log_exceptions_and_usage
+from feast.utils import get_user_agent
 
 from .bigquery_source import (
     BigQueryLoggingDestination,
@@ -114,7 +114,6 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -168,7 +167,6 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -204,7 +202,6 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -467,10 +464,9 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
-            df = self._execute_query(query=query, timeout=timeout).to_dataframe(
-                create_bqstorage_client=True
-            )
-            return df
+            query_job = self._execute_query(query=query, timeout=timeout)
+            assert query_job
+            return query_job.to_dataframe(create_bqstorage_client=True)
 
     def to_sql(self) -> str:
         """Returns the underlying SQL query."""
@@ -521,6 +517,7 @@ class BigQueryRetrievalJob(RetrievalJob):
             bq_job = self._execute_query(query, job_config, timeout)
 
             if not job_config.dry_run:
+                assert bq_job
                 config = bq_job.to_api_repr()["configuration"]
                 # get temp table created by BQ
                 tmp_dest = config["query"]["destinationTable"]
@@ -539,7 +536,6 @@ class BigQueryRetrievalJob(RetrievalJob):
             assert q
             return q.to_arrow()
 
-    @log_exceptions_and_usage
     def _execute_query(
         self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:

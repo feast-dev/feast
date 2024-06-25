@@ -58,13 +58,26 @@ public class FeastClient implements AutoCloseable {
    * @param port port number of Feast serving GRPC server
    * @return {@link FeastClient}
    */
+  public static FeastClient create(String host, int port) {
+    // configure client with no security config.
+    return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
+  }
+
+  /**
+   * Create a client to access Feast Serving.
+   *
+   * @param host hostname or ip address of Feast serving GRPC server
+   * @param port port number of Feast serving GRPC server
+   * @param deadline GRPC deadline of Feast serving GRPC server {@link Deadline}
+   * @return {@link FeastClient}
+   */
   public static FeastClient create(String host, int port, Deadline deadline) {
     // configure client with no security config.
     return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build(), deadline);
   }
 
   /**
-   * Create a authenticated client that can access Feast serving with authentication enabled.
+   * Create an authenticated client that can access Feast serving with authentication enabled.
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
@@ -72,7 +85,22 @@ public class FeastClient implements AutoCloseable {
    *     SecurityConfig} for options.
    * @return {@link FeastClient}
    */
-  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig, Deadline deadline) {
+  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
+    return createSecure(host, port, securityConfig, null);
+  }
+
+  /**
+   * Create an authenticated client that can access Feast serving with authentication enabled.
+   *
+   * @param host hostname or ip address of Feast serving GRPC server
+   * @param port port number of Feast serving GRPC server
+   * @param securityConfig security options to configure the Feast client. See {@link
+   *     SecurityConfig} for options.
+   * @param deadline GRPC deadline of Feast serving GRPC server {@link Deadline}
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createSecure(
+      String host, int port, SecurityConfig securityConfig, Deadline deadline) {
     // Configure client TLS
     ManagedChannel channel = null;
     if (securityConfig.isTLSEnabled()) {
@@ -99,7 +127,7 @@ public class FeastClient implements AutoCloseable {
       channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
     }
 
-    return new FeastClient(channel, securityConfig.getCredentials(), deadline);
+    return new FeastClient(channel, securityConfig.getCredentials(), Optional.ofNullable(deadline));
   }
 
   /**
@@ -202,7 +230,12 @@ public class FeastClient implements AutoCloseable {
     return getOnlineFeatures(featureRefs, rows);
   }
 
-  protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials, Deadline deadline) {
+  protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
+    this(channel, credentials, Optional.empty());
+  }
+
+  protected FeastClient(
+      ManagedChannel channel, Optional<CallCredentials> credentials, Optional<Deadline> deadline) {
     this.channel = channel;
     TracingClientInterceptor tracingInterceptor =
         TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
@@ -214,7 +247,9 @@ public class FeastClient implements AutoCloseable {
       servingStub = servingStub.withCallCredentials(credentials.get());
     }
 
-    servingStub = servingStub.withDeadline(deadline);
+    if (deadline.isPresent()) {
+      servingStub = servingStub.withDeadline(deadline.get());
+    }
 
     this.stub = servingStub;
   }

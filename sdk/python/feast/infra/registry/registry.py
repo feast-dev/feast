@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.message import Message
 
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -55,7 +54,6 @@ REGISTRY_STORE_CLASS_FOR_TYPE = {
     "GCSRegistryStore": "feast.infra.registry.gcs.GCSRegistryStore",
     "S3RegistryStore": "feast.infra.registry.s3.S3RegistryStore",
     "FileRegistryStore": "feast.infra.registry.file.FileRegistryStore",
-    "PostgreSQLRegistryStore": "feast.infra.registry.contrib.postgres.postgres_registry_store.PostgreSQLRegistryStore",
     "AzureRegistryStore": "feast.infra.registry.contrib.azure.azure_registry_store.AzBlobRegistryStore",
 }
 
@@ -831,9 +829,7 @@ class Registry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if not project_metadata:
                 proto_registry_utils.init_project_metadata(registry_proto, project)
                 self.commit()
 

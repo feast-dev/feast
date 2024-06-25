@@ -48,7 +48,7 @@ install-python-ci-dependencies-uv:
 	python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
-	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -61,26 +61,28 @@ install-python:
 	python setup.py develop
 
 lock-python-dependencies:
-	python -m piptools compile -U --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
 
 lock-python-dependencies-all:
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.9-requirements.txt"
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --output-file sdk/python/requirements/py3.10-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
 
 benchmark-python:
-	FEAST_USAGE=False IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 benchmark-python-local:
-	FEAST_USAGE=False IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python-unit:
 	python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/test_milvus_online_store.py
 	python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
 
 test-python-integration:
-	python -m pytest -n 8 --integration -k "not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
+	python -m pytest -n 8 --integration -k "(not snowflake or not test_historical_features_main) and not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
 
 test-python-integration-local:
 	@(docker info > /dev/null 2>&1 && \
@@ -185,7 +187,7 @@ test-python-universal-athena:
 	ATHENA_DATA_SOURCE=AwsDataCatalog \
 	ATHENA_DATABASE=default \
 	ATHENA_WORKGROUP=primary \
-	ATHENA_S3_BUCKET_NAME=feast-integration-tests \
+	ATHENA_S3_BUCKET_NAME=feast-int-bucket \
  	python -m pytest -n 8 --integration \
  	 	-k "not test_go_feature_server and \
 		    not test_logged_features_validation and \
@@ -200,7 +202,7 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-
+			
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
@@ -321,6 +323,25 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_snowflake" \
 	sdk/python/tests
 
+ test-python-universal-elasticsearch-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.elasticsearch_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
@@ -367,7 +388,7 @@ start-trino-locally:
 	sleep 15
 
 test-trino-plugin-locally:
-	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests FEAST_USAGE=False IS_TEST=True python -m pytest --integration tests/
+	cd ${ROOT_DIR}/sdk/python; FULL_REPO_CONFIGS_MODULE=feast.infra.offline_stores.contrib.trino_offline_store.test_config.manual_tests IS_TEST=True python -m pytest --integration tests/
 
 kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
@@ -449,6 +470,18 @@ build-feature-server-java-docker:
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
+
+push-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-push
+
+build-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-build
 
 # Dev images
 

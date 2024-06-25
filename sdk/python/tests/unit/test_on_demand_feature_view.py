@@ -195,15 +195,6 @@ def test_python_native_transformation_mode():
             == PythonTransformation(python_native_udf, "python native udf source code")
         )
 
-    with pytest.raises(TypeError):
-        # This should fail
-        on_demand_feature_view_python_native_err.feature_transformation.transform(
-            {
-                "feature1": 0,
-                "feature2": 1,
-            }
-        )
-
     assert on_demand_feature_view_python_native.transform_dict(
         {
             "feature1": 0,

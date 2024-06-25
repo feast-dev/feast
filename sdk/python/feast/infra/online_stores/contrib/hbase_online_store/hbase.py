@@ -15,7 +15,6 @@ from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 
 
 class HbaseOnlineStoreConfig(FeastConfigBaseModel):
@@ -71,7 +70,6 @@ class HbaseOnlineStore(OnlineStore):
             )
         return self._conn
 
-    @log_exceptions_and_usage(online_store="hbase")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -129,7 +127,6 @@ class HbaseOnlineStore(OnlineStore):
         if progress:
             progress(len(data))
 
-    @log_exceptions_and_usage(online_store="hbase")
     def online_read(
         self,
         config: RepoConfig,
@@ -180,7 +177,6 @@ class HbaseOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @log_exceptions_and_usage(online_store="hbase")
     def update(
         self,
         config: RepoConfig,

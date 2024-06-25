@@ -4,6 +4,12 @@
 
 For Feast maintainers, these are the concrete steps for making a new release.
 
+### 0. Cutting a minor release
+You only need to hit the `release` workflow using [the GitHub action](https://github.com/feast-dev/feast/blob/master/.github/workflows/release.yml).
+First test with a `dry-run` then run it live. This is all you need to do. All deployments to dockerhub, PyPI, and npm are handled by the workflows.
+
+Also note that as a part of the workflow, the [infra/scripts/release/bump_file_versions.py](https://github.com/feast-dev/feast/blob/master/infra/scripts/release/bump_file_versions.py) file will increment the Feast versions in the appropriate files. 
+
 ### 1. (for patch releases) Cherry-pick changes into the branch from master
 If you were cutting Feast 0.22.3, for example, you might do:
 1. `git checkout v0.22-branch` (or `git pull upstream v0.22-branch --rebase` if you've cut a release before)
@@ -15,6 +21,8 @@ If you were cutting Feast 0.22.3, for example, you might do:
 > branch to cut releases.
 
 After this step, you will have all the changes you need in the branch.
+
+Note, for patches you *do not need to run the `bump_file_versions.py` script.* 
 
 ### 2. Pre-release verification (currently broken)
 A lot of things can go wrong. One of the most common is getting the wheels to build correctly (and not accidentally 

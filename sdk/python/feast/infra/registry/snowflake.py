@@ -10,7 +10,6 @@ from typing import Any, Callable, List, Literal, Optional, Set, Union
 from pydantic import ConfigDict, Field, StrictStr
 
 import feast
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -93,6 +92,12 @@ class SnowflakeRegistryConfig(RegistryConfig):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
+    private_key: Optional[str] = None
+    """ Snowflake private key file path"""
+
+    private_key_passphrase: Optional[str] = None
+    """ Snowflake private key file passphrase"""
+
     database: StrictStr
     """ Snowflake database name """
 
@@ -143,9 +148,7 @@ class SnowflakeRegistry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=self.cached_registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if not project_metadata:
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )
@@ -997,9 +1000,7 @@ class SnowflakeRegistry(BaseRegistry):
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
 
-            if not df.empty:
-                usage.set_current_project_uuid(df.squeeze())
-            else:
+            if df.empty:
                 new_project_uuid = f"{uuid.uuid4()}"
                 query = f"""
                     INSERT INTO {self.registry_path}."FEAST_METADATA"
@@ -1007,8 +1008,6 @@ class SnowflakeRegistry(BaseRegistry):
                         ('{project}', '{FeastMetadataKeys.PROJECT_UUID.value}', '{new_project_uuid}', CURRENT_TIMESTAMP())
                 """
                 execute_snowflake_statement(conn, query)
-
-                usage.set_current_project_uuid(new_project_uuid)
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
         with GetSnowflakeConnection(self.registry_config) as conn:

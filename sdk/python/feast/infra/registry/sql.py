@@ -22,7 +22,6 @@ from sqlalchemy import (  # type: ignore
 )
 from sqlalchemy.engine import Engine
 
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -776,9 +775,7 @@ class SqlRegistry(CachingRegistry):
                 feast_metadata.c.project_id == project,
             )
             row = conn.execute(stmt).first()
-            if row:
-                usage.set_current_project_uuid(row._mapping["metadata_value"])
-            else:
+            if not row:
                 new_project_uuid = f"{uuid.uuid4()}"
                 values = {
                     "metadata_key": FeastMetadataKeys.PROJECT_UUID.value,
@@ -788,7 +785,6 @@ class SqlRegistry(CachingRegistry):
                 }
                 insert_stmt = insert(feast_metadata).values(values)
                 conn.execute(insert_stmt)
-                usage.set_current_project_uuid(new_project_uuid)
 
     def _delete_object(
         self,

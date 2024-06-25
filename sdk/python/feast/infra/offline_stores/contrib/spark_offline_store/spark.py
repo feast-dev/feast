@@ -29,13 +29,12 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.registry.registry import Registry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
-from feast.usage import log_exceptions_and_usage
 
 # Make sure spark warning are ignored
 warnings.simplefilter("ignore", RuntimeWarning)
@@ -58,7 +57,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 class SparkOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -120,13 +118,12 @@ class SparkOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str, pyspark.sql.DataFrame],
-        registry: Registry,
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -259,7 +256,6 @@ class SparkOfflineStore(OfflineStore):
             )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,

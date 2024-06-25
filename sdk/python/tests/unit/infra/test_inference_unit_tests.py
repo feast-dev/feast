@@ -83,8 +83,8 @@ def test_on_demand_features_valid_type_inference():
         ],
         mode="python",
     )
-    def python_native_test_view(input_dict: Dict[str, Any]) -> Dict[str, Any]:
-        output_dict: Dict[str, Any] = {
+    def python_native_test_view(input_dict: dict[str, Any]) -> dict[str, Any]:
+        output_dict: dict[str, Any] = {
             "output": input_dict["some_date"],
             "object_output": str(input_dict["some_date"]),
         }

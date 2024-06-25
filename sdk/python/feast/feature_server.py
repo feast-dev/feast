@@ -3,6 +3,7 @@ import sys
 import threading
 import traceback
 import warnings
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
 import pandas as pd
@@ -10,7 +11,7 @@ from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
-from google.protobuf.json_format import MessageToDict, Parse
+from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel
 
 import feast
@@ -18,7 +19,6 @@ from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
-from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
 
 
 # TODO: deprecate this in favor of push features
@@ -51,15 +51,16 @@ def get_app(
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
-
-    app = FastAPI()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
 
-    async def get_body(request: Request):
-        return await request.body()
+    def stop_refresh():
+        nonlocal shutting_down
+        shutting_down = True
+        if active_timer:
+            active_timer.cancel()
 
     def async_refresh():
         store.refresh_registry()
@@ -71,46 +72,39 @@ def get_app(
         active_timer = threading.Timer(registry_ttl_sec, async_refresh)
         active_timer.start()
 
-    @app.on_event("shutdown")
-    def shutdown_event():
-        nonlocal shutting_down
-        shutting_down = True
-        if active_timer:
-            active_timer.cancel()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async_refresh()
+        yield
+        stop_refresh()
 
-    async_refresh()
+    app = FastAPI(lifespan=lifespan)
+
+    async def get_body(request: Request):
+        return await request.body()
 
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
         try:
-            # Validate and parse the request data into GetOnlineFeaturesRequest Protobuf object
-            request_proto = GetOnlineFeaturesRequest()
-            Parse(body, request_proto)
-
+            body = json.loads(body)
             # Initialize parameters for FeatureStore.get_online_features(...) call
-            if request_proto.HasField("feature_service"):
+            if "feature_service" in body:
                 features = store.get_feature_service(
-                    request_proto.feature_service, allow_cache=True
+                    body["feature_service"], allow_cache=True
                 )
             else:
-                features = list(request_proto.features.val)
+                features = body["features"]
 
-            full_feature_names = request_proto.full_feature_names
-
-            batch_sizes = [len(v.val) for v in request_proto.entities.values()]
-            num_entities = batch_sizes[0]
-            if any(batch_size != num_entities for batch_size in batch_sizes):
-                raise HTTPException(status_code=500, detail="Uneven number of columns")
+            full_feature_names = body.get("full_feature_names", False)
 
             response_proto = store._get_online_features(
                 features=features,
-                entity_values=request_proto.entities,
+                entity_values=body["entities"],
                 full_feature_names=full_feature_names,
-                native_entity_values=False,
             ).proto
 
             # Convert the Protobuf object to JSON and return it
-            return MessageToDict(  # type: ignore
+            return MessageToDict(
                 response_proto, preserving_proto_field_name=True, float_precision=18
             )
         except Exception as e:

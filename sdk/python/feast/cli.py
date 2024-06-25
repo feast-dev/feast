@@ -43,7 +43,6 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
-from feast.repo_upgrade import RepoUpgrader
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -163,7 +162,7 @@ def ui(
     host: str,
     port: int,
     registry_ttl_sec: int,
-    root_path: Optional[str] = "",
+    root_path: str = "",
 ):
     """
     Shows the Feast UI over the current directory
@@ -687,7 +686,6 @@ def serve_command(
     port: int,
     type_: str,
     no_access_log: bool,
-    no_feature_log: bool,
     workers: int,
     keep_alive_timeout: int,
     go: bool,
@@ -706,7 +704,6 @@ def serve_command(
             port=port,
             type_=type_,
             no_access_log=no_access_log,
-            no_feature_log=no_feature_log,
             workers=workers,
             keep_alive_timeout=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
@@ -827,12 +824,12 @@ def validate(
     """
     store = create_feature_store(ctx)
 
-    feature_service = store.get_feature_service(name=feature_service)
-    reference = store.get_validation_reference(reference)
+    _feature_service = store.get_feature_service(name=feature_service)
+    _reference = store.get_validation_reference(reference)
 
     result = store.validate_logged_features(
-        source=feature_service,
-        reference=reference,
+        source=_feature_service,
+        reference=_reference,
         start=maybe_local_tz(datetime.fromisoformat(start_ts)),
         end=maybe_local_tz(datetime.fromisoformat(end_ts)),
         throw_exception=False,
@@ -851,27 +848,6 @@ def validate(
     print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
     print(colorful_json)
     exit(1)
-
-
-@cli.command("repo-upgrade", cls=NoOptionDefaultFormat)
-@click.option(
-    "--write",
-    is_flag=True,
-    default=False,
-    help="Upgrade a feature repo to use the API expected by feast 0.23.",
-)
-@click.pass_context
-def repo_upgrade(ctx: click.Context, write: bool):
-    """
-    Upgrade a feature repo in place.
-    """
-    repo = ctx.obj["CHDIR"]
-    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
-    cli_check_repo(repo, fs_yaml_file)
-    try:
-        RepoUpgrader(repo, write).upgrade()
-    except FeastProviderLoginError as e:
-        print(str(e))
 
 
 if __name__ == "__main__":

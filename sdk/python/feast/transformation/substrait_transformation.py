@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, List
+from typing import Any
 
 import dill
 import pandas as pd
@@ -42,7 +42,7 @@ class SubstraitTransformation:
         return self.ibis_function(table)
 
     def transform_arrow(
-        self, pa_table: pyarrow.Table, features: List[Field] = []
+        self, pa_table: pyarrow.Table, features: list[Field] = []
     ) -> pyarrow.Table:
         def table_provider(names, schema: pyarrow.Schema):
             return pa_table.select(schema.names)
@@ -56,7 +56,7 @@ class SubstraitTransformation:
 
         return table
 
-    def infer_features(self, random_input: Dict[str, List[Any]]) -> List[Field]:
+    def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)
 

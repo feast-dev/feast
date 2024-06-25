@@ -71,7 +71,6 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.4.2",
-    "bowler",  # Needed for automatic repo upgrades
 ]
 
 GO_REQUIRED = [
@@ -137,7 +136,7 @@ ROCKSET_REQUIRED = [
 ]
 
 IKV_REQUIRED = [
-    "ikvpy>=0.0.23",
+    "ikvpy>=0.0.36",
 ]
 
 HAZELCAST_REQUIRED = [
@@ -152,8 +151,8 @@ ELASTICSEARCH_REQUIRED = [
 ]
 
 IBIS_REQUIRED = [
-    "ibis-framework",
-    "ibis-substrait",
+    "ibis-framework>=8.0.0,<9",
+    "ibis-substrait<=3.2.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -163,9 +162,11 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 
 DELTA_REQUIRED = ["deltalake"]
+
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 CI_REQUIRED = (
     [

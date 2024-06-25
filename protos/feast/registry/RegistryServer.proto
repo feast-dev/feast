@@ -3,6 +3,7 @@ syntax = "proto3";
 package feast.registry;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 import "feast/core/Registry.proto";
 import "feast/core/Entity.proto";
 import "feast/core/DataSource.proto";
@@ -16,16 +17,22 @@ import "feast/core/InfraObject.proto";
 
 service RegistryServer{
   // Entity RPCs
+  rpc ApplyEntity (ApplyEntityRequest) returns (google.protobuf.Empty) {}
   rpc GetEntity (GetEntityRequest) returns (feast.core.Entity) {}
   rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse) {}
+  rpc DeleteEntity (DeleteEntityRequest) returns (google.protobuf.Empty) {}
   
   // DataSource RPCs
+  rpc ApplyDataSource (ApplyDataSourceRequest) returns (google.protobuf.Empty) {}
   rpc GetDataSource (GetDataSourceRequest) returns (feast.core.DataSource) {}
   rpc ListDataSources (ListDataSourcesRequest) returns (ListDataSourcesResponse) {}
+  rpc DeleteDataSource (DeleteDataSourceRequest) returns (google.protobuf.Empty) {}
 
   // FeatureView RPCs
+  rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
+  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
@@ -36,19 +43,28 @@ service RegistryServer{
   rpc ListOnDemandFeatureViews (ListOnDemandFeatureViewsRequest) returns (ListOnDemandFeatureViewsResponse) {}
 
   // FeatureService RPCs
+  rpc ApplyFeatureService (ApplyFeatureServiceRequest) returns (google.protobuf.Empty) {}
   rpc GetFeatureService (GetFeatureServiceRequest) returns (feast.core.FeatureService) {}
   rpc ListFeatureServices (ListFeatureServicesRequest) returns (ListFeatureServicesResponse) {}
+  rpc DeleteFeatureService (DeleteFeatureServiceRequest) returns (google.protobuf.Empty) {}
 
   // SavedDataset RPCs
+  rpc ApplySavedDataset (ApplySavedDatasetRequest) returns (google.protobuf.Empty) {}
   rpc GetSavedDataset (GetSavedDatasetRequest) returns (feast.core.SavedDataset) {}
   rpc ListSavedDatasets (ListSavedDatasetsRequest) returns (ListSavedDatasetsResponse) {}
+  rpc DeleteSavedDataset (DeleteSavedDatasetRequest) returns (google.protobuf.Empty) {}
 
   // ValidationReference RPCs
+  rpc ApplyValidationReference (ApplyValidationReferenceRequest) returns (google.protobuf.Empty) {}
   rpc GetValidationReference (GetValidationReferenceRequest) returns (feast.core.ValidationReference) {}
   rpc ListValidationReferences (ListValidationReferencesRequest) returns (ListValidationReferencesResponse) {}
-
+  rpc DeleteValidationReference (DeleteValidationReferenceRequest) returns (google.protobuf.Empty) {}
+  
+  rpc ApplyMaterialization (ApplyMaterializationRequest) returns (google.protobuf.Empty) {}
   rpc ListProjectMetadata (ListProjectMetadataRequest) returns (ListProjectMetadataResponse) {}
+  rpc UpdateInfra (UpdateInfraRequest) returns (google.protobuf.Empty) {}
   rpc GetInfra (GetInfraRequest) returns (feast.core.Infra) {}
+  rpc Commit (google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Refresh (RefreshRequest) returns (google.protobuf.Empty) {}
   rpc Proto (google.protobuf.Empty) returns (feast.core.Registry) {}
 
@@ -56,6 +72,12 @@ service RegistryServer{
 
 message RefreshRequest {
   string project = 1;
+}
+
+message UpdateInfraRequest {
+  feast.core.Infra infra = 1;
+  string project = 2;
+  bool commit = 3;
 }
 
 message GetInfraRequest {
@@ -70,6 +92,20 @@ message ListProjectMetadataRequest {
 
 message ListProjectMetadataResponse {
   repeated feast.core.ProjectMetadata project_metadata = 1;     
+}
+
+message ApplyMaterializationRequest {
+  feast.core.FeatureView feature_view = 1;
+  string project = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  bool commit = 5;
+}
+
+message ApplyEntityRequest {
+  feast.core.Entity entity = 1;
+  string project = 2;
+  bool commit = 3;
 }
 
 message GetEntityRequest {
@@ -87,7 +123,19 @@ message ListEntitiesResponse {
     repeated feast.core.Entity entities = 1;
 }
 
+message DeleteEntityRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
 // DataSources
+
+message ApplyDataSourceRequest {
+  feast.core.DataSource data_source = 1;
+  string project = 2;
+  bool commit = 3;
+}
 
 message GetDataSourceRequest {
     string name = 1;
@@ -104,7 +152,23 @@ message ListDataSourcesResponse {
     repeated feast.core.DataSource data_sources = 1;
 }
 
+message DeleteDataSourceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
 // FeatureViews
+
+message ApplyFeatureViewRequest {
+  oneof base_feature_view {
+    feast.core.FeatureView feature_view = 1;
+    feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+    feast.core.StreamFeatureView stream_feature_view = 3;
+  }
+  string project = 4;
+  bool commit = 5;
+}
 
 message GetFeatureViewRequest {
     string name = 1;
@@ -119,6 +183,12 @@ message ListFeatureViewsRequest {
 
 message ListFeatureViewsResponse {
     repeated feast.core.FeatureView feature_views = 1;
+}
+
+message DeleteFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
 }
 
 // StreamFeatureView
@@ -157,6 +227,12 @@ message ListOnDemandFeatureViewsResponse {
 
 // FeatureServices
 
+message ApplyFeatureServiceRequest {
+  feast.core.FeatureService feature_service = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
 message GetFeatureServiceRequest {
     string name = 1;
     string project = 2;
@@ -172,7 +248,19 @@ message ListFeatureServicesResponse {
     repeated feast.core.FeatureService feature_services = 1;
 }
 
+message DeleteFeatureServiceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
 // SavedDataset
+
+message ApplySavedDatasetRequest {
+  feast.core.SavedDataset saved_dataset = 1;
+  string project = 2;
+  bool commit = 3;
+}
 
 message GetSavedDatasetRequest {
     string name = 1;
@@ -189,7 +277,19 @@ message ListSavedDatasetsResponse {
     repeated feast.core.SavedDataset saved_datasets = 1;
 }
 
+message DeleteSavedDatasetRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
 // ValidationReference
+
+message ApplyValidationReferenceRequest {
+  feast.core.ValidationReference validation_reference = 1;
+  string project = 2;
+  bool commit = 3;
+}
 
 message GetValidationReferenceRequest {
     string name = 1;
@@ -204,4 +304,10 @@ message ListValidationReferencesRequest {
 
 message ListValidationReferencesResponse {
     repeated feast.core.ValidationReference validation_references = 1;
+}
+
+message DeleteValidationReferenceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
 }
