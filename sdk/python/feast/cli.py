@@ -14,6 +14,7 @@
 import json
 import logging
 from datetime import datetime
+from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,14 +22,15 @@ import click
 import yaml
 from colorama import Fore, Style
 from dateutil import parser
-from importlib_metadata import version as importlib_version
 from pygments import formatters, highlight, lexers
 
 from feast import utils
-from feast.constants import DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT
+from feast.constants import (
+    DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_REGISTRY_SERVER_PORT,
+)
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
-from feast.infra.contrib.grpc_server import get_grpc_server
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -73,6 +75,7 @@ class NoOptionDefaultFormat(click.Command):
 )
 @click.option(
     "--feature-store-yaml",
+    "-f",
     help="Override the directory where the CLI should look for the feature_store.yaml file.",
 )
 @click.pass_context
@@ -377,7 +380,6 @@ def feature_view_list(ctx: click.Context):
     table = []
     for feature_view in [
         *store.list_feature_views(),
-        *store.list_request_feature_views(),
         *store.list_on_demand_feature_views(),
     ]:
         entities = set()
@@ -593,6 +595,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "cassandra",
             "rockset",
             "hazelcast",
+            "ikv",
         ],
         case_sensitive=False,
     ),
@@ -750,6 +753,8 @@ def listen_command(
     registry_ttl_sec: int,
 ):
     """Start a gRPC feature server to ingest streaming features on given address"""
+    from feast.infra.contrib.grpc_server import get_grpc_server
+
     store = create_feature_store(ctx)
     server = get_grpc_server(address, store, max_workers, registry_ttl_sec)
     server.start()
@@ -770,6 +775,22 @@ def serve_transformations_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_transformations(port)
+
+
+@cli.command("serve_registry")
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_REGISTRY_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_registry_command(ctx: click.Context, port: int):
+    """Start a registry server locally on a given port."""
+    store = create_feature_store(ctx)
+
+    store.serve_registry(port)
 
 
 @cli.command("validate")

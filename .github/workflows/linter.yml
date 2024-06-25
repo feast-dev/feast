@@ -6,14 +6,14 @@ jobs:
   lint-python:
     runs-on: [ubuntu-latest]
     env:
-      PYTHON: 3.8
+      PYTHON: 3.11
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.11"
           architecture: x64
       - name: Setup Go
         id: setup-go
@@ -37,8 +37,8 @@ jobs:
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=21.3.1,<23.2"
-      - name: Install pip-tools
-        run: pip install pip-tools
+      - name: Install uv
+        run: pip install uv
       - name: Install apache-arrow on ubuntu
         run: |
           sudo apt update
@@ -49,8 +49,8 @@ jobs:
           sudo apt install -y -V "libarrow-dev=11.0.0-1"
       - name: Install dependencies
         run: |
+          make install-python-ci-dependencies-uv
           make compile-protos-go
-          make install-python-ci-dependencies
       - name: Lint python
         run: make lint-python
   lint-go:

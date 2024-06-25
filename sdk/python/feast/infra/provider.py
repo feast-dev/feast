@@ -212,7 +212,7 @@ class Provider(ABC):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
@@ -295,6 +295,37 @@ class Provider(ABC):
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
         return None
+
+    @abstractmethod
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        """
+        Searches for the top-k nearest neighbors of the given document in the online document store.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose embeddings should be searched.
+            requested_feature: the requested document feature name.
+            query: The query embedding to search for.
+            top_k: The number of nearest neighbors to return.
+
+        Returns:
+            A list of dictionaries, where each dictionary contains the document feature.
+        """
+        pass
 
 
 def get_provider(config: RepoConfig) -> Provider:

@@ -7,7 +7,7 @@ jobs:
     if: github.repository == 'your github repo' # swap here with your project id
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -33,21 +33,21 @@ jobs:
         id: image-tag
         run: echo "::set-output name=DOCKER_IMAGE_TAG::`git rev-parse HEAD`"
       - name: Cache Public ECR Image
-        id: lambda_python_3_9
+        id: lambda_python_3_11
         uses: actions/cache@v2
         with:
           path: ~/cache
-          key: lambda_python_3_9
+          key: lambda_python_3_11
       - name: Handle Cache Miss (pull public ECR image & save it to tar file)
         if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/cache
-          docker pull public.ecr.aws/lambda/python:3.9
-          docker save public.ecr.aws/lambda/python:3.9 -o ~/cache/lambda_python_3_9.tar
+          docker pull public.ecr.aws/lambda/python:3.11
+          docker save public.ecr.aws/lambda/python:3.11 -o ~/cache/lambda_python_3_11.tar
       - name: Handle Cache Hit (load docker image from tar file)
         if: steps.cache-primes.outputs.cache-hit == 'true'
         run: |
-          docker load -i ~/cache/lambda_python_3_9.tar
+          docker load -i ~/cache/lambda_python_3_11.tar
       - name: Build and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8" ]
+        python-version: [ "3.11" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -83,7 +83,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
@@ -137,11 +137,6 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V libarrow-dev
-      - name: Install apache-arrow on macos
-        if: matrix.os == 'macOS-latest'
-        run: |
-            brew install apache-arrow
-            brew install pkg-config
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Setup Redis Cluster
@@ -153,9 +148,9 @@ jobs:
         env:
           FEAST_SERVER_DOCKER_IMAGE_TAG: ${{ needs.build-docker-image.outputs.DOCKER_IMAGE_TAG }}
         run: |
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery and not minio_registry"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery and not minio_registry"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery and not minio_registry"
+          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery and not minio_registry"
 
 

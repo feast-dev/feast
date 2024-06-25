@@ -57,28 +57,9 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as the [Bytewax Materialization Engine](../reference/batch-materialization/bytewax.md), or the [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
+In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
 Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
 
-The Bytewax materialization engine can run materialization on an existing Kubernetes cluster. An example configuration of this in a `feature_store.yaml` is as follows:
-
-```yaml
-batch_engine:
-  type: bytewax
-  namespace: bytewax
-  image: bytewax/bytewax-feast:latest
-  env:
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: aws-credentials
-          key: aws-access-key-id
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: aws-credentials
-          key: aws-secret-access-key
-```
 
 ### 2.2 Scheduled materialization with Airflow
 
@@ -255,17 +236,6 @@ provider: local
 online_store:
     type: redis
     connection_string: ${REDIS_CONNECTION_STRING}
-```
-
-It is possible to set a default value if the environment variable is not set, with `${ENV_VAR:"default"}`. For instance:
-
-```yaml
-project: my_project
-registry: data/registry.db
-provider: local
-online_store:
-    type: redis
-    connection_string: ${REDIS_CONNECTION_STRING:"0.0.0.0:6379"}
 ```
 
 ***

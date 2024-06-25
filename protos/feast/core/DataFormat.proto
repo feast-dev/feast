@@ -27,8 +27,12 @@ message FileFormat {
   // Defines options for the Parquet data format
   message ParquetFormat {}
 
+  // Defines options for delta data format
+  message DeltaFormat {}
+
   oneof format {
     ParquetFormat parquet_format = 1;
+    DeltaFormat delta_format = 2;
   }
 }
 

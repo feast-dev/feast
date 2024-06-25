@@ -42,8 +42,6 @@ class PassthroughProvider(Provider):
     """
 
     def __init__(self, config: RepoConfig):
-        super().__init__(config)
-
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
@@ -70,7 +68,7 @@ class PassthroughProvider(Provider):
         if self._batch_engine:
             return self._batch_engine
         else:
-            engine_config = self.repo_config._batch_engine_config
+            engine_config = self.repo_config.batch_engine_config
             config_is_dict = False
             if isinstance(engine_config, str):
                 engine_config_type = engine_config
@@ -180,13 +178,30 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
         set_usage_attribute("provider", self.__class__.__name__)
         result = []
         if self.online_store:
             result = self.online_store.online_read(
                 config, table, entity_keys, requested_features
+            )
+        return result
+
+    @log_exceptions_and_usage(sampler=RatioSampler(ratio=0.001))
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        query: List[float],
+        top_k: int,
+    ) -> List:
+        set_usage_attribute("provider", self.__class__.__name__)
+        result = []
+        if self.online_store:
+            result = self.online_store.retrieve_online_documents(
+                config, table, requested_feature, query, top_k
             )
         return result
 

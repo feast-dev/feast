@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -18,7 +19,6 @@ import pandas as pd
 import pyarrow
 import pyarrow as pa
 from pydantic import StrictStr
-from pydantic.typing import Literal
 from pytz import utc
 
 from feast import OnDemandFeatureView
@@ -205,7 +205,6 @@ class AthenaOfflineStore(OfflineStore):
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
-
             table_name = offline_utils.get_temp_entity_table_name()
 
             _upload_entity_df(entity_df, athena_client, config, s3_resource, table_name)
@@ -240,7 +239,6 @@ class AthenaOfflineStore(OfflineStore):
             try:
                 yield query
             finally:
-
                 # Always clean up the temp Athena table
                 aws_utils.execute_athena_query(
                     athena_client,
@@ -423,7 +421,6 @@ class AthenaRetrievalJob(RetrievalJob):
 
     @log_exceptions_and_usage
     def to_athena(self, table_name: str) -> None:
-
         if self.on_demand_feature_views:
             transformed_df = self.to_df()
 

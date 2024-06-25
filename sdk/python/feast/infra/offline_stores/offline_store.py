@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
@@ -76,32 +76,11 @@ class RetrievalJob(ABC):
             validation_reference (optional): The validation to apply against the retrieved dataframe.
             timeout (optional): The query timeout if applicable.
         """
-        features_df = self._to_df_internal(timeout=timeout)
-
-        if self.on_demand_feature_views:
-            # TODO(adchia): Fix requirement to specify dependent feature views in feature_refs
-            for odfv in self.on_demand_feature_views:
-                features_df = features_df.join(
-                    odfv.get_transformed_features_df(
-                        features_df,
-                        self.full_feature_names,
-                    )
-                )
-
-        if validation_reference:
-            if not flags_helper.is_test():
-                warnings.warn(
-                    "Dataset validation is an experimental feature. "
-                    "This API is unstable and it could and most probably will be changed in the future. "
-                    "We do not guarantee that future changes will maintain backward compatibility.",
-                    RuntimeWarning,
-                )
-
-            validation_result = validation_reference.profile.validate(features_df)
-            if not validation_result.is_success:
-                raise ValidationFailed(validation_result)
-
-        return features_df
+        return (
+            self.to_arrow(validation_reference=validation_reference, timeout=timeout)
+            .to_pandas()
+            .reset_index(drop=True)
+        )
 
     def to_arrow(
         self,
@@ -118,18 +97,19 @@ class RetrievalJob(ABC):
             validation_reference (optional): The validation to apply against the retrieved dataframe.
             timeout (optional): The query timeout if applicable.
         """
-        if not self.on_demand_feature_views and not validation_reference:
-            return self._to_arrow_internal(timeout=timeout)
-
-        features_df = self._to_df_internal(timeout=timeout)
+        features_table = self._to_arrow_internal(timeout=timeout)
         if self.on_demand_feature_views:
             for odfv in self.on_demand_feature_views:
-                features_df = features_df.join(
-                    odfv.get_transformed_features_df(
-                        features_df,
-                        self.full_feature_names,
-                    )
+                transformed_arrow = odfv.transform_arrow(
+                    features_table, self.full_feature_names
                 )
+
+                for col in transformed_arrow.column_names:
+                    if col.startswith("__index"):
+                        continue
+                    features_table = features_table.append_column(
+                        col, transformed_arrow[col]
+                    )
 
         if validation_reference:
             if not flags_helper.is_test():
@@ -140,19 +120,20 @@ class RetrievalJob(ABC):
                     RuntimeWarning,
                 )
 
-            validation_result = validation_reference.profile.validate(features_df)
+            validation_result = validation_reference.profile.validate(
+                features_table.to_pandas()
+            )
             if not validation_result.is_success:
                 raise ValidationFailed(validation_result)
 
-        return pyarrow.Table.from_pandas(features_df)
+        return features_table
 
     def to_sql(self) -> str:
         """
         Return RetrievalJob generated SQL statement if applicable.
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """
         Synchronously executes the underlying query and returns the result as a pandas dataframe.
@@ -162,9 +143,8 @@ class RetrievalJob(ABC):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_df` should be used.
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """
         Synchronously executes the underlying query and returns the result as an arrow table.
@@ -174,21 +154,18 @@ class RetrievalJob(ABC):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_arrow` should be used.
         """
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def full_feature_names(self) -> bool:
         """Returns True if full feature names should be applied to the results of the query."""
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         """Returns a list containing all the on demand feature views to be handled."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -204,13 +181,12 @@ class RetrievalJob(ABC):
             allow_overwrite: If True, a pre-existing location (e.g. table or file) can be overwritten.
                 Currently not all individual offline store implementations make use of this parameter.
         """
-        pass
+        raise NotImplementedError
 
     @property
-    @abstractmethod
     def metadata(self) -> Optional[RetrievalMetadata]:
         """Returns metadata about the retrieval job."""
-        pass
+        raise NotImplementedError
 
     def supports_remote_storage_export(self) -> bool:
         """Returns True if the RetrievalJob supports `to_remote_storage`."""
@@ -226,7 +202,7 @@ class RetrievalJob(ABC):
         Returns:
             A list of parquet file paths in remote storage.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class OfflineStore(ABC):
@@ -239,7 +215,6 @@ class OfflineStore(ABC):
     """
 
     @staticmethod
-    @abstractmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -270,10 +245,9 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the entity rows.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
-    @abstractmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -302,10 +276,9 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the features.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
-    @abstractmethod
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -334,7 +307,7 @@ class OfflineStore(ABC):
         Returns:
             A RetrievalJob that can be executed to get the entity rows.
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def write_logged_features(
@@ -358,7 +331,7 @@ class OfflineStore(ABC):
             logging_config: A LoggingConfig object that determines where the logs will be written.
             registry: The registry for the current feature store.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @staticmethod
     def offline_write_batch(
@@ -377,4 +350,4 @@ class OfflineStore(ABC):
             progress: Function to be called once a portion of the data has been written, used
                 to show progress.
         """
-        raise NotImplementedError()
+        raise NotImplementedError

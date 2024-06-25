@@ -9,6 +9,7 @@ from typing import (
     Iterator,
     KeysView,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -19,7 +20,6 @@ import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from psycopg2 import sql
-from pydantic.typing import Literal
 from pytz import utc
 
 from feast.data_source import DataSource
@@ -94,7 +94,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             FROM (
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-                FROM ({from_expression}) a
+                FROM {from_expression} a
                 WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
             ) b
             WHERE _feast_row = 1
@@ -160,7 +160,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             # Hack for query_context.entity_selections to support uppercase in columns
             for context in query_context_dict:
                 context["entity_selections"] = [
-                    f'''"{entity_selection.replace(' AS ', '" AS "')}\"'''
+                    f""""{entity_selection.replace(' AS ', '" AS "')}\""""
                     for entity_selection in context["entity_selections"]
                 ]
 
@@ -338,9 +338,11 @@ def _get_entity_df_event_timestamp_range(
         # If the entity_df is a string (SQL query), determine range
         # from table
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
-            cur.execute(
-                f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM ({entity_df}) as tmp_alias"
-            ),
+            (
+                cur.execute(
+                    f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM ({entity_df}) as tmp_alias"
+                ),
+            )
             res = cur.fetchone()
         entity_df_event_timestamp_range = (res[0], res[1])
     else:

@@ -14,6 +14,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -23,8 +24,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-from pydantic import Field, StrictStr
-from pydantic.typing import Literal
+from pydantic import ConfigDict, Field, StrictStr
 from pytz import utc
 
 from feast import OnDemandFeatureView
@@ -119,9 +119,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     convert_timestamp_columns: Optional[bool] = None
     """ Convert timestamp columns on export to a Parquet-supported format """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeOfflineStore(OfflineStore):
@@ -288,7 +286,6 @@ class SnowflakeOfflineStore(OfflineStore):
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
-
             table_name = offline_utils.get_temp_entity_table_name()
 
             _upload_entity_df(entity_df, snowflake_conn, config, table_name)
@@ -414,7 +411,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         feature_views: Optional[List[FeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
-
         if feature_views is None:
             feature_views = []
         if not isinstance(query, str):
@@ -465,25 +461,16 @@ class SnowflakeRetrievalJob(RetrievalJob):
                     Array(Float32),
                     Array(Bool),
                 ]:
-                    df[feature.name] = [json.loads(x) for x in df[feature.name]]
+                    df[feature.name] = [
+                        json.loads(x) if x else None for x in df[feature.name]
+                    ]
 
         return df
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
-        pa_table = execute_snowflake_statement(
+        return execute_snowflake_statement(
             self.snowflake_conn, self.to_sql()
-        ).fetch_arrow_all()
-
-        if pa_table:
-            return pa_table
-        else:
-            empty_result = execute_snowflake_statement(
-                self.snowflake_conn, self.to_sql()
-            )
-
-            return pyarrow.Table.from_pandas(
-                pd.DataFrame(columns=[md.name for md in empty_result.description])
-            )
+        ).fetch_arrow_all(force_return_table=True)
 
     def to_sql(self) -> str:
         """
@@ -518,7 +505,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return None
 
     def to_arrow_batches(self) -> Iterator[pyarrow.Table]:
-
         table_name = "temp_arrow_batches_" + uuid.uuid4().hex
 
         self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
@@ -531,7 +517,6 @@ class SnowflakeRetrievalJob(RetrievalJob):
         return arrow_batches
 
     def to_pandas_batches(self) -> Iterator[pd.DataFrame]:
-
         table_name = "temp_pandas_batches_" + uuid.uuid4().hex
 
         self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
@@ -635,13 +620,10 @@ def _get_entity_schema(
     snowflake_conn: SnowflakeConnection,
     config: RepoConfig,
 ) -> Dict[str, np.dtype]:
-
     if isinstance(entity_df, pd.DataFrame):
-
         return dict(zip(entity_df.columns, entity_df.dtypes))
 
     else:
-
         query = f"SELECT * FROM ({entity_df}) LIMIT 1"
         limited_entity_df = execute_snowflake_statement(
             snowflake_conn, query
@@ -656,7 +638,6 @@ def _upload_entity_df(
     config: RepoConfig,
     table_name: str,
 ) -> None:
-
     if isinstance(entity_df, pd.DataFrame):
         # Write the data from the DataFrame to the table
         # Known issues with following entity data types: BINARY
@@ -680,7 +661,6 @@ def _upload_entity_df(
 
 
 def _fix_entity_selections_identifiers(query_context) -> list:
-
     for i, qc in enumerate(query_context):
         for j, es in enumerate(qc.entity_selections):
             query_context[i].entity_selections[j] = f'"{es}"'.replace(" AS ", '" AS "')

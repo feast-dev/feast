@@ -12,9 +12,10 @@ from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
@@ -29,21 +30,22 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 class FileDataSourceCreator(DataSourceCreator):
     files: List[Any]
     dirs: List[Any]
+    keep: List[Any]
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.files = []
         self.dirs = []
+        self.keep = []
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         f = tempfile.NamedTemporaryFile(
@@ -89,16 +91,58 @@ class FileDataSourceCreator(DataSourceCreator):
             shutil.rmtree(d)
 
 
+class DeltaFileSourceCreator(FileDataSourceCreator):
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        created_timestamp_column="created_ts",
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
+    ) -> DataSource:
+        from deltalake.writer import write_deltalake
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        delta_path = tempfile.TemporaryDirectory(
+            prefix=f"{self.project_name}_{destination_name}"
+        )
+
+        self.keep.append(delta_path)
+
+        write_deltalake(delta_path.name, df)
+
+        return FileSource(
+            file_format=DeltaFormat(),
+            path=delta_path.name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return SavedDatasetFileStorage(
+            path=d, file_format=DeltaFormat(), s3_endpoint_override=None
+        )
+
+    # LoggingDestination is parquet-only
+    def create_logged_features_destination(self) -> LoggingDestination:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return FileLoggingDestination(path=d)
+
+
 class FileParquetDatasetSourceCreator(FileDataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         dataset_path = tempfile.TemporaryDirectory(
@@ -167,11 +211,10 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: Optional[str] = None,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        destination_name: str,
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
@@ -217,3 +260,16 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def teardown(self):
         self.minio.stop()
         self.f.close()
+
+
+# TODO split up DataSourceCreator and OfflineStoreCreator
+class DuckDBDataSourceCreator(FileDataSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config
+
+
+class DuckDBDeltaDataSourceCreator(DeltaFileSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config

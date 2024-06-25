@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
-from dask import dataframe as dd
 from dateutil.tz import tzlocal
 from pytz import utc
 
@@ -71,9 +70,9 @@ def _get_requested_feature_views_to_features_dict(
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
 
     feature_views_to_feature_map: Dict["FeatureView", List[str]] = defaultdict(list)
-    on_demand_feature_views_to_feature_map: Dict[
-        "OnDemandFeatureView", List[str]
-    ] = defaultdict(list)
+    on_demand_feature_views_to_feature_map: Dict["OnDemandFeatureView", List[str]] = (
+        defaultdict(list)
+    )
 
     for ref in feature_refs:
         ref_parts = ref.split(":")
@@ -171,18 +170,6 @@ def _run_pyarrow_field_mapping(
         field_mapping[col] if col in field_mapping.keys() else col for col in cols
     ]
     table = table.rename_columns(mapped_cols)
-    return table
-
-
-def _run_dask_field_mapping(
-    table: dd.DataFrame,
-    field_mapping: Dict[str, str],
-):
-    if field_mapping:
-        # run field mapping in the forward direction
-        table = table.rename(columns=field_mapping)
-        table = table.persist()
-
     return table
 
 

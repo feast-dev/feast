@@ -57,6 +57,8 @@ class FeatureViewProjection:
             name_alias=proto.feature_view_name_alias
             if proto.feature_view_name_alias != ""
             else None,
+            # Original Code from Feast
+            # name_alias=proto.feature_view_name_alias or None,
             features=[],
             join_key_map=dict(proto.join_key_map),
             desired_features=[],

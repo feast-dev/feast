@@ -20,7 +20,6 @@ from tests.integration.feature_repos.universal.data_source_creator import (
 
 
 class RedshiftDataSourceCreator(DataSourceCreator):
-
     tables: List[str] = []
 
     def __init__(self, project_name: str, *args, **kwargs):
@@ -42,18 +41,18 @@ class RedshiftDataSourceCreator(DataSourceCreator):
             iam_role=os.getenv(
                 "AWS_IAM_ROLE", "arn:aws:iam::402087665549:role/redshift_s3_access_role"
             ),
+            workgroup="",
         )
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         aws_utils.upload_df_to_redshift(

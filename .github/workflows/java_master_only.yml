@@ -18,14 +18,14 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: gcr.io/kf-feast
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Setup Python
         uses: actions/setup-python@v3
         id: setup-python
         with:
-          python-version: "3.8"
+          python-version: "3.11"
           architecture: x64
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
@@ -53,7 +53,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Lint java
@@ -63,7 +63,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -95,9 +95,9 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
-      PYTHON: 3.8
+      PYTHON: 3.11
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'true'
       - name: Set up JDK 11
@@ -110,7 +110,7 @@ jobs:
         uses: actions/setup-python@v3
         id: setup-python
         with:
-          python-version: 3.8
+          python-version: 3.11
           architecture: x64
       - name: Get pip cache dir
         id: pip-cache

@@ -5,10 +5,9 @@ from binascii import hexlify
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, List, Optional, Set, Union
+from typing import Any, Callable, List, Literal, Optional, Set, Union
 
-from pydantic import Field, StrictStr
-from pydantic.schema import Literal
+from pydantic import ConfigDict, Field, StrictStr
 
 import feast
 from feast import usage
@@ -45,9 +44,6 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
-from feast.protos.feast.core.RequestFeatureView_pb2 import (
-    RequestFeatureView as RequestFeatureViewProto,
-)
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
@@ -56,7 +52,6 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
 from feast.repo_config import RegistryConfig
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -103,9 +98,7 @@ class SnowflakeRegistryConfig(RegistryConfig):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeRegistry(BaseRegistry):
@@ -373,7 +366,6 @@ class SnowflakeRegistry(BaseRegistry):
         deleted_count = 0
         for table in {
             "FEATURE_VIEWS",
-            "REQUEST_FEATURE_VIEWS",
             "ON_DEMAND_FEATURE_VIEWS",
             "STREAM_FEATURE_VIEWS",
         }:
@@ -418,7 +410,7 @@ class SnowflakeRegistry(BaseRegistry):
             """
             cursor = execute_snowflake_statement(conn, query)
 
-            if cursor.rowcount < 1 and not_found_exception:
+            if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(datetime.utcnow(), project)
 
@@ -529,25 +521,6 @@ class SnowflakeRegistry(BaseRegistry):
             OnDemandFeatureView,
             "ON_DEMAND_FEATURE_VIEW_NAME",
             "ON_DEMAND_FEATURE_VIEW_PROTO",
-            FeatureViewNotFoundException,
-        )
-
-    def get_request_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> RequestFeatureView:
-        if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.get_request_feature_view(
-                self.cached_registry_proto, name, project
-            )
-        return self._get_object(
-            "REQUEST_FEATURE_VIEWS",
-            name,
-            project,
-            RequestFeatureViewProto,
-            RequestFeatureView,
-            "REQUEST_FEATURE_VIEW_NAME",
-            "REQUEST_FEATURE_VIEW_PROTO",
             FeatureViewNotFoundException,
         )
 
@@ -712,22 +685,6 @@ class SnowflakeRegistry(BaseRegistry):
             "ON_DEMAND_FEATURE_VIEW_PROTO",
         )
 
-    def list_request_feature_views(
-        self, project: str, allow_cache: bool = False
-    ) -> List[RequestFeatureView]:
-        if allow_cache:
-            self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_request_feature_views(
-                self.cached_registry_proto, project
-            )
-        return self._list_objects(
-            "REQUEST_FEATURE_VIEWS",
-            project,
-            RequestFeatureViewProto,
-            RequestFeatureView,
-            "REQUEST_FEATURE_VIEW_PROTO",
-        )
-
     def list_saved_datasets(
         self, project: str, allow_cache: bool = False
     ) -> List[SavedDataset]:
@@ -812,7 +769,7 @@ class SnowflakeRegistry(BaseRegistry):
         fv_column_name = fv_table_str[:-1]
         python_class, proto_class = self._infer_fv_classes(feature_view)
 
-        if python_class in {RequestFeatureView, OnDemandFeatureView}:
+        if python_class in {OnDemandFeatureView}:
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
@@ -936,7 +893,6 @@ class SnowflakeRegistry(BaseRegistry):
                 (self.list_feature_views, r.feature_views),
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_request_feature_views, r.request_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
@@ -971,7 +927,6 @@ class SnowflakeRegistry(BaseRegistry):
             "ENTITIES",
             "FEATURE_VIEWS",
             "ON_DEMAND_FEATURE_VIEWS",
-            "REQUEST_FEATURE_VIEWS",
             "STREAM_FEATURE_VIEWS",
         ]
 
@@ -1013,8 +968,6 @@ class SnowflakeRegistry(BaseRegistry):
             python_class, proto_class = FeatureView, FeatureViewProto
         elif isinstance(feature_view, OnDemandFeatureView):
             python_class, proto_class = OnDemandFeatureView, OnDemandFeatureViewProto
-        elif isinstance(feature_view, RequestFeatureView):
-            python_class, proto_class = RequestFeatureView, RequestFeatureViewProto
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return python_class, proto_class
@@ -1026,8 +979,6 @@ class SnowflakeRegistry(BaseRegistry):
             table = "FEATURE_VIEWS"
         elif isinstance(feature_view, OnDemandFeatureView):
             table = "ON_DEMAND_FEATURE_VIEWS"
-        elif isinstance(feature_view, RequestFeatureView):
-            table = "REQUEST_FEATURE_VIEWS"
         else:
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return table

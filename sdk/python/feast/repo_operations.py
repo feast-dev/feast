@@ -29,7 +29,6 @@ from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
-from feast.request_feature_view import RequestFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.usage import log_exceptions_and_usage
 
@@ -114,7 +113,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
-        request_feature_views=[],
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -196,10 +194,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
-            elif isinstance(obj, RequestFeatureView) and not any(
-                (obj is rfv) for rfv in res.request_feature_views
-            ):
-                res.request_feature_views.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
     return res
@@ -207,7 +201,6 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
 @log_exceptions_and_usage
 def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
-
     os.chdir(repo_path)
     project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
 
@@ -250,7 +243,6 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
-            RequestFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -264,7 +256,6 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
-            RequestFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,

@@ -180,7 +180,6 @@ def make_feature_store_yaml(
     repo_dir_name: Path,
     offline_creator: DataSourceCreator,
 ):
-
     offline_store_config = offline_creator.create_offline_store_config()
     online_store = test_repo_config.online_store
 
@@ -193,7 +192,7 @@ def make_feature_store_yaml(
         repo_path=str(Path(repo_dir_name)),
         entity_key_serialization_version=2,
     )
-    config_dict = config.dict()
+    config_dict = config.model_dump(by_alias=True)
     if (
         isinstance(config_dict["online_store"], dict)
         and "redis_type" in config_dict["online_store"]

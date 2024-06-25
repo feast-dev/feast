@@ -1,12 +1,11 @@
 import calendar
 import struct
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from happybase import ConnectionPool
 from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
 from pydantic import StrictStr
-from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -108,9 +107,9 @@ class HbaseOnlineStore(OnlineStore):
             )
             values_dict = {}
             for feature_name, val in values.items():
-                values_dict[
-                    HbaseConstants.get_col_from_feature(feature_name)
-                ] = val.SerializeToString()
+                values_dict[HbaseConstants.get_col_from_feature(feature_name)] = (
+                    val.SerializeToString()
+                )
             if isinstance(timestamp, datetime):
                 values_dict[HbaseConstants.DEFAULT_EVENT_TS] = struct.pack(
                     ">L", int(calendar.timegm(timestamp.timetuple()))

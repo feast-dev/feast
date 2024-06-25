@@ -34,10 +34,12 @@ from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
     location,
+    item,
 )
 from tests.integration.feature_repos.universal.feature_views import (
     create_driver_hourly_stats_feature_view,
     create_vector_feature_view,
+    create_item_embeddings_feature_view,
     driver_feature_view,
 )
 from tests.utils.data_source_test_creator import prep_file_source
@@ -1073,3 +1075,18 @@ def assert_feature_service_entity_mapping_correctness(
                 entity_rows=entity_rows,
                 full_feature_names=full_feature_names,
             )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector"])
+def test_retrieve_online_documents(environment, fake_document_data):
+    fs = environment.feature_store
+    df, data_source = fake_document_data
+    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
+    fs.apply([item_embeddings_feature_view, item()])
+    fs.write_to_online_store("item_embeddings", df)
+
+    documents = fs.retrieve_online_documents(
+        feature="item_embeddings:embedding_float", query=[1.0, 2.0], top_k=2
+    ).to_dict()
+    assert len(documents["embedding_float"]) == 2

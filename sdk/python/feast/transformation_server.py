@@ -192,10 +192,14 @@ class TransformationServer(TransformationServiceServicer):
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
             raise
 
-        df = pa.ipc.open_file(request.transformation_input.arrow_value).read_pandas()
+        df = pa.ipc.open_file(request.transformation_input.arrow_value).read_all()
 
-        result_df = odfv.get_transformed_features_df(df, True)
-        result_arrow = pa.Table.from_pandas(result_df)
+        if odfv.mode != "pandas":
+            raise Exception(
+                f'OnDemandFeatureView mode "{odfv.mode}" not supported by TransformationServer.'
+            )
+
+        result_arrow = odfv.transform_arrow(df, True)
         sink = pa.BufferOutputStream()
         writer = pa.ipc.new_file(sink, result_arrow.schema)
         writer.write_table(result_arrow)
