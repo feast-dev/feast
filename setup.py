@@ -93,7 +93,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.1.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 
@@ -105,6 +105,9 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
+SQLITE_VEC_REQUIRED = [
+    "sqlite-vec==v0.0.1-alpha.10",
+]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
@@ -226,11 +229,12 @@ CI_REQUIRED = (
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + MILVUS_REQUIRED
-    + ELASTICSEARCH_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
+    + ELASTICSEARCH_REQUIRED
+    + SQLITE_VEC_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -572,6 +576,7 @@ setup(
         "milvus": MILVUS_REQUIRED,
         "go": GO_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
+        "sqlite_vec": SQLITE_VEC_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

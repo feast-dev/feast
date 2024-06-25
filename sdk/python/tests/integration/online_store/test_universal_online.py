@@ -39,6 +39,7 @@ from tests.integration.feature_repos.universal.entities import (
     item,
 )
 from tests.integration.feature_repos.universal.feature_views import (
+    TAGS,
     create_driver_hourly_stats_feature_view,
     create_vector_feature_view,
     create_item_embeddings_feature_view,
@@ -161,9 +162,13 @@ def test_write_to_online_store_event_check(environment):
             entities=[e],
             source=file_source,
             ttl=timedelta(minutes=5),
+            tags=TAGS,
         )
         # Register Feature View and Entity
         fs.apply([fv1, e])
+        assert len(fs.list_all_feature_views(tags=TAGS)) == 1
+        assert len(fs.list_feature_views(tags=TAGS)) == 1
+        assert len(fs.list_batch_feature_views(tags=TAGS)) == 1
 
         #  data to ingest into Online Store (recent)
         data = {
@@ -421,6 +426,7 @@ def setup_feature_store_universal_feature_views(
     feature_views = construct_universal_feature_views(data_sources)
 
     fs.apply([driver(), feature_views.driver, feature_views.global_fv])
+    assert len(fs.list_batch_feature_views(TAGS)) == 2
 
     data = {
         "driver_id": [1, 2],
@@ -487,7 +493,7 @@ def test_online_retrieval_with_event_timestamps(environment, universal_data_sour
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis"])
+@pytest.mark.universal_online_stores(only=["redis", "dynamodb"])
 def test_async_online_retrieval_with_event_timestamps(
     environment, universal_data_sources
 ):
@@ -508,6 +514,16 @@ def test_async_online_retrieval_with_event_timestamps(
     df = response.to_df(True)
 
     assert_feature_store_universal_feature_views_response(df)
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
+def test_online_list_retrieval(environment, universal_data_sources):
+    fs = setup_feature_store_universal_feature_views(
+        environment, universal_data_sources
+    )
+
+    assert len(fs.list_batch_feature_views(tags=TAGS)) == 2
 
 
 @pytest.mark.integration

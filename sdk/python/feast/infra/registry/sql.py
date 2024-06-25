@@ -1,7 +1,7 @@
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Union
@@ -22,6 +22,7 @@ from sqlalchemy import (  # type: ignore
 )
 from sqlalchemy.engine import Engine
 
+from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -248,13 +249,16 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
-    def _list_stream_feature_views(self, project: str) -> List[StreamFeatureView]:
+    def _list_stream_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[StreamFeatureView]:
         return self._list_objects(
             stream_feature_views,
             project,
             StreamFeatureViewProto,
             StreamFeatureView,
             "feature_view_proto",
+            tags=tags,
         )
 
     def apply_project(self, project: str, commit: bool) -> ProjectMetadataModel:
@@ -353,9 +357,11 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="validation_reference_proto",
         )
 
-    def _list_entities(self, project: str) -> List[Entity]:
+    def _list_entities(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[Entity]:
         return self._list_objects(
-            entities, project, EntityProto, Entity, "entity_proto"
+            entities, project, EntityProto, Entity, "entity_proto", tags=tags
         )
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
@@ -397,9 +403,16 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=DataSourceObjectNotFoundException,
         )
 
-    def _list_data_sources(self, project: str) -> List[DataSource]:
+    def _list_data_sources(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[DataSource]:
         return self._list_objects(
-            data_sources, project, DataSourceProto, DataSource, "data_source_proto"
+            data_sources,
+            project,
+            DataSourceProto,
+            DataSource,
+            "data_source_proto",
+            tags=tags,
         )
 
     def apply_data_source(
@@ -439,18 +452,28 @@ class SqlRegistry(CachingRegistry):
             if rows.rowcount < 1:
                 raise DataSourceObjectNotFoundException(name, project)
 
-    def _list_feature_services(self, project: str) -> List[FeatureService]:
+    def _list_feature_services(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[FeatureService]:
         return self._list_objects(
             feature_services,
             project,
             FeatureServiceProto,
             FeatureService,
             "feature_service_proto",
+            tags=tags,
         )
 
-    def _list_feature_views(self, project: str) -> List[FeatureView]:
+    def _list_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[FeatureView]:
         return self._list_objects(
-            feature_views, project, FeatureViewProto, FeatureView, "feature_view_proto"
+            feature_views,
+            project,
+            FeatureViewProto,
+            FeatureView,
+            "feature_view_proto",
+            tags=tags,
         )
 
     def _list_saved_datasets(self, project: str) -> List[SavedDataset]:
@@ -462,13 +485,16 @@ class SqlRegistry(CachingRegistry):
             "saved_dataset_proto",
         )
 
-    def _list_on_demand_feature_views(self, project: str) -> List[OnDemandFeatureView]:
+    def _list_on_demand_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[OnDemandFeatureView]:
         return self._list_objects(
             on_demand_feature_views,
             project,
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
             "feature_view_proto",
+            tags=tags,
         )
 
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
@@ -729,6 +755,24 @@ class SqlRegistry(CachingRegistry):
                 obj.last_updated_timestamp = update_datetime
 
             if row:
+                if proto_field_name in [
+                    "entity_proto",
+                    "saved_dataset_proto",
+                    "feature_view_proto",
+                    "feature_service_proto",
+                ]:
+                    deserialized_proto = self.deserialize_registry_values(
+                        row._mapping[proto_field_name], type(obj)
+                    )
+                    obj.created_timestamp = (
+                        deserialized_proto.meta.created_timestamp.ToDatetime()
+                    )
+                    if isinstance(obj, (FeatureView, StreamFeatureView)):
+                        obj.update_materialization_intervals(
+                            type(obj)
+                            .from_proto(deserialized_proto)
+                            .materialization_intervals
+                        )
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
@@ -838,18 +882,21 @@ class SqlRegistry(CachingRegistry):
         proto_class: Any,
         python_class: Any,
         proto_field_name: str,
+        tags: Optional[dict[str, str]] = None,
     ):
         self._maybe_init_project_metadata(project)
         with self.engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
             if rows:
-                return [
-                    python_class.from_proto(
+                objects = []
+                for row in rows:
+                    obj = python_class.from_proto(
                         proto_class.FromString(row._mapping[proto_field_name])
                     )
-                    for row in rows
-                ]
+                    if utils.has_all_tags(obj.tags, tags):
+                        objects.append(obj)
+                return objects
         return []
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
@@ -898,7 +945,7 @@ class SqlRegistry(CachingRegistry):
                 return None
             update_time = int(row._mapping["last_updated_timestamp"])
 
-            return datetime.utcfromtimestamp(update_time)
+            return datetime.fromtimestamp(update_time, tz=timezone.utc)
 
     def _get_all_projects(self) -> Set[str]:
         projects = set()

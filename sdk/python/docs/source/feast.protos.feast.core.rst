@@ -308,6 +308,22 @@ feast.protos.feast.core.StreamFeatureView\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
+feast.protos.feast.core.Transformation\_pb2 module
+--------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Transformation_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Transformation\_pb2\_grpc module
+--------------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Transformation_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.protos.feast.core.ValidationProfile\_pb2 module
 -----------------------------------------------------
 

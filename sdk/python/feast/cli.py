@@ -27,6 +27,7 @@ from pygments import formatters, highlight, lexers
 from feast import utils
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
@@ -46,6 +47,12 @@ from feast.repo_operations import (
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
+tagsOption = click.option(
+    "--tags",
+    help="Filter by tags (e.g. --tags 'key:value' --tags 'key:value, key:value, ...'). Items return when ALL tags match.",
+    default=[""],
+    multiple=True,
+)
 
 
 class NoOptionDefaultFormat(click.Command):
@@ -225,14 +232,16 @@ def data_source_describe(ctx: click.Context, name: str):
 
 
 @data_sources_cmd.command(name="list")
+@tagsOption
 @click.pass_context
-def data_source_list(ctx: click.Context):
+def data_source_list(ctx: click.Context, tags: list[str]):
     """
     List all data sources
     """
     store = create_feature_store(ctx)
     table = []
-    for datasource in store.list_data_sources():
+    tags_filter = utils.tags_list_to_dict(tags)
+    for datasource in store.list_data_sources(tags=tags_filter):
         table.append([datasource.name, datasource.__class__])
 
     from tabulate import tabulate
@@ -271,14 +280,16 @@ def entity_describe(ctx: click.Context, name: str):
 
 
 @entities_cmd.command(name="list")
+@tagsOption
 @click.pass_context
-def entity_list(ctx: click.Context):
+def entity_list(ctx: click.Context, tags: list[str]):
     """
     List all entities
     """
     store = create_feature_store(ctx)
     table = []
-    for entity in store.list_entities():
+    tags_filter = utils.tags_list_to_dict(tags)
+    for entity in store.list_entities(tags=tags_filter):
         table.append([entity.name, entity.description, entity.value_type])
 
     from tabulate import tabulate
@@ -319,14 +330,16 @@ def feature_service_describe(ctx: click.Context, name: str):
 
 
 @feature_services_cmd.command(name="list")
+@tagsOption
 @click.pass_context
-def feature_service_list(ctx: click.Context):
+def feature_service_list(ctx: click.Context, tags: list[str]):
     """
     List all feature services
     """
     store = create_feature_store(ctx)
     feature_services = []
-    for feature_service in store.list_feature_services():
+    tags_filter = utils.tags_list_to_dict(tags)
+    for feature_service in store.list_feature_services(tags=tags_filter):
         feature_names = []
         for projection in feature_service.feature_view_projections:
             feature_names.extend(
@@ -370,16 +383,18 @@ def feature_view_describe(ctx: click.Context, name: str):
 
 
 @feature_views_cmd.command(name="list")
+@tagsOption
 @click.pass_context
-def feature_view_list(ctx: click.Context):
+def feature_view_list(ctx: click.Context, tags: list[str]):
     """
     List all feature views
     """
     store = create_feature_store(ctx)
     table = []
+    tags_filter = utils.tags_list_to_dict(tags)
     for feature_view in [
-        *store.list_feature_views(),
-        *store.list_on_demand_feature_views(),
+        *store.list_batch_feature_views(tags=tags_filter),
+        *store.list_on_demand_feature_views(tags=tags_filter),
     ]:
         entities = set()
         if isinstance(feature_view, FeatureView):
@@ -433,14 +448,16 @@ def on_demand_feature_view_describe(ctx: click.Context, name: str):
 
 
 @on_demand_feature_views_cmd.command(name="list")
+@tagsOption
 @click.pass_context
-def on_demand_feature_view_list(ctx: click.Context):
+def on_demand_feature_view_list(ctx: click.Context, tags: list[str]):
     """
     [Experimental] List all on demand feature views
     """
     store = create_feature_store(ctx)
     table = []
-    for on_demand_feature_view in store.list_on_demand_feature_views():
+    tags_filter = utils.tags_list_to_dict(tags)
+    for on_demand_feature_view in store.list_on_demand_feature_views(tags=tags_filter):
         table.append([on_demand_feature_view.name])
 
     from tabulate import tabulate
@@ -645,12 +662,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Disable the Uvicorn access log",
 )
 @click.option(
-    "--no-feature-log",
-    is_flag=True,
-    show_default=True,
-    help="Disable logging served features",
-)
-@click.option(
     "--workers",
     "-w",
     type=click.INT,
@@ -788,6 +799,34 @@ def serve_registry_command(ctx: click.Context, port: int):
     store = create_feature_store(ctx)
 
     store.serve_registry(port)
+
+
+@cli.command("serve_offline")
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="127.0.0.1",
+    show_default=True,
+    help="Specify a host for the server",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_OFFLINE_SERVER_PORT,
+    help="Specify a port for the server",
+)
+@click.pass_context
+def serve_offline_command(
+    ctx: click.Context,
+    host: str,
+    port: int,
+):
+    """Start a remote server locally on a given host, port."""
+    store = create_feature_store(ctx)
+
+    store.serve_offline(host, port)
 
 
 @cli.command("validate")

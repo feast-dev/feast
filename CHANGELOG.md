@@ -1,5 +1,32 @@
 # Changelog
 
+# [0.39.0](https://github.com/feast-dev/feast/compare/v0.38.0...v0.39.0) (2024-06-18)
+
+
+### Bug Fixes
+
+* Feast UI importlib change ([#4248](https://github.com/feast-dev/feast/issues/4248)) ([5d486b8](https://github.com/feast-dev/feast/commit/5d486b8a53d799a49cc93e0f5a41aede3bc753ef))
+* Feature server no_feature_log argument error ([#4255](https://github.com/feast-dev/feast/issues/4255)) ([15524ce](https://github.com/feast-dev/feast/commit/15524cec6ba81ab6aae24b390ee63868c60c49e5))
+* Feature UI Server image won't start in an OpenShift cluster ([#4250](https://github.com/feast-dev/feast/issues/4250)) ([4891f76](https://github.com/feast-dev/feast/commit/4891f766f79a1863293412664ff8592a9e446785))
+* Handles null values in data during GO Feature retrieval ([#4274](https://github.com/feast-dev/feast/issues/4274)) ([c491e57](https://github.com/feast-dev/feast/commit/c491e5726d792f731f961b66fdf6c0b772165e86))
+* Make Java gRPC client use timeouts as expected ([#4237](https://github.com/feast-dev/feast/issues/4237)) ([f5a37c1](https://github.com/feast-dev/feast/commit/f5a37c1ce129620a4e3ee4fbe88425017f5a5ec2))
+* Remove self assignment code line. ([#4238](https://github.com/feast-dev/feast/issues/4238)) ([e514f66](https://github.com/feast-dev/feast/commit/e514f66a4c39f31bed969721bfe5c9c563786693))
+* Set default values for feature_store.serve() function ([#4225](https://github.com/feast-dev/feast/issues/4225)) ([fa74438](https://github.com/feast-dev/feast/commit/fa744380ad48ee394a05b2f600db5fb0a99c03aa))
+
+
+### Features
+
+* Add online_read_async for dynamodb ([#4244](https://github.com/feast-dev/feast/issues/4244)) ([b5ef384](https://github.com/feast-dev/feast/commit/b5ef3843499f575d4cacb9988b98b9778f67ee3b))
+* Add the ability to list objects by `tags` ([#4246](https://github.com/feast-dev/feast/issues/4246)) ([fbf92da](https://github.com/feast-dev/feast/commit/fbf92da6a4468759bfc9738f9ca581f047efb2b0))
+* Added deadline to gRPC Java client ([#4217](https://github.com/feast-dev/feast/issues/4217)) ([ff429c9](https://github.com/feast-dev/feast/commit/ff429c9f85c99478d9814e698522905d23e8d384))
+* Adding vector search for sqlite ([#4176](https://github.com/feast-dev/feast/issues/4176)) ([2478831](https://github.com/feast-dev/feast/commit/2478831e8204bc8b9204ba048a74179ac3193367))
+* Change get_online_features signature, move online retrieval functions to utils ([#4278](https://github.com/feast-dev/feast/issues/4278)) ([7287662](https://github.com/feast-dev/feast/commit/7287662f25117660160441bd61c9109b63a20d0d))
+* Feature/adding remote online store ([#4226](https://github.com/feast-dev/feast/issues/4226)) ([9454d7c](https://github.com/feast-dev/feast/commit/9454d7cb8901c59f5e7c95096cd0078cbbe953fd))
+* List all feature views ([#4256](https://github.com/feast-dev/feast/issues/4256)) ([36a574d](https://github.com/feast-dev/feast/commit/36a574d6788afca5fe2fb8776386c9462cb2ff24))
+* Make RegistryServer writable ([#4231](https://github.com/feast-dev/feast/issues/4231)) ([79e1143](https://github.com/feast-dev/feast/commit/79e11439688650bc5dc62a6fa9a9a6f54c214a50))
+* Remote offline Store  ([#4262](https://github.com/feast-dev/feast/issues/4262)) ([28a3d24](https://github.com/feast-dev/feast/commit/28a3d24b12b35e4154df2bfd66dedb80bcfa3292))
+* Set optional full-scan for deletion ([#4189](https://github.com/feast-dev/feast/issues/4189)) ([b9cadd5](https://github.com/feast-dev/feast/commit/b9cadd53250f619f5ffd39232efef5461f156fde))
+
 # [0.38.0](https://github.com/feast-dev/feast/compare/v0.37.0...v0.38.0) (2024-05-24)
 
 

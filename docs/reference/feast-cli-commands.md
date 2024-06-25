@@ -66,6 +66,10 @@ List all registered entities
 
 ```text
 feast entities list
+
+Options:
+  --tags TEXT  Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
+               key:value, ...'). Items return when ALL tags match.
 ```
 
 ```text
@@ -79,11 +83,15 @@ List all registered feature views
 
 ```text
 feast feature-views list
+
+Options:
+  --tags TEXT  Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
+               key:value, ...'). Items return when ALL tags match.
 ```
 
 ```text
-NAME                 ENTITIES
-driver_hourly_stats  ['driver_id']
+NAME                 ENTITIES    TYPE
+driver_hourly_stats  {'driver'}  FeatureView
 ```
 
 ## Init

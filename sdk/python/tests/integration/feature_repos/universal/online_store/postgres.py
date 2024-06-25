@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Any, Dict
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -51,7 +51,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             )
         )
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> Dict[str, Any]:
         self.container.start()
         log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(

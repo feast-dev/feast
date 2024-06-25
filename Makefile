@@ -47,6 +47,11 @@ install-python-ci-dependencies-uv:
 	uv pip install --system --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+install-python-ci-dependencies-uv-venv:
+	uv pip sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip install --no-deps -e .
+	python setup.py build_python_protos --inplace
+
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
 
@@ -82,19 +87,16 @@ test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
 
 test-python-integration:
-	python -m pytest -n 8 --integration -k "(not snowflake or not test_historical_features_main) and not minio_registry" --color=yes --durations=5 --timeout=1200 --timeout_method=thread sdk/python/tests
+	python -m pytest -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread \
+		-k "(not snowflake or not test_historical_features_main)" \
+		sdk/python/tests
 
 test-python-integration-local:
-	@(docker info > /dev/null 2>&1 && \
-		FEAST_IS_LOCAL_TEST=True \
-		FEAST_LOCAL_ONLINE_CONTAINER=True \
-		python -m pytest -n 8 --color=yes --integration \
-			-k "not gcs_registry and \
- 				not s3_registry and \
- 				not test_lambda_materialization and \
- 				not test_snowflake_materialization" \
-		sdk/python/tests \
-	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
+	FEAST_IS_LOCAL_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	python -m pytest -n 8 --color=yes --integration --durations=5 --dist loadgroup \
+		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+		sdk/python/tests
 
 test-milvus-integration-local:
 	@(docker info > /dev/null 2>&1 && \
@@ -446,14 +448,6 @@ build-feature-server-docker:
 	docker buildx build --build-arg VERSION=$$VERSION \
 		-t $(REGISTRY)/feature-server:$$VERSION \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
-
-push-feature-server-python-aws-docker:
-	docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
-
-build-feature-server-python-aws-docker:
-	docker buildx build --build-arg VERSION=$$VERSION \
-		-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
-		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile --load .
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)

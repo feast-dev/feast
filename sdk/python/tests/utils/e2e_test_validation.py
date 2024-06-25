@@ -78,6 +78,16 @@ def validate_offline_online_store_consistency(
 
     # run materialize_incremental()
     fs.materialize_incremental(feature_views=[fv.name], end_date=now)
+    updated_fv = fs.registry.get_feature_view(fv.name, fs.project)
+
+    # Check if materialization_intervals was updated by the registry
+    assert (
+        len(updated_fv.materialization_intervals) == 2
+        and updated_fv.materialization_intervals[0][0] == start_date
+        and updated_fv.materialization_intervals[0][1] == end_date
+        and updated_fv.materialization_intervals[1][0] == end_date
+        and updated_fv.materialization_intervals[1][1] == now.replace(tzinfo=utc)
+    )
 
     # check result of materialize_incremental()
     _check_offline_and_online_features(
@@ -176,7 +186,6 @@ def make_feature_store_yaml(
     online_store: Optional[Union[str, Dict]],
 ):
     offline_store_config = offline_creator.create_offline_store_config()
-    online_store = online_store
 
     config = RepoConfig(
         registry=str(Path(repo_dir_name) / "registry.db"),
