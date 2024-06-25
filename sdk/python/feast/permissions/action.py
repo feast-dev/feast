@@ -29,3 +29,12 @@ WRITE = [
     AuthzedAction.WRITE_OFFLINE,
     AuthzedAction.WRITE_ONLINE,
 ]
+
+
+#  Alias for CRUD actions
+CRUD = [
+    AuthzedAction.CREATE,
+    AuthzedAction.READ,
+    AuthzedAction.UPDATE,
+    AuthzedAction.DELETE,
+]
