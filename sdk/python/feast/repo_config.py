@@ -16,7 +16,6 @@ from pydantic import (
     model_validator,
 )
 from pydantic.error_wrappers import ErrorWrapper
-from pydantic.typing import Dict, Optional
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,

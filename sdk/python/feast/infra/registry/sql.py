@@ -199,9 +199,9 @@ class SqlRegistry(CachingRegistry):
         )
         # pool_recycle will recycle connections after the given number of seconds has passed
         # This is to avoid automatic disconnections when no activity is detected on connection
-        #self.engine: Engine = create_engine(
+        # self.engine: Engine = create_engine(
         #    registry_config.path, echo=False, pool_recycle=3600, pool_size=10
-        #)
+        # )
         metadata.create_all(self.engine)
         super().__init__(
             project=project, cache_ttl_seconds=registry_config.cache_ttl_seconds
@@ -229,7 +229,6 @@ class SqlRegistry(CachingRegistry):
                 feature_views,
                 feature_services,
                 on_demand_feature_views,
-                request_feature_views,
                 saved_datasets,
                 validation_references,
                 managed_infra,
@@ -260,7 +259,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def apply_project(self, project: str, commit: bool) -> ProjectMetadataModel:
-        self.create_project_if_not_exists(project)
+        self._maybe_init_project_metadata(project)
         return self.get_project_metadata(project)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -485,7 +484,7 @@ class SqlRegistry(CachingRegistry):
                     if (
                         row._mapping["metadata_key"]
                         == FeastMetadataKeys.PROJECT_UUID.value
-                        ):
+                    ):
                         project_metadata.project_uuid = row._mapping["metadata_value"]
 
                     if (
@@ -493,7 +492,9 @@ class SqlRegistry(CachingRegistry):
                         == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value
                     ):
                         project_metadata.last_updated_timestamp = (
-                            datetime.utcfromtimestamp(int(row._mapping["metadata_value"]))
+                            datetime.utcfromtimestamp(
+                                int(row._mapping["metadata_value"])
+                            )
                         )
 
                     # TODO(adchia): Add other project metadata in a structured way
@@ -931,8 +932,8 @@ class SqlRegistry(CachingRegistry):
             if rows:
                 for row in rows:
                     project_id = row._mapping["project_id"]
-                    metadata_key = row["metadata_key"]
-                    metadata_value = row["metadata_value"]
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
 
                     if project_id not in project_metadata_model_dict:
                         project_metadata_model_dict[project_id] = ProjectMetadataModel(
@@ -970,8 +971,8 @@ class SqlRegistry(CachingRegistry):
             rows = conn.execute(stmt).all()
             if rows:
                 for row in rows:
-                    metadata_key = row["metadata_key"]
-                    metadata_value = row["metadata_value"]
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
 
                     if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
                         project_metadata_model.project_uuid = metadata_value

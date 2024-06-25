@@ -314,7 +314,7 @@ class HttpRegistry(BaseRegistry):
             params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
-            data_source_list = []
+            data_source_list: List[DataSource] = []
             for data_source in response_list:
                 if "model_type" in data_source:
                     if data_source["model_type"] == "RequestSourceModel":
@@ -559,14 +559,6 @@ class HttpRegistry(BaseRegistry):
     ) -> RequestFeatureView:
         raise NotImplementedError("Method not implemented")
 
-    def list_request_feature_views(
-        self,
-        project: str,
-        allow_cache: bool = False,
-    ) -> List[RequestFeatureView]:
-        # TODO: Implement listing Request Feature Views
-        return []
-
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -608,7 +600,7 @@ class HttpRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
     ) -> List[SavedDataset]:
-        pass
+        raise NotImplementedError("Method not implemented")
 
     def apply_validation_reference(
         self,
@@ -658,7 +650,7 @@ class HttpRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
     ) -> List[ValidationReference]:
-        pass
+        raise NotImplementedError("Method not implemented")
 
     def proto(self) -> RegistryProto:
         r = RegistryProto()
@@ -674,7 +666,6 @@ class HttpRegistry(BaseRegistry):
                 (self.list_feature_views, r.feature_views),
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_request_feature_views, r.request_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),

@@ -989,7 +989,7 @@ class FeatureStore:
         self._teardown_go_server()
 
     @log_exceptions_and_usage
-    def teardown(self):
+    def teardown(self) -> None:
         """Tears down all local and cloud resources for the feature store."""
         tables: List[FeatureView] = []
         feature_views = self.list_feature_views()
@@ -2350,10 +2350,16 @@ class FeatureStore:
         if self.config.go_feature_serving:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
-            enable_logging = (
-                self.config.feature_server
-                and self.config.feature_server.feature_logging
-                and self.config.feature_server.feature_logging.enabled
+            enable_logging: bool = (
+                getattr(
+                    getattr(
+                        getattr(self.config, "feature_server", None),
+                        "feature_logging",
+                        None,
+                    ),
+                    "enabled",
+                    False,
+                )
                 and not no_feature_log
             )
             logging_options = (
