@@ -524,7 +524,15 @@ class BigQueryRetrievalJob(RetrievalJob):
                 temp_dest_table = f"{tmp_dest['projectId']}.{tmp_dest['datasetId']}.{tmp_dest['tableId']}"
 
                 # persist temp table
-                sql = f"CREATE TABLE `{dest}` AS SELECT * FROM `{temp_dest_table}`"
+                # added expiration to table: https://stackoverflow.com/a/50227484
+                # as in bytewax materialization, these tables are not otherwise deleted
+                sql = f"""
+                     CREATE TABLE `{dest}`
+                     OPTIONS(
+                         expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+                     )
+                     AS SELECT * FROM `{temp_dest_table}`
+                 """
                 self._execute_query(sql, timeout=timeout)
 
             print(f"Done writing to '{dest}'.")
