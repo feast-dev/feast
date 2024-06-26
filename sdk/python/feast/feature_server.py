@@ -161,7 +161,7 @@ def get_app(
                 prediction_feature_name=body["prediction_feature_name"],
                 model_feature_name=body["model_feature_name"],
                 features=features,
-                entity_rows=body["entity_rows"],
+                entity_rows=body["entities"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
             ).proto
