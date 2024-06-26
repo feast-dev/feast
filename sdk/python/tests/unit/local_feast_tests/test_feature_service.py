@@ -6,6 +6,7 @@ from feast.driver_test_data import (
     create_driver_hourly_stats_df,
     create_global_daily_stats_df,
 )
+from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
@@ -19,6 +20,9 @@ def test_apply_without_fv_inference() -> None:
         get_example_repo("example_feature_repo_with_feature_service_2.py"), "file"
     ) as store:
         assert len(store.list_feature_services()) == 2
+        assert len(store.list_feature_services(tags={"release": "qa"})) == 1
+        assert len(store.list_feature_services(tags=TAGS)) == 1
+        assert len(store.list_feature_services(tags={"wrong": "tag"})) == 0
 
         fs = store.get_feature_service("all_stats")
         assert len(fs.feature_view_projections) == 2
@@ -35,6 +39,7 @@ def test_apply_without_fv_inference() -> None:
         assert len(fs.feature_view_projections[0].desired_features) == 0
         assert len(fs.feature_view_projections[0].features) == 1
         assert len(fs.feature_view_projections[0].desired_features) == 0
+        assert fs.tags["release"] == "qa"
 
 
 def test_apply_with_fv_inference() -> None:

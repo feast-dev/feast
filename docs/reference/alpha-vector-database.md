@@ -13,7 +13,9 @@ Below are supported vector databases and implemented features:
 | Elasticsearch   | [x]       | [x]      |
 | Milvus          | [ ]       | [ ]      |
 | Faiss           | [ ]       | [ ]      |
+| SQLite          | [x]       | [ ]      |
 
+Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.   
 
 ## Example
 
@@ -108,4 +110,20 @@ def print_online_features(features):
         print(key, " : ", value)
 
 print_online_features(features)
+```
+
+### Configuration
+We offer two Online Store options for Vector Databases. PGVector and SQLite.
+
+#### Installation with SQLite
+If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
+```bash
+PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
+    LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
+    CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
+    pyenv install 3.10.14
+```
+And you can the Feast install package via:
+```bash
+pip install feast[sqlite_vec]
 ```

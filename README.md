@@ -1,46 +1,5 @@
 <!--Do not modify this file. It is auto-generated from a template (infra/templates/README.md.jinja2)-->
 
-## Internal Ki guidelines
-
-### Contributing flow
-1. Contribute change normally through feature branch created from current head of master branch with open PR to origin remote master branch and keep feature branch
-2. Decide if given change is specific to Ki's combination of environment and non-standard approach or is it more of universal feast improvement
-3. If change is deemed specific to Ki, remove feature branch and finish the flow here
-4. If change should be contributed back to main feast repo, ensure that similar fix is not already available in newer release of feast. If it is, finish this flow and switch to updating Ki's internal version of feast (potentially recerting fix from step 1 afterwards)
-5. Rebase feature branch using master branch of original feast repo a.k.a. upstream
-```
-git checkout {feature-branch}
-git rebase upstream/master
-```
-6. If upstream remote is not set for this repository on your local machine use:
-```
-git remote add upstream https://github.com/feast-dev/feast
-```
-7. Ensure upstream remote is set up properly `git remote -v` will result in
-```
-origin	https://github.com/Ki-Insurance/feast.git (fetch)
-origin	https://github.com/Ki-Insurance/feast.git (push)
-upstream	https://github.com/feast-dev/feast (fetch)
-upstream	https://github.com/feast-dev/feast (push)
-```
-8. After resolving any conflicts in rebase, push your branch to upstream
-```
-git push upstream {feature-branch}
-```
-9. Continue with normal contribution to feast process as described in feast readme, but include link to such PR in closed PR to internal origin remote Ki's master branch from step 1. 
-
-### Updating to newer version
-1. Note version of feast release from last PR rebasing origin master with upstream
-2. If branch with newer release is available in upstream, start update. Currently format of these branches is as follows: `v0.{version}-branch`
-3. Create new feature branch from origin master and rebase it with upstream newest release branch
-4. Resolve conflicts and run lint from makefile. In most cases resolving these conflicts will require contacting authors of our internal fixes for context, but as general rule of thumb take newest version of feast and reapply Ki changes when possible/relevant. Any requirements in setup.py should default to newer version (most probably from upstream)
-5. Create PR to origin master with said update branch
-6. Use commit hash to test potential new version basic functionality in feature-store app/feature-store project 
-7. Merge to master and include in feature-store (and ki_fetures lib from the same repo) for more extensive tests on dev 
-
-
-
-
 <p align="center">
     <a href="https://feast.dev/">
       <img src="docs/assets/feast_logo.png" width="550">

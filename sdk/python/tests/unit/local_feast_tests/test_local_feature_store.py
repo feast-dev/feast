@@ -4,7 +4,7 @@ from tempfile import mkstemp
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from feast import BatchFeatureView
+from feast import BatchFeatureView, utils
 from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
@@ -17,6 +17,7 @@ from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String
+from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
 
@@ -89,7 +90,7 @@ def test_apply_feature_view(test_feature_store):
             Field(name="entity_id", dtype=Int64),
         ],
         entities=[entity],
-        tags={"team": "matchmaking"},
+        tags={"team": "matchmaking", "tag": "two"},
         source=batch_source,
         ttl=timedelta(minutes=5),
     )
@@ -97,9 +98,9 @@ def test_apply_feature_view(test_feature_store):
     # Register Feature View
     test_feature_store.apply([entity, fv1, bfv])
 
-    feature_views = test_feature_store.list_feature_views()
-
     # List Feature Views
+    assert len(test_feature_store.list_batch_feature_views({})) == 2
+    feature_views = test_feature_store.list_batch_feature_views()
     assert (
         len(feature_views) == 2
         and feature_views[0].name == "my_feature_view_1"
@@ -113,6 +114,73 @@ def test_apply_feature_view(test_feature_store):
         and feature_views[0].features[3].dtype == Array(Bytes)
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
+
+    assert utils.tags_str_to_dict() == {}
+    assert utils.tags_list_to_dict() is None
+    assert utils.tags_list_to_dict([]) is None
+    assert utils.tags_list_to_dict([""]) == {}
+    assert utils.tags_list_to_dict(
+        (
+            "team : driver_performance, other:tag",
+            "blanktag:",
+            "other:two",
+            "other:3",
+            "missing",
+        )
+    ) == {"team": "driver_performance", "other": "3", "blanktag": ""}
+    assert utils.has_all_tags({})
+
+    tags_dict = {"team": "matchmaking"}
+    tags_filter = utils.tags_str_to_dict("('team:matchmaking',)")
+    assert tags_filter == tags_dict
+    tags_filter = utils.tags_list_to_dict(("team:matchmaking", "test"))
+    assert tags_dict == tags_dict
+
+    # List Feature Views
+    feature_views = test_feature_store.list_batch_feature_views(tags=tags_filter)
+    assert (
+        len(feature_views) == 2
+        and utils.has_all_tags(feature_views[0].tags, tags_filter)
+        and utils.has_all_tags(feature_views[1].tags, tags_filter)
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == Int64
+        and feature_views[0].features[1].name == "fs1_my_feature_2"
+        and feature_views[0].features[1].dtype == String
+        and feature_views[0].features[2].name == "fs1_my_feature_3"
+        and feature_views[0].features[2].dtype == Array(String)
+        and feature_views[0].features[3].name == "fs1_my_feature_4"
+        and feature_views[0].features[3].dtype == Array(Bytes)
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    tags_dict = {"team": "matchmaking", "tag": "two"}
+    tags_filter = utils.tags_list_to_dict((" team :matchmaking, tag: two ",))
+    assert tags_filter == tags_dict
+
+    # List Feature Views
+    feature_views = test_feature_store.list_batch_feature_views(tags=tags_filter)
+    assert (
+        len(feature_views) == 1
+        and utils.has_all_tags(feature_views[0].tags, tags_filter)
+        and feature_views[0].name == "batch_feature_view"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == Int64
+        and feature_views[0].features[1].name == "fs1_my_feature_2"
+        and feature_views[0].features[1].dtype == String
+        and feature_views[0].features[2].name == "fs1_my_feature_3"
+        and feature_views[0].features[2].dtype == Array(String)
+        and feature_views[0].features[3].name == "fs1_my_feature_4"
+        and feature_views[0].features[3].dtype == Array(Bytes)
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    tags_dict = {"missing": "tag"}
+    tags_filter = utils.tags_list_to_dict(("missing:tag,fdsa", "fdas"))
+    assert tags_filter == tags_dict
+
+    # List Feature Views
+    assert len(test_feature_store.list_batch_feature_views(tags=tags_filter)) == 0
 
     test_feature_store.teardown()
 
@@ -136,7 +204,7 @@ def test_apply_feature_view_with_inline_batch_source(
 
         test_feature_store.apply([entity, driver_fv])
 
-        fvs = test_feature_store.list_feature_views()
+        fvs = test_feature_store.list_batch_feature_views()
         assert len(fvs) == 1
         assert fvs[0] == driver_fv
 
@@ -185,7 +253,7 @@ def test_apply_feature_view_with_inline_stream_source(
 
         test_feature_store.apply([entity, driver_fv])
 
-        fvs = test_feature_store.list_feature_views()
+        fvs = test_feature_store.list_batch_feature_views()
         assert len(fvs) == 1
         assert fvs[0] == driver_fv
 
@@ -525,10 +593,12 @@ def test_apply_stream_source(test_feature_store, simple_dataset_1) -> None:
             topic="topic",
             batch_source=file_source,
             watermark_delay_threshold=timedelta(days=1),
+            tags=TAGS,
         )
 
         test_feature_store.apply([stream_source])
 
+        assert len(test_feature_store.list_data_sources(tags=TAGS)) == 1
         ds = test_feature_store.list_data_sources()
         assert len(ds) == 2
         if isinstance(ds[0], FileSource):

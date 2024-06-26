@@ -8,6 +8,9 @@ We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast
 
 ## Getting started
 
+### Which programming language should I use to run Feast in a microservice architecture?
+[We recommend Python](language.md).
+
 ### Do you have any examples of how Feast should be used?
 
 The [quickstart](quickstart.md) is the easiest way to learn about Feast. For more detailed tutorials, please check out the [tutorials](../tutorials/tutorials-overview/) page.

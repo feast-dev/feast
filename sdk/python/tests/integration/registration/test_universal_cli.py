@@ -7,7 +7,9 @@ import pytest
 from assertpy import assertpy
 
 from feast.feature_store import FeatureStore
-from tests.integration.feature_repos.repo_configuration import Environment
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,
+)
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.e2e_test_validation import (
@@ -17,8 +19,7 @@ from tests.utils.e2e_test_validation import (
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores
-def test_universal_cli(environment: Environment):
+def test_universal_cli():
     project = f"test_universal_cli_{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()
 
@@ -28,9 +29,9 @@ def test_universal_cli(environment: Environment):
             feature_store_yaml = make_feature_store_yaml(
                 project,
                 repo_path,
-                environment.data_source_creator,
-                environment.provider,
-                environment.online_store,
+                FileDataSourceCreator("project"),
+                "local",
+                {"type": "sqlite"},
             )
 
             repo_config = repo_path / "feature_store.yaml"
@@ -73,13 +74,13 @@ def test_universal_cli(environment: Environment):
                 cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_feature_views()).is_length(4)
+            assertpy.assert_that(fs.list_feature_views()).is_length(5)
             result = runner.run(
                 ["data-sources", "describe", "customer_profile_source"],
                 cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_data_sources()).is_length(4)
+            assertpy.assert_that(fs.list_data_sources()).is_length(5)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
@@ -115,8 +116,7 @@ def test_universal_cli(environment: Environment):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores
-def test_odfv_apply(environment) -> None:
+def test_odfv_apply() -> None:
     project = f"test_odfv_apply{str(uuid.uuid4()).replace('-', '')[:8]}"
     runner = CliRunner()
 
@@ -126,9 +126,9 @@ def test_odfv_apply(environment) -> None:
             feature_store_yaml = make_feature_store_yaml(
                 project,
                 repo_path,
-                environment.data_source_creator,
-                environment.provider,
-                environment.online_store,
+                FileDataSourceCreator("project"),
+                "local",
+                {"type": "sqlite"},
             )
 
             repo_config = repo_path / "feature_store.yaml"

@@ -131,7 +131,7 @@
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-identity</artifactId>
-      <version>1.11.3</version>
+      <version>1.12.2</version>
     </dependency>
 
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->

@@ -527,12 +527,12 @@ class BigQueryRetrievalJob(RetrievalJob):
                 # added expiration to table: https://stackoverflow.com/a/50227484
                 # as in bytewax materialization, these tables are not otherwise deleted
                 sql = f"""
-                    CREATE TABLE `{dest}`
-                    OPTIONS(
-                        expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
-                    )
-                    AS SELECT * FROM `{temp_dest_table}`
-                """
+                     CREATE TABLE `{dest}`
+                     OPTIONS(
+                         expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+                     )
+                     AS SELECT * FROM `{temp_dest_table}`
+                 """
                 self._execute_query(sql, timeout=timeout)
 
             print(f"Done writing to '{dest}'.")
@@ -547,7 +547,6 @@ class BigQueryRetrievalJob(RetrievalJob):
     def _execute_query(
         self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:
-        print(f"Executing query: {query}")
         bq_job = self.client.query(query, job_config=job_config)
 
         if job_config and job_config.dry_run:
@@ -606,7 +605,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
-        # prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 

@@ -4,7 +4,8 @@ import pandas as pd
 
 from feast import Entity, FeatureService, FeatureView, Field, FileSource, PushSource
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Float32, Int64, String
+from feast.types import Array, Float32, Int64, String
+from tests.integration.feature_repos.universal.feature_views import TAGS
 
 # Note that file source paths are not validated, so there doesn't actually need to be any data
 # at the paths for these file sources. Since these paths are effectively fake, this example
@@ -32,17 +33,29 @@ driver_locations_push_source = PushSource(
     batch_source=driver_locations_source,
 )
 
+rag_documents_source = FileSource(
+    name="rag_documents_source",
+    path="data/rag_documents.parquet",
+    timestamp_field="event_timestamp",
+)
+
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
     join_keys=["driver_id"],
     description="driver id",
+    tags=TAGS,
 )
 
 customer = Entity(
     name="customer",  # The name is derived from this argument, not object name.
     join_keys=["customer_id"],
+    tags=TAGS,
 )
 
+item = Entity(
+    name="item_id",  # The name is derived from this argument, not object name.
+    join_keys=["item_id"],
+)
 
 driver_locations = FeatureView(
     name="driver_locations",
@@ -101,6 +114,17 @@ customer_driver_combined = FeatureView(
     tags={},
 )
 
+document_embeddings = FeatureView(
+    name="document_embeddings",
+    entities=[item],
+    schema=[
+        Field(name="Embeddings", dtype=Array(Float32)),
+        Field(name="item_id", dtype=String),
+    ],
+    source=rag_documents_source,
+    ttl=timedelta(hours=24),
+)
+
 
 @on_demand_feature_view(
     sources=[customer_profile],
@@ -116,5 +140,5 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
 all_drivers_feature_service = FeatureService(
     name="driver_locations_service",
     features=[driver_locations],
-    tags={"release": "production"},
+    tags=TAGS,
 )

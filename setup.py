@@ -66,11 +66,6 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.4.2",
-    "bowler",  # Needed for automatic repo upgrades
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx>=0.23.3",
-    "importlib-resources>=6.0.0,<7",
-    "importlib_metadata>=6.8.0,<7"
 ]
 
 GCP_REQUIRED = [
@@ -89,11 +84,9 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
-
-BYTEWAX_REQUIRED = ["bytewax==0.17.2"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
@@ -103,6 +96,9 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
+SQLITE_VEC_REQUIRED = [
+    "sqlite-vec==v0.0.1-alpha.10",
+]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
@@ -221,6 +217,7 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
+    + SQLITE_VEC_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -388,6 +385,7 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
+        "sqlite_vec": SQLITE_VEC_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

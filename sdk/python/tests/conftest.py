@@ -32,8 +32,8 @@ from tests.data.data_creator import (  # noqa: E402
     create_basic_driver_dataset,
     create_document_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,  # noqa: E402
 )
 from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
@@ -45,8 +45,8 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,  # noqa: E402
 )
 from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     customer,
@@ -173,7 +173,7 @@ def simple_dataset_2() -> pd.DataFrame:
 
 def start_test_local_server(repo_path: str, port: int):
     fs = FeatureStore(repo_path)
-    fs.serve("localhost", port, no_access_log=True)
+    fs.serve(host="localhost", port=port)
 
 
 @pytest.fixture
@@ -305,10 +305,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 @pytest.fixture
 def feature_server_endpoint(environment):
-    if (
-        not environment.python_feature_server
-        or environment.test_repo_config.provider != "local"
-    ):
+    if not environment.python_feature_server or environment.provider != "local":
         yield environment.feature_store.get_feature_server_endpoint()
         return
 

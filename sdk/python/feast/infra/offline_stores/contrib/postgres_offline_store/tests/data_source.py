@@ -91,7 +91,6 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
         timestamp_field: Optional[str] = "ts",
@@ -115,7 +114,7 @@ class PostgreSQLDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.project_name}_{suffix}"
 
-    def create_online_store(self) -> PostgreSQLOnlineStoreConfig:
+    def create_online_store(self) -> PostgreSQLOnlineStoreConfig:  # type: ignore
         assert self.container
         return PostgreSQLOnlineStoreConfig(
             type="postgres",

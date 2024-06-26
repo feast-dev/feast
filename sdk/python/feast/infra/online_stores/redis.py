@@ -77,6 +77,9 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     key_ttl_seconds: Optional[int] = None
     """(Optional) redis key bin ttl (in seconds) for expiring entities"""
 
+    full_scan_for_deletion: Optional[bool] = True
+    """(Optional) whether to scan for deletion of features"""
+
 
 class RedisOnlineStore(OnlineStore):
     """
@@ -162,9 +165,13 @@ class RedisOnlineStore(OnlineStore):
             entities_to_keep: Entities to keep
             partial: Whether to do a partial update
         """
+        online_store_config = config.online_store
 
-        for table in tables_to_delete:
-            self.delete_table(config, table)
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        if online_store_config.full_scan_for_deletion:
+            for table in tables_to_delete:
+                self.delete_table(config, table)
 
     def teardown(
         self,

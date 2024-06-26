@@ -114,7 +114,7 @@ class GrpcFeatureServer(GrpcFeatureServerServicer):
         else:
             features = list(request.features.val)
 
-        result = self.fs._get_online_features(
+        result = self.fs.get_online_features(
             features,
             request.entities,
             request.full_feature_names,

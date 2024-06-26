@@ -34,8 +34,8 @@ from tests.integration.feature_repos.universal.data_sources.bigquery import (
 from tests.integration.feature_repos.universal.data_sources.file import (
     DuckDBDataSourceCreator,
     DuckDBDeltaDataSourceCreator,
-    DuckDBDeltaS3DataSourceCreator,
     FileDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -122,21 +122,21 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", FileDataSourceCreator),
     ("local", DuckDBDataSourceCreator),
     ("local", DuckDBDeltaDataSourceCreator),
+    ("local", RemoteOfflineStoreDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
     AVAILABLE_OFFLINE_STORES.extend(
         [
-            ("local", DuckDBDeltaS3DataSourceCreator),
+            # todo: @tokoko to reenable
+            # ("local", DuckDBDeltaS3DataSourceCreator),
         ]
     )
 
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
-] = {
-    "sqlite": ({"type": "sqlite"}, None),
-}
+] = {"sqlite": ({"type": "sqlite"}, None)}
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
@@ -153,7 +153,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
-
     # Uncomment to test using private Rockset account. Currently not enabled as
     # there is no dedicated Rockset instance for CI testing and there is no
     # containerized version of Rockset.
@@ -487,7 +486,6 @@ def construct_test_environment(
                 "arn:aws:iam::402087665549:role/lambda_execution_role",
             ),
         )
-
     else:
         feature_server = LocalFeatureServerConfig(
             feature_logging=FeatureLoggingConfig(enabled=True)
@@ -500,9 +498,7 @@ def construct_test_environment(
         aws_registry_path = os.getenv(
             "AWS_REGISTRY_PATH", "s3://feast-int-bucket/registries"
         )
-        registry: Union[str, RegistryConfig] = (
-            f"{aws_registry_path}/{project}/registry.db"
-        )
+        registry = RegistryConfig(path=f"{aws_registry_path}/{project}/registry.db")
     else:
         registry = RegistryConfig(
             path=str(Path(repo_dir_name) / "registry.db"),
