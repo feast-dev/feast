@@ -14,15 +14,13 @@
 import itertools
 import logging
 import os
-import resource
-import threading
 import warnings
-from datetime import datetime, timedelta
-from pathlib import Path
+import threading
 import time
 from collections import Counter, defaultdict
 from datetime import timedelta, datetime
 import psutil
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -36,11 +34,13 @@ from typing import (
     Union,
     cast,
 )
+
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
+
 from feast import feature_server, flags_helper, ui_server, utils
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
@@ -51,7 +51,6 @@ from feast.data_source import (
     PushMode,
     PushSource,
 )
-# from prometheus_client import Gauge, start_http_server
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
@@ -111,11 +110,6 @@ class FeatureStore:
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-
-    # Define prometheus metrics
-    # request_duration = Histogram('feast_request_duration_seconds', 'Histogram of request durations in seconds')
-    # cpu_usage_gauge = Gauge('feast_feature_server_cpu_usage', 'CPU usage of the Feast feature server')
-    # memory_usage_gauge = Gauge('feast_feature_server_memory_usage', 'Memory usage of the Feast feature server')
 
     def __init__(
         self,
@@ -1905,258 +1899,6 @@ class FeatureStore:
             )
         return read_row_protos
 
-    @staticmethod
-    def _populate_response_from_feature_data(
-        feature_data: Iterable[
-            Tuple[
-                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[Value]
-            ]
-        ],
-        indexes: Iterable[List[int]],
-        online_features_response: GetOnlineFeaturesResponse,
-        full_feature_names: bool,
-        requested_features: Iterable[str],
-        table: FeatureView,
-    ):
-        """Populate the GetOnlineFeaturesResponse with feature data.
-
-        This method assumes that `_read_from_online_store` returns data for each
-        combination of Entities in `entity_rows` in the same order as they
-        are provided.
-
-        Args:
-            feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-            indexes: A list of indexes which should be the same length as `feature_data`. Each list
-                of indexes corresponds to a set of result rows in `online_features_response`.
-            online_features_response: The object to populate.
-            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-                "customer_fv__daily_transactions").
-            requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
-                data in `feature_data`.
-            table: The FeatureView that `feature_data` was retrieved from.
-        """
-        # Add the feature names to the response.
-        requested_feature_refs = [
-            f"{table.projection.name_to_use()}__{feature_name}"
-            if full_feature_names
-            else feature_name
-            for feature_name in requested_features
-        ]
-        online_features_response.metadata.feature_names.val.extend(
-            requested_feature_refs
-        )
-
-        timestamps, statuses, values = zip(*feature_data)
-
-        # Populate the result with data fetched from the OnlineStore
-        # which is guaranteed to be aligned with `requested_features`.
-        for (
-            feature_idx,
-            (timestamp_vector, statuses_vector, values_vector),
-        ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
-            online_features_response.results.append(
-                GetOnlineFeaturesResponse.FeatureVector(
-                    values=apply_list_mapping(values_vector, indexes),
-                    statuses=apply_list_mapping(statuses_vector, indexes),
-                    event_timestamps=apply_list_mapping(timestamp_vector, indexes),
-                )
-            )
-
-    @staticmethod
-    def _augment_response_with_on_demand_transforms(
-        online_features_response: GetOnlineFeaturesResponse,
-        feature_refs: List[str],
-        requested_on_demand_feature_views: List[OnDemandFeatureView],
-        full_feature_names: bool,
-    ):
-        """Computes on demand feature values and adds them to the result rows.
-
-        Assumes that 'online_features_response' already contains the necessary request data and input feature
-        views for the on demand feature views. Unneeded feature values such as request data and
-        unrequested input feature views will be removed from 'online_features_response'.
-
-        Args:
-            online_features_response: Protobuf object to populate
-            feature_refs: List of all feature references to be returned.
-            requested_on_demand_feature_views: List of all odfvs that have been requested.
-            full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
-                changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
-                "customer_fv__daily_transactions").
-        """
-        requested_odfv_map = {
-            odfv.name: odfv for odfv in requested_on_demand_feature_views
-        }
-        requested_odfv_feature_names = requested_odfv_map.keys()
-
-        odfv_feature_refs = defaultdict(list)
-        for feature_ref in feature_refs:
-            view_name, feature_name = feature_ref.split(":")
-            if view_name in requested_odfv_feature_names:
-                odfv_feature_refs[view_name].append(
-                    f"{requested_odfv_map[view_name].projection.name_to_use()}__{feature_name}"
-                    if full_feature_names
-                    else feature_name
-                )
-
-        initial_response = OnlineResponse(online_features_response)
-        initial_response_arrow: Optional[pa.Table] = None
-        initial_response_dict: Optional[Dict[str, List[Any]]] = None
-
-        # Apply on demand transformations and augment the result rows
-        odfv_result_names = set()
-        for odfv_name, _feature_refs in odfv_feature_refs.items():
-            odfv = requested_odfv_map[odfv_name]
-            if odfv.mode == "python":
-                if initial_response_dict is None:
-                    initial_response_dict = initial_response.to_dict()
-                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    initial_response_dict
-                )
-            elif odfv.mode in {"pandas", "substrait"}:
-                if initial_response_arrow is None:
-                    initial_response_arrow = initial_response.to_arrow()
-                transformed_features_arrow = odfv.transform_arrow(
-                    initial_response_arrow, full_feature_names
-                )
-            else:
-                raise Exception(
-                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
-                )
-
-            transformed_features = (
-                transformed_features_dict
-                if odfv.mode == "python"
-                else transformed_features_arrow
-            )
-            transformed_columns = (
-                transformed_features.column_names
-                if isinstance(transformed_features, pa.Table)
-                else transformed_features
-            )
-            selected_subset = [f for f in transformed_columns if f in _feature_refs]
-
-            proto_values = []
-            for selected_feature in selected_subset:
-                feature_vector = transformed_features[selected_feature]
-                proto_values.append(
-                    python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
-                    if odfv.mode == "python"
-                    else python_values_to_proto_values(
-                        feature_vector.to_numpy(), ValueType.UNKNOWN
-                    )
-                )
-
-            odfv_result_names |= set(selected_subset)
-
-            online_features_response.metadata.feature_names.val.extend(selected_subset)
-            for feature_idx in range(len(selected_subset)):
-                online_features_response.results.append(
-                    GetOnlineFeaturesResponse.FeatureVector(
-                        values=proto_values[feature_idx],
-                        statuses=[FieldStatus.PRESENT] * len(proto_values[feature_idx]),
-                        event_timestamps=[Timestamp()] * len(proto_values[feature_idx]),
-                    )
-                )
-
-    @staticmethod
-    def _drop_unneeded_columns(
-        online_features_response: GetOnlineFeaturesResponse,
-        requested_result_row_names: set[str],
-    ):
-        """
-        Unneeded feature values such as request data and unrequested input feature views will
-        be removed from 'online_features_response'.
-
-        Args:
-            online_features_response: Protobuf object to populate
-            requested_result_row_names: Fields from 'result_rows' that have been requested, and
-                    therefore should not be dropped.
-        """
-        # Drop values that aren't needed
-        unneeded_feature_indices = [
-            idx
-            for idx, val in enumerate(
-                online_features_response.metadata.feature_names.val
-            )
-            if val not in requested_result_row_names
-        ]
-
-        for idx in reversed(unneeded_feature_indices):
-            del online_features_response.metadata.feature_names.val[idx]
-            del online_features_response.results[idx]
-
-    def _get_feature_views_to_use(
-        self,
-        features: Optional[Union[List[str], FeatureService]],
-        allow_cache=False,
-        hide_dummy_entity: bool = True,
-    ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
-        fvs = {
-            fv.name: fv
-            for fv in [
-                *self._list_feature_views(allow_cache, hide_dummy_entity),
-                *self._registry.list_stream_feature_views(
-                    project=self.project, allow_cache=allow_cache
-                ),
-            ]
-        }
-
-        od_fvs = {
-            fv.name: fv
-            for fv in self._registry.list_on_demand_feature_views(
-                project=self.project, allow_cache=allow_cache
-            )
-        }
-
-        if isinstance(features, FeatureService):
-            fvs_to_use, od_fvs_to_use = [], []
-            for fv_name, projection in [
-                (projection.name, projection)
-                for projection in features.feature_view_projections
-            ]:
-                if fv_name in fvs:
-                    fvs_to_use.append(
-                        fvs[fv_name].with_projection(copy.copy(projection))
-                    )
-                elif fv_name in od_fvs:
-                    odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
-                    od_fvs_to_use.append(odfv)
-                    # Let's make sure to include an FVs which the ODFV requires Features from.
-                    for projection in odfv.source_feature_view_projections.values():
-                        fv = fvs[projection.name].with_projection(copy.copy(projection))
-                        if fv not in fvs_to_use:
-                            fvs_to_use.append(fv)
-                else:
-                    raise ValueError(
-                        f"The provided feature service {features.name} contains a reference to a feature view"
-                        f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
-                        f'{fv_name} and that you have registered it by running "apply".'
-                    )
-            views_to_use = (fvs_to_use, od_fvs_to_use)
-        else:
-            views_to_use = (
-                [*fvs.values()],
-                [*od_fvs.values()],
-            )
-
-        return views_to_use 
-
-    # def monitor_resources(self, interval: int = 5):
-    #     """Function to monitor and update CPU and memory usage metrics."""
-    #     print(f"Start monitor_resources({interval})")
-    #     p = psutil.Process()
-    #     print(f"PID is {p.pid}")
-    #     while True:
-    #         with p.oneshot():
-    #             cpu_usage = p.cpu_percent()
-    #             memory_usage = p.memory_percent()
-    #             print(f"cpu_usage is {cpu_usage}")
-    #             print(f"memory_usage is {memory_usage}")
-    #             self.cpu_usage_gauge.set(cpu_usage)
-    #             self.memory_usage_gauge.set(memory_usage)
-    #         time.sleep(interval)
-
     def serve(
         self,
         host: str,
@@ -2164,22 +1906,11 @@ class FeatureStore:
         type_: str = "http",
         no_access_log: bool = True,
         workers: int = 1,
-        keep_alive_timeout: int = 30,
         metrics_enabled: bool = True,
+        keep_alive_timeout: int = 30,
         registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
-        # print("Start Prometheus Server")
-        # start_http_server(8000)
-
-        # print("Start a background thread to monitor CPU and memory usage")
-        # monitoring_thread = threading.Thread(
-        #    target=self.monitor_resources, args=(5,), daemon=True
-        # )
-        # monitoring_thread.start()
-
-        # self.setup_otlp_metrics()
-        
         type_ = type_.lower()
         if type_ != "http":
             raise ValueError(
@@ -2192,8 +1923,8 @@ class FeatureStore:
             port=port,
             no_access_log=no_access_log,
             workers=workers,
-            keep_alive_timeout=keep_alive_timeout,
             metrics_enabled=metrics_enabled,
+            keep_alive_timeout=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
         )
 

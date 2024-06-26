@@ -10,7 +10,7 @@ ENV APP_HOME /app
 WORKDIR $APP_HOME
 
 # Copy app handler code
-COPY sdk/python/feast/infra/feature_servers/gcp_cloudrun/app.py ./app.py
+# COPY sdk/python/feast/infra/feature_servers/gcp_cloudrun/app.py ./app.py
 
 # Copy necessary parts of the Feast codebase
 COPY sdk/python ./sdk/python
