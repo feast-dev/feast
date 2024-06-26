@@ -155,19 +155,22 @@ def get_app(
     @app.post("/get-online-predictions")
     def get_predictions_endpoint(body=Depends(get_body)):
         try:
-            body, features = _get_features_from_body(store, body)
+            features, body = _get_features_from_body(store, body)
 
-            predictions = store.get_online_predictions(
-                model_name=body["model_name"],
+            response_proto = store.get_online_predictions(
+                prediction_feature_name=body["prediction_feature_name"],
+                model_feature_name=body["model_feature_name"],
                 features=features,
                 entity_rows=body["entity_rows"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
+            ).proto
+
+            # Convert the Protobuf object to JSON and return it
+            return MessageToDict(
+                response_proto, preserving_proto_field_name=True, float_precision=18
             )
 
-            return Response(
-                content=json.dumps(predictions), media_type="application/json"
-            )
         except Exception as e:
             # Print the original exception on the server side
             logger.exception(traceback.format_exc())

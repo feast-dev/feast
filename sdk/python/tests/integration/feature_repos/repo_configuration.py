@@ -47,13 +47,16 @@ from tests.integration.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_source,
     create_customer_daily_profile_feature_view,
+    create_customer_model_feature_view,
     create_driver_hourly_stats_batch_feature_view,
     create_driver_hourly_stats_feature_view,
     create_field_mapping_feature_view,
     create_global_stats_feature_view,
     create_location_stats_feature_view,
     create_order_feature_view,
+    create_predictions_feature_view,
     create_pushable_feature_view,
+    prediction_calculator_feature_view,
 )
 from tests.integration.feature_repos.universal.online_store.bigtable import (
     BigtableOnlineStoreCreator,
@@ -238,6 +241,7 @@ class UniversalDatasets:
     location_df: pd.DataFrame
     orders_df: pd.DataFrame
     global_df: pd.DataFrame
+    customer_predictions_df: pd.DataFrame
     field_mapping_df: pd.DataFrame
     entity_df: pd.DataFrame
 
@@ -247,6 +251,11 @@ def construct_universal_datasets(
 ) -> UniversalDatasets:
     customer_df = driver_test_data.create_customer_daily_profile_df(
         entities.customer_vals, start_time, end_time
+    )
+    customer_predictions_df = driver_test_data.create_customer_predictions(
+        entities.customer_vals,
+        start_time,
+        end_time,
     )
     driver_df = driver_test_data.create_driver_hourly_stats_df(
         entities.driver_vals, start_time, end_time
@@ -281,6 +290,7 @@ def construct_universal_datasets(
         location_df=location_df,
         orders_df=orders_df,
         global_df=global_df,
+        customer_predictions_df=customer_predictions_df,
         field_mapping_df=field_mapping_df,
         entity_df=entity_df,
     )
@@ -293,6 +303,8 @@ class UniversalDataSources:
     location: DataSource
     orders: DataSource
     global_ds: DataSource
+    customer_model: DataSource
+    stored_customer_predictions: DataSource
     field_mapping: DataSource
 
     def values(self):
@@ -339,6 +351,18 @@ def construct_universal_data_sources(
         created_timestamp_column="created",
         field_mapping={"column_name": "feature_name"},
     )
+    customer_model_ds = data_source_creator.create_data_source(
+        datasets.customer_df,
+        destination_name="customer_profile_model",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    stored_customer_predictions_ds = data_source_creator.create_data_source(
+        datasets.customer_predictions_df,
+        destination_name="stored_customer_predictions",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
     return UniversalDataSources(
         customer=customer_ds,
         driver=driver_ds,
@@ -346,6 +370,8 @@ def construct_universal_data_sources(
         orders=orders_ds,
         global_ds=global_ds,
         field_mapping=field_mapping_ds,
+        customer_model=customer_model_ds,
+        stored_customer_predictions=stored_customer_predictions_ds,
     )
 
 
@@ -358,6 +384,9 @@ class UniversalFeatureViews:
     order: FeatureView
     location: FeatureView
     field_mapping: FeatureView
+    customer_model: FeatureView
+    stored_customer_predictions: FeatureView
+    risk_score_calculator: Optional[OnDemandFeatureView]
     pushed_locations: FeatureView
 
     def values(self):
@@ -372,6 +401,9 @@ def construct_universal_feature_views(
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_hourly_stats_base_feature_view = (
         create_driver_hourly_stats_batch_feature_view(data_sources.driver)
+    )
+    customer_model_base_feature_view = create_customer_model_feature_view(
+        data_sources.customer_model
     )
 
     return UniversalFeatureViews(
@@ -389,6 +421,13 @@ def construct_universal_feature_views(
         else None,
         order=create_order_feature_view(data_sources.orders),
         location=create_location_stats_feature_view(data_sources.location),
+        customer_model=customer_model_base_feature_view,
+        stored_customer_predictions=create_predictions_feature_view(
+            data_sources.stored_customer_predictions
+        ),
+        risk_score_calculator=prediction_calculator_feature_view(
+            [customer_model_base_feature_view],
+        ),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
         pushed_locations=create_pushable_feature_view(data_sources.location),
     )

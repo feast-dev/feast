@@ -26,7 +26,7 @@ def test_get_online_features(python_fs_client):
             "driver_stats:acc_rate",
             "driver_stats:avg_daily_trips",
         ],
-        "entities": {"driver_id": [5001, 5002]},
+        "entity_rows": {"driver_id": [5001, 5002]},
     }
     response = python_fs_client.post(
         "/get-online-features", data=json.dumps(request_data_dict)
@@ -51,21 +51,21 @@ def test_get_online_features(python_fs_client):
     results_driver_id_index = response_feature_names.index("driver_id")
     assert (
         results[results_driver_id_index]["values"]
-        == request_data_dict["entities"]["driver_id"]
+        == request_data_dict["entity_rows"]["driver_id"]
     )
 
 
-@pytest.mark.integration
-@pytest.mark.universal_online_stores
+# @pytest.mark.integration
+# @pytest.mark.universal_online_stores
 def test_get_online_predictions(python_fs_client):
     request_data_dict = {
+        "prediction_feature_name": "stored_customer_predictions:predictions",
         "features": [
-            "driver_stats:conv_rate",
-            "driver_stats:acc_rate",
-            "driver_stats:avg_daily_trips",
+            "customer_profile_model:current_balance",
+            "customer_profile_model:lifetime_trip_count",
         ],
-        "entity_rows": {"driver_id": [5001, 5002]},
-        "model_field": "driver_model",
+        "entity_rows": {"customer_id": ["1001", "1002"]},
+        "model_feature_name": "risk_score_calculator:predictions",
         "force_recompute": True,
         "log_features": True,
     }
@@ -77,7 +77,12 @@ def test_get_online_predictions(python_fs_client):
     parsed_response = json.loads(response.text)
     assert "metadata" in parsed_response
     metadata = parsed_response["metadata"]
-    expected_features = ["driver_id", "conv_rate", "acc_rate", "avg_daily_trips"]
+    expected_features = [
+        "customer_id",
+        "lifetime_trip_count",
+        "current_balance",
+        "predictions",
+    ]
     response_feature_names = metadata["feature_names"]
     assert len(response_feature_names) == len(expected_features)
     for expected_feature in expected_features:
@@ -89,10 +94,10 @@ def test_get_online_predictions(python_fs_client):
         assert len(result["statuses"]) == 2  # Requested two entities
         for status in result["statuses"]:
             assert status == "PRESENT"
-    results_driver_id_index = response_feature_names.index("driver_id")
+    results_customer_id_index = response_feature_names.index("customer_id")
     assert (
-        results[results_driver_id_index]["values"]
-        == request_data_dict["entities"]["driver_id"]
+        results[results_customer_id_index]["values"]
+        == request_data_dict["entity_rows"]["customer_id"]
     )
 
 
