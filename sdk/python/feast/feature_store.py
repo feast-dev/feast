@@ -1798,6 +1798,8 @@ class FeatureStore:
             requested_result_row_names,
             online_features_response,
         ) = utils._prepare_entities_to_read_from_online_store(
+            registry=self._registry,
+            project=self.project,
             features=features,
             entity_values=entity_rows,
             full_feature_names=full_feature_names,
