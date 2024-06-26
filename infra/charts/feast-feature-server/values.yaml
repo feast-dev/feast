@@ -6,12 +6,10 @@ replicaCount: 1
 
 image:
   # image.repository -- Docker image for Feature Server repository
-  repository: quay.io/tsisodia10/feastdev/feature-server
+  repository: feastdev/feature-server
   pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
-  tag: dev9
-
-namespace: "default"
+  tag: 0.39.0
 
 imagePullSecrets: []
 nameOverride: ""
@@ -39,11 +37,6 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
-
-otel:
-  exporter:
-    endpoint: "http://otel-collector.feast-test.svc.cluster.local:4317"
-    insecure: "true"
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
