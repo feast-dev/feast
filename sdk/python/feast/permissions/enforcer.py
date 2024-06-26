@@ -38,14 +38,15 @@ def enforce_policy(
     if not permissions:
         return (True, "")
 
-    for resource in resources if isinstance(resources, list) else [resources]:
+    _resources = resources if isinstance(resources, list) else [resources]
+    for resource in _resources:
         logger.debug(
             f"Enforcing permission policies for {type(resource)}:{resource.name} to execute {actions}"
         )
         matching_permissions = [
             p
             for p in permissions
-            if p.match_resource(resources) and p.match_actions(actions)
+            if p.match_resource(resource) and p.match_actions(actions)
         ]
 
         if matching_permissions:
@@ -65,6 +66,6 @@ def enforce_policy(
                     grant, explanations = evaluator.grant()
                     return grant, ",".join(explanations)
     else:
-        message = f"No permissions defined to manage {actions} on {type(resources)}:{resources.name}."
+        message = f"No permissions defined to manage {actions} on {resources}."
         logger.info(f"**PERMISSION GRANTED**: {message}")
     return (True, "")
