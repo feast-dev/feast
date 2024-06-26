@@ -17,8 +17,8 @@ from tests.integration.feature_repos.universal.entities import (
 )
 
 
-# @pytest.mark.integration
-# @pytest.mark.universal_online_stores
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
 def test_get_online_features(python_fs_client):
     request_data_dict = {
         "features": [
