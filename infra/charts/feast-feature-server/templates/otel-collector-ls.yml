@@ -1,8 +1,8 @@
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
-  name: otelcol
-  namespace: feast-test
+  name: otelcol-1
+  namespace: {{ .Values.namespace }}
 spec:
   mode: statefulset
   targetAllocator:

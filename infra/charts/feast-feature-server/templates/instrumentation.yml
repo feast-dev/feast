@@ -1,11 +1,11 @@
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
-  name: python-instrumentation
-  namespace: feast-test
+  name: feast-instrumentation
+  namespace: {{ .Values.namespace }}
 spec:
   exporter:
-    endpoint: http://otelcol-collector.{{ .Values.namespaceSelector.matchNames }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
+    endpoint: http://otelcol-collector.{{ .Values.namespace }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
   env:
   propagators:
     - tracecontext

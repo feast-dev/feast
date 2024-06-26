@@ -4,7 +4,7 @@ apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
   name: otelcol
-  namespace: feast-test
+  namespace: {{ .Values.namespace }}
 spec:
   mode: statefulset
   image: otel/opentelemetry-collector-contrib:0.102.1

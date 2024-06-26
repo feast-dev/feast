@@ -51,7 +51,7 @@ from feast.data_source import (
     PushMode,
     PushSource,
 )
-from prometheus_client import Gauge, start_http_server
+# from prometheus_client import Gauge, start_http_server
 from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
@@ -114,8 +114,8 @@ class FeatureStore:
 
     # Define prometheus metrics
     # request_duration = Histogram('feast_request_duration_seconds', 'Histogram of request durations in seconds')
-    cpu_usage_gauge = Gauge('feast_feature_server_cpu_usage', 'CPU usage of the Feast feature server')
-    memory_usage_gauge = Gauge('feast_feature_server_memory_usage', 'Memory usage of the Feast feature server')
+    # cpu_usage_gauge = Gauge('feast_feature_server_cpu_usage', 'CPU usage of the Feast feature server')
+    # memory_usage_gauge = Gauge('feast_feature_server_memory_usage', 'Memory usage of the Feast feature server')
 
     def __init__(
         self,
@@ -2062,7 +2062,7 @@ class FeatureStore:
     @staticmethod
     def _drop_unneeded_columns(
         online_features_response: GetOnlineFeaturesResponse,
-        requested_result_row_names: Set[str],
+        requested_result_row_names: set[str],
     ):
         """
         Unneeded feature values such as request data and unrequested input feature views will
@@ -2142,21 +2142,20 @@ class FeatureStore:
 
         return views_to_use 
 
-    def monitor_resources(self, interval: int = 5):
-        """Function to monitor and update CPU and memory usage metrics."""
-        print(f"Start monitor_resources({interval})")
-        p = psutil.Process()
-        print(f"PID is {p.pid}")
-        while True:
-            with p.oneshot():
-                cpu_usage = p.cpu_percent()
-                memory_usage = p.memory_percent()
-                print(f"cpu_usage is {cpu_usage}")
-                print(f"memory_usage is {memory_usage}")
-                self.cpu_usage_gauge.set(cpu_usage)
-                self.memory_usage_gauge.set(memory_usage)
-            time.sleep(interval)
-
+    # def monitor_resources(self, interval: int = 5):
+    #     """Function to monitor and update CPU and memory usage metrics."""
+    #     print(f"Start monitor_resources({interval})")
+    #     p = psutil.Process()
+    #     print(f"PID is {p.pid}")
+    #     while True:
+    #         with p.oneshot():
+    #             cpu_usage = p.cpu_percent()
+    #             memory_usage = p.memory_percent()
+    #             print(f"cpu_usage is {cpu_usage}")
+    #             print(f"memory_usage is {memory_usage}")
+    #             self.cpu_usage_gauge.set(cpu_usage)
+    #             self.memory_usage_gauge.set(memory_usage)
+    #         time.sleep(interval)
 
     def serve(
         self,
@@ -2166,17 +2165,18 @@ class FeatureStore:
         no_access_log: bool = True,
         workers: int = 1,
         keep_alive_timeout: int = 30,
+        metrics_enabled: bool = True,
         registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
-        print("Start Prometheus Server")
-        start_http_server(8000)
+        # print("Start Prometheus Server")
+        # start_http_server(8000)
 
-        print("Start a background thread to monitor CPU and memory usage")
-        monitoring_thread = threading.Thread(
-           target=self.monitor_resources, args=(5,), daemon=True
-        )
-        monitoring_thread.start()
+        # print("Start a background thread to monitor CPU and memory usage")
+        # monitoring_thread = threading.Thread(
+        #    target=self.monitor_resources, args=(5,), daemon=True
+        # )
+        # monitoring_thread.start()
 
         # self.setup_otlp_metrics()
         
@@ -2193,6 +2193,7 @@ class FeatureStore:
             no_access_log=no_access_log,
             workers=workers,
             keep_alive_timeout=keep_alive_timeout,
+            metrics_enabled=metrics_enabled,
             registry_ttl_sec=registry_ttl_sec,
         )
 

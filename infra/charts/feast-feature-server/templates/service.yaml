@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "feast-feature-server.fullname" . }}
   labels:
-    {{- include "feast-feature-server.labels" . | nindent 4 }}
+    {{- include "feast-feature-server.labels" . | nindent 4 }}  
 spec:
   type: {{ .Values.service.type }}
   ports:
