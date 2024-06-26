@@ -124,7 +124,7 @@ def retrieval_job(request, environment):
             iam_role="arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
             workgroup="",
         )
-        config = environment.config.copy(
+        config = environment.config.model_copy(
             update={"offline_config": offline_store_config}
         )
         return RedshiftRetrievalJob(
@@ -147,7 +147,7 @@ def retrieval_job(request, environment):
             storage_integration_name="FEAST_S3",
             blob_export_location="s3://feast-snowflake-offload/export",
         )
-        config = environment.config.copy(
+        config = environment.config.model_copy(
             update={"offline_config": offline_store_config}
         )
         environment.project = "project"

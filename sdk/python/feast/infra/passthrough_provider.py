@@ -12,6 +12,7 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJobStatus,
@@ -22,6 +23,7 @@ from feast.infra.offline_stores.offline_utils import get_offline_store_from_conf
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
@@ -102,6 +104,17 @@ class PassthroughProvider(Provider):
                 )
             self._batch_engine = _batch_engine
             return _batch_engine
+
+    def plan_infra(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> Infra:
+        infra = Infra()
+        if self.online_store:
+            infra_objects: List[InfraObject] = self.online_store.plan(
+                config, desired_registry_proto
+            )
+            infra.infra_objects += infra_objects
+        return infra
 
     def update_infra(
         self,

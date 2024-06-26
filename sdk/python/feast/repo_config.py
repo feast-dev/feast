@@ -18,10 +18,8 @@ from pydantic import (
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
-    FeastFeatureServerTypeSetError,
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
-    FeastProviderNotSetError,
     FeastRegistryNotSetError,
     FeastRegistryTypeInvalidError,
 )
@@ -85,10 +83,6 @@ FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
 }
 
-FEATURE_SERVER_TYPE_FOR_PROVIDER = {
-    "local": "local",
-}
-
 
 class FeastBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
@@ -138,7 +132,7 @@ class RepoConfig(FeastBaseModel):
         provider account, as long as they have different project ids.
     """
 
-    provider: StrictStr
+    provider: StrictStr = "local"
     """ str: local or gcp or aws """
 
     registry_config: Any = Field(alias="registry", default="data/registry.db")
@@ -191,30 +185,10 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        if "offline_store" in data:
-            self.offline_config = data["offline_store"]
-        else:
-            if data["provider"] == "local":
-                self.offline_config = "file"
-            elif data["provider"] == "gcp":
-                self.offline_config = "bigquery"
-            elif data["provider"] == "aws":
-                self.offline_config = "redshift"
-            elif data["provider"] == "azure":
-                self.offline_config = "mssql"
+        self.offline_config = data.get("offline_store", "file")
 
         self._online_store = None
-        if "online_store" in data:
-            self.online_config = data["online_store"]
-        else:
-            if data["provider"] == "local":
-                self.online_config = "sqlite"
-            elif data["provider"] == "gcp":
-                self.online_config = "datastore"
-            elif data["provider"] == "aws":
-                self.online_config = "dynamodb"
-            elif data["provider"] == "rockset":
-                self.online_config = "rockset"
+        self.online_config = data.get("online_store", "sqlite")
 
         self._batch_engine = None
         if "batch_engine" in data:
@@ -325,20 +299,11 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"] = None
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
         # Set the default type
         # This is only direct reference to a provider or online store that we should have
         # for backwards compatibility.
         if "type" not in values["online_store"]:
-            if values["provider"] == "local":
-                values["online_store"]["type"] = "sqlite"
-            elif values["provider"] == "gcp":
-                values["online_store"]["type"] = "datastore"
-            elif values["provider"] == "aws":
-                values["online_store"]["type"] = "dynamodb"
+            values["online_store"]["type"] = "sqlite"
 
         online_store_type = values["online_store"]["type"]
 
@@ -361,20 +326,9 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["offline_store"], Dict):
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local":
-                values["offline_store"]["type"] = "file"
-            elif values["provider"] == "gcp":
-                values["offline_store"]["type"] = "bigquery"
-            elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "redshift"
-            if values["provider"] == "azure":
-                values["offline_store"]["type"] = "mssql"
+            values["offline_store"]["type"] = "file"
 
         offline_store_type = values["offline_store"]["type"]
 
@@ -398,15 +352,7 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["feature_server"], Dict):
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
-        default_type = FEATURE_SERVER_TYPE_FOR_PROVIDER.get(values["provider"])
-        defined_type = values["feature_server"].get("type", default_type)
-        # Make sure that the type is either not set, or set correctly, since it's defined by the provider
-        if defined_type not in (default_type, "local"):
-            raise FeastFeatureServerTypeSetError(defined_type)
+        defined_type = values["feature_server"].get("type", "local")
         values["feature_server"]["type"] = defined_type
 
         # Validate the dict to ensure one of the union types match

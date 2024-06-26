@@ -22,10 +22,10 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 
 PROVIDERS_CLASS_FOR_TYPE = {
-    "gcp": "feast.infra.gcp.GcpProvider",
-    "aws": "feast.infra.aws.AwsProvider",
-    "local": "feast.infra.local.LocalProvider",
-    "azure": "feast.infra.contrib.azure_provider.AzureProvider",
+    "gcp": "feast.infra.passthrough_provider.PassthroughProvider",
+    "aws": "feast.infra.passthrough_provider.PassthroughProvider",
+    "local": "feast.infra.passthrough_provider.PassthroughProvider",
+    "azure": "feast.infra.passthrough_provider.PassthroughProvider",
 }
 
 
