@@ -163,6 +163,8 @@ DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
+SINGLESTORE_REQUIRED = ["singlestoredb"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -228,6 +230,7 @@ CI_REQUIRED = (
     + SQLITE_VEC_REQUIRED
     + PROMETHEUS_CLIENT_REQUIRED
     + PSUTIL_REQUIRED
+    + SINGLESTORE_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -398,6 +401,7 @@ setup(
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "prometheus_client": PROMETHEUS_CLIENT_REQUIRED,
         "psutil": PSUTIL_REQUIRED,
+        "singlestore": SINGLESTORE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
