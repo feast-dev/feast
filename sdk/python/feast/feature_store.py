@@ -88,7 +88,6 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.stream_feature_view import StreamFeatureView
 from feast.version import get_version
 
-
 warnings.simplefilter("once", DeprecationWarning)
 
 

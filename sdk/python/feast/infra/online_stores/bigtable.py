@@ -2,7 +2,7 @@ import hashlib
 import logging
 from concurrent import futures
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Literal
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, Tuple
 
 import google
 from google.cloud import bigtable
@@ -21,7 +21,6 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-# from feast.usage import log_exceptions_and_usage
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,6 @@ class BigtableOnlineStore(OnlineStore):
 
     feature_column_family: str = "features"
 
-    # @log_exceptions_and_usage(online_store="bigtable")
     def online_read(
         self,
         config: RepoConfig,
@@ -104,21 +102,19 @@ class BigtableOnlineStore(OnlineStore):
         }
         return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
     
-    # @log_exceptions_and_usage(online_store="bigtable")
     async def online_read_async(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        pool_size: int = 3
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         # Potential performance improvement opportunity described in
         # https://github.com/feast-dev/feast/issues/3259
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
-        client = self._get_client_async(online_config=config.online_store, pool_size=pool_size)
+        client = self._get_client_async(online_config=config.online_store)
 
         async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
 
@@ -169,7 +165,6 @@ class BigtableOnlineStore(OnlineStore):
                     final_result.append((event_ts, res))
             return final_result
         
-    # @log_exceptions_and_usage(online_store="bigtable")
     async def online_read_async_v2(
         self,
         config: RepoConfig,
@@ -485,12 +480,11 @@ class BigtableOnlineStore(OnlineStore):
 
 
     def _get_client_async(
-        self, online_config: BigtableOnlineStoreConfig, pool_size: int = 3
+        self, online_config: BigtableOnlineStoreConfig
     ):
         if self._async_client is None:
             self._async_client = BigtableDataClientAsync(
-                project=online_config.project_id,
-                pool_size=pool_size
+                project=online_config.project_id
             )
         return self._async_client
     
