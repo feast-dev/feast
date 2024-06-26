@@ -472,10 +472,13 @@ def _augment_response_with_on_demand_transforms(
         for selected_feature in selected_subset:
             feature_vector = transformed_features[selected_feature]
             proto_values.append(
-                python_values_to_proto_values(feature_vector, feature_dtypes[selected_feature].to_value_type())
+                python_values_to_proto_values(
+                    feature_vector, feature_dtypes[selected_feature].to_value_type()
+                )
                 if odfv.mode == "python"
                 else python_values_to_proto_values(
-                    feature_vector.to_numpy(), feature_dtypes[selected_feature].to_value_type()
+                    feature_vector.to_numpy(),
+                    feature_dtypes[selected_feature].to_value_type(),
                 )
             )
 

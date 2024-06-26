@@ -125,8 +125,8 @@ class OnDemandFeatureView(BaseFeatureView):
         self.mode = mode.lower()
 
         if self.mode not in {"python", "pandas", "substrait"}:
-            #this change was done to ease the migration to new version without needing to recreate registry before 
-            #can be deleted on next update
+            # this change was done to ease the migration to new version without needing to recreate registry before
+            # can be deleted on next update
             self.mode = "pandas"
             # raise ValueError(
             #     f"Unknown mode {self.mode}. OnDemandFeatureView only supports python or pandas UDFs and substrait."
