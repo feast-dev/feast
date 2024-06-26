@@ -23,12 +23,14 @@ class Permission(ABC):
     requested on the matching resources.
 
     Attributes:
-        name: The permission name (can be duplicated, used for logging troubleshooting)
-        types: The list of protected resource  types as defined by the `FeastObject` type. Defaults to all managed types (e.g. the `ALL_RESOURCE_TYPES` constant)
-        with_subclasses: If `True`, it includes subclasses of the given types in the match, otherwise only precise type match is applied. Defaults to `True`.
-        name_pattern: a regex to match the resource name. Defaults to None, meaning that no name filtering is applied
-        required_tags: dictionary of key-value pairs that must match the resource tags. All these required_tags must be present as resource
-        tags with the given value. Defaults to None, meaning that no tags filtering is applied.
+        name: The permission name (can be duplicated, used for logging troubleshooting).
+        types: The list of protected resource  types as defined by the `FeastObject` type.
+        Defaults to all managed types (e.g. the `ALL_RESOURCE_TYPES` constant)
+        with_subclasses: If `True`, it includes sub-classes of the given types in the match, otherwise only exact type match is applied.
+        Defaults to `True`.
+        name_pattern: A regex to match the resource name. Defaults to None, meaning that no name filtering is applied
+        required_tags: Dictionary of key-value pairs that must match the resource tags. All these required_tags must
+        be present in a resource tags with the given value. Defaults to None, meaning that no tags filtering is applied.
         actions: The actions authorized by this permission. Defaults to `AuthzedAction.ALL`.
         policy: The policy to be applied to validate a client request.
     """
@@ -72,12 +74,15 @@ class Permission(ABC):
 
     @staticmethod
     def get_global_decision_strategy() -> DecisionStrategy:
+        """
+        The global decision strategy to be applied when multiple permissions match an execution request.
+        """
         return Permission._global_decision_strategy
 
     @staticmethod
     def set_global_decision_strategy(global_decision_strategy: DecisionStrategy):
         """
-        Defines the global decision strategy to be applied if multiple permissions match the same resource.
+        Define the global decision strategy to be applied when multiple permissions match an execution request.
         """
         Permission._global_decision_strategy = global_decision_strategy
 
@@ -110,6 +115,10 @@ class Permission(ABC):
         return self._policy
 
     def match_resource(self, resource: FeastObject) -> bool:
+        """
+        Returns:
+            `True` when the given resource matches the type, name and tags filters defined in the permission.
+        """
         return resource_match_config(
             resource=resource,
             expected_types=self.types,
@@ -119,6 +128,10 @@ class Permission(ABC):
         )
 
     def match_actions(self, actions: list[AuthzedAction]) -> bool:
+        """
+        Returns:
+            `True` when the given actions are included in the permitted actions.
+        """
         return actions_match_config(
             allowed_actions=self.actions,
             actions=actions,

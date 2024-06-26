@@ -1,3 +1,7 @@
+"""
+This module provides utility matching functions.
+"""
+
 import logging
 import re
 from typing import Any, Optional, get_args
@@ -10,6 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 def is_a_feast_object(resource: Any):
+    """
+    A matcher to verify that a given object is one of the Feast objects defined in the `FeastObject` type.
+
+    Args:
+        resource: An object instance to verify.
+    Returns:
+        `True` if the given object is one of the types in the FeastObject alias or a subclass of one of them.
+    """
     for t in get_args(FeastObject):
         # Use isinstance to pass Mock validation
         if isinstance(resource, t):
@@ -36,6 +48,19 @@ def resource_match_config(
     name_pattern: Optional[str] = None,
     required_tags: Optional[dict[str, str]] = None,
 ) -> bool:
+    """
+    Match a given Feast object against the configured type, name and tags in a permission configuration.
+
+    Args:
+        resource: A FeastObject instance to match agains the permission.
+        expected_types: The list of object types configured in the permission.
+        with_subclasses: `True` if the type match includes sub-classes, `False` if the type match is exact.
+        name_pattern: The optional name pattern filter configured in the permission.
+        required_tags: The optional dicstionary of required tags configured in the permission.
+
+    Returns:
+        bool: `True` if the resource matches the configured permission filters.
+    """
     if resource is None:
         logger.warning(f"None passed to {resource_match_config.__name__}")
         return False
@@ -118,6 +143,17 @@ def actions_match_config(
     actions: list[AuthzedAction],
     allowed_actions: list[AuthzedAction],
 ) -> bool:
+    """
+    Match a list of actions against the actions defined in a permission configuration.
+
+    Args:
+        actions: Alist of actions to be executed.
+        allowed_actions: The list of actions configured in the permission.
+
+    Returns:
+        bool: `True` if all the given `actions` are defined in the `allowed_actions`.
+        Whatever the requested `actions`, it returns `True` if `allowed_actions` includes `AuthzedAction.ALL`
+    """
     if AuthzedAction.ALL in allowed_actions:
         return True
 

@@ -10,10 +10,12 @@ logger = logging.getLogger(__name__)
 
 def require_permissions(actions: Union[list[AuthzedAction], AuthzedAction]):
     """
-    A decorator to define the actions that are executed from within the current class method and that must be protected
+    A decorator to define the actions that are executed from the decorated class method and that must be protected
     against unauthorized access.
 
     The first parameter of the protected method must be `self`
+    Args:
+        actions: The list of actions that must be permitted to the current user.
     """
 
     def require_permissions_decorator(func):
@@ -26,7 +28,7 @@ def require_permissions(actions: Union[list[AuthzedAction], AuthzedAction]):
                 )
 
             return assert_permissions(
-                resource=resource,
+                resources=resource,
                 actions=actions,
             )
             logger.debug(

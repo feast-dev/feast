@@ -11,26 +11,25 @@ class Policy(ABC):
     @abstractmethod
     def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
         """
-        Converts data source config in protobuf spec to a DataSource class object.
+        Validate the given user against the configured policy.
 
         Args:
-            data_source: A protobuf representation of a DataSource.
+            user: The current user.
+            kwargs: The list of keyword args to be passed to the actual implementation.
 
         Returns:
-            A DataSource class object.
-
-        Raises:
-            ValueError: The type of DataSource could not be identified.
+            bool: `True` if the user matches the policy criteria, `False` otherwise.
+            str: A possibly empty explanation of the reason for not matching the configured policy.
         """
         raise NotImplementedError
 
 
 class RoleBasedPolicy(Policy):
     """
-    An Policy class where the user roles must be enforced to grant access to the requested action.
+    A `Policy` implementation where the user roles must be enforced to grant access to the requested action.
     All the configured roles must be granted to the current user in order to allow the execution.
 
-    The `role_manager` keywork argument must be present in the `kwargs` optional key-value arguments.
+    E.g., if the policy enforces roles `a` and `b`, the user must have both of them in order to satisfy the policy.
     """
 
     def __init__(
@@ -43,6 +42,11 @@ class RoleBasedPolicy(Policy):
         return self.roles
 
     def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
+        """
+        Validate the given `user` against the configured roles.
+
+        The `role_manager` keywork argument must be present in the `kwargs` optional key-value arguments.
+        """
         if "role_manager" not in kwargs:
             raise ValueError("Missing keywork argument 'role_manager'")
         if not isinstance(kwargs["role_manager"], RoleManager):

@@ -3,7 +3,7 @@ import enum
 
 class AuthzedAction(enum.Enum):
     """
-    Identifies the type of action being secured by the permissions framework, according to the familiar CRUD and Feast terminology.
+    Identify the type of action being secured by the permissions framework, according to the familiar CRUD and Feast terminology.
     """
 
     ALL = "all"  # All actions

@@ -67,7 +67,7 @@ def test_decision_evaluator(evaluator, votes, decision, no_of_explanations):
     for v in votes:
         vote = v[0]
         decided = v[1]
-        evaluator.add_grant("vote", vote, "" if vote else "a message")
+        evaluator.add_grant(vote, "" if vote else "a message")
         if decided:
             assertpy.assert_that(evaluator.is_decided()).is_true()
         else:
