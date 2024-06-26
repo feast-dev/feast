@@ -1781,13 +1781,18 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-        for entity_row in entity_rows:
-            for key, value in entity_row.items():
-                try:
-                    columnar[key].append(value)
-                except KeyError as e:
-                    raise ValueError("All entity_rows must have the same keys.") from e
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    try:
+                        columnar[key].append(value)
+                    except KeyError as e:
+                        raise ValueError(
+                            "All entity_rows must have the same keys."
+                        ) from e
+
+            entity_rows = columnar
 
         (
             join_key_values,
