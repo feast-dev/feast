@@ -7,6 +7,11 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, 
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
+from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery, Row, row_filters as data_row_filters
+from google.cloud.bigtable_v2.services.bigtable.async_client import BigtableAsyncClient as BigtableAsyncClientV2
+from google.cloud.bigtable_v2.types.bigtable import ReadRowsRequest
+from google.cloud.bigtable_v2.types.data import RowFilter
+
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, utils
@@ -45,6 +50,8 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
 
 class BigtableOnlineStore(OnlineStore):
     _client: Optional[bigtable.Client] = None
+    _async_client: Optional[BigtableDataClientAsync] = None
+    _async_client_v2: Optional[BigtableAsyncClientV2] = None
 
     feature_column_family: str = "features"
 
@@ -94,6 +101,139 @@ class BigtableOnlineStore(OnlineStore):
             row.row_key: row for row in rows
         }
         return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
+    
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        # Potential performance improvement opportunity described in
+        # https://github.com/feast-dev/feast/issues/3259
+        feature_view = table
+        bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
+
+        client = self._get_client_async(online_config=config.online_store)
+
+        async with client.get_table(instance_id=config.online_store.instance, table_id=bt_table_name) as bt_table:
+
+            row_keys = [
+                self._compute_row_key(
+                    entity_key=entity_key,
+                    feature_view_name=feature_view.name,
+                    config=config,
+                )
+                for entity_key in entity_keys
+            ]
+
+            row_filter = data_row_filters.ColumnQualifierRegexFilter(f"^({'|'.join(requested_features)}|event_ts)$".encode())
+            query = ReadRowsQuery(row_keys=row_keys, row_filter=row_filter if requested_features else None)
+
+            rows = await bt_table.read_rows(
+                query=query
+            )
+
+            # The BigTable client library only returns rows for keys that are found. This
+            # means that it's our responsibility to match the returned rows to the original
+            # `row_keys` and make sure that we're returning a list of the same length as
+            # `entity_keys`.
+            bt_rows_dict: Dict[bytes, Row] = {
+                row.row_key: row for row in rows
+            }
+
+            final_result = []
+            for key in row_keys:
+                res = {}
+                row = bt_rows_dict.get(key)
+                if row is None:
+                    final_result.append((None, None))
+                else:
+                    row_values = row.get_cells("features")
+                    row_values_sorted  = sorted(row_values, key=lambda x: x.timestamp_micros, reverse=True)  # sort in descending order (most recent ts first)
+                    event_timestamps = [cell for cell in row_values_sorted if cell.qualifier == b'event_ts'] # all event timestamps (should still be sorted)
+                    event_ts = datetime.fromisoformat(event_timestamps[0].value.decode()) # get most recent event timestamp
+                    # get all the unique features, excluding timestamp
+                    unique_features = list(set([cell.qualifier for cell in row_values_sorted if cell.qualifier != b'event_ts']))
+                    # for each feature, get the most recent value and add to res
+                    for feature_name in unique_features:
+                        all_cells_of_feature = [cell for cell in row_values_sorted if cell.qualifier == feature_name] # filter rows to just get this feature
+                        feature_value = all_cells_of_feature[0].value # binary string # get the most recent value of this feature
+                        val = ValueProto()
+                        val.ParseFromString(feature_value)
+                        res[feature_name.decode()] = val
+                    final_result.append((event_ts, res))
+            return final_result
+        
+    async def online_read_async_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+
+        client = self._get_client_async_v2()
+        instance_id = config.online_store.instance
+        feature_view = table
+        bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
+        project_name = config.online_store.project_id
+
+        row_keys = [
+                self._compute_row_key(
+                    entity_key=entity_key,
+                    feature_view_name=feature_view.name,
+                    config=config,
+                )
+                for entity_key in entity_keys
+            ]
+        
+        query = ReadRowsQuery(row_keys=row_keys)
+        request = ReadRowsRequest(
+            {
+                "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}", 
+                "rows": query._row_set,
+                "filter": RowFilter(column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()), 
+                "rows_limit": query.limit
+            }
+        )
+
+        rows = await client.read_rows(
+            request=request
+        )
+
+        final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
+        event_ts = None
+        i = 0
+        async for row in rows: 
+            chunks = row.chunks
+            for chunk in chunks:
+                # if row key exists, we're on a new row, we can get the event timestamp for this row and clear res
+                row_key = chunk.row_key
+                qualifier = chunk.qualifier
+                # if row key doesn't exist, we're still on the same row
+                # if qualifier doesn't exist, we're on the same row and same feature
+                # for every row, we just want the most recent version of each feature
+                if row_key != b'':
+                    if event_ts:
+                        final_result[i] = (event_ts, res)
+                        i += 1
+                    res = dict()
+
+                if qualifier is None:
+                    pass
+                elif qualifier == b"event_ts":
+                    event_ts = datetime.fromisoformat(chunk.value.decode())
+                elif qualifier != b'':
+                    # we're on the same row, but there might be a new feature we want
+                    feature_value = chunk.value
+                    val = ValueProto()
+                    val.ParseFromString(feature_value)
+                    res[qualifier.decode()] = val
+            final_result[i] = (event_ts, res)
+
+        return final_result
+
 
     def _process_bt_row(
         self, row: Optional[bigtable.row.PartialRowData]
@@ -336,3 +476,20 @@ class BigtableOnlineStore(OnlineStore):
                 project=online_config.project_id, admin=admin
             )
         return self._client
+
+
+    def _get_client_async(
+        self, online_config: BigtableOnlineStoreConfig
+    ):
+        if self._async_client is None:
+            self._async_client = BigtableDataClientAsync(
+                project=online_config.project_id
+            )
+        return self._async_client
+    
+    def _get_client_async_v2(
+            self
+    ):
+        if self._async_client_v2 is None:
+            self._async_client_v2 = BigtableAsyncClientV2()
+        return self._async_client_v2

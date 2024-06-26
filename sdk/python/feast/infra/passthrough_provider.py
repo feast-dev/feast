@@ -179,6 +179,20 @@ class PassthroughProvider(Provider):
                 config, table, entity_keys, requested_features
             )
         return result
+    
+    async def online_read_async_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
+    ) -> List:
+        result = []
+        if self.online_store:
+            result = await self.online_store.online_read_async_v2(
+                config, table, entity_keys, requested_features
+            )
+        return result
 
     async def online_read_async(
         self,
