@@ -55,8 +55,8 @@ def test_get_online_features(python_fs_client):
     )
 
 
-# @pytest.mark.integration
-# @pytest.mark.universal_online_stores
+@pytest.mark.integration
+@pytest.mark.universal_online_stores
 def test_get_online_predictions(python_fs_client):
     request_data_dict = {
         "prediction_feature_name": "stored_customer_predictions:predictions",
