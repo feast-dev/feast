@@ -15,7 +15,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import get_user_agent
+from feast.utils import get_user_agent
 from feast.value_type import ValueType
 
 

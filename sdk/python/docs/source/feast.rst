@@ -9,9 +9,11 @@ Subpackages
 
    feast.diff
    feast.dqm
+   feast.embedded_go
    feast.infra
    feast.loaders
    feast.protos
+   feast.transformation
    feast.ui
 
 Submodules
@@ -209,6 +211,14 @@ feast.names module
    :undoc-members:
    :show-inheritance:
 
+feast.offline\_server module
+----------------------------
+
+.. automodule:: feast.offline_server
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.on\_demand\_feature\_view module
 --------------------------------------
 
@@ -241,6 +251,14 @@ feast.proto\_json module
    :undoc-members:
    :show-inheritance:
 
+feast.registry\_server module
+-----------------------------
+
+.. automodule:: feast.registry_server
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.repo\_config module
 -------------------------
 
@@ -261,22 +279,6 @@ feast.repo\_operations module
 -----------------------------
 
 .. automodule:: feast.repo_operations
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.repo\_upgrade module
---------------------------
-
-.. automodule:: feast.repo_upgrade
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.request\_feature\_view module
------------------------------------
-
-.. automodule:: feast.request_feature_view
    :members:
    :undoc-members:
    :show-inheritance:
@@ -325,14 +327,6 @@ feast.ui\_server module
 -----------------------
 
 .. automodule:: feast.ui_server
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.usage module
-------------------
-
-.. automodule:: feast.usage
    :members:
    :undoc-members:
    :show-inheritance:

@@ -28,6 +28,14 @@ feast.infra.offline\_stores.bigquery\_source module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.offline\_stores.duckdb module
+-----------------------------------------
+
+.. automodule:: feast.infra.offline_stores.duckdb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.offline\_stores.file module
 ---------------------------------------
 
@@ -40,6 +48,14 @@ feast.infra.offline\_stores.file\_source module
 -----------------------------------------------
 
 .. automodule:: feast.infra.offline_stores.file_source
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.offline\_stores.ibis module
+---------------------------------------
+
+.. automodule:: feast.infra.offline_stores.ibis
    :members:
    :undoc-members:
    :show-inheritance:
@@ -72,6 +88,14 @@ feast.infra.offline\_stores.redshift\_source module
 ---------------------------------------------------
 
 .. automodule:: feast.infra.offline_stores.redshift_source
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.offline\_stores.remote module
+-----------------------------------------
+
+.. automodule:: feast.infra.offline_stores.remote
    :members:
    :undoc-members:
    :show-inheritance:

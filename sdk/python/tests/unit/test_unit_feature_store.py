@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, List
 
-from feast import FeatureStore
+from feast import utils
 from feast.protos.feast.types.Value_pb2 import Value
 
 
@@ -36,8 +36,7 @@ def test_get_unique_entities():
         projection=MockFeatureViewProjection(join_key_map={}),
     )
 
-    unique_entities, indexes = FeatureStore._get_unique_entities(
-        FeatureStore,
+    unique_entities, indexes = utils._get_unique_entities(
         table=fv,
         join_key_values=entity_values,
         entity_name_to_join_key_map=entity_name_to_join_key_map,

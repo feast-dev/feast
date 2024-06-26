@@ -9,7 +9,6 @@ from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExi
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
-from feast.usage import log_exceptions_and_usage
 
 try:
     import boto3
@@ -31,7 +30,6 @@ class S3RegistryStore(RegistryStore):
             "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
         )
 
-    @log_exceptions_and_usage(registry="s3")
     def get_registry_proto(self):
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
@@ -64,7 +62,6 @@ class S3RegistryStore(RegistryStore):
                 f"Error while trying to locate Registry at path {self._uri.geturl()}"
             ) from e
 
-    @log_exceptions_and_usage(registry="s3")
     def update_registry_proto(self, registry_proto: RegistryProto):
         self._write_registry(registry_proto)
 

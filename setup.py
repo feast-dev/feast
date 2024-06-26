@@ -31,7 +31,6 @@ try:
     from setuptools.command.install import install
 
 except ImportError:
-    from distutils.command.build_ext import build_ext as _build_ext
     from distutils.command.build_py import build_py
     from distutils.core import setup
 
@@ -39,55 +38,45 @@ NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = ">=3.9.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "fastavro>=1.1.0,<2",
-    "google-api-core>=1.23.0,<3",
-    "googleapis-common-protos>=1.52.0,<2",
-    "grpcio>=1.47.0,<2",
-    "grpcio-reflection>=1.47.0,<2",
+    "mypy-protobuf>=3.1",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<1.25",
-    "pandas>=1.4.3,<2",
-    # For some reason pandavro higher than 1.5.* only support pandas less than 1.3.
-    "pandavro~=1.5.0",
-    # Higher than 4.23.4 seems to cause a seg fault
-    "protobuf<4.23.4,>3.20",
-    "proto-plus>=1.20.0,<2",
-    "pyarrow>=4,<=15",
-    "pydantic>=1,<2",
+    "numpy>=1.22,<2",
+    "pandas>=1.4.3,<3",
+    "protobuf>=4.24.0,<5.0.0",
+    "pyarrow>=4",
+    "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
-    "SQLAlchemy[mypy]>1,<2",
+    "requests",
+    "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7,<9",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
-    "typeguard==2.13.3",
-    "fastapi>=0.68.0,<0.100",
+    "typeguard>=4.0.0",
+    "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
-    "dask>=2021.0,<2022.02.0",
-    "bowler",  # Needed for automatic repo upgrades
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx>=0.23.3",
-    "importlib-resources>=6.0.0,<7",
-    "importlib_metadata>=6.8.0,<7"
+    "gunicorn; platform_system != 'Windows'",
+    "dask[dataframe]>=2024.4.2",
 ]
 
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
-    "google-cloud-bigquery[pandas]>=2,<4",
+    "google-cloud-bigquery[pandas]>=2,<3.13.0",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
     "google-cloud-datastore>=2.1.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
+    "fsspec<=2024.1.0",
 ]
 
 REDIS_REQUIRED = [
@@ -95,25 +84,28 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "s3fs"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0", "aiobotocore>2,<3"]
 
-BYTEWAX_REQUIRED = ["bytewax==0.17.2"]
+KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 
 SNOWFLAKE_REQUIRED = [
-    "snowflake-connector-python[pandas]>=3,<4",
+    "snowflake-connector-python[pandas]>=3.7,<4",
 ]
 
 SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
+SQLITE_VEC_REQUIRED = [
+    "sqlite-vec==v0.0.1-alpha.10",
+]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
-MYSQL_REQUIRED = ["mysqlclient", "pymysql", "types-PyMySQL"]
+MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
     "happybase>=1.2.0,<3",
@@ -123,7 +115,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41,<0.16.0"]
+GE_REQUIRED = ["great_expectations>=0.15.41"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -137,26 +129,46 @@ ROCKSET_REQUIRED = [
     "rockset>=1.0.3",
 ]
 
+IKV_REQUIRED = [
+    "ikvpy>=0.0.36",
+]
+
 HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
+
+IBIS_REQUIRED = [
+    "ibis-framework>=8.0.0,<9",
+    "ibis-substrait<=3.2.0",
+]
+
+GRPCIO_REQUIRED = [
+    "grpcio>=1.56.2,<2",
+    "grpcio-tools>=1.56.2,<2",
+    "grpcio-reflection>=1.56.2,<2",
+    "grpcio-health-checking>=1.56.2,<2",
+]
+
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
+
+DELTA_REQUIRED = ["deltalake"]
+
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<42",
-        "flake8>=6.0.0,<6.1.0",
-        "black>=22.6.0,<23",
-        "isort>=5,<6",
+        "cryptography>=35.0,<43",
+        "ruff>=0.3.3",
         "grpcio-testing>=1.56.2,<2",
+        # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
+        "httpx>=0.23.3",
         "minio==7.1.0",
         "mock==2.0.0",
-        "moto",
-        "mypy>=0.981,<0.990",
-        "avro==1.10.0",
-        "gcsfs",
-        "urllib3>=1.25.4,<2",
+        "moto<5",
+        "mypy>=1.4.1",
+        "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
         "pytest>=6.0.0,<8",
@@ -167,9 +179,9 @@ CI_REQUIRED = (
         "pytest-timeout==1.4.2",
         "pytest-ordering~=0.6.0",
         "pytest-mock==1.10.4",
+        "pytest-env",
         "Sphinx>4.0.0,<7",
-        "testcontainers>=3.5,<4",
-        "adlfs==0.5.9",
+        "testcontainers==4.4.0",
         "firebase-admin>=5.2.0,<6",
         "pre-commit<3.3.2",
         "assertpy==1.1",
@@ -180,15 +192,15 @@ CI_REQUIRED = (
         "types-pytz",
         "types-PyYAML",
         "types-redis",
-        "types-requests",
+        "types-requests<2.31.0",
         "types-setuptools",
         "types-tabulate",
-        "virtualenv<20.24.2"
+        "virtualenv<20.24.2",
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
     + AWS_REQUIRED
-    + BYTEWAX_REQUIRED
+    + KUBERNETES_REQUIRED
     + SNOWFLAKE_REQUIRED
     + SPARK_REQUIRED
     + POSTGRES_REQUIRED
@@ -200,16 +212,16 @@ CI_REQUIRED = (
     + AZURE_REQUIRED
     + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
+    + IBIS_REQUIRED
+    + GRPCIO_REQUIRED
+    + DUCKDB_REQUIRED
+    + DELTA_REQUIRED
+    + ELASTICSEARCH_REQUIRED
+    + SQLITE_VEC_REQUIRED
 )
 
-
-# rtd builds fail because of mysql not being installed in their environment.
-# We can add mysql there, but it's not strictly needed. This will be faster for builds.
-DOCS_REQUIRED = CI_REQUIRED.copy()
-for _r in MYSQL_REQUIRED:
-    DOCS_REQUIRED.remove(_r)
-
-DEV_REQUIRED = ["mypy-protobuf==3.1", "grpcio-testing~=1.0"] + CI_REQUIRED
+DOCS_REQUIRED = CI_REQUIRED
+DEV_REQUIRED = CI_REQUIRED
 
 # Get git repo root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
@@ -232,7 +244,7 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "serving", "types", "storage"]
+PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
@@ -353,7 +365,7 @@ setup(
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
-        "bytewax": BYTEWAX_REQUIRED,
+        "k8s": KUBERNETES_REQUIRED,
         "redis": REDIS_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
@@ -366,7 +378,14 @@ setup(
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
+        "grpcio": GRPCIO_REQUIRED,
         "rockset": ROCKSET_REQUIRED,
+        "ibis": IBIS_REQUIRED,
+        "duckdb": DUCKDB_REQUIRED,
+        "ikv": IKV_REQUIRED,
+        "delta": DELTA_REQUIRED,
+        "elasticsearch": ELASTICSEARCH_REQUIRED,
+        "sqlite_vec": SQLITE_VEC_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -376,7 +395,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
@@ -384,7 +403,7 @@ setup(
         "setuptools_scm",
         "grpcio>=1.56.2,<2",
         "grpcio-tools>=1.56.2,<2",
-        "mypy-protobuf==3.1",
+        "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
     ],
     cmdclass={

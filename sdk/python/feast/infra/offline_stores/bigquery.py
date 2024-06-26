@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Tuple,
     Union,
@@ -19,8 +20,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow.parquet
-from pydantic import ConstrainedStr, StrictStr, validator
-from pydantic.typing import Literal
+from pydantic import StrictStr, field_validator
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import flags_helper
@@ -45,7 +45,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.usage import get_user_agent, log_exceptions_and_usage
+from feast.utils import get_user_agent
 
 from .bigquery_source import (
     BigQueryLoggingDestination,
@@ -72,13 +72,6 @@ def get_http_client_info():
     return http_client_info.ClientInfo(user_agent=get_user_agent())
 
 
-class BigQueryTableCreateDisposition(ConstrainedStr):
-    """Custom constraint for table_create_disposition. To understand more, see:
-    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition"""
-
-    values = {"CREATE_NEVER", "CREATE_IF_NEEDED"}
-
-
 class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for GCP BigQuery"""
 
@@ -102,10 +95,15 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
     gcs_staging_location: Optional[str] = None
     """ (optional) GCS location used for offloading BigQuery results as parquet files."""
 
-    table_create_disposition: Optional[BigQueryTableCreateDisposition] = None
-    """ (optional) Specifies whether the job is allowed to create new tables. The default value is CREATE_IF_NEEDED."""
+    table_create_disposition: Literal["CREATE_NEVER", "CREATE_IF_NEEDED"] = (
+        "CREATE_IF_NEEDED"
+    )
+    """ (optional) Specifies whether the job is allowed to create new tables. The default value is CREATE_IF_NEEDED.
+    Custom constraint for table_create_disposition. To understand more, see:
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad.FIELDS.create_disposition
+    """
 
-    @validator("billing_project_id")
+    @field_validator("billing_project_id")
     def project_id_exists(cls, v, values, **kwargs):
         if v and not values["project_id"]:
             raise ValueError(
@@ -116,7 +114,6 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -170,7 +167,6 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -206,7 +202,6 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="bigquery")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -353,7 +348,14 @@ class BigQueryOfflineStore(OfflineStore):
             return
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=data, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=data,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
+            )
 
             parquet_temp_file.seek(0)
 
@@ -400,7 +402,14 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
         with tempfile.TemporaryFile() as parquet_temp_file:
-            pyarrow.parquet.write_table(table=table, where=parquet_temp_file)
+            # In Pyarrow v13.0, the parquet version was upgraded to v2.6 from v2.4.
+            # Set the coerce_timestamps to "us"(microseconds) for backward compatibility.
+            pyarrow.parquet.write_table(
+                table=table,
+                where=parquet_temp_file,
+                coerce_timestamps="us",
+                allow_truncated_timestamps=True,
+            )
 
             parquet_temp_file.seek(0)
 
@@ -455,10 +464,9 @@ class BigQueryRetrievalJob(RetrievalJob):
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         with self._query_generator() as query:
-            df = self._execute_query(query=query, timeout=timeout).to_dataframe(
-                create_bqstorage_client=True
-            )
-            return df
+            query_job = self._execute_query(query=query, timeout=timeout)
+            assert query_job
+            return query_job.to_dataframe(create_bqstorage_client=True)
 
     def to_sql(self) -> str:
         """Returns the underlying SQL query."""
@@ -509,6 +517,7 @@ class BigQueryRetrievalJob(RetrievalJob):
             bq_job = self._execute_query(query, job_config, timeout)
 
             if not job_config.dry_run:
+                assert bq_job
                 config = bq_job.to_api_repr()["configuration"]
                 # get temp table created by BQ
                 tmp_dest = config["query"]["destinationTable"]
@@ -518,12 +527,12 @@ class BigQueryRetrievalJob(RetrievalJob):
                 # added expiration to table: https://stackoverflow.com/a/50227484
                 # as in bytewax materialization, these tables are not otherwise deleted
                 sql = f"""
-                    CREATE TABLE `{dest}`
-                    OPTIONS(
-                        expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
-                    )
-                    AS SELECT * FROM `{temp_dest_table}`
-                """
+                     CREATE TABLE `{dest}`
+                     OPTIONS(
+                         expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+                     )
+                     AS SELECT * FROM `{temp_dest_table}`
+                 """
                 self._execute_query(sql, timeout=timeout)
 
             print(f"Done writing to '{dest}'.")
@@ -535,11 +544,9 @@ class BigQueryRetrievalJob(RetrievalJob):
             assert q
             return q.to_arrow()
 
-    @log_exceptions_and_usage
     def _execute_query(
         self, query, job_config=None, timeout: Optional[int] = None
     ) -> Optional[bigquery.job.query.QueryJob]:
-        print(f"Executing query: {query}")
         bq_job = self.client.query(query, job_config=job_config)
 
         if job_config and job_config.dry_run:
@@ -598,7 +605,6 @@ class BigQueryRetrievalJob(RetrievalJob):
         else:
             storage_client = StorageClient(project=self.client.project)
         bucket, prefix = self._gcs_path[len("gs://") :].split("/", 1)
-        # prefix = prefix.rsplit("/", 1)[0]
         if prefix.startswith("/"):
             prefix = prefix[1:]
 

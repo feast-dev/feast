@@ -1,8 +1,9 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from types import MethodType
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from pyspark.sql import DataFrame
+from typing_extensions import TypeAlias
 
 from feast.data_source import DataSource, PushMode
 from feast.importer import import_class
@@ -17,7 +18,7 @@ STREAM_PROCESSOR_CLASS_FOR_TYPE = {
 }
 
 # TODO: support more types other than just Spark.
-StreamTable = DataFrame
+StreamTable: TypeAlias = DataFrame
 
 
 class ProcessorConfig(FeastConfigBaseModel):
@@ -49,33 +50,39 @@ class StreamProcessor(ABC):
         self.sfv = sfv
         self.data_source = data_source
 
-    def ingest_stream_feature_view(self, to: PushMode = PushMode.ONLINE) -> None:
+    @abstractmethod
+    def ingest_stream_feature_view(
+        self, to: PushMode = PushMode.ONLINE
+    ) -> Optional[Any]:
         """
         Ingests data from the stream source attached to the stream feature view; transforms the data
         and then persists it to the online store and/or offline store, depending on the 'to' parameter.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _ingest_stream_data(self) -> StreamTable:
         """
         Ingests data into a StreamTable.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _construct_transformation_plan(self, table: StreamTable) -> StreamTable:
         """
         Applies transformations on top of StreamTable object. Since stream engines use lazy
         evaluation, the StreamTable will not be materialized until it is actually evaluated.
         For example: df.collect() in spark or tbl.execute() in Flink.
         """
-        pass
+        raise NotImplementedError
 
-    def _write_stream_data(self, table: StreamTable, to: PushMode) -> None:
+    @abstractmethod
+    def _write_stream_data(self, table: StreamTable, to: PushMode) -> Optional[Any]:
         """
         Launches a job to persist stream data to the online store and/or offline store, depending
         on the 'to' parameter, and returns a handle for the job.
         """
-        pass
+        raise NotImplementedError
 
 
 def get_stream_processor_object(

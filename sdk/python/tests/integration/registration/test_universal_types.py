@@ -110,7 +110,7 @@ def test_feature_get_historical_features_types_match(
 
     if config.feature_is_list:
         assert_feature_list_types(
-            environment.test_repo_config.provider,
+            environment.provider,
             config.feature_dtype,
             historical_features_df,
         )
@@ -119,7 +119,7 @@ def test_feature_get_historical_features_types_match(
             config.feature_dtype, historical_features_df
         )
     assert_expected_arrow_types(
-        environment.test_repo_config.provider,
+        environment.provider,
         config.feature_dtype,
         config.feature_is_list,
         historical_features,
@@ -144,7 +144,7 @@ def test_feature_get_online_features_types_match(
     fs.materialize(
         environment.start_date,
         environment.end_date
-        - timedelta(hours=1)  # throwing out last record to make sure
+        - timedelta(hours=1),  # throwing out last record to make sure
         # we can successfully infer type even from all empty values
     )
 
@@ -335,10 +335,7 @@ ONLINE_TYPE_TEST_CONFIGS: List[TypeTestConfig] = populate_test_configs(offline=F
 )
 def offline_types_test_fixtures(request, environment):
     config: TypeTestConfig = request.param
-    if (
-        environment.test_repo_config.provider == "aws"
-        and config.feature_is_list is True
-    ):
+    if environment.provider == "aws" and config.feature_is_list is True:
         pytest.skip("Redshift doesn't support list features")
 
     return get_fixtures(request, environment)

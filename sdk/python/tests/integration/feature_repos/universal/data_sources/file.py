@@ -1,49 +1,61 @@
+import logging
 import os.path
 import shutil
+import subprocess
 import tempfile
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import yaml
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.minio import MinioContainer
 
-from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast import FileSource, RepoConfig
+from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
 from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     SavedDatasetFileStorage,
 )
-from feast.repo_config import FeastConfigBaseModel
+from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
+from feast.repo_config import FeastConfigBaseModel, RegistryConfig
+from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 class FileDataSourceCreator(DataSourceCreator):
     files: List[Any]
     dirs: List[Any]
+    keep: List[Any]
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.files = []
         self.dirs = []
+        self.keep = []
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         f = tempfile.NamedTemporaryFile(
@@ -89,16 +101,127 @@ class FileDataSourceCreator(DataSourceCreator):
             shutil.rmtree(d)
 
 
+class DeltaFileSourceCreator(FileDataSourceCreator):
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        created_timestamp_column="created_ts",
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
+    ) -> DataSource:
+        from deltalake.writer import write_deltalake
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        delta_path = tempfile.TemporaryDirectory(
+            prefix=f"{self.project_name}_{destination_name}"
+        )
+
+        self.keep.append(delta_path)
+
+        write_deltalake(delta_path.name, df)
+
+        return FileSource(
+            file_format=DeltaFormat(),
+            path=delta_path.name,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return SavedDatasetFileStorage(
+            path=d, file_format=DeltaFormat(), s3_endpoint_override=None
+        )
+
+    # LoggingDestination is parquet-only
+    def create_logged_features_destination(self) -> LoggingDestination:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return FileLoggingDestination(path=d)
+
+
+class DeltaS3FileSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        self.minio = MinioContainer()
+        self.minio.start()
+        client = self.minio.get_client()
+        if not client.bucket_exists("test"):
+            client.make_bucket("test")
+        host_ip = self.minio.get_container_host_ip()
+        exposed_port = self.minio.get_exposed_port(self.minio.port)
+        self.endpoint_url = f"http://{host_ip}:{exposed_port}"
+
+        self.mock_environ = {
+            "AWS_ACCESS_KEY_ID": self.minio.access_key,
+            "AWS_SECRET_ACCESS_KEY": self.minio.secret_key,
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_REGION": "us-east-1",
+            "AWS_ALLOW_HTTP": "true",
+            "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
+        }
+
+    def create_data_source(
+        self,
+        df: pd.DataFrame,
+        destination_name: str,
+        created_timestamp_column="created_ts",
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
+    ) -> DataSource:
+        from deltalake.writer import write_deltalake
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        storage_options = {
+            "AWS_ACCESS_KEY_ID": self.minio.access_key,
+            "AWS_SECRET_ACCESS_KEY": self.minio.secret_key,
+            "AWS_ENDPOINT_URL": self.endpoint_url,
+        }
+
+        path = f"s3://test/{str(uuid.uuid4())}/{destination_name}"
+
+        write_deltalake(path, df, storage_options=storage_options)
+
+        return FileSource(
+            file_format=DeltaFormat(),
+            path=path,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            field_mapping=field_mapping or {"ts_1": "ts"},
+            s3_endpoint_override=self.endpoint_url,
+        )
+
+    def create_saved_dataset_destination(self) -> SavedDatasetFileStorage:
+        return SavedDatasetFileStorage(
+            path=f"s3://test/{str(uuid.uuid4())}",
+            file_format=DeltaFormat(),
+            s3_endpoint_override=self.endpoint_url,
+        )
+
+    # LoggingDestination is parquet-only
+    def create_logged_features_destination(self) -> LoggingDestination:
+        d = tempfile.mkdtemp(prefix=self.project_name)
+        self.keep.append(d)
+        return FileLoggingDestination(path=d)
+
+    def teardown(self):
+        self.minio.stop()
+
+
 class FileParquetDatasetSourceCreator(FileDataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        timestamp_field="ts",
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
-
         destination_name = self.get_prefixed_table_name(destination_name)
 
         dataset_path = tempfile.TemporaryDirectory(
@@ -167,11 +290,10 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def create_data_source(
         self,
         df: pd.DataFrame,
-        destination_name: Optional[str] = None,
-        suffix: Optional[str] = None,
-        timestamp_field="ts",
+        destination_name: str,
         created_timestamp_column="created_ts",
-        field_mapping: Dict[str, str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
@@ -217,3 +339,91 @@ class S3FileDataSourceCreator(DataSourceCreator):
     def teardown(self):
         self.minio.stop()
         self.f.close()
+
+
+# TODO split up DataSourceCreator and OfflineStoreCreator
+class DuckDBDataSourceCreator(FileDataSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config
+
+
+class DuckDBDeltaDataSourceCreator(DeltaFileSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig()
+        return self.duckdb_offline_store_config
+
+
+class DuckDBDeltaS3DataSourceCreator(DeltaS3FileSourceCreator):
+    def create_offline_store_config(self):
+        self.duckdb_offline_store_config = DuckDBOfflineStoreConfig(
+            staging_location="s3://test/staging",
+            staging_location_endpoint_override=self.endpoint_url,
+        )
+        return self.duckdb_offline_store_config
+
+
+class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        self.server_port: int = 0
+        self.proc = None
+
+    def setup(self, registry: RegistryConfig):
+        parent_offline_config = super().create_offline_store_config()
+        config = RepoConfig(
+            project=self.project_name,
+            provider="local",
+            offline_store=parent_offline_config,
+            registry=registry.path,
+            entity_key_serialization_version=2,
+        )
+
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "w") as outfile:
+            yaml.dump(config.dict(by_alias=True), outfile)
+        repo_path = str(repo_path.resolve())
+
+        self.server_port = free_port()
+        host = "0.0.0.0"
+        cmd = [
+            "feast",
+            "-c" + repo_path,
+            "serve_offline",
+            "--host",
+            host,
+            "--port",
+            str(self.server_port),
+        ]
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
+
+        _time_out_sec: int = 60
+        # Wait for server to start
+        wait_retry_backoff(
+            lambda: (None, check_port_open(host, self.server_port)),
+            timeout_secs=_time_out_sec,
+            timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
+        )
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
+
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        self.remote_offline_store_config = RemoteOfflineStoreConfig(
+            type="remote", host="0.0.0.0", port=self.server_port
+        )
+        return self.remote_offline_store_config
+
+    def teardown(self):
+        super().teardown()
+        if self.proc is not None:
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )

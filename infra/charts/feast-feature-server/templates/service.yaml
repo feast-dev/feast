@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "feast-feature-server.name" . }}
+  name: {{ include "feast-feature-server.fullname" . }}
   labels:
     {{- include "feast-feature-server.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: {{ .Values.feast_mode }}
       protocol: TCP
       name: http
   selector:

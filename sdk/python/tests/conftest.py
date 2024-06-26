@@ -18,19 +18,22 @@ import random
 from datetime import datetime, timedelta
 from multiprocessing import Process
 from sys import platform
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, no_type_check
+from unittest import mock
 
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
 
-os.environ["FEAST_USAGE"] = "False"
-os.environ["IS_TEST"] = "True"
+from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.data.data_creator import create_basic_driver_dataset  # noqa: E402
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
+from tests.data.data_creator import (  # noqa: E402
+    create_basic_driver_dataset,
+    create_document_dataset,
+)
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,  # noqa: E402
 )
 from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
@@ -42,8 +45,8 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,  # noqa: E402
 )
 from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     customer,
@@ -170,7 +173,7 @@ def simple_dataset_2() -> pd.DataFrame:
 
 def start_test_local_server(repo_path: str, port: int):
     fs = FeatureStore(repo_path)
-    fs.serve("localhost", port, no_access_log=True)
+    fs.serve(host="localhost", port=port)
 
 
 @pytest.fixture
@@ -179,17 +182,21 @@ def environment(request, worker_id):
         request.param, worker_id=worker_id, fixture_request=request
     )
 
-    yield e
+    e.setup()
 
-    e.feature_store.teardown()
-    e.data_source_creator.teardown()
-    if e.online_store_creator:
-        e.online_store_creator.teardown()
+    if hasattr(e.data_source_creator, "mock_environ"):
+        with mock.patch.dict(os.environ, e.data_source_creator.mock_environ):
+            yield e
+    else:
+        yield e
+
+    e.teardown()
 
 
-_config_cache = {}
+_config_cache: Any = {}
 
 
+@no_type_check
 def pytest_generate_tests(metafunc: pytest.Metafunc):
     """
     This function receives each test function (wrapped in Metafunc)
@@ -298,10 +305,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 @pytest.fixture
 def feature_server_endpoint(environment):
-    if (
-        not environment.python_feature_server
-        or environment.test_repo_config.provider != "local"
-    ):
+    if not environment.python_feature_server or environment.provider != "local":
         yield environment.feature_store.get_feature_server_endpoint()
         return
 
@@ -407,3 +411,13 @@ def fake_ingest_data():
         "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
     }
     return pd.DataFrame(data)
+
+
+@pytest.fixture
+def fake_document_data(environment: Environment) -> Tuple[pd.DataFrame, DataSource]:
+    df = create_document_dataset()
+    data_source = environment.data_source_creator.create_data_source(
+        df,
+        environment.feature_store.project,
+    )
+    return df, data_source

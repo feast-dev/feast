@@ -2,11 +2,10 @@ import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pandas as pd
-from pydantic import Field, StrictStr
-from pydantic.schema import Literal
+from pydantic import ConfigDict, Field, StrictStr
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -21,7 +20,6 @@ from feast.infra.utils.snowflake.snowflake_utils import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 from feast.utils import to_naive_utc
 
 
@@ -52,18 +50,21 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
+    private_key: Optional[str] = None
+    """ Snowflake private key file path"""
+
+    private_key_passphrase: Optional[str] = None
+    """ Snowflake private key file passphrase"""
+
     database: StrictStr
     """ Snowflake database name """
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnowflakeOnlineStore(OnlineStore):
-    @log_exceptions_and_usage(online_store="snowflake")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -148,17 +149,18 @@ class SnowflakeOnlineStore(OnlineStore):
 
         return None
 
-    @log_exceptions_and_usage(online_store="snowflake")
     def online_read(
         self,
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+
+        requested_features = requested_features if requested_features else []
 
         entity_fetch_str = ",".join(
             [
@@ -208,7 +210,6 @@ class SnowflakeOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @log_exceptions_and_usage(online_store="snowflake")
     def update(
         self,
         config: RepoConfig,
