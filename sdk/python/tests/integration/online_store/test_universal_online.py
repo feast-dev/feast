@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import itertools
 import os
 import time
 import unittest
@@ -17,10 +16,7 @@ from botocore.exceptions import BotoCoreError
 
 from feast import FeatureStore
 from feast.entity import Entity
-from feast.errors import (
-    FeatureNameCollisionError,
-    RequestDataNotFoundInEntityRowsException,
-)
+from feast.errors import FeatureNameCollisionError
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -32,17 +28,12 @@ from tests.integration.feature_repos.repo_configuration import (
     Environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import (
-    customer,
-    driver,
-    location,
-    item,
-)
+from tests.integration.feature_repos.universal.entities import driver, item
 from tests.integration.feature_repos.universal.feature_views import (
     TAGS,
     create_driver_hourly_stats_feature_view,
-    create_vector_feature_view,
     create_item_embeddings_feature_view,
+    create_vector_feature_view,
     driver_feature_view,
 )
 from tests.utils.data_source_test_creator import prep_file_source
@@ -801,9 +792,11 @@ def assert_feature_service_correctness(
     )
     feature_service_keys = feature_service_online_features_dict.keys()
     expected_feature_refs = [
-        f"{projection.name_to_use()}__{feature.name}"
-        if full_feature_names
-        else feature.name
+        (
+            f"{projection.name_to_use()}__{feature.name}"
+            if full_feature_names
+            else feature.name
+        )
         for projection in feature_service.feature_view_projections
         for feature in projection.features
     ]
@@ -854,9 +847,11 @@ def assert_feature_service_entity_mapping_correctness(
         feature_service_keys = feature_service_online_features_dict.keys()
 
         expected_features = [
-            f"{projection.name_to_use()}__{feature.name}"
-            if full_feature_names
-            else feature.name
+            (
+                f"{projection.name_to_use()}__{feature.name}"
+                if full_feature_names
+                else feature.name
+            )
             for projection in feature_service.feature_view_projections
             for feature in projection.features
         ]

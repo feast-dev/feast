@@ -2,10 +2,9 @@ import base64
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from elasticsearch import Elasticsearch, helpers
-from pydantic.typing import Literal
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.online_store import OnlineStore
@@ -218,9 +217,9 @@ class ElasticsearchOnlineStore(OnlineStore):
                 index_params = json.loads(feature.tags.get("index_params", "{}"))
                 if len(index_params) > 0:
                     index_params["type"] = index_type
-                    index_mapping["properties"][feature.name][
-                        "index_options"
-                    ] = index_params
+                    index_mapping["properties"][feature.name]["index_options"] = (
+                        index_params
+                    )
             else:
                 t = self._get_data_type(feature.dtype)
                 t = "keyword" if is_primary and t == "text" else t

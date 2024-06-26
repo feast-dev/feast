@@ -340,7 +340,7 @@ class SparkKafkaProcessor(StreamProcessor):
             if isinstance(self.sfv, StreamFeatureView):
                 ts_field = self.sfv.timestamp_field
             else:
-                ts_field = self.sfv.stream_source.timestamp_field
+                ts_field = self.sfv.stream_source.timestamp_field  # type: ignore
             rows = (
                 rows.sort_values(by=[*self.join_keys, ts_field], ascending=False)
                 .groupby(self.join_keys)

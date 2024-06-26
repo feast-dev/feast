@@ -146,10 +146,6 @@ docker==7.1.0
     # via testcontainers
 docutils==0.19
     # via sphinx
-elastic-transport==8.4.1
-    # via elasticsearch
-elasticsearch==8.8.0
-    # via eg-feast (setup.py)
 duckdb==0.10.3
     # via
     #   duckdb-engine

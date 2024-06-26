@@ -9,7 +9,6 @@ from typing import Any, List, Optional, Set, Union
 import httpx
 from pydantic import StrictStr
 
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource, KafkaSource, PushSource, RequestSource
 from feast.entity import Entity
@@ -47,7 +46,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -144,7 +142,11 @@ class HttpRegistry(BaseRegistry):
         except Exception as exception:
             self._handle_exception(exception)
 
-    def apply_project(self, project: str, commit: bool = True) -> ProjectMetadataModel:
+    def apply_project(  # type: ignore[return]
+        self,
+        project: str,
+        commit: bool = True,
+    ) -> ProjectMetadataModel:
         try:
             url = f"{self.base_url}/projects"
             params = {"project": project, "commit": commit}
@@ -206,6 +208,7 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -303,6 +306,7 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -393,7 +397,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_services(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -476,7 +483,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -517,7 +527,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_on_demand_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -548,16 +561,10 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         # TODO: Implement listing Stream Feature Views
         return []
-
-    def get_request_feature_view(
-        self,
-        name: str,
-        project: str,
-    ) -> RequestFeatureView:
-        raise NotImplementedError("Method not implemented")
 
     def apply_materialization(
         self,
@@ -702,9 +709,7 @@ class HttpRegistry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=self.cached_registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if project_metadata is None:
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )

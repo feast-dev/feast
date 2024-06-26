@@ -15,7 +15,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic.error_wrappers import ErrorWrapper
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
@@ -67,7 +66,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "milvus": "feast.expediagroup.vectordb.milvus_online_store.MilvusOnlineStore",
     "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
-    "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
+    # "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
 }
 
@@ -245,7 +244,7 @@ class RepoConfig(FeastBaseModel):
         elif "batch_engine_config" in data:
             self._batch_engine_config = data["batch_engine_config"]
         elif data["provider"] == "expedia":
-            self._batch_engine_config = "spark.engine"
+            self.batch_engine_config = "spark.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self.batch_engine_config = "local"

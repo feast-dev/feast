@@ -8,7 +8,6 @@ from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
-from feast.errors import DataSourceNoNameException
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -278,11 +277,23 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
+
+        # TODO: Revert after leveraging the Remote Registry. Conversion from Proto is
+        # setting values to empty string if not set.This impacts the Pydantic Model
+        # conversion. So fixing it here.
         spark_options = cls(
-            table=spark_options_proto.table,
-            query=spark_options_proto.query,
-            path=spark_options_proto.path,
-            file_format=spark_options_proto.file_format,
+            table=(
+                spark_options_proto.table if spark_options_proto.table != "" else None
+            ),
+            query=(
+                spark_options_proto.query if spark_options_proto.query != "" else None
+            ),
+            path=spark_options_proto.path if spark_options_proto.path != "" else None,
+            file_format=(
+                spark_options_proto.file_format
+                if spark_options_proto.file_format != ""
+                else None
+            ),
         )
 
         return spark_options

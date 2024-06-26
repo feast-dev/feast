@@ -86,12 +86,14 @@ def conv_rate_plus_100_feature_view(
         name=conv_rate_plus_100.__name__,
         schema=[] if infer_features else _features,
         sources=sources,
-        feature_transformation=PandasTransformation(
-            udf=conv_rate_plus_100,
-            udf_string="raw udf source",  # type: ignore
-        )
-        if not use_substrait_odfv
-        else SubstraitTransformation.from_ibis(conv_rate_plus_100_ibis, sources),
+        feature_transformation=(
+            PandasTransformation(
+                udf=conv_rate_plus_100,  # type: ignore
+                udf_string="raw udf source",
+            )
+            if not use_substrait_odfv
+            else SubstraitTransformation.from_ibis(conv_rate_plus_100_ibis, sources)
+        ),
         mode="pandas" if not use_substrait_odfv else "substrait",
     )
 
@@ -130,8 +132,8 @@ def similarity_feature_view(
         sources=sources,  # type: ignore
         schema=[] if infer_features else _fields,
         feature_transformation=PandasTransformation(
-            udf=similarity,
-            udf_string="similarity raw udf",  # type: ignore
+            udf=similarity,  # type: ignore
+            udf_string="similarity raw udf",
         ),
     )
 
@@ -157,12 +159,14 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
     item_embeddings_feature_view = FeatureView(
         name="item_embeddings",
         entities=[item()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="embedding_double", dtype=Array(Float64)),
-            Field(name="embedding_float", dtype=Array(Float32)),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="embedding_double", dtype=Array(Float64)),
+                Field(name="embedding_float", dtype=Array(Float32)),
+            ]
+        ),
         source=source,
         ttl=timedelta(hours=2),
     )
@@ -175,12 +179,14 @@ def create_item_embeddings_batch_feature_view(
     item_embeddings_feature_view = BatchFeatureView(
         name="item_embeddings",
         entities=[item()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="embedding_double", dtype=Array(Float64)),
-            Field(name="embedding_float", dtype=Array(Float32)),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="embedding_double", dtype=Array(Float64)),
+                Field(name="embedding_float", dtype=Array(Float32)),
+            ]
+        ),
         source=source,
         ttl=timedelta(hours=2),
     )
@@ -194,14 +200,16 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
         entities=[d],
-        schema=None
-        if infer_features
-        else [
-            Field(name="conv_rate", dtype=Float32),
-            Field(name="acc_rate", dtype=Float32),
-            Field(name="avg_daily_trips", dtype=Int32),
-            Field(name=d.join_key, dtype=Int64),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int32),
+                Field(name=d.join_key, dtype=Int64),
+            ]
+        ),
         source=source,
         ttl=timedelta(hours=2),
         tags=TAGS,
@@ -215,13 +223,15 @@ def create_driver_hourly_stats_batch_feature_view(
     driver_stats_feature_view = BatchFeatureView(
         name="driver_stats",
         entities=[driver()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="conv_rate", dtype=Float32),
-            Field(name="acc_rate", dtype=Float32),
-            Field(name="avg_daily_trips", dtype=Int32),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int32),
+            ]
+        ),
         source=source,
         ttl=timedelta(hours=2),
         tags=TAGS,
@@ -233,13 +243,15 @@ def create_customer_daily_profile_feature_view(source, infer_features: bool = Fa
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
         entities=[customer()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="current_balance", dtype=Float32),
-            Field(name="avg_passenger_count", dtype=Float32),
-            Field(name="lifetime_trip_count", dtype=Int32),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="current_balance", dtype=Float32),
+                Field(name="avg_passenger_count", dtype=Float32),
+                Field(name="lifetime_trip_count", dtype=Int32),
+            ]
+        ),
         source=source,
         ttl=timedelta(days=2),
         tags=TAGS,
@@ -251,12 +263,14 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
     global_stats_feature_view = FeatureView(
         name="global_stats",
         entities=[],
-        schema=None
-        if infer_features
-        else [
-            Field(name="num_rides", dtype=Int32),
-            Field(name="avg_ride_length", dtype=Float32),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="num_rides", dtype=Int32),
+                Field(name="avg_ride_length", dtype=Float32),
+            ]
+        ),
         source=source,
         ttl=timedelta(days=2),
         tags=TAGS,
@@ -268,12 +282,14 @@ def create_order_feature_view(source, infer_features: bool = False):
     return FeatureView(
         name="order",
         entities=[customer(), driver()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="order_is_success", dtype=Int32),
-            Field(name="driver_id", dtype=Int64),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="order_is_success", dtype=Int32),
+                Field(name="driver_id", dtype=Int64),
+            ]
+        ),
         source=source,
         ttl=timedelta(days=2),
     )
@@ -283,12 +299,14 @@ def create_location_stats_feature_view(source, infer_features: bool = False):
     location_stats_feature_view = FeatureView(
         name="location_stats",
         entities=[location()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="temperature", dtype=Int32),
-            Field(name="location_id", dtype=Int64),
-        ],
+        schema=(
+            None
+            if infer_features
+            else [
+                Field(name="temperature", dtype=Int32),
+                Field(name="location_id", dtype=Int64),
+            ]
+        ),
         source=source,
         ttl=timedelta(days=2),
     )

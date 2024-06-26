@@ -23,6 +23,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.7
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V "libarrow-dev=11.0.0-1"
+            sudo apt install -y -V pkg-config
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -37,18 +52,41 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
         run: make install-python-ci-dependencies-uv
+      - name: Compile Go along with Extensions
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          make install-go-proto-dependencies 
+          make install-go-ci-dependencies
+          COMPILE_GO=true python setup.py develop
+          CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
+      - name: Test Milvus tests
+        if: matrix.os == 'ubuntu-latest'
+        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/test_milvus_online_store.py
       - name: Test Python
+        if: matrix.os == 'ubuntu-latest'
         run: make test-python-unit
+      - name: Test Python for Mac
+        if: matrix.os != 'ubuntu-latest'
+        run: python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup --ignore=sdk/python/tests/integration/e2e/test_go_feature_server.py
 
   unit-test-go:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=22.1,<23"

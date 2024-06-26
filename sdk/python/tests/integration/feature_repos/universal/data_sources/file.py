@@ -382,20 +382,19 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "w") as outfile:
             yaml.dump(config.dict(by_alias=True), outfile)
-        repo_path = str(repo_path.resolve())
 
         self.server_port = free_port()
         host = "0.0.0.0"
         cmd = [
             "feast",
-            "-c" + repo_path,
+            "-c" + str(repo_path.resolve()),
             "serve_offline",
             "--host",
             host,
             "--port",
             str(self.server_port),
         ]
-        self.proc = subprocess.Popen(
+        self.proc = subprocess.Popen(  # type: ignore
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
         )
 

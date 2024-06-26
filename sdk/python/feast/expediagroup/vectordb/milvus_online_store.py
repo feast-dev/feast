@@ -1,12 +1,11 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from bidict import bidict
-from pydantic.typing import Literal
 from pymilvus import (
     Collection,
     CollectionSchema,
@@ -140,9 +139,7 @@ class MilvusOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-
         with MilvusConnectionManager(config.online_store):
-
             quer_expr = self._construct_milvus_query(entity_keys)
             use_iter_search = len(entity_keys) > MAX_SEARCH_SIZE
             collection = Collection(table.name)
@@ -208,7 +205,6 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         with MilvusConnectionManager(config.online_store):
-
             for table in tables:
                 collection_name = table.name
                 if utility.has_collection(collection_name):
@@ -233,7 +229,10 @@ class MilvusOnlineStore(OnlineStore):
                     f"a schema must be provided for feature_view: {feature_view.name}"
                 )
 
-            (schema, indexes,) = self._convert_featureview_schema_to_milvus_readable(
+            (
+                schema,
+                indexes,
+            ) = self._convert_featureview_schema_to_milvus_readable(
                 feature_view,
             )
 
@@ -274,7 +273,6 @@ class MilvusOnlineStore(OnlineStore):
         indexes = {}
 
         for field in feature_view.schema:
-
             field_name = field.name
             data_type = self._get_milvus_type(field.dtype)
             max_length = 64

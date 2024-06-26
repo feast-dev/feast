@@ -142,10 +142,6 @@ docker==7.1.0
     # via testcontainers
 docutils==0.19
     # via sphinx
-elastic-transport==8.4.1
-    # via elasticsearch
-elasticsearch==8.8.0
-    # via eg-feast (setup.py)
 duckdb==0.10.3
     # via
     #   duckdb-engine
@@ -159,6 +155,8 @@ email-validator==2.1.1
     # via fastapi
 entrypoints==0.4
     # via altair
+environs==9.5.0
+    # via pymilvus
 execnet==2.1.1
     # via pytest-xdist
 executing==2.0.1
@@ -894,10 +892,9 @@ tzlocal==5.2
     #   trino
 ujson==5.9.0
     # via fastapi
+    # via pymilvus
 uri-template==1.3.0
     # via jsonschema
-ujson==5.8.0
-    # via pymilvus
 uritemplate==4.1.1
     # via google-api-python-client
 urllib3==1.26.18

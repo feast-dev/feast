@@ -61,11 +61,7 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_view import (
-    DUMMY_ENTITY,
-    DUMMY_ENTITY_NAME,
-    FeatureView,
-)
+from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -88,12 +84,6 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.type_map import (
-    feast_value_type_to_python_type,
-    python_values_to_proto_values,
-)
-from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
-from feast.value_type import ValueType
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1920,8 +1910,6 @@ class FeatureStore:
             )
         return read_row_protos
 
-
-
     def _lazy_init_go_server(self):
         """Lazily initialize self._go_server if it hasn't been initialized before."""
         from feast.embedded_go.online_features_service import (
@@ -1950,17 +1938,14 @@ class FeatureStore:
         if self.config.go_feature_serving:
             # Start go server instead of python if the flag is enabled
             self._lazy_init_go_server()
-            enable_logging: bool = (
+            enable_logging: bool = getattr(
                 getattr(
-                    getattr(
-                        getattr(self.config, "feature_server", None),
-                        "feature_logging",
-                        None,
-                    ),
-                    "enabled",
-                    False,
-                )
-                and not no_feature_log
+                    getattr(self.config, "feature_server", None),
+                    "feature_logging",
+                    None,
+                ),
+                "enabled",
+                False,
             )
             logging_options = (
                 self.config.feature_server.feature_logging

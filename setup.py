@@ -149,9 +149,10 @@ HAZELCAST_REQUIRED = [
 
 MILVUS_REQUIRED = ["pymilvus>=2.3.0", "bidict==0.22.1"]
 
-ELASTICSEARCH_REQUIRED = [
-    "elasticsearch==8.8",
-]
+# TODO: EG Implemented. Make decision on EG vs OpenSource
+# ELASTICSEARCH_REQUIRED = [
+#     "elasticsearch==8.8",
+# ]
 
 IBIS_REQUIRED = [
     "ibis-framework>=8.0.0,<9",
@@ -179,7 +180,7 @@ CI_REQUIRED = (
         "ruff>=0.3.3",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-        "httpx>=0.23.3",
+        "httpx>=0.23.3,<1.0.0",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
@@ -261,7 +262,13 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage", "third_party/grpc/health/v1"]
+PROTO_SUBDIRS = [
+    "core",
+    "registry",
+    "serving",
+    "types",
+    "storage",
+]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 

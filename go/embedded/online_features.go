@@ -21,13 +21,13 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/server"
-	"github.com/feast-dev/feast/go/internal/feast/server/healthcheck"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast/transformation"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	jsonlog "github.com/rs/zerolog/log"
+	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -311,7 +311,7 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 
 	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, ser)
-	healthService := healthcheck.NewHealthChecker()
+	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
 
 	go func() {
