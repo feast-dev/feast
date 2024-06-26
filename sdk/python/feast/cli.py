@@ -685,7 +685,7 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
 )
 @click.option(
-    "--metrics_enabled",
+    "--metrics",
     is_flag=True,
     show_default=True,
     help="Disable the Metrics Server",
@@ -699,7 +699,7 @@ def serve_command(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    metrics_enabled: bool,
+    metrics: bool,
     registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
@@ -712,7 +712,7 @@ def serve_command(
         no_access_log=no_access_log,
         workers=workers,
         keep_alive_timeout=keep_alive_timeout,
-        metrics_enabled=metrics_enabled,
+        metrics=metrics,
         registry_ttl_sec=registry_ttl_sec,
     )
 
