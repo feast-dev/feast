@@ -236,7 +236,7 @@ class Provider(ABC):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
@@ -263,7 +263,7 @@ class Provider(ABC):
         requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
-        Reads features values for the given entity keys.
+        Reads features values for the given entity keys asynchronously.
 
         Args:
             config: The config for the current feature store.

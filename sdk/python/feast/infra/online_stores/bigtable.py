@@ -254,7 +254,6 @@ class BigtableOnlineStore(OnlineStore):
 
         return (event_ts, res)
 
-    # @log_exceptions_and_usage(online_store="bigtable")
     def online_write_batch(
         self,
         config: RepoConfig,
