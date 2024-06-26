@@ -27,9 +27,9 @@ class Policy(ABC):
 class RoleBasedPolicy(Policy):
     """
     A `Policy` implementation where the user roles must be enforced to grant access to the requested action.
-    All the configured roles must be granted to the current user in order to allow the execution.
+    At least one of the configured roles must be granted to the current user in order to allow the execution of the secured operation.
 
-    E.g., if the policy enforces roles `a` and `b`, the user must have both of them in order to satisfy the policy.
+    E.g., if the policy enforces roles `a` and `b`, the user must have at least one of them in order to satisfy the policy.
     """
 
     def __init__(
@@ -55,7 +55,7 @@ class RoleBasedPolicy(Policy):
             )
         rm = kwargs.get("role_manager")
         if isinstance(rm, RoleManager):
-            result = rm.has_roles_for_user(user, self.roles)
+            result = rm.user_has_matching_role(user, self.roles)
         explain = "" if result else f"Requires roles {self.roles}"
         return (result, explain)
 

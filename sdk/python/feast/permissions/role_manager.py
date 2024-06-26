@@ -28,9 +28,9 @@ class RoleManager:
         """
         self.roles_by_user.clear()
 
-    def has_roles_for_user(self, user: str, roles: list[str]) -> bool:
+    def user_has_matching_role(self, user: str, roles: list[str]) -> bool:
         """
-        Verify the given user has the requested roles.
+        Verify that the given user has at least one of the requested roles.
 
         Args:
             user: The user ID.
@@ -40,8 +40,7 @@ class RoleManager:
             bool: `True` only if the given user has any registered role and all the given roles are registered.
         """
         logger.debug(
-            f"Check {user} has all {roles}: currently {self.roles_by_user[user] if user in self.roles_by_user else[]}"
+            f"Check {user} has all {roles}: currently {self.roles_by_user.get(user, [])}"
         )
-        return user in self.roles_by_user and all(
-            r in self.roles_by_user[user] for r in roles
-        )
+        user_roles = self.roles_by_user.get(user, [])
+        return any(role in user_roles for role in roles)

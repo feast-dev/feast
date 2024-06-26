@@ -34,14 +34,16 @@ def role_manager() -> RoleManager:
     [
         (["reader"], "r", True),
         (["writer"], "r", False),
-        (["reader", "writer"], "r", False),
+        (["reader", "writer"], "r", True),
+        (["writer", "updater"], "r", False),
         (["reader"], "w", False),
         (["writer"], "w", True),
-        (["reader", "writer"], "w", False),
+        (["reader", "writer"], "w", True),
+        (["reader", "updater"], "w", False),
         (["reader"], "rw", True),
         (["writer"], "rw", True),
         (["reader", "writer"], "rw", True),
-        (["reader", "writer", "updater"], "rw", False),
+        (["updater"], "rw", False),
     ],
 )
 def test_role_based_policy(role_manager, required_roles, user, result):
