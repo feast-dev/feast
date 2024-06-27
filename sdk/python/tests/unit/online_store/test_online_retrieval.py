@@ -572,7 +572,7 @@ def test_get_online_predictions():
     recomputed_score = 38.0
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_3.py"), "file"
+        get_example_repo("example_feature_repo_with_online_predictions.py"), "file"
     ) as store:
         # Write some data to two tables
         customer_profile_fv = store.get_feature_view(name="customer_profile")
