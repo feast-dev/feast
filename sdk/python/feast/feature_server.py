@@ -154,7 +154,7 @@ def get_app(
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/get-online-predictions")
-    def get_predictions_endpoint(body=Depends(get_body)):
+    def get_online_predictions(body=Depends(get_body)):
         try:
             features, body = _get_features_from_body(store, body)
 
