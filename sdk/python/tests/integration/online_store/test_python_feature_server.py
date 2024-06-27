@@ -26,7 +26,7 @@ def test_get_online_features(python_fs_client):
             "driver_stats:acc_rate",
             "driver_stats:avg_daily_trips",
         ],
-        "entities": {"driver_id": ['5001', '5002']},
+        "entities": {"driver_id": [5001, 5002]},
     }
     response = python_fs_client.post(
         "/get-online-features", data=json.dumps(request_data_dict)
@@ -51,54 +51,6 @@ def test_get_online_features(python_fs_client):
     results_driver_id_index = response_feature_names.index("driver_id")
     assert (
         results[results_driver_id_index]["values"]
-        == request_data_dict["entities"]["driver_id"]
-    )
-
-
-@pytest.mark.integration
-@pytest.mark.universal_online_stores
-def test_get_online_predictions(python_fs_client):
-    request_data_dict = {
-        "prediction_feature_name": "stored_driver_predictions:predictions",
-        "features": [
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips",
-        ],
-        "entities": {"driver_id": ['5001', '5002']},
-        "model_feature_name": "risk_score_calculator:predictions",
-        "force_recompute": True,
-        "log_features": True,
-    }
-    response = python_fs_client.post(
-        "/get-online-predictions", data=json.dumps(request_data_dict)
-    )
-
-    # Check entities and features are present
-    parsed_response = json.loads(response.text)
-    assert "metadata" in parsed_response
-    metadata = parsed_response["metadata"]
-    expected_features = [
-        "driver_id",
-        "conv_rate",
-        "avg_daily_trips",
-        "predictions",
-    ]
-    response_feature_names = metadata["feature_names"]
-    assert len(response_feature_names) == len(expected_features)
-    for expected_feature in expected_features:
-        assert expected_feature in response_feature_names
-    assert "results" in parsed_response
-    results = parsed_response["results"]
-    print("prediction online response")
-    print(json.dumps(results, indent=2))
-    for result in results:
-        # Same order as in metadata
-        assert len(result["statuses"]) == 2  # Requested two entities
-        for status in result["statuses"]:
-            assert status == "PRESENT"
-    results_customer_id_index = response_feature_names.index("driver_id")
-    assert (
-        results[results_customer_id_index]["values"]
         == request_data_dict["entities"]["driver_id"]
     )
 

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -16,12 +16,8 @@ from feast import (
 )
 from feast.data_source import DataSource, RequestSource
 from feast.feature_view_projection import FeatureViewProjection
-from feast.on_demand_feature_view import (
-    PandasTransformation,
-    PythonTransformation,
-    SubstraitTransformation,
-)
-from feast.types import Array, FeastType, Float32, Float64, Int32, Int64, String
+from feast.on_demand_feature_view import PandasTransformation, SubstraitTransformation
+from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -323,53 +319,4 @@ def create_pushable_feature_view(batch_source: DataSource):
         ],
         ttl=timedelta(days=2),
         source=push_source,
-    )
-
-
-def create_predictions_feature_view(source, infer_features: bool = False):
-    stored_driver_predictions = FeatureView(
-        name="stored_driver_predictions",
-        entities=[driver()],
-        schema=None
-        if infer_features
-        else [
-            Field(name="predictions", dtype=Float32),
-            Field(name="model_version", dtype=String),
-            Field(name="driver_id", dtype=String),
-        ],
-        source=source,
-        tags=TAGS,
-    )
-    return stored_driver_predictions
-
-
-def risk_score_calculator(inputs: dict[str, Any]) -> dict[str, Any]:
-    outputs = {
-        "predictions": [
-            sum(v if v else 0 for v in values)
-            for values in zip(*(inputs[k] for k in ["conv_rate", "avg_daily_trips"]))
-        ],
-        "model_version": ["1.0.0"] * len(inputs["avg_daily_trips"]),
-    }
-    return outputs
-
-
-def prediction_calculator_feature_view(
-    sources: List[Union[FeatureView, RequestSource, FeatureViewProjection]],
-    infer_features: bool = False,
-    features: Optional[List[Field]] = None,
-) -> OnDemandFeatureView:
-    _features = features or [
-        Field(name="predictions", dtype=Float64),
-        Field(name="model_version", dtype=String),
-    ]
-    return OnDemandFeatureView(
-        name=risk_score_calculator.__name__,
-        sources=sources,
-        schema=[] if infer_features else _features,
-        mode="python",
-        feature_transformation=PythonTransformation(
-            udf=risk_score_calculator,
-            udf_string="raw udf source",  # type: ignore
-        ),
     )
