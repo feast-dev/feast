@@ -252,6 +252,14 @@ feast.proto\_json module
    :undoc-members:
    :show-inheritance:
 
+feast.prova module
+------------------
+
+.. automodule:: feast.prova
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.registry\_server module
 -----------------------------
 
