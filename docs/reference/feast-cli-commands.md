@@ -24,6 +24,7 @@ Commands:
   init                     Create a new Feast repository
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
+  permissions              Access permissions
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -153,6 +154,28 @@ Load data from feature views into the online store, beginning from either the pr
 
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
+```
+
+## Permissions
+***TODO*** Update
+```text
+feast permissions --help
+...
+```
+
+### List permissions
+***TODO*** Description and output examples
+
+```text
+feast permissions list
+...
+```
+
+### Describe a permission
+***TODO*** Description and output examples
+```text
+feast permissions describe permission-name
+...
 ```
 
 ## Teardown

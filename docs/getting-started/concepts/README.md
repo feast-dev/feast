@@ -31,3 +31,7 @@
 {% content-ref url="dataset.md" %}
 [dataset.md](dataset.md)
 {% endcontent-ref %}
+
+{% content-ref url="permission.md" %}
+[permission.md](permission.md)
+{% endcontent-ref %}

@@ -12,6 +12,7 @@ Subpackages
    feast.embedded_go
    feast.infra
    feast.loaders
+   feast.permissions
    feast.protos
    feast.transformation
    feast.ui
@@ -247,6 +248,14 @@ feast.proto\_json module
 ------------------------
 
 .. automodule:: feast.proto_json
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.prova module
+------------------
+
+.. automodule:: feast.prova
    :members:
    :undoc-members:
    :show-inheritance:
