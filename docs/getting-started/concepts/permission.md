@@ -113,9 +113,9 @@ offline_store:
     auth:
         type: oidc
         server: 'http://0.0.0.0:8080'
-        realm: 'poc'
-        client-id: 'app'
-        client-secret: 'mqAzX7zDalQ1a3BZRWs7Pi5JRqCq7h4z'
-        username: 'username'
-        password: 'password'
+        realm: 'OIDC_REALM'
+        client-id: 'CLIENT_ID'
+        client-secret: 'CLIENT_SECRET'
+        username: 'USERNAME'
+        password: 'PASSWORD'
 ```
