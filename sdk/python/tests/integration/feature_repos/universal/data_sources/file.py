@@ -381,7 +381,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "w") as outfile:
-            yaml.dump(config.dict(by_alias=True), outfile)
+            yaml.dump(config.model_dump(by_alias=True), outfile)
         repo_path = str(repo_path.resolve())
 
         self.server_port = free_port()
