@@ -412,7 +412,7 @@ def construct_universal_feature_views(
             data_sources.stored_driver_predictions
         ),
         risk_score_calculator=prediction_calculator_feature_view(
-            [driver_hourly_stats_base_feature_view],
+            [driver_hourly_stats],
         ),
         field_mapping=create_field_mapping_feature_view(data_sources.field_mapping),
         pushed_locations=create_pushable_feature_view(data_sources.location),
