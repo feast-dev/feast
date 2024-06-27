@@ -326,52 +326,30 @@ def create_pushable_feature_view(batch_source: DataSource):
     )
 
 
-def create_customer_model_feature_view(source, infer_features: bool = False):
-    customer_profile_model = FeatureView(
-        name="customer_profile_model",
-        entities=[customer()],
-        ttl=timedelta(days=1),
-        schema=None
-        if infer_features
-        else [
-            Field(name="current_balance", dtype=Float32),
-            Field(name="avg_passenger_count", dtype=Float32),
-            Field(name="lifetime_trip_count", dtype=Int32),
-        ],
-        online=True,
-        source=source,
-        tags=TAGS,
-    )
-    return customer_profile_model
-
-
 def create_predictions_feature_view(source, infer_features: bool = False):
-    stored_customer_predictions = FeatureView(
-        name="stored_customer_predictions",
-        entities=[customer()],
+    stored_driver_predictions = FeatureView(
+        name="stored_driver_predictions",
+        entities=[driver()],
         schema=None
         if infer_features
         else [
             Field(name="predictions", dtype=Float32),
             Field(name="model_version", dtype=String),
-            Field(name="customer_id", dtype=String),
+            Field(name="driver_id", dtype=String),
         ],
         source=source,
-        ttl=timedelta(days=2),
         tags=TAGS,
     )
-    return stored_customer_predictions
+    return stored_driver_predictions
 
 
 def risk_score_calculator(inputs: dict[str, Any]) -> dict[str, Any]:
     outputs = {
         "predictions": [
             sum(v if v else 0 for v in values)
-            for values in zip(
-                *(inputs[k] for k in ["current_balance", "lifetime_trip_count"])
-            )
+            for values in zip(*(inputs[k] for k in ["conv_rate", "avg_daily_trips"]))
         ],
-        "model_version": ["1.0.0"] * len(inputs["lifetime_trip_count"]),
+        "model_version": ["1.0.0"] * len(inputs["avg_daily_trips"]),
     }
     return outputs
 

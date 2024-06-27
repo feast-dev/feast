@@ -59,12 +59,12 @@ def test_get_online_features(python_fs_client):
 @pytest.mark.universal_online_stores
 def test_get_online_predictions(python_fs_client):
     request_data_dict = {
-        "prediction_feature_name": "stored_customer_predictions:predictions",
+        "prediction_feature_name": "stored_driver_predictions:predictions",
         "features": [
-            "customer_profile_model:current_balance",
-            "customer_profile_model:lifetime_trip_count",
+            "driver_stats:conv_rate",
+            "driver_stats:avg_daily_trips",
         ],
-        "entities": {"customer_id": ["1001", "1002"]},
+        "entities": {"customer_id": [1019, 1018]},
         "model_feature_name": "risk_score_calculator:predictions",
         "force_recompute": True,
         "log_features": True,
@@ -89,6 +89,8 @@ def test_get_online_predictions(python_fs_client):
         assert expected_feature in response_feature_names
     assert "results" in parsed_response
     results = parsed_response["results"]
+    print("prediction online response")
+    print(json.dumps(results, indent=2))
     for result in results:
         # Same order as in metadata
         assert len(result["statuses"]) == 2  # Requested two entities

@@ -193,18 +193,16 @@ def create_customer_daily_profile_df(customers, start_date, end_date) -> pd.Data
     return df_all_customers
 
 
-def create_customer_predictions(customers, start_date, end_date) -> pd.DataFrame:
-    df_all_customers = create_customer_daily_profile_df(customers, start_date, end_date)
-    df_all_customers.drop(
-        columns=["current_balance", "avg_passenger_count", "lifetime_trip_count"],
-        axis=1,
-        inplace=True,
+def create_driver_predictions(drivers, start_date, end_date) -> pd.DataFrame:
+    df_all_drivers = create_driver_hourly_stats_df(drivers, start_date, end_date).copy()
+    df_all_drivers.drop(
+        columns=["conv_rate", "acc_rate", "avg_daily_trips"], axis=1, inplace=True
     )
-    df_all_customers["predictions"] = np.random.random(
-        size=df_all_customers.shape[0]
+    df_all_drivers["predictions"] = np.random.random(
+        size=df_all_drivers.shape[0]
     ).astype(np.float32)
-    df_all_customers["model_version"] = "1.0.0"
-    return df_all_customers
+    df_all_drivers["model_version"] = "1.0.0"
+    return df_all_drivers
 
 
 def create_location_stats_df(locations, start_date, end_date) -> pd.DataFrame:

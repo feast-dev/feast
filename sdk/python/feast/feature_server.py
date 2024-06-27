@@ -88,11 +88,12 @@ def get_app(
             features, body = _get_features_from_body(store, body)
             full_feature_names = body.get("full_feature_names", False)
 
-            response_proto = store.get_online_features(
+            response = store.get_online_features(
                 features=features,
                 entity_rows=body["entities"],
                 full_feature_names=full_feature_names,
-            ).proto
+            )
+            response_proto = response.proto
 
             # Convert the Protobuf object to JSON and return it
             return MessageToDict(
@@ -157,14 +158,15 @@ def get_app(
         try:
             features, body = _get_features_from_body(store, body)
 
-            response_proto = store.get_online_predictions(
+            response = store.get_online_predictions(
                 prediction_feature_name=body["prediction_feature_name"],
                 model_feature_name=body["model_feature_name"],
                 features=features,
                 entity_rows=body["entities"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
-            ).proto
+            )
+            response_proto = response.proto
 
             # Convert the Protobuf object to JSON and return it
             return MessageToDict(
