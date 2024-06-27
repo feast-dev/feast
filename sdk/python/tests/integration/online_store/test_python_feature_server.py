@@ -17,8 +17,8 @@ from tests.integration.feature_repos.universal.entities import (
 )
 
 
-@pytest.mark.integration
-@pytest.mark.universal_online_stores
+# @pytest.mark.integration
+# @pytest.mark.universal_online_stores
 def test_get_online_features(python_fs_client):
     request_data_dict = {
         "features": [
@@ -26,7 +26,7 @@ def test_get_online_features(python_fs_client):
             "driver_stats:acc_rate",
             "driver_stats:avg_daily_trips",
         ],
-        "entities": {"driver_id": [5001, 5002]},
+        "entities": {"driver_id": ['5001', '5002']},
     }
     response = python_fs_client.post(
         "/get-online-features", data=json.dumps(request_data_dict)
@@ -64,7 +64,7 @@ def test_get_online_predictions(python_fs_client):
             "driver_stats:conv_rate",
             "driver_stats:avg_daily_trips",
         ],
-        "entities": {"customer_id": [1019, 1018]},
+        "entities": {"driver_id": ['5001', '5002']},
         "model_feature_name": "risk_score_calculator:predictions",
         "force_recompute": True,
         "log_features": True,
@@ -78,9 +78,9 @@ def test_get_online_predictions(python_fs_client):
     assert "metadata" in parsed_response
     metadata = parsed_response["metadata"]
     expected_features = [
-        "customer_id",
-        "lifetime_trip_count",
-        "current_balance",
+        "driver_id",
+        "conv_rate",
+        "avg_daily_trips",
         "predictions",
     ]
     response_feature_names = metadata["feature_names"]

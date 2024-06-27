@@ -282,8 +282,6 @@ def construct_universal_datasets(
             "event_timestamp",
         ]
     ]
-    print("customer df")
-    print(customer_df.head().T)
 
     return UniversalDatasets(
         customer_df=customer_df,
