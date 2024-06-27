@@ -28,6 +28,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -589,6 +590,68 @@ class BaseRegistry(ABC):
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]: ...
+
+    # Permission operations
+    @abstractmethod
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        """
+        Registers a single permission with Feast
+
+        Args:
+            permission: A permission that will be registered
+            project: Feast project that this permission belongs to
+            commit: Whether to immediately commit to the registry
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a permission or raises an exception if not found.
+
+        Args:
+            name: Name of permission
+            project: Feast project that this permission belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        """
+        Retrieves a permission.
+
+        Args:
+            name: Name of permission
+            project: Feast project that this permission belongs to
+            allow_cache: Whether to allow returning this permission from a cached registry
+
+        Returns:
+            Returns either the specified permission, or raises an exception if none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> List[Permission]:
+        """
+        Retrieve a list of permissions from the registry
+
+        Args:
+            project: Filter permission based on project name
+            allow_cache: Whether to allow returning permissions from a cached registry
+
+        Returns:
+            List of permissions
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def proto(self) -> RegistryProto:

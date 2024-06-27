@@ -391,6 +391,11 @@ class DataFrameSerializationError(Exception):
         )
 
 
+class PermissionNotFoundException(Exception):
+    def __init__(self, name, project):
+        super().__init__(f"Permission {name} does not exist in project {project}")
+
+
 class ZeroRowsQueryResult(Exception):
     def __init__(self, query: str):
         super().__init__(f"This query returned zero rows:\n{query}")

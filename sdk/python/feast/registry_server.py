@@ -12,6 +12,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -336,6 +337,47 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project, allow_cache=request.allow_cache
         ).to_proto()
 
+    def ApplyPermission(
+        self, request: RegistryServer_pb2.ApplyPermissionRequest, context
+    ):
+        self.proxied_registry.apply_permission(
+            permission=Permission.from_proto(request.permission),
+            project=request.project,
+            commit=request.commit,
+        )
+        return Empty()
+
+    def GetPermission(self, request: RegistryServer_pb2.GetPermissionRequest, context):
+        permission = self.proxied_registry.get_permission(
+            name=request.name, project=request.project, allow_cache=request.allow_cache
+        ).to_proto()
+
+        permission.project = request.project
+        return permission
+
+    def ListPermissions(
+        self, request: RegistryServer_pb2.ListPermissionsRequest, context
+    ):
+        permissions_proto = []
+        permissions = self.proxied_registry.list_permissions(
+            project=request.project,
+            allow_cache=request.allow_cache,
+        )
+        for p in permissions:
+            permission_proto = p.to_proto()
+            permission_proto.project = request.project
+            permissions_proto.append(permission_proto)
+
+        return RegistryServer_pb2.ListPermissionsResponse(permissions=permissions_proto)
+
+    def DeletePermission(
+        self, request: RegistryServer_pb2.DeletePermissionRequest, context
+    ):
+        self.proxied_registry.delete_permission(
+            name=request.name, project=request.project, commit=request.commit
+        )
+        return Empty()
+
     def Commit(self, request, context):
         self.proxied_registry.commit()
         return Empty()
@@ -353,6 +395,7 @@ def start_server(store: FeatureStore, port: int):
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
     )
+    # TODO init security manager
     server.add_insecure_port(f"[::]:{port}")
     server.start()
     server.wait_for_termination()

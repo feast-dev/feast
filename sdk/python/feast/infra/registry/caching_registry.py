@@ -14,6 +14,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -310,6 +311,36 @@ class CachingRegistry(BaseRegistry):
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         return self._get_infra(project)
+
+    @abstractmethod
+    def _get_permission(self, name: str, project: str) -> Permission:
+        pass
+
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_permission(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_permission(name, project)
+
+    @abstractmethod
+    def _list_permissions(self, project: str) -> List[Permission]:
+        pass
+
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> List[Permission]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_permissions(
+                self.cached_registry_proto, project
+            )
+        return self._list_permissions(project)
 
     def refresh(self, project: Optional[str] = None):
         if project:

@@ -15,6 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
@@ -436,6 +437,51 @@ class RemoteRegistry(BaseRegistry):
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]:
         pass
+
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        permission_proto = permission.to_proto()
+        permission_proto.project = project
+
+        request = RegistryServer_pb2.ApplyPermissionRequest(
+            permission=permission_proto, project=project, commit=commit
+        )
+
+        self.stub.ApplyPermission(request)
+
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        request = RegistryServer_pb2.DeletePermissionRequest(
+            name=name, project=project, commit=commit
+        )
+
+        self.stub.DeletePermission(request)
+
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        request = RegistryServer_pb2.GetPermissionRequest(
+            name=name, project=project, allow_cache=allow_cache
+        )
+
+        response = self.stub.GetPermission(request)
+
+        return Permission.from_proto(response)
+
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> List[Permission]:
+        request = RegistryServer_pb2.ListPermissionsRequest(
+            project=project, allow_cache=allow_cache
+        )
+
+        response = self.stub.ListPermissions(request)
+
+        return [
+            Permission.from_proto(permission) for permission in response.permissions
+        ]
 
     def proto(self) -> RegistryProto:
         return self.stub.Proto(Empty())

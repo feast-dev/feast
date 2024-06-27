@@ -27,6 +27,7 @@ from feast.file_utils import replace_str_in_file
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.stream_feature_view import StreamFeatureView
@@ -120,6 +121,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
+        permissions=[],
     )
 
     for repo_file in get_repo_files(repo_root):
@@ -201,6 +203,10 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, Permission) and not any(
+                (obj is fs) for fs in res.permissions
+            ):
+                res.permissions.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
     return res

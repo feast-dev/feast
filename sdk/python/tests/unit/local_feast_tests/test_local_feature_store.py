@@ -14,6 +14,9 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import stream_feature_view
 from feast.types import Array, Bytes, Float32, Int64, String
@@ -334,6 +337,37 @@ def test_apply_entities_and_feature_views(test_feature_store):
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_permissions(test_feature_store):
+    assert isinstance(test_feature_store, FeatureStore)
+
+    permission = Permission(
+        name="reader",
+        types=FeatureView,
+        with_subclasses=True,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        actions=[AuthzedAction.READ],
+    )
+
+    # Register Permission
+    test_feature_store.apply([permission])
+
+    permissions = test_feature_store.list_permissions()
+    assert len(permissions) == 1
+    assert permissions[0] == permission
+
+    # delete Permission
+    test_feature_store.apply(objects=[], objects_to_delete=[permission], partial=False)
+
+    permissions = test_feature_store.list_permissions()
+    assert len(permissions) == 0
 
     test_feature_store.teardown()
 

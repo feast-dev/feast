@@ -10,6 +10,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
+from feast.permissions.permission import Permission
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -20,6 +21,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
+from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
@@ -111,6 +113,7 @@ FeastObjectProto = TypeVar(
     StreamFeatureViewProto,
     ValidationReferenceProto,
     SavedDatasetProto,
+    PermissionProto,
 )
 
 
@@ -129,8 +132,10 @@ def diff_registry_objects(
     current_spec: FeastObjectSpecProto
     new_spec: FeastObjectSpecProto
     if isinstance(
-        current_proto, (DataSourceProto, ValidationReferenceProto)
-    ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
+        current_proto, (DataSourceProto, ValidationReferenceProto, PermissionProto)
+    ) or isinstance(
+        new_proto, (DataSourceProto, ValidationReferenceProto, PermissionProto)
+    ):
         assert type(current_proto) == type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)
@@ -354,6 +359,15 @@ def apply_diff_to_registry(
                     project,
                     commit=False,
                 )
+            elif feast_object_diff.feast_object_type == FeastObjectType.PERMISSION:
+                permission_obj = cast(
+                    Permission, feast_object_diff.current_feast_object
+                )
+                registry.delete_permission(
+                    permission_obj.name,
+                    project,
+                    commit=False,
+                )
 
         if feast_object_diff.transition_type in [
             TransitionType.CREATE,
@@ -384,6 +398,12 @@ def apply_diff_to_registry(
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),
+                    project,
+                    commit=False,
+                )
+            elif feast_object_diff.feast_object_type == FeastObjectType.PERMISSION:
+                registry.apply_permission(
+                    cast(Permission, feast_object_diff.new_feast_object),
                     project,
                     commit=False,
                 )

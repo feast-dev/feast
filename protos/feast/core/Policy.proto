@@ -1,0 +1,23 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "Policy";
+option java_package = "feast.proto.core";
+
+message Policy {
+  // Name of the policy.
+  string name = 1;
+
+  // Name of Feast project.
+  string project = 2;
+
+  oneof policy_type {
+    RoleBasedPolicy role_based_policy = 3;
+  }
+}
+
+message RoleBasedPolicy {
+  // List of roles in this policy.
+  repeated string roles = 1;
+}

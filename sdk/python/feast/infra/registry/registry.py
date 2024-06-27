@@ -31,6 +31,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    PermissionNotFoundException,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -41,6 +42,7 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
@@ -73,6 +75,7 @@ class FeastObjectType(Enum):
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
     STREAM_FEATURE_VIEW = "stream feature view"
     FEATURE_SERVICE = "feature service"
+    PERMISSION = "permission"
 
     @staticmethod
     def get_objects_from_registry(
@@ -91,6 +94,7 @@ class FeastObjectType(Enum):
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
                 project=project
             ),
+            FeastObjectType.PERMISSION: registry.list_permissions(project=project),
         }
 
     @staticmethod
@@ -104,6 +108,7 @@ class FeastObjectType(Enum):
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
             FeastObjectType.STREAM_FEATURE_VIEW: repo_contents.stream_feature_views,
             FeastObjectType.FEATURE_SERVICE: repo_contents.feature_services,
+            FeastObjectType.PERMISSION: repo_contents.permissions,
         }
 
 
@@ -307,9 +312,6 @@ class Registry(BaseRegistry):
             if existing_data_source_proto.name == data_source.name:
                 del registry.data_sources[idx]
         data_source_proto = data_source.to_proto()
-        data_source_proto.data_source_class_type = (
-            f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
-        )
         data_source_proto.project = project
         data_source_proto.data_source_class_type = (
             f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
@@ -905,3 +907,44 @@ class Registry(BaseRegistry):
             fv.spec.name: fv for fv in self.cached_registry_proto.stream_feature_views
         }
         return {**odfvs, **fvs, **sfv}
+
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.get_permission(registry_proto, name, project)
+
+    def list_permissions(
+        self, project: str, allow_cache: bool = False
+    ) -> List[Permission]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.list_permissions(registry_proto, project)
+
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        registry = self._prepare_registry_for_changes(project)
+        for idx, existing_permission_proto in enumerate(registry.permissions):
+            if existing_permission_proto.project == project:
+                del registry.permissions[idx]
+        permission_proto = permission.to_proto()
+        permission_proto.project = project
+        registry.permissions.append(permission_proto)
+        if commit:
+            self.commit()
+
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+
+        for idx, permission_proto in enumerate(self.cached_registry_proto.permissions):
+            if permission_proto.name == name:
+                del self.cached_registry_proto.permissions[idx]
+                if commit:
+                    self.commit()
+                return
+        raise PermissionNotFoundException(name, project)

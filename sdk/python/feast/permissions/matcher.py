@@ -4,11 +4,13 @@ This module provides utility matching functions.
 
 import logging
 import re
-from typing import Any, Optional, get_args
+from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import Mock
 
-from feast.feast_object import FeastObject
 from feast.permissions.action import AuthzedAction
+
+if TYPE_CHECKING:
+    from feast.feast_object import FeastObject
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +24,16 @@ def is_a_feast_object(resource: Any):
     Returns:
         `True` if the given object is one of the types in the FeastObject alias or a subclass of one of them.
     """
-    for t in get_args(FeastObject):
+    from feast.feast_object import ALL_RESOURCE_TYPES
+
+    for t in ALL_RESOURCE_TYPES:
         # Use isinstance to pass Mock validation
         if isinstance(resource, t):
             return True
     return False
 
 
-def _get_type(resource: FeastObject) -> Any:
+def _get_type(resource: "FeastObject") -> Any:
     is_mock = isinstance(resource, Mock)
     if not is_mock:
         return type(resource)
@@ -42,8 +46,8 @@ def _is_abstract_type(type: Any) -> bool:
 
 
 def resource_match_config(
-    resource: FeastObject,
-    expected_types: list[FeastObject],
+    resource: "FeastObject",
+    expected_types: list["FeastObject"],
     with_subclasses: bool = True,
     name_pattern: Optional[str] = None,
     required_tags: Optional[dict[str, str]] = None,

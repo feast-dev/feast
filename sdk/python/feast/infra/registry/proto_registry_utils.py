@@ -10,12 +10,14 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    PermissionNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -285,3 +287,21 @@ def list_project_metadata(
         for project_metadata in registry_proto.project_metadata
         if project_metadata.project == project
     ]
+
+
+@registry_proto_cache
+def list_permissions(registry_proto: RegistryProto, project: str) -> List[Permission]:
+    permissions = []
+    for permission_proto in registry_proto.permissions:
+        if permission_proto.project == project:
+            permissions.append(Permission.from_proto(permission_proto))
+    return permissions
+
+
+def get_permission(
+    registry_proto: RegistryProto, name: str, project: str
+) -> Permission:
+    for permission in registry_proto.permissions:
+        if permission.project == project and permission.name == name:
+            return Permission.from_proto(permission)
+    raise PermissionNotFoundException(name=name, project=project)

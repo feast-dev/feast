@@ -1,20 +1,23 @@
 import logging
+import re
 from abc import ABC
-from typing import Optional, Union, get_args
+from typing import TYPE_CHECKING, Any, Optional, Union
 
-from feast.feast_object import FeastObject
+from feast.importer import import_class
 from feast.permissions.action import AuthzedAction
 from feast.permissions.decision import DecisionStrategy
 from feast.permissions.matcher import actions_match_config, resource_match_config
 from feast.permissions.policy import AllowAll, Policy
+from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
+
+if TYPE_CHECKING:
+    from feast.feast_object import FeastObject
 
 logger = logging.getLogger(__name__)
-
 
 """
 Constant to refer to all the managed types.
 """
-ALL_RESOURCE_TYPES = list(get_args(FeastObject))
 
 
 class Permission(ABC):
@@ -36,7 +39,7 @@ class Permission(ABC):
     """
 
     _name: str
-    _types: list[FeastObject]
+    _types: list["FeastObject"]
     _with_subclasses: bool
     _name_pattern: Optional[str]
     _required_tags: Optional[dict[str, str]]
@@ -46,17 +49,19 @@ class Permission(ABC):
     def __init__(
         self,
         name: str,
-        types: Union[list[FeastObject], FeastObject] = ALL_RESOURCE_TYPES,
+        types: Optional[Union[list["FeastObject"], "FeastObject"]] = None,
         with_subclasses: bool = True,
         name_pattern: Optional[str] = None,
         required_tags: Optional[dict[str, str]] = None,
         actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
         policy: Policy = AllowAll,
     ):
+        from feast.feast_object import ALL_RESOURCE_TYPES
+
         if not types:
-            raise ValueError("The list 'types' must be non-empty.")
+            types = ALL_RESOURCE_TYPES
         for t in types if isinstance(types, list) else [types]:
-            if t not in get_args(FeastObject):
+            if t not in ALL_RESOURCE_TYPES:
                 raise ValueError(f"{t} is not one of the managed types")
         if actions is None or not actions:
             raise ValueError("The list 'actions' must be non-empty.")
@@ -69,6 +74,25 @@ class Permission(ABC):
         self._required_tags = _normalize_required_tags(required_tags)
         self._actions = actions if isinstance(actions, list) else [actions]
         self._policy = policy
+
+    def __eq__(self, other):
+        if not isinstance(other, Permission):
+            raise TypeError("Comparisons should only involve Permission class objects.")
+
+        if (
+            self.name != other.name
+            or self.with_subclasses != other.with_subclasses
+            or self.name_pattern != other.name_pattern
+            or self.required_tags != other.required_tags
+            or self.policy != other.policy
+            or self.actions != other.actions
+        ):
+            return False
+
+        if sorted(self.types) != sorted(other.types):
+            return False
+
+        return True
 
     _global_decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS
 
@@ -91,7 +115,7 @@ class Permission(ABC):
         return self._name
 
     @property
-    def types(self) -> list[FeastObject]:
+    def types(self) -> list["FeastObject"]:
         return self._types
 
     @property
@@ -114,7 +138,7 @@ class Permission(ABC):
     def policy(self) -> Policy:
         return self._policy
 
-    def match_resource(self, resource: FeastObject) -> bool:
+    def match_resource(self, resource: "FeastObject") -> bool:
         """
         Returns:
             `True` when the given resource matches the type, name and tags filters defined in the permission.
@@ -137,6 +161,68 @@ class Permission(ABC):
             requested_actions=requested_actions,
         )
 
+    @staticmethod
+    def from_proto(permission_proto: PermissionProto) -> Any:
+        """
+        Converts permission config in protobuf spec to a Permission class object.
+
+        Args:
+            permission_proto: A protobuf representation of a Permission.
+
+        Returns:
+            A Permission class object.
+        """
+
+        types = [
+            get_type_class_from_permission_type(
+                _PERMISSION_TYPES[PermissionProto.Type.Name(t)]
+            )
+            for t in permission_proto.types
+        ]
+        actions = [
+            AuthzedAction[PermissionProto.AuthzedAction.Name(action)]
+            for action in permission_proto.actions
+        ]
+
+        permission = Permission(
+            permission_proto.name,
+            types,
+            permission_proto.with_subclasses,
+            permission_proto.name_pattern or None,
+            dict(permission_proto.required_tags),
+            actions,
+            Policy.from_proto(permission_proto.policy),
+        )
+
+        return permission
+
+    def to_proto(self) -> PermissionProto:
+        """
+        Converts a PermissionProto object to its protobuf representation.
+        """
+        types = [
+            PermissionProto.Type.Value(
+                re.sub(r"([a-z])([A-Z])", r"\1_\2", t.__name__).upper()
+            )
+            for t in self.types
+        ]
+
+        actions = [
+            PermissionProto.AuthzedAction.Value(action.name) for action in self.actions
+        ]
+
+        permission_proto = PermissionProto(
+            name=self.name,
+            types=types,
+            with_subclasses=self.with_subclasses,
+            name_pattern=self.name_pattern if self.name_pattern is not None else None,
+            required_tags=self.required_tags,
+            actions=actions,
+            policy=self.policy.to_proto(),
+        )
+
+        return permission_proto
+
 
 def _normalize_name_pattern(name_pattern: Optional[str]):
     if name_pattern is not None:
@@ -151,3 +237,21 @@ def _normalize_required_tags(required_tags: Optional[dict[str, str]]):
             for k, v in required_tags.items()
         }
     return None
+
+
+def get_type_class_from_permission_type(permission_type: str):
+    module_name, config_class_name = permission_type.rsplit(".", 1)
+    return import_class(module_name, config_class_name)
+
+
+_PERMISSION_TYPES = {
+    "FEATURE_VIEW": "feast.feature_view.FeatureView",
+    "ONDEMAND_FEATURE_VIEW": "feast.on_demand_feature_view.OnDemandFeatureView",
+    "BATCH_FEATURE_VIEW": "feast.batch_feature_view.BatchFeatureView",
+    "STREAM_FEATURE_VIEW": "feast.stream_feature_view.StreamFeatureView",
+    "ENTITY": "feast.entity.Entity",
+    "FEATURE_SERVICE": "feast.feature_service.FeatureService",
+    "DATA_SOURCE": "feast.data_source.DataSource",
+    "VALIDATION_REFERENCE": "feast.saved_dataset.ValidationReference",
+    "PERMISSION": "feast.permissions.permission.Permission",
+}

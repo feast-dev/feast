@@ -76,6 +76,7 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
+from feast.permissions.permission import Permission
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -694,99 +695,6 @@ class FeatureStore:
 
         return feature_views_to_materialize
 
-    def plan(
-        self, desired_repo_contents: RepoContents
-    ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
-        """Dry-run registering objects to metadata store.
-
-        The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
-        a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
-        command are for informational purposes, and are not actually applied to the registry.
-
-        Args:
-            desired_repo_contents: The desired repo state.
-
-        Raises:
-            ValueError: The 'objects' parameter could not be parsed properly.
-
-        Examples:
-            Generate a plan adding an Entity and a FeatureView.
-
-            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
-            >>> from feast.feature_store import RepoContents
-            >>> from datetime import timedelta
-            >>> fs = FeatureStore(repo_path="project/feature_repo")
-            >>> driver = Entity(name="driver_id", description="driver id")
-            >>> driver_hourly_stats = FileSource(
-            ...     path="project/feature_repo/data/driver_stats.parquet",
-            ...     timestamp_field="event_timestamp",
-            ...     created_timestamp_column="created",
-            ... )
-            >>> driver_hourly_stats_view = FeatureView(
-            ...     name="driver_hourly_stats",
-            ...     entities=[driver],
-            ...     ttl=timedelta(seconds=86400 * 1),
-            ...     source=driver_hourly_stats,
-            ... )
-            >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
-            ...     data_sources=[driver_hourly_stats],
-            ...     feature_views=[driver_hourly_stats_view],
-            ...     on_demand_feature_views=list(),
-            ...     stream_feature_views=list(),
-            ...     entities=[driver],
-            ...     feature_services=list())) # register entity and feature view
-        """
-        # Validate and run inference on all the objects to be registered.
-        self._validate_all_feature_views(
-            desired_repo_contents.feature_views,
-            desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.stream_feature_views,
-        )
-        _validate_data_sources(desired_repo_contents.data_sources)
-        self._make_inferences(
-            desired_repo_contents.data_sources,
-            desired_repo_contents.entities,
-            desired_repo_contents.feature_views,
-            desired_repo_contents.on_demand_feature_views,
-            desired_repo_contents.stream_feature_views,
-            desired_repo_contents.feature_services,
-        )
-
-        # Compute the desired difference between the current objects in the registry and
-        # the desired repo state.
-        registry_diff = diff_between(
-            self._registry, self.project, desired_repo_contents
-        )
-
-        # Compute the desired difference between the current infra, as stored in the registry,
-        # and the desired infra.
-        self._registry.refresh(project=self.project)
-        current_infra_proto = InfraProto()
-        current_infra_proto.CopyFrom(self._registry.proto().infra)
-        desired_registry_proto = desired_repo_contents.to_registry_proto()
-        new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
-        new_infra_proto = new_infra.to_proto()
-        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
-
-        return registry_diff, infra_diff, new_infra
-
-    def _apply_diffs(
-        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
-    ):
-        """Applies the given diffs to the metadata store and infrastructure.
-
-        Args:
-            registry_diff: The diff between the current registry and the desired registry.
-            infra_diff: The diff between the current infra and the desired infra.
-            new_infra: The desired infra.
-        """
-        infra_diff.update()
-        apply_diff_to_registry(
-            self._registry, registry_diff, self.project, commit=False
-        )
-
-        self._registry.update_infra(new_infra, self.project, commit=True)
-
     def apply(
         self,
         objects: Union[
@@ -798,6 +706,7 @@ class FeatureStore:
             StreamFeatureView,
             FeatureService,
             ValidationReference,
+            Permission,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -869,6 +778,7 @@ class FeatureStore:
         validation_references_to_update = [
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
+        permissions_to_update = [ob for ob in objects if isinstance(ob, Permission)]
 
         batch_sources_to_add: List[DataSource] = []
         for data_source in data_sources_set_to_update:
@@ -924,10 +834,15 @@ class FeatureStore:
             self._registry.apply_validation_reference(
                 validation_references, project=self.project, commit=False
             )
+        for permission in permissions_to_update:
+            self._registry.apply_permission(
+                permission, project=self.project, commit=False
+            )
 
         entities_to_delete = []
         views_to_delete = []
         sfvs_to_delete = []
+        permissions_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
@@ -955,6 +870,9 @@ class FeatureStore:
             ]
             validation_references_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
+            ]
+            permissions_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, Permission)
             ]
 
             for data_source in data_sources_to_delete:
@@ -985,6 +903,10 @@ class FeatureStore:
                 self._registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
                 )
+            for permission in permissions_to_delete:
+                self._registry.delete_permission(
+                    permission.name, project=self.project, commit=False
+                )
 
         tables_to_delete: List[FeatureView] = (
             views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
@@ -1001,6 +923,100 @@ class FeatureStore:
         )
 
         self._registry.commit()
+
+    def plan(
+        self, desired_repo_contents: RepoContents
+    ) -> Tuple[RegistryDiff, InfraDiff, Infra]:
+        """Dry-run registering objects to metadata store.
+
+        The plan method dry-runs registering one or more definitions (e.g., Entity, FeatureView), and produces
+        a list of all the changes the that would be introduced in the feature repo. The changes computed by the plan
+        command are for informational purposes, and are not actually applied to the registry.
+
+        Args:
+            desired_repo_contents: The desired repo state.
+
+        Raises:
+            ValueError: The 'objects' parameter could not be parsed properly.
+
+        Examples:
+            Generate a plan adding an Entity and a FeatureView.
+
+            >>> from feast import FeatureStore, Entity, FeatureView, Feature, FileSource, RepoConfig
+            >>> from feast.feature_store import RepoContents
+            >>> from datetime import timedelta
+            >>> fs = FeatureStore(repo_path="project/feature_repo")
+            >>> driver = Entity(name="driver_id", description="driver id")
+            >>> driver_hourly_stats = FileSource(
+            ...     path="project/feature_repo/data/driver_stats.parquet",
+            ...     timestamp_field="event_timestamp",
+            ...     created_timestamp_column="created",
+            ... )
+            >>> driver_hourly_stats_view = FeatureView(
+            ...     name="driver_hourly_stats",
+            ...     entities=[driver],
+            ...     ttl=timedelta(seconds=86400 * 1),
+            ...     source=driver_hourly_stats,
+            ... )
+            >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
+            ...     data_sources=[driver_hourly_stats],
+            ...     feature_views=[driver_hourly_stats_view],
+            ...     on_demand_feature_views=list(),
+            ...     stream_feature_views=list(),
+            ...     entities=[driver],
+            ...     feature_services=list(),
+            ...     permissions=list())) # register entity and feature view
+        """
+        # Validate and run inference on all the objects to be registered.
+        self._validate_all_feature_views(
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.stream_feature_views,
+        )
+        _validate_data_sources(desired_repo_contents.data_sources)
+        self._make_inferences(
+            desired_repo_contents.data_sources,
+            desired_repo_contents.entities,
+            desired_repo_contents.feature_views,
+            desired_repo_contents.on_demand_feature_views,
+            desired_repo_contents.stream_feature_views,
+            desired_repo_contents.feature_services,
+        )
+
+        # Compute the desired difference between the current objects in the registry and
+        # the desired repo state.
+        registry_diff = diff_between(
+            self._registry, self.project, desired_repo_contents
+        )
+
+        # Compute the desired difference between the current infra, as stored in the registry,
+        # and the desired infra.
+        self._registry.refresh(project=self.project)
+        current_infra_proto = InfraProto()
+        current_infra_proto.CopyFrom(self._registry.proto().infra)
+        desired_registry_proto = desired_repo_contents.to_registry_proto()
+        new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
+        new_infra_proto = new_infra.to_proto()
+        infra_diff = diff_infra_protos(current_infra_proto, new_infra_proto)
+
+        return registry_diff, infra_diff, new_infra
+
+    def _apply_diffs(
+        self, registry_diff: RegistryDiff, infra_diff: InfraDiff, new_infra: Infra
+    ):
+        """Applies the given diffs to the metadata store and infrastructure.
+
+        Args:
+            registry_diff: The diff between the current registry and the desired registry.
+            infra_diff: The diff between the current infra and the desired infra.
+            new_infra: The desired infra.
+        """
+        infra_diff.update()
+        apply_diff_to_registry(
+            self._registry, registry_diff, self.project, commit=False
+        )
+
+        self._registry.update_infra(new_infra, self.project, commit=True)
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
@@ -1914,6 +1930,18 @@ class FeatureStore:
         )
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
+
+    def list_permissions(self, allow_cache: bool = False) -> List[Permission]:
+        """
+        Retrieves the list of permissions from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning permissions from a cached registry.
+
+        Returns:
+            A list of data sources.
+        """
+        return self._registry.list_permissions(self.project, allow_cache=allow_cache)
 
 
 def _print_materialization_log(
