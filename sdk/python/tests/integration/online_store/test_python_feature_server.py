@@ -96,10 +96,10 @@ def test_get_online_predictions(python_fs_client):
         assert len(result["statuses"]) == 2  # Requested two entities
         for status in result["statuses"]:
             assert status == "PRESENT"
-    results_customer_id_index = response_feature_names.index("customer_id")
+    results_customer_id_index = response_feature_names.index("driver_id")
     assert (
         results[results_customer_id_index]["values"]
-        == request_data_dict["entities"]["customer_id"]
+        == request_data_dict["entities"]["driver_id"]
     )
 
 
