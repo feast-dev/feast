@@ -67,6 +67,12 @@ jobs:
 
       - name: Install dependencies
         run: make install-python-ci-dependencies-uv
+      - name: Compile Go along with Extensions
+        run: |
+          make install-go-proto-dependencies 
+          make install-go-ci-dependencies
+          COMPILE_GO=true python setup.py develop
+          CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local
