@@ -159,10 +159,10 @@ def get_app(
             features, body = _get_features_from_body(store, body)
 
             response = store.get_online_predictions(
-                prediction_feature_name=body["prediction_feature_name"],
-                model_feature_name=body["model_feature_name"],
                 features=features,
                 entity_rows=body["entities"],
+                cached_model_feature_reference=body["prediction_feature_name"],
+                on_demand_model_feature_reference=body["model_feature_name"],
                 force_recompute=body["force_recompute"],
                 log_features=body["log_features"],
             )

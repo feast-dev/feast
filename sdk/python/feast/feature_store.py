@@ -2073,27 +2073,61 @@ class FeatureStore:
 
     def get_online_predictions(
         self,
-        prediction_feature_name: str,
         features: List[str],
         entity_rows: List[Dict[str, Any]],
-        model_feature_name: str,
+        cached_model_feature_reference: str,
+        on_demand_model_feature_reference: str,
         force_recompute: bool,
         log_features: bool,
         full_feature_names: bool = False,
     ) -> OnlineResponse:
+        """
+        Retrieves the latest online predictions and features or calculates them on demand.
+
+        Note: This method will download the full feature registry the first time it is run. If you are using a
+        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
+        duration (which can be set to infinity). If the cached registry is stale (more time than the TTL has
+        passed), then a new registry will be downloaded synchronously by this method. This download may
+        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
+        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
+        infinity (cache forever).
+
+        Args:
+            features: The list of features that should be retrieved from the online store. These features can be
+                specified either as a list of string feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
+            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+            cached_model_feature_reference: A string identifying the feature reference (str) for the cached model feature view that corresponds to the output of some model.
+            on_demand_model_feature_reference: A string identifying the feature reference (str) for the on-demand model feature view that corresponds to the output of some model.
+            force_recompute: If True, the model feature will be recomputed and the result will be stored in the online store.
+            log_features: If True, the features and the predictions will be logged to the offline store.
+            full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
+                changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
+                changes to "customer_fv__daily_transactions").
+
+        Returns:
+            OnlineResponse containing the feature data in records.
+
+        Raises:
+            Exception: No entity with the specified name exists.
+
+        Examples:
+            Retrieve online predictions from an online store.
+        """
         logging.warning(
             "This feature is in alpha and may make breaking changes in the future."
         )
         assert (
-            ":" in model_feature_name
-        ), "model_feature_name must be full feature reference; i.e., feature_view:feature_name)"
+            ":" in cached_model_feature_reference
+        ), "cached_model_feature_reference must be full feature reference; i.e., feature_view:feature_name)"
         if isinstance(features, FeatureService):
             raise TypeError(
                 "FeatureService is not yet a supported type for get_online_predictions"
             )
 
         if force_recompute:
-            features_and_model_field = features + [model_feature_name]
+            print("recomputing")
+            features_and_model_field = features + [on_demand_model_feature_reference]
 
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
@@ -2111,7 +2145,7 @@ class FeatureStore:
         else:
             prediction_response = self.get_unserialized_online_features_response(
                 entity_rows=entity_rows,
-                features=[prediction_feature_name],
+                features=[cached_model_feature_reference],
                 full_feature_names=full_feature_names,
             )
             # TODO: if null we need to compute it, presumably for the first time

@@ -619,7 +619,6 @@ def test_get_online_predictions():
         )
 
         result = store.get_online_predictions(
-            prediction_feature_name="stored_customer_predictions:predictions",
             features=[
                 "customer_profile:avg_orders_day",
                 "customer_profile:age",
@@ -628,7 +627,8 @@ def test_get_online_predictions():
                 {"customer_id": "5"},
                 {"customer_id": 5},
             ],
-            model_feature_name="risk_score_calculator:predictions",
+            cached_model_feature_reference="stored_customer_predictions:predictions",
+            on_demand_model_feature_reference="risk_score_calculator:predictions",
             force_recompute=False,
             log_features=True,
         ).to_dict()
@@ -640,7 +640,6 @@ def test_get_online_predictions():
         # Now we have to recalculate it
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_predictions(
-            prediction_feature_name="risk_score_calculator:predictions",
             features=[
                 "customer_profile:avg_orders_day",
                 "customer_profile:age",
@@ -649,7 +648,8 @@ def test_get_online_predictions():
                 {"customer_id": "5"},
                 {"customer_id": 5},
             ],
-            model_feature_name="risk_score_calculator:predictions",
+            cached_model_feature_reference="stored_customer_predictions:predictions",
+            on_demand_model_feature_reference="risk_score_calculator:predictions",
             force_recompute=True,
             log_features=True,
         ).to_dict()
