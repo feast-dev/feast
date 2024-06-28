@@ -204,8 +204,10 @@ class BigtableOnlineStore(OnlineStore):
             request=request
         )
 
-        final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
+        res = None
+        final_result = [(event_ts, res) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
+
         i = 0
         async for row in rows:
             chunks = row.chunks
