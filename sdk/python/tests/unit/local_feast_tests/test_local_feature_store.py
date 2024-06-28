@@ -24,7 +24,6 @@ from feast.types import Array, Bytes, Float32, Int64, String
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
-from feast.feast_object import ALL_RESOURCE_TYPES
 
 
 @pytest.mark.parametrize(
