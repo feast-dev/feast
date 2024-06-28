@@ -1,3 +1,65 @@
+## Internal Ki guidelines
+
+ ### Contributing flow
+ 1. Contribute change normally through feature branch created from current head of master branch with open PR to origin remote master branch and keep feature branch
+ 2. Ensure that similar fix is not already available in newer release of feast. If it is, finish this flow and switch to updating Ki's internal version of feast (potentially recerting fix from step 1 afterwards)
+ 3. Decide if given change is specific to Ki's combination of environment and non-standard approach or is it more of universal feast improvement
+ 4. Leave ample comments in PR to inform decisions of next person doing feast upgrade from upstream (if this change should be discarded then, is it purely internal one, is it temporary fix etc.)
+ 5. If this change is deemed something worth contributing back: rebase feature branch using master branch of original feast repo a.k.a. upstream
+ ```
+ git checkout {feature-branch}
+ git rebase upstream/master
+ ```
+ 6. If upstream remote is not set for this repository on your local machine use:
+ ```
+ git remote add upstream https://github.com/feast-dev/feast
+ ```
+ 7. Ensure upstream remote is set up properly `git remote -v` will result in
+ ```
+ origin	https://github.com/Ki-Insurance/feast.git (fetch)
+ origin	https://github.com/Ki-Insurance/feast.git (push)
+ upstream	https://github.com/feast-dev/feast (fetch)
+ upstream	https://github.com/feast-dev/feast (push)
+ ```
+ 8. After resolving any conflicts in rebase, push your branch to upstream
+ ```
+ git push upstream {feature-branch}
+ ```
+ 9. Continue with normal contribution to feast process as described in feast readme, but include link to such PR in closed PR to internal origin remote Ki's master branch from step 1. 
+
+ ### Updating to newer version
+ 1. Note version of feast release from last PR rebasing origin master with upstream; it's also available in section below
+ 2. If branch with newer release is available in upstream, start update. Currently format of these branches is as follows: `v0.{version}-branch`. Sometimes there is no new branch but just a tag on master branch: that's how 0.39 was released
+ 3. Create new feature branch from origin master and merge newest upstream release branch or branch local branch created from release tag ``git checkout -b {name-of-branch} tags/{release-tag}``. DO NOT REBASE: it heavily obscures history of our changes and makes it harder to properly revert and redo these changes which is likely occurence for bigger feast updates (expect many breaking changes)
+ 4. Resolve conflicts and run lint from makefile. In most cases resolving these conflicts will require contacting authors of our internal fixes for context, but as general rule of thumb take newest version of feast and reapply Ki changes when possible/relevant. Any requirements in setup.py should default to newer version (most probably from upstream)
+ 5. Create PR to origin master with said update branch
+ 6. Use commit hash to test potential new version basic functionality in feature-store app/feature-store project. NOTE that to test anything you first need to create new ki-features (same feature-store repo) lib version and merge it so it can be used for local feature store tests. Feature store can be tested locally with ``make build-base-local`` available command and then adjusting docker files of all containers used in deployment to point to that local image. Local tests do not ensure that such release will work as historically a lot of issues could be seen only in dev (connection bleed, breaking changes with no proper registry migration approach etc.) 
+ 7. Merge to master and include in feature-store for more extensive tests on dev 
+
+ ### Alternative approach to updating
+ 1. Considering small amount of Ki specific changes and potential to introduce hard to track or resolve issues during conflict resolution in merge, there is alternative approach.
+ 2. Copy over newest release branch or create local one from release tag. Reapply manually all the Ki specific changes on top of it like for example in this commit: https://github.com/Ki-Insurance/feast/pull/32/commits/d4ab29e4249bfc66119b505bc65a461e20ccee42
+ 3. Merge origin master into aforementioned release branch with Ki changes. Ensure that freshly prepared release version will have priority in resolving conflicts
+ ```
+ git merge --strategy=ours origin/master
+ ```
+ 4. Advice: Create aforementioned newest version branch and apply Ki changes f.e. ``0.39-update`` then checkout new branch from that one f.e. ``0.39-update-merge-test``, then merge master into the merge test branch. If everything resolved properly ``0.39-update`` and ``0.39-update-merge-test`` should have no diff but ``0.39-update-merge-test`` will now have a history allowing it to be merged without conflict into ``origin/master`` 
+ 5. Merge such prepared version into master. It can be tested on dev deployment of feature-store before merging in this repo
+
+ ## Current state
+ Feast version from upstream: 0.39 (created from release tag as there was no branch)
+ 
+ Ki changes applied on top of feast version:
+ 1. https://github.com/Ki-Insurance/feast/pull/32/commits/d4ab29e4249bfc66119b505bc65a461e20ccee42
+ - expiriation for tables (bytewax materialization specific fix - should be kept as long as bytewax materialziation is used)
+ - added handling for date types
+ - provide types for on demand features - more in https://github.com/Ki-Insurance/feast/pull/13 and https://ki-insurance.atlassian.net/browse/DUG-121 - as source code was changed extensively around this logic, it is more of reintroduction of fix in new place
+ 2. https://github.com/Ki-Insurance/feast/pull/32/commits/a4a90164f3b2c5a660f1e4d022286d507410029c
+ - introduction of mode for on-demand features was assuming seamless update but for our specific case there was a problem: definition in registry is kept in protobuf with non-nullable field for mode so it never falled into defaulting cases; this change allows seamless update in our environments without need to manually interfere in or completely recreate registry; should be discarded on next update
+ - small change in how async refresh is started; considering how registry refresh is written, it's creating new sql engine (and in turn connection pool) with every refresh; previously it was not a problem because old threads with said engines and connection pools were cleaned right away; with new approach using @asynccontextmanager said previous threads with engines (and connection pools) were not reclaimed automatically leading to connections bleed up to the registry limit
+
+ <br/><br/><br/>
+
 <p align="center">
     <a href="https://feast.dev/">
       <img src="docs/assets/feast_logo.png" width="550">
