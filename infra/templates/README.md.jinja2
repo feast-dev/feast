@@ -57,7 +57,8 @@
  2. https://github.com/Ki-Insurance/feast/pull/32/commits/a4a90164f3b2c5a660f1e4d022286d507410029c
  - introduction of mode for on-demand features was assuming seamless update but for our specific case there was a problem: definition in registry is kept in protobuf with non-nullable field for mode so it never falled into defaulting cases; this change allows seamless update in our environments without need to manually interfere in or completely recreate registry; should be discarded on next update
  - small change in how async refresh is started; considering how registry refresh is written, it's creating new sql engine (and in turn connection pool) with every refresh; previously it was not a problem because old threads with said engines and connection pools were cleaned right away; with new approach using @asynccontextmanager said previous threads with engines (and connection pools) were not reclaimed automatically leading to connections bleed up to the registry limit
-
+ 3. https://github.com/Ki-Insurance/feast/pull/20
+ - our own implementation of async feature retrieval used in python sdk form by feature connector service
  <br/><br/><br/>
 
 <p align="center">
