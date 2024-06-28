@@ -179,7 +179,7 @@ class PassthroughProvider(Provider):
                 config, table, entity_keys, requested_features
             )
         return result
-    
+
     async def online_read_async_v2(
         self,
         config: RepoConfig,

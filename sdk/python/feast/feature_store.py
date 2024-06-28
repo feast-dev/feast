@@ -1733,7 +1733,7 @@ class FeatureStore:
             online_features_response, requested_result_row_names
         )
         return OnlineResponse(online_features_response)
-    
+
     async def get_online_features_async_v2(
         self,
         features: Union[List[str], FeatureService],
@@ -1822,10 +1822,7 @@ class FeatureStore:
 
             # Fetch feature data for the minimum set of Entities.
             feature_data = await self._read_from_online_store_async_v2(
-                table_entity_values,
-                provider,
-                requested_features,
-                table
+                table_entity_values, provider, requested_features, table
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
@@ -1849,7 +1846,7 @@ class FeatureStore:
         utils._drop_unneeded_columns(
             online_features_response, requested_result_row_names
         )
-        return OnlineResponse(online_features_response) 
+        return OnlineResponse(online_features_response)
 
     def retrieve_online_documents(
         self,
@@ -1969,7 +1966,7 @@ class FeatureStore:
         )
 
         return utils._convert_rows_to_protobuf(requested_features, read_rows)
-    
+
     async def _read_from_online_store_async_v2(
         self,
         entity_rows: Iterable[Mapping[str, Value]],
