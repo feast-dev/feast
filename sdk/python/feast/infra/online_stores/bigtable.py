@@ -7,11 +7,13 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, 
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery, Row, row_filters as data_row_filters
-from google.cloud.bigtable_v2.services.bigtable.async_client import BigtableAsyncClient as BigtableAsyncClientV2
+from google.cloud.bigtable.data import BigtableDataClientAsync, ReadRowsQuery, Row
+from google.cloud.bigtable.data import row_filters as data_row_filters
+from google.cloud.bigtable_v2.services.bigtable.async_client import (
+    BigtableAsyncClient as BigtableAsyncClientV2,
+)
 from google.cloud.bigtable_v2.types.bigtable import ReadRowsRequest
 from google.cloud.bigtable_v2.types.data import RowFilter
-
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, utils
@@ -101,7 +103,7 @@ class BigtableOnlineStore(OnlineStore):
             row.row_key: row for row in rows
         }
         return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
-    
+
     async def online_read_async(
         self,
         config: RepoConfig,
@@ -164,7 +166,7 @@ class BigtableOnlineStore(OnlineStore):
                         res[feature_name.decode()] = val
                     final_result.append((event_ts, res))
             return final_result
-        
+
     async def online_read_async_v2(
         self,
         config: RepoConfig,
@@ -187,13 +189,13 @@ class BigtableOnlineStore(OnlineStore):
                 )
                 for entity_key in entity_keys
             ]
-        
+
         query = ReadRowsQuery(row_keys=row_keys)
         request = ReadRowsRequest(
             {
-                "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}", 
+                "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}",
                 "rows": query._row_set,
-                "filter": RowFilter(column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()), 
+                "filter": RowFilter(column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()),
                 "rows_limit": query.limit
             }
         )
@@ -205,7 +207,7 @@ class BigtableOnlineStore(OnlineStore):
         final_result = [(None, None) for _ in range(len(entity_keys))]  # will end up containing tuples (event_ts, res)
         event_ts = None
         i = 0
-        async for row in rows: 
+        async for row in rows:
             chunks = row.chunks
             for chunk in chunks:
                 # if row key exists, we're on a new row, we can get the event timestamp for this row and clear res
@@ -486,7 +488,7 @@ class BigtableOnlineStore(OnlineStore):
                 project=online_config.project_id
             )
         return self._async_client
-    
+
     def _get_client_async_v2(
             self
     ):
