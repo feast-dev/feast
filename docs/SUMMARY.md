@@ -122,6 +122,7 @@
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
 * [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
+* [\[Alpha\] Cached Predictions](reference/alpha-cached-online-predictions.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)
