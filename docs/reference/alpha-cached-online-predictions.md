@@ -17,8 +17,9 @@ cached model predictions if they exist, and falls back to the on-demand model pr
 This is a good option for small models where the artifact can fit into the registry and the service can support the 
 additional bloat of the supporting libraries and CPU overhead of running them. 
 
-**This is *not* the recommended option for scaling to large models or models that require GPU acceleration. For those cases,
-we recommend using a full model inference platform such as [KServe](https://kserve.github.io/website/latest/).**
+**This is *not* the recommended option for scaling to large models, models that require GPU acceleration, or a serving
+several medium sized models. For those cases, we recommend using a full model inference service such as 
+[KServe](https://kserve.github.io/website/latest/).**
 
 ## Why use cached predictions?
 It is well known that users of the internet do not like to wait. Running inference on demand when unnecessary adds
