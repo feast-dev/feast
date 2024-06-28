@@ -2097,9 +2097,12 @@ class FeatureStore:
                 specified either as a list of string feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
-            cached_model_feature_reference: A string identifying the feature reference (str) for the cached model feature view that corresponds to the output of some model.
-            on_demand_model_feature_reference: A string identifying the feature reference (str) for the on-demand model feature view that corresponds to the output of some model.
-            force_recompute: If True, the model feature will be recomputed and the result will be stored in the online store.
+            cached_model_feature_reference: A string identifying the feature reference (str) for the cached model
+                feature view that corresponds to the output of some model.
+            on_demand_model_feature_reference: A string identifying the feature reference (str) for the on-demand model
+                feature view that corresponds to the output of some model.
+            force_recompute: If True, the model feature will be recomputed and the result will be stored in the online
+                store.
             log_features: If True, the features and the predictions will be logged to the offline store.
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
