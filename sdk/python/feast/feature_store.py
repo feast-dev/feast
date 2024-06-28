@@ -1822,10 +1822,7 @@ class FeatureStore:
 
             # Fetch feature data for the minimum set of Entities.
             feature_data = await self._read_from_online_store_async_v2(
-                table_entity_values,
-                provider,
-                requested_features,
-                table
+                table_entity_values, provider, requested_features, table
             )
 
             # Populate the result_rows with the Features from the OnlineStore inplace.
