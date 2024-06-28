@@ -202,7 +202,7 @@ class Permission(ABC):
         """
         types = [
             PermissionProto.Type.Value(
-                re.sub(r"([a-z])([A-Z])", r"\1_\2", t.__name__).upper()
+                re.sub(r"([a-z])([A-Z])", r"\1_\2", t.__name__).upper()  # type: ignore[union-attr]
             )
             for t in self.types
         ]
