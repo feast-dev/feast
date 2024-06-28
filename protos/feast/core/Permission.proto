@@ -31,14 +31,15 @@ message Permission {
 
   enum Type {
       FEATURE_VIEW = 0;
-      ONDEMAND_FEATURE_VIEW = 1;
+      ON_DEMAND_FEATURE_VIEW = 1;
       BATCH_FEATURE_VIEW = 2;
       STREAM_FEATURE_VIEW= 3;
       ENTITY = 4;
       FEATURE_SERVICE = 5;
       DATA_SOURCE = 6;
       VALIDATION_REFERENCE = 7;
-      PERMISSION = 8;
+      SAVED_DATASET = 8;
+      PERMISSION = 9;
   }
 
   repeated Type types = 3;

@@ -89,7 +89,7 @@ class Permission(ABC):
         ):
             return False
 
-        if sorted(self.types) != sorted(other.types):
+        if set(self.types) != set(other.types):
             return False
 
         return True
@@ -246,12 +246,13 @@ def get_type_class_from_permission_type(permission_type: str):
 
 _PERMISSION_TYPES = {
     "FEATURE_VIEW": "feast.feature_view.FeatureView",
-    "ONDEMAND_FEATURE_VIEW": "feast.on_demand_feature_view.OnDemandFeatureView",
+    "ON_DEMAND_FEATURE_VIEW": "feast.on_demand_feature_view.OnDemandFeatureView",
     "BATCH_FEATURE_VIEW": "feast.batch_feature_view.BatchFeatureView",
     "STREAM_FEATURE_VIEW": "feast.stream_feature_view.StreamFeatureView",
     "ENTITY": "feast.entity.Entity",
     "FEATURE_SERVICE": "feast.feature_service.FeatureService",
     "DATA_SOURCE": "feast.data_source.DataSource",
     "VALIDATION_REFERENCE": "feast.saved_dataset.ValidationReference",
+    "SAVED_DATASET": "feast.saved_dataset.SavedDataset",
     "PERMISSION": "feast.permissions.permission.Permission",
 }
