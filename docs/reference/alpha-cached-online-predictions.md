@@ -70,4 +70,14 @@ result = store.get_online_predictions(
 ).to_dict()
 ```
 
-In this example, the method is used to retrieve the average orders per day and the age for customers with IDs "5" and 5. The cached model predictions are retrieved from the stored_customer_predictions:predictions feature, and the on-demand model predictions are computed using the risk_score_calculator:predictions feature. The force_recompute parameter is set to False, indicating that the method should use the cached predictions if available. The log_features parameter is set to True, indicating that the features should be logged.
+In this example, the method is used to retrieve the average orders per day and the age for customers with IDs "5" and 5. 
+The cached model predictions are retrieved from the stored_customer_predictions:predictions feature, and the on-demand 
+model predictions are computed using the risk_score_calculator:predictions feature. The force_recompute parameter is 
+set to False, indicating that the method should use the cached predictions if available. The log_features parameter is 
+set to True, indicating that the features should be logged.
+
+## Alternatives / Expanding Scope
+
+In the future, we are looking to add support for being able to call KServe or another model inference endpoint in the 
+On Demand Feature View directly. This will allow for more flexibility in the models that can be served and still get the
+benefits of caching scores in the Feature Store.
