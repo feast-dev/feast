@@ -6,7 +6,7 @@
 In Machine Learning architectures, model serving/inference is typically done on demand (i.e., at request time) but this 
 is often unnecessary and adds additional latency. In many cases, the model predictions change only when the underlying
 data changes. The `get_online_predictions` method allows MLEs to store their model predictions in the Feature Store and retrieve 
-the precomputed output, which will enable a much better user experience. Additionally, we allow or the user to force
+the precomputed output, which will enable a much better user experience. Additionally, we allow the user to force
 recomputation of the model predictions if needed.
 
 This works by creating two feature views: one for the cached model predictions and one for the on-demand model predictions.
@@ -17,18 +17,18 @@ cached model predictions if they exist, and falls back to the on-demand model pr
 This is a good option for small models where the artifact can fit into the registry and the service can support the 
 additional bloat of the supporting libraries and CPU overhead of running them. 
 
-**This is *not* the recommended option for scaling to large models, models that require GPU acceleration, or a serving
+**This is *not* the recommended option for scaling to large models, models that require GPU acceleration, or serving
 several medium sized models. For those cases, we recommend using a full model inference service such as 
 [KServe](https://kserve.github.io/website/latest/).**
 
 ## Why use cached predictions?
-It is well known that users of the internet do not like to wait. Running inference on demand when unnecessary adds
+It is well known that users of the internet do not like to wait. Running inference on demand when not necessary adds
 latency. Models depend on features and features depend on data. If the data is not changing, the model predictions will 
 not change, so precomputing the model predictions and storing them in the Feature Store can save time, resources, and 
 improve the user experience.
 
 ## Is Model inference in a Feature Transformation an abuse of Feature Transformation?
-Yes, but if you understand the limitations and use this approach as a stopgap measure to drive impactful work while 
+Yes, but if you understand the limitations and use this approach as a light-weight solution to drive impactful work while 
 building a full platform, it can be a useful tool. It is an imperfect compromise that can be useful in the right 
 context (e.g., small teams that may not have the need to run large models).
 
@@ -38,8 +38,8 @@ The `get_online_predictions` method requires the following parameters:
 
 - `features`: A list of features to retrieve.
 - `entity_rows`: A list of dictionaries where each dictionary represents a single entity row.
-- `cached_model_feature_reference`: A string representing the reference to the cached model feature.
-- `on_demand_model_feature_reference`: A string representing the reference to the on-demand model feature.
+- `cached_model_feature_reference`: A string representing the feature reference of the cached model feature.
+- `on_demand_model_feature_reference`: A string representing the feature reference of the on-demand model feature.
 - `force_recompute`: A boolean value indicating whether to force the re-computation of the model feature.
 - `log_features`: A boolean value indicating whether to log the features.
 
@@ -47,11 +47,14 @@ This method returns a dictionary containing the requested features and their cor
 
 ## Endpoint Overview
 
-The `/get-online-predictions` endpoint in the Feast Feature Server is designed to interact with the `get_online_predictions` method. This endpoint accepts a POST request with a JSON body containing the parameters required by the `get_online_predictions` method.
+The `/get-online-predictions` endpoint in the Feast Feature Server is designed to interact with the 
+`get_online_predictions` method. This endpoint accepts a POST request with a JSON body containing the parameters 
+required by the `get_online_predictions` method.
 
 ## Example
 
-Here's an example of how to use the `get_online_predictions` method, taken from the `test_get_online_predictions` function in the `test_online_retrieval.py` file:
+Here's an example of how to use the `get_online_predictions` method, taken from the `test_get_online_predictions` 
+function in the `test_online_retrieval.py` file:
 
 ```python
 result = store.get_online_predictions(
@@ -78,6 +81,6 @@ set to True, indicating that the features should be logged.
 
 ## Alternatives / Expanding Scope
 
-In the future, we are looking to add support for being able to call KServe or another model inference endpoint in the 
+In the future, we will look to add support for calling KServe or another model inference endpoint in the 
 On Demand Feature View directly. This will allow for more flexibility in the models that can be served and still get the
 benefits of caching scores in the Feature Store.
