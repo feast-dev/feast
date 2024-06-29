@@ -562,3 +562,102 @@ def test_sqlite_vec_import() -> None:
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
+
+
+def test_get_online_predictions():
+    """
+    Test reading from the online store in local mode.
+    """
+    cached_score = 30.0
+    recomputed_score = 38.0
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_with_online_predictions.py"), "file"
+    ) as store:
+        # Write some data to two tables
+        customer_profile_fv = store.get_feature_view(name="customer_profile")
+        customer_predictions_fv = store.get_feature_view(
+            name="stored_customer_predictions"
+        )
+        provider = store._get_provider()
+
+        customer_key = EntityKeyProto(
+            join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_profile_fv,
+            data=[
+                (
+                    customer_key,
+                    {
+                        "avg_orders_day": ValueProto(float_val=3.0),
+                        "name": ValueProto(string_val="John"),
+                        "age": ValueProto(int64_val=35),
+                    },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_predictions_fv,
+            data=[
+                (
+                    customer_key,
+                    {
+                        "predictions": ValueProto(float_val=cached_score),
+                        "model_version": ValueProto(string_val="1.0.0"),
+                    },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        result = store.get_online_predictions(
+            features=[
+                "customer_profile:avg_orders_day",
+                "customer_profile:age",
+            ],
+            entity_rows=[
+                {"customer_id": "5"},
+                {"customer_id": 5},
+            ],
+            cached_model_feature_reference="stored_customer_predictions:predictions",
+            on_demand_model_feature_reference="risk_score_calculator:predictions",
+            force_recompute=False,
+            log_features=True,
+        ).to_dict()
+
+        assert "predictions" in result
+        assert result["predictions"] == [cached_score, cached_score]
+        assert result["customer_id"] == ["5", "5"]
+
+        # Now we have to recalculate it
+        # Retrieve two features using two keys, one valid one non-existing
+        result = store.get_online_predictions(
+            features=[
+                "customer_profile:avg_orders_day",
+                "customer_profile:age",
+            ],
+            entity_rows=[
+                {"customer_id": "5"},
+                {"customer_id": 5},
+            ],
+            cached_model_feature_reference="stored_customer_predictions:predictions",
+            on_demand_model_feature_reference="risk_score_calculator:predictions",
+            force_recompute=True,
+            log_features=True,
+        ).to_dict()
+
+        assert "predictions" in result
+        # The features should now be included in the responset
+        assert "age" in result
+        assert "avg_orders_day" in result
+        assert result["predictions"] == [recomputed_score, recomputed_score]
+        assert result["customer_id"] == ["5", "5"]
+        assert result["avg_orders_day"] == [3.0, 3.0]

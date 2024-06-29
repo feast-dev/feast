@@ -40,6 +40,7 @@ def setup_feature_store():
         ],
         source=driver_hourly_stats,
     )
+
     fs.apply([driver_hourly_stats_view, driver])
     fs.materialize(
         start_date=datetime.utcnow() - timedelta(hours=3),

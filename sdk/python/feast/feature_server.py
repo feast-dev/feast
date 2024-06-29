@@ -85,22 +85,15 @@ def get_app(
     @app.post("/get-online-features")
     def get_online_features(body=Depends(get_body)):
         try:
-            body = json.loads(body)
-            # Initialize parameters for FeatureStore.get_online_features(...) call
-            if "feature_service" in body:
-                features = store.get_feature_service(
-                    body["feature_service"], allow_cache=True
-                )
-            else:
-                features = body["features"]
-
+            features, body = _get_features_from_body(store, body)
             full_feature_names = body.get("full_feature_names", False)
 
-            response_proto = store.get_online_features(
+            response = store.get_online_features(
                 features=features,
                 entity_rows=body["entities"],
                 full_feature_names=full_feature_names,
-            ).proto
+            )
+            response_proto = response.proto
 
             # Convert the Protobuf object to JSON and return it
             return MessageToDict(
@@ -154,6 +147,32 @@ def get_app(
                 df=df,
                 allow_registry_cache=request.allow_registry_cache,
             )
+        except Exception as e:
+            # Print the original exception on the server side
+            logger.exception(traceback.format_exc())
+            # Raise HTTPException to return the error message to the client
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/get-online-predictions")
+    def get_online_predictions(body=Depends(get_body)):
+        try:
+            features, body = _get_features_from_body(store, body)
+
+            response = store.get_online_predictions(
+                features=features,
+                entity_rows=body["entities"],
+                cached_model_feature_reference=body["prediction_feature_name"],
+                on_demand_model_feature_reference=body["model_feature_name"],
+                force_recompute=body["force_recompute"],
+                log_features=body["log_features"],
+            )
+            response_proto = response.proto
+
+            # Convert the Protobuf object to JSON and return it
+            return MessageToDict(
+                response_proto, preserving_proto_field_name=True, float_precision=18
+            )
+
         except Exception as e:
             # Print the original exception on the server side
             logger.exception(traceback.format_exc())
@@ -241,3 +260,13 @@ def start_server(
 
         app = get_app(store, registry_ttl_sec)
         uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+
+
+def _get_features_from_body(store: "feast.FeatureStore", body):
+    body = json.loads(body)
+    # Initialize parameters for FeatureStore.get_online_features(...) call
+    if "feature_service" in body:
+        features = store.get_feature_service(body["feature_service"], allow_cache=True)
+    else:
+        features = body["features"]
+    return features, body
