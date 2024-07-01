@@ -49,7 +49,7 @@ When this happens, your database is likely using what is referred to as an
 in `SQLAlchemy` terminology. See your database's documentation for examples on
 how to set its scheme in the Database URL.
 
-`Psycopg2`, which is the database library leveraged by the online and offline
+`Psycopg`, which is the database library leveraged by the online and offline
 stores, is not impacted by the need to speak a particular dialect, and so the
 following only applies to the registry.
 

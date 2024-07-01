@@ -149,7 +149,9 @@ def pg_registry():
 
     registry_config = RegistryConfig(
         registry_type="sql",
-        path=f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
+        # The `path` must include `+psycopg` in order for `sqlalchemy.create_engine()`
+        # to understand that we are using psycopg3.
+        path=f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
