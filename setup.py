@@ -102,7 +102,7 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg2-binary>=2.8.3,<3",
+    "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]

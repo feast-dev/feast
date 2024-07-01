@@ -12,6 +12,7 @@ from pydantic import (
     StrictInt,
     StrictStr,
     ValidationError,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -122,6 +123,21 @@ class RegistryConfig(FeastBaseModel):
 
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
+
+    @field_validator("path")
+    def validate_path(cls, path: str, values: ValidationInfo) -> str:
+        if values.data.get("registry_type") == "sql":
+            if path.startswith("postgresql://"):
+                _logger.warning(
+                    "The `path` of the `RegistryConfig` starts with a plain "
+                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
+                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
+                    "explicitely to `path`."
+                )
+                return path.replace("postgresql://", "postgresql+psycopg://")
+        return path
 
 
 class RepoConfig(FeastBaseModel):

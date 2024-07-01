@@ -19,11 +19,11 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
-from psycopg2 import sql
+from psycopg import sql
 from pytz import utc
 
 from feast.data_source import DataSource
-from feast.errors import InvalidEntityType
+from feast.errors import InvalidEntityType, ZeroColumnQueryResult, ZeroRowsQueryResult
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
@@ -274,8 +274,10 @@ class PostgreSQLRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         with self._query_generator() as query:
             with _get_conn(self.config.offline_store) as conn, conn.cursor() as cur:
-                conn.set_session(readonly=True)
+                conn.read_only = True
                 cur.execute(query)
+                if not cur.description:
+                    raise ZeroColumnQueryResult(query)
                 fields = [
                     (c.name, pg_type_code_to_arrow(c.type_code))
                     for c in cur.description
@@ -331,16 +333,19 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp.max().to_pydatetime(),
         )
     elif isinstance(entity_df, str):
-        # If the entity_df is a string (SQL query), determine range
-        # from table
+        # If the entity_df is a string (SQL query), determine range from table
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
-            (
-                cur.execute(
-                    f"SELECT MIN({entity_df_event_timestamp_col}) AS min, MAX({entity_df_event_timestamp_col}) AS max FROM ({entity_df}) as tmp_alias"
-                ),
-            )
+            query = f"""
+                SELECT
+                    MIN({entity_df_event_timestamp_col}) AS min,
+                    MAX({entity_df_event_timestamp_col}) AS max
+                FROM ({entity_df}) AS tmp_alias
+                """
+            cur.execute(query)
             res = cur.fetchone()
-        entity_df_event_timestamp_range = (res[0], res[1])
+            if not res:
+                raise ZeroRowsQueryResult(query)
+            entity_df_event_timestamp_range = (res[0], res[1])
     else:
         raise InvalidEntityType(type(entity_df))
 
