@@ -61,7 +61,7 @@ class SecurityManager:
         resources: Union[list[FeastObject], FeastObject],
         actions: Union[AuthzedAction, List[AuthzedAction]],
         filter_only: bool = False,
-    ) -> list[FeastObject]:
+    ) -> Optional[Union[list[FeastObject], FeastObject]]:
         """
         Verify if the current user is authorized ro execute the requested actions on the given resources.
 
@@ -72,6 +72,10 @@ class SecurityManager:
             actions: The requested actions to be authorized.
             filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
             first unauthorized resource. Defaults to `False`.
+
+        Returns:
+            Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
+            (otherwise it's `None`).
 
         Raises:
             PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
@@ -90,11 +94,23 @@ def assert_permissions(
     resources: Union[list[FeastObject], FeastObject],
     actions: Union[AuthzedAction, List[AuthzedAction]],
     filter_only: bool = False,
-) -> list[FeastObject]:
+) -> Optional[Union[list[FeastObject], FeastObject]]:
     """
     A utility function to invoke the `assert_permissions` method on the global security manager.
 
     If no global `SecurityManager` is defined, the execution is permitted.
+
+    Args:
+        resources: The resources for which we need to enforce authorized permission.
+        actions: The requested actions to be authorized.
+        filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
+        first unauthorized resource. Defaults to `False`.
+    Returns:
+        Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
+        (otherwise it's `None`).
+
+    Raises:
+        PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
     sm = get_security_manager()
     if sm is None:

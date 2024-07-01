@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Optional, Union
 
 from feast.feast_object import FeastObject
 from feast.permissions.decision import DecisionEvaluator
@@ -19,7 +19,7 @@ def enforce_policy(
     resources: Union[list[FeastObject], FeastObject],
     actions: list[AuthzedAction],
     filter_only: bool = False,
-) -> list[FeastObject]:
+) -> Optional[Union[list[FeastObject], FeastObject]]:
     """
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
@@ -34,8 +34,10 @@ def enforce_policy(
         actions: The requested actions to be authorized.
         filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
         first unauthorized resource. Defaults to `False`.
+
     Returns:
-        list[FeastObject]: A list of the permitted resources (a subset of the input `resources`).
+        Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
+        (otherwise it's `None`).
 
     Raises:
         PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
@@ -79,4 +81,10 @@ def enforce_policy(
             _permitted_resources.append(resource)
             message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
             logger.info(f"**PERMISSION GRANTED**: {message}")
-    return _permitted_resources
+    return (
+        _permitted_resources
+        if isinstance(resources, list)
+        else _permitted_resources[0]
+        if _permitted_resources
+        else None
+    )
