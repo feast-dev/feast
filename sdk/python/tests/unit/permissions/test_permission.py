@@ -251,7 +251,7 @@ def test_resource_match_with_tags(required_tags, tags, result):
 
 
 @pytest.mark.parametrize(
-    ("permitted_actions, actions, result"),
+    ("permitted_actions, requested_actions, result"),
     [(AuthzedAction.ALL, a, True) for a in AuthzedAction.__members__.values()]
     + [
         (
@@ -269,6 +269,8 @@ def test_resource_match_with_tags(required_tags, tags, result):
         ),
     ],
 )
-def test_match_actions(permitted_actions, actions, result):
+def test_match_actions(permitted_actions, requested_actions, result):
     p = Permission(name="test", actions=permitted_actions)
-    assertpy.assert_that(p.match_actions(actions=actions)).is_equal_to(result)
+    assertpy.assert_that(
+        p.match_actions(requested_actions=requested_actions)
+    ).is_equal_to(result)

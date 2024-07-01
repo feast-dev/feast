@@ -140,21 +140,21 @@ def resource_match_config(
 
 
 def actions_match_config(
-    actions: list[AuthzedAction],
+    requested_actions: list[AuthzedAction],
     allowed_actions: list[AuthzedAction],
 ) -> bool:
     """
     Match a list of actions against the actions defined in a permission configuration.
 
     Args:
-        actions: Alist of actions to be executed.
+        requested_actions: A list of actions to be executed.
         allowed_actions: The list of actions configured in the permission.
 
     Returns:
-        bool: `True` if all the given `actions` are defined in the `allowed_actions`.
-        Whatever the requested `actions`, it returns `True` if `allowed_actions` includes `AuthzedAction.ALL`
+        bool: `True` if all the given `requested_actions` are defined in the `allowed_actions`.
+        Whatever the `requested_actions`, it returns `True` if `allowed_actions` includes `AuthzedAction.ALL`
     """
     if AuthzedAction.ALL in allowed_actions:
         return True
 
-    return all(a in allowed_actions for a in actions)
+    return all(a in allowed_actions for a in requested_actions)

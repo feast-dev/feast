@@ -18,7 +18,8 @@ def enforce_policy(
     user: str,
     resources: Union[list[FeastObject], FeastObject],
     actions: list[AuthzedAction],
-) -> tuple[bool, str]:
+    filter_only: bool = False,
+) -> list[FeastObject]:
     """
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
@@ -31,14 +32,19 @@ def enforce_policy(
         user: The current user.
         resources: The resources for which we need to enforce authorized permission.
         actions: The requested actions to be authorized.
+        filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
+        first unauthorized resource. Defaults to `False`.
     Returns:
-        tuple[bool, str]: a boolean with the result of the authorization check (`True` stands for allowed) and string to explain
-        the reason for denying execution.
-    """
-    if not permissions:
-        return (True, "")
+        list[FeastObject]: A list of the permitted resources (a subset of the input `resources`).
 
+    Raises:
+        PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
+    """
     _resources = resources if isinstance(resources, list) else [resources]
+    if not permissions:
+        return _resources
+
+    _permitted_resources: list[FeastObject] = []
     for resource in _resources:
         logger.debug(
             f"Enforcing permission policies for {type(resource)}:{resource.name} to execute {actions}"
@@ -64,8 +70,13 @@ def enforce_policy(
 
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
-                    return grant, ",".join(explanations)
-    else:
-        message = f"No permissions defined to manage {actions} on {resources}."
-        logger.info(f"**PERMISSION GRANTED**: {message}")
-    return (True, "")
+                    if not grant and not filter_only:
+                        raise PermissionError(",".join(explanations))
+                    if grant:
+                        _permitted_resources.append(resource)
+                    break
+        else:
+            _permitted_resources.append(resource)
+            message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
+            logger.info(f"**PERMISSION GRANTED**: {message}")
+    return _permitted_resources

@@ -60,7 +60,8 @@ class SecurityManager:
         self,
         resources: Union[list[FeastObject], FeastObject],
         actions: Union[AuthzedAction, List[AuthzedAction]],
-    ):
+        filter_only: bool = False,
+    ) -> list[FeastObject]:
         """
         Verify if the current user is authorized ro execute the requested actions on the given resources.
 
@@ -69,25 +70,27 @@ class SecurityManager:
         Args:
             resources: The resources for which we need to enforce authorized permission.
             actions: The requested actions to be authorized.
+            filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
+            first unauthorized resource. Defaults to `False`.
 
         Raises:
             PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
         """
-        result, explain = enforce_policy(
+        return enforce_policy(
             role_manager=self._role_manager,
             permissions=self._permissions,
             user=self.current_user if self.current_user is not None else "",
             resources=resources,
             actions=actions if isinstance(actions, list) else [actions],
+            filter_only=filter_only,
         )
-        if not result:
-            raise PermissionError(explain)
 
 
 def assert_permissions(
     resources: Union[list[FeastObject], FeastObject],
     actions: Union[AuthzedAction, List[AuthzedAction]],
-):
+    filter_only: bool = False,
+) -> list[FeastObject]:
     """
     A utility function to invoke the `assert_permissions` method on the global security manager.
 
@@ -95,8 +98,10 @@ def assert_permissions(
     """
     sm = get_security_manager()
     if sm is None:
-        return
-    return sm.assert_permissions(resources=resources, actions=actions)
+        return resources if isinstance(resources, list) else [resources]
+    return sm.assert_permissions(
+        resources=resources, actions=actions, filter_only=filter_only
+    )
 
 
 """

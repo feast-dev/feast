@@ -127,14 +127,14 @@ class Permission(ABC):
             required_tags=self.required_tags,
         )
 
-    def match_actions(self, actions: list[AuthzedAction]) -> bool:
+    def match_actions(self, requested_actions: list[AuthzedAction]) -> bool:
         """
         Returns:
             `True` when the given actions are included in the permitted actions.
         """
         return actions_match_config(
             allowed_actions=self.actions,
-            actions=actions,
+            requested_actions=requested_actions,
         )
 
 

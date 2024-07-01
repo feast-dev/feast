@@ -2,7 +2,6 @@ import assertpy
 import pytest
 
 from feast.permissions.policy import AllowAll, RoleBasedPolicy
-from feast.permissions.role_manager import RoleManager
 
 
 @pytest.mark.parametrize(
@@ -18,15 +17,6 @@ def test_allow_all(user, dict):
         assertpy.assert_that(AllowAll.validate_user(user, **dict)).is_true()
     else:
         assertpy.assert_that(AllowAll.validate_user(user)).is_true()
-
-
-@pytest.fixture
-def role_manager() -> RoleManager:
-    rm = RoleManager()
-    rm.add_roles_for_user("r", ["reader"])
-    rm.add_roles_for_user("w", ["writer"])
-    rm.add_roles_for_user("rw", ["reader", "writer"])
-    return rm
 
 
 @pytest.mark.parametrize(
