@@ -28,7 +28,7 @@ def require_permissions(actions: Union[list[AuthzedAction], AuthzedAction]):
                 )
 
             return assert_permissions(
-                resources=resource,
+                resource=resource,
                 actions=actions,
             )
             logger.debug(
