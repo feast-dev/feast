@@ -282,7 +282,9 @@ class PassthroughProvider(Provider):
             tqdm_builder=tqdm_builder,
         )
         jobs = self.batch_engine.materialize(registry, [task])
-        assert len(jobs) == 1
+        # Empty jobs list might happen when there is no new data to materialize. In that case, we would just skip the execution and move on to another view.
+        if len(jobs) == 0:
+            return 
         if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
             e = jobs[0].error()
             assert e
