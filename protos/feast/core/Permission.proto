@@ -55,4 +55,7 @@ message Permission {
 
   // the policy.
   Policy policy = 8;
+
+  // User defined metadata
+  map<string,string> tags = 9;
 }

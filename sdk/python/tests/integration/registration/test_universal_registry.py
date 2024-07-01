@@ -32,6 +32,7 @@ from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
+from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.infra_object import Infra
@@ -40,6 +41,9 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.registry_server import RegistryServer
 from feast.repo_config import RegistryConfig
@@ -562,6 +566,53 @@ def test_apply_on_demand_feature_view_success(test_registry):
     test_registry.delete_feature_view("location_features_from_push", project)
     feature_views = test_registry.list_on_demand_feature_views(project)
     assert len(feature_views) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    all_fixtures,
+)
+def test_apply_permissions(test_registry):
+    # Create Permission
+    permission1 = Permission(
+        name="reader",
+        types=ALL_RESOURCE_TYPES,
+        with_subclasses=True,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        actions=[AuthzedAction.READ],
+    )
+
+    # Create Permission
+    permission2 = Permission(
+        name="writer",
+        types=ALL_RESOURCE_TYPES,
+        with_subclasses=True,
+        policy=RoleBasedPolicy(roles=["writer"]),
+        actions=[AuthzedAction.WRITE],
+    )
+
+    project = "project"
+
+    # Register permissions
+    test_registry.apply_permission(permission1, project, commit=False)
+    test_registry.apply_permission(permission2, project, commit=False)
+
+    permissions = test_registry.list_permissions(project)
+    assert len(permissions) == 2
+    p1 = permissions[0]
+    p2 = permissions[1]
+    assert p1 == permission1
+    assert p2 == permission2
+
+    # Delete permissions
+    test_registry.delete_permission(permission1.name, project, commit=False)
+    test_registry.delete_permission(permission2.name, project, commit=False)
+
+    permissions = test_registry.list_permissions(project)
+    assert len(permissions) == 0
 
     test_registry.teardown()
 

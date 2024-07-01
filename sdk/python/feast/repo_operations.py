@@ -204,7 +204,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
             ):
                 res.on_demand_feature_views.append(obj)
             elif isinstance(obj, Permission) and not any(
-                (obj is fs) for fs in res.permissions
+                (obj is p) for p in res.permissions
             ):
                 res.permissions.append(obj)
 

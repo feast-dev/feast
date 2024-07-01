@@ -358,17 +358,15 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListPermissions(
         self, request: RegistryServer_pb2.ListPermissionsRequest, context
     ):
-        permissions_proto = []
-        permissions = self.proxied_registry.list_permissions(
-            project=request.project,
-            allow_cache=request.allow_cache,
+        return RegistryServer_pb2.ListPermissionsResponse(
+            permissions=[
+                permission.to_proto()
+                for permission in self.proxied_registry.list_permissions(
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                )
+            ]
         )
-        for p in permissions:
-            permission_proto = p.to_proto()
-            permission_proto.project = request.project
-            permissions_proto.append(permission_proto)
-
-        return RegistryServer_pb2.ListPermissionsResponse(permissions=permissions_proto)
 
     def DeletePermission(
         self, request: RegistryServer_pb2.DeletePermissionRequest, context

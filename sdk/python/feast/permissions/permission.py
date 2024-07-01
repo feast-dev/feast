@@ -1,7 +1,7 @@
 import logging
 import re
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from feast.importer import import_class
 from feast.permissions.action import AuthzedAction
@@ -45,6 +45,7 @@ class Permission(ABC):
     _required_tags: Optional[dict[str, str]]
     _actions: list[AuthzedAction]
     _policy: Policy
+    _tags: Dict[str, str]
 
     def __init__(
         self,
@@ -55,6 +56,7 @@ class Permission(ABC):
         required_tags: Optional[dict[str, str]] = None,
         actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
         policy: Policy = AllowAll,
+        tags: Optional[Dict[str, str]] = None,
     ):
         from feast.feast_object import ALL_RESOURCE_TYPES
 
@@ -74,6 +76,7 @@ class Permission(ABC):
         self._required_tags = _normalize_required_tags(required_tags)
         self._actions = actions if isinstance(actions, list) else [actions]
         self._policy = policy
+        self._tags = tags or {}
 
     def __eq__(self, other):
         if not isinstance(other, Permission):
@@ -138,6 +141,10 @@ class Permission(ABC):
     def policy(self) -> Policy:
         return self._policy
 
+    @property
+    def tags(self) -> Dict[str, str]:
+        return self._tags
+
     def match_resource(self, resource: "FeastObject") -> bool:
         """
         Returns:
@@ -192,6 +199,7 @@ class Permission(ABC):
             dict(permission_proto.required_tags),
             actions,
             Policy.from_proto(permission_proto.policy),
+            dict(permission_proto.tags) or None,
         )
 
         return permission
@@ -219,6 +227,7 @@ class Permission(ABC):
             required_tags=self.required_tags,
             actions=actions,
             policy=self.policy.to_proto(),
+            tags=self._tags if self._tags is not None else None,
         )
 
         return permission_proto
