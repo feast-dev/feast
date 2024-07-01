@@ -162,9 +162,15 @@ class Registry(BaseRegistry):
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
     ):
+        # We override __new__ so that we can inspect registry_config and create a GraphRegistry without callers
+        # needing to make any changes.
+        if registry_config and registry_config.registry_type == "graph":
+            from feast.infra.registry.graph import GraphRegistry
+
+            return GraphRegistry(registry_config, project, repo_path)
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
-        if registry_config and registry_config.registry_type == "sql":
+        elif registry_config and registry_config.registry_type == "sql":
             from feast.infra.registry.sql import SqlRegistry
 
             return SqlRegistry(registry_config, project, repo_path)
