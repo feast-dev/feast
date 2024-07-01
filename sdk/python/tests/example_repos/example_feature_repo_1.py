@@ -34,7 +34,6 @@ driver_locations_push_source = PushSource(
 )
 
 rag_documents_source = FileSource(
-    name="rag_documents_source",
     path="data/rag_documents.parquet",
     timestamp_field="event_timestamp",
 )
@@ -83,6 +82,12 @@ pushed_driver_locations = FeatureView(
     online=True,
     source=driver_locations_push_source,
     tags={},
+)
+
+all_drivers_feature_service = FeatureService(
+    name="driver_locations_service",
+    features=[driver_locations],
+    tags=TAGS,
 )
 
 customer_profile = FeatureView(
@@ -135,10 +140,3 @@ def customer_profile_pandas_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
     outputs = pd.DataFrame()
     outputs["on_demand_age"] = inputs["age"] + 1
     return outputs
-
-
-all_drivers_feature_service = FeatureService(
-    name="driver_locations_service",
-    features=[driver_locations],
-    tags=TAGS,
-)
