@@ -929,7 +929,7 @@ class Registry(BaseRegistry):
     ):
         registry = self._prepare_registry_for_changes(project)
         for idx, existing_permission_proto in enumerate(registry.permissions):
-            if existing_permission_proto.project == project:
+            if existing_permission_proto.name == permission.name and existing_permission_proto.project == project:
                 del registry.permissions[idx]
         permission_proto = permission.to_proto()
         permission_proto.project = project
@@ -942,7 +942,7 @@ class Registry(BaseRegistry):
         assert self.cached_registry_proto
 
         for idx, permission_proto in enumerate(self.cached_registry_proto.permissions):
-            if permission_proto.name == name:
+            if permission_proto.name == name and permission_proto.project == project:
                 del self.cached_registry_proto.permissions[idx]
                 if commit:
                     self.commit()

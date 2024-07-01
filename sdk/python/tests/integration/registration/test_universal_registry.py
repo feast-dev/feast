@@ -597,8 +597,8 @@ def test_apply_permissions(test_registry):
     project = "project"
 
     # Register permissions
-    test_registry.apply_permission(permission1, project, commit=False)
-    test_registry.apply_permission(permission2, project, commit=False)
+    test_registry.apply_permission(permission1, project)
+    test_registry.apply_permission(permission2, project)
 
     permissions = test_registry.list_permissions(project)
     assert len(permissions) == 2
@@ -608,8 +608,8 @@ def test_apply_permissions(test_registry):
     assert p2 == permission2
 
     # Delete permissions
-    test_registry.delete_permission(permission1.name, project, commit=False)
-    test_registry.delete_permission(permission2.name, project, commit=False)
+    test_registry.delete_permission(permission1.name, project)
+    test_registry.delete_permission(permission2.name, project)
 
     permissions = test_registry.list_permissions(project)
     assert len(permissions) == 0
