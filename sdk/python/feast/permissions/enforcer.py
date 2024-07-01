@@ -1,5 +1,4 @@
 import logging
-from typing import Optional, Union
 
 from feast.feast_object import FeastObject
 from feast.permissions.decision import DecisionEvaluator
@@ -16,10 +15,10 @@ def enforce_policy(
     role_manager: RoleManager,
     permissions: list[Permission],
     user: str,
-    resources: Union[list[FeastObject], FeastObject],
+    resources: list[FeastObject],
     actions: list[AuthzedAction],
     filter_only: bool = False,
-) -> Optional[Union[list[FeastObject], FeastObject]]:
+) -> list[FeastObject]:
     """
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
@@ -36,18 +35,16 @@ def enforce_policy(
         first unauthorized resource. Defaults to `False`.
 
     Returns:
-        Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
-        (otherwise it's `None`).
+        list[FeastObject]: A filtered list of the permitted resources.
 
     Raises:
         PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
-    _resources = resources if isinstance(resources, list) else [resources]
     if not permissions:
-        return _resources
+        return resources
 
     _permitted_resources: list[FeastObject] = []
-    for resource in _resources:
+    for resource in resources:
         logger.debug(
             f"Enforcing permission policies for {type(resource)}:{resource.name} to execute {actions}"
         )
@@ -81,10 +78,4 @@ def enforce_policy(
             _permitted_resources.append(resource)
             message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
             logger.info(f"**PERMISSION GRANTED**: {message}")
-    return (
-        _permitted_resources
-        if isinstance(resources, list)
-        else _permitted_resources[0]
-        if _permitted_resources
-        else None
-    )
+    return _permitted_resources

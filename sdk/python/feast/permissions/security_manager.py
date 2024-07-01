@@ -58,10 +58,10 @@ class SecurityManager:
 
     def assert_permissions(
         self,
-        resources: Union[list[FeastObject], FeastObject],
+        resources: list[FeastObject],
         actions: Union[AuthzedAction, List[AuthzedAction]],
         filter_only: bool = False,
-    ) -> Optional[Union[list[FeastObject], FeastObject]]:
+    ) -> list[FeastObject]:
         """
         Verify if the current user is authorized ro execute the requested actions on the given resources.
 
@@ -74,8 +74,7 @@ class SecurityManager:
             first unauthorized resource. Defaults to `False`.
 
         Returns:
-            Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
-            (otherwise it's `None`).
+            list[FeastObject]: A filtered list of the permitted resources, possibly empty.
 
         Raises:
             PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
@@ -91,10 +90,36 @@ class SecurityManager:
 
 
 def assert_permissions(
-    resources: Union[list[FeastObject], FeastObject],
+    resource: FeastObject,
     actions: Union[AuthzedAction, List[AuthzedAction]],
     filter_only: bool = False,
-) -> Optional[Union[list[FeastObject], FeastObject]]:
+) -> FeastObject:
+    """
+    A utility function to invoke the `assert_permissions` method on the global security manager.
+
+    If no global `SecurityManager` is defined, the execution is permitted.
+
+    Args:
+        resource: The resource for which we need to enforce authorized permission.
+        actions: The requested actions to be authorized.
+    Returns:
+        FeastObject: The original `resource`, if permitted.
+
+    Raises:
+        PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
+    """
+    sm = get_security_manager()
+    if sm is None:
+        return resource
+    return sm.assert_permissions(
+        resources=[resource], actions=actions, filter_only=False
+    )[0]
+
+
+def permitted_resources(
+    resources: list[FeastObject],
+    actions: Union[AuthzedAction, List[AuthzedAction]],
+) -> list[FeastObject]:
     """
     A utility function to invoke the `assert_permissions` method on the global security manager.
 
@@ -103,21 +128,13 @@ def assert_permissions(
     Args:
         resources: The resources for which we need to enforce authorized permission.
         actions: The requested actions to be authorized.
-        filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
-        first unauthorized resource. Defaults to `False`.
     Returns:
-        Union[list[FeastObject], FeastObject]: A filtered list of the permitted resources or the original `resources`, if permitted
-        (otherwise it's `None`).
-
-    Raises:
-        PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
+        list[FeastObject]]: A filtered list of the permitted resources, possibly empty.
     """
     sm = get_security_manager()
     if sm is None:
-        return resources if isinstance(resources, list) else [resources]
-    return sm.assert_permissions(
-        resources=resources, actions=actions, filter_only=filter_only
-    )
+        return resources
+    return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)
 
 
 """
