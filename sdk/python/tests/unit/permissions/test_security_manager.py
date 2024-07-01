@@ -43,7 +43,7 @@ def test_access_SecuredFeatureView_raise_error(
     for i, r in enumerate(resources):
         if allowed_single[i]:
             result = sm.assert_permissions(resources=r, actions=requested_actions)
-            assertpy.assert_that(result).is_equal_to([r])
+            assertpy.assert_that(result).is_equal_to(r)
         else:
             with pytest.raises(PermissionError):
                 sm.assert_permissions(resources=r, actions=requested_actions)
@@ -85,6 +85,6 @@ def test_access_SecuredFeatureView_filter_resources(
             resources=r, actions=requested_actions, filter_only=True
         )
         if allowed_single[i]:
-            assertpy.assert_that(result).is_equal_to([r])
+            assertpy.assert_that(result).is_equal_to(r)
         else:
-            assertpy.assert_that(result).is_equal_to([])
+            assertpy.assert_that(result).is_none()
