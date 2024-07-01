@@ -14,13 +14,17 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
-from feast import Entity
+from feast import Entity, utils
+from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 
@@ -104,6 +108,180 @@ class OnlineStore(ABC):
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online read async"
         )
+
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    try:
+                        columnar[key].append(value)
+                    except KeyError as e:
+                        raise ValueError(
+                            "All entity_rows must have the same keys."
+                        ) from e
+
+            entity_rows = columnar
+
+        (
+            join_key_values,
+            grouped_refs,
+            entity_name_to_join_key_map,
+            requested_on_demand_feature_views,
+            feature_refs,
+            requested_result_row_names,
+            online_features_response,
+        ) = utils._prepare_entities_to_read_from_online_store(
+            registry=registry,
+            project=project,
+            features=features,
+            entity_values=entity_rows,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+        )
+
+        for table, requested_features in grouped_refs:
+            # Get the correct set of entity values with the correct join keys.
+            table_entity_values, idxs = utils._get_unique_entities(
+                table,
+                join_key_values,
+                entity_name_to_join_key_map,
+            )
+
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+
+            # Fetch data for Entities.
+            read_rows = self.online_read(
+                config=config,
+                table=table,
+                entity_keys=entity_key_protos,
+                requested_features=requested_features,
+            )
+
+            feature_data = utils._convert_rows_to_protobuf(
+                requested_features, read_rows
+            )
+
+            # Populate the result_rows with the Features from the OnlineStore inplace.
+            utils._populate_response_from_feature_data(
+                feature_data,
+                idxs,
+                online_features_response,
+                full_feature_names,
+                requested_features,
+                table,
+            )
+
+        if requested_on_demand_feature_views:
+            utils._augment_response_with_on_demand_transforms(
+                online_features_response,
+                feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+            )
+
+        utils._drop_unneeded_columns(
+            online_features_response, requested_result_row_names
+        )
+        return OnlineResponse(online_features_response)
+
+    async def get_online_features_async(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    try:
+                        columnar[key].append(value)
+                    except KeyError as e:
+                        raise ValueError(
+                            "All entity_rows must have the same keys."
+                        ) from e
+
+            entity_rows = columnar
+
+        (
+            join_key_values,
+            grouped_refs,
+            entity_name_to_join_key_map,
+            requested_on_demand_feature_views,
+            feature_refs,
+            requested_result_row_names,
+            online_features_response,
+        ) = utils._prepare_entities_to_read_from_online_store(
+            registry=registry,
+            project=project,
+            features=features,
+            entity_values=entity_rows,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+        )
+
+        for table, requested_features in grouped_refs:
+            # Get the correct set of entity values with the correct join keys.
+            table_entity_values, idxs = utils._get_unique_entities(
+                table,
+                join_key_values,
+                entity_name_to_join_key_map,
+            )
+
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+
+            # Fetch data for Entities.
+            read_rows = await self.online_read_async(
+                config=config,
+                table=table,
+                entity_keys=entity_key_protos,
+                requested_features=requested_features,
+            )
+
+            feature_data = utils._convert_rows_to_protobuf(
+                requested_features, read_rows
+            )
+
+            # Populate the result_rows with the Features from the OnlineStore inplace.
+            utils._populate_response_from_feature_data(
+                feature_data,
+                idxs,
+                online_features_response,
+                full_feature_names,
+                requested_features,
+                table,
+            )
+
+        if requested_on_demand_feature_views:
+            utils._augment_response_with_on_demand_transforms(
+                online_features_response,
+                feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+            )
+
+        utils._drop_unneeded_columns(
+            online_features_response, requested_result_row_names
+        )
+        return OnlineResponse(online_features_response)
 
     @abstractmethod
     def update(
