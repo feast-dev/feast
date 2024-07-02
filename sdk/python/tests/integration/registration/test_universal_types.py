@@ -20,6 +20,7 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
+from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.universal.entities import driver
 from tests.integration.feature_repos.universal.feature_views import driver_feature_view
@@ -93,7 +94,7 @@ def test_feature_get_historical_features_types_match(
 
     entity_df = pd.DataFrame()
     entity_df["driver_id"] = [1, 3]
-    ts = pd.Timestamp(datetime.utcnow()).round("ms")
+    ts = pd.Timestamp(_utc_now()).round("ms")
     entity_df["ts"] = [
         ts - timedelta(hours=4),
         ts - timedelta(hours=2),

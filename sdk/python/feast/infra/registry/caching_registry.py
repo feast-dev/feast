@@ -2,7 +2,7 @@ import atexit
 import logging
 import threading
 from abc import abstractmethod
-from datetime import datetime, timedelta
+from datetime import timedelta
 from threading import Lock
 from typing import List, Optional
 
@@ -17,6 +17,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class CachingRegistry(BaseRegistry):
     def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
@@ -320,7 +321,7 @@ class CachingRegistry(BaseRegistry):
                     self.cached_registry_proto, project
                 )
         self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
 
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
@@ -332,14 +333,13 @@ class CachingRegistry(BaseRegistry):
                     self.cached_registry_proto_ttl.total_seconds()
                     > 0  # 0 ttl means infinity
                     and (
-                        datetime.utcnow()
+                        _utc_now()
                         > (
                             self.cached_registry_proto_created
                             + self.cached_registry_proto_ttl
                         )
                     )
                 )
-
                 if expired:
                     logger.info("Registry cache expired, so refreshing")
                     self.refresh()

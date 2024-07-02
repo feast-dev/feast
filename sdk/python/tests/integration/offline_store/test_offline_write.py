@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -7,6 +7,7 @@ import pytest
 
 from feast import FeatureView, Field
 from feast.types import Float32, Int32
+from feast.utils import _utc_now
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -23,7 +24,7 @@ def test_reorder_columns(environment, universal_data_sources):
     driver_fv = feature_views.driver
     store.apply([driver(), driver_fv])
 
-    now = datetime.utcnow()
+    now = _utc_now()
     ts = pd.Timestamp(now).round("ms")
 
     # This dataframe has columns in the wrong order.
@@ -53,7 +54,7 @@ def test_writing_incorrect_schema_fails(environment, universal_data_sources):
     driver_fv = feature_views.driver
     store.apply([driver(), driver_fv])
 
-    now = datetime.utcnow()
+    now = _utc_now()
     ts = pd.Timestamp(now).round("ms")
 
     expected_df = pd.DataFrame.from_dict(
@@ -91,7 +92,7 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
         ),  # This is to make sure all offline store data is out of date since get_historical_features() only searches backwards for a ttl window.
     )
 
-    now = datetime.utcnow()
+    now = _utc_now()
     ts = pd.Timestamp(now, unit="ns")
 
     entity_df = pd.DataFrame.from_dict(

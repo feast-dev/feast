@@ -2,7 +2,6 @@ import copy
 import functools
 import inspect
 import warnings
-from datetime import datetime
 from types import FunctionType
 from typing import Any, Optional, Union
 
@@ -34,6 +33,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -549,7 +549,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.DOUBLE: [1.0],
             ValueType.FLOAT: [1.0],
             ValueType.BOOL: [True],
-            ValueType.UNIX_TIMESTAMP: [datetime.utcnow()],
+            ValueType.UNIX_TIMESTAMP: [_utc_now()],
             ValueType.BYTES_LIST: [[str.encode("hello world")]],
             ValueType.STRING_LIST: [["hello world"]],
             ValueType.INT32_LIST: [[1]],
@@ -557,7 +557,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.DOUBLE_LIST: [[1.0]],
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
-            ValueType.UNIX_TIMESTAMP_LIST: [[datetime.utcnow()]],
+            ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
         }
 
         feature_dict = {}

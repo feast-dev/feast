@@ -1,6 +1,5 @@
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
@@ -9,6 +8,7 @@ from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExi
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
+from feast.utils import _utc_now
 
 try:
     import boto3
@@ -70,7 +70,7 @@ class S3RegistryStore(RegistryStore):
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        registry_proto.last_updated.FromDatetime(_utc_now())
         # we have already checked the bucket exists so no need to do it again
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
