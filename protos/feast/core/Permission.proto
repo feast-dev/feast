@@ -10,17 +10,14 @@ import "feast/core/Policy.proto";
 message Permission {
 
   enum AuthzedAction {
-    ALL = 0;
-    CREATE = 1;
-    READ = 2;
-    UPDATE = 3;
-    DELETE = 4;
-    QUERY = 5;
-    QUERY_ONLINE = 6;
-    QUERY_OFFLINE = 7;
-    WRITE = 8;
-    WRITE_ONLINE = 9;
-    WRITE_OFFLINE = 10;
+    CREATE = 0;
+    READ = 1;
+    UPDATE = 2;
+    DELETE = 3;
+    QUERY_ONLINE = 4;
+    QUERY_OFFLINE = 5;
+    WRITE_ONLINE = 6;
+    WRITE_OFFLINE = 7;
   }
 
   // Name of the permission. Must be unique. Not updated.
