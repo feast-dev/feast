@@ -163,7 +163,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        keys = self._prepare_keys(config, entity_keys)
+        keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
         query, params = self._construct_query_and_params(
             config, table, keys, requested_features
         )
@@ -181,7 +181,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        keys = self._prepare_keys(config, entity_keys)
+        keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
         query, params = self._construct_query_and_params(
             config, table, keys, requested_features
         )
@@ -225,13 +225,13 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @staticmethod
     def _prepare_keys(
-        config: RepoConfig, entity_keys: List[EntityKeyProto]
+        entity_keys: List[EntityKeyProto], entity_key_seriaization_version: int
     ) -> List[bytes]:
         """Prepare all keys in a list to make fewer round trips to the database."""
         return [
             serialize_entity_key(
                 entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
+                entity_key_serialization_version=entity_key_serialization_version,
             )
             for entity_key in entity_keys
         ]
