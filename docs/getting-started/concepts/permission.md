@@ -39,7 +39,7 @@ The `Permission` class identifies a single permission configured on the feature 
 - `with_subclasses`: Specify if sub-classes are included in the resource match or not. Defaults to `True`.
 - `name_pattern`: A regex to match the resource name. Defaults to `None`, meaning that no name filtering is applied
 - `required_tags`: Dictionary of key-value pairs that must match the resource tags. Defaults to `None`, meaning that no tags filtering is applied.
-- `actions`: The actions authorized by this permission. Defaults to `AuthzedAction.ALL`.
+- `actions`: The actions authorized by this permission. Defaults to `ALL_VALUES`, an alias defined in the `action` module.
 - `policy`: The policy to be applied to validate a client request.
 
 Given the above definitions, the feature store can be configured with granular control over each resource, enabling partitioned access by 
