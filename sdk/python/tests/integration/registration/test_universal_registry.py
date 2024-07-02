@@ -14,7 +14,7 @@
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tempfile import mkstemp
 from unittest import mock
 
@@ -46,6 +46,7 @@ from feast.registry_server import RegistryServer
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import Aggregation, StreamFeatureView
 from feast.types import Array, Bytes, Float32, Int32, Int64, String
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 from tests.integration.feature_repos.universal.entities import driver
 
@@ -745,7 +746,7 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Simulate materialization
-    current_date = datetime.utcnow()
+    current_date = _utc_now()
     end_date = current_date.replace(tzinfo=utc)
     start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
     test_registry.apply_materialization(feature_view, project, start_date, end_date)
@@ -814,7 +815,7 @@ def test_modify_feature_views_success(test_registry):
     )
 
     # Simulate materialization a second time
-    current_date = datetime.utcnow()
+    current_date = _utc_now()
     end_date_1 = current_date.replace(tzinfo=utc)
     start_date_1 = (current_date - timedelta(days=1)).replace(tzinfo=utc)
     test_registry.apply_materialization(

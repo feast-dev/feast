@@ -21,6 +21,7 @@ from feast.infra.feature_servers.base_config import (
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.repo_config import RegistryConfig, RepoConfig
+from feast.utils import _utc_now
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
@@ -412,7 +413,7 @@ class Environment:
     fixture_request: Optional[pytest.FixtureRequest] = None
 
     def __post_init__(self):
-        self.end_date = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
+        self.end_date = _utc_now().replace(microsecond=0, second=0, minute=0)
         self.start_date: datetime = self.end_date - timedelta(days=3)
 
     def setup(self):

@@ -86,6 +86,7 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1246,7 +1247,7 @@ class FeatureStore:
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
-            >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
+            >>> fs.materialize_incremental(end_date=_utc_now() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
             ...
@@ -1270,7 +1271,7 @@ class FeatureStore:
                         f" either a ttl to be set or for materialize() to have been run at least once."
                     )
                 elif feature_view.ttl.total_seconds() > 0:
-                    start_date = datetime.utcnow() - feature_view.ttl
+                    start_date = _utc_now() - feature_view.ttl
                 else:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
@@ -1278,7 +1279,7 @@ class FeatureStore:
                         f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
                         "the start date will be set to 1 year before the current time."
                     )
-                    start_date = datetime.utcnow() - timedelta(weeks=52)
+                    start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
             print(
                 f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
@@ -1335,7 +1336,7 @@ class FeatureStore:
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize(
-            ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
+            ...     start_date=_utc_now() - timedelta(hours=3), end_date=_utc_now() - timedelta(minutes=10)
             ... )
             Materializing...
             <BLANKLINE>

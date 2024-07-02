@@ -1,12 +1,12 @@
 import os
 import subprocess
 import tempfile
-from datetime import datetime
 from textwrap import dedent
 
 import pytest
 
 from feast.feature_store import FeatureStore
+from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import check_port_open, free_port
@@ -150,7 +150,7 @@ def _default_store(temp_dir, project_name) -> FeatureStore:
 
     fs = FeatureStore(repo_path=repo_path)
     fs.materialize_incremental(
-        end_date=datetime.utcnow(), feature_views=["driver_hourly_stats"]
+        end_date=_utc_now(), feature_views=["driver_hourly_stats"]
     )
     return fs
 

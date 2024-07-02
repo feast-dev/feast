@@ -22,6 +22,7 @@ from feast.field import Field
 from feast.infra.utils.postgres.postgres_config import ConnectionType
 from feast.online_response import TIMESTAMP_POSTFIX
 from feast.types import Float32, Int32, String
+from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     Environment,
@@ -136,9 +137,9 @@ def test_write_to_online_store_event_check(environment):
     fs = environment.feature_store
 
     # write same data points 3 with different timestamps
-    now = pd.Timestamp(datetime.datetime.utcnow()).round("ms")
-    hour_ago = pd.Timestamp(datetime.datetime.utcnow() - timedelta(hours=1)).round("ms")
-    latest = pd.Timestamp(datetime.datetime.utcnow() + timedelta(seconds=1)).round("ms")
+    now = pd.Timestamp(_utc_now()).round("ms")
+    hour_ago = pd.Timestamp(_utc_now() - timedelta(hours=1)).round("ms")
+    latest = pd.Timestamp(_utc_now() + timedelta(seconds=1)).round("ms")
 
     data = {
         "id": [123, 567, 890],
@@ -221,7 +222,7 @@ def test_write_to_online_store_event_check(environment):
         # writes to online store via datasource (dataframe_source) materialization
         fs.materialize(
             start_date=datetime.datetime.now() - timedelta(hours=12),
-            end_date=datetime.datetime.utcnow(),
+            end_date=_utc_now(),
         )
 
         df = fs.get_online_features(
@@ -250,8 +251,8 @@ def test_write_to_online_store(environment, universal_data_sources):
         "conv_rate": [0.85],
         "acc_rate": [0.91],
         "avg_daily_trips": [14],
-        "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
-        "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+        "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
+        "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
     df_data = pd.DataFrame(data)
 
