@@ -6,8 +6,12 @@ from feast.diff.registry_diff import (
     tag_objects_for_keep_delete_update_add,
 )
 from feast.entity import Entity
+from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.types import String
 from tests.utils.data_source_test_creator import prep_file_source
 
@@ -170,3 +174,24 @@ def test_diff_registry_objects_batch_to_push_source(simple_dataset_1):
             feast_object_diffs.feast_object_property_diffs[0].property_name
             == "stream_source"
         )
+
+
+def test_diff_registry_objects_permissions():
+    pre_changed = Permission(
+        name="reader",
+        types=ALL_RESOURCE_TYPES,
+        with_subclasses=True,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        actions=[AuthzedAction.READ],
+    )
+    post_changed = Permission(
+        name="reader",
+        types=ALL_RESOURCE_TYPES,
+        with_subclasses=True,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        actions=[AuthzedAction.CREATE],
+    )
+
+    feast_object_diffs = diff_registry_objects(pre_changed, post_changed, "permission")
+    assert len(feast_object_diffs.feast_object_property_diffs) == 1
+    assert feast_object_diffs.feast_object_property_diffs[0].property_name == "actions"

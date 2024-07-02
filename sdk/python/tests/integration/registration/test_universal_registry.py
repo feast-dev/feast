@@ -591,7 +591,7 @@ def test_apply_permissions(test_registry):
         types=ALL_RESOURCE_TYPES,
         with_subclasses=True,
         policy=RoleBasedPolicy(roles=["writer"]),
-        actions=[AuthzedAction.WRITE],
+        actions=[AuthzedAction.CREATE],
     )
 
     project = "project"
