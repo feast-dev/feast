@@ -868,6 +868,13 @@ def test_modify_feature_views_success(test_registry):
     existing_sfv = test_registry.get_stream_feature_view(
         "test kafka stream feature view", project
     )
+
+    existing_sfv_2 = test_registry.get_feature_view(
+        "test kafka stream feature view", project
+    )
+
+    assert existing_sfv == existing_sfv_2
+
     # Apply the modified sfv
     test_registry.apply_feature_view(sfv, project)
 

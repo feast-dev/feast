@@ -566,7 +566,7 @@ class Registry(BaseRegistry):
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )

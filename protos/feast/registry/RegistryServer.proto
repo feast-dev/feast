@@ -30,7 +30,7 @@ service RegistryServer{
 
   // FeatureView RPCs
   rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
-  rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
+  rpc GetFeatureView (GetFeatureViewRequest) returns (GetFeatureViewResponse) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
   rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
 
@@ -176,6 +176,14 @@ message GetFeatureViewRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message GetFeatureViewResponse {
+    oneof base_feature_view {
+        feast.core.FeatureView feature_view = 1;
+        feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+        feast.core.StreamFeatureView stream_feature_view = 3;
+    }
 }
 
 message ListFeatureViewsRequest {

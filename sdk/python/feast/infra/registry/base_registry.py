@@ -352,7 +352,7 @@ class BaseRegistry(ABC):
     @abstractmethod
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         """
         Retrieves a feature view.
 

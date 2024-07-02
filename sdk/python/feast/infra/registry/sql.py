@@ -255,8 +255,8 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=EntityNotFoundException,
         )
 
-    def _get_feature_view(self, name: str, project: str) -> FeatureView:
-        return self._get_object(
+    def _get_feature_view(self, name: str, project: str) -> BaseFeatureView:
+        fv = self._get_object(
             table=feature_views,
             name=name,
             project=project,
@@ -264,8 +264,33 @@ class SqlRegistry(CachingRegistry):
             python_class=FeatureView,
             id_field_name="feature_view_name",
             proto_field_name="feature_view_proto",
-            not_found_exception=FeatureViewNotFoundException,
+            not_found_exception=None,
         )
+
+        if not fv:
+            fv = self._get_object(
+                table=on_demand_feature_views,
+                name=name,
+                project=project,
+                proto_class=OnDemandFeatureViewProto,
+                python_class=OnDemandFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=None,
+            )
+
+        if not fv:
+            fv = self._get_object(
+                table=stream_feature_views,
+                name=name,
+                project=project,
+                proto_class=StreamFeatureViewProto,
+                python_class=StreamFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=FeatureViewNotFoundException,
+            )
+        return fv
 
     def _get_on_demand_feature_view(
         self, name: str, project: str
