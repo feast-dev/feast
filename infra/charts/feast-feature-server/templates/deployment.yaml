@@ -33,19 +33,46 @@ spec:
           env:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
-          command: ["feast", "serve", "-h", "0.0.0.0"]
+          command:
+            {{- if eq .Values.feast_mode "offline" }}
+            - "feast"
+            - "serve_offline"
+            - "-h"
+            - "0.0.0.0"
+            {{- else if eq .Values.feast_mode "ui" }}
+            - "feast"
+            - "ui"
+            - "-h"
+            - "0.0.0.0"
+            {{- else if eq .Values.feast_mode "registry" }}
+            - "feast"
+            - "serve_registry"
+            {{- else }}
+            - "feast"
+            - "serve"
+            - "-h"
+            - "0.0.0.0"
+            {{- end }}
           ports:
-            - name: http
+            - name: {{ .Values.feast_mode }}
+              {{- if eq .Values.feast_mode "offline" }}
+              containerPort: 8815
+              {{- else if eq .Values.feast_mode "ui" }}
+              containerPort: 8888
+              {{- else if eq .Values.feast_mode "registry" }}
+              containerPort: 6570
+              {{- else }}
               containerPort: 6566
+              {{- end }}
               protocol: TCP
           livenessProbe:
             tcpSocket:
-              port: http
+              port: {{ .Values.feast_mode }}
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           readinessProbe:
             tcpSocket:
-              port: http
+              port: {{ .Values.feast_mode }}
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           resources:

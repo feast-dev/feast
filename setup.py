@@ -84,7 +84,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "docker>=5.0.2", "fsspec<=2024.1.0"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.1.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 
@@ -96,10 +96,13 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
+SQLITE_VEC_REQUIRED = [
+    "sqlite-vec==v0.0.1-alpha.10",
+]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg2-binary>=2.8.3,<3",
+    "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
@@ -151,6 +154,8 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
 DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
+
+SINGLESTORE_REQUIRED = ["singlestoredb"]
 
 CI_REQUIRED = (
     [
@@ -214,6 +219,8 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
+    + SQLITE_VEC_REQUIRED
+    + SINGLESTORE_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -381,6 +388,8 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
+        "sqlite_vec": SQLITE_VEC_REQUIRED,
+        "singlestore": SINGLESTORE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

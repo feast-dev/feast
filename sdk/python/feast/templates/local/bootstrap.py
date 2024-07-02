@@ -24,6 +24,7 @@ def bootstrap():
 
     example_py_file = repo_path / "example_repo.py"
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
+    replace_str_in_file(example_py_file, "%LOGGING_PATH%", str(data_path))
 
 
 if __name__ == "__main__":

@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import itertools
+import logging
 import os
 import sqlite3
+import struct
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
+from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from pydantic import StrictStr
 
 from feast import Entity
@@ -29,6 +33,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
@@ -44,6 +49,12 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
+
+    vec_enabled: Optional[bool] = False
+    """ (optional) Enable or disable sqlite-vss for vector search"""
+
+    vector_len: Optional[int] = 512
+    """ (optional) Length of the vector to be stored in the database"""
 
 
 class SqliteOnlineStore(OnlineStore):
@@ -73,6 +84,12 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
+            if sys.version_info[0:2] == (3, 10) and config.online_store.vec_enabled:
+                import sqlite_vec  # noqa: F401
+
+                self._conn.enable_load_extension(True)  # type: ignore
+                sqlite_vec.load(self._conn)
+
         return self._conn
 
     def online_write_batch(
@@ -80,7 +97,12 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            Tuple[
+                EntityKeyProto,
+                Dict[str, ValueProto],
+                datetime,
+                Optional[datetime],
+            ]
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
@@ -98,36 +120,74 @@ class SqliteOnlineStore(OnlineStore):
                 if created_ts is not None:
                     created_ts = to_naive_utc(created_ts)
 
+                table_name = _table_id(project, table)
                 for feature_name, val in values.items():
-                    conn.execute(
-                        f"""
-                            UPDATE {_table_id(project, table)}
-                            SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE (entity_key = ? AND feature_name = ?)
-                        """,
-                        (
-                            # SET
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                            # WHERE
-                            entity_key_bin,
-                            feature_name,
-                        ),
-                    )
+                    if config.online_store.vec_enabled:
+                        vector_bin = serialize_f32(
+                            val.float_list_val.val, config.online_store.vector_len
+                        )  # type: ignore
+                        conn.execute(
+                            f"""
+                                    UPDATE {table_name}
+                                    SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
+                                    WHERE (entity_key = ? AND feature_name = ?)
+                                """,
+                            (
+                                # SET
+                                val.SerializeToString(),
+                                vector_bin,
+                                timestamp,
+                                created_ts,
+                                # WHERE
+                                entity_key_bin,
+                                feature_name,
+                            ),
+                        )
 
-                    conn.execute(
-                        f"""INSERT OR IGNORE INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?)""",
-                        (
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
-                        ),
-                    )
+                        conn.execute(
+                            f"""INSERT OR IGNORE INTO {table_name}
+                                (entity_key, feature_name, value, vector_value, event_ts, created_ts)
+                                VALUES (?, ?, ?, ?, ?, ?)""",
+                            (
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                vector_bin,
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
+
+                    else:
+                        conn.execute(
+                            f"""
+                                UPDATE {table_name}
+                                SET value = ?, event_ts = ?, created_ts = ?
+                                WHERE (entity_key = ? AND feature_name = ?)
+                            """,
+                            (
+                                # SET
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                                # WHERE
+                                entity_key_bin,
+                                feature_name,
+                            ),
+                        )
+
+                        conn.execute(
+                            f"""INSERT OR IGNORE INTO {table_name}
+                                (entity_key, feature_name, value, event_ts, created_ts)
+                                VALUES (?, ?, ?, ?, ?)""",
+                            (
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
                 if progress:
                     progress(1)
 
@@ -195,7 +255,7 @@ class SqliteOnlineStore(OnlineStore):
 
         for table in tables_to_keep:
             conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+                f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS {_table_id(project, table)}_ek ON {_table_id(project, table)} (entity_key);"
@@ -232,8 +292,130 @@ class SqliteOnlineStore(OnlineStore):
         except FileNotFoundError:
             pass
 
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        """
+
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_feature: The requested feature as the column to search
+            embedding: The query embedding to search for
+            top_k: The number of items to return
+        Returns:
+            List of tuples containing the event timestamp, the document feature, the vector value, and the distance
+        """
+        project = config.project
+
+        if not config.online_store.vec_enabled:
+            raise ValueError("sqlite-vss is not enabled in the online store config")
+
+        conn = self._get_conn(config)
+        cur = conn.cursor()
+
+        # Convert the embedding to a binary format instead of using SerializeToString()
+        query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
+        table_name = _table_id(project, table)
+
+        cur.execute(
+            f"""
+            CREATE VIRTUAL TABLE vec_example using vec0(
+                vector_value float[{config.online_store.vector_len}]
+        );
+        """
+        )
+
+        # Currently I can only insert the embedding value without crashing SQLite, will report a bug
+        cur.execute(
+            f"""
+            INSERT INTO vec_example(rowid, vector_value)
+            select rowid, vector_value from {table_name}
+        """
+        )
+        cur.execute(
+            """
+            INSERT INTO vec_example(rowid, vector_value)
+                VALUES (?, ?)
+        """,
+            (0, query_embedding_bin),
+        )
+
+        # Have to join this with the {table_name} to get the feature name and entity_key
+        # Also the `top_k` doesn't appear to be working for some reason
+        cur.execute(
+            f"""
+            select
+                fv.entity_key,
+                f.vector_value,
+                fv.value,
+                f.distance,
+                fv.event_ts
+            from (
+                select
+                    rowid,
+                    vector_value,
+                    distance
+                from vec_example
+                where vector_value match ?
+                order by distance
+                limit ?
+            ) f
+            left join {table_name} fv
+            on f.rowid = fv.rowid
+        """,
+            (query_embedding_bin, top_k),
+        )
+
+        rows = cur.fetchall()
+
+        result: List[
+            Tuple[
+                Optional[datetime],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+            ]
+        ] = []
+
+        for entity_key, _, string_value, distance, event_ts in rows:
+            feature_value_proto = ValueProto()
+            feature_value_proto.ParseFromString(string_value if string_value else b"")
+            vector_value_proto = ValueProto(
+                float_list_val=FloatListProto(val=embedding)
+            )
+            distance_value_proto = ValueProto(float_val=distance)
+
+            result.append(
+                (
+                    event_ts,
+                    feature_value_proto,
+                    vector_value_proto,
+                    distance_value_proto,
+                )
+            )
+
+        return result
+
 
 def _initialize_conn(db_path: str):
+    try:
+        import sqlite_vec  # noqa: F401
+    except ModuleNotFoundError:
+        logging.warning("Cannot use sqlite_vec for vector search")
     Path(db_path).parent.mkdir(exist_ok=True)
     return sqlite3.connect(
         db_path,
@@ -244,6 +426,19 @@ def _initialize_conn(db_path: str):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
+
+
+def serialize_f32(
+    vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int
+) -> bytes:
+    """serializes a list of floats into a compact "raw bytes" format"""
+    return struct.pack(f"{vector_length}f", *vector)
+
+
+def deserialize_f32(byte_vector: bytes, vector_length: int) -> List[float]:
+    """deserializes a list of floats from a compact "raw bytes" format"""
+    num_floats = vector_length // 4  # 4 bytes per float
+    return list(struct.unpack(f"{num_floats}f", byte_vector))
 
 
 class SqliteTable(InfraObject):
@@ -292,8 +487,16 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
+        if sys.version_info[0:2] == (3, 10):
+            try:
+                import sqlite_vec  # noqa: F401
+
+                self.conn.enable_load_extension(True)
+                sqlite_vec.load(self.conn)
+            except ModuleNotFoundError:
+                logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
-            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"

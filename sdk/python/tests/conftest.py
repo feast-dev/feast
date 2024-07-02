@@ -32,8 +32,8 @@ from tests.data.data_creator import (  # noqa: E402
     create_basic_driver_dataset,
     create_document_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,  # noqa: E402
 )
 from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
@@ -45,8 +45,8 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
+from tests.integration.feature_repos.universal.data_sources.file import (
+    FileDataSourceCreator,  # noqa: E402
 )
 from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     customer,
@@ -173,7 +173,7 @@ def simple_dataset_2() -> pd.DataFrame:
 
 def start_test_local_server(repo_path: str, port: int):
     fs = FeatureStore(repo_path)
-    fs.serve("localhost", port, no_access_log=True)
+    fs.serve(host="localhost", port=port)
 
 
 @pytest.fixture
@@ -257,12 +257,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
         extra_dimensions: List[Dict[str, Any]] = [{}]
 
         if "python_server" in metafunc.fixturenames:
-            extra_dimensions.extend(
-                [
-                    {"python_feature_server": True},
-                    {"python_feature_server": True, "provider": "aws"},
-                ]
-            )
+            extra_dimensions.extend([{"python_feature_server": True}])
 
         configs = []
         if offline_stores:
@@ -276,17 +271,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                             "online_store_creator": online_store_creator,
                             **dim,
                         }
-
-                        # aws lambda works only with dynamo
-                        if (
-                            config.get("python_feature_server")
-                            and config.get("provider") == "aws"
-                            and (
-                                not isinstance(online_store, dict)
-                                or online_store["type"] != "dynamodb"
-                            )
-                        ):
-                            continue
 
                         c = IntegrationTestRepoConfig(**config)
 
@@ -305,10 +289,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 
 @pytest.fixture
 def feature_server_endpoint(environment):
-    if (
-        not environment.python_feature_server
-        or environment.test_repo_config.provider != "local"
-    ):
+    if not environment.python_feature_server or environment.provider != "local":
         yield environment.feature_store.get_feature_server_endpoint()
         return
 

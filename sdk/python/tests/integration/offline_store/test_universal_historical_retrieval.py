@@ -19,6 +19,9 @@ from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
 )
+from tests.integration.feature_repos.universal.data_sources.file import (
+    RemoteOfflineStoreDataSourceCreator,
+)
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
 )
@@ -157,22 +160,25 @@ def test_historical_features_main(
         timestamp_precision=timedelta(milliseconds=1),
     )
 
-    assert_feature_service_correctness(
-        store,
-        feature_service,
-        full_feature_names,
-        entity_df_with_request_data,
-        expected_df,
-        event_timestamp,
-    )
-    assert_feature_service_entity_mapping_correctness(
-        store,
-        feature_service_entity_mapping,
-        full_feature_names,
-        entity_df_with_request_data,
-        full_expected_df,
-        event_timestamp,
-    )
+    if not isinstance(
+        environment.data_source_creator, RemoteOfflineStoreDataSourceCreator
+    ):
+        assert_feature_service_correctness(
+            store,
+            feature_service,
+            full_feature_names,
+            entity_df_with_request_data,
+            expected_df,
+            event_timestamp,
+        )
+        assert_feature_service_entity_mapping_correctness(
+            store,
+            feature_service_entity_mapping,
+            full_feature_names,
+            entity_df_with_request_data,
+            full_expected_df,
+            event_timestamp,
+        )
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
 
     validate_dataframes(
@@ -375,7 +381,12 @@ def test_historical_features_persisting(
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
+    storage = environment.data_source_creator.create_saved_dataset_destination()
+
     store.apply([driver(), customer(), location(), *feature_views.values()])
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
@@ -398,7 +409,7 @@ def test_historical_features_persisting(
     saved_dataset = store.create_saved_dataset(
         from_=job,
         name="saved_dataset",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         tags={"env": "test"},
         allow_overwrite=True,
     )

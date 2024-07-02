@@ -2,7 +2,6 @@ import json
 import sys
 import threading
 import traceback
-import warnings
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
@@ -97,9 +96,9 @@ def get_app(
 
             full_feature_names = body.get("full_feature_names", False)
 
-            response_proto = store._get_online_features(
+            response_proto = store.get_online_features(
                 features=features,
-                entity_values=body["entities"],
+                entity_rows=body["entities"],
                 full_feature_names=full_feature_names,
             ).proto
 
@@ -147,10 +146,6 @@ def get_app(
 
     @app.post("/write-to-online-store")
     def write_to_online_store(body=Depends(get_body)):
-        warnings.warn(
-            "write_to_online_store is deprecated. Please consider using /push instead",
-            RuntimeWarning,
-        )
         try:
             request = WriteToFeatureStoreRequest(**json.loads(body))
             df = pd.DataFrame(request.df)

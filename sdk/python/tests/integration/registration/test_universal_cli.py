@@ -74,13 +74,13 @@ def test_universal_cli():
                 cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_feature_views()).is_length(4)
+            assertpy.assert_that(fs.list_feature_views()).is_length(5)
             result = runner.run(
                 ["data-sources", "describe", "customer_profile_source"],
                 cwd=repo_path,
             )
             assertpy.assert_that(result.returncode).is_equal_to(0)
-            assertpy.assert_that(fs.list_data_sources()).is_length(4)
+            assertpy.assert_that(fs.list_data_sources()).is_length(5)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["entities", "describe", "foo"], cwd=repo_path)

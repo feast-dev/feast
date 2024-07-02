@@ -25,6 +25,8 @@ from tests.integration.feature_repos.universal.entities import (
     location,
 )
 
+TAGS = {"release": "production"}
+
 
 def driver_feature_view(
     data_source: DataSource,
@@ -85,7 +87,8 @@ def conv_rate_plus_100_feature_view(
         schema=[] if infer_features else _features,
         sources=sources,
         feature_transformation=PandasTransformation(
-            udf=conv_rate_plus_100, udf_string="raw udf source"
+            udf=conv_rate_plus_100,
+            udf_string="raw udf source",  # type: ignore
         )
         if not use_substrait_odfv
         else SubstraitTransformation.from_ibis(conv_rate_plus_100_ibis, sources),
@@ -124,10 +127,11 @@ def similarity_feature_view(
 
     return OnDemandFeatureView(
         name=similarity.__name__,
-        sources=sources,
+        sources=sources,  # type: ignore
         schema=[] if infer_features else _fields,
         feature_transformation=PandasTransformation(
-            udf=similarity, udf_string="similarity raw udf"
+            udf=similarity,
+            udf_string="similarity raw udf",  # type: ignore
         ),
     )
 
@@ -200,6 +204,7 @@ def create_driver_hourly_stats_feature_view(source, infer_features: bool = False
         ],
         source=source,
         ttl=timedelta(hours=2),
+        tags=TAGS,
     )
     return driver_stats_feature_view
 
@@ -219,6 +224,7 @@ def create_driver_hourly_stats_batch_feature_view(
         ],
         source=source,
         ttl=timedelta(hours=2),
+        tags=TAGS,
     )
     return driver_stats_feature_view
 
@@ -236,6 +242,7 @@ def create_customer_daily_profile_feature_view(source, infer_features: bool = Fa
         ],
         source=source,
         ttl=timedelta(days=2),
+        tags=TAGS,
     )
     return customer_profile_feature_view
 
@@ -252,6 +259,7 @@ def create_global_stats_feature_view(source, infer_features: bool = False):
         ],
         source=source,
         ttl=timedelta(days=2),
+        tags=TAGS,
     )
     return global_stats_feature_view
 
