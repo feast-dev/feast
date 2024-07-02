@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "feast-feature-server.fullname" . }}
   labels:
-    {{- include "feast-feature-server.labels" . | nindent 4 }}
+    {{- include "feast-feature-server.labels" . | nindent 4 }}  
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -11,5 +11,9 @@ spec:
       targetPort: {{ .Values.feast_mode }}
       protocol: TCP
       name: http
+    - name: metrics
+      port: 8000
+      protocol: TCP
+      targetPort: 8000  
   selector:
     {{- include "feast-feature-server.selectorLabels" . | nindent 4 }}
