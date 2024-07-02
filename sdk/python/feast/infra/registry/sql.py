@@ -193,7 +193,9 @@ class SqlRegistry(CachingRegistry):
         )
         metadata.create_all(self.engine)
         super().__init__(
-            project=project, cache_ttl_seconds=registry_config.cache_ttl_seconds
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
         )
 
     def teardown(self):

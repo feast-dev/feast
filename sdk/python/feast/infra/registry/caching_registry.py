@@ -1,4 +1,6 @@
+import atexit
 import logging
+import threading
 from abc import abstractmethod
 from datetime import timedelta
 from threading import Lock
@@ -21,11 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class CachingRegistry(BaseRegistry):
-    def __init__(
-        self,
-        project: str,
-        cache_ttl_seconds: int,
-    ):
+    def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = _utc_now()
@@ -33,6 +31,10 @@ class CachingRegistry(BaseRegistry):
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
+        self.cache_mode = cache_mode
+        if cache_mode == "thread":
+            self._start_thread_async_refresh(cache_ttl_seconds)
+            atexit.register(self._exit_handler)
 
     @abstractmethod
     def _get_data_source(self, name: str, project: str) -> DataSource:
@@ -322,22 +324,35 @@ class CachingRegistry(BaseRegistry):
         self.cached_registry_proto_created = _utc_now()
 
     def _refresh_cached_registry_if_necessary(self):
-        with self._refresh_lock:
-            expired = (
-                self.cached_registry_proto is None
-                or self.cached_registry_proto_created is None
-            ) or (
-                self.cached_registry_proto_ttl.total_seconds()
-                > 0  # 0 ttl means infinity
-                and (
-                    _utc_now()
-                    > (
-                        self.cached_registry_proto_created
-                        + self.cached_registry_proto_ttl
+        if self.cache_mode == "sync":
+            with self._refresh_lock:
+                expired = (
+                    self.cached_registry_proto is None
+                    or self.cached_registry_proto_created is None
+                ) or (
+                    self.cached_registry_proto_ttl.total_seconds()
+                    > 0  # 0 ttl means infinity
+                    and (
+                        _utc_now()
+                        > (
+                            self.cached_registry_proto_created
+                            + self.cached_registry_proto_ttl
+                        )
                     )
                 )
-            )
+                if expired:
+                    logger.info("Registry cache expired, so refreshing")
+                    self.refresh()
 
-            if expired:
-                logger.info("Registry cache expired, so refreshing")
-                self.refresh()
+    def _start_thread_async_refresh(self, cache_ttl_seconds):
+        self.refresh()
+        if cache_ttl_seconds <= 0:
+            return
+        self.registry_refresh_thread = threading.Timer(
+            cache_ttl_seconds, self._start_thread_async_refresh, [cache_ttl_seconds]
+        )
+        self.registry_refresh_thread.setDaemon(True)
+        self.registry_refresh_thread.start()
+
+    def _exit_handler(self):
+        self.registry_refresh_thread.cancel()
