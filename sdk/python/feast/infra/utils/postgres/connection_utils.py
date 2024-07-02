@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import psycopg
 import pyarrow as pa
-from psycopg.connection import Connection
-from psycopg_pool import ConnectionPool
+from psycopg import AsyncConnection, Connection
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
 from feast.type_map import arrow_to_pg_type
@@ -21,9 +21,30 @@ def _get_conn(config: PostgreSQLConfig) -> Connection:
     return conn
 
 
+async def _get_conn_async(config: PostgreSQLConfig) -> AsyncConnection:
+    """Get a psycopg `AsyncConnection`."""
+    conn = await psycopg.AsyncConnection.connect(
+        conninfo=_get_conninfo(config),
+        keepalives_idle=config.keepalives_idle,
+        **_get_conn_kwargs(config),
+    )
+    return conn
+
+
 def _get_connection_pool(config: PostgreSQLConfig) -> ConnectionPool:
     """Get a psycopg `ConnectionPool`."""
     return ConnectionPool(
+        conninfo=_get_conninfo(config),
+        min_size=config.min_conn,
+        max_size=config.max_conn,
+        open=False,
+        kwargs=_get_conn_kwargs(config),
+    )
+
+
+async def _get_connection_pool_async(config: PostgreSQLConfig) -> AsyncConnectionPool:
+    """Get a psycopg `AsyncConnectionPool`."""
+    return AsyncConnectionPool(
         conninfo=_get_conninfo(config),
         min_size=config.min_conn,
         max_size=config.max_conn,
