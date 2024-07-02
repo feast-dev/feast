@@ -125,7 +125,7 @@ POSTGRES_DB = "test"
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def pg_registry():
     container = (
         DockerContainer("postgres:latest")
@@ -144,7 +144,7 @@ def pg_registry():
     container.stop()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def pg_registry_async():
     container = (
         DockerContainer("postgres:latest")
@@ -188,7 +188,7 @@ def _given_registry_config_for_pg_sql(
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mysql_registry():
     container = MySqlContainer("mysql:latest")
     container.start()
@@ -200,7 +200,7 @@ def mysql_registry():
     container.stop()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mysql_registry_async():
     container = MySqlContainer("mysql:latest")
     container.start()
