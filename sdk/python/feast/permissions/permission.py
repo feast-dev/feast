@@ -4,7 +4,7 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from feast.importer import import_class
-from feast.permissions.action import AuthzedAction
+from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.decision import DecisionStrategy
 from feast.permissions.matcher import actions_match_config, resource_match_config
 from feast.permissions.policy import AllowAll, Policy
@@ -34,7 +34,7 @@ class Permission(ABC):
         name_pattern: A regex to match the resource name. Defaults to None, meaning that no name filtering is applied
         required_tags: Dictionary of key-value pairs that must match the resource tags. All these required_tags must
         be present in a resource tags with the given value. Defaults to None, meaning that no tags filtering is applied.
-        actions: The actions authorized by this permission. Defaults to `AuthzedAction.ALL`.
+        actions: The actions authorized by this permission. Defaults to `ALL_ACTIONS`.
         policy: The policy to be applied to validate a client request.
     """
 
@@ -54,7 +54,7 @@ class Permission(ABC):
         with_subclasses: bool = True,
         name_pattern: Optional[str] = None,
         required_tags: Optional[dict[str, str]] = None,
-        actions: Union[list[AuthzedAction], AuthzedAction] = AuthzedAction.ALL,
+        actions: Union[list[AuthzedAction], AuthzedAction] = ALL_ACTIONS,
         policy: Policy = AllowAll,
         tags: Optional[Dict[str, str]] = None,
     ):

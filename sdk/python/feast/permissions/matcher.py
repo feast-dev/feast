@@ -156,9 +156,5 @@ def actions_match_config(
 
     Returns:
         bool: `True` if all the given `requested_actions` are defined in the `allowed_actions`.
-        Whatever the `requested_actions`, it returns `True` if `allowed_actions` includes `AuthzedAction.ALL`
     """
-    if AuthzedAction.ALL in allowed_actions:
-        return True
-
     return all(a in allowed_actions for a in requested_actions)

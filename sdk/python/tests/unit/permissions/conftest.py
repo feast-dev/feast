@@ -25,7 +25,7 @@ class SecuredFeatureView(FeatureView):
     def read_protected(self) -> bool:
         return True
 
-    @require_permissions(actions=[AuthzedAction.WRITE])
+    @require_permissions(actions=[AuthzedAction.UPDATE])
     def write_protected(self) -> bool:
         return True
 
@@ -68,7 +68,7 @@ def security_manager() -> SecurityManager:
             types=FeatureView,
             with_subclasses=True,
             policy=RoleBasedPolicy(roles=["writer"]),
-            actions=[AuthzedAction.WRITE],
+            actions=[AuthzedAction.UPDATE],
         )
     )
     permissions.append(
@@ -78,7 +78,7 @@ def security_manager() -> SecurityManager:
             with_subclasses=True,
             name_pattern="special.*",
             policy=RoleBasedPolicy(roles=["admin", "special-reader"]),
-            actions=[AuthzedAction.READ, AuthzedAction.WRITE],
+            actions=[AuthzedAction.READ, AuthzedAction.UPDATE],
         )
     )
 

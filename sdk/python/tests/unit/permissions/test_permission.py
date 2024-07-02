@@ -10,8 +10,8 @@ from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.permission import (
-    AuthzedAction,
     DecisionStrategy,
     Permission,
 )
@@ -40,7 +40,7 @@ def test_defaults():
     assertpy.assert_that(p.name_pattern).is_none()
     assertpy.assert_that(p.required_tags).is_none()
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
-    assertpy.assert_that(p.actions[0]).is_equal_to(AuthzedAction.ALL)
+    assertpy.assert_that(p.actions).is_equal_to(ALL_ACTIONS)
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(isinstance(p.policy, Policy)).is_true()
     assertpy.assert_that(p.policy).is_equal_to(AllowAll)
@@ -55,8 +55,8 @@ def test_defaults():
         ({"types": [FeatureView, FeatureService]}, True),
         ({"actions": None}, False),
         ({"actions": []}, False),
-        ({"actions": AuthzedAction.ALL}, True),
-        ({"actions": [AuthzedAction.ALL]}, True),
+        ({"actions": ALL_ACTIONS}, True),
+        ({"actions": ALL_ACTIONS}, True),
         ({"actions": [AuthzedAction.CREATE, AuthzedAction.DELETE]}, True),
         ({"policy": None}, False),
         ({"policy": []}, False),
@@ -256,7 +256,7 @@ def test_resource_match_with_tags(required_tags, tags, result):
 
 @pytest.mark.parametrize(
     ("permitted_actions, requested_actions, result"),
-    [(AuthzedAction.ALL, a, True) for a in AuthzedAction.__members__.values()]
+    [(ALL_ACTIONS, [a], True) for a in AuthzedAction.__members__.values()]
     + [
         (
             [AuthzedAction.CREATE, AuthzedAction.DELETE],

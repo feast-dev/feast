@@ -1,7 +1,7 @@
 import assertpy
 import pytest
 
-from feast.permissions.action import AuthzedAction
+from feast.permissions.action import QUERY, AuthzedAction
 from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.permissions.security_manager import assert_permissions, permitted_resources
@@ -17,14 +17,14 @@ def setup_module():
     [
         (None, [], False, [False, False]),
         ("r", [AuthzedAction.READ], False, [True, False]),
-        ("r", [AuthzedAction.WRITE], False, [False, False]),
+        ("r", [AuthzedAction.UPDATE], False, [False, False]),
         ("w", [AuthzedAction.READ], False, [False, False]),
-        ("w", [AuthzedAction.WRITE], False, [True, False]),
+        ("w", [AuthzedAction.UPDATE], False, [True, False]),
         ("rw", [AuthzedAction.READ], False, [True, False]),
-        ("rw", [AuthzedAction.WRITE], False, [True, False]),
-        ("rw", [AuthzedAction.READ, AuthzedAction.WRITE], False, [True, False]),
-        ("admin", [AuthzedAction.READ, AuthzedAction.WRITE], True, [True, True]),
-        ("admin", [AuthzedAction.QUERY, AuthzedAction.WRITE], True, [True, True]),
+        ("rw", [AuthzedAction.UPDATE], False, [True, False]),
+        ("rw", [AuthzedAction.READ, AuthzedAction.UPDATE], False, [True, False]),
+        ("admin", [AuthzedAction.READ, AuthzedAction.UPDATE], True, [True, True]),
+        ("admin", QUERY + [AuthzedAction.UPDATE], True, [True, True]),
     ],
 )
 def test_access_SecuredFeatureView(

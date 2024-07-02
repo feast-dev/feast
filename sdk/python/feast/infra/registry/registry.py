@@ -929,7 +929,10 @@ class Registry(BaseRegistry):
     ):
         registry = self._prepare_registry_for_changes(project)
         for idx, existing_permission_proto in enumerate(registry.permissions):
-            if existing_permission_proto.name == permission.name and existing_permission_proto.project == project:
+            if (
+                existing_permission_proto.name == permission.name
+                and existing_permission_proto.project == project
+            ):
                 del registry.permissions[idx]
         permission_proto = permission.to_proto()
         permission_proto.project = project
