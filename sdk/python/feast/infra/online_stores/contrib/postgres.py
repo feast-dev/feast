@@ -225,7 +225,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @staticmethod
     def _prepare_keys(
-        entity_keys: List[EntityKeyProto], entity_key_seriaization_version: int
+        entity_keys: List[EntityKeyProto], entity_key_serialization_version: int
     ) -> List[bytes]:
         """Prepare all keys in a list to make fewer round trips to the database."""
         return [
