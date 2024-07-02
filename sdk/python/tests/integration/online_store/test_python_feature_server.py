@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from typing import List
 
 import pytest
@@ -7,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from feast.feast_object import FeastObject
 from feast.feature_server import get_app
+from feast.utils import _utc_now
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -67,8 +67,8 @@ def test_push(python_fs_client):
             "df": {
                 "location_id": [1],
                 "temperature": [initial_temp * 100],
-                "event_timestamp": [str(datetime.utcnow())],
-                "created": [str(datetime.utcnow())],
+                "event_timestamp": [str(_utc_now())],
+                "created": [str(_utc_now())],
             },
         }
     )
@@ -98,8 +98,8 @@ def test_push_source_does_not_exist(python_fs_client):
                 "df": {
                     "location_id": [1],
                     "temperature": [initial_temp * 100],
-                    "event_timestamp": [str(datetime.utcnow())],
-                    "created": [str(datetime.utcnow())],
+                    "event_timestamp": [str(_utc_now())],
+                    "created": [str(_utc_now())],
                 },
             }
         ),

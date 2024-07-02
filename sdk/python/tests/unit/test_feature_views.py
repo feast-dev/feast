@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from typeguard import TypeCheckError
 
-from feast import utils
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
@@ -13,6 +12,7 @@ from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.types import Float32
+from feast.utils import _utc_now, make_tzaware
 
 
 def test_create_feature_view_with_conflicting_entities():
@@ -143,9 +143,9 @@ def test_update_materialization_intervals():
     )
     assert len(updated_feature_view.materialization_intervals) == 0
 
-    current_time = datetime.utcnow()
-    start_date = utils.make_tzaware(current_time - timedelta(days=1))
-    end_date = utils.make_tzaware(current_time)
+    current_time = _utc_now()
+    start_date = make_tzaware(current_time - timedelta(days=1))
+    end_date = make_tzaware(current_time)
     updated_feature_view.materialization_intervals.append((start_date, end_date))
 
     # Update the Feature View, i.e. simply update the name

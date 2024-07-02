@@ -44,7 +44,7 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import get_user_agent
+from feast.utils import _utc_now, get_user_agent
 
 LOGGER = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class DatastoreOnlineStore(OnlineStore):
             entity = datastore.Entity(
                 key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
             )
-            entity.update({"created_ts": datetime.utcnow()})
+            entity.update({"created_ts": _utc_now()})
             client.put(entity)
 
         for table in tables_to_delete:
@@ -457,7 +457,7 @@ class DatastoreTable(InfraObject):
         entity = datastore.Entity(
             key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
         )
-        entity.update({"created_ts": datetime.utcnow()})
+        entity.update({"created_ts": _utc_now()})
         client.put(entity)
 
     def teardown(self):
