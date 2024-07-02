@@ -257,14 +257,24 @@ class RemoteRegistry(BaseRegistry):
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         request = RegistryServer_pb2.GetFeatureViewRequest(
             name=name, project=project, allow_cache=allow_cache
         )
 
         response = self.stub.GetFeatureView(request)
 
-        return FeatureView.from_proto(response)
+        feature_view_type = response.WhichOneof("base_feature_view")
+        if feature_view_type == "feature_view":
+            feature_view = FeatureView.from_proto(response.feature_view)
+        elif feature_view_type == "on_demand_feature_view":
+            feature_view = OnDemandFeatureView.from_proto(
+                response.on_demand_feature_view
+            )
+        elif feature_view_type == "stream_feature_view":
+            feature_view = StreamFeatureView.from_proto(response.stream_feature_view)
+
+        return feature_view
 
     def list_feature_views(
         self,

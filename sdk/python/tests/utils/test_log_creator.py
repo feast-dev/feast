@@ -10,8 +10,8 @@ import pandas as pd
 import pyarrow
 
 from feast import FeatureService, FeatureStore, FeatureView
-from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_ID_FIELD
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
 from feast.utils import _utc_now
 
@@ -84,17 +84,16 @@ def prepare_logs(
     logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for projection in feature_service.feature_view_projections:
-        try:
-            view = store.get_feature_view(projection.name)
-        except FeatureViewNotFoundException:
-            view = store.get_on_demand_feature_view(projection.name)
-            for source in view.source_request_sources.values():
-                for field in source.schema:
-                    logs_df[field.name] = source_df[field.name]
-        else:
+        view = store.get_feature_view(projection.name)
+
+        if isinstance(view, FeatureView):
             for entity_name in view.entities:
                 entity = store.get_entity(entity_name)
                 logs_df[entity.join_key] = source_df[entity.join_key]
+        elif isinstance(view, OnDemandFeatureView):
+            for source in view.source_request_sources.values():
+                for field in source.schema:
+                    logs_df[field.name] = source_df[field.name]
 
         for feature in projection.features:
             source_field = (

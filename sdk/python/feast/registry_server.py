@@ -94,9 +94,28 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def GetFeatureView(
         self, request: RegistryServer_pb2.GetFeatureViewRequest, context
     ):
-        return self.proxied_registry.get_feature_view(
+        feature_view = self.proxied_registry.get_feature_view(
             name=request.name, project=request.project, allow_cache=request.allow_cache
-        ).to_proto()
+        )
+
+        if isinstance(feature_view, StreamFeatureView):
+            arg_name = "stream_feature_view"
+        elif isinstance(feature_view, FeatureView):
+            arg_name = "feature_view"
+        elif isinstance(feature_view, OnDemandFeatureView):
+            arg_name = "on_demand_feature_view"
+
+        return RegistryServer_pb2.GetFeatureViewResponse(
+            feature_view=feature_view.to_proto()
+            if arg_name == "feature_view"
+            else None,
+            stream_feature_view=feature_view.to_proto()
+            if arg_name == "stream_feature_view"
+            else None,
+            on_demand_feature_view=feature_view.to_proto()
+            if arg_name == "on_demand_feature_view"
+            else None,
+        )
 
     def ApplyFeatureView(
         self, request: RegistryServer_pb2.ApplyFeatureViewRequest, context

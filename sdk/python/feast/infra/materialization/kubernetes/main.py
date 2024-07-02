@@ -75,11 +75,12 @@ if __name__ == "__main__":
             config = RepoConfig(**feast_config)
             store = FeatureStore(config=config)
 
+            fv = store.get_feature_view(materialization_cfg["feature_view"])
+            assert isinstance(fv, FeatureView)
+
             KubernetesMaterializer(
                 config=config,
-                feature_view=store.get_feature_view(
-                    materialization_cfg["feature_view"]
-                ),
+                feature_view=fv,
                 paths=materialization_cfg["paths"],
                 worker_index=int(os.environ["JOB_COMPLETION_INDEX"]),
             ).run()

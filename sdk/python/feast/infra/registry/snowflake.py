@@ -476,13 +476,13 @@ class SnowflakeRegistry(BaseRegistry):
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.get_feature_view(
                 self.cached_registry_proto, name, project
             )
-        return self._get_object(
+        fv = self._get_object(
             "FEATURE_VIEWS",
             name,
             project,
@@ -490,8 +490,32 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureView,
             "FEATURE_VIEW_NAME",
             "FEATURE_VIEW_PROTO",
-            FeatureViewNotFoundException,
+            None,
         )
+
+        if not fv:
+            fv = self._get_object(
+                "STREAM_FEATURE_VIEWS",
+                name,
+                project,
+                StreamFeatureViewProto,
+                StreamFeatureView,
+                "STREAM_FEATURE_VIEW_NAME",
+                "STREAM_FEATURE_VIEW_PROTO",
+                None,
+            )
+        if not fv:
+            fv = self._get_object(
+                "ON_DEMAND_FEATURE_VIEWS",
+                name,
+                project,
+                OnDemandFeatureViewProto,
+                OnDemandFeatureView,
+                "ON_DEMAND_FEATURE_VIEW_NAME",
+                "ON_DEMAND_FEATURE_VIEW_PROTO",
+                FeatureViewNotFoundException,
+            )
+        return fv
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         infra_object = self._get_object(
