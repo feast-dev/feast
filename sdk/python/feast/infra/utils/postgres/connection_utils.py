@@ -88,7 +88,7 @@ def _df_to_create_table_sql(entity_df, table_name) -> str:
 
 
 def df_to_postgres_table(
-        config: PostgreSQLConfig, df: pd.DataFrame, table_name: str
+    config: PostgreSQLConfig, df: pd.DataFrame, table_name: str
 ) -> Dict[str, np.dtype]:
     """
     Create a table for the data frame, insert all the values, and return the table schema
