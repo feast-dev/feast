@@ -342,6 +342,7 @@ message GetPermissionRequest {
 message ListPermissionsRequest {
   string project = 1;
   bool allow_cache = 2;
+  map<string,string> tags = 3;
 }
 
 message ListPermissionsResponse {

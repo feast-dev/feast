@@ -1931,7 +1931,9 @@ class FeatureStore:
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
 
-    def list_permissions(self, allow_cache: bool = False) -> List[Permission]:
+    def list_permissions(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Permission]:
         """
         Retrieves the list of permissions from the registry.
 
@@ -1941,7 +1943,9 @@ class FeatureStore:
         Returns:
             A list of data sources.
         """
-        return self._registry.list_permissions(self.project, allow_cache=allow_cache)
+        return self._registry.list_permissions(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
 
 
 def _print_materialization_log(

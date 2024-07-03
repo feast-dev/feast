@@ -38,7 +38,7 @@ def test_defaults():
     assertpy.assert_that(p.types).is_equal_to(ALL_RESOURCE_TYPES)
     assertpy.assert_that(p.with_subclasses).is_true()
     assertpy.assert_that(p.name_pattern).is_none()
-    assertpy.assert_that(p.required_tags).is_none()
+    assertpy.assert_that(p.tags).is_none()
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(p.actions).is_equal_to(ALL_ACTIONS)
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
@@ -246,7 +246,7 @@ def test_resource_match_with_name_filter(pattern, name, match):
 )
 def test_resource_match_with_tags(required_tags, tags, result):
     # Missing tags
-    p = Permission(name="test", required_tags=required_tags)
+    p = Permission(name="test", tags=required_tags)
     for t in ALL_RESOURCE_TYPES:
         resource = Mock(spec=t)
         resource.name = "test"

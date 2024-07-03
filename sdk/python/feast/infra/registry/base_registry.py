@@ -640,6 +640,7 @@ class BaseRegistry(ABC):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
         """
         Retrieve a list of permissions from the registry
@@ -779,6 +780,13 @@ class BaseRegistry(ABC):
             registry_dict["infra"].append(
                 self._message_to_sorted_dict(infra_object.to_proto())
             )
+        for permission in sorted(
+            self.list_permissions(project=project), key=lambda ds: ds.name
+        ):
+            registry_dict["permissions"].append(
+                self._message_to_sorted_dict(permission.to_proto())
+            )
+
         return registry_dict
 
     @staticmethod

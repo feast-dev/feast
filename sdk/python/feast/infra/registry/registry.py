@@ -917,12 +917,15 @@ class Registry(BaseRegistry):
         return proto_registry_utils.get_permission(registry_proto, name, project)
 
     def list_permissions(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_permissions(registry_proto, project)
+        return proto_registry_utils.list_permissions(registry_proto, project, tags)
 
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True

@@ -289,11 +289,15 @@ def list_project_metadata(
     ]
 
 
-@registry_proto_cache
-def list_permissions(registry_proto: RegistryProto, project: str) -> List[Permission]:
+@registry_proto_cache_with_tags
+def list_permissions(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[Permission]:
     permissions = []
     for permission_proto in registry_proto.permissions:
-        if permission_proto.project == project:
+        if permission_proto.project == project and utils.has_all_tags(
+            permission_proto.tags, tags
+        ):
             permissions.append(Permission.from_proto(permission_proto))
     return permissions
 

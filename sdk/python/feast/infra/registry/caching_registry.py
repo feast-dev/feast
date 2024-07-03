@@ -327,20 +327,23 @@ class CachingRegistry(BaseRegistry):
         return self._get_permission(name, project)
 
     @abstractmethod
-    def _list_permissions(self, project: str) -> List[Permission]:
+    def _list_permissions(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[Permission]:
         pass
 
     def list_permissions(
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_permissions(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
-        return self._list_permissions(project)
+        return self._list_permissions(project, tags)
 
     def refresh(self, project: Optional[str] = None):
         if project:

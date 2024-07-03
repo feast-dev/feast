@@ -839,6 +839,7 @@ class SnowflakeRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
@@ -851,6 +852,7 @@ class SnowflakeRegistry(BaseRegistry):
             PermissionProto,
             Permission,
             "PERMISSION_PROTO",
+            tags,
         )
 
     def apply_materialization(

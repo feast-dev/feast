@@ -952,13 +952,16 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=PermissionNotFoundException,
         )
 
-    def _list_permissions(self, project: str) -> List[Permission]:
+    def _list_permissions(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[Permission]:
         return self._list_objects(
             permissions,
             project,
             PermissionProto,
             Permission,
             "permission_proto",
+            tags=tags,
         )
 
     def apply_permission(
