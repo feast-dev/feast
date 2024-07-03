@@ -29,6 +29,7 @@ import (
 	"github.com/feast-dev/feast/go/types"
 	jsonlog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 type OnlineFeatureService struct {
@@ -309,7 +310,9 @@ func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int,
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(server.GrpcServerInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
+		grpctrace.UnaryServerInterceptor(),
+	))
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := healthcheck.NewHealthChecker()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)

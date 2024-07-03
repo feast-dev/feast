@@ -2,17 +2,14 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"google.golang.org/grpc"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	"github.com/google/uuid"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const feastServerVersion = "0.0.1"
@@ -31,19 +28,6 @@ func (s *grpcServingServiceServer) GetFeastServingInfo(ctx context.Context, requ
 	return &serving.GetFeastServingInfoResponse{
 		Version: feastServerVersion,
 	}, nil
-}
-
-func GrpcServerInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	s, _ := json.MarshalIndent(ctx, "", "\t")
-	fmt.Println("Context: " + string(s))
-
-	s, _ = json.MarshalIndent(req, "", "\t")
-	fmt.Println("Request: " + string(s))
-
-	s, _ = json.MarshalIndent(info, "", "\t")
-	fmt.Println("UnaryServerInfo: " + string(s))
-
-	return true, nil
 }
 
 // GetOnlineFeatures Returns an object containing the response to GetOnlineFeatures.
