@@ -1076,7 +1076,7 @@ def test_registry_cache_thread_async(test_registry):
     registry_data_sources_cached = test_registry.list_data_sources(
         project, allow_cache=True
     )
-    # async ttl yet to expire, so cache miss
+    # async ttl yet to expire, so there will be a cache miss
     assert len(registry_data_sources_cached) == 0
 
     # Wait for cache to be refreshed
