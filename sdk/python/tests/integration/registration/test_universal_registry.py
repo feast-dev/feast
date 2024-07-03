@@ -1060,7 +1060,7 @@ def test_registry_cache(test_registry):
     async_sql_fixtures,
 )
 def test_registry_cache_thread_async(test_registry):
-    # Create Feature Views
+    # Create Feature View
     batch_source = FileSource(
         name="test_source",
         file_format=ParquetFormat(),
