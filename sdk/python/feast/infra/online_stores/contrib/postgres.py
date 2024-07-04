@@ -117,7 +117,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         ).format(sql.Identifier(_table_id(config.project, table)))
 
-        # Push data in batches to online store
+        # Push data into the online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
             cur.executemany(sql_query, insert_values)
             conn.commit()
