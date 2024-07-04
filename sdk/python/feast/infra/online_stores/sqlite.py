@@ -16,7 +16,6 @@ import logging
 import os
 import sqlite3
 import struct
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -84,7 +83,7 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vec_enabled:
+            if config.online_store.vec_enabled:
                 import sqlite_vec  # noqa: F401
 
                 self._conn.enable_load_extension(True)  # type: ignore
@@ -487,14 +486,13 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
-        if sys.version_info[0:2] == (3, 10):
-            try:
-                import sqlite_vec  # noqa: F401
+        try:
+            import sqlite_vec  # noqa: F401
 
-                self.conn.enable_load_extension(True)
-                sqlite_vec.load(self.conn)
-            except ModuleNotFoundError:
-                logging.warning("Cannot use sqlite_vec for vector search")
+            self.conn.enable_load_extension(True)
+            sqlite_vec.load(self.conn)
+        except ModuleNotFoundError:
+            logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
