@@ -119,20 +119,8 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         # Push data in batches to online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
-            # XXX: Instead try to loop `execute` commands with prepared statements in a
-            #  pipeline, since `executemany` seems to be slow according to docs.
             cur.executemany(sql_query, insert_values)
             conn.commit()
-
-        # At the moment, looping over many execute statements is still faster than a
-        # single executemany statement. Use a pipeline and a prepared statement to
-        # speed things up further.
-        # with self._get_conn(config) as conn:
-        #     with conn.pipeline():
-        #         with conn.cursor() as cur:
-        #             for value in insert_values:
-        #                 cur.execute(sql_query, value, prepare=True)
-        #     conn.commit()
 
         if progress:
             progress(len(data))
