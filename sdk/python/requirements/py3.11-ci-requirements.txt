@@ -269,6 +269,8 @@ googleapis-common-protos[grpc]==1.63.2
     #   grpcio-status
 great-expectations==0.18.16
     # via feast (setup.py)
+greenlet==3.0.3
+    # via sqlalchemy
 grpc-google-iam-v1==0.13.1
     # via google-cloud-bigtable
 grpcio==1.64.1
