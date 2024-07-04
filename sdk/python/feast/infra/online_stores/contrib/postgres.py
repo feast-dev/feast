@@ -124,8 +124,18 @@ class PostgreSQLOnlineStore(OnlineStore):
             cur.executemany(sql_query, insert_values)
             conn.commit()
 
-            if progress:
-                progress(len(data))
+        # At the moment, looping over many execute statements is still faster than a
+        # single executemany statement. Use a pipeline and a prepared statement to
+        # speed things up further.
+        # with self._get_conn(config) as conn:
+        #     with conn.pipeline():
+        #         with conn.cursor() as cur:
+        #             for value in insert_values:
+        #                 cur.execute(sql_query, value, prepare=True)
+        #     conn.commit()
+
+        if progress:
+            progress(len(data))
 
     def online_read(
         self,
