@@ -16,7 +16,7 @@ if (current_branch !== 'master') {
 
 // We have to dynamically generate all the supported branches for Feast because we use the `vA.B-branch` pattern for
 // maintenance branches
-const possible_branches = [{name: "master"}, {name: current_branch, range: '0.39.x'}, {name: "v0.39-branch", range: '0.39.x'},];
+possible_branches = [{name: "master"}, {name: current_branch}]
 
 // Below is the configuration for semantic release
 module.exports = {
