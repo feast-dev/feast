@@ -310,9 +310,7 @@ func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int,
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
-		grpctrace.UnaryServerInterceptor(),
-	))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := healthcheck.NewHealthChecker()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
