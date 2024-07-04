@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.1](https://github.com/feast-dev/feast/compare/v0.39.0...v0.39.1) (2024-07-04)
+
+
+### Bug Fixes
+
+* Fix SQLite import issue ([#4294](https://github.com/feast-dev/feast/issues/4294)) ([8d9b60e](https://github.com/feast-dev/feast/commit/8d9b60e38016d7574125eb9ce121079ad0f6a7a5))
+
 # [0.39.0](https://github.com/feast-dev/feast/compare/v0.38.0...v0.39.0) (2024-06-18)
 
 
