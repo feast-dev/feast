@@ -33,3 +33,20 @@ Please see the detail how to configure offline store client [remote-offline-stor
 
 The set of functionalities supported by remote offline stores is the same as those supported by offline stores with the SDK, which are described in detail [here](../offline-stores/overview.md#functionality).
 
+# Offline Feature Server Permissions and Access Control
+
+## API Endpoints and Permissions
+
+| Endpoint                              | Resource Type    |Permission    | Description                                         |
+| ------------------------------------- |------------------|---------------|-----------------------------------------------------|
+| offline_write_batch                   | FeatureView      | Write Offline | Write a batch of data to the offline store          |
+| write_logged_features                 | FeatureService   | Write Offline | Write logged features to the offline store          |
+| persist                               | DataSource       | Write Offline | Persist the result of a query in the offline store  |
+| get_historical_features               | FeatureView      | Query Offline | Retrieve historical features                        |
+| pull_all_from_table_or_query          | DataSource       | Query Offline | Pull all data from a table or query it              |
+| pull_latest_from_table_or_query       | DataSource       | Query Offline | Pull the latest data from a table or query it       |
+
+
+## How to configure Authentication and Authorization ?
+
+TODO add the section for that

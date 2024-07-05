@@ -199,3 +199,19 @@ requests.post(
     "http://localhost:6566/push",
     data=json.dumps(push_data))
 ```
+
+# Online Feature Server Permissions and Access Control
+
+## API Endpoints and Permissions
+
+| Endpoint                     | Resource Type                   | Permission                                            | Description                                                              |
+| ---------------------------- |---------------------------------|-------------------------------------------------------| ------------------------------------------------------------------------ |
+| /get-online-features         | FeatureView,OnDemandFeatureView | Query Online                                          | Get online features from the feature store                     |
+| /push                        | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
+| /write-to-online-store       | FeatureView                     | Write Online                                          | Write features to the online store                             |
+| /materialize                 | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
+| /materialize-incremental     | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
+
+## How to configure Authentication and Authorization ?
+
+TODO add the section for that
