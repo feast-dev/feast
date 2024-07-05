@@ -142,6 +142,7 @@ class RegistryConfig(FeastBaseModel):
                 return path.replace("postgresql://", "postgresql+psycopg://")
         return path
 
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
