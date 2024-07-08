@@ -75,7 +75,6 @@ class PostgreSQLOnlineStore(OnlineStore):
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
         progress: Optional[Callable[[int], Any]],
-        batch_size: int = 5000,
     ) -> None:
         # Format insert values
         insert_values = []
@@ -118,15 +117,13 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         ).format(sql.Identifier(_table_id(config.project, table)))
 
-        # Push data in batches to online store
+        # Push data into the online store
         with self._get_conn(config) as conn, conn.cursor() as cur:
-            for i in range(0, len(insert_values), batch_size):
-                cur_batch = insert_values[i : i + batch_size]
-                cur.executemany(sql_query, cur_batch)
-                conn.commit()
+            cur.executemany(sql_query, insert_values)
+            conn.commit()
 
-                if progress:
-                    progress(len(cur_batch))
+        if progress:
+            progress(len(data))
 
     def online_read(
         self,
