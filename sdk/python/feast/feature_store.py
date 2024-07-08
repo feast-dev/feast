@@ -1965,6 +1965,21 @@ class FeatureStore:
             self.project, allow_cache=allow_cache, tags=tags
         )
 
+    def get_permission(self, name: str) -> Permission:
+        """
+        Retrieves a permission from the registry.
+
+        Args:
+            name: Name of the permission.
+
+        Returns:
+            The specified permission.
+
+        Raises:
+            PermissionObjectNotFoundException: The permission could not be found.
+        """
+        return self._registry.get_permission(name, self.project)
+
     def list_saved_datasets(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[SavedDataset]:

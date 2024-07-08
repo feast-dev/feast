@@ -884,7 +884,7 @@ def validate(
     exit(1)
 
 
-@cli.group(name="feast-permissions")
+@cli.group(name="permissions")
 def feast_permissions_cmd():
     """
     Access permissions
@@ -1003,6 +1003,28 @@ def feast_permissions_command(ctx: click.Context, verbose: bool, tags: list[str]
         print("Permissions:")
         print("")
         root_node.show()
+
+
+@feast_permissions_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def permission_describe(ctx: click.Context, name: str):
+    """
+    Describe a permission
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        permission = store.get_permission(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(permission)), default_flow_style=False, sort_keys=False
+        )
+    )
 
 
 if __name__ == "__main__":

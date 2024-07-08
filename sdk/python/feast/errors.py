@@ -396,6 +396,14 @@ class PermissionNotFoundException(Exception):
         super().__init__(f"Permission {name} does not exist in project {project}")
 
 
+class PermissionObjectNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(f"Permission {name} does not exist in project {project}")
+        else:
+            super().__init__(f"Permission {name} does not exist")
+
+
 class ZeroRowsQueryResult(Exception):
     def __init__(self, query: str):
         super().__init__(f"This query returned zero rows:\n{query}")

@@ -10,7 +10,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
-    PermissionNotFoundException,
+    PermissionObjectNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -312,4 +312,4 @@ def get_permission(
     for permission in registry_proto.permissions:
         if permission.project == project and permission.name == name:
             return Permission.from_proto(permission)
-    raise PermissionNotFoundException(name=name, project=project)
+    raise PermissionObjectNotFoundException(name=name, project=project)

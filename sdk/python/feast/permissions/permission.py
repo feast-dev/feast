@@ -3,6 +3,8 @@ import re
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from google.protobuf.json_format import MessageToJson
+
 from feast.importer import import_class
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.decision import DecisionStrategy
@@ -96,6 +98,9 @@ class Permission(ABC):
 
     def __hash__(self):
         return hash(self.name)
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
 
     _global_decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS
 

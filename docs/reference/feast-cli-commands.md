@@ -157,25 +157,58 @@ feast materialize-incremental 2022-01-01T00:00:00
 ```
 
 ## Permissions
-***TODO*** Update
-```text
-feast permissions --help
-...
-```
 
 ### List permissions
-***TODO*** Description and output examples
+List all registered permission
 
 ```text
 feast permissions list
-...
+
+Options:
+  --tags TEXT  Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
+               key:value, ...'). Items return when ALL tags match.
+  --verbose
+```
+
+```text
+NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                             ROLES
+reader_permission1234  ['FeatureView']  True             transformed_conv_rate  [<AuthzedAction.READ: 'read'>]      {'reader'}
+writer_permission1234  ['FeatureView']  True             transformed_conv_rate  [<AuthzedAction.CREATE: 'create'>]  {'writer'}
+```
+
+```text
+feast permissions list -v
+```
+
+```text            
+Permissions:
+
+permissions
+├── reader_permission1234 ['reader']
+│   └── FeatureView: none
+└── writer_permission1234 ['writer']
+    ├── FeatureView: none
+    │── OnDemandFeatureView: ['transformed_conv_rate_fresh', 'transformed_conv_rate']
+    └── BatchFeatureView: ['driver_hourly_stats', 'driver_hourly_stats_fresh']
 ```
 
 ### Describe a permission
-***TODO*** Description and output examples
+Describes the provided permission
+
 ```text
 feast permissions describe permission-name
-...
+name: permission-name
+types:
+- FEATURE_VIEW
+withSubclasses: true
+namePattern: transformed_conv_rate
+actions:
+- READ
+policy:
+  roleBasedPolicy:
+    roles:
+    - reader
+
 ```
 
 ## Teardown
