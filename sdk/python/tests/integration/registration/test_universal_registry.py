@@ -1205,7 +1205,9 @@ def test_apply_stream_feature_view_success(test_registry):
     assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)
-    stream_feature_views = test_registry.list_stream_feature_views(project)
+    stream_feature_views = test_registry.list_stream_feature_views(
+        project, tags=sfv.tags
+    )
     assert len(stream_feature_views) == 0
 
     test_registry.teardown()

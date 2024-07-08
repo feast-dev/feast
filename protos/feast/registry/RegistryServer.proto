@@ -284,6 +284,7 @@ message GetSavedDatasetRequest {
 message ListSavedDatasetsRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListSavedDatasetsResponse {
@@ -313,6 +314,7 @@ message GetValidationReferenceRequest {
 message ListValidationReferencesRequest {
     string project = 1;
     bool allow_cache = 2;
+    map<string,string> tags = 3;
 }
 
 message ListValidationReferencesResponse {

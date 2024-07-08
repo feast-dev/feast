@@ -332,13 +332,16 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=ValidationReferenceNotFound,
         )
 
-    def _list_validation_references(self, project: str) -> List[ValidationReference]:
+    def _list_validation_references(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
         return self._list_objects(
             table=validation_references,
             project=project,
             proto_class=ValidationReferenceProto,
             python_class=ValidationReference,
             proto_field_name="validation_reference_proto",
+            tags=tags,
         )
 
     def _list_entities(
@@ -460,13 +463,16 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
         )
 
-    def _list_saved_datasets(self, project: str) -> List[SavedDataset]:
+    def _list_saved_datasets(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
         return self._list_objects(
             saved_datasets,
             project,
             SavedDatasetProto,
             SavedDataset,
             "saved_dataset_proto",
+            tags=tags,
         )
 
     def _list_on_demand_feature_views(

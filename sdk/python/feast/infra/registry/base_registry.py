@@ -458,7 +458,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves a list of all saved datasets in specified project
@@ -466,6 +469,7 @@ class BaseRegistry(ABC):
         Args:
             project: Feast project
             allow_cache: Whether to allow returning this dataset from a cached registry
+            tags: Filter by tags
 
         Returns:
             Returns the list of SavedDatasets
@@ -522,17 +526,21 @@ class BaseRegistry(ABC):
 
     # TODO: Needs to be implemented.
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         """
         Retrieve a list of validation references from the registry
 
         Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature views based on project name
+            project: Filter validation references based on project name
+            allow_cache: Allow returning validation references from the cached registry
+            tags: Filter by tags
 
         Returns:
-            List of request feature views
+            List of request validation references
         """
         raise NotImplementedError
 

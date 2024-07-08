@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import click
 import yaml
@@ -24,15 +24,17 @@ from colorama import Fore, Style
 from dateutil import parser
 from pygments import formatters, highlight, lexers
 
-from feast import utils
+from feast import BatchFeatureView, Entity, FeatureService, StreamFeatureView, utils
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
     DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
+from feast.data_source import DataSource
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -44,6 +46,7 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
+from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -877,6 +880,274 @@ def validate(
     print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
     print(colorful_json)
     exit(1)
+
+
+@cli.group(name="feast-permissions")
+def feast_permissions_cmd():
+    """
+    Access permissions
+    """
+    pass
+
+
+@feast_permissions_cmd.command(name="list")
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print the resources matching each configured permission",
+)
+@tagsOption
+@click.pass_context
+def feast_permissions_command(ctx: click.Context, verbose: bool, tags: list[str]):
+    from bigtree import Node
+    from tabulate import tabulate
+
+    table: list[Any] = []
+    tags_filter = utils.tags_list_to_dict(tags)
+
+    store = create_feature_store(ctx)
+
+    permissions = store.list_permissions(tags=tags_filter)
+
+    root_node = Node("permissions")
+    roles: set[str] = set()
+
+    for p in permissions:
+        policy = p.policy
+        if not verbose:
+            _handle_not_verbose_permissions_command(p, policy, roles, table)
+        else:
+            if isinstance(policy, RoleBasedPolicy) and len(policy.get_roles()) > 0:
+                roles = set(policy.get_roles())
+                permission_node = Node(
+                    p.name + " " + str(list(roles)), parent=root_node
+                )
+            else:
+                permission_node = Node(p.name, parent=root_node)
+
+            for feast_type in p.types:
+                if feast_type in [
+                    FeatureView,
+                    OnDemandFeatureView,
+                    BatchFeatureView,
+                    StreamFeatureView,
+                ]:
+                    _handle_fv_verbose_permissions_command(
+                        p, permission_node, store, feast_type, tags_filter
+                    )
+                elif feast_type == Entity:
+                    _handle_entity_verbose_permissions_command(
+                        feast_type, p, permission_node, store, tags_filter
+                    )
+                elif feast_type == FeatureService:
+                    _handle_fs_verbose_permissions_command(
+                        feast_type, p, permission_node, store, tags_filter
+                    )
+                elif feast_type == DataSource:
+                    _handle_ds_verbose_permissions_command(
+                        feast_type, p, permission_node, store, tags_filter
+                    )
+                elif feast_type == ValidationReference:
+                    _handle_vr_verbose_permissions_command(
+                        feast_type, p, permission_node, store, tags_filter
+                    )
+                elif feast_type == SavedDataset:
+                    _handle_sd_verbose_permissions_command(
+                        feast_type, p, permission_node, store, tags_filter
+                    )
+
+    if not verbose:
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "NAME",
+                    "TYPES",
+                    "WITH_SUBCLASS",
+                    "NAME_PATTERN",
+                    "ACTIONS",
+                    "ROLES",
+                ],
+                tablefmt="plain",
+            )
+        )
+    else:
+        _print_permission_verbose_example()
+
+        print("Permissions:")
+        print("")
+        root_node.show()
+
+
+def _print_permission_verbose_example():
+    from bigtree import Node
+
+    print("")
+    print(
+        f"{Style.BRIGHT + Fore.GREEN}The structure of the {Style.BRIGHT + Fore.WHITE}feast-permissions list --verbose {Style.BRIGHT + Fore.GREEN}command will be as in the following example:"
+    )
+    print("")
+    print(f"{Style.DIM}For example: {Style.RESET_ALL}{Style.BRIGHT + Fore.GREEN}")
+    print("")
+    explanation_root_node = Node("permissions")
+    explanation_permission_node = Node(
+        "permission_1" + " " + str(["role names list"]),
+        parent=explanation_root_node,
+    )
+    Node(
+        FeatureView.__name__ + ": " + str(["feature view names"]),
+        parent=explanation_permission_node,
+    )
+    Node(FeatureService.__name__ + ": none", parent=explanation_permission_node)
+    Node("..", parent=explanation_permission_node)
+    Node(
+        "permission_2" + " " + str(["role names list"]),
+        parent=explanation_root_node,
+    )
+    Node("..", parent=explanation_root_node)
+    explanation_root_node.show()
+    print(
+        f"""
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------{Style.RESET_ALL}
+            """
+    )
+
+
+def _handle_sd_verbose_permissions_command(
+    feast_type, p, policy_node, store, tags_filter
+):
+    from bigtree import Node
+
+    saved_datasets = store.list_saved_datasets(tags=tags_filter)
+    saved_datasets_names = set()
+    for sd in saved_datasets:
+        if p.match_resource(sd):
+            saved_datasets_names.add(sd.name)
+    if len(saved_datasets_names) > 0:
+        Node(
+            feast_type.__name__ + ": " + str(list(saved_datasets_names)),  # type: ignore[union-attr]
+            parent=policy_node,
+        )
+    else:
+        Node(feast_type.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_vr_verbose_permissions_command(
+    feast_type, p, policy_node, store, tags_filter
+):
+    from bigtree import Node
+
+    validation_references = store.list_validation_references(tags=tags_filter)
+    validation_references_names = set()
+    for vr in validation_references:
+        if p.match_resource(vr):
+            validation_references_names.add(vr.name)
+    if len(validation_references_names) > 0:
+        Node(
+            feast_type.__name__ + ": " + str(list(validation_references_names)),  # type: ignore[union-attr]
+            parent=policy_node,
+        )
+    else:
+        Node(feast_type.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_ds_verbose_permissions_command(
+    feast_type, p, policy_node, store, tags_filter
+):
+    from bigtree import Node
+
+    data_sources = store.list_data_sources(tags=tags_filter)
+    data_sources_names = set()
+    for ds in data_sources:
+        if p.match_resource(ds):
+            data_sources_names.add(ds.name)
+    if len(data_sources_names) > 0:
+        Node(
+            feast_type.__name__ + ": " + str(list(data_sources_names)),  # type: ignore[union-attr]
+            parent=policy_node,
+        )
+    else:
+        Node(feast_type.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_fs_verbose_permissions_command(
+    feast_type, p, policy_node, store, tags_filter
+):
+    from bigtree import Node
+
+    feature_services = store.list_feature_services(tags=tags_filter)
+    feature_services_names = set()
+    for fs in feature_services:
+        if p.match_resource(fs):
+            feature_services_names.add(fs.name)
+    if len(feature_services_names) > 0:
+        Node(
+            feast_type.__name__ + ": " + str(list(feature_services_names)),  # type: ignore[union-attr]
+            parent=policy_node,
+        )
+    else:
+        Node(feast_type.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_entity_verbose_permissions_command(
+    feast_type, p, policy_node, store, tags_filter
+):
+    from bigtree import Node
+
+    entities = store.list_entities(tags=tags_filter)
+    entities_names = set()
+    for e in entities:
+        if p.match_resource(e):
+            entities_names.add(e.name)
+    if len(entities_names) > 0:
+        Node(feast_type.__name__ + ": " + str(list(entities_names)), parent=policy_node)  # type: ignore[union-attr]
+    else:
+        Node(feast_type.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_fv_verbose_permissions_command(p, policy_node, store, t, tags_filter):
+    from bigtree import Node
+
+    feature_views = []
+    feature_views_names = set()
+    if t == FeatureView:
+        feature_views = store.list_all_feature_views(tags=tags_filter)  # type: ignore[assignment]
+    elif t == OnDemandFeatureView:
+        feature_views = store.list_on_demand_feature_views(
+            tags=tags_filter  # type: ignore[assignment]
+        )
+    elif t == BatchFeatureView:
+        feature_views = store.list_batch_feature_views(tags=tags_filter)  # type: ignore[assignment]
+    elif t == StreamFeatureView:
+        feature_views = store.list_stream_feature_views(
+            tags=tags_filter  # type: ignore[assignment]
+        )
+    for fv in feature_views:
+        if p.match_resource(fv):
+            feature_views_names.add(fv.name)
+    if len(feature_views_names) > 0:
+        Node(
+            t.__name__ + " " + str(list(feature_views_names)),  # type: ignore[union-attr]
+            parent=policy_node,
+        )
+    else:
+        Node(t.__name__ + ": none", parent=policy_node)  # type: ignore[union-attr]
+
+
+def _handle_not_verbose_permissions_command(p, policy, roles, table):
+    if isinstance(policy, RoleBasedPolicy):
+        roles = set(policy.get_roles())
+    table.append(
+        [
+            p.name,
+            [t.__name__ for t in p.types],  # type: ignore[union-attr]
+            p.with_subclasses,
+            p.name_pattern,
+            p.actions,
+            roles,
+        ]
+    )
 
 
 if __name__ == "__main__":

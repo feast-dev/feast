@@ -711,12 +711,15 @@ class Registry(BaseRegistry):
         return proto_registry_utils.get_saved_dataset(registry_proto, name, project)
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_saved_datasets(registry_proto, project)
+        return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
 
     def apply_validation_reference(
         self,
@@ -753,12 +756,17 @@ class Registry(BaseRegistry):
         )
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_validation_references(registry_proto, project)
+        return proto_registry_utils.list_validation_references(
+            registry_proto, project, tags
+        )
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         registry_proto = self._prepare_registry_for_changes(project)

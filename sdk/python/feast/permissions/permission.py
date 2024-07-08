@@ -94,6 +94,9 @@ class Permission(ABC):
 
         return True
 
+    def __hash__(self):
+        return hash(self.name)
+
     _global_decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS
 
     @staticmethod

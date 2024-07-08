@@ -339,10 +339,13 @@ class RemoteRegistry(BaseRegistry):
         return SavedDataset.from_proto(response)
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         request = RegistryServer_pb2.ListSavedDatasetsRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListSavedDatasets(request)
@@ -385,10 +388,13 @@ class RemoteRegistry(BaseRegistry):
         return ValidationReference.from_proto(response)
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         request = RegistryServer_pb2.ListValidationReferencesRequest(
-            project=project, allow_cache=allow_cache
+            project=project, allow_cache=allow_cache, tags=tags
         )
 
         response = self.stub.ListValidationReferences(request)

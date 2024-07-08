@@ -250,18 +250,23 @@ class CachingRegistry(BaseRegistry):
         return self._get_saved_dataset(name, project)
 
     @abstractmethod
-    def _list_saved_datasets(self, project: str) -> List[SavedDataset]:
+    def _list_saved_datasets(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
         pass
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
-        return self._list_saved_datasets(project)
+        return self._list_saved_datasets(project, tags)
 
     @abstractmethod
     def _get_validation_reference(self, name: str, project: str) -> ValidationReference:
@@ -278,18 +283,23 @@ class CachingRegistry(BaseRegistry):
         return self._get_validation_reference(name, project)
 
     @abstractmethod
-    def _list_validation_references(self, project: str) -> List[ValidationReference]:
+    def _list_validation_references(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
         pass
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_validation_references(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
-        return self._list_validation_references(project)
+        return self._list_validation_references(project, tags)
 
     @abstractmethod
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:

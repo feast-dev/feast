@@ -1931,6 +1931,23 @@ class FeatureStore:
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
 
+    def list_validation_references(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
+        """
+        Retrieves the list of validation references from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning validation references from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of validation references.
+        """
+        return self._registry.list_validation_references(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
     def list_permissions(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[Permission]:
@@ -1939,11 +1956,29 @@ class FeatureStore:
 
         Args:
             allow_cache: Whether to allow returning permissions from a cached registry.
+            tags: Filter by tags.
 
         Returns:
-            A list of data sources.
+            A list of permissions.
         """
         return self._registry.list_permissions(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def list_saved_datasets(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
+        """
+        Retrieves the list of saved datasets from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning saved datasets from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of saved datasets.
+        """
+        return self._registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
 

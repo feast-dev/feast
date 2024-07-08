@@ -370,7 +370,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     resources=cast(
                         list[FeastObject],
                         self.proxied_registry.list_saved_datasets(
-                            project=request.project, allow_cache=request.allow_cache
+                            project=request.project,
+                            allow_cache=request.allow_cache,
+                            tags=dict(request.tags),
                         ),
                     ),
                     actions=AuthzedAction.READ,
@@ -433,6 +435,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         self.proxied_registry.list_validation_references(
                             project=request.project,
                             allow_cache=request.allow_cache,
+                            tags=dict(request.tags),
                         ),
                     ),
                     actions=AuthzedAction.READ,

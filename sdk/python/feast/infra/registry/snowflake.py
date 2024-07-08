@@ -758,12 +758,15 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "SAVED_DATASETS",
@@ -771,6 +774,7 @@ class SnowflakeRegistry(BaseRegistry):
             SavedDatasetProto,
             SavedDataset,
             "SAVED_DATASET_PROTO",
+            tags=tags,
         )
 
     def list_stream_feature_views(
@@ -794,7 +798,10 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         return self._list_objects(
             "VALIDATION_REFERENCES",
@@ -802,6 +809,7 @@ class SnowflakeRegistry(BaseRegistry):
             ValidationReferenceProto,
             ValidationReference,
             "VALIDATION_REFERENCE_PROTO",
+            tags=tags,
         )
 
     def _list_objects(
