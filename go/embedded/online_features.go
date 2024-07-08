@@ -3,10 +3,12 @@ package embedded
 import (
 	"context"
 	"fmt"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -299,6 +301,11 @@ func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallba
 // StartGrpcServerWithLogging starts gRPC server with enabled feature logging
 // Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
 func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+		tracer.Start(tracer.WithRuntimeMetrics())
+		defer tracer.Stop()
+	}
+
 	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
