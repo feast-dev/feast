@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Dict,
     Generator,
@@ -12,18 +13,24 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 
 import pytz
-from psycopg import sql
+from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
-from psycopg_pool import ConnectionPool
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.utils.postgres.connection_utils import _get_conn, _get_connection_pool
+from feast.infra.utils.postgres.connection_utils import (
+    _get_conn,
+    _get_conn_async,
+    _get_connection_pool,
+    _get_connection_pool_async,
+)
 from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQLConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -51,6 +58,9 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn: Optional[Connection] = None
     _conn_pool: Optional[ConnectionPool] = None
 
+    _conn_async: Optional[AsyncConnection] = None
+    _conn_pool_async: Optional[AsyncConnectionPool] = None
+
     @contextlib.contextmanager
     def _get_conn(self, config: RepoConfig) -> Generator[Connection, Any, Any]:
         assert config.online_store.type == "postgres"
@@ -66,6 +76,24 @@ class PostgreSQLOnlineStore(OnlineStore):
             if not self._conn:
                 self._conn = _get_conn(config.online_store)
             yield self._conn
+
+    @contextlib.asynccontextmanager
+    async def _get_conn_async(
+        self, config: RepoConfig
+    ) -> AsyncGenerator[AsyncConnection, Any]:
+        if config.online_store.conn_type == ConnectionType.pool:
+            if not self._conn_pool_async:
+                self._conn_pool_async = await _get_connection_pool_async(
+                    config.online_store
+                )
+                await self._conn_pool_async.open()
+            connection = await self._conn_pool_async.getconn()
+            yield connection
+            await self._conn_pool_async.putconn(connection)
+        else:
+            if not self._conn_async:
+                self._conn_async = await _get_conn_async(config.online_store)
+            yield self._conn_async
 
     def online_write_batch(
         self,
@@ -132,69 +160,107 @@ class PostgreSQLOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
+        query, params = self._construct_query_and_params(
+            config, table, keys, requested_features
+        )
 
-        project = config.project
         with self._get_conn(config) as conn, conn.cursor() as cur:
-            # Collecting all the keys to a list allows us to make fewer round trips
-            # to PostgreSQL
-            keys = []
-            for entity_key in entity_keys:
-                keys.append(
-                    serialize_entity_key(
-                        entity_key,
-                        entity_key_serialization_version=config.entity_key_serialization_version,
-                    )
-                )
-
-            if not requested_features:
-                cur.execute(
-                    sql.SQL(
-                        """
-                        SELECT entity_key, feature_name, value, event_ts
-                        FROM {} WHERE entity_key = ANY(%s);
-                        """
-                    ).format(
-                        sql.Identifier(_table_id(project, table)),
-                    ),
-                    (keys,),
-                )
-            else:
-                cur.execute(
-                    sql.SQL(
-                        """
-                        SELECT entity_key, feature_name, value, event_ts
-                        FROM {} WHERE entity_key = ANY(%s) and feature_name = ANY(%s);
-                        """
-                    ).format(
-                        sql.Identifier(_table_id(project, table)),
-                    ),
-                    (keys, requested_features),
-                )
-
+            cur.execute(query, params)
             rows = cur.fetchall()
 
-            # Since we don't know the order returned from PostgreSQL we'll need
-            # to construct a dict to be able to quickly look up the correct row
-            # when we iterate through the keys since they are in the correct order
-            values_dict = defaultdict(list)
-            for row in rows if rows is not None else []:
-                values_dict[
-                    row[0] if isinstance(row[0], bytes) else row[0].tobytes()
-                ].append(row[1:])
+        return self._process_rows(keys, rows)
 
-            for key in keys:
-                if key in values_dict:
-                    value = values_dict[key]
-                    res = {}
-                    for feature_name, value_bin, event_ts in value:
-                        val = ValueProto()
-                        val.ParseFromString(bytes(value_bin))
-                        res[feature_name] = val
-                    result.append((event_ts, res))
-                else:
-                    result.append((None, None))
+    async def online_read_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
+        query, params = self._construct_query_and_params(
+            config, table, keys, requested_features
+        )
 
+        async with self._get_conn_async(config) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                rows = await cur.fetchall()
+
+        return self._process_rows(keys, rows)
+
+    @staticmethod
+    def _construct_query_and_params(
+        config: RepoConfig,
+        table: FeatureView,
+        keys: List[bytes],
+        requested_features: Optional[List[str]] = None,
+    ) -> Tuple[sql.Composed, Union[Tuple[List[bytes], List[str]], Tuple[List[bytes]]]]:
+        """Construct the SQL query based on the given parameters."""
+        if requested_features:
+            query = sql.SQL(
+                """
+                SELECT entity_key, feature_name, value, event_ts
+                FROM {} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s);
+                """
+            ).format(
+                sql.Identifier(_table_id(config.project, table)),
+            )
+            params = (keys, requested_features)
+        else:
+            query = sql.SQL(
+                """
+                SELECT entity_key, feature_name, value, event_ts
+                FROM {} WHERE entity_key = ANY(%s);
+                """
+            ).format(
+                sql.Identifier(_table_id(config.project, table)),
+            )
+            params = (keys, [])
+        return query, params
+
+    @staticmethod
+    def _prepare_keys(
+        entity_keys: List[EntityKeyProto], entity_key_serialization_version: int
+    ) -> List[bytes]:
+        """Prepare all keys in a list to make fewer round trips to the database."""
+        return [
+            serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
+
+    @staticmethod
+    def _process_rows(
+        keys: List[bytes], rows: List[Tuple]
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """Transform the retrieved rows in the desired output.
+
+        PostgreSQL may return rows in an unpredictable order. Therefore, `values_dict`
+        is created to quickly look up the correct row using the keys, since these are
+        actually in the correct order.
+        """
+        values_dict = defaultdict(list)
+        for row in rows if rows is not None else []:
+            values_dict[
+                row[0] if isinstance(row[0], bytes) else row[0].tobytes()
+            ].append(row[1:])
+
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for key in keys:
+            if key in values_dict:
+                value = values_dict[key]
+                res = {}
+                for feature_name, value_bin, event_ts in value:
+                    val = ValueProto()
+                    val.ParseFromString(bytes(value_bin))
+                    res[feature_name] = val
+                result.append((event_ts, res))
+            else:
+                result.append((None, None))
         return result
 
     def update(
