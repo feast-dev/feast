@@ -158,3 +158,12 @@ def set_security_manager(sm: SecurityManager):
 
     global _sm
     _sm = sm
+
+
+def no_security_manager():
+    """
+    Initialize the empty global instance of `SecurityManager`.
+    """
+
+    global _sm
+    _sm = None

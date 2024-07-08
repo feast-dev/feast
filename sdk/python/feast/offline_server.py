@@ -8,20 +8,38 @@ from typing import Any, Dict, List, cast
 import pyarrow as pa
 import pyarrow.flight as fl
 
+# import debugpy
+# debugpy.listen(("localhost", 5678))
+# print("Waiting for debugger attach...")
+# debugpy.wait_for_client()
+# print("Debugger attached.")
 from feast import FeatureStore, FeatureView, utils
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.permissions.action import AuthzedAction
 from feast.permissions.security_manager import assert_permissions
+from feast.permissions.server.arrow import (
+    arrowflight_middleware,
+    inject_user_details_to_security_manager,
+)
+from feast.permissions.server.utils import (
+    ServerType,
+    auth_manager_type_from_env,
+    init_auth_manager,
+    init_security_manager,
+)
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
-        super(OfflineServer, self).__init__(location, **kwargs)
+        super(OfflineServer, self).__init__(
+            location, middleware=arrowflight_middleware(), **kwargs
+        )
         self._location = location
         # A dictionary of configured flights, e.g. API calls received and not yet served
         self.flights: Dict[str, Any] = {}
@@ -159,6 +177,9 @@ class OfflineServer(fl.FlightServerBase):
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
+        # TODO RBAC: add the same to all the authorized endpoints
+        inject_user_details_to_security_manager(context)
+
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
             logger.error(f"Unknown key {key}")
@@ -432,6 +453,14 @@ def start_server(
     host: str,
     port: int,
 ):
+    # TODO RBAC remove and use the auth section of the feature store config instead
+    auth_manager_type = auth_manager_type_from_env()
+    init_security_manager(auth_manager_type)
+    init_auth_manager(
+        auth_manager_type=auth_manager_type,
+        server_type=ServerType.ARROW,
+    )
+
     location = "grpc+tcp://{}:{}".format(host, port)
     server = OfflineServer(store, location)
     logger.info(f"Offline store server serving on {location}")
