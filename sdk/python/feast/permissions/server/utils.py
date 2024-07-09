@@ -57,8 +57,8 @@ def auth_manager_type_from_env() -> AuthManagerType:
 
     if type.lower() == AuthManagerType.OIDC.value:
         return AuthManagerType.OIDC
-    if type.lower() == AuthManagerType.OIDC.value:
-        return AuthManagerType.OIDC
+    if type.lower() == AuthManagerType.KUBERNETES.value:
+        return AuthManagerType.KUBERNETES
 
     return AuthManagerType.NONE
 
