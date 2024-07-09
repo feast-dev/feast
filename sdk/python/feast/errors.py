@@ -223,6 +223,13 @@ class FeastOnlineStoreInvalidName(Exception):
         )
 
 
+class FeastInvalidAuthConfigClass(Exception):
+    def __init__(self, auth_config_class_name: str):
+        super().__init__(
+            f"Auth Config Class '{auth_config_class_name}' should end with the string `AuthConfig`.'"
+        )
+
+
 class FeastInvalidBaseClass(Exception):
     def __init__(self, class_name: str, class_type: str):
         super().__init__(
