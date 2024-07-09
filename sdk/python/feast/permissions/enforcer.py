@@ -6,15 +6,14 @@ from feast.permissions.permission import (
     AuthzedAction,
     Permission,
 )
-from feast.permissions.role_manager import RoleManager
+from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 
 
 def enforce_policy(
-    role_manager: RoleManager,
     permissions: list[Permission],
-    user: str,
+    user: User,
     resources: list[FeastObject],
     actions: list[AuthzedAction],
     filter_only: bool = False,
@@ -26,7 +25,6 @@ def enforce_policy(
     If no permissions are defined, the result is to allow the execution.
 
     Args:
-        role_manager: The `RoleManager` instance.
         permissions: The configured set of `Permission`.
         user: The current user.
         resources: The resources for which we need to enforce authorized permission.
@@ -60,7 +58,7 @@ def enforce_policy(
             )
             for p in matching_permissions:
                 permission_grant, permission_explanation = p.policy.validate_user(
-                    user=user, role_manager=role_manager
+                    user=user
                 )
                 evaluator.add_grant(
                     permission_grant,

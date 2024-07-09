@@ -7,6 +7,7 @@ from starlette.authentication import (
 )
 
 from feast.permissions.auth.token_parser import TokenParser
+from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class KubernetesTokenParser(TokenParser):
     client `ServiceAccount`.
     By inspecting the role bindings, this `TokenParser` extracts the associated `Role`s.
 
-    The client `ServiceAccount` is instead used as the user ID, together with the current namespace.
+    The client `ServiceAccount` is instead used as the user name, together with the current namespace.
     """
 
     def __init__(self):
@@ -26,15 +27,12 @@ class KubernetesTokenParser(TokenParser):
         self.v1 = client.CoreV1Api()
         self.rbac_v1 = client.RbacAuthorizationV1Api()
 
-    async def user_details_from_access_token(
-        self, access_token: str, **kwargs
-    ) -> tuple[str, list[str]]:
+    async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Extract the service account from the token and search the roles associated with it.
 
         Returns:
-            str: Current user, the `:` separated concatenation of `namespace` and `service account name`.
-            list[str]: Roles associated to the user.
+            User: Current user, with associated roles. The `username` is the `:` separated concatenation of `namespace` and `service account name`.
 
         Raises:
             AuthenticationError if any error happens.
@@ -46,7 +44,7 @@ class KubernetesTokenParser(TokenParser):
         roles = self.get_roles(sa_namespace, sa_name)
         logging.info(f"SA roles are: {roles}")
 
-        return (current_user, roles)
+        return User(username=current_user, roles=roles)
 
     def get_roles(self, namespace: str, service_account_name: str) -> list[str]:
         """

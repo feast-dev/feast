@@ -1,19 +1,19 @@
 import assertpy
 import pytest
 
-from feast.permissions.role_manager import RoleManager
+from feast.permissions.user import User
 
 
 @pytest.fixture(scope="module")
-def role_manager():
-    rm = RoleManager()
-    rm.add_roles_for_user("a", ["a1", "a2"])
-    rm.add_roles_for_user("b", ["b1", "b2"])
-    return rm
+def users():
+    users = []
+    users.append(User("a", ["a1", "a2"]))
+    users.append(User("b", ["b1", "b2"]))
+    return dict([(u.username, u) for u in users])
 
 
 @pytest.mark.parametrize(
-    "user, roles, result",
+    "username, roles, result",
     [
         ("c", [], False),
         ("a", ["b1"], False),
@@ -27,8 +27,8 @@ def role_manager():
         ("b", ["b1", "b2", "b3"], True),
     ],
 )
-def test_user_has_matching_role(role_manager, user, roles, result):
-    rm = role_manager
-    assertpy.assert_that(rm.user_has_matching_role(user=user, roles=roles)).is_equal_to(
+def test_user_has_matching_role(users, username, roles, result):
+    user = users.get(username, User(username, []))
+    assertpy.assert_that(user.has_matching_role(requested_roles=roles)).is_equal_to(
         result
     )

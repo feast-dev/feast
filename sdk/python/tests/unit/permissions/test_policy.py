@@ -2,25 +2,20 @@ import assertpy
 import pytest
 
 from feast.permissions.policy import AllowAll, RoleBasedPolicy
+from feast.permissions.user import User
 
 
 @pytest.mark.parametrize(
-    "user, dict",
-    [
-        ("any", None),
-        (None, None),
-        ("any", {"other_arg": 1234}),
-    ],
+    "username",
+    [("r"), ("w"), ("rw"), ("missing")],
 )
-def test_allow_all(user, dict):
-    if dict:
-        assertpy.assert_that(AllowAll.validate_user(user, **dict)).is_true()
-    else:
-        assertpy.assert_that(AllowAll.validate_user(user)).is_true()
+def test_allow_all(users, username):
+    user = users.get(username, User(username, []))
+    assertpy.assert_that(AllowAll.validate_user(user)).is_true()
 
 
 @pytest.mark.parametrize(
-    "required_roles, user, result",
+    "required_roles, username, result",
     [
         (["reader"], "r", True),
         (["writer"], "r", False),
@@ -36,16 +31,11 @@ def test_allow_all(user, dict):
         (["updater"], "rw", False),
     ],
 )
-def test_role_based_policy(role_manager, required_roles, user, result):
-    rm = role_manager
+def test_role_based_policy(users, required_roles, username, result):
+    user = users.get(username)
     policy = RoleBasedPolicy(roles=required_roles)
 
-    with pytest.raises(ValueError):
-        policy.validate_user(user=user)
-    with pytest.raises(ValueError):
-        policy.validate_user(user=user, role_manager="wrong-type")
-
-    validate_result, explain = policy.validate_user(user, role_manager=rm)
+    validate_result, explain = policy.validate_user(user)
     assertpy.assert_that(validate_result).is_equal_to(result)
 
     if result is True:

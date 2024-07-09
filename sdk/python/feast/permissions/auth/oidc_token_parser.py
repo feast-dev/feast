@@ -12,6 +12,7 @@ from starlette.authentication import (
 )
 
 from feast.permissions.auth.token_parser import TokenParser
+from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -52,15 +53,12 @@ class OidcTokenParser(TokenParser):
 
         await oauth_2_scheme(request=request)
 
-    async def user_details_from_access_token(
-        self, access_token: str, **kwargs
-    ) -> tuple[str, list[str]]:
+    async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Validate the access token then decode it to extract the user credential and roles.
 
         Returns:
-            str: Current user.
-            list[str]: Roles associated to the user.
+            User: Current user, with associated roles.
 
         Raises:
             AuthenticationError if any error happens.
@@ -103,6 +101,6 @@ class OidcTokenParser(TokenParser):
                 )
             roles = data["resource_access"][self._CLIENT_ID]["roles"]
             logger.info(f"Extracted user {current_user} and roles {roles}")
-            return (current_user, roles)
+            return User(username=current_user, roles=roles)
         except jwt.exceptions.InvalidTokenError:
             raise AuthenticationError("Invalid token.")

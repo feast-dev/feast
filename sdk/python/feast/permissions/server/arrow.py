@@ -17,6 +17,7 @@ from feast.permissions.server.utils import (
     AuthManagerType,
     auth_manager_type_from_env,
 )
+from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -70,7 +71,7 @@ class AuthorizationMiddleware(fl.ServerMiddleware):
         if exception:
             print(f"{AuthorizationMiddleware.__name__} received {exception}")
 
-    async def extract_user_details(self) -> tuple[str, list[str]]:
+    async def extract_user(self) -> User:
         """
         Use the configured `TokenParser` to extract the user credentials.
         """
@@ -94,8 +95,7 @@ def inject_user_details(context: ServerCallContext):
     sm = get_security_manager()
     if sm is not None:
         auth_middleware = cast(AuthorizationMiddleware, context.get_middleware("auth"))
-        current_user, roles = asyncio.run(auth_middleware.extract_user_details())
-        print(f"extracted current_user, roles: {(current_user, roles)}")
+        current_user = asyncio.run(auth_middleware.extract_user())
+        print(f"extracted user: {current_user}")
 
         sm.set_current_user(current_user)
-        sm.role_manager.add_roles_for_user(current_user, roles)

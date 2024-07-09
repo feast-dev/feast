@@ -23,14 +23,10 @@ async def inject_user_details(request: Request) -> Any:
         access_token = auth_manager.token_extractor.extract_access_token(
             request=request
         )
-        (
-            current_user,
-            roles,
-        ) = await auth_manager.token_parser.user_details_from_access_token(
+        current_user = await auth_manager.token_parser.user_details_from_access_token(
             access_token=access_token
         )
 
         sm.set_current_user(current_user)
-        sm.role_manager.add_roles_for_user(current_user, roles)
 
-    return current_user, roles
+    return current_user

@@ -13,7 +13,7 @@ def setup_module():
 
 
 @pytest.mark.parametrize(
-    "user, requested_actions, allowed, allowed_single",
+    "username, requested_actions, allowed, allowed_single",
     [
         (None, [], False, [False, False]),
         ("r", [AuthzedAction.READ], False, [True, False]),
@@ -28,11 +28,18 @@ def setup_module():
     ],
 )
 def test_access_SecuredFeatureView(
-    security_manager, feature_views, user, requested_actions, allowed, allowed_single
+    security_manager,
+    feature_views,
+    users,
+    username,
+    requested_actions,
+    allowed,
+    allowed_single,
 ):
     sm = security_manager
     resources = feature_views
 
+    user = users.get(username)
     sm.set_current_user(user)
     result = permitted_resources(resources=resources, actions=requested_actions)
     if allowed:

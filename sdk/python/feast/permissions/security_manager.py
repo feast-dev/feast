@@ -6,45 +6,38 @@ from feast.feast_object import FeastObject
 from feast.permissions.action import AuthzedAction
 from feast.permissions.enforcer import enforce_policy
 from feast.permissions.permission import Permission
-from feast.permissions.role_manager import RoleManager
+from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityManager:
     """
-    The security manager holds references to the security components (role manager, policy enforces) and the configured permissions.
-    It is accessed and defined using the global functions `_get_security_manager` and `_set_security_manager`
+    The security manager it's the entry point to validate the configuration of the current user against the configured permission policies.
+    It is accessed and defined using the global functions `get_security_manager` and `set_security_manager`
     """
 
     def __init__(
         self,
-        role_manager: RoleManager,
         permissions: list[Permission] = [],
     ):
-        self._role_manager: RoleManager = role_manager
         self._permissions: list[Permission] = permissions
-        self._current_user: ContextVar[Optional[str]] = ContextVar(
+        self._current_user: ContextVar[Optional[User]] = ContextVar(
             "current_user", default=None
         )
 
-    def set_current_user(self, user: str):
-        self._current_user.set(user)
+    def set_current_user(self, current_user: User):
+        """
+        Init the user for the current context.
+        """
+        self._current_user.set(current_user)
 
     @property
-    def role_manager(self) -> RoleManager:
+    def current_user(self) -> Optional[User]:
         """
         Returns:
-            RoleManager: the configured `RoleManager` instance.
-        """
-        return self._role_manager
-
-    @property
-    def current_user(self) -> Optional[str]:
-        """
-        Returns:
-            str: the possibly empty ID of the current user. `contextvars` module is used to ensure that each concurrent request has its own
-            individual user ID.
+            str: the possibly empty instance of the current user. `contextvars` module is used to ensure that each concurrent request has its own
+            individual user.
         """
         return self._current_user.get()
 
@@ -80,9 +73,8 @@ class SecurityManager:
             PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
         """
         return enforce_policy(
-            role_manager=self._role_manager,
             permissions=self._permissions,
-            user=self.current_user if self.current_user is not None else "",
+            user=self.current_user if self.current_user is not None else User("", []),
             resources=resources,
             actions=actions if isinstance(actions, list) else [actions],
             filter_only=filter_only,

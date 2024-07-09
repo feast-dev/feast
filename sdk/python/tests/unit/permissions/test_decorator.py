@@ -3,7 +3,7 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "user, can_read, can_write",
+    "username, can_read, can_write",
     [
         (None, False, False),
         ("r", True, False),
@@ -12,10 +12,11 @@ import pytest
     ],
 )
 def test_access_SecuredFeatureView(
-    security_manager, feature_views, user, can_read, can_write
+    security_manager, feature_views, users, username, can_read, can_write
 ):
     sm = security_manager
     fv = feature_views[0]
+    user = users.get(username)
 
     sm.set_current_user(user)
     if can_read:

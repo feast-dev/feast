@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from feast.permissions.role_manager import RoleManager
+from feast.permissions.user import User
 from feast.protos.feast.core.Policy_pb2 import Policy as PolicyProto
 from feast.protos.feast.core.Policy_pb2 import RoleBasedPolicy as RoleBasedPolicyProto
 
@@ -12,13 +12,12 @@ class Policy(ABC):
     """
 
     @abstractmethod
-    def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
+    def validate_user(self, user: User) -> tuple[bool, str]:
         """
         Validate the given user against the configured policy.
 
         Args:
             user: The current user.
-            kwargs: The list of keyword args to be passed to the actual implementation.
 
         Returns:
             bool: `True` if the user matches the policy criteria, `False` otherwise.
@@ -80,21 +79,11 @@ class RoleBasedPolicy(Policy):
     def get_roles(self) -> list[str]:
         return self.roles
 
-    def validate_user(self, user: str, **kwargs) -> tuple[bool, str]:
+    def validate_user(self, user: User) -> tuple[bool, str]:
         """
         Validate the given `user` against the configured roles.
-
-        The `role_manager` keywork argument must be present in the `kwargs` optional key-value arguments.
         """
-        if "role_manager" not in kwargs:
-            raise ValueError("Missing keywork argument 'role_manager'")
-        if not isinstance(kwargs["role_manager"], RoleManager):
-            raise ValueError(
-                f"The keywork argument 'role_manager' is not of the expected type {RoleManager.__name__}"
-            )
-        rm = kwargs.get("role_manager")
-        if isinstance(rm, RoleManager):
-            result = rm.user_has_matching_role(user, self.roles)
+        result = user.has_matching_role(self.roles)
         explain = "" if result else f"Requires roles {self.roles}"
         return (result, explain)
 
@@ -122,7 +111,7 @@ class RoleBasedPolicy(Policy):
         return policy_proto
 
 
-def allow_all(self, user: str, **kwargs) -> tuple[bool, str]:
+def allow_all(self, user: User) -> tuple[bool, str]:
     return True, ""
 
 

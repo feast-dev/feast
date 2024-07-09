@@ -15,7 +15,6 @@ from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth.token_extractor import TokenExtractor
 from feast.permissions.auth.token_parser import TokenParser
-from feast.permissions.role_manager import RoleManager
 from feast.permissions.security_manager import (
     SecurityManager,
     no_security_manager,
@@ -77,7 +76,6 @@ def init_security_manager(auth_manager_type: AuthManagerType):
         # TODO permissions from registry
         set_security_manager(
             SecurityManager(
-                role_manager=RoleManager(),
                 permissions=[],
             )
         )

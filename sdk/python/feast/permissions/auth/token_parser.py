@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from feast.permissions.user import User
+
 
 class TokenParser(ABC):
     """
@@ -7,15 +9,12 @@ class TokenParser(ABC):
     """
 
     @abstractmethod
-    async def user_details_from_access_token(
-        self, access_token: str, **kwargs
-    ) -> tuple[str, list[str]]:
+    async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Parse the access token and return the current user and the list of associated roles.
 
         Returns:
-            str: Current user.
-            list[str]: Roles associated to the user.
+            User: Current user, with associated roles.
         """
         raise NotImplementedError()
 
@@ -25,7 +24,5 @@ class NoAuthTokenParser(TokenParser):
     A `TokenParser` always returning an empty token
     """
 
-    async def user_details_from_access_token(
-        self, access_token: str, **kwargs
-    ) -> tuple[str, list[str]]:
-        return ("", [])
+    async def user_details_from_access_token(self, access_token: str, **kwargs) -> User:
+        return User(username="", roles=[])

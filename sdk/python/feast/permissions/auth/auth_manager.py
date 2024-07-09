@@ -7,7 +7,8 @@ from .token_parser import NoAuthTokenParser, TokenParser
 
 class AuthManager(ABC):
     """
-    The authorization manager offers to intercept client requests and extract user details to inject in the security context.
+    The authorization manager offers services to manage authorization tokens from client requests
+    to extract user details before injecting them in the security context.
     """
 
     _token_parser: TokenParser
