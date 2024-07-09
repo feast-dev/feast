@@ -6,6 +6,7 @@ import enum
 import logging
 import os
 
+import feast
 from feast.permissions.auth.auth_manager import (
     AllowAll,
     AuthManager,
