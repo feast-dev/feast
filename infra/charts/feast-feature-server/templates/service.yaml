@@ -11,9 +11,11 @@ spec:
       targetPort: {{ .Values.feast_mode }}
       protocol: TCP
       name: http
+    {{- if .Values.metrics }}  
     - name: metrics
       port: 8000
       protocol: TCP
       targetPort: 8000  # metrics port
+    {{- end }}  
   selector:
     {{- include "feast-feature-server.selectorLabels" . | nindent 4 }}
