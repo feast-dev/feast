@@ -15,7 +15,6 @@ from feast.permissions.auth.auth_manager import (
 from feast.permissions.security_manager import get_security_manager
 from feast.permissions.server.utils import (
     AuthManagerType,
-    auth_manager_type_from_env,
 )
 from feast.permissions.user import User
 
@@ -23,7 +22,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def arrowflight_middleware() -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
+def arrowflight_middleware(
+    auth_manager_type: str,
+) -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
     """
     A dictionary with the configured middlewares to support extracting the user details when the authorization manager is defined.
     The authorization middleware key is `auth`.
@@ -31,8 +32,7 @@ def arrowflight_middleware() -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
     Returns:
         dict[str, fl.ServerMiddlewareFactory]: Optional dictionary of middlewares. If the authorization type is set to `NONE`, it returns `None`.
     """
-    # TODO RBAC remove and use the auth section of the feature store config instead
-    auth_manager_type = auth_manager_type_from_env()
+
     if auth_manager_type == AuthManagerType.NONE:
         return None
 

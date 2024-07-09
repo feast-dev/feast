@@ -20,7 +20,6 @@ from feast.permissions.server.arrow import (
 )
 from feast.permissions.server.utils import (
     ServerType,
-    auth_manager_type_from_env,
     init_auth_manager,
     init_security_manager,
 )
@@ -33,7 +32,9 @@ logger.setLevel(logging.INFO)
 class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
         super(OfflineServer, self).__init__(
-            location, middleware=arrowflight_middleware(), **kwargs
+            location,
+            middleware=arrowflight_middleware(store.config.auth_config.type),
+            **kwargs,
         )
         self._location = location
         # A dictionary of configured flights, e.g. API calls received and not yet served
@@ -448,8 +449,7 @@ def start_server(
     host: str,
     port: int,
 ):
-    # TODO RBAC remove and use the auth section of the feature store config instead
-    auth_manager_type = auth_manager_type_from_env()
+    auth_manager_type = store.config.auth_config.type
     init_security_manager(auth_manager_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_manager_type=auth_manager_type,
