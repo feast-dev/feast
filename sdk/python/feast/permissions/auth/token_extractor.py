@@ -24,7 +24,7 @@ class TokenExtractor(ABC):
 
     def _extract_bearer_token(self, auth_header: str) -> str:
         """
-        Extract the bearer token from th eauthorizatino header value.
+        Extract the bearer token from the authorization header value.
 
         Args:
             auth_header: The full value of the authorization header.

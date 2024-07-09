@@ -8,11 +8,6 @@ from typing import Any, Dict, List, cast
 import pyarrow as pa
 import pyarrow.flight as fl
 
-# import debugpy
-# debugpy.listen(("localhost", 5678))
-# print("Waiting for debugger attach...")
-# debugpy.wait_for_client()
-# print("Debugger attached.")
 from feast import FeatureStore, FeatureView, utils
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME

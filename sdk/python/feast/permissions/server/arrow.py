@@ -43,7 +43,7 @@ def arrowflight_middleware() -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
 
 class AuthorizationMiddlewareFactory(fl.ServerMiddlewareFactory):
     """
-    A middleware factory to intercept the authorizatino header and propagate it to the authorization middleware.
+    A middleware factory to intercept the authorization header and propagate it to the authorization middleware.
     """
 
     def __init__(self):
