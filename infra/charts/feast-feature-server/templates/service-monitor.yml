@@ -10,7 +10,7 @@ spec:
     - port: metrics
   namespaceSelector:
     matchNames:
-      - {{ .Values.namespace }}
+      - {{ .Release.Namespace }}
   selector:
     matchLabels:
       app.kubernetes.io/component: opentelemetry-collector

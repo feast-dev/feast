@@ -63,7 +63,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: opentelemetry-targetallocator-sa
-    namespace: {{ .Values.namespace }}
+    namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
   name: opentelemetry-targetallocator-role-1
