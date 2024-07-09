@@ -60,7 +60,7 @@ class AuthorizationMiddlewareFactory(fl.ServerMiddlewareFactory):
 
 class AuthorizationMiddleware(fl.ServerMiddleware):
     """
-    A server middleware holding the authorization headerr and offering a method to extract the user credentials.
+    A server middleware holding the authorization header and offering a method to extract the user credentials.
     """
 
     def __init__(self, access_token: str):
