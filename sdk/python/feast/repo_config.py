@@ -124,6 +124,9 @@ class RegistryConfig(FeastBaseModel):
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
+    cache_mode: StrictStr = "sync"
+    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
