@@ -17,6 +17,7 @@ from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.arrow import (
     arrowflight_middleware,
     inject_user_details,
+    inject_user_details_decorator,
 )
 from feast.permissions.server.utils import (
     ServerType,
@@ -57,6 +58,7 @@ class OfflineServer(fl.FlightServerBase):
 
         return fl.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
+    @inject_user_details_decorator
     def get_flight_info(
         self, context: fl.ServerCallContext, descriptor: fl.FlightDescriptor
     ):
@@ -65,6 +67,7 @@ class OfflineServer(fl.FlightServerBase):
             return self._make_flight_info(key, descriptor)
         raise KeyError("Flight not found.")
 
+    @inject_user_details_decorator
     def list_flights(self, context: fl.ServerCallContext, criteria: bytes):
         for key, table in self.flights.items():
             if key[1] is not None:
@@ -76,6 +79,7 @@ class OfflineServer(fl.FlightServerBase):
 
     # Expects to receive request parameters and stores them in the flights dictionary
     # Indexed by the unique command
+    @inject_user_details_decorator
     def do_put(
         self,
         context: fl.ServerCallContext,
@@ -172,8 +176,8 @@ class OfflineServer(fl.FlightServerBase):
 
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
+    @inject_user_details_decorator
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
-        # TODO RBAC: add the same to all the authorized endpoints
         inject_user_details(context)
 
         key = ast.literal_eval(ticket.ticket.decode())

@@ -3,6 +3,7 @@ A module with utility functions and classes to support authorizing the Arrow Fli
 """
 
 import asyncio
+import functools
 import logging
 from typing import Optional, cast
 
@@ -99,3 +100,12 @@ def inject_user_details(context: ServerCallContext):
         print(f"extracted user: {current_user}")
 
         sm.set_current_user(current_user)
+
+
+def inject_user_details_decorator(func):
+    @functools.wraps(func)
+    def wrapper(self, context, *args, **kwargs):
+        inject_user_details(context)
+        return func(self, context, *args, **kwargs)
+
+    return wrapper
