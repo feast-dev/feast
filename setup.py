@@ -105,6 +105,18 @@ POSTGRES_REQUIRED = [
     "psycopg2-binary>=2.8.3,<3",
 ]
 
+PROMETHEUS_CLIENT_REQUIRED = [
+    "prometheus_client",
+]
+
+GRPCIO_REQUIRED = [
+    "grpcio-reflection",
+]
+
+PSUTIL_REQUIRED = [
+    "psutil",
+]
+
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
 HBASE_REQUIRED = [
@@ -218,6 +230,9 @@ CI_REQUIRED = (
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
+    + PROMETHEUS_CLIENT_REQUIRED
+    + PSUTIL_REQUIRED
+    + GRPCIO_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -386,6 +401,9 @@ setup(
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
+        "prometheus_client": PROMETHEUS_CLIENT_REQUIRED,
+        "psutil": PSUTIL_REQUIRED,
+        "grpcio": GRPCIO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
