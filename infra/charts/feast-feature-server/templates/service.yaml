@@ -14,6 +14,6 @@ spec:
     - name: metrics
       port: 8000
       protocol: TCP
-      targetPort: 8000  
+      targetPort: 8000  # metrics port
   selector:
     {{- include "feast-feature-server.selectorLabels" . | nindent 4 }}
