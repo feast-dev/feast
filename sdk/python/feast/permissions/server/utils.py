@@ -62,13 +62,14 @@ def auth_manager_type_from_env() -> AuthManagerType:
     return AuthManagerType.NONE
 
 
-def init_security_manager(auth_manager_type: AuthManagerType):
+def init_security_manager(auth_manager_type: AuthManagerType, fs: "feast.FeatureStore"):
     """
     Initialize the global security manager.
     Must be invoked at Feast server initialization time to create the `SecurityManager` instance.
 
     Args:
         auth_manager_type: The authorization manager type.
+        registry: The feature store registry.
     """
     if auth_manager_type == AuthManagerType.NONE:
         no_security_manager()
@@ -76,7 +77,8 @@ def init_security_manager(auth_manager_type: AuthManagerType):
         # TODO permissions from registry
         set_security_manager(
             SecurityManager(
-                permissions=[],
+                project=fs.project,
+                registry=fs.registry,
             )
         )
 

@@ -3,6 +3,7 @@ from contextvars import ContextVar
 from typing import List, Optional, Union
 
 from feast.feast_object import FeastObject
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.action import AuthzedAction
 from feast.permissions.enforcer import enforce_policy
 from feast.permissions.permission import Permission
@@ -19,9 +20,11 @@ class SecurityManager:
 
     def __init__(
         self,
-        permissions: list[Permission] = [],
+        project: str,
+        registry: BaseRegistry,
     ):
-        self._permissions: list[Permission] = permissions
+        self._project = project
+        self._registry = registry
         self._current_user: ContextVar[Optional[User]] = ContextVar(
             "current_user", default=None
         )
@@ -47,7 +50,7 @@ class SecurityManager:
         Returns:
             list[Permission]: the list of `Permission` configured in the Feast registry.
         """
-        return self._permissions
+        return self._registry.list_permissions(project=self._project)
 
     def assert_permissions(
         self,
@@ -73,7 +76,7 @@ class SecurityManager:
             PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
         """
         return enforce_policy(
-            permissions=self._permissions,
+            permissions=self.permissions,
             user=self.current_user if self.current_user is not None else User("", []),
             resources=resources,
             actions=actions if isinstance(actions, list) else [actions],

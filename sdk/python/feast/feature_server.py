@@ -347,7 +347,7 @@ def start_server(
 
     # TODO RBAC remove and use the auth section of the feature store config instead
     auth_manager_type = auth_manager_type_from_env()
-    init_security_manager(auth_manager_type)
+    init_security_manager(auth_manager_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_manager_type=auth_manager_type,
         server_type=ServerType.REST,
