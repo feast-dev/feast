@@ -232,7 +232,6 @@ def monitor_resources(self, interval: int = 5):
             with p.oneshot():
                 cpu_usage = p.cpu_percent()
                 memory_usage = p.memory_percent()
-                sample_usage = p.memory_percent()
                 print(f"cpu_usage is {cpu_usage}")
                 print(f"memory_usage is {memory_usage}")
                 cpu_usage_gauge.set(cpu_usage)
