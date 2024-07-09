@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   # image.repository -- Docker image for Feature Server repository
   repository: feastdev/feature-server
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
   tag: 0.39.0
 
@@ -16,7 +16,7 @@ nameOverride: ""
 fullnameOverride: ""
 namespace: ""
 
-metrics: true
+metrics: false
 
 service:
   name: otelcol
