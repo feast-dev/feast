@@ -22,7 +22,7 @@ from feast.data_source import PushMode
 from feast.errors import FeatureViewNotFoundException, PushSourceNotFoundException
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
-from feast.permissions.server.rest import inject_user_details_to_security_manager
+from feast.permissions.server.rest import inject_user_details
 from feast.permissions.server.utils import (
     ServerType,
     auth_manager_type_from_env,
@@ -104,7 +104,7 @@ def get_app(
     # TODO RBAC: complete the dependencies for the other endpoints
     @app.post(
         "/get-online-features",
-        dependencies=[Depends(inject_user_details_to_security_manager)],
+        dependencies=[Depends(inject_user_details)],
     )
     def get_online_features(body=Depends(get_body)):
         try:

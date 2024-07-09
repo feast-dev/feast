@@ -21,7 +21,7 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.arrow import (
     arrowflight_middleware,
-    inject_user_details_to_security_manager,
+    inject_user_details,
 )
 from feast.permissions.server.utils import (
     ServerType,
@@ -178,7 +178,7 @@ class OfflineServer(fl.FlightServerBase):
     # and returns the stream of data
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
         # TODO RBAC: add the same to all the authorized endpoints
-        inject_user_details_to_security_manager(context)
+        inject_user_details(context)
 
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:

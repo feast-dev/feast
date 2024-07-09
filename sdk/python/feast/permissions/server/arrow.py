@@ -79,7 +79,7 @@ class AuthorizationMiddleware(fl.ServerMiddleware):
         )
 
 
-def inject_user_details_to_security_manager(context: ServerCallContext):
+def inject_user_details(context: ServerCallContext):
     """
     Function to use in Arrow Flight endpoints (e.g. `do_get`, `do_put` and so on) to access the token extracted from the header,
     extract the user details out of it and propagate them to the current security manager, if any.

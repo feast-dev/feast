@@ -12,7 +12,7 @@ from feast.permissions.auth.auth_manager import (
 from feast.permissions.security_manager import get_security_manager
 
 
-async def inject_user_details_to_security_manager(request: Request) -> Any:
+async def inject_user_details(request: Request) -> Any:
     """
     A function to extract the authorization token from a user request, extract the user details and propagate them to the
     current security manager, if any.
