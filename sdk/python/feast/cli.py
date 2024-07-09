@@ -686,9 +686,10 @@ def init_command(project_directory, minimal: bool, template: str):
 )
 @click.option(
     "--metrics",
+    "-m",
     is_flag=True,
     show_default=True,
-    help="Disable the Metrics Server",
+    help="Enable the Metrics Server",
 )
 @click.pass_context
 def serve_command(

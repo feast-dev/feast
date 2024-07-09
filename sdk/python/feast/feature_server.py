@@ -23,7 +23,6 @@ from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 
 # Define prometheus metrics
-# request_duration = Histogram('feast_request_duration_seconds', 'Histogram of request durations in seconds')
 cpu_usage_gauge = Gauge('feast_feature_server_cpu_usage', 'CPU usage of the Feast feature server')
 memory_usage_gauge = Gauge('feast_feature_server_memory_usage', 'Memory usage of the Feast feature server')
 
@@ -233,6 +232,7 @@ def monitor_resources(self, interval: int = 5):
             with p.oneshot():
                 cpu_usage = p.cpu_percent()
                 memory_usage = p.memory_percent()
+                sample_usage = p.memory_percent()
                 print(f"cpu_usage is {cpu_usage}")
                 print(f"memory_usage is {memory_usage}")
                 cpu_usage_gauge.set(cpu_usage)
@@ -246,10 +246,10 @@ def start_server(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    metrics_enabled: bool,
+    metrics: bool,
     registry_ttl_sec: int,
 ):
-    if metrics_enabled:
+    if metrics:
         print("Start Prometheus Server")
         start_http_server(8000)
 

@@ -1906,7 +1906,7 @@ class FeatureStore:
         type_: str = "http",
         no_access_log: bool = True,
         workers: int = 1,
-        metrics_enabled: bool = True,
+        metrics: bool = True,
         keep_alive_timeout: int = 30,
         registry_ttl_sec: int = 2,
     ) -> None:
@@ -1923,7 +1923,7 @@ class FeatureStore:
             port=port,
             no_access_log=no_access_log,
             workers=workers,
-            metrics_enabled=metrics_enabled,
+            metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
         )

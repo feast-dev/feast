@@ -1,3 +1,4 @@
+{{- if .Values.metrics }}
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
@@ -5,7 +6,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   exporter:
-    endpoint: http://otelcol-collector.{{ .Values.namespace }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
+    endpoint: http://{{ .Values.service.name }}-collector.{{ .Values.namespace }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
   env:
   propagators:
     - tracecontext
@@ -18,3 +19,4 @@ spec:
         value: otlp_proto_http
       - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
         value: "true"
+{{- end }} 

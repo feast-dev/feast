@@ -35,9 +35,9 @@ spec:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: {{ .Values.otel.exporter.endpoint | quote }}
+              value: http://{{ .Values.service.name }}-collector.{{ .Values.namespace }}.svc.cluster.local:4317
             - name: OTEL_EXPORTER_OTLP_INSECURE
-              value: {{ .Values.otel.exporter.insecure | quote }}   
+              value: "true"   
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
@@ -53,12 +53,19 @@ spec:
             - "feast"
             - "serve_registry"
             {{- else }}
+            {{- if .Values.metrics }}
+            - "feast"
+            - "serve"
+            - "--metrics"
+            - "-h"
+            - "0.0.0.0"
+            {{- else }}
             - "feast"
             - "serve"
             - "-h"
             - "0.0.0.0"
-            {{- end }} 
-          command: ["feast", "serve", "-h", "0.0.0.0"]
+            {{- end }}
+            {{- end }}
           ports:
             - name: {{ .Values.feast_mode }}
               {{- if eq .Values.feast_mode "offline" }}

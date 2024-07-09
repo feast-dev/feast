@@ -1,3 +1,4 @@
+{{- if .Values.metrics }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -67,3 +68,4 @@ roleRef:
   kind: ClusterRole
   name: opentelemetry-targetallocator-role-1
   apiGroup: rbac.authorization.k8s.io
+{{- end }}   
