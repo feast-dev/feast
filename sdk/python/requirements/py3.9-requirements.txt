@@ -20,22 +20,17 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via
-    #   feast (setup.py)
     #   dask
     #   typer
     #   uvicorn
 cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
-    # via feast (setup.py)
 dask[dataframe]==2024.5.0
-    # via
-    #   feast (setup.py)
-    #   dask-expr
+    # via dask-expr
 dask-expr==1.1.0
     # via dask
 dill==0.3.8
-    # via feast (setup.py)
 dnspython==2.6.1
     # via email-validator
 email-validator==2.1.1
@@ -43,9 +38,7 @@ email-validator==2.1.1
 exceptiongroup==1.2.1
     # via anyio
 fastapi==0.111.0
-    # via
-    #   feast (setup.py)
-    #   fastapi-cli
+    # via fastapi-cli
 fastapi-cli==0.0.2
     # via fastapi
 fsspec==2024.3.1
@@ -53,7 +46,6 @@ fsspec==2024.3.1
 greenlet==3.0.3
     # via sqlalchemy
 gunicorn==22.0.0
-    # via feast (setup.py)
 h11==0.14.0
     # via
     #   httpcore
@@ -75,11 +67,8 @@ importlib-metadata==7.1.0
     #   dask
     #   typeguard
 jinja2==3.1.4
-    # via
-    #   feast (setup.py)
-    #   fastapi
+    # via fastapi
 jsonschema==4.22.0
-    # via feast (setup.py)
 jsonschema-specifications==2023.12.1
     # via jsonschema
 locket==1.0.0
@@ -91,16 +80,13 @@ markupsafe==2.1.5
 mdurl==0.1.2
     # via markdown-it-py
 mmh3==4.1.0
-    # via feast (setup.py)
 mypy==1.10.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
 mypy-protobuf==3.6.0
-    # via feast (setup.py)
 numpy==1.26.4
     # via
-    #   feast (setup.py)
     #   dask
     #   pandas
     #   pyarrow
@@ -112,29 +98,20 @@ packaging==24.0
     #   gunicorn
 pandas==2.2.2
     # via
-    #   feast (setup.py)
     #   dask
     #   dask-expr
 partd==1.4.2
     # via dask
 protobuf==4.25.3
-    # via
-    #   feast (setup.py)
-    #   mypy-protobuf
+    # via mypy-protobuf
 pyarrow==16.0.0
-    # via
-    #   feast (setup.py)
-    #   dask-expr
+    # via dask-expr
 pydantic==2.7.1
-    # via
-    #   feast (setup.py)
-    #   fastapi
+    # via fastapi
 pydantic-core==2.18.2
     # via pydantic
 pygments==2.18.0
-    # via
-    #   feast (setup.py)
-    #   rich
+    # via rich
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
@@ -145,7 +122,6 @@ pytz==2024.1
     # via pandas
 pyyaml==6.0.1
     # via
-    #   feast (setup.py)
     #   dask
     #   uvicorn
 referencing==0.35.1
@@ -153,7 +129,6 @@ referencing==0.35.1
     #   jsonschema
     #   jsonschema-specifications
 requests==2.31.0
-    # via feast (setup.py)
 rich==13.7.1
     # via typer
 rpds-py==0.18.1
@@ -169,15 +144,11 @@ sniffio==1.3.1
     #   anyio
     #   httpx
 sqlalchemy[mypy]==2.0.30
-    # via feast (setup.py)
 starlette==0.37.2
     # via fastapi
 tabulate==0.9.0
-    # via feast (setup.py)
 tenacity==8.3.0
-    # via feast (setup.py)
 toml==0.10.2
-    # via feast (setup.py)
 tomli==2.0.1
     # via mypy
 toolz==0.12.1
@@ -185,9 +156,7 @@ toolz==0.12.1
     #   dask
     #   partd
 tqdm==4.66.4
-    # via feast (setup.py)
 typeguard==4.2.1
-    # via feast (setup.py)
 typer==0.12.3
     # via fastapi-cli
 types-protobuf==5.26.0.20240422
@@ -212,7 +181,6 @@ urllib3==2.2.1
     # via requests
 uvicorn[standard]==0.29.0
     # via
-    #   feast (setup.py)
     #   fastapi
     #   fastapi-cli
 uvloop==0.19.0
