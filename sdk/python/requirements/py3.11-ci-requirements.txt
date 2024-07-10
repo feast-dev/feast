@@ -72,7 +72,7 @@ cachecontrol==0.14.0
 cachetools==5.3.3
     # via google-auth
 cassandra-driver==3.29.1
-certifi==2024.6.2
+certifi==2024.7.4
     # via
     #   elastic-transport
     #   httpcore
