@@ -3,7 +3,6 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: feast-instrumentation
-  namespace: {{ .Release.Namespace }}
 spec:
   exporter:
     endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.Namespace }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
