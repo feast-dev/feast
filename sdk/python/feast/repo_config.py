@@ -89,7 +89,7 @@ FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
 
 AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "no_auth": "feast.permissions.auth_model.NoAuthConfig",
-    "kubernetes": "feast.permissions.auth_model.K8AuthConfig",
+    "kubernetes": "feast.permissions.auth_model.KubernetesAuthConfig",
     "oidc": "feast.permissions.auth_model.OidcAuthConfig",
 }
 
