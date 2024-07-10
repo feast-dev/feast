@@ -16,6 +16,7 @@ In alphabetical order
 | Shuchu Han  | `shuchu`       | shuchu.han@gmail.com          | Independent          |
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
 | Zhiling Chen   | `zhilingc`       | chnzhlng@gmail.com          | GetGround          |
+| Tornike Gurgenidze   | `tokoko`       | togurgenidze@gmail.com          | Bank of Georgia          |
 
 ## Emeritus Maintainers
 
