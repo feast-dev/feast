@@ -591,7 +591,8 @@ def start_server(store: FeatureStore, port: int):
     )
 
     server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10), interceptors=grpc_interceptors()
+        futures.ThreadPoolExecutor(max_workers=10),
+        interceptors=grpc_interceptors(auth_manager_type),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server

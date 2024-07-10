@@ -9,22 +9,24 @@ from feast.permissions.auth.auth_manager import (
 )
 from feast.permissions.server.utils import (
     AuthManagerType,
-    auth_manager_type_from_env,
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def grpc_interceptors() -> Optional[list[grpc.ServerInterceptor]]:
+def grpc_interceptors(
+    auth_manager_type: AuthManagerType,
+) -> Optional[list[grpc.ServerInterceptor]]:
     """
     A list of the authorization interceptors.
+
+    Args:
+        auth_manager_type: The type of authorization manager, from the feature store configuration.
 
     Returns:
         list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
     """
-    # TODO RBAC remove and use the auth section of the feature store config instead
-    auth_manager_type = auth_manager_type_from_env()
     if auth_manager_type == AuthManagerType.NONE:
         return None
 
