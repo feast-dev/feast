@@ -56,12 +56,12 @@ spec:
             {{- if .Values.metrics }}
             - "feast"
             - "serve"
+            - "--metrics"
             - "-h"
             - "0.0.0.0"
             {{- else }}
             - "feast"
             - "serve"
-            - "--metrics"
             - "-h"
             - "0.0.0.0"
             {{- end }}
