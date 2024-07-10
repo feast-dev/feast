@@ -56,3 +56,60 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | service.port | int | `80` |  |
 | service.type | string | `"ClusterIP"` |  |
 | tolerations | list | `[]` |  |
+
+## Adding Monitoring
+To add monitoring to the Feast Feature Server, follow these steps:
+
+### Configuration
+Update your Helm values file to enable monitoring and configure the OpenTelemetry Collector.
+
+![Blank diagram (3)](https://gist.github.com/assets/67011812/a3975749-dea3-4b5a-bae6-638e2895464f)
+
+## Deploy Feast 
+Deploy Feast and set `metrics` value to `true`.
+
+Example - 
+```
+helm install feast-release infra/charts/feast-feature-server --set metric=true --set feature_store_yaml_base64=""
+```
+
+## Deploy Prometheus Operator
+Navigate to OperatorHub and install the stable version of the Prometheus Operator
+
+## Deploy OpenTelemetry Operator
+Before installing OTEL Operator, install `cert-manager` and validate the `pods` should spin up --
+```
+kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
+```
+
+Then navigate to OperatorHub and install the stable version of the community OpenTelemetry Operator
+
+## Deploy k8s resources
+Monitoring Feast involves several components that work together to collect, process, and visualize metrics. Here's a brief introduction to each component:
+
+1. Instrumentation: This refers to the process of adding code to your application to collect metrics and traces. For Feast, this involves enabling the collection of relevant metrics from the feature store.
+
+2. OpenTelemetryCollector: The OpenTelemetry Collector is a vendor-agnostic way to receive, process, and export telemetry data. It supports various data sources and destinations, making it a flexible solution for monitoring.
+
+3. ServiceMonitor: A ServiceMonitor is used by Prometheus Operator to monitor services running on Kubernetes. It specifies how and which services should be scraped for metrics.
+
+4. Prometheus: Prometheus is an open-source systems monitoring and alerting toolkit. It collects and stores metrics as time series data, providing powerful querying capabilities.
+
+5. RBAC Policies: Role-Based Access Control (RBAC) policies define the permissions for accessing and managing resources in a Kubernetes cluster. Proper RBAC policies ensure that monitoring components can securely access the necessary resources.
+
+
+## See logs 
+Once the opentelemetry is deployed, you can search the logs to see the required metrics - 
+
+```
+ oc logs otelcol-collector-0 | grep "Name:\|Value:" | uniq
+ ```
+ <img width="416" alt="Screenshot 2024-06-20 at 7 25 03 PM" src="https://gist.github.com/assets/67011812/e2d9a469-fc07-4aa7-a100-b55a88f704b5">
+<img width="416" alt="Screenshot 2024-06-20 at 7 25 03 PM" src="https://gist.github.com/assets/67011812/c3f9baaf-5438-44a5-a419-c4d6de459a5a">
+
+```
+oc logs otelcol-collector-0 | grep "Name: feast_feature_server_memory_usage\|Value: 0.*"
+oc logs otelcol-collector-0 | grep "Name: feast_feature_server_cpu_usage\|Value: 0.*"
+```
+<img width="442" alt="Screenshot 2024-06-26 at 8 56 45 PM" src="https://gist.github.com/assets/67011812/f1a71306-b051-4e2a-896e-0b1c78230a1f">
+<img width="442" alt="Screenshot 2024-06-26 at 8 56 45 PM" src="https://gist.github.com/assets/67011812/ae5e5083-cf00-47d4-aac4-1f3779ac1aff">
