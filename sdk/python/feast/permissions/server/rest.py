@@ -18,6 +18,7 @@ async def inject_user_details(request: Request) -> Any:
     current security manager, if any.
     """
     sm = get_security_manager()
+    current_user = None
     if sm is not None:
         auth_manager = get_auth_manager()
         access_token = auth_manager.token_extractor.extract_access_token(
