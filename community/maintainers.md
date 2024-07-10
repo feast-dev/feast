@@ -17,7 +17,6 @@ In alphabetical order
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
 | Zhiling Chen   | `zhilingc`       | chnzhlng@gmail.com          | GetGround          |
 | Tornike Gurgenidze   | `tokoko`       | togurgenidze@gmail.com          | Bank of Georgia          |
-|  | `tokoko` 
 
 ## Emeritus Maintainers
 
