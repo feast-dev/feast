@@ -65,7 +65,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
-    "dask[dataframe]>=2024.4.2",
+    "dask[dataframe]>=2024.2.1",
 ]
 
 GCP_REQUIRED = [
