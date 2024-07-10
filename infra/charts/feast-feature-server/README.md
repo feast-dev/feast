@@ -63,7 +63,7 @@ To add monitoring to the Feast Feature Server, follow these steps:
 ### Configuration
 Update your Helm values file to enable monitoring and configure the OpenTelemetry Collector.
 
-![Blank diagram (3)](https://gist.github.com/assets/67011812/a3975749-dea3-4b5a-bae6-638e2895464f)
+Feast instrumentation Using OpenTelemetry and Prometheus - https://lucid.app/lucidchart/b07f9c86-e31b-4e19-8123-0a64ba532096/edit?page=0_0&invitationId=inv_b57cd30b-5741-436f-baac-2e4b547ac2a5#
 
 ## Deploy Feast 
 Deploy Feast and set `metrics` value to `true`.
@@ -102,14 +102,14 @@ Monitoring Feast involves several components that work together to collect, proc
 Once the opentelemetry is deployed, you can search the logs to see the required metrics - 
 
 ```
- oc logs otelcol-collector-0 | grep "Name:\|Value:" | uniq
- ```
- <img width="416" alt="Screenshot 2024-06-20 at 7 25 03 PM" src="https://gist.github.com/assets/67011812/e2d9a469-fc07-4aa7-a100-b55a88f704b5">
-<img width="416" alt="Screenshot 2024-06-20 at 7 25 03 PM" src="https://gist.github.com/assets/67011812/c3f9baaf-5438-44a5-a419-c4d6de459a5a">
-
-```
 oc logs otelcol-collector-0 | grep "Name: feast_feature_server_memory_usage\|Value: 0.*"
 oc logs otelcol-collector-0 | grep "Name: feast_feature_server_cpu_usage\|Value: 0.*"
 ```
-<img width="442" alt="Screenshot 2024-06-26 at 8 56 45 PM" src="https://gist.github.com/assets/67011812/f1a71306-b051-4e2a-896e-0b1c78230a1f">
-<img width="442" alt="Screenshot 2024-06-26 at 8 56 45 PM" src="https://gist.github.com/assets/67011812/ae5e5083-cf00-47d4-aac4-1f3779ac1aff">
+```
+ -> Name: feast_feature_server_memory_usage
+Value: 0.579426
+```
+```
+-> Name: feast_feature_server_cpu_usage
+Value: 0.000000
+```
