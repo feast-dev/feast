@@ -122,7 +122,8 @@
   * [Offline Feature Server](reference/feature-servers/offline-feature-server)
 
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
-* [\[Alpha\] On demand feature view](reference/alpha-on-demand-feature-view.md)
+* [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
+* [\[Alpha\] Vector Database](reference/alpha-vector-database.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
