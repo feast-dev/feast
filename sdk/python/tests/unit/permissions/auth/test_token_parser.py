@@ -69,6 +69,7 @@ def test_oidc_token_validation_failure(mock_oauth2):
             token_parser.user_details_from_access_token(access_token=access_token)
         )
 
+
 # TODO RBAC: Move role bindings to a reusable fixture
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
 @patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")
