@@ -155,6 +155,7 @@ def python_type_to_feast_value_type(
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
+        "bool_": ValueType.BOOL,  # np.bool_
         "bool": ValueType.BOOL,
         "boolean": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
