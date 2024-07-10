@@ -40,15 +40,26 @@ class PythonTransformation:
     def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         output_dict: dict[str, list[Any]] = self.transform(random_input)
 
-        return [
-            Field(
-                name=f,
-                dtype=from_value_type(
-                    python_type_to_feast_value_type(f, type_name=type(dt[0]).__name__)
-                ),
+        fields = []
+        for feature_name, feature_value in output_dict.items():
+            if len(feature_value) <= 0:
+                raise TypeError(
+                    f"Failed to infer type for feature '{feature_name}' with value "
+                    + f"'{feature_value}' since no items were returned by the UDF."
+                )
+            fields.append(
+                Field(
+                    name=feature_name,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(
+                            feature_name,
+                            value=feature_value[0],
+                            type_name=type(feature_value[0]).__name__,
+                        )
+                    ),
+                )
             )
-            for f, dt in output_dict.items()
-        ]
+        return fields
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):

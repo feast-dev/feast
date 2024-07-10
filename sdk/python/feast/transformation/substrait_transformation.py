@@ -60,16 +60,28 @@ class SubstraitTransformation:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)
 
-        return [
-            Field(
-                name=f,
-                dtype=from_value_type(
-                    python_type_to_feast_value_type(f, type_name=str(dt))
-                ),
-            )
-            for f, dt in zip(output_df.columns, output_df.dtypes)
-            if f not in random_input
-        ]
+        fields = []
+        for feature_name, feature_type in zip(output_df.columns, output_df.dtypes):
+            feature_value = output_df[feature_name].tolist()
+            if len(feature_value) <= 0:
+                raise TypeError(
+                    f"Failed to infer type for feature '{feature_name}' with value "
+                    + f"'{feature_value}' since no items were returned by the UDF."
+                )
+            if feature_name not in random_input:
+                fields.append(
+                    Field(
+                        name=feature_name,
+                        dtype=from_value_type(
+                            python_type_to_feast_value_type(
+                                feature_name,
+                                value=feature_value[0],
+                                type_name=str(feature_type),
+                            )
+                        ),
+                    )
+                )
+        return fields
 
     def __eq__(self, other):
         if not isinstance(other, SubstraitTransformation):
