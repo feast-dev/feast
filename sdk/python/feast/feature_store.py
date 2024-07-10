@@ -15,11 +15,7 @@ import itertools
 import logging
 import os
 import warnings
-import threading
-import time
-from collections import Counter, defaultdict
 from datetime import timedelta, datetime
-import psutil
 from pathlib import Path
 from typing import (
     Any,
