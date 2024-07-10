@@ -4,7 +4,6 @@ A module with utility functions to support the authorization management in Feast
 
 import enum
 import logging
-import os
 
 import feast
 from feast.permissions.auth.auth_manager import (
@@ -59,19 +58,6 @@ def str_to_auth_manager_type(value: str) -> AuthManagerType:
     logger.warning(
         f"Requested unmanaged AuthManagerType of value {value}. Using NONE instead."
     )
-    return AuthManagerType.NONE
-
-
-# TODO RBAC: will remove once we can manage the auth configuration
-def auth_manager_type_from_env() -> AuthManagerType:
-    type = os.getenv("AUTH_MANAGER_TYPE", "none")
-    print(f"Configuring authentication manager for {type}")
-
-    if type.lower() == AuthManagerType.OIDC.value:
-        return AuthManagerType.OIDC
-    if type.lower() == AuthManagerType.KUBERNETES.value:
-        return AuthManagerType.KUBERNETES
-
     return AuthManagerType.NONE
 
 

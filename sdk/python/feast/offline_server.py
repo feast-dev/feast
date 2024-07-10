@@ -16,13 +16,13 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.arrow import (
     arrowflight_middleware,
-    inject_user_details,
     inject_user_details_decorator,
 )
 from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
     init_security_manager,
+    str_to_auth_manager_type,
 )
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -34,7 +34,9 @@ class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
         super(OfflineServer, self).__init__(
             location,
-            middleware=arrowflight_middleware(store.config.auth_config.type),
+            middleware=arrowflight_middleware(
+                str_to_auth_manager_type(store.config.auth_config.type)
+            ),
             **kwargs,
         )
         self._location = location
@@ -178,8 +180,6 @@ class OfflineServer(fl.FlightServerBase):
     # and returns the stream of data
     @inject_user_details_decorator
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
-        inject_user_details(context)
-
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
             logger.error(f"Unknown key {key}")
@@ -448,17 +448,21 @@ def remove_dummies(fv: FeatureView) -> FeatureView:
     return fv
 
 
-def start_server(
-    store: FeatureStore,
-    host: str,
-    port: int,
-):
-    auth_manager_type = store.config.auth_config.type
+def _init_auth_manager(store: FeatureStore):
+    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_manager_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_manager_type=auth_manager_type,
         server_type=ServerType.ARROW,
     )
+
+
+def start_server(
+    store: FeatureStore,
+    host: str,
+    port: int,
+):
+    _init_auth_manager(store)
 
     location = "grpc+tcp://{}:{}".format(host, port)
     server = OfflineServer(store, location)

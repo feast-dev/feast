@@ -27,6 +27,7 @@ from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
     init_security_manager,
+    str_to_auth_manager_type,
 )
 
 # Define prometheus metrics
@@ -345,7 +346,7 @@ def start_server(
         monitoring_thread.start()
 
     # TODO RBAC remove and use the auth section of the feature store config instead
-    auth_manager_type = store.config.auth_config.type
+    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_manager_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_manager_type=auth_manager_type,

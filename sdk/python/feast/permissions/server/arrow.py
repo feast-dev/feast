@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 
 
 def arrowflight_middleware(
-    auth_manager_type: str,
+    auth_manager_type: AuthManagerType,
 ) -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
     """
     A dictionary with the configured middlewares to support extracting the user details when the authorization manager is defined.
