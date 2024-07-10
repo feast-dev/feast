@@ -24,6 +24,7 @@ from feast.permissions.security_manager import (
 from feast.permissions.server.arrow_flight_token_extractor import (
     ArrowFlightTokenExtractor,
 )
+from feast.permissions.server.grpc_token_extractor import GrpcTokenExtractor
 from feast.permissions.server.rest_token_extractor import RestTokenExtractor
 
 logger = logging.getLogger(__name__)
@@ -45,9 +46,20 @@ class AuthManagerType(enum.Enum):
     Identify the type of authorization manager.
     """
 
-    NONE = "none"
+    NONE = "no_auth"
     OIDC = "oidc"
     KUBERNETES = "kubernetes"
+
+
+def str_to_auth_manager_type(value: str) -> AuthManagerType:
+    for t in AuthManagerType.__members__.values():
+        if t.value.lower() == value.lower():
+            return t
+
+    logger.warning(
+        f"Requested unmanaged AuthManagerType of value {value}. Using NONE instead."
+    )
+    return AuthManagerType.NONE
 
 
 # TODO RBAC: will remove once we can manage the auth configuration
@@ -97,26 +109,30 @@ def init_auth_manager(server_type: ServerType, auth_manager_type: AuthManagerTyp
         ValueError: If any input argument has an unmanaged value.
     """
     if auth_manager_type == AuthManagerType.NONE:
-        return AllowAll()
-
-    token_extractor: TokenExtractor
-    token_parser: TokenParser
-
-    if server_type == ServerType.REST:
-        token_extractor = RestTokenExtractor()
-    elif server_type == ServerType.ARROW:
-        token_extractor = ArrowFlightTokenExtractor()
+        set_auth_manager(AllowAll())
     else:
-        raise ValueError(f"Unmanaged server type {server_type}")
+        token_extractor: TokenExtractor
+        token_parser: TokenParser
 
-    if auth_manager_type == AuthManagerType.KUBERNETES:
-        token_parser = KubernetesTokenParser()
-    elif auth_manager_type == AuthManagerType.OIDC:
-        token_parser = OidcTokenParser()
-    else:
-        raise ValueError(f"Unmanaged authorization manager type {auth_manager_type}")
+        if server_type == ServerType.REST:
+            token_extractor = RestTokenExtractor()
+        elif server_type == ServerType.ARROW:
+            token_extractor = ArrowFlightTokenExtractor()
+        elif server_type == ServerType.GRPC:
+            token_extractor = GrpcTokenExtractor()
+        else:
+            raise ValueError(f"Unmanaged server type {server_type}")
 
-    auth_manager = AuthManager(
-        token_extractor=token_extractor, token_parser=token_parser
-    )
-    set_auth_manager(auth_manager)
+        if auth_manager_type == AuthManagerType.KUBERNETES:
+            token_parser = KubernetesTokenParser()
+        elif auth_manager_type == AuthManagerType.OIDC:
+            token_parser = OidcTokenParser()
+        else:
+            raise ValueError(
+                f"Unmanaged authorization manager type {auth_manager_type}"
+            )
+
+        auth_manager = AuthManager(
+            token_extractor=token_extractor, token_parser=token_parser
+        )
+        set_auth_manager(auth_manager)

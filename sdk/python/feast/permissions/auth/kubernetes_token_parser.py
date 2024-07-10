@@ -95,6 +95,10 @@ def _decode_token(access_token: str) -> tuple[str, str]:
         decoded_token = jwt.decode(access_token, options={"verify_signature": False})
         if "sub" in decoded_token:
             subject: str = decoded_token["sub"]
+            if len(subject.split(":")) != 4:
+                raise AuthenticationError(
+                    f"Expecting 4 elements separated by : in th subject section, instead of {len(subject.split(':'))}."
+                )
             _, _, sa_namespace, sa_name = subject.split(":")
             return (sa_namespace, sa_name)
         else:

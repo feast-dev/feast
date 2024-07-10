@@ -10,6 +10,7 @@ from starlette.authentication import (
 from feast.permissions.server.arrow_flight_token_extractor import (
     ArrowFlightTokenExtractor,
 )
+from feast.permissions.server.grpc_token_extractor import GrpcTokenExtractor
 from feast.permissions.server.rest_token_extractor import RestTokenExtractor
 
 
@@ -40,6 +41,31 @@ def test_rest_token_extractor_failures(error_type, dict, header):
             token_extractor.extract_access_token(request=request)
 
 
+@pytest.mark.parametrize(
+    "error_type, dict, header",
+    [
+        (ValueError, {}, None),
+        (ValueError, {"other": 123}, None),
+        (AuthenticationError, {}, ""),
+        (AuthenticationError, {}, "abcd"),
+        (AuthenticationError, {}, "other-scheme abcd"),
+    ],
+)
+def test_grpc_token_extractor_failures(error_type, dict, header):
+    token_extractor = GrpcTokenExtractor()
+
+    metadata = None
+    if header is not None:
+        metadata = {}
+        if metadata != "":
+            metadata["authorization"] = header
+    with pytest.raises(error_type):
+        if metadata is None:
+            token_extractor.extract_access_token(**dict)
+        else:
+            token_extractor.extract_access_token(metadata=metadata)
+
+
 def test_rest_token_extractor():
     token_extractor = RestTokenExtractor()
     request: Request = Mock(spec=Request)
@@ -53,6 +79,22 @@ def test_rest_token_extractor():
     request.headers = {"authorization": f"bearer {token}"}
     assertpy.assert_that(
         token_extractor.extract_access_token(request=request)
+    ).is_equal_to(token)
+
+
+def test_grpc_token_extractor():
+    token_extractor = GrpcTokenExtractor()
+    metadata = {}
+    token = "abcd"
+
+    metadata["authorization"] = f"Bearer {token}"
+    assertpy.assert_that(
+        token_extractor.extract_access_token(metadata=metadata)
+    ).is_equal_to(token)
+
+    metadata["authorization"] = f"bearer {token}"
+    assertpy.assert_that(
+        token_extractor.extract_access_token(metadata=metadata)
     ).is_equal_to(token)
 
 

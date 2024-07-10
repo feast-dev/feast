@@ -17,6 +17,13 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import CRUD, AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.security_manager import assert_permissions, permitted_resources
+from feast.permissions.server.grpc import grpc_interceptors
+from feast.permissions.server.utils import (
+    ServerType,
+    init_auth_manager,
+    init_security_manager,
+    str_to_auth_manager_type,
+)
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -576,11 +583,19 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
 
 def start_server(store: FeatureStore, port: int):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
+    init_security_manager(auth_manager_type=auth_manager_type, fs=store)
+    init_auth_manager(
+        auth_manager_type=auth_manager_type,
+        server_type=ServerType.GRPC,
+    )
+
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10), interceptors=grpc_interceptors()
+    )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
     )
-    # TODO init security manager
     server.add_insecure_port(f"[::]:{port}")
     server.start()
     server.wait_for_termination()

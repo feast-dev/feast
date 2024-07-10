@@ -64,8 +64,11 @@ class OidcTokenParser(TokenParser):
             AuthenticationError if any error happens.
         """
 
-        await self._validate_token(access_token)
-        logger.info("Validated token")
+        try:
+            await self._validate_token(access_token)
+            logger.info("Validated token")
+        except Exception as e:
+            raise AuthenticationError(f"Invalid token: {e}")
 
         url = f"{self._OIDC_SERVER_URL}/realms/{self._REALM}/protocol/openid-connect/certs"
         optional_custom_headers = {"User-agent": "custom-user-agent"}
