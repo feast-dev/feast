@@ -373,7 +373,12 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
     registry_config = repo_config.registry
     project = repo_config.project
-    registry = Registry(project, registry_config=registry_config, repo_path=repo_path)
+    registry = Registry(
+        project,
+        registry_config=registry_config,
+        repo_path=repo_path,
+        auth_config=repo_config.auth_config,
+    )
     registry_dict = registry.to_dict(project=project)
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 

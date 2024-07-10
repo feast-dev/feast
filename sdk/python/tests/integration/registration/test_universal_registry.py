@@ -42,6 +42,7 @@ from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
+from feast.permissions.auth_model import NoAuthConfig
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
@@ -58,7 +59,7 @@ from tests.integration.feature_repos.universal.entities import driver
 def local_registry() -> Registry:
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
-    return Registry("project", registry_config, None)
+    return Registry("project", registry_config, None, auth_config=NoAuthConfig())
 
 
 @pytest.fixture
@@ -77,7 +78,7 @@ def gcs_registry() -> Registry:
     registry_config = RegistryConfig(
         path=f"gs://{bucket_name}/registry.db", cache_ttl_seconds=600
     )
-    return Registry("project", registry_config, None)
+    return Registry("project", registry_config, None, auth_config=NoAuthConfig())
 
 
 @pytest.fixture
@@ -89,7 +90,7 @@ def s3_registry() -> Registry:
         path=f"{aws_registry_path}/{int(time.time() * 1000)}/registry.db",
         cache_ttl_seconds=600,
     )
-    return Registry("project", registry_config, None)
+    return Registry("project", registry_config, None, auth_config=NoAuthConfig())
 
 
 @pytest.fixture(scope="session")
@@ -116,7 +117,7 @@ def minio_registry() -> Registry:
     }
 
     with mock.patch.dict(os.environ, mock_environ):
-        yield Registry("project", registry_config, None)
+        yield Registry("project", registry_config, None, auth_config=NoAuthConfig())
 
     container.stop()
 
@@ -271,10 +272,15 @@ class GrpcMockChannel:
 def mock_remote_registry():
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
-    proxied_registry = Registry("project", registry_config, None)
+    proxied_registry = Registry(
+        "project", registry_config, None, auth_config=NoAuthConfig()
+    )
 
     registry = RemoteRegistry(
-        registry_config=RemoteRegistryConfig(path=""), project=None, repo_path=None
+        registry_config=RemoteRegistryConfig(path=""),
+        project=None,
+        repo_path=None,
+        auth_config=NoAuthConfig(),
     )
     mock_channel = GrpcMockChannel(
         RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"],
@@ -1311,7 +1317,9 @@ def test_modify_feature_service_success(test_registry):
 def test_commit():
     fd, registry_path = mkstemp()
     registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
-    test_registry = Registry("project", registry_config, None)
+    test_registry = Registry(
+        "project", registry_config, None, auth_config=NoAuthConfig()
+    )
 
     entity = Entity(
         name="driver_car_id",
@@ -1352,7 +1360,9 @@ def test_commit():
     validate_project_uuid(project_uuid, test_registry)
 
     # Create new registry that points to the same store
-    registry_with_same_store = Registry("project", registry_config, None)
+    registry_with_same_store = Registry(
+        "project", registry_config, None, auth_config=NoAuthConfig()
+    )
 
     # Retrieving the entity should fail since the store is empty
     entities = registry_with_same_store.list_entities(project)
@@ -1363,7 +1373,9 @@ def test_commit():
     test_registry.commit()
 
     # Reconstruct the new registry in order to read the newly written store
-    registry_with_same_store = Registry("project", registry_config, None)
+    registry_with_same_store = Registry(
+        "project", registry_config, None, auth_config=NoAuthConfig()
+    )
 
     # Retrieving the entity should now succeed
     entities = registry_with_same_store.list_entities(project, tags=entity.tags)

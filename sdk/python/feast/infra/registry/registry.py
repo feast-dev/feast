@@ -42,6 +42,7 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.auth_model import AuthConfig
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -165,6 +166,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
+        auth_config: AuthConfig,
     ):
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
@@ -179,7 +181,7 @@ class Registry(BaseRegistry):
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
-            return RemoteRegistry(registry_config, project, repo_path)
+            return RemoteRegistry(registry_config, project, repo_path, auth_config)
         else:
             return super(Registry, cls).__new__(cls)
 
@@ -188,6 +190,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
+        auth_config: AuthConfig,
     ):
         """
         Create the Registry object.
@@ -199,6 +202,7 @@ class Registry(BaseRegistry):
         """
 
         self._refresh_lock = Lock()
+        self._auth_config = auth_config
 
         if registry_config:
             registry_store_type = registry_config.registry_store_type
@@ -216,7 +220,7 @@ class Registry(BaseRegistry):
             )
 
     def clone(self) -> "Registry":
-        new_registry = Registry("project", None, None)
+        new_registry = Registry("project", None, None, self._auth_config)
         new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
         new_registry.cached_registry_proto = (
             self.cached_registry_proto.__deepcopy__()

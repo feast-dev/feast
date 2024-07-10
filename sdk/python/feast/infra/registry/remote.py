@@ -15,6 +15,8 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.auth_model import AuthConfig
+from feast.permissions.client.auth_client_manager import get_auth_client_manager
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -39,8 +41,16 @@ class RemoteRegistry(BaseRegistry):
         registry_config: Union[RegistryConfig, RemoteRegistryConfig],
         project: str,
         repo_path: Optional[Path],
+        auth_config: AuthConfig,
     ):
-        self.channel = grpc.insecure_channel(registry_config.path)
+        if auth_config.type in ["oidc", "kubernetes"]:
+            auth_client_manager = get_auth_client_manager(auth_config)
+            token = auth_client_manager.get_token()
+            cred = grpc.access_token_call_credentials(token)
+            caller_cred = grpc.CallCredentials(cred)
+            self.channel = grpc.secure_channel(registry_config.path, caller_cred)
+        else:
+            self.channel = grpc.insecure_channel(registry_config.path)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):

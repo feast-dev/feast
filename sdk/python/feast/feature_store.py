@@ -158,9 +158,16 @@ class FeatureStore:
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
-            self._registry = RemoteRegistry(registry_config, self.config.project, None)
+            self._registry = RemoteRegistry(
+                registry_config, self.config.project, None, self.config.auth
+            )
         else:
-            r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
+            r = Registry(
+                self.config.project,
+                registry_config,
+                repo_path=self.repo_path,
+                auth_config=self.config.auth_config,
+            )
             r._initialize_registry(self.config.project)
             self._registry = r
 
@@ -200,7 +207,10 @@ class FeatureStore:
         """
         registry_config = self.config.registry
         registry = Registry(
-            self.config.project, registry_config, repo_path=self.repo_path
+            self.config.project,
+            registry_config,
+            repo_path=self.repo_path,
+            auth_config=self.config.auth_config,
         )
         registry.refresh(self.config.project)
 

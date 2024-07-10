@@ -6,6 +6,13 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
     def __init__(self, auth_config: KubernetesAuthConfig):
         self.auth_config = auth_config
 
-    # TODO: needs to implement this for k8 auth.
     def get_token(self):
-        return ""
+        try:
+            with open(
+                "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
+            ) as file:
+                token = file.read().strip()
+            return token
+        except Exception as e:
+            print(f"Error reading token: {e}")
+            raise e
