@@ -22,7 +22,7 @@ from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
     init_security_manager,
-    str_to_auth_manager_type,
+    str_to_auth_type,
 )
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -583,16 +583,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
 
 def start_server(store: FeatureStore, port: int):
-    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
-    init_security_manager(auth_manager_type=auth_manager_type, fs=store)
+    auth_type = str_to_auth_type(store.config.auth_config.type)
+    init_security_manager(auth_type=auth_type, fs=store)
     init_auth_manager(
-        auth_manager_type=auth_manager_type,
+        auth_type=auth_type,
         server_type=ServerType.GRPC,
     )
 
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=grpc_interceptors(auth_manager_type),
+        interceptors=grpc_interceptors(auth_type),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server

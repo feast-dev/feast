@@ -16,18 +16,18 @@ logger.setLevel(logging.INFO)
 
 
 def grpc_interceptors(
-    auth_manager_type: AuthType,
+    auth_type: AuthType,
 ) -> Optional[list[grpc.ServerInterceptor]]:
     """
     A list of the authorization interceptors.
 
     Args:
-        auth_manager_type: The type of authorization manager, from the feature store configuration.
+        auth_type: The type of authorization manager, from the feature store configuration.
 
     Returns:
         list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
     """
-    if auth_manager_type == AuthType.NONE:
+    if auth_type == AuthType.NONE:
         return None
 
     return [AuthInterceptor()]

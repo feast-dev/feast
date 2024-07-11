@@ -22,7 +22,7 @@ from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
     init_security_manager,
-    str_to_auth_manager_type,
+    str_to_auth_type,
 )
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -35,7 +35,7 @@ class OfflineServer(fl.FlightServerBase):
         super(OfflineServer, self).__init__(
             location,
             middleware=arrowflight_middleware(
-                str_to_auth_manager_type(store.config.auth_config.type)
+                str_to_auth_type(store.config.auth_config.type)
             ),
             **kwargs,
         )
@@ -449,10 +449,10 @@ def remove_dummies(fv: FeatureView) -> FeatureView:
 
 
 def _init_auth_manager(store: FeatureStore):
-    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
-    init_security_manager(auth_manager_type=auth_manager_type, fs=store)
+    auth_type = str_to_auth_type(store.config.auth_config.type)
+    init_security_manager(auth_type=auth_type, fs=store)
     init_auth_manager(
-        auth_manager_type=auth_manager_type,
+        auth_type=auth_type,
         server_type=ServerType.ARROW,
     )
 

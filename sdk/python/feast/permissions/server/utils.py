@@ -41,7 +41,7 @@ class ServerType(enum.Enum):
     GRPC = "grpc"  # TODO RBAC: to be completed
 
 
-def str_to_auth_manager_type(value: str) -> AuthType:
+def str_to_auth_type(value: str) -> AuthType:
     for t in AuthType.__members__.values():
         if t.value.lower() == value.lower():
             return t
@@ -52,16 +52,16 @@ def str_to_auth_manager_type(value: str) -> AuthType:
     return AuthType.NONE
 
 
-def init_security_manager(auth_manager_type: AuthType, fs: "feast.FeatureStore"):
+def init_security_manager(auth_type: AuthType, fs: "feast.FeatureStore"):
     """
     Initialize the global security manager.
     Must be invoked at Feast server initialization time to create the `SecurityManager` instance.
 
     Args:
-        auth_manager_type: The authorization manager type.
+        auth_type: The authorization manager type.
         registry: The feature store registry.
     """
-    if auth_manager_type == AuthType.NONE:
+    if auth_type == AuthType.NONE:
         no_security_manager()
     else:
         # TODO permissions from registry
@@ -73,19 +73,19 @@ def init_security_manager(auth_manager_type: AuthType, fs: "feast.FeatureStore")
         )
 
 
-def init_auth_manager(server_type: ServerType, auth_manager_type: AuthType):
+def init_auth_manager(server_type: ServerType, auth_type: AuthType):
     """
     Initialize the global authorization manager.
     Must be invoked at Feast server initialization time to create the `AuthManager` instance.
 
     Args:
         server_type: The server type.
-        auth_manager_type: The authorization manager type.
+        auth_type: The authorization manager type.
 
     Raises:
         ValueError: If any input argument has an unmanaged value.
     """
-    if auth_manager_type == AuthType.NONE:
+    if auth_type == AuthType.NONE:
         set_auth_manager(AllowAll())
     else:
         token_extractor: TokenExtractor
@@ -100,13 +100,13 @@ def init_auth_manager(server_type: ServerType, auth_manager_type: AuthType):
         else:
             raise ValueError(f"Unmanaged server type {server_type}")
 
-        if auth_manager_type == AuthType.KUBERNETES:
+        if auth_type == AuthType.KUBERNETES:
             token_parser = KubernetesTokenParser()
-        elif auth_manager_type == AuthType.OIDC:
+        elif auth_type == AuthType.OIDC:
             token_parser = OidcTokenParser()
         else:
             raise ValueError(
-                f"Unmanaged authorization manager type {auth_manager_type}"
+                f"Unmanaged authorization manager type {auth_type}"
             )
 
         auth_manager = AuthManager(
