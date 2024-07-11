@@ -42,7 +42,7 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.permissions.auth_model import AuthConfig
+from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -166,7 +166,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
-        auth_config: AuthConfig,
+        auth_config: AuthConfig = NoAuthConfig(),
     ):
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
@@ -190,7 +190,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
-        auth_config: AuthConfig,
+        auth_config: AuthConfig = NoAuthConfig(),
     ):
         """
         Create the Registry object.

@@ -26,6 +26,7 @@ from feast.errors import (
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
+from feast.permissions.auth.auth_type import AuthType
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -224,7 +225,7 @@ class RepoConfig(FeastBaseModel):
         self._auth = None
         if "auth" not in data:
             self.auth = dict()
-            self.auth["type"] = "no_auth"
+            self.auth["type"] = AuthType.NONE.value
         else:
             self.auth = data.get("auth")
 

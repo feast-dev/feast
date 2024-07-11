@@ -1,5 +1,9 @@
+import logging
+
 from feast.permissions.auth_model import KubernetesAuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
+
+logger = logging.getLogger(__name__)
 
 
 class KubernetesAuthClientManager(AuthenticationClientManager):
@@ -14,5 +18,5 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
                 token = file.read().strip()
             return token
         except Exception as e:
-            print(f"Error reading token: {e}")
+            logger.exception(f"Error reading token: {e}")
             raise e

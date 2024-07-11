@@ -4,6 +4,7 @@ from textwrap import dedent
 from typing import Optional
 
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
     KubernetesAuthConfig,
     NoAuthConfig,
@@ -270,7 +271,7 @@ def test_auth_config():
         ),
         expect_error=None,
     )
-    assert oidc_repo_config.auth["type"] == "oidc"
+    assert oidc_repo_config.auth["type"] == AuthType.OIDC.value
     assert isinstance(oidc_repo_config.auth_config, OidcAuthConfig)
     assert oidc_repo_config.auth_config.client_id == "test_client_id"
     assert oidc_repo_config.auth_config.client_secret == "test_client_secret"
@@ -296,7 +297,7 @@ def test_auth_config():
         ),
         expect_error=None,
     )
-    assert no_auth_repo_config.auth.get("type") == "no_auth"
+    assert no_auth_repo_config.auth.get("type") == AuthType.NONE.value
     assert isinstance(no_auth_repo_config.auth_config, NoAuthConfig)
 
     k8_repo_config = _test_config(
@@ -314,5 +315,5 @@ def test_auth_config():
         ),
         expect_error=None,
     )
-    assert k8_repo_config.auth.get("type") == "kubernetes"
+    assert k8_repo_config.auth.get("type") == AuthType.KUBERNETES.value
     assert isinstance(k8_repo_config.auth_config, KubernetesAuthConfig)
