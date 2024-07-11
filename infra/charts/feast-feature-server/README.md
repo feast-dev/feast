@@ -65,7 +65,7 @@ Update your Helm values file to enable monitoring and configure the OpenTelemetr
 
 Feast instrumentation Using OpenTelemetry and Prometheus - https://lucid.app/lucidchart/b07f9c86-e31b-4e19-8123-0a64ba532096/edit?page=0_0&invitationId=inv_b57cd30b-5741-436f-baac-2e4b547ac2a5#
 
-## Deploy Feast 
+### Deploy Feast 
 Deploy Feast and set `metrics` value to `true`.
 
 Example - 
@@ -73,10 +73,10 @@ Example -
 helm install feast-release infra/charts/feast-feature-server --set metric=true --set feature_store_yaml_base64=""
 ```
 
-## Deploy Prometheus Operator
+### Deploy Prometheus Operator
 Navigate to OperatorHub and install the stable version of the Prometheus Operator
 
-## Deploy OpenTelemetry Operator
+### Deploy OpenTelemetry Operator
 Before installing OTEL Operator, install `cert-manager` and validate the `pods` should spin up --
 ```
 kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
@@ -84,13 +84,8 @@ kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releas
 
 Then navigate to OperatorHub and install the stable version of the community OpenTelemetry Operator
 
-## Adding Monitoring
-To add monitoring to the Feast Feature Server, follow these steps:
 
-1. Enable Metrics:
-Set the metrics.enabled value to true to enable metrics collection.
-
-2. Configure OpenTelemetry Collector:
+### Configure OpenTelemetry Collector
 Add the OpenTelemetry Collector configuration under the metrics section in your values.yaml file.
 
 Example values.yaml:
@@ -104,9 +99,20 @@ metrics:
       api-key: "your-api-key"
 ```
 
+### Add the environment variables in the deployment.yaml - 
+```
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local:{{ .Values.metrics.endpoint.port}}
+- name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"     
+```
+
+### Deploy manifests -
+Add Instrumentation, OpenTelemetryCollector, ServiceMonitors, Prometheus Instance and RBAC rules as provided in the samples/ directory.
+
 For latest updates please refer the official repository - https://github.com/open-telemetry/opentelemetry-operator
 
-## Deploy k8s resources
+## Introduction to the Custom Resources used 
 Monitoring Feast involves several components that work together to collect, process, and visualize metrics. Here's a brief introduction to each component:
 
 1. Instrumentation: This refers to the process of adding code to your application to collect metrics and traces. For Feast, this involves enabling the collection of relevant metrics from the feature store.
