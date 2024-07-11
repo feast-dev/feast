@@ -39,7 +39,7 @@ def get_auth_client_manager(auth_config: AuthConfig) -> AuthenticationClientMana
         )
 
 
-def create_metadata(auth_config: AuthConfig) -> Tuple[Tuple[str, str]]:
+def create_grpc_auth_header(auth_config: AuthConfig) -> Tuple[Tuple[str, str]]:
     auth_client_manager = get_auth_client_manager(auth_config)
     token = auth_client_manager.get_token()
 

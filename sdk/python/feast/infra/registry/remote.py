@@ -21,7 +21,7 @@ from feast.permissions.auth_model import (
     NoAuthConfig,
 )
 from feast.permissions.client.auth_client_manager import (
-    create_metadata,
+    create_grpc_auth_header,
 )
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
@@ -59,7 +59,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyEntity(request=request, metadata=metadata)
         else:
             self.stub.ApplyEntity(request)
@@ -70,7 +70,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeleteEntity(request=request, metadata=metadata)
         else:
             self.stub.DeleteEntity(request)
@@ -81,7 +81,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetEntity(request=request, metadata=metadata)
         else:
             response = self.stub.GetEntity(request)
@@ -99,7 +99,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListEntities(request=request, metadata=metadata)
         else:
             response = self.stub.ListEntities(request)
@@ -114,7 +114,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyDataSource(request=request, metadata=metadata)
         else:
             self.stub.ApplyDataSource(request)
@@ -125,7 +125,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeleteDataSource(request=request, metadata=metadata)
         else:
             self.stub.DeleteDataSource(request)
@@ -138,7 +138,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetDataSource(request=request, metadata=metadata)
         else:
             response = self.stub.GetDataSource(request)
@@ -156,7 +156,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListDataSources(request=request, metadata=metadata)
         else:
             response = self.stub.ListDataSources(request)
@@ -173,7 +173,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyFeatureService(request=request, metadata=metadata)
         else:
             self.stub.ApplyFeatureService(request)
@@ -184,7 +184,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeleteFeatureService(request=request, metadata=metadata)
         else:
             self.stub.DeleteFeatureService(request)
@@ -197,7 +197,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetFeatureService(request=request, metadata=metadata)
         else:
             response = self.stub.GetFeatureService(request)
@@ -215,7 +215,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListFeatureServices(request=request, metadata=metadata)
         else:
             response = self.stub.ListFeatureServices(request)
@@ -250,7 +250,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyFeatureView(request=request, metadata=metadata)
         else:
             self.stub.ApplyFeatureView(request)
@@ -261,7 +261,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeleteFeatureView(request=request, metadata=metadata)
         else:
             self.stub.DeleteFeatureView(request)
@@ -274,7 +274,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetStreamFeatureView(
                 request=request, metadata=metadata
             )
@@ -294,7 +294,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListStreamFeatureViews(
                 request=request, metadata=metadata
             )
@@ -314,7 +314,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetOnDemandFeatureView(
                 request=request, metadata=metadata
             )
@@ -334,7 +334,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListOnDemandFeatureViews(
                 request=request, metadata=metadata
             )
@@ -354,7 +354,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetFeatureView(request=request, metadata=metadata)
         else:
             response = self.stub.GetFeatureView(request)
@@ -372,7 +372,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListFeatureViews(request=request, metadata=metadata)
         else:
             response = self.stub.ListFeatureViews(request)
@@ -405,7 +405,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyMaterialization(request=request, metadata=metadata)
         else:
             self.stub.ApplyMaterialization(request)
@@ -421,7 +421,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyFeatureService(request=request, metadata=metadata)
         else:
             self.stub.ApplyFeatureService(request)
@@ -441,7 +441,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetSavedDataset(request=request, metadata=metadata)
         else:
             response = self.stub.GetSavedDataset(request)
@@ -459,7 +459,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListSavedDatasets(request=request, metadata=metadata)
         else:
             response = self.stub.ListSavedDatasets(request)
@@ -482,7 +482,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyValidationReference(request=request, metadata=metadata)
         else:
             self.stub.ApplyValidationReference(request)
@@ -493,7 +493,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeleteValidationReference(request=request, metadata=metadata)
         else:
             self.stub.DeleteValidationReference(request)
@@ -506,7 +506,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetValidationReference(
                 request=request, metadata=metadata
             )
@@ -526,7 +526,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListValidationReferences(
                 request=request, metadata=metadata
             )
@@ -546,7 +546,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListProjectMetadata(request=request, metadata=metadata)
         else:
             response = self.stub.ListProjectMetadata(request)
@@ -559,7 +559,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.UpdateInfra(request=request, metadata=metadata)
         else:
             self.stub.UpdateInfra(request)
@@ -570,7 +570,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetInfra(request=request, metadata=metadata)
         else:
             response = self.stub.GetInfra(request)
@@ -601,7 +601,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.ApplyPermission(request=request, metadata=metadata)
         else:
             self.stub.ApplyPermission(request)
@@ -612,7 +612,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.DeletePermission(request=request, metadata=metadata)
         else:
             self.stub.DeletePermission(request)
@@ -625,7 +625,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.GetPermission(request=request, metadata=metadata)
         else:
             response = self.stub.GetPermission(request)
@@ -643,7 +643,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             response = self.stub.ListPermissions(request=request, metadata=metadata)
         else:
             response = self.stub.ListPermissions(request)
@@ -662,7 +662,7 @@ class RemoteRegistry(BaseRegistry):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
 
         if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_metadata(self.auth_config)
+            metadata = create_grpc_auth_header(self.auth_config)
             self.stub.Refresh(request=request, metadata=metadata)
         else:
             self.stub.Refresh(request)
