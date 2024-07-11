@@ -105,9 +105,7 @@ def init_auth_manager(server_type: ServerType, auth_type: AuthType):
         elif auth_type == AuthType.OIDC:
             token_parser = OidcTokenParser()
         else:
-            raise ValueError(
-                f"Unmanaged authorization manager type {auth_type}"
-            )
+            raise ValueError(f"Unmanaged authorization manager type {auth_type}")
 
         auth_manager = AuthManager(
             token_extractor=token_extractor, token_parser=token_parser
