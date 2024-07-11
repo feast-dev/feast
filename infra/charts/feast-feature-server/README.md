@@ -99,7 +99,17 @@ metrics:
       api-key: "your-api-key"
 ```
 
-### Add the environment variables in the deployment.yaml - 
+### Add instrumentation annotation and environment variables in the deployment.yaml - 
+
+```
+template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+        instrumentation.opentelemetry.io/inject-python: "true"
+```
+
 ```
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
     value: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local:{{ .Values.metrics.endpoint.port}}
