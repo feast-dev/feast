@@ -18,11 +18,11 @@ fullnameOverride: ""
 metrics:
   enabled: false
   otelCollector:
-    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local  # sample endpoint: "otel-collector.default.svc.cluster.local:4317"
+    endpoint: ""  # sample endpoint: "otel-collector.default.svc.cluster.local:4317"
     port: 4317
 
 
-service:
+otel_service:
   name: otelcol
 
 # feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml

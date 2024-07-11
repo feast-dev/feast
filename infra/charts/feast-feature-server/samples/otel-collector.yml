@@ -1,6 +1,5 @@
 # API reference https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/api.md
 # Refs for v1beta1 config: https://github.com/open-telemetry/opentelemetry-operator/issues/3011#issuecomment-2154118998
-{{- if .Values.metrics }}
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
@@ -52,4 +51,3 @@ spec:
           receivers: [otlp]
           processors: [batch]
           exporters: [logging]
-{{- end }} 

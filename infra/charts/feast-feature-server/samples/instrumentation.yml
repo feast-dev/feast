@@ -1,11 +1,10 @@
-{{- if .Values.metrics }}
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: feast-instrumentation
 spec:
   exporter:
-    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.Namespace }}.svc.cluster.local:4318 # This is the default port for the OpenTelemetry Collector
+    endpoint: <endpoint> # eg: http://{{ .Values.service.name }}-collector.{{ .Release.Namespace }}.svc.cluster.local:4318 
   env:
   propagators:
     - tracecontext
@@ -18,4 +17,3 @@ spec:
         value: otlp_proto_http
       - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
         value: "true"
-{{- end }} 

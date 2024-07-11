@@ -105,13 +105,7 @@ POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
-PROMETHEUS_CLIENT_REQUIRED = [
-    "prometheus_client",
-]
-
-PSUTIL_REQUIRED = [
-    "psutil",
-]
+OPENTELEMETRY = ["prometheus_client","psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -228,8 +222,7 @@ CI_REQUIRED = (
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
-    + PROMETHEUS_CLIENT_REQUIRED
-    + PSUTIL_REQUIRED
+    + OPENTELEMETRY
     + SINGLESTORE_REQUIRED
 )
 
@@ -399,8 +392,7 @@ setup(
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
-        "prometheus_client": PROMETHEUS_CLIENT_REQUIRED,
-        "psutil": PSUTIL_REQUIRED,
+        "opentelemetry": OPENTELEMETRY,
         "singlestore": SINGLESTORE_REQUIRED,
     },
     include_package_data=True,
