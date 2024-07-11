@@ -18,7 +18,7 @@ fullnameOverride: ""
 metrics:
   enabled: false
   otelCollector:
-    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local
+    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local  # sample endpoint: "otel-collector.default.svc.cluster.local:4317"
     port: 4317
 
 

@@ -84,6 +84,26 @@ kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releas
 
 Then navigate to OperatorHub and install the stable version of the community OpenTelemetry Operator
 
+## Adding Monitoring
+To add monitoring to the Feast Feature Server, follow these steps:
+
+1. Enable Metrics:
+Set the metrics.enabled value to true to enable metrics collection.
+
+2. Configure OpenTelemetry Collector:
+Add the OpenTelemetry Collector configuration under the metrics section in your values.yaml file.
+
+Example values.yaml:
+
+```
+metrics:
+  enabled: true
+  otelCollector:
+    endpoint: "otel-collector.default.svc.cluster.local:4317"
+    headers:
+      api-key: "your-api-key"
+```
+
 ## Deploy k8s resources
 Monitoring Feast involves several components that work together to collect, process, and visualize metrics. Here's a brief introduction to each component:
 
