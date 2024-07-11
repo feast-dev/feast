@@ -15,7 +15,12 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-metrics: false
+metrics:
+  enabled: false
+  otelCollector:
+    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local
+    port: 4317
+
 
 service:
   name: otelcol
