@@ -109,10 +109,6 @@ PROMETHEUS_CLIENT_REQUIRED = [
     "prometheus_client",
 ]
 
-GRPCIO_REQUIRED = [
-    "grpcio-reflection",
-]
-
 PSUTIL_REQUIRED = [
     "psutil",
 ]
@@ -232,13 +228,12 @@ CI_REQUIRED = (
     + SQLITE_VEC_REQUIRED
     + PROMETHEUS_CLIENT_REQUIRED
     + PSUTIL_REQUIRED
-    + GRPCIO_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
 
-# Get git repo root directory
+# Get git repository root directory
 repo_root = str(pathlib.Path(__file__).resolve().parent)
 
 # README file from Feast repo root directory
@@ -403,7 +398,6 @@ setup(
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "prometheus_client": PROMETHEUS_CLIENT_REQUIRED,
         "psutil": PSUTIL_REQUIRED,
-        "grpcio": GRPCIO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
