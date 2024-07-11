@@ -104,6 +104,8 @@ metrics:
       api-key: "your-api-key"
 ```
 
+For latest updates please refer the official repository - https://github.com/open-telemetry/opentelemetry-operator
+
 ## Deploy k8s resources
 Monitoring Feast involves several components that work together to collect, process, and visualize metrics. Here's a brief introduction to each component:
 
