@@ -19,9 +19,7 @@ from feast.permissions.auth_model import (
     AuthConfig,
     NoAuthConfig,
 )
-from feast.permissions.client.auth_client_manager import (
-    create_grpc_auth_header,
-)
+from feast.permissions.client.utils import create_auth_header
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -58,7 +56,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyEntity(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
@@ -67,7 +65,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteEntity(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
@@ -76,7 +74,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetEntity(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return Entity.from_proto(response)
@@ -92,7 +90,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListEntities(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [Entity.from_proto(entity) for entity in response.entities]
@@ -105,7 +103,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyDataSource(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
@@ -114,7 +112,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteDataSource(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_data_source(
@@ -125,7 +123,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetDataSource(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return DataSource.from_proto(response)
@@ -141,7 +139,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListDataSources(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -156,7 +154,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyFeatureService(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
@@ -165,7 +163,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteFeatureService(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_feature_service(
@@ -176,7 +174,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetFeatureService(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return FeatureService.from_proto(response)
@@ -192,7 +190,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListFeatureServices(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -225,7 +223,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyFeatureView(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
@@ -234,7 +232,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteFeatureView(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_stream_feature_view(
@@ -245,7 +243,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetStreamFeatureView(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return StreamFeatureView.from_proto(response)
@@ -261,7 +259,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListStreamFeatureViews(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -277,7 +275,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetOnDemandFeatureView(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return OnDemandFeatureView.from_proto(response)
@@ -293,7 +291,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListOnDemandFeatureViews(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -309,7 +307,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetFeatureView(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return FeatureView.from_proto(response)
@@ -325,7 +323,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListFeatureViews(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -356,7 +354,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyMaterialization(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def apply_saved_dataset(
@@ -370,7 +368,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyFeatureService(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
@@ -379,7 +377,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteSavedDataset(
-            request, metadata=create_grpc_auth_header(self.auth_config)
+            request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_saved_dataset(
@@ -390,7 +388,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetSavedDataset(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return SavedDataset.from_proto(response)
@@ -406,7 +404,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListSavedDatasets(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -427,7 +425,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyValidationReference(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
@@ -436,7 +434,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeleteValidationReference(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_validation_reference(
@@ -447,7 +445,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetValidationReference(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return ValidationReference.from_proto(response)
@@ -463,7 +461,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListValidationReferences(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -479,7 +477,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListProjectMetadata(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
@@ -490,7 +488,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.UpdateInfra(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
@@ -499,7 +497,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetInfra(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return Infra.from_proto(response)
@@ -528,7 +526,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyPermission(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
@@ -537,7 +535,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.DeletePermission(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def get_permission(
@@ -548,7 +546,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.GetPermission(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return Permission.from_proto(response)
@@ -564,7 +562,7 @@ class RemoteRegistry(BaseRegistry):
         )
 
         response = self.stub.ListPermissions(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
         return [
@@ -581,7 +579,7 @@ class RemoteRegistry(BaseRegistry):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
 
         self.stub.Refresh(
-            request=request, metadata=create_grpc_auth_header(self.auth_config)
+            request=request, metadata=create_auth_header(self.auth_config)
         )
 
     def teardown(self):
