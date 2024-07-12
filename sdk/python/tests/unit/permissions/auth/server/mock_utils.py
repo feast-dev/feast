@@ -1,9 +1,11 @@
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, mock_open
 
 from requests import Response
 
+PROJECT_NAME = "test_registry_server"
 
-def mock_oidc(request, monkeypatch, client_id):
+
+def _mock_oidc(request, monkeypatch, client_id):
     async def mock_oath2(self, request):
         return "OK"
 
@@ -43,7 +45,7 @@ def mock_oidc(request, monkeypatch, client_id):
     )
 
 
-def mock_kubernetes(request, monkeypatch):
+def _mock_kubernetes(request, monkeypatch):
     sa_name = request.getfixturevalue("sa_name")
     namespace = request.getfixturevalue("namespace")
     subject = f"system:serviceaccount:{namespace}:{sa_name}"
@@ -66,7 +68,8 @@ def mock_kubernetes(request, monkeypatch):
         "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding",
         lambda *args, **kwargs: clusterrolebindings["items"],
     )
+    m = mock_open(read_data="my-token")
     monkeypatch.setattr(
-        "feast.permissions.client.kubernetes_auth_client_manager.KubernetesAuthClientManager.get_token",
-        lambda self: "my-token",
+        "builtins.open",
+        m,
     )
