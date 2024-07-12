@@ -64,7 +64,7 @@ def remote_feature_store(server_port, feature_store):
     return store
 
 
-def test_remote_offline_store_apis(
+def test_registry_apis(
     auth_config, temp_dir, server_port, start_registry_server, remote_feature_store
 ):
     print(f"Runnning for\n:{auth_config}")
