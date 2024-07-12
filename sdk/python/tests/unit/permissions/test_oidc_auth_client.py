@@ -60,6 +60,3 @@ def _assert_auth_requests_session(
     assert (
         auth_req_session.headers["Authorization"] == f"Bearer {expected_token}"
     ), "Authorization token is incorrect"
-
-
-
