@@ -36,5 +36,3 @@ def get_auth_client_manager(auth_config: AuthConfig) -> AuthenticationClientMana
         raise RuntimeError(
             f"No Auth client manager implemented for the auth type:${auth_config.type}"
         )
-
-
