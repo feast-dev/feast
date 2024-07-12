@@ -27,7 +27,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.permissions.client.auth_client_manager import create_flight_call_options
+from feast.permissions.client.utils import create_flight_call_options
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
