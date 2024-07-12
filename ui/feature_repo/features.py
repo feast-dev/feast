@@ -11,7 +11,7 @@ zipcode = Entity(
     name="zipcode",
     description="A zipcode",
     tags={
-        "owner": "danny@tecton.ai",
+        "owner": "danny@feast.ai",
         "team": "hack week",
     },
 )
@@ -40,7 +40,7 @@ zipcode_features = FeatureView(
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
-        "access_group": "feast-team@tecton.ai",
+        "access_group": "feast-team@feast.ai",
     },
     online=True,
 )
@@ -62,7 +62,7 @@ zipcode_features = FeatureView(
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
-        "access_group": "feast-team@tecton.ai",
+        "access_group": "feast-team@feast.ai",
     },
     online=True,
 )
@@ -80,7 +80,7 @@ zipcode_money_features = FeatureView(
     tags={
         "date_added": "2022-02-7",
         "experiments": "experiment-A,experiment-B,experiment-C",
-        "access_group": "feast-team@tecton.ai",
+        "access_group": "feast-team@feast.ai",
     },
     online=True,
 )
@@ -89,7 +89,7 @@ dob_ssn = Entity(
     name="dob_ssn",
     description="Date of birth and last four digits of social security number",
     tags={
-        "owner": "tony@tecton.ai",
+        "owner": "tony@feast.ai",
         "team": "hack week",
     },
 )
@@ -121,7 +121,7 @@ credit_history = FeatureView(
     tags={
         "date_added": "2022-02-6",
         "experiments": "experiment-A",
-        "access_group": "feast-team@tecton.ai",
+        "access_group": "feast-team@feast.ai",
     },
     online=True,
 )
@@ -157,7 +157,7 @@ model_v1 = FeatureService(
         credit_history[["credit_card_due", "missed_payments_1y"]],
         zipcode_features,
     ],
-    tags={"owner": "tony@tecton.ai", "stage": "staging"},
+    tags={"owner": "tony@feast.ai", "stage": "staging"},
     description="Credit scoring model",
 )
 
@@ -167,7 +167,7 @@ model_v2 = FeatureService(
         credit_history[["mortgage_due", "credit_card_due", "missed_payments_1y"]],
         zipcode_features,
     ],
-    tags={"owner": "tony@tecton.ai", "stage": "prod"},
+    tags={"owner": "tony@feast.ai", "stage": "prod"},
     description="Credit scoring model",
 )
 
@@ -178,7 +178,7 @@ model_v3 = FeatureService(
         zipcode_features,
         transaction_gt_last_credit_card_due,
     ],
-    tags={"owner": "tony@tecton.ai", "stage": "dev"},
+    tags={"owner": "tony@feast.ai", "stage": "dev"},
     description="Credit scoring model",
 )
 
@@ -187,7 +187,7 @@ zipcode_model = FeatureService(
     features=[
         zipcode_features,
     ],
-    tags={"owner": "amanda@tecton.ai", "stage": "dev"},
+    tags={"owner": "amanda@feast.ai", "stage": "dev"},
     description="Location model",
 )
 
@@ -196,6 +196,6 @@ zipcode_model_v2 = FeatureService(
     features=[
         zipcode_money_features,
     ],
-    tags={"owner": "amanda@tecton.ai", "stage": "dev"},
+    tags={"owner": "amanda@feast.ai", "stage": "dev"},
     description="Location model",
 )
