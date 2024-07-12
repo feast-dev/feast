@@ -15,7 +15,7 @@ from feast.permissions.auth.auth_manager import (
 )
 from feast.permissions.security_manager import get_security_manager
 from feast.permissions.server.utils import (
-    AuthType,
+    AuthManagerType,
 )
 from feast.permissions.user import User
 
@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 
 
 def arrowflight_middleware(
-    auth_type: AuthType,
+    auth_type: AuthManagerType,
 ) -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
     """
     A dictionary with the configured middlewares to support extracting the user details when the authorization manager is defined.
@@ -34,7 +34,7 @@ def arrowflight_middleware(
         dict[str, fl.ServerMiddlewareFactory]: Optional dictionary of middlewares. If the authorization type is set to `NONE`, it returns `None`.
     """
 
-    if auth_type == AuthType.NONE:
+    if auth_type == AuthManagerType.NONE:
         return None
 
     return {

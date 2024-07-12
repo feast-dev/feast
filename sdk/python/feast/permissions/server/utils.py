@@ -11,7 +11,6 @@ from feast.permissions.auth.auth_manager import (
     AuthManager,
     set_auth_manager,
 )
-from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth.token_extractor import TokenExtractor
@@ -41,18 +40,28 @@ class ServerType(enum.Enum):
     GRPC = "grpc"  # TODO RBAC: to be completed
 
 
-def str_to_auth_type(value: str) -> AuthType:
-    for t in AuthType.__members__.values():
+class AuthManagerType(enum.Enum):
+    """
+    Identify the type of authorization manager.
+    """
+
+    NONE = "no_auth"
+    OIDC = "oidc"
+    KUBERNETES = "kubernetes"
+
+
+def str_to_auth_manager_type(value: str) -> AuthManagerType:
+    for t in AuthManagerType.__members__.values():
         if t.value.lower() == value.lower():
             return t
 
     logger.warning(
         f"Requested unmanaged AuthManagerType of value {value}. Using NONE instead."
     )
-    return AuthType.NONE
+    return AuthManagerType.NONE
 
 
-def init_security_manager(auth_type: AuthType, fs: "feast.FeatureStore"):
+def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
     """
     Initialize the global security manager.
     Must be invoked at Feast server initialization time to create the `SecurityManager` instance.
@@ -61,7 +70,7 @@ def init_security_manager(auth_type: AuthType, fs: "feast.FeatureStore"):
         auth_type: The authorization manager type.
         registry: The feature store registry.
     """
-    if auth_type == AuthType.NONE:
+    if auth_type == AuthManagerType.NONE:
         no_security_manager()
     else:
         # TODO permissions from registry
@@ -73,7 +82,7 @@ def init_security_manager(auth_type: AuthType, fs: "feast.FeatureStore"):
         )
 
 
-def init_auth_manager(server_type: ServerType, auth_type: AuthType):
+def init_auth_manager(server_type: ServerType, auth_type: AuthManagerType):
     """
     Initialize the global authorization manager.
     Must be invoked at Feast server initialization time to create the `AuthManager` instance.
@@ -85,7 +94,7 @@ def init_auth_manager(server_type: ServerType, auth_type: AuthType):
     Raises:
         ValueError: If any input argument has an unmanaged value.
     """
-    if auth_type == AuthType.NONE:
+    if auth_type == AuthManagerType.NONE:
         set_auth_manager(AllowAll())
     else:
         token_extractor: TokenExtractor
@@ -100,9 +109,9 @@ def init_auth_manager(server_type: ServerType, auth_type: AuthType):
         else:
             raise ValueError(f"Unmanaged server type {server_type}")
 
-        if auth_type == AuthType.KUBERNETES:
+        if auth_type == AuthManagerType.KUBERNETES:
             token_parser = KubernetesTokenParser()
-        elif auth_type == AuthType.OIDC:
+        elif auth_type == AuthManagerType.OIDC:
             token_parser = OidcTokenParser()
         else:
             raise ValueError(f"Unmanaged authorization manager type {auth_type}")

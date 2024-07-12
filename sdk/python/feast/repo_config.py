@@ -334,17 +334,26 @@ class RepoConfig(FeastBaseModel):
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:
+        from feast.permissions.auth_model import AuthConfig
+
         if "auth" in values:
             allowed_auth_types = AUTH_CONFIGS_CLASS_FOR_TYPE.keys()
-            if values["auth"].get("type") is None:
-                raise ValueError(
-                    f"auth configuration is not having authentication type. Possible values={allowed_auth_types}"
-                )
-            elif values["auth"]["type"] not in allowed_auth_types:
-                raise ValueError(
-                    f'auth configuration is having invalid authentication type={values["auth"]["type"]}. Possible '
-                    f'values={allowed_auth_types}'
-                )
+            if isinstance(values["auth"], Dict):
+                if values["auth"].get("type") is None:
+                    raise ValueError(
+                        f"auth configuration is not having authentication type. Possible values={allowed_auth_types}"
+                    )
+                elif values["auth"]["type"] not in allowed_auth_types:
+                    raise ValueError(
+                        f'auth configuration is having invalid authentication type={values["auth"]["type"]}. Possible '
+                        f'values={allowed_auth_types}'
+                    )
+            elif isinstance(values["auth"], AuthConfig):
+                if values["auth"].type not in allowed_auth_types:
+                    raise ValueError(
+                        f'auth configuration is having invalid authentication type={values["auth"].type}. Possible '
+                        f'values={allowed_auth_types}'
+                    )
         return values
 
     @model_validator(mode="before")

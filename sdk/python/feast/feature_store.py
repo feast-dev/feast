@@ -159,7 +159,7 @@ class FeatureStore:
             from feast.infra.registry.remote import RemoteRegistry
 
             self._registry = RemoteRegistry(
-                registry_config, self.config.project, None, self.config.auth
+                registry_config, self.config.project, None, self.config.auth_config
             )
         else:
             r = Registry(

@@ -8,7 +8,7 @@ from feast.permissions.auth.auth_manager import (
     get_auth_manager,
 )
 from feast.permissions.server.utils import (
-    AuthType,
+    AuthManagerType,
 )
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 
 
 def grpc_interceptors(
-    auth_type: AuthType,
+    auth_type: AuthManagerType,
 ) -> Optional[list[grpc.ServerInterceptor]]:
     """
     A list of the authorization interceptors.
@@ -27,7 +27,7 @@ def grpc_interceptors(
     Returns:
         list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
     """
-    if auth_type == AuthType.NONE:
+    if auth_type == AuthManagerType.NONE:
         return None
 
     return [AuthInterceptor()]
