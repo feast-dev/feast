@@ -16,6 +16,8 @@ offline_store:
   type: remote
   host: localhost
   port: 8815
+auth:
+  type: no_auth
 ```
 {% endcode %}
 
