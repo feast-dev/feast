@@ -1,7 +1,6 @@
 # test_token_validator.py
 
 import asyncio
-import os
 from unittest.mock import MagicMock, patch
 
 import assertpy
@@ -18,19 +17,14 @@ from feast.permissions.user import User
 _CLIENT_ID = "test"
 
 
-@pytest.fixture(autouse=True)
-def setup():
-    os.environ["OIDC_SERVER_URL"] = "http://localhost:8080"
-    os.environ["REALM"] = "test"
-    os.environ["CLIENT_ID"] = _CLIENT_ID
-
-
 @patch(
     "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
 )
 @patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
-def test_oidc_token_validation_success(mock_jwt, mock_signing_key, mock_oauth2):
+def test_oidc_token_validation_success(
+    mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+):
     signing_key = MagicMock()
     signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
@@ -42,7 +36,7 @@ def test_oidc_token_validation_success(mock_jwt, mock_signing_key, mock_oauth2):
     mock_jwt.return_value = user_data
 
     access_token = "aaa-bbb-ccc"
-    token_parser = OidcTokenParser()
+    token_parser = OidcTokenParser(auth_config=oidc_config)
     user = asyncio.run(
         token_parser.user_details_from_access_token(access_token=access_token)
     )
@@ -59,11 +53,11 @@ def test_oidc_token_validation_success(mock_jwt, mock_signing_key, mock_oauth2):
 @patch(
     "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
 )
-def test_oidc_token_validation_failure(mock_oauth2):
+def test_oidc_token_validation_failure(mock_oauth2, oidc_config):
     mock_oauth2.side_effect = AuthenticationError("wrong token")
 
     access_token = "aaa-bbb-ccc"
-    token_parser = OidcTokenParser()
+    token_parser = OidcTokenParser(auth_config=oidc_config)
     with pytest.raises(AuthenticationError):
         asyncio.run(
             token_parser.user_details_from_access_token(access_token=access_token)
