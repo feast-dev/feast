@@ -351,6 +351,7 @@ def start_server(
     init_auth_manager(
         auth_type=auth_type,
         server_type=ServerType.REST,
+        auth_config=store.config.auth_config,
     )
 
     if sys.platform != "win32":

@@ -1,9 +1,7 @@
 import logging
-import os
 from unittest.mock import Mock
 
 import jwt
-from dotenv import load_dotenv
 from fastapi import Request
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jwt import PyJWKClient
@@ -12,6 +10,7 @@ from starlette.authentication import (
 )
 
 from feast.permissions.auth.token_parser import TokenParser
+from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
@@ -21,20 +20,13 @@ logger.setLevel(logging.INFO)
 class OidcTokenParser(TokenParser):
     """
     A `TokenParser` to use an OIDC server to retrieve the user details.
-    # TODO RBAC: use auth configuration instead
-    Server settings are retrieved fro these environment variables:
-    - `OIDC_SERVER_URL`
-    - `REALM`
-    - `CLIENT_ID`
+    Server settings are retrieved from the `auth` configurationof the Feature store.
     """
 
-    def __init__(self):
-        # TODO RBAC: use auth configuration instead
-        load_dotenv("./.env")
+    _auth_config: OidcAuthConfig
 
-        self._OIDC_SERVER_URL = os.getenv("OIDC_SERVER_URL")
-        self._REALM = os.getenv("REALM")
-        self._CLIENT_ID = os.getenv("CLIENT_ID")
+    def __init__(self, auth_config: OidcAuthConfig):
+        self._auth_config = auth_config
 
     async def _validate_token(self, access_token: str):
         """
@@ -46,9 +38,9 @@ class OidcTokenParser(TokenParser):
         request.headers = {"Authorization": f"Bearer {access_token}"}
 
         oauth_2_scheme = OAuth2AuthorizationCodeBearer(
-            tokenUrl=f"{self._OIDC_SERVER_URL}/realms/{self._REALM}/protocol/openid-connect/token",
-            authorizationUrl=f"{self._OIDC_SERVER_URL}/realms/{self._REALM}/protocol/openid-connect/auth",
-            refreshUrl=f"{self._OIDC_SERVER_URL}/realms/{self._REALM}/protocol/openid-connect/token",
+            tokenUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/token",
+            authorizationUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/auth",
+            refreshUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/token",
         )
 
         await oauth_2_scheme(request=request)
@@ -70,7 +62,7 @@ class OidcTokenParser(TokenParser):
         except Exception as e:
             raise AuthenticationError(f"Invalid token: {e}")
 
-        url = f"{self._OIDC_SERVER_URL}/realms/{self._REALM}/protocol/openid-connect/certs"
+        url = f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/certs"
         optional_custom_headers = {"User-agent": "custom-user-agent"}
         jwks_client = PyJWKClient(url, headers=optional_custom_headers)
 
@@ -94,15 +86,16 @@ class OidcTokenParser(TokenParser):
                 raise AuthenticationError(
                     "Missing resource_access field in access token."
                 )
-            if self._CLIENT_ID not in data["resource_access"]:
+            client_id = self._auth_config.client_id
+            if client_id not in data["resource_access"]:
                 raise AuthenticationError(
-                    f"Missing resource_access.{self._CLIENT_ID} field in access token."
+                    f"Missing resource_access.{client_id} field in access token."
                 )
-            if "roles" not in data["resource_access"][self._CLIENT_ID]:
+            if "roles" not in data["resource_access"][client_id]:
                 raise AuthenticationError(
-                    f"Missing resource_access.{self._CLIENT_ID}.roles field in access token."
+                    f"Missing resource_access.{client_id}.roles field in access token."
                 )
-            roles = data["resource_access"][self._CLIENT_ID]["roles"]
+            roles = data["resource_access"][client_id]["roles"]
             logger.info(f"Extracted user {current_user} and roles {roles}")
             return User(username=current_user, roles=roles)
         except jwt.exceptions.InvalidTokenError:

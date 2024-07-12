@@ -454,6 +454,7 @@ def _init_auth_manager(store: FeatureStore):
     init_auth_manager(
         auth_type=auth_type,
         server_type=ServerType.ARROW,
+        auth_config=store.config.auth_config,
     )
 
 

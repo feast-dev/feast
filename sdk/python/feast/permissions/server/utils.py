@@ -15,6 +15,7 @@ from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth.token_extractor import TokenExtractor
 from feast.permissions.auth.token_parser import TokenParser
+from feast.permissions.auth_model import AuthConfig, OidcAuthConfig
 from feast.permissions.security_manager import (
     SecurityManager,
     no_security_manager,
@@ -82,7 +83,9 @@ def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
         )
 
 
-def init_auth_manager(server_type: ServerType, auth_type: AuthManagerType):
+def init_auth_manager(
+    server_type: ServerType, auth_type: AuthType, auth_config: AuthConfig
+):
     """
     Initialize the global authorization manager.
     Must be invoked at Feast server initialization time to create the `AuthManager` instance.
@@ -111,8 +114,9 @@ def init_auth_manager(server_type: ServerType, auth_type: AuthManagerType):
 
         if auth_type == AuthManagerType.KUBERNETES:
             token_parser = KubernetesTokenParser()
-        elif auth_type == AuthManagerType.OIDC:
-            token_parser = OidcTokenParser()
+        elif auth_type == AuthType.OIDC:
+            assert isinstance(auth_config, OidcAuthConfig)
+            token_parser = OidcTokenParser(auth_config=auth_config)
         else:
             raise ValueError(f"Unmanaged authorization manager type {auth_type}")
 
