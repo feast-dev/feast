@@ -1,6 +1,9 @@
 import pytest
 from kubernetes import client
 
+from feast.permissions.auth_model import OidcAuthConfig
+from tests.unit.permissions.auth.test_token_parser import _CLIENT_ID
+
 
 @pytest.fixture
 def sa_name():
@@ -57,3 +60,16 @@ def clusterrolebindings(sa_name, namespace) -> dict:
             )
         )
     return {"items": client.V1RoleBindingList(items=items), "roles": roles}
+
+
+@pytest.fixture
+def oidc_config() -> OidcAuthConfig:
+    return OidcAuthConfig(
+        auth_server_url="",
+        auth_discovery_url="",
+        client_id=_CLIENT_ID,
+        client_secret="",
+        username="",
+        password="",
+        realm="",
+    )

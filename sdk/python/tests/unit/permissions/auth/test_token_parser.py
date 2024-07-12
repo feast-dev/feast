@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import assertpy
 import pytest
-from kubernetes import client
 from starlette.authentication import (
     AuthenticationError,
 )
@@ -73,52 +72,24 @@ def test_oidc_token_validation_failure(mock_oauth2, oidc_config):
 @patch(
     "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding"
 )
-def test_k8s_token_validation_success(mock_crb, mock_rb, mock_jwt, mock_config):
+def test_k8s_token_validation_success(
+    mock_crb,
+    mock_rb,
+    mock_jwt,
+    mock_config,
+    rolebindings,
+    clusterrolebindings,
+):
     sa_name = "my-name"
     namespace = "my-ns"
     subject = f"system:serviceaccount:{namespace}:{sa_name}"
     mock_jwt.return_value = {"sub": subject}
 
-    roles = ["reader", "writer"]
-    roles_items = []
-    for r in roles:
-        roles_items.append(
-            client.V1RoleBinding(
-                metadata=client.V1ObjectMeta(name=r, namespace=namespace),
-                subjects=[
-                    client.V1Subject(
-                        kind="ServiceAccount",
-                        name=sa_name,
-                        api_group="rbac.authorization.k8s.io",
-                    )
-                ],
-                role_ref=client.V1RoleRef(
-                    kind="Role", name=r, api_group="rbac.authorization.k8s.io"
-                ),
-            )
-        )
-    mock_rb.return_value = client.V1RoleBindingList(items=roles_items)
+    mock_rb.return_value = rolebindings["items"]
+    mock_crb.return_value = clusterrolebindings["items"]
 
-    croles = ["updater"]
-    croles_items = []
-    for cr in croles:
-        croles_items.append(
-            client.V1ClusterRoleBinding(
-                metadata=client.V1ObjectMeta(name=r, namespace=namespace),
-                subjects=[
-                    client.V1Subject(
-                        kind="ServiceAccount",
-                        name=sa_name,
-                        namespace=namespace,
-                        api_group="rbac.authorization.k8s.io",
-                    )
-                ],
-                role_ref=client.V1RoleRef(
-                    kind="Role", name=cr, api_group="rbac.authorization.k8s.io"
-                ),
-            )
-        )
-    mock_crb.return_value = client.V1RoleBindingList(items=croles_items)
+    roles = rolebindings["roles"]
+    croles = clusterrolebindings["roles"]
 
     access_token = "aaa-bbb-ccc"
     token_parser = KubernetesTokenParser()
