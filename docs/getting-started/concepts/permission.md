@@ -93,29 +93,51 @@ Permission(
 ```
 
 ## Authorizing Feast clients
-**TODO**
-Initial proposals:
-* Kubernetes RBAC:
+If you would like to leverage the permissions' functionality then `auth` config block should be added to feature_store.yaml. Currently, feast supports oidc and kubernetes rbac authentication/authorization. 
+
+The default configuration if you don't mention the auth configuration is no_auth configuration.
+
+* No auth configuration example:
 ```yaml
-offline_store:
-    type: remote
-    host: localhost
-    port: 8815
-    auth:
-        type: kubernetes
+project: foo
+registry: "registry.db"
+provider: local
+online_store:
+    path: foo
+entity_key_serialization_version: 2
+auth:
+  type: no_auth
 ```
-* OIDC authorization:
+
+* Kubernetes rbac authentication/authorization example:
+{% hint style="info" %}
+**NOTE**: This configuration will only work if you deploy feast on Openshift or Kubernetes platform.
+{% endhint %}
 ```yaml
-offline_store:
-    type: remote
-    host: localhost
-    port: 8815
-    auth:
-        type: oidc
-        server: 'http://0.0.0.0:8080'
-        realm: 'OIDC_REALM'
-        client-id: 'CLIENT_ID'
-        client-secret: 'CLIENT_SECRET'
-        username: 'USERNAME'
-        password: 'PASSWORD'
+project: foo
+registry: "registry.db"
+provider: local
+online_store:
+  path: foo
+entity_key_serialization_version: 2
+auth:
+  type: kubernetes
 ```
+* OIDC authorization: Below configuration is an example for OIDC authorization example. 
+```yaml
+project: foo
+auth:
+  type: oidc
+  client_id: test_client_id
+  client_secret: test_client_secret
+  username: test_user_name
+  password: test_password
+  realm: master
+  auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
+registry: "registry.db"
+provider: local
+online_store:
+  path: foo
+entity_key_serialization_version: 2
+```
+Few of the key models, classes to understand the authorization implementation from the clients can be found [here](./../../../sdk/python/feast/permissions/client).

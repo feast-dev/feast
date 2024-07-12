@@ -260,7 +260,7 @@ def test_auth_config():
             username: test_user_name
             password: test_password
             realm: master
-            auth_server_url: http://localhost:8712
+            auth_server_url: http://localhost:8080
             auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
         registry: "registry.db"
         provider: local
@@ -278,7 +278,7 @@ def test_auth_config():
     assert oidc_repo_config.auth_config.username == "test_user_name"
     assert oidc_repo_config.auth_config.password == "test_password"
     assert oidc_repo_config.auth_config.realm == "master"
-    assert oidc_repo_config.auth_config.auth_server_url == "http://localhost:8712"
+    assert oidc_repo_config.auth_config.auth_server_url == "http://localhost:8080"
     assert (
         oidc_repo_config.auth_config.auth_discovery_url
         == "http://localhost:8080/realms/master/.well-known/openid-configuration"

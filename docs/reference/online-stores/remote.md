@@ -11,11 +11,17 @@ The registry is pointing to registry of remote feature store. If it is not acces
 {% code title="feature_store.yaml" %}
 ```yaml
 project: my-local-project
-  registry: /remote/data/registry.db
-  provider: local
-  online_store:
-    path: http://localhost:6566
-    type: remote
-  entity_key_serialization_version: 2
+registry: /remote/data/registry.db
+provider: local
+online_store:
+  path: http://localhost:6566
+  type: remote
+entity_key_serialization_version: 2
+auth:
+  type: no_auth
 ```
 {% endcode %}
+
+## How to configure Authentication and Authorization
+Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.
+

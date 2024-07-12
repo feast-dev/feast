@@ -41,6 +41,5 @@
 | Refresh                  |                     | None                   | Refresh the registry                         |
 | Proto                    |                     | None                   | Get the proto representation of the registry |
 
-## How to configure Authentication and Authorization ?
-
-TODO add the section for that
+## How to configure Authentication and Authorization
+Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.
