@@ -20,7 +20,9 @@ class OidcAuthClientManager(AuthenticationClientManager):
                 raise RuntimeError(
                     " OIDC token_endpoint is not available from discovery url response."
                 )
-            return oidc_config["token_endpoint"]
+            return oidc_config["token_endpoint"].replace(
+                "master", self.auth_config.realm
+            )
         else:
             raise RuntimeError(
                 f"Error fetching OIDC token endpoint configuration: {response.status_code} - {response.text}"
@@ -33,11 +35,15 @@ class OidcAuthClientManager(AuthenticationClientManager):
         token_request_body = {
             "grant_type": "password",
             "client_id": self.auth_config.client_id,
+            "client_secret": self.auth_config.client_secret,
             "username": self.auth_config.username,
             "password": self.auth_config.password,
         }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        token_response = requests.post(token_endpoint, data=token_request_body)
+        token_response = requests.post(
+            token_endpoint, data=token_request_body, headers=headers
+        )
         if token_response.status_code == 200:
             access_token = token_response.json()["access_token"]
             if not access_token:
