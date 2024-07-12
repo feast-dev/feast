@@ -84,7 +84,7 @@ def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
 
 
 def init_auth_manager(
-    server_type: ServerType, auth_type: AuthType, auth_config: AuthConfig
+    server_type: ServerType, auth_type: AuthManagerType, auth_config: AuthConfig
 ):
     """
     Initialize the global authorization manager.
@@ -114,7 +114,7 @@ def init_auth_manager(
 
         if auth_type == AuthManagerType.KUBERNETES:
             token_parser = KubernetesTokenParser()
-        elif auth_type == AuthType.OIDC:
+        elif auth_type == AuthManagerType.OIDC:
             assert isinstance(auth_config, OidcAuthConfig)
             token_parser = OidcTokenParser(auth_config=auth_config)
         else:

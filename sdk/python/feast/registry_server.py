@@ -583,7 +583,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
 
 def start_server(store: FeatureStore, port: int, wait_for_termination: bool = True):
-    auth_manager_type = str_to_auth_type(store.config.auth_config.type)
+    auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_type=auth_manager_type,
@@ -600,4 +600,7 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
     )
     server.add_insecure_port(f"[::]:{port}")
     server.start()
-    server.wait_for_termination()
+    if wait_for_termination:
+        server.wait_for_termination()
+    else:
+        return server
