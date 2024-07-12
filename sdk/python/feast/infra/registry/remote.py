@@ -15,11 +15,14 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
     AuthConfig,
     NoAuthConfig,
 )
-from feast.permissions.client.utils import create_auth_header
+from feast.permissions.client.utils import (
+    create_auth_header,
+)
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -55,27 +58,33 @@ class RemoteRegistry(BaseRegistry):
             entity=entity.to_proto(), project=project, commit=commit
         )
 
-        self.stub.ApplyEntity(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyEntity(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyEntity(request)
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteEntityRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteEntity(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteEntity(request=request, metadata=metadata)
+        else:
+            self.stub.DeleteEntity(request)
 
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         request = RegistryServer_pb2.GetEntityRequest(
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetEntity(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetEntity(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetEntity(request)
 
         return Entity.from_proto(response)
 
@@ -89,9 +98,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListEntities(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListEntities(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListEntities(request)
 
         return [Entity.from_proto(entity) for entity in response.entities]
 
@@ -102,18 +113,22 @@ class RemoteRegistry(BaseRegistry):
             data_source=data_source.to_proto(), project=project, commit=commit
         )
 
-        self.stub.ApplyDataSource(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyDataSource(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyDataSource(request)
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteDataSourceRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteDataSource(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteDataSource(request=request, metadata=metadata)
+        else:
+            self.stub.DeleteDataSource(request)
 
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
@@ -122,9 +137,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetDataSource(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetDataSource(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetDataSource(request)
 
         return DataSource.from_proto(response)
 
@@ -138,9 +155,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListDataSources(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListDataSources(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListDataSources(request)
 
         return [
             DataSource.from_proto(data_source) for data_source in response.data_sources
@@ -153,18 +172,22 @@ class RemoteRegistry(BaseRegistry):
             feature_service=feature_service.to_proto(), project=project, commit=commit
         )
 
-        self.stub.ApplyFeatureService(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyFeatureService(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyFeatureService(request)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureServiceRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteFeatureService(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteFeatureService(request=request, metadata=metadata)
+        else:
+            self.stub.DeleteFeatureService(request)
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
@@ -173,9 +196,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetFeatureService(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetFeatureService(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetFeatureService(request)
 
         return FeatureService.from_proto(response)
 
@@ -189,9 +214,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListFeatureServices(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListFeatureServices(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListFeatureServices(request)
 
         return [
             FeatureService.from_proto(feature_service)
@@ -222,18 +249,22 @@ class RemoteRegistry(BaseRegistry):
             commit=commit,
         )
 
-        self.stub.ApplyFeatureView(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyFeatureView(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyFeatureView(request)
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureViewRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteFeatureView(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteFeatureView(request=request, metadata=metadata)
+        else:
+            self.stub.DeleteFeatureView(request)
 
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
@@ -242,9 +273,13 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetStreamFeatureView(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetStreamFeatureView(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.GetStreamFeatureView(request)
 
         return StreamFeatureView.from_proto(response)
 
@@ -258,9 +293,13 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListStreamFeatureViews(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListStreamFeatureViews(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.ListStreamFeatureViews(request)
 
         return [
             StreamFeatureView.from_proto(stream_feature_view)
@@ -274,9 +313,13 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetOnDemandFeatureView(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetOnDemandFeatureView(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.GetOnDemandFeatureView(request)
 
         return OnDemandFeatureView.from_proto(response)
 
@@ -290,9 +333,13 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListOnDemandFeatureViews(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListOnDemandFeatureViews(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.ListOnDemandFeatureViews(request)
 
         return [
             OnDemandFeatureView.from_proto(on_demand_feature_view)
@@ -306,9 +353,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetFeatureView(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetFeatureView(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetFeatureView(request)
 
         return FeatureView.from_proto(response)
 
@@ -322,9 +371,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListFeatureViews(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListFeatureViews(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListFeatureViews(request)
 
         return [
             FeatureView.from_proto(feature_view)
@@ -353,9 +404,11 @@ class RemoteRegistry(BaseRegistry):
             commit=commit,
         )
 
-        self.stub.ApplyMaterialization(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyMaterialization(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyMaterialization(request)
 
     def apply_saved_dataset(
         self,
@@ -367,18 +420,18 @@ class RemoteRegistry(BaseRegistry):
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
 
-        self.stub.ApplyFeatureService(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyFeatureService(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyFeatureService(request)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteSavedDataset(
-            request, metadata=create_auth_header(self.auth_config)
-        )
+        self.stub.DeleteSavedDataset(request)
 
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
@@ -387,9 +440,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetSavedDataset(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetSavedDataset(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetSavedDataset(request)
 
         return SavedDataset.from_proto(response)
 
@@ -403,9 +458,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListSavedDatasets(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListSavedDatasets(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListSavedDatasets(request)
 
         return [
             SavedDataset.from_proto(saved_dataset)
@@ -424,18 +481,22 @@ class RemoteRegistry(BaseRegistry):
             commit=commit,
         )
 
-        self.stub.ApplyValidationReference(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyValidationReference(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyValidationReference(request)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteValidationReferenceRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteValidationReference(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteValidationReference(request=request, metadata=metadata)
+        else:
+            self.stub.DeleteValidationReference(request)
 
     def get_validation_reference(
         self, name: str, project: str, allow_cache: bool = False
@@ -444,9 +505,13 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetValidationReference(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetValidationReference(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.GetValidationReference(request)
 
         return ValidationReference.from_proto(response)
 
@@ -460,9 +525,13 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListValidationReferences(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListValidationReferences(
+                request=request, metadata=metadata
+            )
+        else:
+            response = self.stub.ListValidationReferences(request)
 
         return [
             ValidationReference.from_proto(validation_reference)
@@ -476,9 +545,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.ListProjectMetadata(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListProjectMetadata(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListProjectMetadata(request)
 
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
 
@@ -487,18 +558,22 @@ class RemoteRegistry(BaseRegistry):
             infra=infra.to_proto(), project=project, commit=commit
         )
 
-        self.stub.UpdateInfra(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.UpdateInfra(request=request, metadata=metadata)
+        else:
+            self.stub.UpdateInfra(request)
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         request = RegistryServer_pb2.GetInfraRequest(
             project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetInfra(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetInfra(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetInfra(request)
 
         return Infra.from_proto(response)
 
@@ -525,18 +600,22 @@ class RemoteRegistry(BaseRegistry):
             permission=permission_proto, project=project, commit=commit
         )
 
-        self.stub.ApplyPermission(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.ApplyPermission(request=request, metadata=metadata)
+        else:
+            self.stub.ApplyPermission(request)
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeletePermissionRequest(
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeletePermission(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeletePermission(request=request, metadata=metadata)
+        else:
+            self.stub.DeletePermission(request)
 
     def get_permission(
         self, name: str, project: str, allow_cache: bool = False
@@ -545,9 +624,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, allow_cache=allow_cache
         )
 
-        response = self.stub.GetPermission(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetPermission(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetPermission(request)
 
         return Permission.from_proto(response)
 
@@ -561,9 +642,11 @@ class RemoteRegistry(BaseRegistry):
             project=project, allow_cache=allow_cache, tags=tags
         )
 
-        response = self.stub.ListPermissions(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.ListPermissions(request=request, metadata=metadata)
+        else:
+            response = self.stub.ListPermissions(request)
 
         return [
             Permission.from_proto(permission) for permission in response.permissions
@@ -578,9 +661,11 @@ class RemoteRegistry(BaseRegistry):
     def refresh(self, project: Optional[str] = None):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
 
-        self.stub.Refresh(
-            request=request, metadata=create_auth_header(self.auth_config)
-        )
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.Refresh(request=request, metadata=metadata)
+        else:
+            self.stub.Refresh(request)
 
     def teardown(self):
         pass
