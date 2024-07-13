@@ -17,7 +17,8 @@ class RegistryStore(ABC):
         Returns:
             Returns either the registry proto stored at the registry path, or an empty registry proto.
         """
-        raise NotImplementedError
+        #raise NotImplementedError
+        return RegistryProto()
 
     @abstractmethod
     def update_registry_proto(self, registry_proto: RegistryProto):

@@ -1014,6 +1014,7 @@ xmltodict==0.13.0
     # via moto
 zipp==3.18.1
     # via importlib-metadata
+neo4j==5.22.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

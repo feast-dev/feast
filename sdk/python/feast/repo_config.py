@@ -40,6 +40,7 @@ REGISTRY_CLASS_FOR_TYPE = {
     "sql": "feast.infra.registry.sql.SqlRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
     "remote": "feast.infra.registry.remote.RemoteRegistry",
+    "graph": "feast.infra.registry.graph.GraphRegistry",
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
@@ -130,6 +131,15 @@ class RegistryConfig(FeastBaseModel):
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
+    uri: StrictStr = ""
+    """ str: URI for the Neo4j database """
+
+    user: StrictStr = ""
+    """ str: Username for the Neo4j database """
+
+    password: StrictStr = ""
+    """ str: Password for the Neo4j database """
+
 
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
@@ -147,7 +157,7 @@ class RepoConfig(FeastBaseModel):
     """ Configures the registry.
         Can be:
             1. str: a path to a file based registry (a local path, or remote object storage path, e.g. a GCS URI)
-            2. RegistryConfig: A fully specified file based registry or SQL based registry
+            2. RegistryConfig: A fully specified file based registry, SQL or graph based registry
             3. SnowflakeRegistryConfig: Using a Snowflake table to store the registry
     """
 
@@ -484,6 +494,7 @@ def get_data_source_class_from_type(data_source_type: str):
 
 def get_registry_config_from_type(registry_type: str):
     # We do not support custom registry's right now
+    # Heheh let's change that
     if registry_type not in REGISTRY_CLASS_FOR_TYPE:
         raise FeastRegistryTypeInvalidError(registry_type)
     registry_type = REGISTRY_CLASS_FOR_TYPE[registry_type]

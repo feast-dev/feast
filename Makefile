@@ -22,6 +22,11 @@ ifeq ($(shell uname -s), Darwin)
 endif
 TRINO_VERSION ?= 376
 
+PYTHON_VERSION := $(shell python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+PYTHON := $(PYTHON_VERSION)
+
+VENV_DIR := ../../venv
+
 # General
 
 format: format-python format-java
@@ -41,10 +46,15 @@ install-python-ci-dependencies:
 	pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+#install-python-ci-dependencies-uv:
+#	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+#	uv pip install --system --no-deps -e .
+#	python setup.py build_python_protos --inplace
+
 install-python-ci-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
-	uv pip install --system --no-deps -e .
-	python setup.py build_python_protos --inplace
+	. $(VENV_DIR)/bin/activate && uv pip sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	. $(VENV_DIR)/bin/activate && uv pip install --no-deps -e .
+	. $(VENV_DIR)/bin/activate && python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
 	python -m piptools compile -U --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
