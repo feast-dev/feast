@@ -1,9 +1,8 @@
-# File offline store
+# Dask offline store
 
 ## Description
 
-The file offline store provides support for reading [FileSources](../data-sources/file.md).
-It uses Dask as the compute engine.
+The Dask offline store provides support for reading [FileSources](../data-sources/file.md).
 
 {% hint style="warning" %}
 All data is downloaded and joined using Python and therefore may not scale to production workloads.
@@ -17,18 +16,18 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 offline_store:
-  type: file
+  type: dask
 ```
 {% endcode %}
 
-The full set of configuration options is available in [FileOfflineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.offline_stores.file.FileOfflineStoreConfig).
+The full set of configuration options is available in [DaskOfflineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.offline_stores.dask.DaskOfflineStoreConfig).
 
 ## Functionality Matrix
 
 The set of functionality supported by offline stores is described in detail [here](overview.md#functionality).
-Below is a matrix indicating which functionality is supported by the file offline store.
+Below is a matrix indicating which functionality is supported by the dask offline store.
 
-| | File |
+| | Dask |
 | :-------------------------------- | :-- |
 | `get_historical_features` (point-in-time correct join)             | yes |
 | `pull_latest_from_table_or_query` (retrieve latest feature values) | yes |
@@ -36,9 +35,9 @@ Below is a matrix indicating which functionality is supported by the file offlin
 | `offline_write_batch` (persist dataframes to offline store)        | yes |
 | `write_logged_features` (persist logged features to offline store) | yes |
 
-Below is a matrix indicating which functionality is supported by `FileRetrievalJob`.
+Below is a matrix indicating which functionality is supported by `DaskRetrievalJob`.
 
-| | File |
+| | Dask |
 | --------------------------------- | --- |
 | export to dataframe                                   | yes |
 | export to arrow table                                 | yes |

@@ -23,7 +23,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoRetrievalJob,
 )
-from feast.infra.offline_stores.file import FileRetrievalJob
+from feast.infra.offline_stores.dask import DaskRetrievalJob
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
@@ -100,7 +100,7 @@ class MockRetrievalJob(RetrievalJob):
 @pytest.fixture(
     params=[
         MockRetrievalJob,
-        FileRetrievalJob,
+        DaskRetrievalJob,
         RedshiftRetrievalJob,
         SnowflakeRetrievalJob,
         AthenaRetrievalJob,
@@ -112,8 +112,8 @@ class MockRetrievalJob(RetrievalJob):
     ]
 )
 def retrieval_job(request, environment):
-    if request.param is FileRetrievalJob:
-        return FileRetrievalJob(lambda: 1, full_feature_names=False)
+    if request.param is DaskRetrievalJob:
+        return DaskRetrievalJob(lambda: 1, full_feature_names=False)
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
             cluster_id="feast-int-bucket",
