@@ -5,10 +5,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from pydantic import StrictStr
+from pydantic import (
+    StrictInt,
+    StrictStr,
+)
+from neo4j import GraphDatabase
 
-
-from feast import usage
+from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -48,8 +51,6 @@ from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
-metadata = MetaData()
-
 entities = "Entity"
 data_sources = "DataSource"
 feature_views = "FeatureView"
@@ -59,7 +60,6 @@ feature_services = "FeatureService"
 saved_datasets = "SavedDataset"
 validation_references = "ValidationReference"
 managed_infra = "Infra"
-feast_metadata = "ProjectMetadata"
 
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
@@ -83,7 +83,7 @@ class GraphRegistryConfig(RegistryConfig):
     """ str: Password for the Neo4j database """
 
     cache_ttl_seconds: StrictInt = 600
-    """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
+    """ int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
      the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
@@ -107,7 +107,11 @@ class GraphRegistry(CachingRegistry):
         )
         
         # Initialize CachingRegistry with cache TTL
-        super().__init__(cache_ttl_seconds=registry_config.cache_ttl_seconds)
+        super().__init__(
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds
+        )
+
 
     def teardown(self):
         for label in {
@@ -162,10 +166,12 @@ class GraphRegistry(CachingRegistry):
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
             last_updated_timestamps.append(self._get_last_updated_metadata(project))
-
+        '''
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
-
+        else:
+            r.last_updated.FromDatetime(datetime.utcnow())
+        '''
         return r
 
     def _maybe_init_project_metadata(self, project):
@@ -174,35 +180,41 @@ class GraphRegistry(CachingRegistry):
         update_time = int(update_datetime.timestamp())
 
         with self.driver.session() as session:
-            if hasattr(obj, "last_updated_timestamp"):
-                obj.last_updated_timestamp = update_datetime
-
             result = session.run(
                 f"""
-                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:feast_metadata {{ metadata_key: $key }})
+                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:ProjectMetadata {{ metadata_key: $key }})
                 RETURN n
                 """, 
                 key=FeastMetadataKeys.PROJECT_UUID.value, 
                 project=project
             )
             node = result.single()
+            print(f"Searching for project: {project}, metadata {FeastMetadataKeys.PROJECT_UUID.value}")
+            print(f"Result {node}")
 
             if not node:
                 new_project_uuid = f"{uuid.uuid4()}"
                 session.run(
                     f"""
-                    MATCH (p:Project {{ project_id: $project }})
-                    CREATE (n:feast_metadata {{ 
-                        metadata_key: $key, 
-                        metadata_value: $metadata_value, 
-                        last_updated_timestamp: $update_time 
+                    CREATE (p:Project {{ 
+                        metadata_key: $project_key, 
+                        metadata_value: $project_metadata_value, 
+                        last_updated_timestamp: $update_time,
+                        project_id: $project
+                    }})
+                    CREATE (n:ProjectMetadata {{ 
+                        metadata_key: $project_key, 
+                        metadata_value: $project_metadata_value, 
+                        last_updated_timestamp: $update_time
                     }})
                     CREATE (p)-[:CONTAINS]->(n)
                     """, 
-                    key=FeastMetadataKeys.PROJECT_UUID.value, 
-                    metadata_value=new_project_uuid, 
+                    project_key=FeastMetadataKeys.PROJECT_UUID.value, 
+                    key=FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value, 
+                    project_metadata_value=new_project_uuid, 
+                    metadata_value=f"{update_time}",
                     update_time=update_time,
-                    project=project 
+                    project=project,
                 )
 
     def get_user_metadata(self, project: str, feature_view: BaseFeatureView) -> Optional[bytes]:
@@ -476,7 +488,7 @@ class GraphRegistry(CachingRegistry):
         with self.driver.session() as session:
             result = session.run(
                 f"""
-                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:feast_metadata {{ metadata_key: $key }})
+                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:ProjectMetadata {{ metadata_key: $key  }})
                 RETURN n
                 """, 
                 key=FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value, 
@@ -489,10 +501,10 @@ class GraphRegistry(CachingRegistry):
             if node:
                 session.run(
                     f"""
-                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:feast_metadata {{ metadata_key: $key }})
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:ProjectMetadata {{ metadata_key: $key  }})
                     SET n.metadata_key = $key,
                         n.metadata_value = $metadata_value,
-                        n.last_updated_timestamp = $update_time,
+                        n.last_updated_timestamp = $update_time
                     """, 
                     key=FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value, 
                     metadata_value=f"{update_time}", 
@@ -502,11 +514,11 @@ class GraphRegistry(CachingRegistry):
             else:
                 session.run(
                     f"""
-                    MATCH (p:Project {{ project_id: $project }})                    
-                    CREATE (n:feast_metadata {{ 
+                    MATCH (p:Project {{ project_id: $project }})
+                    CREATE (n:ProjectMetadata {{ 
                         metadata_key: $key, 
                         metadata_value: $metadata_value, 
-                        last_updated_timestamp: $update_time 
+                        last_updated_timestamp: $update_time
                     }})
                     CREATE (p)-[:CONTAINS]->(n)
                     """, 
@@ -664,7 +676,7 @@ class GraphRegistry(CachingRegistry):
         with self.driver.session() as session:
             result = session.run(
                 f"""
-                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:feast_metadata {{ metadata_key: $key }})
+                MATCH (p:Project {{ project_id: $project  }})-[:CONTAINS]->(n:ProjectMetadata {{ metadata_key: $key }})
                 RETURN n.last_updated_timestamp AS last_updated_timestamp
                 """, 
                 key=FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value, 
@@ -676,7 +688,7 @@ class GraphRegistry(CachingRegistry):
                 return None
             update_time = int(node["last_updated_timestamp"])
 
-            return datetime.fromtimestamp(update_time, tz=timezone.utc)
+            return datetime.fromtimestamp(update_time)
 
     def _get_all_projects(self) -> Set[str]:
         projects = set()
@@ -743,7 +755,7 @@ class GraphRegistry(CachingRegistry):
 
         return []
 
-    def _list_entities(self, project: str, tags: Optional[dict[str, str]]) -> List[Entity]:
+    def _list_entities(self, project: str, tags: Optional[dict[str, str]] = None) -> List[Entity]:
         return self._list_objects(
             label=entities,
             project=project,
@@ -753,7 +765,7 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
 
-    def _list_data_sources(self, project: str, tags: Optional[dict[str, str]]) -> List[DataSource]:
+    def _list_data_sources(self, project: str, tags: Optional[dict[str, str]] = None) -> List[DataSource]:
         return self._list_objects(
             label=data_sources,
             project=project,
@@ -763,7 +775,7 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
 
-    def _list_feature_views(self, project: str, tags: Optional[dict[str, str]]) -> List[FeatureView]:
+    def _list_feature_views(self, project: str, tags: Optional[dict[str, str]] = None) -> List[FeatureView]:
         return self._list_objects(
             label=feature_views,
             project=project,
@@ -773,7 +785,7 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
 
-    def _list_stream_feature_views(self, project: str, tags: Optional[dict[str, str]]) -> List[StreamFeatureView]:
+    def _list_stream_feature_views(self, project: str, tags: Optional[dict[str, str]] = None) -> List[StreamFeatureView]:
         return self._list_objects(
             label=stream_feature_views,
             project=project,
@@ -783,7 +795,7 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
 
-    def _list_on_demand_feature_views(self, project: str, tags: Optional[dict[str, str]]) -> List[OnDemandFeatureView]:
+    def _list_on_demand_feature_views(self, project: str, tags: Optional[dict[str, str]] = None) -> List[OnDemandFeatureView]:
         return self._list_objects(
             label=on_demand_feature_views,
             project=project,
@@ -793,11 +805,11 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
 
-    def _list_feature_services(self, project: str, tags: Optional[dict[str, str]]) -> List[FeatureService]:
+    def _list_feature_services(self, project: str, tags: Optional[dict[str, str]] = None) -> List[FeatureService]:
         return self._list_objects(
             label=feature_services,
             project=project,
-            proto_class=proto_classFeatureServiceProto,
+            proto_class=FeatureServiceProto,
             python_class=FeatureService,
             proto_field_name="feature_service_proto",
             tags=tags
@@ -825,8 +837,8 @@ class GraphRegistry(CachingRegistry):
         with self.driver.session() as session:
             result = session.run(
                 f"""
-                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:feast_metadata)
-                RETURN n.metadata_key AS metadata_key, n.metadata_value AS metadata_value
+                MATCH (p:Project {{ project_id: $project }})
+                RETURN p.metadata_key AS metadata_key, p.metadata_value AS metadata_value
                 """, 
                 project=project
             )
@@ -836,8 +848,7 @@ class GraphRegistry(CachingRegistry):
                 project_metadata = ProjectMetadata(project_name=project)
                 for node in nodes:
                     if (
-                        node["metadata_key"]
-                        == FeastMetadataKeys.PROJECT_UUID.value
+                        node["metadata_key"]== FeastMetadataKeys.PROJECT_UUID.value
                     ):
                         project_metadata.project_uuid = node["metadata_value"]
                         break
@@ -865,11 +876,11 @@ class GraphRegistry(CachingRegistry):
             )
             nodes = result.data()
 
-            if deleted_count < 1 and not_found_exception:
+            if nodes["deleted_count"] < 1 and not_found_exception:
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(datetime.utcnow(), project)
 
-            return deleted_count
+            return nodes["deleted_count"]
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
