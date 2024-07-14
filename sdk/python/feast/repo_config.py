@@ -68,7 +68,8 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
-    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "file": "feast.infra.offline_stores.dask.DaskOfflineStore",
+    "dask": "feast.infra.offline_stores.dask.DaskOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
     "snowflake.offline": "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
@@ -205,7 +206,7 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        self.offline_config = data.get("offline_store", "file")
+        self.offline_config = data.get("offline_store", "dask")
 
         self._online_store = None
         self.online_config = data.get("online_store", "sqlite")
@@ -348,7 +349,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            values["offline_store"]["type"] = "file"
+            values["offline_store"]["type"] = "dask"
 
         offline_store_type = values["offline_store"]["type"]
 

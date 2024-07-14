@@ -39,20 +39,20 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.utils import _get_requested_feature_views_to_features_dict
 
-# FileRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
+# DaskRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
 # This is not the desired behavior for our use case, so we set the convert-string option to False
 # See (https://github.com/dask/dask/issues/10881#issuecomment-1923327936)
 dask.config.set({"dataframe.convert-string": False})
 
 
-class FileOfflineStoreConfig(FeastConfigBaseModel):
-    """Offline store config for local (file-based) store"""
+class DaskOfflineStoreConfig(FeastConfigBaseModel):
+    """Offline store config for dask store"""
 
-    type: Literal["file"] = "file"
+    type: Union[Literal["dask"], Literal["file"]] = "dask"
     """ Offline store type selector"""
 
 
-class FileRetrievalJob(RetrievalJob):
+class DaskRetrievalJob(RetrievalJob):
     def __init__(
         self,
         evaluation_function: Callable,
@@ -122,7 +122,7 @@ class FileRetrievalJob(RetrievalJob):
         return False
 
 
-class FileOfflineStore(OfflineStore):
+class DaskOfflineStore(OfflineStore):
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
@@ -133,7 +133,7 @@ class FileOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
-        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, FileSource)
 
@@ -283,7 +283,7 @@ class FileOfflineStore(OfflineStore):
 
             return entity_df_with_features.persist()
 
-        job = FileRetrievalJob(
+        job = DaskRetrievalJob(
             evaluation_function=evaluate_historical_retrieval,
             full_feature_names=full_feature_names,
             on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
@@ -309,7 +309,7 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
         # Create lazy function that is only called from the RetrievalJob object
@@ -372,7 +372,7 @@ class FileOfflineStore(OfflineStore):
             return source_df[list(columns_to_extract)].persist()
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
-        return FileRetrievalJob(
+        return DaskRetrievalJob(
             evaluation_function=evaluate_offline_job,
             full_feature_names=False,
         )
@@ -387,10 +387,10 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
-        return FileOfflineStore.pull_latest_from_table_or_query(
+        return DaskOfflineStore.pull_latest_from_table_or_query(
             config=config,
             data_source=data_source,
             join_key_columns=join_key_columns
@@ -410,7 +410,7 @@ class FileOfflineStore(OfflineStore):
         logging_config: LoggingConfig,
         registry: BaseRegistry,
     ):
-        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         destination = logging_config.destination
         assert isinstance(destination, FileLoggingDestination)
 
@@ -441,7 +441,7 @@ class FileOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        assert isinstance(config.offline_store, FileOfflineStoreConfig)
+        assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(feature_view.batch_source, FileSource)
 
         pa_schema, column_names = get_pyarrow_schema_from_batch_source(

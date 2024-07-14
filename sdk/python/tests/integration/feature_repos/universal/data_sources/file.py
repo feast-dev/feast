@@ -20,8 +20,8 @@ from feast import FileSource, RepoConfig
 from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
-from feast.infra.offline_stores.file import FileOfflineStoreConfig
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     SavedDatasetFileStorage,
@@ -84,7 +84,7 @@ class FileDataSourceCreator(DataSourceCreator):
         return f"{self.project_name}.{suffix}"
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
-        return FileOfflineStoreConfig()
+        return DaskOfflineStoreConfig()
 
     def create_logged_features_destination(self) -> LoggingDestination:
         d = tempfile.mkdtemp(prefix=self.project_name)
@@ -334,7 +334,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
         return f"{suffix}"
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
-        return FileOfflineStoreConfig()
+        return DaskOfflineStoreConfig()
 
     def teardown(self):
         self.minio.stop()
