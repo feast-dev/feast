@@ -162,7 +162,8 @@ def python_type_to_feast_value_type(
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,  # special dtype of pandas
+        "datetime64[ns, utc]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
