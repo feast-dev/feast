@@ -49,4 +49,4 @@ The set of functionalities supported by remote offline stores is the same as tho
 
 ## How to configure Authentication and Authorization ?
 
-TODO add the section for that
+Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.
