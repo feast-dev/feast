@@ -431,7 +431,11 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, commit=commit
         )
 
-        self.stub.DeleteSavedDataset(request)
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.DeleteSavedDataset(request, metadata=metadata)
+        else:
+            self.stub.DeleteSavedDataset(request)
 
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
@@ -653,10 +657,18 @@ class RemoteRegistry(BaseRegistry):
         ]
 
     def proto(self) -> RegistryProto:
-        return self.stub.Proto(Empty())
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            return self.stub.Proto(Empty(), metadata=metadata)
+        else:
+            return self.stub.Proto(Empty())
 
     def commit(self):
-        self.stub.Commit(Empty())
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            self.stub.Commit(Empty(), metadata=metadata)
+        else:
+            self.stub.Commit(Empty())
 
     def refresh(self, project: Optional[str] = None):
         request = RegistryServer_pb2.RefreshRequest(project=str(project))
