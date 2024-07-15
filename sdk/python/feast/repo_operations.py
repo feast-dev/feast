@@ -384,8 +384,8 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
 
 def init_repo(repo_name: str, template: str):
     import os
-    from shutil import copytree
     from pathlib import Path
+    from shutil import copytree
 
     from colorama import Fore, Style
 
