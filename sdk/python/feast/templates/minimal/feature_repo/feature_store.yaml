@@ -4,6 +4,3 @@ provider: local
 online_store:
     path: /path/to/online_store.db
 entity_key_serialization_version: 2
-auth:
-    type: no_auth
-
