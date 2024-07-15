@@ -384,7 +384,7 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
 
 def init_repo(repo_name: str, template: str):
     import os
-    from distutils.dir_util import copy_tree
+    from shutil import copytree
     from pathlib import Path
 
     from colorama import Fore, Style
@@ -412,7 +412,7 @@ def init_repo(repo_name: str, template: str):
     template_path = str(Path(Path(__file__).parent / "templates" / template).absolute())
     if not os.path.exists(template_path):
         raise IOError(f"Could not find template {template}")
-    copy_tree(template_path, str(repo_path))
+    copytree(template_path, str(repo_path), dirs_exist_ok=True)
 
     # Seed the repository
     bootstrap_path = repo_path / "bootstrap.py"

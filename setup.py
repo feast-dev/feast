@@ -18,21 +18,14 @@ import re
 import shutil
 import subprocess
 import sys
-from distutils.cmd import Command
+
 from pathlib import Path
 
-from setuptools import find_packages
-
-try:
-    from setuptools import setup
-    from setuptools.command.build_ext import build_ext as _build_ext
-    from setuptools.command.build_py import build_py
-    from setuptools.command.develop import develop
-    from setuptools.command.install import install
-
-except ImportError:
-    from distutils.command.build_py import build_py
-    from distutils.core import setup
+from setuptools import find_packages, setup, Command
+from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
