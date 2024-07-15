@@ -365,7 +365,7 @@ def build_point_in_time_query(
     full_feature_names: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
-    template = Environment(loader=BaseLoader()).from_string(source=query_template)
+    template = Environment(autoescape=True, loader=BaseLoader()).from_string(source=query_template)
 
     final_output_feature_names = list(entity_df_columns)
     final_output_feature_names.extend(
