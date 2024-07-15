@@ -61,6 +61,7 @@ REQUIRED = [
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",
     "psutil",
+    "bigtree>=0.19.2",
 ]
 
 GCP_REQUIRED = [
