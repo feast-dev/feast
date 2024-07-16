@@ -117,7 +117,7 @@ def prepare_logs(
                     f"{destination_field}__status"
                 ].mask(
                     logs_df[f"{destination_field}__timestamp"]
-                    < (_utc_now() - view.ttl),
+                    < (_utc_now() - view.ttl).replace(tzinfo=None),
                     FieldStatus.OUTSIDE_MAX_AGE,
                 )
 
