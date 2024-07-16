@@ -70,7 +70,7 @@ try:
     from google.cloud.bigquery._pyarrow_helpers import _ARROW_SCALAR_IDS_TO_BQ
 except ImportError:
     try:
-        from google.cloud.bigquery._pandas_helpers import (
+        from google.cloud.bigquery._pandas_helpers import (  # type: ignore
             ARROW_SCALAR_IDS_TO_BQ as _ARROW_SCALAR_IDS_TO_BQ,
         )
     except ImportError as e:
