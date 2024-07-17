@@ -38,11 +38,6 @@ helm upgrade --install feast-offline-server $HELM_CHART_PATH \
   --set feast_mode=offline \
   --set feature_store_yaml_base64=$FEATURE_STORE_YAML_BASE64
 
-# Upgrade or install feast-ui-server
-helm upgrade --install feast-ui-server $HELM_CHART_PATH \
-  --set feast_mode=ui \
-  --set feature_store_yaml_base64=$FEATURE_STORE_YAML_BASE64
-
 # Upgrade or install feast-registry-server
 helm upgrade --install feast-registry-server $HELM_CHART_PATH \
   --set feast_mode=registry \
