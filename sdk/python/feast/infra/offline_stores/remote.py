@@ -367,7 +367,7 @@ def _call_get(
     options: pa.flight.FlightCallOptions,
     command_descriptor: fl.FlightDescriptor,
 ):
-    flight = client.get_flight_info(command_descriptor)
+    flight = client.get_flight_info(command_descriptor, options)
     ticket = flight.endpoints[0].ticket
     reader = client.do_get(ticket, options)
     return reader.read_all()
