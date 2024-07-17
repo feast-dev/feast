@@ -18,6 +18,6 @@ def create_flight_call_options(auth_config: AuthConfig) -> fl.FlightCallOptions:
     if auth_config.type != AuthType.NONE:
         auth_client_manager = get_auth_client_manager(auth_config)
         token = auth_client_manager.get_token()
-        headers = [(b"authorization", b"Bearer " + token.encode('utf-8'))]
+        headers = [(b"authorization", b"Bearer " + token.encode("utf-8"))]
         return fl.FlightCallOptions(headers=headers)
     return fl.FlightCallOptions()
