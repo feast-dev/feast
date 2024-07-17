@@ -1,0 +1,14 @@
+project: server
+registry:
+    registry_type: remote
+    path: localhost:6570
+offline_store:
+    type: remote
+    host: localhost
+    port: 8815
+online_store:
+    type: remote
+    path: http://localhost:6566
+auth:
+    type: kubernetes
+entity_key_serialization_version: 2
