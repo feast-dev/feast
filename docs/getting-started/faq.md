@@ -8,6 +8,9 @@ We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast
 
 ## Getting started
 
+### Which programming language should I use to run Feast in a microservice architecture?
+[We recommend Python](language.md).
+
 ### Do you have any examples of how Feast should be used?
 
 The [quickstart](quickstart.md) is the easiest way to learn about Feast. For more detailed tutorials, please check out the [tutorials](../tutorials/tutorials-overview/) page.
@@ -92,7 +95,7 @@ The list of supported offline and online stores can be found [here](../reference
 
 ### Does Feast support using different clouds for offline vs online stores?
 
-Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live (Using the AWS provider also allows for deployment to AWS Lambda). You can override the offline and online stores to be in different clouds if you wish.
+Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live. You can override the offline and online stores to be in different clouds if you wish.
 
 ### What is the difference between a data source and an offline store?
 

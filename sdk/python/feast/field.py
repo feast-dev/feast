@@ -14,7 +14,7 @@
 
 from typing import Dict, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typeguard import check_type, typechecked
 
 from feast.feature import Feature
@@ -35,16 +35,14 @@ class Field(BaseModel):
         tags: User-defined metadata in dictionary form.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
     name: str
     dtype: FeastType
     description: str = ""
     tags: Optional[Dict[str, str]] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
-
-    @validator("dtype", pre=True, always=True)
+    @field_validator("dtype", mode="before")
     def dtype_is_feasttype_or_string_feasttype(cls, v):
         """
         dtype must be a FeastType, but to allow wire transmission,
@@ -55,10 +53,10 @@ class Field(BaseModel):
         format.
         """
         try:
-            check_type("v", v, FeastType)  # type: ignore
+            check_type(v, FeastType)  # type: ignore
         except TypeError:
             try:
-                check_type("v", v, str)
+                check_type(v, str)
                 return from_string(v)
             except TypeError:
                 raise TypeError("dtype must be of type FeastType")

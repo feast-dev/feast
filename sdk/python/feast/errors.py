@@ -67,7 +67,7 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
 
 
 class ProjectMetadataNotFoundException(FeastObjectNotFoundException):
-    def __init__(self, project: str = None):
+    def __init__(self, project: str):
         super().__init__(f"Project Metadata does not exist in project {project}")
 
 
@@ -355,32 +355,6 @@ class ConflictingFeatureViewNames(Exception):
         )
 
 
-class RepoConfigPathDoesNotExist(Exception):
-    def __init__(self):
-        super().__init__("The repo_path attribute does not exist for the repo_config.")
-
-
-class AwsLambdaDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS Lambda function {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class AwsAPIGatewayDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS API Gateway {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class IncompatibleRegistryStoreClass(Exception):
-    def __init__(self, actual_class: str, expected_class: str):
-        super().__init__(
-            f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
-        )
-
-
 class FeastInvalidInfraObjectType(Exception):
     def __init__(self):
         super().__init__("Could not identify the type of the InfraObject.")
@@ -420,3 +394,15 @@ class EntityDFNotDateTime(Exception):
 class PushSourceNotFoundException(Exception):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
+
+
+class ReadOnlyRegistryException(Exception):
+    def __init__(self):
+        super().__init__("Registry implementation is read-only.")
+
+
+class DataFrameSerializationError(Exception):
+    def __init__(self, input_dict: dict):
+        super().__init__(
+            f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
+        )

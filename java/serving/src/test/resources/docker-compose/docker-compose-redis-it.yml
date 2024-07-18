@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   redis:
     image: redis:6.2
@@ -7,11 +5,10 @@ services:
     ports:
       - "6379"
   feast:
-    build: feast10
+    build:
+      context: ../../../../../../
+      dockerfile: java/serving/src/test/resources/docker-compose/feast10/Dockerfile
     ports:
       - "8080"
-    links:
+    depends_on:
       - redis
-    volumes:
-      - $PWD/../../../../../../:/mnt/feast
-

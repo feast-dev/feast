@@ -44,7 +44,7 @@ class FieldModel(BaseModel):
         """
         return cls(
             name=field.name,
-            dtype=field.dtype,
+            dtype=field.dtype,  # type: ignore
             description=field.description,
             tags=field.tags,
         )

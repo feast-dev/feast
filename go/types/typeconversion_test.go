@@ -75,9 +75,9 @@ var (
 			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{time.Now().Unix()}}}},
 		},
 		{
-			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{time.Now().Unix()}}}},
-			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{time.Now().Unix()}}}},
-			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{-9223372036854775808}}}},
+			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{time.Now().Unix(), time.Now().Unix()}}}},
+			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{time.Now().Unix(), time.Now().Unix()}}}},
+			{Val: &types.Value_UnixTimestampListVal{&types.Int64List{Val: []int64{-9223372036854775808, time.Now().Unix()}}}},
 		},
 	}
 )
@@ -90,6 +90,7 @@ func TestConversionBetweenProtoAndArrow(t *testing.T) {
 
 		protoValues, err := ArrowValuesToProtoValues(arrowArray)
 		assert.Nil(t, err)
+
 		protoValuesEquals(t, vector, protoValues)
 	}
 

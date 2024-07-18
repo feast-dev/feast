@@ -227,7 +227,7 @@ class TestMilvusOnlineStore:
         vector_tags = {
             "is_primary": "False",
             "description": vector_type.name,
-            "dimensions": dimensions,
+            "dimensions": str(dimensions),
             "index_type": index_params["index_type"],
         }
 
@@ -276,9 +276,11 @@ class TestMilvusOnlineStore:
                 ),
                 FieldSchema(
                     "feature1",
-                    DataType.FLOAT_VECTOR
-                    if vector_type == Float32
-                    else DataType.BINARY_VECTOR,
+                    (
+                        DataType.FLOAT_VECTOR
+                        if vector_type == Float32
+                        else DataType.BINARY_VECTOR
+                    ),
                     description=vector_type.name,
                     is_primary=False,
                     dim=dimensions,
@@ -291,9 +293,11 @@ class TestMilvusOnlineStore:
             fields=[
                 FieldSchema(
                     "feature1",
-                    DataType.FLOAT_VECTOR
-                    if vector_type == Float32
-                    else DataType.BINARY_VECTOR,
+                    (
+                        DataType.FLOAT_VECTOR
+                        if vector_type == Float32
+                        else DataType.BINARY_VECTOR
+                    ),
                     description=vector_type.name,
                     is_primary=False,
                     dim=dimensions,
@@ -475,7 +479,7 @@ class TestMilvusOnlineStore:
                     name="avg_orders_day",
                     dtype=Array(Float32),
                     tags={
-                        "dimensions": 5,
+                        "dimensions": "5",
                         "index_type": "HNSW",
                         "index_params": '{ "M": 32, "efConstruction": 256}',
                     },
@@ -585,7 +589,6 @@ class TestMilvusOnlineStore:
             collection_to_load_data.load()
 
     def test_milvus_online_read(self, repo_config, caplog):
-
         # Generating data to directly load into Milvus
         data_to_load = [
             [i for i in range(10)],
@@ -631,7 +634,7 @@ class TestMilvusOnlineStore:
                 dtype=Array(Float32),
                 tags={
                     "description": "float32",
-                    "dimensions": 2,
+                    "dimensions": "2",
                     "index_type": "HNSW",
                     "index_params": '{ "M": 32, "efConstruction": 256}',
                 },

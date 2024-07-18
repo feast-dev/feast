@@ -43,12 +43,11 @@ _cache = {}
 
 
 class GetSnowflakeConnection:
-    def __init__(self, config: str, autocommit=True):
+    def __init__(self, config: Any, autocommit=True):
         self.config = config
         self.autocommit = autocommit
 
     def __enter__(self):
-
         assert self.config.type in [
             "snowflake.registry",
             "snowflake.offline",
@@ -512,7 +511,6 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(key_path: str, private_key_passphrase: str) -> bytes:
-
     with open(key_path, "rb") as key:
         p_key = serialization.load_pem_private_key(
             key.read(),

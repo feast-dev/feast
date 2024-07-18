@@ -17,7 +17,7 @@ from typing import List
 
 import pandas as pd
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from feast.data_format import AvroFormat, ConfluentAvroFormat
 from feast.data_source import KafkaSource, PushSource, RequestSource
@@ -63,11 +63,11 @@ def test_idempotent_field_primitive_type_conversion():
     python_obj_from_proto = Field.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FieldModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FieldModel.model_validate_json(pydantic_json)
 
-    pydantic_dict = pydantic_obj.dict()
-    assert pydantic_obj == FieldModel.parse_obj(pydantic_dict)
+    pydantic_dict = pydantic_obj.model_dump()
+    assert pydantic_obj == FieldModel.model_validate(pydantic_dict)
 
 
 def test_idempotent_field_complex_array_type_conversion():
@@ -80,20 +80,17 @@ def test_idempotent_field_complex_array_type_conversion():
     python_obj_from_proto = Field.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FieldModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FieldModel.model_validate_json(pydantic_json)
 
-    pydantic_dict = pydantic_obj.dict()
-    assert pydantic_obj == FieldModel.parse_obj(pydantic_dict)
+    pydantic_dict = pydantic_obj.model_dump()
+    assert pydantic_obj == FieldModel.model_validate(pydantic_dict)
 
 
 def test_datasource_child_deserialization():
     class DataSourcesByWire(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
         source_models: List[AnyDataSource] = []
-
-        class Config:
-            arbitrary_types_allowed = True
-            extra = "allow"
 
     spark_source_model_json = {
         "name": "string",
@@ -154,11 +151,11 @@ def test_idempotent_entity_conversion():
     python_obj_from_proto = Entity.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == EntityModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == EntityModel.model_validate_json(pydantic_json)
 
-    pydantic_dict = pydantic_obj.dict()
-    assert pydantic_obj == EntityModel.parse_obj(pydantic_dict)
+    pydantic_dict = pydantic_obj.model_dump()
+    assert pydantic_obj == EntityModel.model_validate(pydantic_dict)
 
 
 def test_idempotent_requestsource_conversion():
@@ -181,11 +178,11 @@ def test_idempotent_requestsource_conversion():
     python_obj_from_proto = RequestSource.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == RequestSourceModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == RequestSourceModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == RequestSourceModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == RequestSourceModel.model_validate(pydantic_json)
 
 
 def test_idempotent_sparksource_conversion():
@@ -204,11 +201,11 @@ def test_idempotent_sparksource_conversion():
     python_obj_from_proto = SparkSource.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == SparkSourceModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == SparkSourceModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == SparkSourceModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == SparkSourceModel.model_validate(pydantic_json)
 
 
 def test_idempotent_pushsource_conversion():
@@ -236,11 +233,11 @@ def test_idempotent_pushsource_conversion():
     python_obj_from_proto = PushSource.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == PushSourceModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == PushSourceModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == PushSourceModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == PushSourceModel.model_validate(pydantic_json)
 
 
 def test_idempotent_kafkasource_avroformat_conversion():
@@ -311,11 +308,11 @@ def test_idempotent_kafkasource_confluentavroformat_conversion():
     python_obj_from_proto = KafkaSource.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == KafkaSourceModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == KafkaSourceModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == KafkaSourceModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == KafkaSourceModel.model_validate(pydantic_json)
 
 
 def test_idempotent_featureview_conversion():
@@ -337,7 +334,7 @@ def test_idempotent_featureview_conversion():
         name="my-feature-view",
         entities=[user_entity],
         schema=[
-            Field(name="user1", dtype=Int64),
+            Field(name="user_id", dtype=Int64),
             Field(name="feature1", dtype=Float32),
             Field(name="feature2", dtype=Float32),
         ],
@@ -385,11 +382,11 @@ def test_idempotent_featureview_conversion():
     python_obj_from_proto = FeatureView.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FeatureViewModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FeatureViewModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == FeatureViewModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == FeatureViewModel.model_validate(pydantic_json)
 
 
 def test_idempotent_featureview_with_streaming_source_conversion():
@@ -462,11 +459,11 @@ def test_idempotent_featureview_with_streaming_source_conversion():
     python_obj_from_proto = FeatureView.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FeatureViewModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FeatureViewModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == FeatureViewModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == FeatureViewModel.model_validate(pydantic_json)
 
 
 def test_idempotent_featureview_with_confluent_streaming_source_conversion():
@@ -541,11 +538,11 @@ def test_idempotent_featureview_with_confluent_streaming_source_conversion():
     python_obj_from_proto = FeatureView.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FeatureViewModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FeatureViewModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == FeatureViewModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == FeatureViewModel.model_validate(pydantic_json)
 
 
 def test_idempotent_feature_view_projection_conversion():
@@ -568,11 +565,11 @@ def test_idempotent_feature_view_projection_conversion():
     python_obj_from_proto = FeatureViewProjection.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FeatureViewProjectionModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FeatureViewProjectionModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == FeatureViewProjectionModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == FeatureViewProjectionModel.model_validate(pydantic_json)
 
 
 def test_idempotent_on_demand_feature_view_conversion():
@@ -733,11 +730,11 @@ def test_idempotent_on_demand_feature_view_conversion():
     python_obj_from_proto = OnDemandFeatureView.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == OnDemandFeatureViewModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == OnDemandFeatureViewModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == OnDemandFeatureViewModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == OnDemandFeatureViewModel.model_validate(pydantic_json)
 
 
 def test_idempotent_feature_service_conversion():
@@ -816,11 +813,11 @@ def test_idempotent_feature_service_conversion():
     python_obj_from_proto = FeatureService.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == FeatureServiceModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == FeatureServiceModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == FeatureServiceModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == FeatureServiceModel.model_validate(pydantic_json)
 
 
 def test_idempotent_project_metadata_conversion():
@@ -837,8 +834,8 @@ def test_idempotent_project_metadata_conversion():
     python_obj_from_proto = ProjectMetadata.from_proto(feast_proto)
     assert python_obj == python_obj_from_proto
 
-    pydantic_json = pydantic_obj.json()
-    assert pydantic_obj == ProjectMetadataModel.parse_raw(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump_json()
+    assert pydantic_obj == ProjectMetadataModel.model_validate_json(pydantic_json)
 
-    pydantic_json = pydantic_obj.dict()
-    assert pydantic_obj == ProjectMetadataModel.parse_obj(pydantic_json)
+    pydantic_json = pydantic_obj.model_dump()
+    assert pydantic_obj == ProjectMetadataModel.model_validate(pydantic_json)

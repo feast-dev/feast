@@ -244,22 +244,6 @@ feast.protos.feast.core.Registry\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
-feast.protos.feast.core.RequestFeatureView\_pb2 module
-------------------------------------------------------
-
-.. automodule:: feast.protos.feast.core.RequestFeatureView_pb2
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.protos.feast.core.RequestFeatureView\_pb2\_grpc module
-------------------------------------------------------------
-
-.. automodule:: feast.protos.feast.core.RequestFeatureView_pb2_grpc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.protos.feast.core.SavedDataset\_pb2 module
 ------------------------------------------------
 
@@ -320,6 +304,22 @@ feast.protos.feast.core.StreamFeatureView\_pb2\_grpc module
 -----------------------------------------------------------
 
 .. automodule:: feast.protos.feast.core.StreamFeatureView_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Transformation\_pb2 module
+--------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Transformation_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Transformation\_pb2\_grpc module
+--------------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Transformation_pb2_grpc
    :members:
    :undoc-members:
    :show-inheritance:

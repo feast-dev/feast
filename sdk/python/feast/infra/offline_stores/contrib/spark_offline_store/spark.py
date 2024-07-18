@@ -29,13 +29,12 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
-from feast.infra.registry.registry import Registry
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
-from feast.usage import log_exceptions_and_usage
 
 # Make sure spark warning are ignored
 warnings.simplefilter("ignore", RuntimeWarning)
@@ -58,7 +57,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 class SparkOfflineStore(OfflineStore):
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -120,13 +118,12 @@ class SparkOfflineStore(OfflineStore):
         )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pandas.DataFrame, str],
-        registry: Registry,
+        entity_df: Union[pandas.DataFrame, str, pyspark.sql.DataFrame],
+        registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
@@ -259,7 +256,6 @@ class SparkOfflineStore(OfflineStore):
             )
 
     @staticmethod
-    @log_exceptions_and_usage(offline_store="spark")
     def pull_all_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -471,15 +467,16 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp.min().to_pydatetime(),
             entity_df_event_timestamp.max().to_pydatetime(),
         )
-    elif isinstance(entity_df, str):
+    elif isinstance(entity_df, str) or isinstance(entity_df, pyspark.sql.DataFrame):
         # If the entity_df is a string (SQL query), determine range
         # from table
-        df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
-
-        # Checks if executing entity sql resulted in any data
-        if df.rdd.isEmpty():
-            raise EntitySQLEmptyResults(entity_df)
-
+        if isinstance(entity_df, str):
+            df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
+            # Checks if executing entity sql resulted in any data
+            if df.rdd.isEmpty():
+                raise EntitySQLEmptyResults(entity_df)
+        else:
+            df = entity_df
         # TODO(kzhang132): need utc conversion here.
 
         entity_df_event_timestamp_range = (
@@ -497,8 +494,11 @@ def _get_entity_schema(
 ) -> Dict[str, np.dtype]:
     if isinstance(entity_df, pd.DataFrame):
         return dict(zip(entity_df.columns, entity_df.dtypes))
-    elif isinstance(entity_df, str):
-        entity_spark_df = spark_session.sql(entity_df)
+    elif isinstance(entity_df, str) or isinstance(entity_df, pyspark.sql.DataFrame):
+        if isinstance(entity_df, str):
+            entity_spark_df = spark_session.sql(entity_df)
+        else:
+            entity_spark_df = entity_df
         return dict(
             zip(
                 entity_spark_df.columns,
@@ -523,6 +523,9 @@ def _upload_entity_df(
         return
     elif isinstance(entity_df, str):
         spark_session.sql(entity_df).createOrReplaceTempView(table_name)
+        return
+    elif isinstance(entity_df, pyspark.sql.DataFrame):
+        entity_df.createOrReplaceTempView(table_name)
         return
     else:
         raise InvalidEntityType(type(entity_df))

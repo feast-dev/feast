@@ -52,7 +52,10 @@ class ComplexFeastType(ABC, BaseModel):
         return hash(self.to_value_type().value)
 
     def __eq__(self, other):
-        return self.to_value_type() == other.to_value_type()
+        if isinstance(other, ComplexFeastType):
+            return self.to_value_type() == other.to_value_type()
+        else:
+            return False
 
 
 class PrimitiveFeastType(Enum):
@@ -102,6 +105,17 @@ Float32 = PrimitiveFeastType.FLOAT32
 Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 
+SUPPORTED_BASE_TYPES = [
+    Invalid,
+    String,
+    Bytes,
+    Bool,
+    Int32,
+    Int64,
+    Float32,
+    Float64,
+    UnixTimestamp,
+]
 
 PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "INVALID": "Invalid",
@@ -127,7 +141,12 @@ class Array(ComplexFeastType):
     base_type: PrimitiveFeastType
 
     def __init__(self, base_type: PrimitiveFeastType):
-        super(Array, self).__init__(base_type=base_type)
+        # if base_type not in SUPPORTED_BASE_TYPES:
+        #     raise ValueError(
+        #         f"Type {type(base_type)} is currently not supported as a base type for Array."
+        #     )
+
+        super(Array, self).__init__(base_type=base_type)  # type: ignore
 
     def to_value_type(self) -> ValueType:
         assert isinstance(self.base_type, PrimitiveFeastType)

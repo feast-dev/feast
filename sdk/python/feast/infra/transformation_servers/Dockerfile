@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y git
 
@@ -15,7 +15,7 @@ COPY README.md README.md
 
 
 # Install dependencies
-RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir -e '.[gcp,aws]'
+RUN --mount=source=.git,target=.git,type=bind pip3 install --no-cache-dir '.[gcp,aws]'
 
 # Start feature transformation server
 CMD [ "python", "app.py" ]

@@ -9,7 +9,7 @@ import sys
 from datetime import timedelta
 from typing import Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 from typing_extensions import Annotated, Self
 
@@ -56,6 +56,8 @@ class RequestSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast RequestSource.
     """
+
+    model_config = ConfigDict(protected_namespaces=())
 
     name: str
     model_type: Literal["RequestSourceModel"] = "RequestSourceModel"
@@ -105,6 +107,8 @@ class SparkSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast SparkSource.
     """
+
+    model_config = ConfigDict(protected_namespaces=())
 
     name: str
     model_type: Literal["SparkSourceModel"] = "SparkSourceModel"
@@ -180,6 +184,8 @@ class PushSourceModel(DataSourceModel):
     Pydantic Model of a Feast PushSource.
     """
 
+    model_config = ConfigDict(protected_namespaces=())
+
     name: str
     model_type: Literal["PushSourceModel"] = "PushSourceModel"
     batch_source: AnyBatchDataSource
@@ -245,6 +251,8 @@ class KafkaSourceModel(DataSourceModel):
     """
     Pydantic Model of a Feast KafkaSource.
     """
+
+    model_config = ConfigDict(protected_namespaces=())
 
     name: str
     model_type: Literal["KafkaSourceModel"] = "KafkaSourceModel"

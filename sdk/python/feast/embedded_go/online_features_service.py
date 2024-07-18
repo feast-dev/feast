@@ -247,9 +247,7 @@ def transformation_callback(
     full_feature_names: bool,
 ) -> int:
     try:
-        odfv = fs.get_on_demand_feature_view(
-            on_demand_feature_view_name, allow_cache=True
-        )
+        odfv = fs.get_on_demand_feature_view(on_demand_feature_view_name)
 
         input_record = pa.RecordBatch._import_from_c(input_arr_ptr, input_schema_ptr)
 
@@ -257,7 +255,12 @@ def transformation_callback(
         # the typeguard requirement.
         full_feature_names = bool(full_feature_names)
 
-        output = odfv.get_transformed_features_df(
+        if odfv.mode != "pandas":
+            raise Exception(
+                f"OnDemandFeatureView mode '{odfv.mode} not supported by EmbeddedOnlineFeatureServer."
+            )
+
+        output = odfv.get_transformed_features_df(  # type: ignore
             input_record.to_pandas(), full_feature_names=full_feature_names
         )
         output_record = pa.RecordBatch.from_pandas(output)

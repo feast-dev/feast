@@ -9,7 +9,6 @@ from typing import Any, List, Optional, Set, Union
 import httpx
 from pydantic import StrictStr
 
-from feast import usage
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource, KafkaSource, PushSource, RequestSource
 from feast.entity import Entity
@@ -47,7 +46,6 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
-from feast.request_feature_view import RequestFeatureView
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -144,7 +142,11 @@ class HttpRegistry(BaseRegistry):
         except Exception as exception:
             self._handle_exception(exception)
 
-    def apply_project(self, project: str, commit: bool = True) -> ProjectMetadataModel:
+    def apply_project(  # type: ignore[return]
+        self,
+        project: str,
+        commit: bool = True,
+    ) -> ProjectMetadataModel:
         try:
             url = f"{self.base_url}/projects"
             params = {"project": project, "commit": commit}
@@ -206,6 +208,7 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -303,6 +306,7 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -314,7 +318,7 @@ class HttpRegistry(BaseRegistry):
             params = {"allow_cache": True}
             response_data = self._send_request("GET", url, params=params)
             response_list = response_data if isinstance(response_data, list) else []
-            data_source_list = []
+            data_source_list: List[DataSource] = []
             for data_source in response_list:
                 if "model_type" in data_source:
                     if data_source["model_type"] == "RequestSourceModel":
@@ -393,7 +397,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_services(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -476,7 +483,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -517,7 +527,10 @@ class HttpRegistry(BaseRegistry):
             self._handle_exception(exception)
 
     def list_on_demand_feature_views(  # type: ignore[return]
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._check_if_registry_refreshed()
@@ -548,23 +561,9 @@ class HttpRegistry(BaseRegistry):
         self,
         project: str,
         allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         # TODO: Implement listing Stream Feature Views
-        return []
-
-    def get_request_feature_view(
-        self,
-        name: str,
-        project: str,
-    ) -> RequestFeatureView:
-        raise NotImplementedError("Method not implemented")
-
-    def list_request_feature_views(
-        self,
-        project: str,
-        allow_cache: bool = False,
-    ) -> List[RequestFeatureView]:
-        # TODO: Implement listing Request Feature Views
         return []
 
     def apply_materialization(
@@ -608,7 +607,7 @@ class HttpRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
     ) -> List[SavedDataset]:
-        pass
+        raise NotImplementedError("Method not implemented")
 
     def apply_validation_reference(
         self,
@@ -658,7 +657,7 @@ class HttpRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
     ) -> List[ValidationReference]:
-        pass
+        raise NotImplementedError("Method not implemented")
 
     def proto(self) -> RegistryProto:
         r = RegistryProto()
@@ -674,7 +673,6 @@ class HttpRegistry(BaseRegistry):
                 (self.list_feature_views, r.feature_views),
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_request_feature_views, r.request_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
@@ -711,9 +709,7 @@ class HttpRegistry(BaseRegistry):
             project_metadata = proto_registry_utils.get_project_metadata(
                 registry_proto=self.cached_registry_proto, project=project
             )
-            if project_metadata:
-                usage.set_current_project_uuid(project_metadata.project_uuid)
-            else:
+            if project_metadata is None:
                 proto_registry_utils.init_project_metadata(
                     self.cached_registry_proto, project
                 )

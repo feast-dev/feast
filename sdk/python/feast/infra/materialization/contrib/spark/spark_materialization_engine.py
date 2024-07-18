@@ -205,7 +205,6 @@ class _SparkSerializedArtifacts:
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
-
         # serialize to proto
         feature_view_proto = feature_view.to_proto().SerializeToString()
 
@@ -275,5 +274,6 @@ def _map_by_partition(
         print(
             f"INFO!!! Processed batch with size {pdf_row_count} in {int((end_time - start_time) * 1000)} milliseconds"
         )
-
-    yield pd.DataFrame([pd.Series(range(1, 2))])  # dummy result
+    yield pd.DataFrame(
+        [pd.Series(range(1, 2))]
+    )  # dummy result because mapInPandas needs to return something

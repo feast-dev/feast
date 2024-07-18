@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    feast.protos.feast.core
+   feast.protos.feast.registry
    feast.protos.feast.serving
    feast.protos.feast.storage
    feast.protos.feast.types

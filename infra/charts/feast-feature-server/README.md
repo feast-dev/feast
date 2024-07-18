@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.35.0`
+Current chart version is `0.39.0`
 
 ## Installation
 
@@ -13,9 +13,18 @@ helm repo update
 
 Install Feast Feature Server on Kubernetes
 
-A base64 encoded version of the `feature_store.yaml` file is needed. Helm install example:
+- Feast Deployment Mode: The Feast Feature Server supports multiple deployment modes using the `feast_mode` property. Supported modes are `online` (default), `offline`, `ui`, and `registry`.
+Users can set the `feast_mode` based on their deployment choice. The `online` mode is the default and maintains backward compatibility with previous Feast Feature Server implementations.
+
+- Feature Store File: A base64 encoded version of the `feature_store.yaml` file is needed.
+
+Helm install examples:
 ```
-helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 feature_store.yaml)
+helm install feast-feature-server feast-charts/feast-feature-server --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-offline-server feast-charts/feast-feature-server --set feast_mode=offline  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-ui-server feast-charts/feast-feature-server --set feast_mode=ui  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+helm install feast-registry-server feast-charts/feast-feature-server --set feast_mode=registry  --set feature_store_yaml_base64=$(base64 > feature_store.yaml)
+
 ```
 
 ## Tutorial
@@ -26,11 +35,12 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| feast_mode | string | `"online"` | Feast supported deployment modes - online (default), offline, ui and registry |
 | feature_store_yaml_base64 | string | `""` | [required] a base64 encoded version of feature_store.yaml |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"feastdev/feature-server"` | Docker image for Feature Server repository |
-| image.tag | string | `"0.35.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
+| image.tag | string | `"0.39.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |

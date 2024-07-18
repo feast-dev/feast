@@ -10,7 +10,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaRetrievalJob,
 )
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerOfflineStoreConfig,
     MsSqlServerRetrievalJob,
 )
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
@@ -30,6 +29,10 @@ from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
     RedshiftRetrievalJob,
 )
+from feast.infra.offline_stores.remote import (
+    RemoteOfflineStoreConfig,
+    RemoteRetrievalJob,
+)
 from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
     SnowflakeRetrievalJob,
@@ -39,6 +42,9 @@ from feast.saved_dataset import SavedDatasetStorage
 
 
 class MockRetrievalJob(RetrievalJob):
+    def to_sql(self) -> str:
+        return ""
+
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """
         Synchronously executes the underlying query and returns the result as a pandas dataframe.
@@ -46,7 +52,7 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_df` should be used.
         """
-        pass
+        return pd.DataFrame()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """
@@ -55,17 +61,17 @@ class MockRetrievalJob(RetrievalJob):
         Does not handle on demand transformations or dataset validation. For either of those,
         `to_arrow` should be used.
         """
-        pass
+        return pyarrow.Table()
 
     @property
-    def full_feature_names(self) -> bool:
+    def full_feature_names(self) -> bool:  # type: ignore
         """Returns True if full feature names should be applied to the results of the query."""
-        pass
+        return False
 
     @property
-    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:  # type: ignore
         """Returns a list containing all the on demand feature views to be handled."""
-        pass
+        return []
 
     def persist(
         self,
@@ -87,7 +93,7 @@ class MockRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         """Returns metadata about the retrieval job."""
-        pass
+        raise NotImplementedError
 
 
 # Since RetreivalJob are not really tested for subclasses we add some tests here.
@@ -102,6 +108,7 @@ class MockRetrievalJob(RetrievalJob):
         PostgreSQLRetrievalJob,
         SparkRetrievalJob,
         TrinoRetrievalJob,
+        RemoteRetrievalJob,
     ]
 )
 def retrieval_job(request, environment):
@@ -109,19 +116,22 @@ def retrieval_job(request, environment):
         return FileRetrievalJob(lambda: 1, full_feature_names=False)
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
-            cluster_id="feast-integration-tests",
+            cluster_id="feast-int-bucket",
             region="us-west-2",
             user="admin",
             database="feast",
-            s3_staging_location="s3://feast-integration-tests/redshift/tests/ingestion",
-            iam_role="arn:aws:iam::402087665549:role/redshift_s3_access_role",
+            s3_staging_location="s3://feast-int-bucket/redshift/tests/ingestion",
+            iam_role="arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
+            workgroup="",
         )
-        environment.test_repo_config.offline_store = offline_store_config
+        config = environment.config.copy(
+            update={"offline_config": offline_store_config}
+        )
         return RedshiftRetrievalJob(
             query="query",
             redshift_client="",
             s3_resource="",
-            config=environment.test_repo_config,
+            config=config,
             full_feature_names=False,
         )
     elif request.param is SnowflakeRetrievalJob:
@@ -137,12 +147,14 @@ def retrieval_job(request, environment):
             storage_integration_name="FEAST_S3",
             blob_export_location="s3://feast-snowflake-offload/export",
         )
-        environment.test_repo_config.offline_store = offline_store_config
-        environment.test_repo_config.project = "project"
+        config = environment.config.copy(
+            update={"offline_config": offline_store_config}
+        )
+        environment.project = "project"
         return SnowflakeRetrievalJob(
             query="query",
             snowflake_conn=MagicMock(),
-            config=environment.test_repo_config,
+            config=config,
             full_feature_names=False,
         )
     elif request.param is AthenaRetrievalJob:
@@ -154,22 +166,18 @@ def retrieval_job(request, environment):
             s3_staging_location="athena",
         )
 
-        environment.test_repo_config.offline_store = offline_store_config
         return AthenaRetrievalJob(
             query="query",
             athena_client="client",
             s3_resource="",
-            config=environment.test_repo_config.offline_store,
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is MsSqlServerRetrievalJob:
-
         return MsSqlServerRetrievalJob(
             query="query",
             engine=MagicMock(),
-            config=MsSqlServerOfflineStoreConfig(
-                connection_string="str"
-            ),  # TODO: this does not match the RetrievalJob pattern. Suppose to be RepoConfig
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is PostgreSQLRetrievalJob:
@@ -179,41 +187,67 @@ def retrieval_job(request, environment):
             user="str",
             password="str",
         )
-        environment.test_repo_config.offline_store = offline_store_config
         return PostgreSQLRetrievalJob(
             query="query",
-            config=environment.test_repo_config.offline_store,
+            config=environment.config,
             full_feature_names=False,
         )
     elif request.param is SparkRetrievalJob:
         offline_store_config = SparkOfflineStoreConfig()
-        environment.test_repo_config.offline_store = offline_store_config
         return SparkRetrievalJob(
             spark_session=MagicMock(),
             query="str",
             full_feature_names=False,
-            config=environment.test_repo_config,
+            config=environment.config,
         )
     elif request.param is TrinoRetrievalJob:
         offline_store_config = SparkOfflineStoreConfig()
-        environment.test_repo_config.offline_store = offline_store_config
         return TrinoRetrievalJob(
             query="str",
             client=MagicMock(),
-            config=environment.test_repo_config,
+            config=environment.config,
             full_feature_names=False,
+        )
+    elif request.param is RemoteRetrievalJob:
+        offline_store_config = RemoteOfflineStoreConfig(
+            type="remote",
+            host="localhost",
+            port=0,
+        )
+        environment.config._offline_store = offline_store_config
+
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "id": [1],
+                "event_timestamp": ["datetime"],
+                "val_to_add": [1],
+            }
+        )
+
+        return RemoteRetrievalJob(
+            client=MagicMock(),
+            api_parameters={
+                "str": "str",
+            },
+            api="api",
+            table=pyarrow.Table.from_pandas(entity_df),
+            entity_df=entity_df,
+            metadata=RetrievalMetadata(
+                features=["1", "2", "3", "4"],
+                keys=["1", "2", "3", "4"],
+            ),
         )
     else:
         return request.param()
 
 
 def test_to_sql():
-    assert MockRetrievalJob().to_sql() is None
+    assert MockRetrievalJob().to_sql() == ""
 
 
 @pytest.mark.parametrize("timeout", (None, 30))
 def test_to_df_timeout(retrieval_job, timeout: Optional[int]):
-    with patch.object(retrieval_job, "_to_df_internal") as mock_to_df_internal:
+    with patch.object(retrieval_job, "_to_arrow_internal") as mock_to_df_internal:
         retrieval_job.to_df(timeout=timeout)
         mock_to_df_internal.assert_called_once_with(timeout=timeout)
 

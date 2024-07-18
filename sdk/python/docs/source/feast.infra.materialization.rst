@@ -7,7 +7,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   feast.infra.materialization.lambda
+   feast.infra.materialization.contrib
+   feast.infra.materialization.kubernetes
 
 Submodules
 ----------

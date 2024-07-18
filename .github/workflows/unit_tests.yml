@@ -7,33 +7,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-        os: [ubuntu-latest, macOS-latest]
+        python-version: [ "3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest, macos-13 ]
         exclude:
-          - os: macOS-latest
-            python-version: "3.8"
-          - os: macOS-latest
+          - os: macos-13
             python-version: "3.9"
-          - os: macOS-latest
-            python-version: "3.10"
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - name: Increase swapfile
-        # Increase ubuntu's swapfile to avoid running out of resources which causes the action to terminate
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo swapoff -a
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -42,37 +28,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.19.7
-      - name: Install mysql on macOS
-        if: startsWith(matrix.os, 'macOS')
-        run: |
-          brew install mysql
-          PATH=$PATH:/usr/local/mysql/bin
-      - name: Work around Homebrew MySQL being broken
-        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details.
-        if: startsWith(matrix.os, 'macOS')
-        run: |
-          brew install zlib
-          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-      - name: pip cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ steps.pip-cache.outputs.dir }}
-            /opt/hostedtoolcache/Python
-            /Users/runner/hostedtoolcache/Python
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=21.3.1,<23.2"
-      - name: Install pip-tools
-        run: |
-          pip install -U pip-tools
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -82,27 +37,56 @@ jobs:
             sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
             sudo apt update
             sudo apt install -y -V "libarrow-dev=11.0.0-1"
-      - name: Install apache-arrow on macos
-        if: matrix.os == 'macOS-latest'
+            sudo apt install -y -V pkg-config
+      - name: Install uv
         run: |
-            brew install apache-arrow
-            brew install pkg-config
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get uv cache dir
+        id: uv-cache
+        run: |
+          echo "::set-output name=dir::$(uv cache dir)"
+      - name: uv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies
-      - name: Test Python
+        run: make install-python-ci-dependencies-uv
+      - name: Compile Go along with Extensions
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          pytest -n 1 --cov=./ --cov-report=xml --color=yes sdk/python/tests/expediagroup/test_milvus_online_store.py
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
+          make install-go-proto-dependencies 
+          make install-go-ci-dependencies
+          COMPILE_GO=true python setup.py develop
+          CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
+      - name: Test Milvus tests
+        if: matrix.os == 'ubuntu-latest'
+        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/test_milvus_online_store.py
+      - name: Test Python
+        if: matrix.os == 'ubuntu-latest'
+        run: make test-python-unit
+      - name: Test Python for Mac
+        if: matrix.os != 'ubuntu-latest'
+        run: python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup --ignore=sdk/python/tests/integration/e2e/test_go_feature_server.py
 
   unit-test-go:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=22.1,<23"
@@ -128,7 +112,7 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: '17.x'

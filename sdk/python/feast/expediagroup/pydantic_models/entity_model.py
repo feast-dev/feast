@@ -7,9 +7,9 @@ Author: matcarlin@expediagroup.com
 
 from datetime import datetime
 from json import dumps
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self
 
 from feast.entity import Entity
@@ -21,6 +21,12 @@ class EntityModel(BaseModel):
     Pydantic Model of a Feast Entity.
     """
 
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="allow",
+        json_encoders={ValueType: lambda v: int(dumps(v.value, default=str))},
+    )
+
     name: str
     join_key: str
     value_type: Optional[ValueType] = None
@@ -29,13 +35,6 @@ class EntityModel(BaseModel):
     owner: str = ""
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
-
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
-        json_encoders: Dict[object, Callable] = {
-            ValueType: lambda v: int(dumps(v.value, default=str))
-        }
 
     def to_entity(self) -> Entity:
         """

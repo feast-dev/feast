@@ -1,12 +1,11 @@
 import calendar
 import struct
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from happybase import ConnectionPool
 from happybase.connection import DEFAULT_PROTOCOL, DEFAULT_TRANSPORT
 from pydantic import StrictStr
-from pydantic.typing import Literal
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -16,7 +15,6 @@ from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.usage import log_exceptions_and_usage
 
 
 class HbaseOnlineStoreConfig(FeastConfigBaseModel):
@@ -72,7 +70,6 @@ class HbaseOnlineStore(OnlineStore):
             )
         return self._conn
 
-    @log_exceptions_and_usage(online_store="hbase")
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -108,9 +105,9 @@ class HbaseOnlineStore(OnlineStore):
             )
             values_dict = {}
             for feature_name, val in values.items():
-                values_dict[
-                    HbaseConstants.get_col_from_feature(feature_name)
-                ] = val.SerializeToString()
+                values_dict[HbaseConstants.get_col_from_feature(feature_name)] = (
+                    val.SerializeToString()
+                )
             if isinstance(timestamp, datetime):
                 values_dict[HbaseConstants.DEFAULT_EVENT_TS] = struct.pack(
                     ">L", int(calendar.timegm(timestamp.timetuple()))
@@ -130,7 +127,6 @@ class HbaseOnlineStore(OnlineStore):
         if progress:
             progress(len(data))
 
-    @log_exceptions_and_usage(online_store="hbase")
     def online_read(
         self,
         config: RepoConfig,
@@ -181,7 +177,6 @@ class HbaseOnlineStore(OnlineStore):
                 result.append((res_ts, res))
         return result
 
-    @log_exceptions_and_usage(online_store="hbase")
     def update(
         self,
         config: RepoConfig,

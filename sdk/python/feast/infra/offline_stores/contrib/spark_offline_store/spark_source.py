@@ -1,15 +1,13 @@
 import logging
 import traceback
-import uuid
 import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from pyspark.sql import SparkSession
-
 from feast import flags_helper
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException
+from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
+from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -20,9 +18,6 @@ from feast.type_map import spark_to_feast_value_type
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
-
-# Make sure spark warning are ignored
-warnings.simplefilter("ignore", RuntimeWarning)
 
 
 class SparkSourceFormat(Enum):
@@ -43,7 +38,6 @@ class SparkSource(DataSource):
         query: Optional[str] = None,
         path: Optional[str] = None,
         file_format: Optional[str] = None,
-        event_timestamp_column: Optional[str] = None,
         created_timestamp_column: Optional[str] = None,
         field_mapping: Optional[Dict[str, str]] = None,
         description: Optional[str] = "",
@@ -167,6 +161,13 @@ class SparkSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
+        try:
+            from pyspark.sql import SparkSession
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("spark", str(e))
+
         if self.table:
             # Backticks make sure that spark sql knows this a table reference.
             table = ".".join([f"`{x}`" for x in self.table.split(".")])
@@ -184,10 +185,24 @@ class SparkSource(DataSource):
             logger.exception(
                 "Spark read of file source failed.\n" + traceback.format_exc()
             )
-        tmp_table_name = "feast_entity_df_" + uuid.uuid4().hex
+            raise DataSourceNotFoundException(self.path)
+        tmp_table_name = get_temp_entity_table_name()
         df.createOrReplaceTempView(tmp_table_name)
 
         return f"`{tmp_table_name}`"
+
+    def __eq__(self, other):
+        base_eq = super().__eq__(other)
+        if not base_eq:
+            return False
+        return (
+            self.table == other.table
+            and self.query == other.query
+            and self.path == other.path
+        )
+
+    def __hash__(self):
+        return super().__hash__()
 
 
 class SparkOptions:
@@ -262,11 +277,23 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
+
+        # TODO: Revert after leveraging the Remote Registry. Conversion from Proto is
+        # setting values to empty string if not set.This impacts the Pydantic Model
+        # conversion. So fixing it here.
         spark_options = cls(
-            table=spark_options_proto.table,
-            query=spark_options_proto.query,
-            path=spark_options_proto.path,
-            file_format=spark_options_proto.file_format,
+            table=(
+                spark_options_proto.table if spark_options_proto.table != "" else None
+            ),
+            query=(
+                spark_options_proto.query if spark_options_proto.query != "" else None
+            ),
+            path=spark_options_proto.path if spark_options_proto.path != "" else None,
+            file_format=(
+                spark_options_proto.file_format
+                if spark_options_proto.file_format != ""
+                else None
+            ),
         )
 
         return spark_options

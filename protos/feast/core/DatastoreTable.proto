@@ -36,4 +36,7 @@ message DatastoreTable {
 
     // Datastore namespace
     google.protobuf.StringValue namespace = 4;
+
+    // Firestore database
+    google.protobuf.StringValue database = 5;
 }

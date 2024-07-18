@@ -31,8 +31,10 @@ def test_spark_materialization_consistency():
         batch_engine={"type": "spark.engine", "partitions": 10},
     )
     spark_environment = construct_test_environment(
-        spark_config, None, entity_key_serialization_version=1
+        spark_config, None, entity_key_serialization_version=2
     )
+
+    spark_environment.setup()
 
     df = create_basic_driver_dataset()
 
@@ -57,7 +59,6 @@ def test_spark_materialization_consistency():
     )
 
     try:
-
         fs.apply([driver, driver_stats_fv])
 
         print(df)

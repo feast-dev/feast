@@ -1,8 +1,8 @@
 import json
 import threading
+from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
-import importlib_resources
 import uvicorn
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,7 +51,7 @@ def get_app(
 
     async_refresh()
 
-    ui_dir_ref = importlib_resources.files(__name__) / "ui/build/"
+    ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined]
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
         # Initialize with the projects-list.json file
         with ui_dir.joinpath("projects-list.json").open(mode="w") as f:

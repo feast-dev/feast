@@ -30,7 +30,7 @@ jobs:
       next_version: ${{ steps.get_versions.outputs.next_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Setup Node.js
@@ -58,7 +58,7 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -99,7 +99,7 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -132,7 +132,7 @@ jobs:
       GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         persist-credentials: false
     - name: Setup Node.js

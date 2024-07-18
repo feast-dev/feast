@@ -38,7 +38,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.types import from_value_type
-from feast.usage import log_exceptions
 from feast.value_type import ValueType
 
 warnings.simplefilter("ignore", DeprecationWarning)
@@ -95,14 +94,13 @@ class FeatureView(BaseFeatureView):
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
 
-    @log_exceptions
     def __init__(
         self,
         *,
         name: str,
         source: DataSource,
         schema: Optional[List[Field]] = None,
-        entities: List[Entity] = None,
+        entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
         online: bool = True,
         description: str = "",
@@ -332,6 +330,16 @@ class FeatureView(BaseFeatureView):
         cp.projection.join_key_map = join_key_map
 
         return cp
+
+    def update_materialization_intervals(
+        self, existing_materialization_intervals: List[Tuple[datetime, datetime]]
+    ):
+        if (
+            len(existing_materialization_intervals) > 0
+            and len(self.materialization_intervals) == 0
+        ):
+            for interval in existing_materialization_intervals:
+                self.materialization_intervals.append((interval[0], interval[1]))
 
     def to_proto(self) -> FeatureViewProto:
         """

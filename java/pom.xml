@@ -35,7 +35,7 @@
     </modules>
 
     <properties>
-        <revision>0.35.0</revision>
+        <revision>0.39.0</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -68,6 +68,8 @@
         <google.auth.library.oauth2.http.version>0.21.0</google.auth.library.oauth2.http.version>
         <auto.value.version>1.6.6</auto.value.version>
         <guava.version>30.1-jre</guava.version>
+        <reactor.version>3.4.34</reactor.version>
+        <netty.version>4.1.101.Final</netty.version>
 
         <license.content><![CDATA[
 /*
@@ -187,6 +189,49 @@
             </dependency>
 
             <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-common</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-buffer</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-transport</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-core</artifactId>
+                <version>${reactor.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-engine</artifactId>
                 <version>1.8.2</version>
@@ -246,7 +291,7 @@
                 <configuration>
                     <java>
                         <licenseHeader>
-                          <content>${license.content}</content>
+                            <content>${license.content}</content>
                         </licenseHeader>
                         <googleJavaFormat>
                             <version>1.7</version>
@@ -264,15 +309,15 @@
                     </scala>
                 </configuration>
                 <executions>
-                  <!-- Move check to fail faster, but after compilation. Default is verify phase -->
-                  <execution>
-                      <id>spotless-check</id>
-                      <phase>process-test-classes</phase>
-                      <goals>
-                          <goal>check</goal>
-                      </goals>
-                  </execution>
-              </executions>
+                    <!-- Move check to fail faster, but after compilation. Default is verify phase -->
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

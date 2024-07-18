@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    feast.infra.utils.postgres
+   feast.infra.utils.snowflake
 
 Submodules
 ----------
