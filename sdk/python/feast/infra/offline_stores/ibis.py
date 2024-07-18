@@ -335,11 +335,8 @@ def deduplicate(
     if created_timestamp_col:
         order_by_fields.append(ibis.desc(table[created_timestamp_col]))
 
-    table = (
-        table.group_by(by=group_by_cols)
-        .order_by(order_by_fields)
-        .mutate(rn=ibis.row_number())
-    )
+    window = ibis.window(group_by=group_by_cols, order_by=order_by_fields, following=0)
+    table = table.mutate(rn=ibis.row_number().over(window))
 
     return table.filter(table["rn"] == ibis.literal(0)).drop("rn")
 

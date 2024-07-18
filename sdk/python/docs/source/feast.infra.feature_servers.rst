@@ -7,8 +7,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   feast.infra.feature_servers.aws_lambda
-   feast.infra.feature_servers.gcp_cloudrun
    feast.infra.feature_servers.local_process
    feast.infra.feature_servers.multicloud
 

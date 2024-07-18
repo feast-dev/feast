@@ -63,6 +63,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 
 metadata = MetaData()
 
@@ -203,7 +204,9 @@ class SqlRegistry(CachingRegistry):
         # )
         metadata.create_all(self.engine)
         super().__init__(
-            project=project, cache_ttl_seconds=registry_config.cache_ttl_seconds
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
         )
 
     def teardown(self):
@@ -632,7 +635,7 @@ class SqlRegistry(CachingRegistry):
                 table.c.project_id == project,
             )
             row = conn.execute(stmt).first()
-            update_datetime = datetime.utcnow()
+            update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
             if row:
                 values = {
@@ -744,7 +747,7 @@ class SqlRegistry(CachingRegistry):
         assert name, f"name needs to be provided for {obj}"
 
         with self.engine.begin() as conn:
-            update_datetime = datetime.utcnow()
+            update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
@@ -811,7 +814,7 @@ class SqlRegistry(CachingRegistry):
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
         with self.engine.begin() as conn:
-            update_datetime = datetime.utcnow()
+            update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value,
@@ -844,7 +847,7 @@ class SqlRegistry(CachingRegistry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
-            self._set_last_updated_metadata(datetime.utcnow(), project)
+            self._set_last_updated_metadata(_utc_now(), project)
 
             return rows.rowcount
 

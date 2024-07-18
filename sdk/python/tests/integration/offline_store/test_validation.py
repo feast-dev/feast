@@ -16,7 +16,7 @@ from feast.feature_logging import (
     LoggingConfig,
 )
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
-from feast.utils import make_tzaware
+from feast.utils import _utc_now, make_tzaware
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -316,8 +316,7 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
                 "avg_passenger_count": [0],
                 "lifetime_trip_count": [0],
                 "event_timestamp": [
-                    make_tzaware(datetime.datetime.utcnow())
-                    - datetime.timedelta(hours=1)
+                    make_tzaware(_utc_now()) - datetime.timedelta(hours=1)
                 ],
             }
         )

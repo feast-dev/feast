@@ -12,16 +12,15 @@ from pydantic import (
     StrictInt,
     StrictStr,
     ValidationError,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
-    FeastFeatureServerTypeSetError,
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
-    FeastProviderNotSetError,
     FeastRegistryNotSetError,
     FeastRegistryTypeInvalidError,
 )
@@ -68,10 +67,12 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
     # "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
+    "singlestore": "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
-    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "file": "feast.infra.offline_stores.dask.DaskOfflineStore",
+    "dask": "feast.infra.offline_stores.dask.DaskOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
     "snowflake.offline": "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
@@ -86,10 +87,6 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
-}
-
-FEATURE_SERVER_TYPE_FOR_PROVIDER = {
-    "local": "local",
 }
 
 
@@ -127,10 +124,30 @@ class RegistryConfig(FeastBaseModel):
 
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
+
     client_id: Optional[StrictStr] = "Unknown"
+    """ Client ID used for HTTP Registry """
 
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
+
+    cache_mode: StrictStr = "sync"
+    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
+
+    @field_validator("path")
+    def validate_path(cls, path: str, values: ValidationInfo) -> str:
+        if values.data.get("registry_type") == "sql":
+            if path.startswith("postgresql://"):
+                _logger.warning(
+                    "The `path` of the `RegistryConfig` starts with a plain "
+                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
+                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
+                    "explicitely to `path`."
+                )
+                return path.replace("postgresql://", "postgresql+psycopg://")
+        return path
 
 
 class RepoConfig(FeastBaseModel):
@@ -142,7 +159,7 @@ class RepoConfig(FeastBaseModel):
         provider account, as long as they have different project ids.
     """
 
-    provider: StrictStr
+    provider: StrictStr = "local"
     """ str: local or gcp or aws """
 
     registry_config: Any = Field(alias="registry", default="data/registry.db")
@@ -201,49 +218,32 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        if "offline_store" in data:
-            self.offline_config = data["offline_store"]
+        provider = data.get("provider", "local")
+        if provider == "expedia":
+            spark_offline_config = {
+                "type": "spark",
+                "spark_conf": {
+                    "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
+                    "spark.sql.catalog.spark_catalog.type": "hive",
+                    "spark.sql.iceberg.handle-timestamp-without-timezone": "true",
+                },
+            }
+            self.offline_config = spark_offline_config
         else:
-            if data["provider"] == "local":
-                self.offline_config = "file"
-            elif data["provider"] == "gcp":
-                self.offline_config = "bigquery"
-            elif data["provider"] == "aws":
-                self.offline_config = "redshift"
-            elif data["provider"] == "azure":
-                self.offline_config = "mssql"
-            elif data["provider"] == "expedia":
-                spark_offline_config = {
-                    "type": "spark",
-                    "spark_conf": {
-                        "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
-                        "spark.sql.catalog.spark_catalog.type": "hive",
-                        "spark.sql.iceberg.handle-timestamp-without-timezone": "true",
-                    },
-                }
-                self._offline_config = spark_offline_config
+            self.offline_config = data.get("offline_store", "dask")
 
         self._online_store = None
-        if "online_store" in data:
-            self.online_config = data["online_store"]
+        if provider == "expedia":
+            self.online_config = "redis"
         else:
-            if data["provider"] == "local":
-                self.online_config = "sqlite"
-            elif data["provider"] == "gcp":
-                self.online_config = "datastore"
-            elif data["provider"] == "aws":
-                self.online_config = "dynamodb"
-            elif data["provider"] == "rockset":
-                self.online_config = "rockset"
-            elif data["provider"] == "expedia":
-                self.online_config = "redis"
+            self.online_config = data.get("online_store", "sqlite")
 
         self._batch_engine = None
         if "batch_engine" in data:
             self.batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
-            self._batch_engine_config = data["batch_engine_config"]
-        elif data["provider"] == "expedia":
+            self.batch_engine_config = data["batch_engine_config"]
+        elif provider == "expedia":
             self.batch_engine_config = "spark.engine"
         else:
             # Defaults to using local in-process materialization engine.
@@ -349,22 +349,15 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"] = None
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
         # Set the default type
         # This is only direct reference to a provider or online store that we should have
         # for backwards compatibility.
+        provider = values.get("provider", "local")
         if "type" not in values["online_store"]:
-            if values["provider"] == "local":
-                values["online_store"]["type"] = "sqlite"
-            elif values["provider"] == "gcp":
-                values["online_store"]["type"] = "datastore"
-            elif values["provider"] == "aws":
-                values["online_store"]["type"] = "dynamodb"
-            elif values["provider"] == "expedia":
+            if provider == "expedia":
                 values["online_store"]["type"] = "redis"
+            else:
+                values["online_store"]["type"] = "sqlite"
 
         online_store_type = values["online_store"]["type"]
 
@@ -387,22 +380,13 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["offline_store"], Dict):
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
+        provider = values.get("provider", "local")
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local":
-                values["offline_store"]["type"] = "file"
-            elif values["provider"] == "gcp":
-                values["offline_store"]["type"] = "bigquery"
-            elif values["provider"] == "aws":
-                values["offline_store"]["type"] = "redshift"
-            if values["provider"] == "azure":
-                values["offline_store"]["type"] = "mssql"
-            if values["provider"] == "expedia":
+            if provider == "expedia":
                 values["offline_store"]["type"] = "spark"
+            else:
+                values["offline_store"]["type"] = "dask"
 
         offline_store_type = values["offline_store"]["type"]
 
@@ -426,15 +410,7 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["feature_server"], Dict):
             return values
 
-        # Make sure that the provider configuration is set. We need it to set the defaults
-        if "provider" not in values:
-            raise FeastProviderNotSetError()
-
-        default_type = FEATURE_SERVER_TYPE_FOR_PROVIDER.get(values["provider"])
-        defined_type = values["feature_server"].get("type", default_type)
-        # Make sure that the type is either not set, or set correctly, since it's defined by the provider
-        if defined_type not in (default_type, "local"):
-            raise FeastFeatureServerTypeSetError(defined_type)
+        defined_type = values["feature_server"].get("type", "local")
         values["feature_server"]["type"] = defined_type
 
         # Validate the dict to ensure one of the union types match
