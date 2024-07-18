@@ -150,6 +150,8 @@ ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb"]
 
+MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -369,6 +371,7 @@ setup(
         "postgres": POSTGRES_REQUIRED,
         "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
+        "mssql": MSSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
