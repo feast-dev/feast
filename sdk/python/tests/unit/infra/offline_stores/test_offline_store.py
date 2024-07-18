@@ -9,9 +9,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaOfflineStoreConfig,
     AthenaRetrievalJob,
 )
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerRetrievalJob,
-)
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLRetrievalJob,
@@ -104,7 +101,6 @@ class MockRetrievalJob(RetrievalJob):
         RedshiftRetrievalJob,
         SnowflakeRetrievalJob,
         AthenaRetrievalJob,
-        MsSqlServerRetrievalJob,
         PostgreSQLRetrievalJob,
         SparkRetrievalJob,
         TrinoRetrievalJob,
@@ -170,13 +166,6 @@ def retrieval_job(request, environment):
             query="query",
             athena_client="client",
             s3_resource="",
-            config=environment.config,
-            full_feature_names=False,
-        )
-    elif request.param is MsSqlServerRetrievalJob:
-        return MsSqlServerRetrievalJob(
-            query="query",
-            engine=MagicMock(),
             config=environment.config,
             full_feature_names=False,
         )
