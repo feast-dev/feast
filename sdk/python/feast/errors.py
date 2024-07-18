@@ -124,21 +124,9 @@ class FeastProviderNotImplementedError(Exception):
         super().__init__(f"Provider '{provider_name}' is not implemented")
 
 
-class FeastProviderNotSetError(Exception):
-    def __init__(self):
-        super().__init__("Provider is not set, but is required")
-
-
 class FeastRegistryNotSetError(Exception):
     def __init__(self):
         super().__init__("Registry is not set, but is required")
-
-
-class FeastFeatureServerTypeSetError(Exception):
-    def __init__(self, feature_server_type: str):
-        super().__init__(
-            f"Feature server type was set to {feature_server_type}, but the type should be determined by the provider"
-        )
 
 
 class FeastFeatureServerTypeInvalidError(Exception):
@@ -406,3 +394,13 @@ class DataFrameSerializationError(Exception):
         super().__init__(
             f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
         )
+
+
+class ZeroRowsQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero rows:\n{query}")
+
+
+class ZeroColumnQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero columns:\n{query}")

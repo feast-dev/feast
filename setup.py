@@ -20,24 +20,15 @@ import re
 import shutil
 import subprocess
 import sys
-from distutils.cmd import Command
 from distutils.dir_util import copy_tree
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from setuptools import Extension, find_packages
-
-try:
-    from setuptools import setup
-    from setuptools.command.build_ext import build_ext as _build_ext
-    from setuptools.command.build_py import build_py
-    from setuptools.command.develop import develop
-    from setuptools.command.install import install
-
-except ImportError:
-    from distutils.command.build_ext import build_ext as _build_ext
-    from distutils.command.build_py import build_py
-    from distutils.core import setup
+from setuptools import Extension, find_packages, setup, Command
+from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"
@@ -70,7 +61,7 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
-    "dask[dataframe]>=2024.4.2",
+    "dask[dataframe]>=2024.2.1",
 ]
 
 GO_REQUIRED = [
@@ -80,9 +71,9 @@ GO_REQUIRED = [
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
-    "google-cloud-bigquery[pandas]>=2,<3.13.0",
+    "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-datastore>=2.16.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
     "fsspec<=2024.1.0",
@@ -111,7 +102,7 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg2-binary>=2.8.3,<3",
+    "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
@@ -155,8 +146,8 @@ MILVUS_REQUIRED = ["pymilvus>=2.3.0", "bidict==0.22.1"]
 # ]
 
 IBIS_REQUIRED = [
-    "ibis-framework>=8.0.0,<9",
-    "ibis-substrait<=3.2.0",
+    "ibis-framework>=9.0.0,<10",
+    "ibis-substrait>=4.0.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -166,11 +157,13 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
+
+SINGLESTORE_REQUIRED = ["singlestoredb"]
 
 CI_REQUIRED = (
     [
@@ -180,7 +173,7 @@ CI_REQUIRED = (
         "ruff>=0.3.3",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-        "httpx>=0.23.3,<1.0.0",
+        "httpx>=0.23.3",
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
@@ -236,6 +229,7 @@ CI_REQUIRED = (
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
+    + SINGLESTORE_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -262,13 +256,7 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
-PROTO_SUBDIRS = [
-    "core",
-    "registry",
-    "serving",
-    "types",
-    "storage",
-]
+PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
 
 
@@ -584,6 +572,7 @@ setup(
         "go": GO_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
+        "singlestore": SINGLESTORE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

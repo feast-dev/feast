@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
@@ -7,6 +6,7 @@ from urllib.parse import urlparse
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
+from feast.utils import _utc_now
 
 
 class GCSRegistryStore(RegistryStore):
@@ -62,7 +62,7 @@ class GCSRegistryStore(RegistryStore):
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        registry_proto.last_updated.FromDatetime(_utc_now())
         # we have already checked the bucket exists so no need to do it again
         gs_bucket = self.gcs_client.get_bucket(self._bucket)
         blob = gs_bucket.blob(self._blob)

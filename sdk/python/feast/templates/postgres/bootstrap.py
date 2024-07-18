@@ -1,5 +1,5 @@
 import click
-import psycopg2
+import psycopg
 
 from feast.file_utils import replace_str_in_file
 from feast.infra.utils.postgres.connection_utils import df_to_postgres_table
@@ -34,12 +34,14 @@ def bootstrap():
         'Should I upload example data to Postgres (overwriting "feast_driver_hourly_stats" table)?',
         default=True,
     ):
-        db_connection = psycopg2.connect(
-            dbname=postgres_database,
-            host=postgres_host,
-            port=int(postgres_port),
-            user=postgres_user,
-            password=postgres_password,
+        db_connection = psycopg.connect(
+            conninfo=(
+                f"postgresql://{postgres_user}"
+                f":{postgres_password}"
+                f"@{postgres_host}"
+                f":{int(postgres_port)}"
+                f"/{postgres_database}"
+            ),
             options=f"-c search_path={postgres_schema}",
         )
 

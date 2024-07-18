@@ -84,6 +84,7 @@ from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1259,7 +1260,7 @@ class FeatureStore:
             >>> from feast import FeatureStore, RepoConfig
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
-            >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
+            >>> fs.materialize_incremental(end_date=_utc_now() - timedelta(minutes=5))
             Materializing...
             <BLANKLINE>
             ...
@@ -1283,7 +1284,7 @@ class FeatureStore:
                         f" either a ttl to be set or for materialize() to have been run at least once."
                     )
                 elif feature_view.ttl.total_seconds() > 0:
-                    start_date = datetime.utcnow() - feature_view.ttl
+                    start_date = _utc_now() - feature_view.ttl
                 else:
                     # TODO(felixwang9817): Find the earliest timestamp for this specific feature
                     # view from the offline store, and set the start date to that timestamp.
@@ -1291,7 +1292,7 @@ class FeatureStore:
                         f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
                         "the start date will be set to 1 year before the current time."
                     )
-                    start_date = datetime.utcnow() - timedelta(weeks=52)
+                    start_date = _utc_now() - timedelta(weeks=52)
             provider = self._get_provider()
             print(
                 f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
@@ -1348,7 +1349,7 @@ class FeatureStore:
             >>> from datetime import datetime, timedelta
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> fs.materialize(
-            ...     start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
+            ...     start_date=_utc_now() - timedelta(hours=3), end_date=_utc_now() - timedelta(minutes=10)
             ... )
             Materializing...
             <BLANKLINE>
@@ -1574,75 +1575,16 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
+        provider = self._get_provider()
 
-            entity_rows = columnar
-
-        (
-            join_key_values,
-            grouped_refs,
-            entity_name_to_join_key_map,
-            requested_on_demand_feature_views,
-            feature_refs,
-            requested_result_row_names,
-            online_features_response,
-        ) = utils._prepare_entities_to_read_from_online_store(
+        return provider.get_online_features(
+            config=self.config,
+            features=features,
+            entity_rows=entity_rows,
             registry=self._registry,
             project=self.project,
-            features=features,
-            entity_values=entity_rows,
             full_feature_names=full_feature_names,
-            native_entity_values=True,
         )
-
-        provider = self._get_provider()
-        for table, requested_features in grouped_refs:
-            # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
-            )
-
-            # Fetch feature data for the minimum set of Entities.
-            feature_data = self._read_from_online_store(
-                table_entity_values,
-                provider,
-                requested_features,
-                table,
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
-            utils._populate_response_from_feature_data(
-                feature_data,
-                idxs,
-                online_features_response,
-                full_feature_names,
-                requested_features,
-                table,
-            )
-
-        if requested_on_demand_feature_views:
-            utils._augment_response_with_on_demand_transforms(
-                online_features_response,
-                feature_refs,
-                requested_on_demand_feature_views,
-                full_feature_names,
-            )
-
-        utils._drop_unneeded_columns(
-            online_features_response, requested_result_row_names
-        )
-        return OnlineResponse(online_features_response)
 
     async def get_online_features_async(
         self,
@@ -1679,75 +1621,16 @@ class FeatureStore:
         Raises:
             Exception: No entity with the specified name exists.
         """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
+        provider = self._get_provider()
 
-            entity_rows = columnar
-
-        (
-            join_key_values,
-            grouped_refs,
-            entity_name_to_join_key_map,
-            requested_on_demand_feature_views,
-            feature_refs,
-            requested_result_row_names,
-            online_features_response,
-        ) = utils._prepare_entities_to_read_from_online_store(
+        return await provider.get_online_features_async(
+            config=self.config,
+            features=features,
+            entity_rows=entity_rows,
             registry=self._registry,
             project=self.project,
-            features=features,
-            entity_values=entity_rows,
             full_feature_names=full_feature_names,
-            native_entity_values=True,
         )
-
-        provider = self._get_provider()
-        for table, requested_features in grouped_refs:
-            # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
-            )
-
-            # Fetch feature data for the minimum set of Entities.
-            feature_data = await self._read_from_online_store_async(
-                table_entity_values,
-                provider,
-                requested_features,
-                table,
-            )
-
-            # Populate the result_rows with the Features from the OnlineStore inplace.
-            utils._populate_response_from_feature_data(
-                feature_data,
-                idxs,
-                online_features_response,
-                full_feature_names,
-                requested_features,
-                table,
-            )
-
-        if requested_on_demand_feature_views:
-            utils._augment_response_with_on_demand_transforms(
-                online_features_response,
-                feature_refs,
-                requested_on_demand_feature_views,
-                full_feature_names,
-            )
-
-        utils._drop_unneeded_columns(
-            online_features_response, requested_result_row_names
-        )
-        return OnlineResponse(online_features_response)
 
     def retrieve_online_documents(
         self,
@@ -1820,53 +1703,6 @@ class FeatureStore:
             data={"distance": document_feature_distance_vals},
         )
         return OnlineResponse(online_features_response)
-
-    def _read_from_online_store(
-        self,
-        entity_rows: Iterable[Mapping[str, Value]],
-        provider: Provider,
-        requested_features: List[str],
-        table: FeatureView,
-    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
-        """Read and process data from the OnlineStore for a given FeatureView.
-
-        This method guarantees that the order of the data in each element of the
-        List returned is the same as the order of `requested_features`.
-
-        This method assumes that `provider.online_read` returns data for each
-        combination of Entities in `entity_rows` in the same order as they
-        are provided.
-        """
-        entity_key_protos = utils._get_entity_key_protos(entity_rows)
-
-        # Fetch data for Entities.
-        read_rows = provider.online_read(
-            config=self.config,
-            table=table,
-            entity_keys=entity_key_protos,
-            requested_features=requested_features,
-        )
-
-        return utils._convert_rows_to_protobuf(requested_features, read_rows)
-
-    async def _read_from_online_store_async(
-        self,
-        entity_rows: Iterable[Mapping[str, Value]],
-        provider: Provider,
-        requested_features: List[str],
-        table: FeatureView,
-    ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[Value]]]:
-        entity_key_protos = utils._get_entity_key_protos(entity_rows)
-
-        # Fetch data for Entities.
-        read_rows = await provider.online_read_async(
-            config=self.config,
-            table=table,
-            entity_keys=entity_key_protos,
-            requested_features=requested_features,
-        )
-
-        return utils._convert_rows_to_protobuf(requested_features, read_rows)
 
     def _retrieve_from_online_store(
         self,

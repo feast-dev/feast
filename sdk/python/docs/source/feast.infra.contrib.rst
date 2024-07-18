@@ -4,14 +4,6 @@ feast.infra.contrib package
 Submodules
 ----------
 
-feast.infra.contrib.azure\_provider module
-------------------------------------------
-
-.. automodule:: feast.infra.contrib.azure_provider
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 feast.infra.contrib.grpc\_server module
 ---------------------------------------
 

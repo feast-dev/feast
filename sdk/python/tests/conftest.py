@@ -15,7 +15,7 @@ import logging
 import multiprocessing
 import os
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 from multiprocessing import Process
 from sys import platform
 from typing import Any, Dict, List, Tuple, no_type_check
@@ -27,6 +27,7 @@ from _pytest.nodes import Item
 
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
+from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import (  # noqa: E402
     create_basic_driver_dataset,
@@ -152,7 +153,7 @@ def pytest_collection_modifyitems(config, items: List[Item]):
 
 @pytest.fixture
 def simple_dataset_1() -> pd.DataFrame:
-    now = datetime.utcnow()
+    now = _utc_now()
     ts = pd.Timestamp(now).round("ms")
     data = {
         "id_join_key": [1, 2, 1, 3, 3],
@@ -172,7 +173,7 @@ def simple_dataset_1() -> pd.DataFrame:
 
 @pytest.fixture
 def simple_dataset_2() -> pd.DataFrame:
-    now = datetime.utcnow()
+    now = _utc_now()
     ts = pd.Timestamp(now).round("ms")
     data = {
         "id_join_key": ["a", "b", "c", "d", "e"],
@@ -420,8 +421,8 @@ def fake_ingest_data():
         "conv_rate": [0.5],
         "acc_rate": [0.6],
         "avg_daily_trips": [4],
-        "event_timestamp": [pd.Timestamp(datetime.utcnow()).round("ms")],
-        "created": [pd.Timestamp(datetime.utcnow()).round("ms")],
+        "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
+        "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
     return pd.DataFrame(data)
 

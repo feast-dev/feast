@@ -1,7 +1,8 @@
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
+from feast.utils import _utc_now
 from tests.utils.cli_repo_creator import CliRunner
 
 
@@ -29,7 +30,7 @@ def test_cli_chdir() -> None:
         )
         assert result.returncode == 0
 
-        end_date = datetime.utcnow()
+        end_date = _utc_now()
         start_date = end_date - timedelta(days=100)
         result = runner.run(
             [

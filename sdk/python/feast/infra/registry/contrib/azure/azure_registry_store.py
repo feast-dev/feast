@@ -3,7 +3,6 @@
 
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
@@ -11,6 +10,7 @@ from urllib.parse import urlparse
 from feast.infra.registry.registry import RegistryConfig
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.utils import _utc_now
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -89,7 +89,7 @@ class AzBlobRegistryStore(RegistryStore):
 
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
-        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        registry_proto.last_updated.FromDatetime(_utc_now())
 
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())

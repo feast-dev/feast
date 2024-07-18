@@ -6,13 +6,14 @@ import traceback
 import unittest
 
 import feast
+from feast.utils import _utc_now
 
 FILES_TO_IGNORE = {"app"}
 
 
 def setup_feature_store():
     """Prepares the local environment for a FeatureStore docstring test."""
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from feast import Entity, FeatureStore, FeatureView, Field, FileSource
     from feast.repo_operations import init_repo
@@ -42,8 +43,8 @@ def setup_feature_store():
     )
     fs.apply([driver_hourly_stats_view, driver])
     fs.materialize(
-        start_date=datetime.utcnow() - timedelta(hours=3),
-        end_date=datetime.utcnow() - timedelta(minutes=10),
+        start_date=_utc_now() - timedelta(hours=3),
+        end_date=_utc_now() - timedelta(minutes=10),
     )
 
 

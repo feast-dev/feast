@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import signal
 from dataclasses import dataclass
 from enum import Enum
@@ -16,6 +15,7 @@ from trino.exceptions import TrinoQueryError
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_type_map import (
     trino_to_pa_value_type,
 )
+from feast.utils import _utc_now
 
 
 class QueryStatus(Enum):
@@ -97,12 +97,12 @@ class Query(object):
     def execute(self) -> Results:
         try:
             self.status = QueryStatus.RUNNING
-            start_time = datetime.datetime.utcnow()
+            start_time = _utc_now()
 
             self._cursor.execute(operation=self.query_text)
             rows = self._cursor.fetchall()
 
-            end_time = datetime.datetime.utcnow()
+            end_time = _utc_now()
             self.execution_time = end_time - start_time
             self.status = QueryStatus.COMPLETED
 
