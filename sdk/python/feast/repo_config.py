@@ -380,10 +380,10 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-        if values["provider"] == "expedia":
-            values["offline_store"]["type"] = "spark"
-        else:
-            values["offline_store"]["type"] = "dask"
+            if values["provider"] == "expedia":
+                values["offline_store"]["type"] = "spark"
+            else:
+                values["offline_store"]["type"] = "dask"
 
         offline_store_type = values["offline_store"]["type"]
 
