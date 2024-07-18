@@ -12,7 +12,6 @@ from pymilvus import (
     connections,
     utility,
 )
-from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 
 from feast import FeatureView
 from feast.entity import Entity
@@ -29,6 +28,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float32, Int64, String
+from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 
 logging.basicConfig(level=logging.INFO)
 
