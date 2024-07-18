@@ -218,7 +218,8 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        if data["provider"] == "expedia":
+        provider = data.get("provider", "local")
+        if provider == "expedia":
             spark_offline_config = {
                 "type": "spark",
                 "spark_conf": {
@@ -232,7 +233,7 @@ class RepoConfig(FeastBaseModel):
             self.offline_config = data.get("offline_store", "dask")
 
         self._online_store = None
-        if data["provider"] == "expedia":
+        if provider == "expedia":
             self.online_config = "redis"
         else:
             self.online_config = data.get("online_store", "sqlite")
@@ -242,7 +243,7 @@ class RepoConfig(FeastBaseModel):
             self.batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self.batch_engine_config = data["batch_engine_config"]
-        elif data["provider"] == "expedia":
+        elif provider == "expedia":
             self.batch_engine_config = "spark.engine"
         else:
             # Defaults to using local in-process materialization engine.
@@ -351,8 +352,9 @@ class RepoConfig(FeastBaseModel):
         # Set the default type
         # This is only direct reference to a provider or online store that we should have
         # for backwards compatibility.
+        provider = values.get("provider", "local")
         if "type" not in values["online_store"]:
-            if values["provider"] == "expedia":
+            if provider == "expedia":
                 values["online_store"]["type"] = "redis"
             else:
                 values["online_store"]["type"] = "sqlite"
@@ -378,9 +380,10 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["offline_store"], Dict):
             return values
 
+        provider = values.get("provider", "local")
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "expedia":
+            if provider == "expedia":
                 values["offline_store"]["type"] = "spark"
             else:
                 values["offline_store"]["type"] = "dask"

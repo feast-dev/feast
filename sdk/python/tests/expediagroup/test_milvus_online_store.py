@@ -12,6 +12,7 @@ from pymilvus import (
     connections,
     utility,
 )
+from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 
 from feast import FeatureView
 from feast.entity import Entity
@@ -21,14 +22,13 @@ from feast.expediagroup.vectordb.milvus_online_store import (
     MilvusOnlineStoreConfig,
 )
 from feast.field import Field
-from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float32, Int64, String
-from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,7 +59,7 @@ def repo_config(embedded_milvus):
             username=embedded_milvus["username"],
             password=embedded_milvus["password"],
         ),
-        offline_store=FileOfflineStoreConfig(),
+        offline_store=DaskOfflineStoreConfig(),
         entity_key_serialization_version=2,
     )
 
