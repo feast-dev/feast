@@ -1,10 +1,11 @@
 import os
 from datetime import datetime
-from feast import FeatureStore
+
 import pandas as pd
+from feast import FeatureStore
 
-
-os.environ["LOCAL_K8S_TOKEN"] = ""
+os.environ[
+    "LOCAL_K8S_TOKEN"] = ""
 
 entity_df = pd.DataFrame.from_dict(
     {
