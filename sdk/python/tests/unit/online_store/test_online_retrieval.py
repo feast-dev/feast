@@ -516,6 +516,7 @@ def test_sqlite_get_online_documents() -> None:
 
 
 def test_sqlite_vec_import() -> None:
+    SQLITE_VEC_VERSION = "v0.0.1-alpha.36"
     db = sqlite3.connect(":memory:")
     db.enable_load_extension(True)
     sqlite_vec.load(db)
@@ -538,7 +539,7 @@ def test_sqlite_vec_import() -> None:
     sqlite_version, vec_version = db.execute(
         "select sqlite_version(), vec_version()"
     ).fetchone()
-    assert vec_version == "v0.0.1-alpha.10"
+    assert vec_version == SQLITE_VEC_VERSION
     print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
 
     result = db.execute("""
