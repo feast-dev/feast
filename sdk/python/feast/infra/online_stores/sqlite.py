@@ -500,4 +500,3 @@ class SqliteTable(InfraObject):
 
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
-
