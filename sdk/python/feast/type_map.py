@@ -155,13 +155,15 @@ def python_type_to_feast_value_type(
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
+        "bool_": ValueType.BOOL,  # np.bool_
         "bool": ValueType.BOOL,
         "boolean": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,  # special dtype of pandas
+        "datetime64[ns, utc]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -598,7 +600,9 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetimeoffset": ValueType.UNIX_TIMESTAMP,
         "float": ValueType.FLOAT,
+        "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,

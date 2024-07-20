@@ -9,9 +9,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaOfflineStoreConfig,
     AthenaRetrievalJob,
 )
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerRetrievalJob,
-)
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLRetrievalJob,
@@ -23,7 +20,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoRetrievalJob,
 )
-from feast.infra.offline_stores.file import FileRetrievalJob
+from feast.infra.offline_stores.dask import DaskRetrievalJob
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
@@ -100,11 +97,10 @@ class MockRetrievalJob(RetrievalJob):
 @pytest.fixture(
     params=[
         MockRetrievalJob,
-        FileRetrievalJob,
+        DaskRetrievalJob,
         RedshiftRetrievalJob,
         SnowflakeRetrievalJob,
         AthenaRetrievalJob,
-        MsSqlServerRetrievalJob,
         PostgreSQLRetrievalJob,
         SparkRetrievalJob,
         TrinoRetrievalJob,
@@ -112,8 +108,8 @@ class MockRetrievalJob(RetrievalJob):
     ]
 )
 def retrieval_job(request, environment):
-    if request.param is FileRetrievalJob:
-        return FileRetrievalJob(lambda: 1, full_feature_names=False)
+    if request.param is DaskRetrievalJob:
+        return DaskRetrievalJob(lambda: 1, full_feature_names=False)
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
             cluster_id="feast-int-bucket",
@@ -170,13 +166,6 @@ def retrieval_job(request, environment):
             query="query",
             athena_client="client",
             s3_resource="",
-            config=environment.config,
-            full_feature_names=False,
-        )
-    elif request.param is MsSqlServerRetrievalJob:
-        return MsSqlServerRetrievalJob(
-            query="query",
-            engine=MagicMock(),
             config=environment.config,
             full_feature_names=False,
         )

@@ -68,7 +68,8 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
-    "file": "feast.infra.offline_stores.file.FileOfflineStore",
+    "file": "feast.infra.offline_stores.dask.DaskOfflineStore",
+    "dask": "feast.infra.offline_stores.dask.DaskOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
     "snowflake.offline": "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
@@ -123,6 +124,9 @@ class RegistryConfig(FeastBaseModel):
 
     sqlalchemy_config_kwargs: Dict[str, Any] = {}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
+
+    cache_mode: StrictStr = "sync"
+    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
 
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
@@ -202,7 +206,7 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        self.offline_config = data.get("offline_store", "file")
+        self.offline_config = data.get("offline_store", "dask")
 
         self._online_store = None
         self.online_config = data.get("online_store", "sqlite")
@@ -345,7 +349,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            values["offline_store"]["type"] = "file"
+            values["offline_store"]["type"] = "dask"
 
         offline_store_type = values["offline_store"]["type"]
 

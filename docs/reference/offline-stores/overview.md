@@ -25,13 +25,13 @@ The first three of these methods all return a `RetrievalJob` specific to an offl
 
 ## Functionality Matrix
 
-There are currently four core offline store implementations: `FileOfflineStore`, `BigQueryOfflineStore`, `SnowflakeOfflineStore`, and `RedshiftOfflineStore`.
+There are currently four core offline store implementations: `DaskOfflineStore`, `BigQueryOfflineStore`, `SnowflakeOfflineStore`, and `RedshiftOfflineStore`.
 There are several additional implementations contributed by the Feast community  (`PostgreSQLOfflineStore`, `SparkOfflineStore`, and `TrinoOfflineStore`), which are not guaranteed to be stable or to match the functionality of the core implementations.
 Details for each specific offline store, such as how to configure it in a `feature_store.yaml`, can be found [here](README.md).
 
 Below is a matrix indicating which offline stores support which methods.
 
-| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
+| | Dask | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
 | :-------------------------------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | `get_historical_features`         | yes | yes | yes | yes | yes | yes | yes |
 | `pull_latest_from_table_or_query` | yes | yes | yes | yes | yes | yes | yes |
@@ -42,7 +42,7 @@ Below is a matrix indicating which offline stores support which methods.
 
 Below is a matrix indicating which `RetrievalJob`s support what functionality.
 
-| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | DuckDB |
+| | Dask | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | DuckDB |
 | --------------------------------- | --- | --- | --- | --- | --- | --- | --- | --- |
 | export to dataframe                                   | yes | yes | yes | yes | yes | yes | yes | yes | 
 | export to arrow table                                 | yes | yes | yes | yes | yes | yes | yes | yes |

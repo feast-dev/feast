@@ -18,21 +18,14 @@ import re
 import shutil
 import subprocess
 import sys
-from distutils.cmd import Command
+
 from pathlib import Path
 
-from setuptools import find_packages
-
-try:
-    from setuptools import setup
-    from setuptools.command.build_ext import build_ext as _build_ext
-    from setuptools.command.build_py import build_py
-    from setuptools.command.develop import develop
-    from setuptools.command.install import install
-
-except ImportError:
-    from distutils.command.build_py import build_py
-    from distutils.core import setup
+from setuptools import find_packages, setup, Command
+from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -65,15 +58,15 @@ REQUIRED = [
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
-    "dask[dataframe]>=2024.4.2",
+    "dask[dataframe]>=2024.2.1",
 ]
 
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
-    "google-cloud-bigquery[pandas]>=2,<3.13.0",
+    "google-cloud-bigquery[pandas]>=2,<4",
     "google-cloud-bigquery-storage >= 2.0.0,<3",
-    "google-cloud-datastore>=2.1.0,<3",
+    "google-cloud-datastore>=2.16.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
     "fsspec<=2024.1.0",
@@ -138,8 +131,8 @@ HAZELCAST_REQUIRED = [
 ]
 
 IBIS_REQUIRED = [
-    "ibis-framework>=8.0.0,<9",
-    "ibis-substrait<=3.2.0",
+    "ibis-framework>=9.0.0,<10",
+    "ibis-substrait>=4.0.0",
 ]
 
 GRPCIO_REQUIRED = [
@@ -149,13 +142,15 @@ GRPCIO_REQUIRED = [
     "grpcio-health-checking>=1.56.2,<2",
 ]
 
-DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=8.0.0,<9"]
+DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb"]
+
+MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 CI_REQUIRED = (
     [
@@ -184,7 +179,6 @@ CI_REQUIRED = (
         "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers==4.4.0",
-        "firebase-admin>=5.2.0,<6",
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
@@ -376,6 +370,7 @@ setup(
         "postgres": POSTGRES_REQUIRED,
         "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
+        "mssql": MSSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
