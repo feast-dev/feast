@@ -6,7 +6,6 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-import pytz
 from elasticsearch import Elasticsearch, helpers
 
 from feast import Entity, FeatureView, RepoConfig
@@ -15,6 +14,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.utils import to_naive_utc
 
 
 class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
@@ -96,9 +96,9 @@ class ElasticSearchOnlineStore(OnlineStore):
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
             encoded_entity_key = base64.b64encode(entity_key_bin).decode("utf-8")
-            timestamp = _to_naive_utc(timestamp)
+            timestamp = to_naive_utc(timestamp)
             if created_ts is not None:
-                created_ts = _to_naive_utc(created_ts)
+                created_ts = to_naive_utc(created_ts)
             for feature_name, value in values.items():
                 encoded_value = base64.b64encode(value.SerializeToString()).decode(
                     "utf-8"
@@ -267,10 +267,3 @@ class ElasticSearchOnlineStore(OnlineStore):
                 )
             )
         return result
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)

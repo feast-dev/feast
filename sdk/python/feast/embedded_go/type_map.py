@@ -1,12 +1,12 @@
+from datetime import timezone
 from typing import List
 
 import pyarrow as pa
-import pytz
 
 from feast.protos.feast.types import Value_pb2
 from feast.types import Array, PrimitiveFeastType
 
-PA_TIMESTAMP_TYPE = pa.timestamp("s", tz=pytz.UTC)
+PA_TIMESTAMP_TYPE = pa.timestamp("s", tz=timezone.utc)
 
 ARROW_TYPE_TO_PROTO_FIELD = {
     pa.int32(): "int32_val",

@@ -14,7 +14,7 @@
 import logging
 import os
 import time
-from datetime import timedelta
+from datetime import timedelta, timezone
 from tempfile import mkstemp
 from unittest import mock
 
@@ -22,7 +22,6 @@ import grpc_testing
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture
-from pytz import utc
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
@@ -802,8 +801,8 @@ def test_modify_feature_views_success(test_registry):
 
     # Simulate materialization
     current_date = _utc_now()
-    end_date = current_date.replace(tzinfo=utc)
-    start_date = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    end_date = current_date.replace(tzinfo=timezone.utc)
+    start_date = (current_date - timedelta(days=1)).replace(tzinfo=timezone.utc)
     test_registry.apply_materialization(feature_view, project, start_date, end_date)
     materialized_feature_view = test_registry.get_feature_view(
         "my_feature_view_1", project
@@ -871,8 +870,8 @@ def test_modify_feature_views_success(test_registry):
 
     # Simulate materialization a second time
     current_date = _utc_now()
-    end_date_1 = current_date.replace(tzinfo=utc)
-    start_date_1 = (current_date - timedelta(days=1)).replace(tzinfo=utc)
+    end_date_1 = current_date.replace(tzinfo=timezone.utc)
+    start_date_1 = (current_date - timedelta(days=1)).replace(tzinfo=timezone.utc)
     test_registry.apply_materialization(
         updated_feature_view, project, start_date_1, end_date_1
     )
