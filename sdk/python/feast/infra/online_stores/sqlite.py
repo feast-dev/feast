@@ -332,7 +332,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE vec_example using vec0(
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_example using vec0(
                 vector_value float[{config.online_store.vector_len}]
         );
         """
@@ -354,28 +354,26 @@ class SqliteOnlineStore(OnlineStore):
         )
 
         # Have to join this with the {table_name} to get the feature name and entity_key
-        # Also the `top_k` doesn't appear to be working for some reason
         cur.execute(
             f"""
             select
-                fv.entity_key,
-                f.vector_value,
-                fv.value,
                 f.distance,
-                fv.event_ts
+                fv.feature_name,
+                fv.value,
+                fv.event_ts,
+                fv.created_ts
             from (
                 select
                     rowid,
-                    vector_value,
                     distance
                 from vec_example
                 where vector_value match ?
+                and k = ?
                 order by distance
-                limit ?
             ) f
             left join {table_name} fv
             on f.rowid = fv.rowid
-        """,
+            """,
             (query_embedding_bin, top_k),
         )
 
@@ -390,7 +388,7 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        for entity_key, _, string_value, distance, event_ts in rows:
+        for distance, feature_name, string_value, event_ts, created_ts in rows:
             feature_value_proto = ValueProto()
             feature_value_proto.ParseFromString(string_value if string_value else b"")
             vector_value_proto = ValueProto(
@@ -502,3 +500,4 @@ class SqliteTable(InfraObject):
 
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
+
