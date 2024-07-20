@@ -548,8 +548,8 @@ def test_sqlite_vec_import() -> None:
             distance
         from vec_examples
         where sample_embedding match '[0.890, 0.544, 0.825, 0.961, 0.358, 0.0196, 0.521, 0.175]'
-        order by distance
-        limit 2;
+        and k = 2
+        order by distance;
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
