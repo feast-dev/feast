@@ -17,7 +17,7 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
             token = self._read_token_from_file()
             return token
         except Exception as e:
-            logger.exception(f"Error reading token from file: {e}")
+            logger.info(f"Error reading token from file: {e}")
             logger.info("Attempting to read token from environment variable.")
             try:
                 token = self._read_token_from_env()
@@ -39,5 +39,5 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
     def _read_token_from_env(self):
         token = os.getenv("LOCAL_K8S_TOKEN")
         if not token:
-            raise FileNotFoundError("LOCAL_K8S_TOKEN environment variable is not set.")
+            raise KeyError("LOCAL_K8S_TOKEN environment variable is not set.")
         return token

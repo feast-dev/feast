@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DEFAULT_HELM_RELEASES=("feast-feature-server" "feast-offline-server" "feast-ui-server" "feast-registry-server")
-NAMESPACE="feast-qe"
+DEFAULT_HELM_RELEASES=("feast-feature-server" "feast-offline-server" "feast-registry-server")
+NAMESPACE="feast-dev"
 
 HELM_RELEASES=(${1:-${DEFAULT_HELM_RELEASES[@]}})
 NAMESPACE=${2:-$NAMESPACE}
@@ -11,10 +11,11 @@ for release in "${HELM_RELEASES[@]}"; do
   helm uninstall $release -n $NAMESPACE
 done
 
-echo "Deleting Kubernetes roles, role bindings, and service accounts..."
-kubectl delete -f role.yaml
-kubectl delete -f role_binding.yaml
-kubectl delete -f service_account.yaml
+echo "Deleting Kubernetes roles, role bindings, and service accounts for clients"
+kubectl delete -f client/admin_resources.yaml
+kubectl delete -f client/user_resources.yaml
+kubectl delete -f server/server_resources.yaml
+ kubectl delete configmap client-feature-repo-config
 
-echo "Cleanup completed."
+
 echo "Cleanup completed."
