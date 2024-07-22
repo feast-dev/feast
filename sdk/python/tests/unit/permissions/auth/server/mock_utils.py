@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, Mock, mock_open
+from unittest.mock import MagicMock, Mock
 
 from requests import Response
 
@@ -68,8 +68,7 @@ def _mock_kubernetes(request, monkeypatch):
         "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding",
         lambda *args, **kwargs: clusterrolebindings["items"],
     )
-    m = mock_open(read_data="my-token")
     monkeypatch.setattr(
-        "builtins.open",
-        m,
+        "feast.permissions.client.kubernetes_auth_client_manager.KubernetesAuthClientManager.get_token",
+        lambda self: "my-token",
     )

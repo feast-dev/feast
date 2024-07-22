@@ -13,18 +13,36 @@ def setup_module():
 
 
 @pytest.mark.parametrize(
-    "username, requested_actions, allowed, allowed_single",
+    "username, requested_actions, allowed, allowed_single, raise_error",
     [
-        (None, [], False, [False, False]),
-        ("r", [AuthzedAction.READ], False, [True, False]),
-        ("r", [AuthzedAction.UPDATE], False, [False, False]),
-        ("w", [AuthzedAction.READ], False, [False, False]),
-        ("w", [AuthzedAction.UPDATE], False, [True, False]),
-        ("rw", [AuthzedAction.READ], False, [True, False]),
-        ("rw", [AuthzedAction.UPDATE], False, [True, False]),
-        ("rw", [AuthzedAction.READ, AuthzedAction.UPDATE], False, [True, False]),
-        ("admin", [AuthzedAction.READ, AuthzedAction.UPDATE], True, [True, True]),
-        ("admin", QUERY + [AuthzedAction.UPDATE], True, [True, True]),
+        (None, [], False, [False, False], [True, True]),
+        ("r", [AuthzedAction.READ], False, [True, False], [True, True]),
+        ("r", [AuthzedAction.UPDATE], False, [False, False], [True, True]),
+        ("w", [AuthzedAction.READ], False, [False, False], [True, True]),
+        ("w", [AuthzedAction.UPDATE], False, [True, False], [True, True]),
+        ("rw", [AuthzedAction.READ], False, [True, False], [True, True]),
+        ("rw", [AuthzedAction.UPDATE], False, [True, False], [True, True]),
+        (
+            "rw",
+            [AuthzedAction.READ, AuthzedAction.UPDATE],
+            False,
+            [False, False],
+            [True, True],
+        ),
+        (
+            "admin",
+            [AuthzedAction.READ, AuthzedAction.UPDATE],
+            False,
+            [False, True],
+            [True, False],
+        ),
+        (
+            "admin",
+            QUERY + [AuthzedAction.UPDATE],
+            False,
+            [False, False],
+            [True, True],
+        ),
     ],
 )
 def test_access_SecuredFeatureView(
@@ -35,6 +53,7 @@ def test_access_SecuredFeatureView(
     requested_actions,
     allowed,
     allowed_single,
+    raise_error,
 ):
     sm = security_manager
     resources = feature_views
@@ -52,6 +71,9 @@ def test_access_SecuredFeatureView(
         if allowed_single[i]:
             result = assert_permissions(resource=r, actions=requested_actions)
             assertpy.assert_that(result).is_equal_to(r)
-        else:
+        elif raise_error[i]:
             with pytest.raises(PermissionError):
                 assert_permissions(resource=r, actions=requested_actions)
+        else:
+            result = assert_permissions(resource=r, actions=requested_actions)
+            assertpy.assert_that(result).is_none()
