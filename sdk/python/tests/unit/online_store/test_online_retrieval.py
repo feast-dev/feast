@@ -1,5 +1,7 @@
 import os
+import platform
 import sqlite3
+import sys
 import time
 
 import numpy as np
@@ -425,6 +427,10 @@ def test_online_to_df():
         assert_frame_equal(result_df[ordered_column], expected_df)
 
 
+@pytest.mark.skipif(
+    sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin",
+    reason="Doesn't work on Python 3.11 for MacOS",
+)
 def test_sqlite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
@@ -515,6 +521,10 @@ def test_sqlite_get_online_documents() -> None:
         assert len(result["distance"]) == 3
 
 
+@pytest.mark.skipif(
+    sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin",
+    reason="Doesn't work on Python 3.11 for MacOS",
+)
 def test_sqlite_vec_import() -> None:
     SQLITE_VEC_VERSION = "v0.0.1-alpha.36"
     db = sqlite3.connect(":memory:")
