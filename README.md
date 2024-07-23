@@ -17,7 +17,6 @@
 [![GitHub Release](https://img.shields.io/github/v/release/feast-dev/feast.svg?style=flat&sort=semver&color=blue)](https://github.com/feast-dev/feast/releases)
 
 ## Join us on Slack!
-
 👋👋👋 [Come say hi on Slack!](https://join.slack.com/t/feastopensource/signup)
 
 ## Overview
