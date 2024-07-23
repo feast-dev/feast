@@ -3,9 +3,11 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/ghodss/yaml"
 )
 
@@ -60,7 +62,7 @@ func NewRepoConfigFromJSON(repoPath, configJSON string) (*RepoConfig, error) {
 // NewRepoConfigFromFile reads the `feature_store.yaml` file in the repo path and converts it
 // into a RepoConfig struct.
 func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
-	data, err := ioutil.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
+	data, err := os.ReadFile(filepath.Join(repoPath, "feature_store.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +71,42 @@ func NewRepoConfigFromFile(repoPath string) (*RepoConfig, error) {
 		return nil, err
 	}
 
+	repoConfigWithEnv := os.ExpandEnv(string(data))
+
 	config := RepoConfig{}
-	if err = yaml.Unmarshal(data, &config); err != nil {
+	if err = yaml.Unmarshal([]byte(repoConfigWithEnv), &config); err != nil {
 		return nil, err
 	}
 	config.RepoPath = repoPath
 	return &config, nil
+}
+
+func (r *RepoConfig) GetLoggingOptions() (*logging.LoggingOptions, error) {
+	loggingOptions := logging.LoggingOptions{}
+	if loggingOptionsMap, ok := r.FeatureServer["feature_logging"].(map[string]interface{}); ok {
+		loggingOptions = logging.DefaultOptions
+		for k, v := range loggingOptionsMap {
+			switch k {
+			case "queue_capacity":
+				if value, ok := v.(int); ok {
+					loggingOptions.ChannelCapacity = value
+				}
+			case "emit_timeout_micro_secs":
+				if value, ok := v.(int); ok {
+					loggingOptions.EmitTimeout = time.Duration(value) * time.Microsecond
+				}
+			case "write_to_disk_interval_secs":
+				if value, ok := v.(int); ok {
+					loggingOptions.WriteInterval = time.Duration(value) * time.Second
+				}
+			case "flush_interval_secs":
+				if value, ok := v.(int); ok {
+					loggingOptions.FlushInterval = time.Duration(value) * time.Second
+				}
+			}
+		}
+	}
+	return &loggingOptions, nil
 }
 
 func (r *RepoConfig) GetRegistryConfig() (*RegistryConfig, error) {

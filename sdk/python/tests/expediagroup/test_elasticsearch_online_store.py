@@ -13,7 +13,7 @@ from feast.expediagroup.vectordb.elasticsearch_online_store import (
     ElasticsearchOnlineStoreConfig,
 )
 from feast.field import Field
-from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import BytesList, FloatList
@@ -59,7 +59,7 @@ def repo_config(embedded_elasticsearch):
             username=embedded_elasticsearch["username"],
             password=embedded_elasticsearch["password"],
         ),
-        offline_store=FileOfflineStoreConfig(),
+        offline_store=DaskOfflineStoreConfig(),
         entity_key_serialization_version=2,
     )
 

@@ -14,7 +14,7 @@ permissions:
 jobs:
   validate-title:
     if:
-      github.repository == 'feast-dev/feast'
+      github.repository != 'feast-dev/feast'
     name: Validate PR title
     runs-on: ubuntu-latest
     steps:

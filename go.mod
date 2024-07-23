@@ -7,7 +7,6 @@ replace github.com/go-python/gopy v0.4.4 => github.com/feast-dev/gopy v0.4.1-0.2
 require (
 	github.com/apache/arrow/go/v8 v8.0.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-python/gopy v0.4.4
 	// github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0
@@ -44,8 +43,6 @@ require (
 
 require github.com/rs/zerolog v1.21.0
 
-require github.com/ianlancetaylor/cgosymbolizer v0.0.0-20230801000641-8736a9d41aaa
-
 require (
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
@@ -63,6 +60,7 @@ require (
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91 // indirect

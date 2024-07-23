@@ -36,11 +36,8 @@ build: protos build-java build-docker
 
 # Python SDK
 
-install-python-ci-dependencies: install-go-proto-dependencies install-go-ci-dependencies
+install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
-	pip install --no-deps -e .
-	python setup.py build_python_protos --inplace
-	COMPILE_GO=true python setup.py develop
 
 install-python-ci-dependencies-uv:
 	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
@@ -124,7 +121,6 @@ test-python-universal-spark:
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
 			not test_universal_cli and \
-			not test_go_feature_server and \
 			not test_feature_logging and \
 			not test_reorder_columns and \
 			not test_logged_features_validation and \
@@ -147,7 +143,6 @@ test-python-universal-trino:
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
 			not test_universal_cli and \
-			not test_go_feature_server and \
 			not test_feature_logging and \
 			not test_reorder_columns and \
 			not test_logged_features_validation and \
@@ -176,7 +171,7 @@ test-python-universal-mssql:
  	 sdk/python/tests
 
 
-# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS.
+# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
 # https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
 # Modify environment variables ATHENA_REGION, ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_WORKGROUP or
 # ATHENA_S3_BUCKET_NAME according to your needs. If tests fail with the pytest -n 8 option, change the number to 1.
@@ -190,8 +185,7 @@ test-python-universal-athena:
 	ATHENA_WORKGROUP=primary \
 	ATHENA_S3_BUCKET_NAME=feast-int-bucket \
  	python -m pytest -n 8 --integration \
- 	 	-k "not test_go_feature_server and \
-		    not test_logged_features_validation and \
+ 	 	-k "not test_logged_features_validation and \
 		    not test_lambda and \
 		    not test_feature_logging and \
 		    not test_offline_write and \
@@ -203,7 +197,7 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-
+			
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
@@ -212,7 +206,6 @@ test-python-universal-postgres-offline:
  			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
  				not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -221,7 +214,6 @@ test-python-universal-postgres-offline:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
-				not test_snowflake and \
  				not test_universal_types" \
  			sdk/python/tests
 
@@ -231,7 +223,6 @@ test-python-universal-postgres-online:
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -250,7 +241,6 @@ test-python-universal-postgres-online:
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -269,7 +259,6 @@ test-python-universal-postgres-online:
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -295,7 +284,6 @@ test-python-universal-hazelcast:
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -331,7 +319,6 @@ test-python-universal-cassandra-no-cloud-providers:
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -344,22 +331,8 @@ test-python-universal-cassandra-no-cloud-providers:
 				not test_snowflake" \
  			sdk/python/tests
 
-test-python-universal-singlestore-online:
-	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.singlestore_repo_configuration \
-		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
-		python -m pytest -n 8 --integration \
-			-k "not test_universal_cli and \
-				not gcs_registry and \
-				not s3_registry and \
-				not test_snowflake" \
-			sdk/python/tests
-
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
-
-test-python-go-server: compile-go-lib
- 	FEAST_USAGE=False IS_TEST=True pytest --integration --goserver sdk/python/tests
 
 format-python:
 	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
@@ -428,22 +401,20 @@ install-protoc-dependencies:
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
 
-compile-go-lib: install-go-proto-dependencies install-go-ci-dependencies
-	CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
-
 install-feast-ci-locally:
 	pip install -e ".[ci]"
 
-# Needs feast package to setup the feature store
-# CGO flag is due to this issue: https://github.com/golang/go/wiki/InvalidFlag
-test-go: compile-protos-go compile-protos-python  compile-go-lib install-feast-ci-locally
-	CGO_LDFLAGS_ALLOW=".*" go test -tags cgo,ccalloc ./...
+build-go: compile-protos-go
+	go build -o feast ./go/main.go
+	
+test-go: compile-protos-go compile-protos-python install-feast-ci-locally
+	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 format-go:
 	gofmt -s -w go/
 
-lint-go: compile-protos-go compile-go-lib
-	go vet -tags cgo,ccalloc ./go/internal/feast ./go/embedded
+lint-go: compile-protos-go
+	go vet ./go/internal/feast
 
 # Docker
 
@@ -476,6 +447,14 @@ build-feature-server-java-docker:
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
 
+push-feature-server-go-docker:
+	docker push $(REGISTRY)/feature-server-go:$(VERSION)
+
+build-feature-server-go-docker:
+	docker buildx build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-go:$(VERSION) \
+		-f go/infra/docker/feature-server/Dockerfile --load .
+
 push-feast-operator-docker:
 	cd infra/feast-operator && \
 	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
@@ -503,6 +482,11 @@ build-java-docker-dev:
 	docker buildx build --build-arg VERSION=dev \
 		-t feastdev/feature-server-java:dev \
 		-f java/infra/docker/feature-server/Dockerfile.dev --load .
+
+build-go-docker-dev:
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server-go:dev \
+		-f go/infra/docker/feature-server/Dockerfile --load .
 
 # Documentation
 

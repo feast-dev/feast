@@ -18,7 +18,6 @@ import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -91,9 +90,6 @@ warnings.simplefilter("once", DeprecationWarning)
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from feast.embedded_go.online_features_service import EmbeddedOnlineFeatureServer
-
 
 class FeatureStore:
     """
@@ -104,14 +100,12 @@ class FeatureStore:
         repo_path: The path to the feature repo.
         _registry: The registry for the feature store.
         _provider: The provider for the feature store.
-        _go_server: The (optional) Go feature server for the feature store.
     """
 
     config: RepoConfig
     repo_path: Path
     _registry: BaseRegistry
     _provider: Provider
-    _go_server: Optional["EmbeddedOnlineFeatureServer"]
 
     def __init__(
         self,
@@ -171,7 +165,6 @@ class FeatureStore:
             self._registry = r
 
         self._provider = get_provider(self.config)
-        self._go_server = None
 
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI."""
@@ -1009,10 +1002,6 @@ class FeatureStore:
         )
 
         self._registry.commit()
-        # go server needs to be reloaded to apply new configuration.
-        # we're stopping it here
-        # new server will be instantiated on the next online request
-        self._teardown_go_server()
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
@@ -1025,7 +1014,6 @@ class FeatureStore:
 
         self._get_provider().teardown_infra(self.project, tables, entities)
         self._registry.teardown()
-        self._teardown_go_server()
 
     def get_historical_features(
         self,
@@ -1771,56 +1759,20 @@ class FeatureStore:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
 
-        if self.config.go_feature_serving:
-            # Start go server instead of python if the flag is enabled
-            self._lazy_init_go_server()
-            enable_logging: bool = getattr(
-                getattr(
-                    getattr(self.config, "feature_server", None),
-                    "feature_logging",
-                    None,
-                ),
-                "enabled",
-                False,
+        if type_ != "http":
+            raise ValueError(
+                f"Python server only supports 'http'. Got '{type_}' instead."
             )
-            logging_options = (
-                self.config.feature_server.feature_logging
-                if enable_logging and self.config.feature_server
-                else None
-            )
-            if type_ == "http" and self._go_server is not None:
-                self._go_server.start_http_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            elif type_ == "grpc" and self._go_server is not None:
-                self._go_server.start_grpc_server(
-                    host,
-                    port,
-                    enable_logging=enable_logging,
-                    logging_options=logging_options,
-                )
-            else:
-                raise ValueError(
-                    f"Unsupported server type '{type_}'. Must be one of 'http' or 'grpc'."
-                )
-        else:
-            if type_ != "http":
-                raise ValueError(
-                    f"Python server only supports 'http'. Got '{type_}' instead."
-                )
-            # Start the python server
-            feature_server.start_server(
-                self,
-                host=host,
-                port=port,
-                no_access_log=no_access_log,
-                workers=workers,
-                keep_alive_timeout=keep_alive_timeout,
-                registry_ttl_sec=registry_ttl_sec,
-            )
+        # Start the python server
+        feature_server.start_server(
+            self,
+            host=host,
+            port=port,
+            no_access_log=no_access_log,
+            workers=workers,
+            keep_alive_timeout=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
+        )
 
     def _teardown_go_server(self):
         self._go_server = None

@@ -129,7 +129,6 @@ func (r *Registry) load(registry *core.Registry) {
 func (r *Registry) loadEntities(registry *core.Registry) {
 	entities := registry.Entities
 	for _, entity := range entities {
-		// fmt.Println("Entity load: ", entity.Spec.Name)
 		if _, ok := r.cachedEntities[r.project]; !ok {
 			r.cachedEntities[r.project] = make(map[string]*core.Entity)
 		}
@@ -140,7 +139,6 @@ func (r *Registry) loadEntities(registry *core.Registry) {
 func (r *Registry) loadFeatureServices(registry *core.Registry) {
 	featureServices := registry.FeatureServices
 	for _, featureService := range featureServices {
-		// fmt.Println("featureServices load: ", featureService.Spec.Name)
 		if _, ok := r.cachedFeatureServices[r.project]; !ok {
 			r.cachedFeatureServices[r.project] = make(map[string]*core.FeatureService)
 		}
@@ -151,7 +149,6 @@ func (r *Registry) loadFeatureServices(registry *core.Registry) {
 func (r *Registry) loadFeatureViews(registry *core.Registry) {
 	featureViews := registry.FeatureViews
 	for _, featureView := range featureViews {
-		// fmt.Println("featureView load: ", featureView.Spec.Name)
 		if _, ok := r.cachedFeatureViews[r.project]; !ok {
 			r.cachedFeatureViews[r.project] = make(map[string]*core.FeatureView)
 		}
@@ -162,7 +159,6 @@ func (r *Registry) loadFeatureViews(registry *core.Registry) {
 func (r *Registry) loadStreamFeatureViews(registry *core.Registry) {
 	streamFeatureViews := registry.StreamFeatureViews
 	for _, streamFeatureView := range streamFeatureViews {
-		// fmt.Println("streamFeatureView load: ", streamFeatureView.Spec.Name)
 		if _, ok := r.cachedStreamFeatureViews[r.project]; !ok {
 			r.cachedStreamFeatureViews[r.project] = make(map[string]*core.StreamFeatureView)
 		}
@@ -173,7 +169,6 @@ func (r *Registry) loadStreamFeatureViews(registry *core.Registry) {
 func (r *Registry) loadOnDemandFeatureViews(registry *core.Registry) {
 	onDemandFeatureViews := registry.OnDemandFeatureViews
 	for _, onDemandFeatureView := range onDemandFeatureViews {
-		// fmt.Println("onDemandFeatureView load: ", onDemandFeatureView.Spec.Name)
 		if _, ok := r.cachedOnDemandFeatureViews[r.project]; !ok {
 			r.cachedOnDemandFeatureViews[r.project] = make(map[string]*core.OnDemandFeatureView)
 		}

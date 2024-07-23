@@ -15,21 +15,8 @@ jobs:
         with:
           python-version: "3.11"
           architecture: x64
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.19.7
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Install apache-arrow on ubuntu
-        run: |
-          sudo apt update
-          sudo apt install -y -V ca-certificates lsb-release wget
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt update
-          sudo apt install -y -V "libarrow-dev=11.0.0-1"
       - name: Install dependencies
         run: |
           make install-python-ci-dependencies-uv
@@ -39,27 +26,11 @@ jobs:
   lint-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Go
         id: setup-go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19.7
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade pip
-      - name: Install apache-arrow on ubuntu
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V "libarrow-dev=11.0.0-1"
+          go-version: 1.22.5
       - name: Lint go
         run: make lint-go

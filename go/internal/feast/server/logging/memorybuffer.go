@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/arrow/array"
 	"github.com/apache/arrow/go/v8/arrow/memory"
@@ -128,7 +129,7 @@ func getArrowSchema(schema *FeatureServiceSchema) (*arrow.Schema, error) {
 // and writes them to arrow table.
 // Returns arrow table that contains all of the logs in columnar format.
 func (b *MemoryBuffer) convertToArrowRecord() (arrow.Record, error) {
-	arrowMemory := memory.NewCgoArrowAllocator()
+	arrowMemory := memory.NewGoAllocator()
 	numRows := len(b.logs)
 
 	columns := make(map[string][]*types.Value)

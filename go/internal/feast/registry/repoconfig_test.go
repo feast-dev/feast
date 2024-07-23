@@ -1,12 +1,13 @@
 package registry
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -166,8 +167,6 @@ func TestGetRegistryConfig_Map(t *testing.T) {
 	// Call the method under test
 	registryConfig, _ := config.GetRegistryConfig()
 
-	fmt.Println(registryConfig)
-
 	// Assert that the method correctly processed the map
 	assert.Equal(t, "data/registry.db", registryConfig.Path)
 	assert.Equal(t, "local", registryConfig.RegistryStoreType)
@@ -219,4 +218,88 @@ func TestGetRegistryConfig_CacheTtlSecondsTypes(t *testing.T) {
 		// Assert that the method correctly processed cache_ttl_seconds
 		assert.Equal(t, int64(60), registryConfig.CacheTtlSeconds)
 	}
+}
+
+func TestGetLoggingOptions_Defaults(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{},
+		},
+	}
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, logging.DefaultOptions, *options)
+}
+
+func TestGetLoggingOptions_QueueCapacity(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{
+				"queue_capacity": 100,
+			},
+		},
+	}
+	expected := logging.DefaultOptions
+	expected.ChannelCapacity = 100
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, *options)
+}
+
+func TestGetLoggingOptions_EmitTimeoutMicroSecs(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{
+				"emit_timeout_micro_secs": 500,
+			},
+		},
+	}
+	expected := logging.DefaultOptions
+	expected.EmitTimeout = 500 * time.Microsecond
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, *options)
+}
+
+func TestGetLoggingOptions_WriteToDiskIntervalSecs(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{
+				"write_to_disk_interval_secs": 10,
+			},
+		},
+	}
+	expected := logging.DefaultOptions
+	expected.WriteInterval = 10 * time.Second
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, *options)
+}
+
+func TestGetLoggingOptions_FlushIntervalSecs(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{
+				"flush_interval_secs": 15,
+			},
+		},
+	}
+	expected := logging.DefaultOptions
+	expected.FlushInterval = 15 * time.Second
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, *options)
+}
+
+func TestGetLoggingOptions_InvalidType(t *testing.T) {
+	config := RepoConfig{
+		FeatureServer: map[string]interface{}{
+			"feature_logging": map[string]interface{}{
+				"queue_capacity": "invalid",
+			},
+		},
+	}
+	options, err := config.GetLoggingOptions()
+	assert.Nil(t, err)
+	assert.Equal(t, logging.DefaultOptions, *options)
 }

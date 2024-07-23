@@ -24,8 +24,7 @@ from distutils.dir_util import copy_tree
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from setuptools import Extension, find_packages, setup, Command
-from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools import Command, Extension, find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.install import install
@@ -443,92 +442,6 @@ class DevelopCommand(develop):
         develop.run(self)
 
 
-class build_ext(_build_ext):
-    def finalize_options(self) -> None:
-        super().finalize_options()
-        if os.getenv("COMPILE_GO", "false").lower() == "false":
-            self.extensions = [e for e in self.extensions if not self._is_go_ext(e)]
-
-    def _is_go_ext(self, ext: Extension):
-        return any(
-            source.endswith(".go") or source.startswith("github")
-            for source in ext.sources
-        )
-
-    def build_extension(self, ext: Extension):
-        print(f"Building extension {ext}")
-        if not self._is_go_ext(ext):
-            # the base class may mutate `self.compiler`
-            compiler = copy.deepcopy(self.compiler)
-            self.compiler, compiler = compiler, self.compiler
-            try:
-                return _build_ext.build_extension(self, ext)
-            finally:
-                self.compiler, compiler = compiler, self.compiler
-
-        bin_path = _generate_path_with_gopath()
-        go_env = json.loads(
-            subprocess.check_output(["go", "env", "-json"]).decode("utf-8").strip()
-        )
-
-        print(f"Go env: {go_env}")
-        print(f"CWD: {os.getcwd()}")
-
-        destination = os.path.dirname(os.path.abspath(self.get_ext_fullpath(ext.name)))
-        subprocess.check_call(
-            ["go", "install", "golang.org/x/tools/cmd/goimports"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            ["go", "get", "github.com/go-python/gopy@v0.4.4"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            ["go", "install", "github.com/go-python/gopy"],
-            env={"PATH": bin_path, **go_env},
-        )
-        subprocess.check_call(
-            [
-                "gopy",
-                "build",
-                "-output",
-                destination,
-                "-vm",
-                sys.executable,
-                "--build-tags",
-                "cgo,ccalloc",
-                "--dynamic-link=True",
-                "-no-make",
-                *ext.sources,
-            ],
-            env={
-                "PATH": bin_path,
-                "CGO_LDFLAGS_ALLOW": ".*",
-                **go_env,
-            },
-        )
-
-    def copy_extensions_to_source(self):
-        build_py = self.get_finalized_command("build_py")
-        for ext in self.extensions:
-            fullname = self.get_ext_fullname(ext.name)
-            modpath = fullname.split(".")
-            package = ".".join(modpath[:-1])
-            package_dir = build_py.get_package_dir(package)
-
-            src_dir = dest_dir = package_dir
-
-            if src_dir.startswith(PYTHON_CODE_PREFIX):
-                src_dir = package_dir[len(PYTHON_CODE_PREFIX) :]
-            src_dir = src_dir.lstrip("/")
-
-            src_dir = os.path.join(self.build_lib, src_dir)
-
-            # copy whole directory
-            print(f"Copying from {src_dir} to {dest_dir}")
-            copy_tree(src_dir, dest_dir)
-
-
 setup(
     name=NAME,
     author=AUTHOR,
@@ -598,12 +511,5 @@ setup(
         "build_go_protos": BuildGoProtosCommand,
         "build_py": BuildCommand,
         "develop": DevelopCommand,
-        "build_ext": build_ext,
     },
-    ext_modules=[
-        Extension(
-            "feast.embedded_go.lib._embedded",
-            ["github.com/feast-dev/feast/go/embedded"],
-        )
-    ],
 )

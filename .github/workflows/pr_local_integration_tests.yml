@@ -38,12 +38,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-
-      - name: Setup Go
-        id: setup-go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.19.7
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
@@ -55,24 +49,9 @@ jobs:
         with:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-      - name: Install apache-arrow on ubuntu
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            sudo apt update
-            sudo apt install -y -V ca-certificates lsb-release wget
-            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-            sudo apt update
-            sudo apt install -y -V "libarrow-dev=11.0.0-1"
 
       - name: Install dependencies
         run: make install-python-ci-dependencies-uv
-      - name: Compile Go along with Extensions
-        run: |
-          make install-go-proto-dependencies 
-          make install-go-ci-dependencies
-          COMPILE_GO=true python setup.py develop
-          CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local

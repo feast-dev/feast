@@ -677,12 +677,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Timeout for keep alive",
 )
 @click.option(
-    "--go",
-    is_flag=True,
-    show_default=True,
-    help="Use Go to serve",
-)
-@click.option(
     "--registry_ttl_sec",
     "-r",
     help="Number of seconds after which the registry is refreshed",
@@ -699,16 +693,11 @@ def serve_command(
     no_access_log: bool,
     workers: int,
     keep_alive_timeout: int,
-    go: bool,
     registry_ttl_sec: int = 5,
 ):
     try:
         """Start a feature server locally on a given port."""
         store = create_feature_store(ctx)
-
-        if go:
-            # Turn on Go feature retrieval.
-            store.config.go_feature_serving = True
 
         store.serve(
             host=host,
