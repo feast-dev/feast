@@ -8,7 +8,6 @@ from feast.feature_view import FeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
-from feast.usage import set_usage_attribute
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +69,6 @@ class ExpediaProvider(PassthroughProvider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        set_usage_attribute("provider", self.__class__.__name__)
-
         if self.online_store:
             if tables_to_delete:
                 logger.info(
