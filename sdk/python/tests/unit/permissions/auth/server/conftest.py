@@ -22,7 +22,6 @@ from tests.utils.http_server import free_port  # noqa: E402
 list_permissions_perm = Permission(
     name="list_permissions_perm",
     types=Permission,
-    with_subclasses=False,
     policy=RoleBasedPolicy(roles=["reader"]),
     actions=[AuthzedAction.READ],
 )
@@ -44,7 +43,7 @@ list_fv_perm = Permission(
 )
 
 
-list_odfv__perm = Permission(
+list_odfv_perm = Permission(
     name="list_odfv_perm",
     types=OnDemandFeatureView,
     with_subclasses=False,
@@ -52,7 +51,7 @@ list_odfv__perm = Permission(
     actions=[AuthzedAction.READ],
 )
 
-list_sfv__perm = Permission(
+list_sfv_perm = Permission(
     name="list_sfv_perm",
     types=StreamFeatureView,
     with_subclasses=False,
@@ -60,13 +59,13 @@ list_sfv__perm = Permission(
     actions=[AuthzedAction.READ],
 )
 
-ALL_POSITIVE_TEST_NEEDED_PERMISSIONS = [
-    list_entities_perm,
-    list_permissions_perm,
-    list_fv_perm,
-    list_odfv__perm,
-    list_sfv__perm,
-]
+invalid_list_entities_perm = Permission(
+    name="invalid_list_entity_perm",
+    types=Entity,
+    with_subclasses=False,
+    policy=RoleBasedPolicy(roles=["dancer"]),
+    actions=[AuthzedAction.READ],
+)
 
 
 @pytest.fixture(
@@ -119,16 +118,14 @@ def server_port():
     scope="module",
     params=[
         [],
+        [invalid_list_entities_perm],
         [
-            Permission(
-                name="invalid_entity_perm",
-                types=Entity,
-                with_subclasses=False,
-                policy=RoleBasedPolicy(roles=["dancer"]),
-                actions=[AuthzedAction.READ],
-            )
+            list_entities_perm,
+            list_permissions_perm,
+            list_fv_perm,
+            list_odfv_perm,
+            list_sfv_perm,
         ],
-        ALL_POSITIVE_TEST_NEEDED_PERMISSIONS,
     ],
 )
 def applied_permissions(request):

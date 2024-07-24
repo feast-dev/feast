@@ -74,5 +74,6 @@ def enforce_policy(
                     break
         else:
             message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
-            logger.info(f"**PERMISSION NOT GRANTED**: {message}")
+            logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
+            raise PermissionError(message)
     return _permitted_resources
