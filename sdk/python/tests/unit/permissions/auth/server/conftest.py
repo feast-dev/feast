@@ -152,7 +152,7 @@ def _include_auth_config(file_path, auth_config: str):
 def _default_store(
     temp_dir,
     auth_config: str,
-    permissions: Optional[Union[Permission, list[Permission]]],
+    permissions: list[Permission],
 ):
     runner = CliRunner()
     result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
