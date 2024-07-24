@@ -1,7 +1,6 @@
 import os
 import tempfile
 from textwrap import dedent
-from typing import Optional, Union
 
 import pytest
 import yaml
