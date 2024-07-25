@@ -165,22 +165,25 @@ List all registered permission
 feast permissions list
 
 Options:
-  --tags TEXT  Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
-               key:value, ...'). Items return when ALL tags match.
-  --verbose
+  --tags TEXT    Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
+                 key:value, ...'). Items return when ALL tags match.
+  -v, --verbose  Print the resources matching each configured permission
 ```
 
 ```text
 NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                             ROLES
-reader_permission1234  ['FeatureView']  True             transformed_conv_rate  [<AuthzedAction.READ: 'read'>]      {'reader'}
-writer_permission1234  ['FeatureView']  True             transformed_conv_rate  [<AuthzedAction.CREATE: 'create'>]  {'writer'}
+reader_permission1234  ['FeatureView']  True             transformed_conv_rate  ['READ]                             ['reader']
+writer_permission1234  ['FeatureView']  True             transformed_conv_rate  ['CREATE']                          ['writer']
+Note:The configured decision strategy is UNANIMOUS
 ```
+
+`verbose` option describes the resources matching each configured permission: 
 
 ```text
 feast permissions list -v
 ```
 
-```text            
+```text
 Permissions:
 
 permissions
@@ -210,6 +213,45 @@ policy:
     - reader
 
 ```
+
+### List of the configured roles
+List all the configured roles
+
+```text
+feast permissions list-roles
+
+Options:
+  --verbose Print the resources and actions permitted to each configured
+            role
+```
+
+```text
+ROLE NAME
+admin
+reader
+writer
+```
+
+`verbose` option describes the resources and actions permitted to each managed role: 
+
+```text
+feast permissions list-roles -v
+```
+
+```text            
+ROLE NAME          RESOURCE NAME               RESOURCE TYPE    PERMITTED ACTIONS
+admin              driver_hourly_stats_source  FileSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+admin              vals_to_add                 RequestSource    ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+admin              driver_stats_push_source    PushSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+admin              driver_hourly_stats_source  FileSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+admin              vals_to_add                 RequestSource    ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+admin              driver_stats_push_source    PushSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
+reader             driver_hourly_stats         FeatureView      ['READ']
+reader             driver_hourly_stats_fresh   FeatureView      ['READ']
+...
+Note:The configured decision strategy is UNANIMOUS
+```
+
 
 ## Teardown
 

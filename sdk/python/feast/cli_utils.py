@@ -12,8 +12,11 @@ from feast import (
     StreamFeatureView,
 )
 from feast.feast_object import FeastObject
+from feast.permissions.action import ALL_ACTIONS
+from feast.permissions.decision import DecisionEvaluator
 from feast.permissions.permission import Permission
 from feast.permissions.policy import Policy, RoleBasedPolicy
+from feast.permissions.user import User
 
 
 def print_permission_verbose_example():
@@ -195,7 +198,121 @@ def handle_not_verbose_permissions_command(
             [t.__name__ for t in p.types],  # type: ignore[union-attr, attr-defined]
             p.with_subclasses,
             p.name_pattern,
-            p.actions,
-            roles,
+            [a.value.upper() for a in p.actions],
+            sorted(roles),
         ]
     )
+
+
+def fetch_all_feast_objects(store: FeatureStore) -> list[FeastObject]:
+    objects: list[FeastObject] = []
+    objects.extend(store.list_entities())
+    objects.extend(store.list_all_feature_views())
+    objects.extend(store.list_batch_feature_views())
+    objects.extend(store.list_feature_services())
+    objects.extend(store.list_data_sources())
+    objects.extend(store.list_data_sources())
+    objects.extend(store.list_validation_references())
+    objects.extend(store.list_saved_datasets())
+    objects.extend(store.list_permissions())
+    return objects
+
+
+def handle_permissions_check_command(
+    object: FeastObject, permissions: list[Permission], table: list[Any]
+):
+    for p in permissions:
+        if p.match_resource(object):
+            return
+    table.append(
+        [
+            object.name,
+            type(object).__name__,
+        ]
+    )
+
+
+def handle_permissions_check_command_with_actions(
+    object: FeastObject, permissions: list[Permission], table: list[Any]
+):
+    unmatched_actions = ALL_ACTIONS.copy()
+    for p in permissions:
+        if p.match_resource(object):
+            for action in ALL_ACTIONS:
+                if p.match_actions([action]) and action in unmatched_actions:
+                    unmatched_actions.remove(action)
+
+    if unmatched_actions:
+        table.append(
+            [
+                object.name,
+                type(object).__name__,
+                [a.value.upper() for a in unmatched_actions],
+            ]
+        )
+
+
+def fetch_all_permission_roles(permissions: list[Permission]) -> list[str]:
+    all_roles = set()
+    for p in permissions:
+        if isinstance(p.policy, RoleBasedPolicy) and len(p.policy.get_roles()) > 0:
+            all_roles.update(p.policy.get_roles())
+
+    return sorted(all_roles)
+
+
+def handler_list_all_permissions_roles(permissions: list[Permission], table: list[Any]):
+    all_roles = fetch_all_permission_roles(permissions)
+    for role in all_roles:
+        table.append(
+            [
+                role,
+            ]
+        )
+
+
+def handler_list_all_permissions_roles_verbose(
+    objects: list[FeastObject], permissions: list[Permission], table: list[Any]
+):
+    all_roles = fetch_all_permission_roles(permissions)
+
+    for role in all_roles:
+        for o in objects:
+            permitted_actions = ALL_ACTIONS.copy()
+            for action in ALL_ACTIONS:
+                matching_permissions = [
+                    p
+                    for p in permissions
+                    if p.match_resource(o) and p.match_actions([action])
+                ]
+
+                if matching_permissions:
+                    evaluator = DecisionEvaluator(
+                        Permission.get_global_decision_strategy(),
+                        len(matching_permissions),
+                    )
+                    for p in matching_permissions:
+                        permission_grant, permission_explanation = (
+                            p.policy.validate_user(user=User(username="", roles=[role]))
+                        )
+                        evaluator.add_grant(
+                            permission_grant,
+                            f"Permission {p.name} denied access: {permission_explanation}",
+                        )
+
+                        if evaluator.is_decided():
+                            grant, explanations = evaluator.grant()
+                            if not grant:
+                                permitted_actions.remove(action)
+                            break
+                else:
+                    permitted_actions.remove(action)
+
+            table.append(
+                [
+                    role,
+                    o.name,
+                    type(o).__name__,
+                    [a.value.upper() for a in permitted_actions],
+                ]
+            )

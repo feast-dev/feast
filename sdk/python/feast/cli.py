@@ -36,6 +36,7 @@ from feast.data_source import DataSource
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -901,7 +902,7 @@ def feast_permissions_cmd():
 )
 @tagsOption
 @click.pass_context
-def feast_permissions_command(ctx: click.Context, verbose: bool, tags: list[str]):
+def feast_permissions_list_command(ctx: click.Context, verbose: bool, tags: list[str]):
     from tabulate import tabulate
 
     table: list[Any] = []
@@ -997,6 +998,9 @@ def feast_permissions_command(ctx: click.Context, verbose: bool, tags: list[str]
                 tablefmt="plain",
             )
         )
+        print(
+            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {Permission.get_global_decision_strategy().value.upper()}"
+        )
     else:
         cli_utils.print_permission_verbose_example()
 
@@ -1025,6 +1029,115 @@ def permission_describe(ctx: click.Context, name: str):
             yaml.safe_load(str(permission)), default_flow_style=False, sort_keys=False
         )
     )
+
+
+@feast_permissions_cmd.command(name="check")
+@click.pass_context
+def feast_permissions_check_command(ctx: click.Context):
+    """
+    Validate the permissions configuration
+    """
+    from tabulate import tabulate
+
+    all_unsecured_table: list[Any] = []
+    store = create_feature_store(ctx)
+    permissions = store.list_permissions()
+    objects = cli_utils.fetch_all_feast_objects(
+        store=store,
+    )
+
+    print(
+        f"{Style.BRIGHT + Fore.RED}The following resources are not secured by any permission configuration:{Style.RESET_ALL}"
+    )
+    for o in objects:
+        cli_utils.handle_permissions_check_command(
+            object=o, permissions=permissions, table=all_unsecured_table
+        )
+    print(
+        tabulate(
+            all_unsecured_table,
+            headers=[
+                "NAME",
+                "TYPE",
+            ],
+            tablefmt="plain",
+        )
+    )
+
+    all_unsecured_actions_table: list[Any] = []
+    print(
+        f"{Style.BRIGHT + Fore.RED}The following actions are not secured by any permission configuration (Note: this might not be a security concern, depending on the used APIs):{Style.RESET_ALL}"
+    )
+    for o in objects:
+        cli_utils.handle_permissions_check_command_with_actions(
+            object=o, permissions=permissions, table=all_unsecured_actions_table
+        )
+    print(
+        tabulate(
+            all_unsecured_actions_table,
+            headers=[
+                "NAME",
+                "TYPE",
+                "UNSECURED ACTIONS",
+            ],
+            tablefmt="plain",
+        )
+    )
+
+
+@feast_permissions_cmd.command(name="list-roles")
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print the resources and actions permitted to each configured role",
+)
+@click.pass_context
+def feast_permissions_list_roles_command(ctx: click.Context, verbose: bool):
+    """
+    List all the configured roles
+    """
+    from tabulate import tabulate
+
+    table: list[Any] = []
+    store = create_feature_store(ctx)
+    permissions = store.list_permissions()
+    if not verbose:
+        cli_utils.handler_list_all_permissions_roles(
+            permissions=permissions, table=table
+        )
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "ROLE NAME",
+                ],
+                tablefmt="plain",
+            )
+        )
+    else:
+        objects = cli_utils.fetch_all_feast_objects(
+            store=store,
+        )
+        cli_utils.handler_list_all_permissions_roles_verbose(
+            objects=objects, permissions=permissions, table=table
+        )
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "ROLE NAME",
+                    "RESOURCE NAME",
+                    "RESOURCE TYPE",
+                    "PERMITTED ACTIONS",
+                ],
+                tablefmt="plain",
+            )
+        )
+
+        print(
+            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {Permission.get_global_decision_strategy().value.upper()}"
+        )
 
 
 if __name__ == "__main__":
