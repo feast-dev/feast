@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies-uv
       - name: Fix SQLite on Mac Python 3.11
-        run: uv install sqlean.py
+        run: uv pip install sqlean.py
       - name: Test Python
         run: make test-python-unit
 
