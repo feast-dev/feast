@@ -211,7 +211,6 @@ def fetch_all_feast_objects(store: FeatureStore) -> list[FeastObject]:
     objects.extend(store.list_batch_feature_views())
     objects.extend(store.list_feature_services())
     objects.extend(store.list_data_sources())
-    objects.extend(store.list_data_sources())
     objects.extend(store.list_validation_references())
     objects.extend(store.list_saved_datasets())
     objects.extend(store.list_permissions())
