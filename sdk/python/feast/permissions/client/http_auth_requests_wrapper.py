@@ -11,8 +11,7 @@ from feast.permissions.client.auth_client_manager import get_auth_client_manager
 class AuthenticatedRequestsSession(Session):
     def __init__(self, auth_token: str):
         super().__init__()
-        self.auth_token = auth_token
-        self.headers.update({"Authorization": f"Bearer {self.auth_token}"})
+        self.headers.update({"Authorization": f"Bearer {auth_token}"})
 
 
 def get_http_auth_requests_session(auth_config: AuthConfig) -> Session:

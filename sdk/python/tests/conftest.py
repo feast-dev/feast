@@ -15,6 +15,7 @@ import logging
 import multiprocessing
 import os
 import random
+import tempfile
 from datetime import timedelta
 from multiprocessing import Process
 from sys import platform
@@ -24,6 +25,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
+from testcontainers.keycloak import KeycloakContainer
 
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
@@ -53,6 +55,10 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     customer,
     driver,
     location,
+)
+from tests.utils.auth_permissions_util import (
+    default_store,
+    setup_permissions_on_keycloak,
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
@@ -406,3 +412,28 @@ def fake_document_data(environment: Environment) -> Tuple[pd.DataFrame, DataSour
         environment.feature_store.project,
     )
     return df, data_source
+
+
+@pytest.fixture
+def temp_dir():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"Created {temp_dir}")
+        yield temp_dir
+
+
+@pytest.fixture
+def start_keycloak_server():
+    with KeycloakContainer("quay.io/keycloak/keycloak:24.0.1") as keycloak_container:
+        setup_permissions_on_keycloak(keycloak_container.get_client())
+        yield keycloak_container.get_url()
+
+
+@pytest.fixture
+def server_port():
+    return free_port()
+
+
+@pytest.fixture
+def feature_store(temp_dir, auth_config, applied_permissions):
+    print(f"Creating store at {temp_dir}")
+    return default_store(str(temp_dir), auth_config, applied_permissions)

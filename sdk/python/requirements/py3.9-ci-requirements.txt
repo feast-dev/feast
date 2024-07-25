@@ -40,6 +40,8 @@ async-timeout==4.0.3
     # via
     #   aiohttp
     #   redis
+async-property==0.2.2
+    # via python-keycloak
 atpublic==4.1.0
     # via ibis-framework
 attrs==23.2.0
@@ -63,6 +65,8 @@ beautifulsoup4==4.12.3
     # via nbconvert
 bidict==0.23.1
     # via ibis-framework
+bigtree==0.19.2
+    # via feast (setup.py)
 bleach==6.1.0
     # via nbconvert
 boto3==1.34.131
@@ -131,6 +135,7 @@ cryptography==42.0.8
     #   azure-identity
     #   azure-storage-blob
     #   great-expectations
+    #   jwcrypto
     #   moto
     #   msal
     #   pyjwt
@@ -154,6 +159,8 @@ defusedxml==0.7.1
     # via nbconvert
 deltalake==0.18.1
     # via feast (setup.py)
+deprecation==2.1.0
+    # via python-keycloak
 dill==0.3.8
     # via feast (setup.py)
 distlib==0.3.8
@@ -300,6 +307,7 @@ httpx==0.27.0
     #   feast (setup.py)
     #   fastapi
     #   jupyterlab
+    #   python-keycloak
 ibis-framework[duckdb]==9.0.0
     # via
     #   feast (setup.py)
@@ -418,6 +426,8 @@ jupyterlab-server==2.27.2
     #   notebook
 jupyterlab-widgets==3.0.11
     # via ipywidgets
+jwcrypto==1.5.6
+    # via python-keycloak
 kubernetes==20.13.0
     # via feast (setup.py)
 locket==1.0.0
@@ -511,6 +521,7 @@ packaging==24.1
     #   build
     #   dask
     #   db-dtypes
+    #   deprecation
     #   google-cloud-bigquery
     #   great-expectations
     #   gunicorn
@@ -721,6 +732,8 @@ python-dotenv==1.0.1
     # via uvicorn
 python-json-logger==2.0.7
     # via jupyter-events
+python-keycloak==4.2.2
+    # via feast (setup.py)
 python-multipart==0.0.9
     # via fastapi
 pytz==2024.1
@@ -769,7 +782,9 @@ requests==2.32.3
     #   kubernetes
     #   moto
     #   msal
+    #   python-keycloak
     #   requests-oauthlib
+    #   requests-toolbelt
     #   responses
     #   singlestoredb
     #   snowflake-connector-python
@@ -777,6 +792,8 @@ requests==2.32.3
     #   trino
 requests-oauthlib==2.0.0
     # via kubernetes
+requests-toolbelt==1.0.0
+    # via python-keycloak
 responses==0.25.3
     # via moto
 rfc3339-validator==0.1.4
@@ -984,6 +1001,7 @@ typing-extensions==4.12.2
     #   great-expectations
     #   ibis-framework
     #   ipython
+    #   jwcrypto
     #   mypy
     #   psycopg
     #   psycopg-pool
@@ -1064,4 +1082,3 @@ yarl==1.9.4
     # via aiohttp
 zipp==3.19.1
     # via importlib-metadata
-bigtree==0.19.2

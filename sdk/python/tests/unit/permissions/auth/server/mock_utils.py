@@ -2,10 +2,8 @@ from unittest.mock import MagicMock, Mock
 
 from requests import Response
 
-PROJECT_NAME = "test_registry_server"
 
-
-def _mock_oidc(request, monkeypatch, client_id):
+def mock_oidc(request, monkeypatch, client_id):
     async def mock_oath2(self, request):
         return "OK"
 
@@ -45,7 +43,7 @@ def _mock_oidc(request, monkeypatch, client_id):
     )
 
 
-def _mock_kubernetes(request, monkeypatch):
+def mock_kubernetes(request, monkeypatch):
     sa_name = request.getfixturevalue("sa_name")
     namespace = request.getfixturevalue("namespace")
     subject = f"system:serviceaccount:{namespace}:{sa_name}"

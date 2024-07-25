@@ -54,5 +54,5 @@ class OidcAuthClientManager(AuthenticationClientManager):
             return access_token
         else:
             raise RuntimeError(
-                "Failed to obtain access token: {token_response.status_code} - {token_response.text}"
+                f"""Failed to obtain oidc access token:url=[{token_endpoint}] {token_response.status_code} - {token_response.text}"""
             )

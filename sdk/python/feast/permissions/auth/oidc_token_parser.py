@@ -73,7 +73,11 @@ class OidcTokenParser(TokenParser):
                 signing_key.key,
                 algorithms=["RS256"],
                 audience="account",
-                options={"verify_exp": True},
+                options={
+                    "verify_aud": False,
+                    "verify_signature": True,
+                    "verify_exp": True,
+                },
             )
 
             if "preferred_username" not in data:
@@ -99,4 +103,5 @@ class OidcTokenParser(TokenParser):
             logger.info(f"Extracted user {current_user} and roles {roles}")
             return User(username=current_user, roles=roles)
         except jwt.exceptions.InvalidTokenError:
+            logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
