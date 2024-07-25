@@ -20,6 +20,7 @@ from tests.unit.permissions.auth.server.test_utils import (
     read_permissions_perm,
     read_sfv_perm,
 )
+from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
 
 
