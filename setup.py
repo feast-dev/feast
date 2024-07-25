@@ -22,10 +22,8 @@ import sys
 from pathlib import Path
 
 from setuptools import find_packages, setup, Command
-from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
-from setuptools.command.install import install
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
