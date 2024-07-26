@@ -345,14 +345,17 @@ def start_server(
         )
         monitoring_thread.start()
 
-    # TODO RBAC remove and use the auth section of the feature store config instead
+    print("start_server called ")
     auth_type = str_to_auth_manager_type(store.config.auth_config.type)
+    print(f"auth_type is {auth_type}")
     init_security_manager(auth_type=auth_type, fs=store)
+    print("init_security_manager OK ")
     init_auth_manager(
         auth_type=auth_type,
         server_type=ServerType.REST,
         auth_config=store.config.auth_config,
     )
+    print("init_auth_manager OK ")
 
     if sys.platform != "win32":
         FeastServeApplication(

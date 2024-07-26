@@ -279,6 +279,7 @@ def handler_list_all_permissions_roles_verbose(
         for o in objects:
             permitted_actions = ALL_ACTIONS.copy()
             for action in ALL_ACTIONS:
+                # Following code is derived from enforcer.enforce_policy but has a different return type and does not raise PermissionError
                 matching_permissions = [
                     p
                     for p in permissions
