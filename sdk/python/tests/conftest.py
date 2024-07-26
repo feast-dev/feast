@@ -19,20 +19,20 @@ import tempfile
 from datetime import timedelta
 from multiprocessing import Process
 from sys import platform
+from textwrap import dedent
 from typing import Any, Dict, List, Tuple, no_type_check
 from unittest import mock
 
 import pandas as pd
 import pytest
 from _pytest.nodes import Item
-from testcontainers.keycloak import KeycloakContainer
 
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.data.data_creator import (  # noqa: E402
-    create_basic_driver_dataset,
+from tests.data.data_creator import (
+    create_basic_driver_dataset,  # noqa: E402
     create_document_dataset,
 )
 from tests.integration.feature_repos.integration_test_repo_config import (
@@ -58,7 +58,12 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
 )
 from tests.utils.auth_permissions_util import (
     default_store,
-    setup_permissions_on_keycloak,
+    invalid_list_entities_perm,
+    list_entities_perm,
+    list_fv_perm,
+    list_odfv_perm,
+    list_permissions_perm,
+    list_sfv_perm,
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
@@ -422,13 +427,6 @@ def temp_dir():
 
 
 @pytest.fixture
-def start_keycloak_server():
-    with KeycloakContainer("quay.io/keycloak/keycloak:24.0.1") as keycloak_container:
-        setup_permissions_on_keycloak(keycloak_container.get_client())
-        yield keycloak_container.get_url()
-
-
-@pytest.fixture
 def server_port():
     return free_port()
 
@@ -437,3 +435,58 @@ def server_port():
 def feature_store(temp_dir, auth_config, applied_permissions):
     print(f"Creating store at {temp_dir}")
     return default_store(str(temp_dir), auth_config, applied_permissions)
+
+
+@pytest.fixture(
+    scope="module",
+    params=[
+        dedent("""
+          auth:
+            type: no_auth
+          """),
+        dedent("""
+          auth:
+            type: kubernetes
+        """),
+        dedent("""
+          auth:
+            type: oidc
+            client_id: feast-integration-client
+            client_secret: feast-integration-client-secret
+            username: reader_writer
+            password: password
+            realm: master
+            auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
+            auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
+        """),
+    ],
+)
+def auth_config(request):
+    auth_configuration = request.param
+    is_integration_test = request.node.get_closest_marker("integration")
+    if is_integration_test is not None:
+        if "kubernetes" in auth_configuration:
+            pytest.skip("skipping integration tests for kubernetes platform.")
+        elif "oidc" in auth_configuration:
+            keycloak_url = request.getfixturevalue("start_keycloak_server")
+            return auth_configuration.replace("KEYCLOAK_URL_PLACE_HOLDER", keycloak_url)
+
+    return auth_configuration
+
+
+@pytest.fixture(
+    scope="module",
+    params=[
+        [],
+        [invalid_list_entities_perm],
+        [
+            list_entities_perm,
+            list_permissions_perm,
+            list_fv_perm,
+            list_odfv_perm,
+            list_sfv_perm,
+        ],
+    ],
+)
+def applied_permissions(request):
+    return request.param

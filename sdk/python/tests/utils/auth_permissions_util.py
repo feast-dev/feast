@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import yaml
 from keycloak import KeycloakAdmin
@@ -15,9 +16,11 @@ from feast.infra.registry.remote import RemoteRegistryConfig
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.wait import wait_retry_backoff
 from tests.utils.cli_repo_creator import CliRunner
+from tests.utils.http_server import check_port_open
 
-REMOTE_REGISTRY_SERVER_PROJECT_NAME = "test_registry_server"
+PROJECT_NAME = "feast_test_project"
 
 list_permissions_perm = Permission(
     name="list_permissions_perm",
@@ -67,7 +70,7 @@ invalid_list_entities_perm = Permission(
 )
 
 
-def _include_auth_config(file_path, auth_config: str):
+def include_auth_config(file_path, auth_config: str):
     with open(file_path, "r") as file:
         existing_content = yaml.safe_load(file)
     new_section = yaml.safe_load(auth_config)
@@ -86,13 +89,11 @@ def default_store(
     permissions: list[Permission],
 ):
     runner = CliRunner()
-    result = runner.run(["init", REMOTE_REGISTRY_SERVER_PROJECT_NAME], cwd=temp_dir)
-    repo_path = os.path.join(
-        temp_dir, REMOTE_REGISTRY_SERVER_PROJECT_NAME, "feature_repo"
-    )
+    result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
+    repo_path = os.path.join(temp_dir, PROJECT_NAME, "feature_repo")
     assert result.returncode == 0
 
-    _include_auth_config(
+    include_auth_config(
         file_path=f"{repo_path}/feature_store.yaml", auth_config=auth_config
     )
 
@@ -106,6 +107,44 @@ def default_store(
     return fs
 
 
+def start_feature_server(repo_path: str, server_port: int):
+    host = "0.0.0.0"
+    cmd = [
+        "feast",
+        "-c" + repo_path,
+        "serve",
+        "--host",
+        host,
+        "--port",
+        str(server_port),
+    ]
+    feast_server_process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+    )
+    _time_out_sec: int = 60
+    # Wait for server to start
+    wait_retry_backoff(
+        lambda: (None, check_port_open(host, server_port)),
+        timeout_secs=_time_out_sec,
+        timeout_msg=f"Unable to start the feast server in {_time_out_sec} seconds for remote online store type, port={server_port}",
+    )
+
+    yield f"http://localhost:{server_port}"
+
+    if feast_server_process is not None:
+        feast_server_process.kill()
+
+        # wait server to free the port
+        wait_retry_backoff(
+            lambda: (
+                None,
+                not check_port_open("localhost", server_port),
+            ),
+            timeout_msg=f"Unable to stop the feast server in {_time_out_sec} seconds for remote online store type, port={server_port}",
+            timeout_secs=_time_out_sec,
+        )
+
+
 def get_remote_registry_store(server_port, feature_store):
     registry_config = RemoteRegistryConfig(
         registry_type="remote", path=f"localhost:{server_port}"
@@ -113,7 +152,7 @@ def get_remote_registry_store(server_port, feature_store):
 
     store = FeatureStore(
         config=RepoConfig(
-            project="test_registry_server",
+            project=PROJECT_NAME,
             auth=feature_store.config.auth,
             registry=registry_config,
             provider="local",

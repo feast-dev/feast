@@ -10,7 +10,8 @@ from feast.permissions.permission import Permission
 from feast.registry_server import start_server
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.unit.permissions.auth.server import mock_utils
-from tests.unit.permissions.auth.server.conftest import (
+from tests.utils.auth_permissions_util import (
+    get_remote_registry_store,
     invalid_list_entities_perm,
     list_entities_perm,
     list_fv_perm,
@@ -18,7 +19,6 @@ from tests.unit.permissions.auth.server.conftest import (
     list_permissions_perm,
     list_sfv_perm,
 )
-from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
 
 
