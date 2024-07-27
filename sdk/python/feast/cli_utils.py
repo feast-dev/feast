@@ -271,7 +271,10 @@ def handler_list_all_permissions_roles(permissions: list[Permission], table: lis
 
 
 def handler_list_all_permissions_roles_verbose(
-    objects: list[FeastObject], permissions: list[Permission], table: list[Any]
+    store: FeatureStore,
+    objects: list[FeastObject],
+    permissions: list[Permission],
+    table: list[Any],
 ):
     all_roles = fetch_all_permission_roles(permissions)
 
@@ -288,7 +291,9 @@ def handler_list_all_permissions_roles_verbose(
 
                 if matching_permissions:
                     evaluator = DecisionEvaluator(
-                        Permission.get_global_decision_strategy(),
+                        store.registry.list_project_metadata(project=store.project)[
+                            0
+                        ].decision_strategy,
                         len(matching_permissions),
                     )
                     for p in matching_permissions:

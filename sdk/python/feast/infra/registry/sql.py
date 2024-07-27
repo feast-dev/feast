@@ -39,6 +39,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -165,6 +166,7 @@ permissions = Table(
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
     PROJECT_UUID = "project_uuid"
+    PERMISSIONS_DECISION_STRATEGY = "permissions_decision_strategy"
 
 
 feast_metadata = Table(
@@ -501,7 +503,13 @@ class SqlRegistry(CachingRegistry):
                         == FeastMetadataKeys.PROJECT_UUID.value
                     ):
                         project_metadata.project_uuid = row._mapping["metadata_value"]
-                        break
+                    elif (
+                        row._mapping["metadata_key"]
+                        == FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value
+                    ):
+                        project_metadata.decision_strategy = DecisionStrategy(
+                            row._mapping["metadata_value"]
+                        )
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -802,12 +810,20 @@ class SqlRegistry(CachingRegistry):
             row = conn.execute(stmt).first()
             if not row:
                 new_project_uuid = f"{uuid.uuid4()}"
-                values = {
-                    "metadata_key": FeastMetadataKeys.PROJECT_UUID.value,
-                    "metadata_value": new_project_uuid,
-                    "last_updated_timestamp": update_time,
-                    "project_id": project,
-                }
+                values = [
+                    {
+                        "metadata_key": FeastMetadataKeys.PROJECT_UUID.value,
+                        "metadata_value": new_project_uuid,
+                        "last_updated_timestamp": update_time,
+                        "project_id": project,
+                    },
+                    {
+                        "metadata_key": FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value,
+                        "metadata_value": DecisionStrategy.UNANIMOUS.value,
+                        "last_updated_timestamp": update_time,
+                        "project_id": project,
+                    },
+                ]
                 insert_stmt = insert(feast_metadata).values(values)
                 conn.execute(insert_stmt)
 

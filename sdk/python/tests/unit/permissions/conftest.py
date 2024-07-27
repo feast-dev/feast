@@ -12,6 +12,7 @@ from feast.permissions.security_manager import (
     set_security_manager,
 )
 from feast.permissions.user import User
+from feast.project_metadata import ProjectMetadata
 
 
 class SecuredFeatureView(FeatureView):
@@ -84,8 +85,10 @@ def security_manager() -> SecurityManager:
         )
     )
 
+    project_metadata = ProjectMetadata(project_name="test_project")
     registry = Mock(spec=BaseRegistry)
     registry.list_permissions = Mock(return_value=permissions)
+    registry.list_project_metadata = Mock(return_value=[project_metadata])
     sm = SecurityManager(project="any", registry=registry)
     set_security_manager(sm)
     return sm

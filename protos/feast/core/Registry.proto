@@ -56,6 +56,15 @@ message Registry {
 }
 
 message ProjectMetadata {
+    enum DecisionStrategy{
+        UNANIMOUS = 0;
+        AFFIRMATIVE = 1;
+        CONSENSUS = 2;
+    }
+    
     string project = 1;
     string project_uuid = 2;
+    DecisionStrategy decision_strategy = 3;
 }
+
+
