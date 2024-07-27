@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 from feast.feast_object import FeastObject
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.action import AuthzedAction
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.enforcer import enforce_policy
 from feast.permissions.permission import Permission
 from feast.permissions.user import User
@@ -52,6 +53,16 @@ class SecurityManager:
         """
         return self._registry.list_permissions(project=self._project)
 
+    @property
+    def decision_strategy(self) -> DecisionStrategy:
+        """
+        Returns:
+            DecisionStrategy: the DecisionStrategy configured in the Feast registry.
+        """
+        return self._registry.list_project_metadata(project=self._project)[
+            0
+        ].decision_strategy
+
     def assert_permissions(
         self,
         resources: list[FeastObject],
@@ -80,6 +91,7 @@ class SecurityManager:
             user=self.current_user if self.current_user is not None else User("", []),
             resources=resources,
             actions=actions if isinstance(actions, list) else [actions],
+            decision_strategy=self.decision_strategy,
             filter_only=filter_only,
         )
 

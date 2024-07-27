@@ -32,6 +32,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -64,6 +65,7 @@ logger = logging.getLogger(__name__)
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
     PROJECT_UUID = "project_uuid"
+    PERMISSIONS_DECISION_STRATEGY = "permissions_decision_strategy"
 
 
 class SnowflakeRegistryConfig(RegistryConfig):
@@ -923,7 +925,13 @@ class SnowflakeRegistry(BaseRegistry):
                 for row in df.iterrows():
                     if row[1]["METADATA_KEY"] == FeastMetadataKeys.PROJECT_UUID.value:
                         project_metadata.project_uuid = row[1]["METADATA_VALUE"]
-                        break
+                    elif (
+                        row[1]["METADATA_KEY"]
+                        == FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value
+                    ):
+                        project_metadata.decision_strategy = DecisionStrategy(
+                            row[1]["METADATA_VALUE"]
+                        )
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -1110,7 +1118,8 @@ class SnowflakeRegistry(BaseRegistry):
                 query = f"""
                     INSERT INTO {self.registry_path}."FEAST_METADATA"
                         VALUES
-                        ('{project}', '{FeastMetadataKeys.PROJECT_UUID.value}', '{new_project_uuid}', CURRENT_TIMESTAMP())
+                        ('{project}', '{FeastMetadataKeys.PROJECT_UUID.value}', '{new_project_uuid}', CURRENT_TIMESTAMP()),
+                        ('{project}', '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}', '{DecisionStrategy.UNANIMOUS.value}', CURRENT_TIMESTAMP())
                 """
                 execute_snowflake_statement(conn, query)
 
