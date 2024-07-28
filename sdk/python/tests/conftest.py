@@ -437,6 +437,21 @@ def feature_store(temp_dir, auth_config, applied_permissions):
     return default_store(str(temp_dir), auth_config, applied_permissions)
 
 
+@pytest.fixture(scope="module")
+def all_markers_from_module(request):
+    markers = set()
+    for item in request.session.items:
+        for marker in item.iter_markers():
+            markers.add(marker.name)
+
+    return markers
+
+
+@pytest.fixture(scope="module")
+def is_integration_test(all_markers_from_module):
+    return "integration" in all_markers_from_module
+
+
 @pytest.fixture(
     scope="module",
     params=[
@@ -461,12 +476,14 @@ def feature_store(temp_dir, auth_config, applied_permissions):
         """),
     ],
 )
-def auth_config(request):
+def auth_config(request, is_integration_test):
     auth_configuration = request.param
-    is_integration_test = request.node.get_closest_marker("integration")
-    if is_integration_test is not None:
+
+    if is_integration_test:
         if "kubernetes" in auth_configuration:
-            pytest.skip("skipping integration tests for kubernetes platform.")
+            pytest.skip(
+                "skipping integration tests for kubernetes platform, unit tests are covering this functionality."
+            )
         elif "oidc" in auth_configuration:
             keycloak_url = request.getfixturevalue("start_keycloak_server")
             return auth_configuration.replace("KEYCLOAK_URL_PLACE_HOLDER", keycloak_url)
