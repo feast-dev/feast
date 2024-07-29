@@ -70,10 +70,6 @@ Yes. See [documentation](../reference/alpha-web-ui.md).
 
 A feature view can be defined with multiple entities. Since each entity has a unique join\_key, using multiple entities will achieve the effect of a composite key.
 
-### How does Feast compare with Tecton?
-
-Please see a detailed comparison of Feast vs. Tecton [here](https://www.tecton.ai/feast/). For another comparison, please see [here](https://mlops.community/learn/feature-store/).
-
 ### What are the performance/latency characteristics of Feast?
 
 Feast is designed to work at scale and support low latency online serving. See our [benchmark blog post](https://feast.dev/blog/feast-benchmarks/) for details.
