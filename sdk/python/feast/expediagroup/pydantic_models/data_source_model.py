@@ -9,7 +9,7 @@ import sys
 from datetime import timedelta
 from typing import Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
 from pydantic import Field as PydanticField
 from typing_extensions import Annotated, Self
 
@@ -267,6 +267,29 @@ class KafkaSourceModel(DataSourceModel):
     owner: Optional[str] = ""
     batch_source: Optional[AnyBatchDataSource] = None
     watermark_delay_threshold: Optional[timedelta] = None
+
+    # To make it compatible with Pydantic V1, we need this field_serializer
+    @field_serializer("watermark_delay_threshold")
+    def serialize_ttl(self, ttl: timedelta):
+        return timedelta.total_seconds(ttl) if ttl else None
+
+    # To make it compatible with Pydantic V1, we need this field_validator
+    @field_validator("watermark_delay_threshold", mode="before")
+    @classmethod
+    def validate_ttl(cls, v: Optional[Union[int, float, str, timedelta]]):
+        try:
+            if isinstance(v, timedelta):
+                return v
+            elif isinstance(v, float):
+                return timedelta(seconds=v)
+            elif isinstance(v, str):
+                return timedelta(seconds=float(v))
+            elif isinstance(v, int):
+                return timedelta(seconds=v)
+            else:
+                return timedelta(seconds=0)
+        except ValueError:
+            raise ValueError("ttl must be one of the int, float, str, timedelta types")
 
     def to_data_source(self) -> KafkaSource:
         """

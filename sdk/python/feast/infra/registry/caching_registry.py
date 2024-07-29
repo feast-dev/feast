@@ -351,7 +351,7 @@ class CachingRegistry(BaseRegistry):
         self.registry_refresh_thread = threading.Timer(
             cache_ttl_seconds, self._start_thread_async_refresh, [cache_ttl_seconds]
         )
-        self.registry_refresh_thread.setDaemon(True)
+        self.registry_refresh_thread.daemon = True
         self.registry_refresh_thread.start()
 
     def _exit_handler(self):

@@ -68,10 +68,13 @@ def registry_proto_cache_with_tags(func):
 
 
 def init_project_metadata(cached_registry_proto: RegistryProto, project: str):
-    new_project_uuid = f"{uuid.uuid4()}"
-    cached_registry_proto.project_metadata.append(
-        ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
-    )
+    if project is not None:
+        new_project_uuid = f"{uuid.uuid4()}"
+        cached_registry_proto.project_metadata.append(
+            ProjectMetadata(
+                project_name=project, project_uuid=new_project_uuid
+            ).to_proto()
+        )
 
 
 def get_project_metadata(

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer, field_validator
 from typing_extensions import Self
 
 from feast.expediagroup.pydantic_models.data_source_model import (
@@ -76,6 +76,29 @@ class FeatureViewModel(BaseFeatureViewModel):
     materialization_intervals: List[Tuple[datetime, datetime]] = []
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
+
+    # To make it compatible with Pydantic V1, we need this field_serializer
+    @field_serializer("ttl")
+    def serialize_ttl(self, ttl: timedelta):
+        return timedelta.total_seconds(ttl) if ttl else None
+
+    # To make it compatible with Pydantic V1, we need this field_validator
+    @field_validator("ttl", mode="before")
+    @classmethod
+    def validate_ttl(cls, v: Optional[Union[int, float, str, timedelta]]):
+        try:
+            if isinstance(v, timedelta):
+                return v
+            elif isinstance(v, float):
+                return timedelta(seconds=v)
+            elif isinstance(v, str):
+                return timedelta(seconds=float(v))
+            elif isinstance(v, int):
+                return timedelta(seconds=v)
+            else:
+                return timedelta(seconds=0)  # Default value
+        except ValueError:
+            raise ValueError("ttl must be one of the int, float, str, timedelta types")
 
     def to_feature_view(self) -> FeatureView:
         """
@@ -300,11 +323,13 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
     source_request_sources: Dict[str, RequestSourceModel]
     udf: str = ""
     udf_string: str = ""
-    feature_transformation: Union[
-        PandasTransformationModel,
-        PythonTransformationModel,
-        SubstraitTransformationModel,
-    ]
+    feature_transformation: Optional[
+        Union[
+            PandasTransformationModel,
+            PythonTransformationModel,
+            SubstraitTransformationModel,
+        ]
+    ] = None
     mode: str = "pandas"
     description: str = ""
     tags: Optional[dict[str, str]] = None
@@ -328,17 +353,22 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
                     feature_view_projection.to_feature_view_projection()  # type: ignore
                 )
 
-        if self.mode == "pandas":
-            feature_transformation = (
-                self.feature_transformation.to_pandas_transformation()  # type: ignore
-            )
-        elif self.mode == "python":
-            feature_transformation = (
-                self.feature_transformation.to_python_transformation()  # type: ignore
-            )
-        elif self.mode == "substrait":
-            feature_transformation = (
-                self.feature_transformation.to_substrait_transformation()  # type: ignore
+        if self.feature_transformation is not None:
+            if self.mode == "pandas":
+                feature_transformation = (
+                    self.feature_transformation.to_pandas_transformation()  # type: ignore
+                )
+            elif self.mode == "python":
+                feature_transformation = (
+                    self.feature_transformation.to_python_transformation()  # type: ignore
+                )
+            elif self.mode == "substrait":
+                feature_transformation = (
+                    self.feature_transformation.to_substrait_transformation()  # type: ignore
+                )
+        else:
+            feature_transformation = PandasTransformation(
+                udf=dill.loads(bytes.fromhex(self.udf)), udf_string=self.udf_string
             )
 
         odfv = OnDemandFeatureView(
