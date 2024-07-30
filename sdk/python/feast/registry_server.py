@@ -534,7 +534,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         permission.to_proto().project = request.project
 
-        return permission
+        return permission.to_proto()
 
     def ListPermissions(
         self, request: RegistryServer_pb2.ListPermissionsRequest, context
