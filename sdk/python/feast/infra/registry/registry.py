@@ -43,8 +43,10 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
@@ -966,3 +968,22 @@ class Registry(BaseRegistry):
                     self.commit()
                 return
         raise PermissionNotFoundException(name, project)
+
+    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
+        registry = self._prepare_registry_for_changes(project)
+
+        project_metadata = None
+        for idx, existing_project_metadata in enumerate(registry.project_metadata):
+            if existing_project_metadata.project == project:
+                del registry.project_metadata[idx]
+                project_metadata = existing_project_metadata
+                break
+
+        if project_metadata:
+            project_metadata.decision_strategy = (
+                ProjectMetadataProto.DecisionStrategy.Value(decision_strategy.name)
+            )
+
+            registry.project_metadata.append(project_metadata)
+
+            self.commit()

@@ -1162,3 +1162,18 @@ class SnowflakeRegistry(BaseRegistry):
 
     def commit(self):
         pass
+
+    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                UPDATE {self.registry_path}."FEAST_METADATA"
+                    SET
+                        project_id = '{project}',
+                        metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}',
+                        metadata_value = '{decision_strategy.value}',
+                        last_updated_timestamp = CURRENT_TIMESTAMP()
+                    WHERE
+                        project_id = '{project}'
+                        AND metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}',
+                    """
+            execute_snowflake_statement(conn, query)

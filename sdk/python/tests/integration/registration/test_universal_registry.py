@@ -347,10 +347,14 @@ def test_apply_entity_success(test_registry):
     assert len(project_metadata) == 1
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
 
     entities = test_registry.list_entities(project, tags=entity.tags)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
 
     entity = entities[0]
     assert (
@@ -389,19 +393,23 @@ def test_apply_entity_success(test_registry):
     )
 
     test_registry.delete_entity("driver_car_id", project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     entities = test_registry.list_entities(project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     assert len(entities) == 0
 
     test_registry.teardown()
 
 
-def assert_project_uuid(project, project_uuid, test_registry):
+def assert_project_uuid(project, project_uuid, decision_strategy, test_registry):
     project_metadata = test_registry.list_project_metadata(project=project)
     assert len(project_metadata) == 1
     assert project_metadata[0].project_uuid == project_uuid
-    assert project_metadata[0].decision_strategy == DecisionStrategy.UNANIMOUS
+    assert project_metadata[0].decision_strategy == decision_strategy
 
 
 @pytest.mark.integration
@@ -1374,10 +1382,14 @@ def test_apply_permission_success(test_registry):
     assert len(project_metadata) == 1
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
 
     permissions = test_registry.list_permissions(project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
 
     permission = permissions[0]
     assert (
@@ -1424,7 +1436,9 @@ def test_apply_permission_success(test_registry):
     test_registry.apply_permission(updated_permission, project)
 
     permissions = test_registry.list_permissions(project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     assert len(permissions) == 1
 
     updated_permission = test_registry.get_permission("read_permission", project)
@@ -1463,7 +1477,9 @@ def test_apply_permission_success(test_registry):
     test_registry.apply_permission(updated_permission, project)
 
     permissions = test_registry.list_permissions(project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     assert len(permissions) == 1
 
     updated_permission = test_registry.get_permission("read_permission", project)
@@ -1485,9 +1501,47 @@ def test_apply_permission_success(test_registry):
     )
 
     test_registry.delete_permission("read_permission", project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     permissions = test_registry.list_permissions(project)
-    assert_project_uuid(project, project_uuid, test_registry)
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
     assert len(permissions) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", all_fixtures)
+def test_set_decision_strategy_success(test_registry):
+    project = "project"
+
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    # Register Entity
+    test_registry.apply_entity(entity, project)
+
+    project_metadata = test_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 1
+    project_uuid = project_metadata[0].project_uuid
+    assert len(project_metadata[0].project_uuid) == 36
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
+    )
+
+    test_registry.set_decision_strategy(project, DecisionStrategy.AFFIRMATIVE)
+    project_metadata = test_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 1
+    project_uuid = project_metadata[0].project_uuid
+    assert len(project_metadata[0].project_uuid) == 36
+    assert_project_uuid(
+        project, project_uuid, DecisionStrategy.AFFIRMATIVE, test_registry
+    )
 
     test_registry.teardown()

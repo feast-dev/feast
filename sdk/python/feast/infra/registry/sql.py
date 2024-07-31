@@ -1002,3 +1002,24 @@ class SqlRegistry(CachingRegistry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise PermissionNotFoundException(name, project)
+
+    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
+        with self.engine.begin() as conn:
+            values = {
+                "metadata_key": FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value,
+                "metadata_value": f"{decision_strategy.value}",
+                "last_updated_timestamp": int(_utc_now().timestamp()),
+                "project_id": project,
+            }
+
+            update_stmt = (
+                update(feast_metadata)
+                .where(
+                    feast_metadata.c.metadata_key
+                    == FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value,
+                    feast_metadata.c.project_id == project,
+                )
+                .values(values)
+            )
+
+            conn.execute(update_stmt)
