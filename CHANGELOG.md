@@ -1,5 +1,43 @@
 # Changelog
 
+# [0.40.0](https://github.com/feast-dev/feast/compare/v0.39.0...v0.40.0) (2024-07-31)
+
+
+### Bug Fixes
+
+* Added missing type ([#4315](https://github.com/feast-dev/feast/issues/4315)) ([86af60a](https://github.com/feast-dev/feast/commit/86af60ad87d537b17e4ce6ec7a5eac0d637fb32d))
+* Avoid XSS attack from Jinjin2's Environment(). ([#4355](https://github.com/feast-dev/feast/issues/4355)) ([40270e7](https://github.com/feast-dev/feast/commit/40270e754660d0a8f57cc8a3bbfb1e1e346c3d86))
+* CGO Memory leak issue in GO Feature server ([#4291](https://github.com/feast-dev/feast/issues/4291)) ([43e198f](https://github.com/feast-dev/feast/commit/43e198f6945c5e868ade341309f2c5ca39ac563e))
+* Deprecated the datetime.utcfromtimestamp(). ([#4306](https://github.com/feast-dev/feast/issues/4306)) ([21deec8](https://github.com/feast-dev/feast/commit/21deec8495a101442e78cabc9a30cb5fbee5382f))
+* Fix SQLite import issue ([#4294](https://github.com/feast-dev/feast/issues/4294)) ([398ea3b](https://github.com/feast-dev/feast/commit/398ea3b86c83605963124404ff4baa95162dc1f4))
+* Increment operator to v0.39.0 ([#4368](https://github.com/feast-dev/feast/issues/4368)) ([3ddb4fb](https://github.com/feast-dev/feast/commit/3ddb4fb90d845bb3113cc51c484938579668d2c5))
+* Minor typo in the unit test. ([#4296](https://github.com/feast-dev/feast/issues/4296)) ([6c75e84](https://github.com/feast-dev/feast/commit/6c75e84b036f84910dcbd7f1733ebd0d8839ab6c))
+* OnDemandFeatureView type inference for array types ([#4310](https://github.com/feast-dev/feast/issues/4310)) ([c45ff72](https://github.com/feast-dev/feast/commit/c45ff72f821404c595477e696ab4be1b888090cc))
+* Remove redundant batching in PostgreSQLOnlineStore.online_write_batch and fix progress bar ([#4331](https://github.com/feast-dev/feast/issues/4331)) ([0d89d15](https://github.com/feast-dev/feast/commit/0d89d1519fc6b8ddd05a2588138e2e85f5a921b1))
+* Remove typo. ([#4351](https://github.com/feast-dev/feast/issues/4351)) ([92d17de](https://github.com/feast-dev/feast/commit/92d17def8cdff2bebfa622a4b3846d5bdc3e58d8))
+* Retire the datetime.utcnow(). ([#4352](https://github.com/feast-dev/feast/issues/4352)) ([a8bc696](https://github.com/feast-dev/feast/commit/a8bc696010fa94fa0be44fba2570bee0eab83ba2))
+* Update dask version to support pandas 1.x ([#4326](https://github.com/feast-dev/feast/issues/4326)) ([a639d61](https://github.com/feast-dev/feast/commit/a639d617c047030f75c6950e9bfa6e5cfe63daaa))
+* Update Feast object metadata in the registry ([#4257](https://github.com/feast-dev/feast/issues/4257)) ([8028ae0](https://github.com/feast-dev/feast/commit/8028ae0f39e706637bc2781850a3b7d8925a87f7))
+* Using one single function call for utcnow(). ([#4307](https://github.com/feast-dev/feast/issues/4307)) ([98ff63c](https://github.com/feast-dev/feast/commit/98ff63cd389207998b3452ec46e5a2f0fc70485c))
+
+
+### Features
+
+* Add async feature retrieval for Postgres Online Store ([#4327](https://github.com/feast-dev/feast/issues/4327)) ([cea52e9](https://github.com/feast-dev/feast/commit/cea52e9fb02cb9e0b8f48206278474f5a5fa167e))
+* Add Async refresh to Sql Registry ([#4251](https://github.com/feast-dev/feast/issues/4251)) ([f569786](https://github.com/feast-dev/feast/commit/f5697863669a6bb9dbd491f79192e8ddd0073388))
+* Add SingleStore as an OnlineStore ([#4285](https://github.com/feast-dev/feast/issues/4285)) ([2c38946](https://github.com/feast-dev/feast/commit/2c3894693e9079b8ad7873b139b30440c919e913))
+* Add Tornike to maintainers.md ([#4339](https://github.com/feast-dev/feast/issues/4339)) ([8e8c1f2](https://github.com/feast-dev/feast/commit/8e8c1f2ff9a77738e71542cbaab9531f321842a4))
+* Bump psycopg2 to psycopg3 for all Postgres components ([#4303](https://github.com/feast-dev/feast/issues/4303)) ([9451d9c](https://github.com/feast-dev/feast/commit/9451d9ca15f234e8e16e81351294fd63b33c1af2))
+* Entity key deserialization ([#4284](https://github.com/feast-dev/feast/issues/4284)) ([83fad15](https://github.com/feast-dev/feast/commit/83fad152ffe01a3b2691095a45b90eb30044c859))
+* Ignore paths feast apply ([#4276](https://github.com/feast-dev/feast/issues/4276)) ([b4d54af](https://github.com/feast-dev/feast/commit/b4d54afaa83cb3e1391d62f4243e7d63a698064c))
+* Move get_online_features to OnlineStore interface ([#4319](https://github.com/feast-dev/feast/issues/4319)) ([7072fd0](https://github.com/feast-dev/feast/commit/7072fd0e2e1d2f4d9a3e8f02d04ae042b3d9c0d4))
+* Port mssql contrib offline store to ibis ([#4360](https://github.com/feast-dev/feast/issues/4360)) ([7914cbd](https://github.com/feast-dev/feast/commit/7914cbdaffeade727cf3cee538cf128cbfd86e06))
+
+
+### Reverts
+
+* Revert "fix: Avoid XSS attack from Jinjin2's Environment()." ([#4357](https://github.com/feast-dev/feast/issues/4357)) ([cdeab48](https://github.com/feast-dev/feast/commit/cdeab486970ccb8c716499610f927a6e8eb14457)), closes [#4355](https://github.com/feast-dev/feast/issues/4355)
+
 # [0.39.0](https://github.com/feast-dev/feast/compare/v0.38.0...v0.39.0) (2024-06-18)
 
 
