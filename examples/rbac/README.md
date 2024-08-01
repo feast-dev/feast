@@ -89,14 +89,14 @@ auth:
 
 #### 2. **Deploy the Client Examples**
 
-* As an examples, we created two users: 1. admin and 2. user, and assigned the following roles and actions on the Feast object as shown in the table below.
+* As an examples, we created different users: 1. admin-user, 2. readonly-user and 3. unauthorized-user and assigned the following roles and actions on the Feast object as shown in the table below.
 
 #####  Roles and Permissions for Examples (Admin and User)
-| **User**        | **Service Account** | **Roles**        | **Permission**          | **Feast Resources**                                                                                                                                      | **Actions**                                                                                                           |
-|-----------------|---------------------|------------------|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| admin           | feast-admin-sa      | feast-admin-role | feast_admin_permission  | FeatureView, OnDemandFeatureView, BatchFeatureView, StreamFeatureView, Entity, FeatureService, DataSource, ValidationReference, SavedDataset, Permission | CREATE, READ, UPDATE, DELETE, QUERY_ONLINE, QUERY_OFFLINE, WRITE_ONLINE, WRITE_OFFLINE                                |
-| user            | feast-user-sa       | feast-user-role  | feast_user_permission   | FeatureView, OnDemandFeatureView, BatchFeatureView, StreamFeatureView, Entity, FeatureService, DataSource, ValidationReference, SavedDataset, Permission | READ, QUERY_OFFLINE, QUERY_ONLINE                                                                                     |
-
+| **User**        | **Service Account**        | **Roles**        | **Permission**           | **Feast Resources**                                                                                                                                      | **Actions**                                                                            |
+|-----------------|----------------------------|------------------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| admin           | feast-admin-sa             | feast-admin-role | feast_admin_permission   | FeatureView, OnDemandFeatureView, BatchFeatureView, StreamFeatureView, Entity, FeatureService, DataSource, ValidationReference, SavedDataset, Permission | CREATE, READ, UPDATE, DELETE, QUERY_ONLINE, QUERY_OFFLINE, WRITE_ONLINE, WRITE_OFFLINE |
+| user            | feast-user-sa              | feast-user-role  | feast_user_permission    | FeatureView, OnDemandFeatureView, BatchFeatureView, StreamFeatureView, Entity, FeatureService, DataSource, ValidationReference, SavedDataset, Permission | READ, QUERY_OFFLINE, QUERY_ONLINE                                                      |
+|unauthorized-user| feast-unauthorized-user-sa |                  |                          |                                                                                                                                                          |                                                                                        | 
 * For deploying client examples, the script will create a Deployment, roles, role bindings, and service accounts for each user. See roles configuration for admin [admin_resources.yaml](client/admin_resources.yaml) and user [user_resources.yaml](client/user_resources.yaml)
 * It will also create a ConfigMap on the client side that contains the test script and client-side feature store configuration.
 
@@ -106,7 +106,7 @@ auth:
    ./install_feast.sh
    ```
 
-* We defined two examples under the client folder: `test_admin.py` and `test_user.py`. Both examples aim to perform actions related to Historical Features, Materialize Incremental, and Online Features.
+* We defined example under the client/feature_repo with file  [test.py](client/feature_repo/test.py) here test example try to fetch Historical Features, do Materialize Incremental, and fetch Online Features and push to online/offline. 
   
 * The applications should work without permissions setting at this point. Verify the client applications of user and admin and able to do Historical Features, Materialize Incremental, and Online Features 
 
@@ -114,7 +114,6 @@ The Deployment of the overall setup looks like :
 
 ![Deployment.png](deployment.png)
 
-![pod.png](pod.png)
 
 #### Apply Permissions
 
@@ -131,19 +130,23 @@ The Deployment of the overall setup looks like :
 
 #### **Validating Permissions examples.**
 
-As we created two examples under the client folder: `test_admin.py` and `test_user.py`. Both examples aim to perform actions related to Historical Features, Materialize Incremental, and Online Features.
-According to the roles:
+* As in the [test.py](client/feature_repo/test.py), the try example attempts to fetch Historical Features, perform Materialize Incremental, fetch Online Features, and push to online/offline storage based on user roles.
 
-- The admin can perform all actions on all objects.
-- The user can only read or query on all objects.
+- The admin-user can perform all actions on all objects.
+- The readonly-user can only read or query on all objects.
+- unauthorized should not able to fetch or query any resources as there no role define.
 
 The below screenshots show that the admin can perform all actions, including Materialize. However, the user can only read offline and encounters an permissions error when attempting the Materialization step because the user does not have the required role.
+While Unauthorized User shows feature view not found and permission error mean can't perform any action.
 
-**Admin Example**
+**Admin User Example**
 ![admin_output.png](admin_output.png)
 
-**User Example**
+**Readonly User Example**
 ![user_output.png](user_output.png)
+
+**Unauthorized User**
+![unauthorized-user.png](unauthorized-user.png)
 
 
 For local testing, port forward the services PostgreSQL Service and Feast Servers with the commands below:

@@ -61,8 +61,10 @@ read -p "Apply client creation examples (admin and user)? (y/n) " confirm_client
 if [[ $confirm_clients == [yY] ]]; then
   kubectl delete configmap client-feature-repo-config --ignore-not-found
   kubectl create configmap client-feature-repo-config --from-file=$CONFIG_DIR
-  kubectl apply -f client/admin_resources.yaml
-  kubectl apply -f client/user_resources.yaml
+  kubectl apply -f client/admin_user_resources.yaml
+  kubectl apply -f client/readonly_user_resources.yaml
+  kubectl apply -f client/unauthorized_user_resources.yaml
+
   echo "Client resources applied."
 else
   echo "Client resources not applied."
