@@ -12,10 +12,11 @@ for release in "${HELM_RELEASES[@]}"; do
 done
 
 echo "Deleting Kubernetes roles, role bindings, and service accounts for clients"
-kubectl delete -f client/admin_resources.yaml
-kubectl delete -f client/user_resources.yaml
+kubectl delete -f client/admin_user_resources.yaml
+kubectl delete -f client/readonly_user_resources.yaml
+kubectl delete -f client/unauthorized_user_resources.yaml
 kubectl delete -f server/server_resources.yaml
- kubectl delete configmap client-feature-repo-config
+kubectl delete configmap client-feature-repo-config
 
 
 echo "Cleanup completed."

@@ -9,13 +9,12 @@ store = FeatureStore(repo_path="")
 
 admin_roles = ["feast-admin-role"]
 user_roles = ["feast-user-role"]
-cluster_roles = ["feast-cluster-role"]
 
 
 user_perm = Permission(
     name="feast_user_permission",
     types=ALL_RESOURCE_TYPES,
-    policy=RoleBasedPolicy(roles=user_roles + admin_roles + cluster_roles),
+    policy=RoleBasedPolicy(roles=user_roles),
     actions=[AuthzedAction.READ] + QUERY
 )
 
@@ -23,6 +22,6 @@ user_perm = Permission(
 admin_perm = Permission(
     name="feast_admin_permission",
     types=ALL_RESOURCE_TYPES,
-    policy=RoleBasedPolicy(roles=admin_roles + cluster_roles),
+    policy=RoleBasedPolicy(roles=admin_roles),
     actions=ALL_ACTIONS
 )
