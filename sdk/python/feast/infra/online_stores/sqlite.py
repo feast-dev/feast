@@ -14,8 +14,10 @@
 import itertools
 import logging
 import os
+import platform
 import sqlite3
 import struct
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -84,10 +86,11 @@ class SqliteOnlineStore(OnlineStore):
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
             if config.online_store.vec_enabled:
-                import sqlite_vec  # noqa: F401
+                if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
+                    import sqlite_vec  # noqa: F401
 
-                self._conn.enable_load_extension(True)  # type: ignore
-                sqlite_vec.load(self._conn)
+                    self._conn.enable_load_extension(True)  # type: ignore
+                    sqlite_vec.load(self._conn)
 
         return self._conn
 
@@ -410,7 +413,8 @@ class SqliteOnlineStore(OnlineStore):
 
 def _initialize_conn(db_path: str):
     try:
-        import sqlite_vec  # noqa: F401
+        if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
+            import sqlite_vec  # noqa: F401
     except ModuleNotFoundError:
         logging.warning("Cannot use sqlite_vec for vector search")
     Path(db_path).parent.mkdir(exist_ok=True)
@@ -485,10 +489,11 @@ class SqliteTable(InfraObject):
 
     def update(self):
         try:
-            import sqlite_vec  # noqa: F401
+            if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
+                import sqlite_vec  # noqa: F401
 
-            self.conn.enable_load_extension(True)
-            sqlite_vec.load(self.conn)
+                self.conn.enable_load_extension(True)
+                sqlite_vec.load(self.conn)
         except ModuleNotFoundError:
             logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
