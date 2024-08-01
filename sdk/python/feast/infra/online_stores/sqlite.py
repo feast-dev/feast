@@ -14,6 +14,7 @@
 import itertools
 import logging
 import os
+import platform
 import sqlite3
 import struct
 import sys
@@ -84,11 +85,12 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vec_enabled:
-                import sqlite_vec  # noqa: F401
+            if config.online_store.vec_enabled:
+                if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
+                    import sqlite_vec  # noqa: F401
 
-                self._conn.enable_load_extension(True)  # type: ignore
-                sqlite_vec.load(self._conn)
+                    self._conn.enable_load_extension(True)  # type: ignore
+                    sqlite_vec.load(self._conn)
 
         return self._conn
 
@@ -333,7 +335,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE vec_example using vec0(
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_example using vec0(
                 vector_value float[{config.online_store.vector_len}]
         );
         """
@@ -355,28 +357,26 @@ class SqliteOnlineStore(OnlineStore):
         )
 
         # Have to join this with the {table_name} to get the feature name and entity_key
-        # Also the `top_k` doesn't appear to be working for some reason
         cur.execute(
             f"""
             select
-                fv.entity_key,
-                f.vector_value,
-                fv.value,
                 f.distance,
-                fv.event_ts
+                fv.feature_name,
+                fv.value,
+                fv.event_ts,
+                fv.created_ts
             from (
                 select
                     rowid,
-                    vector_value,
                     distance
                 from vec_example
                 where vector_value match ?
+                and k = ?
                 order by distance
-                limit ?
             ) f
             left join {table_name} fv
             on f.rowid = fv.rowid
-        """,
+            """,
             (query_embedding_bin, top_k),
         )
 
@@ -391,7 +391,7 @@ class SqliteOnlineStore(OnlineStore):
             ]
         ] = []
 
-        for entity_key, _, string_value, distance, event_ts in rows:
+        for distance, feature_name, string_value, event_ts, created_ts in rows:
             feature_value_proto = ValueProto()
             feature_value_proto.ParseFromString(string_value if string_value else b"")
             vector_value_proto = ValueProto(
@@ -413,7 +413,8 @@ class SqliteOnlineStore(OnlineStore):
 
 def _initialize_conn(db_path: str):
     try:
-        import sqlite_vec  # noqa: F401
+        if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
+            import sqlite_vec  # noqa: F401
     except ModuleNotFoundError:
         logging.warning("Cannot use sqlite_vec for vector search")
     Path(db_path).parent.mkdir(exist_ok=True)
@@ -487,14 +488,14 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
-        if sys.version_info[0:2] == (3, 10):
-            try:
+        try:
+            if sys.version_info[0:2] != (3, 11) and platform.system() != "Darwin":
                 import sqlite_vec  # noqa: F401
 
                 self.conn.enable_load_extension(True)
                 sqlite_vec.load(self.conn)
-            except ModuleNotFoundError:
-                logging.warning("Cannot use sqlite_vec for vector search")
+        except ModuleNotFoundError:
+            logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )
