@@ -563,4 +563,3 @@ def test_sqlite_get_online_documents() -> None:
         assert "Embeddings" in result
         assert "distance" in result
         assert len(result["distance"]) == 3
-
