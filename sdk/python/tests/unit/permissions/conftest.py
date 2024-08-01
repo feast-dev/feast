@@ -4,6 +4,7 @@ import pytest
 
 from feast import FeatureView
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.decorator import require_permissions
 from feast.permissions.permission import AuthzedAction, Permission
 from feast.permissions.policy import RoleBasedPolicy
@@ -89,6 +90,7 @@ def security_manager() -> SecurityManager:
     registry = Mock(spec=BaseRegistry)
     registry.list_permissions = Mock(return_value=permissions)
     registry.list_project_metadata = Mock(return_value=[project_metadata])
+    registry.get_decision_strategy = Mock(return_value=DecisionStrategy.UNANIMOUS)
     sm = SecurityManager(project="any", registry=registry)
     set_security_manager(sm)
     return sm

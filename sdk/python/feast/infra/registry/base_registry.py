@@ -824,3 +824,15 @@ class BaseRegistry(ABC):
             decision_strategy: The decision strategy to set for the project
         """
         raise NotImplementedError
+
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        """
+        Get the project decision strategy.
+
+        Args:
+            project: The project to get the decision strategy for.
+
+        Returns:
+            The decision strategy or None.
+        """
+        raise NotImplementedError

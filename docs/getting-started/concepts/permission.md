@@ -42,6 +42,11 @@ The `Permission` class identifies a single permission configured on the feature 
 - `actions`: The actions authorized by this permission. Defaults to `ALL_VALUES`, an alias defined in the `action` module.
 - `policy`: The policy to be applied to validate a client request.
 
+The `decision strategy` parameter defines the strategy to be applied when multiple permissions match an execution request, it defaults to `UNANIMOUS`. and the possible values are:
+- `UNANIMOUS`: All policies must evaluate to a positive decision for the final decision to be also positive.
+- `AFFIRMATIVE`: At least one policy must evaluate to a positive decision
+- `UNANIMOUS`: The number of positive decisions must be greater than the number of negative decisions.
+
 Given the above definitions, the feature store can be configured with granular control over each resource, enabling partitioned access by 
 teams to meet organizational requirements for service and data sharing, and protection of sensitive information.
 

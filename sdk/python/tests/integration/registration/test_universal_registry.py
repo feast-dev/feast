@@ -1527,21 +1527,12 @@ def test_set_decision_strategy_success(test_registry):
     # Register Entity
     test_registry.apply_entity(entity, project)
 
-    project_metadata = test_registry.list_project_metadata(project=project)
-    assert len(project_metadata) == 1
-    project_uuid = project_metadata[0].project_uuid
-    assert len(project_metadata[0].project_uuid) == 36
-    assert_project_uuid(
-        project, project_uuid, DecisionStrategy.UNANIMOUS, test_registry
-    )
+    decision_strategy = test_registry.get_decision_strategy(project=project)
+    assert decision_strategy == DecisionStrategy.UNANIMOUS
 
     test_registry.set_decision_strategy(project, DecisionStrategy.AFFIRMATIVE)
-    project_metadata = test_registry.list_project_metadata(project=project)
-    assert len(project_metadata) == 1
-    project_uuid = project_metadata[0].project_uuid
-    assert len(project_metadata[0].project_uuid) == 36
-    assert_project_uuid(
-        project, project_uuid, DecisionStrategy.AFFIRMATIVE, test_registry
-    )
+
+    decision_strategy = test_registry.get_decision_strategy(project=project)
+    assert decision_strategy == DecisionStrategy.AFFIRMATIVE
 
     test_registry.teardown()

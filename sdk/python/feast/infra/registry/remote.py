@@ -698,3 +698,14 @@ class RemoteRegistry(BaseRegistry):
             self.stub.SetDecisionStrategy(request=request, metadata=metadata)
         else:
             self.stub.SetDecisionStrategy(request)
+
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        request = RegistryServer_pb2.GetDecisionStrategyRequest(project=project)
+
+        if self.auth_config.type is not AuthType.NONE.value:
+            metadata = create_auth_header(self.auth_config)
+            response = self.stub.GetDecisionStrategy(request=request, metadata=metadata)
+        else:
+            response = self.stub.GetDecisionStrategy(request)
+
+        return DecisionStrategy(response)

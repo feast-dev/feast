@@ -2017,6 +2017,18 @@ class FeatureStore:
         """
         return self._registry.set_decision_strategy(self.project, decision_strategy)
 
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        """
+        Get the project decision strategy.
+
+        Args:
+            project: The project to get the decision strategy for.
+
+        Returns:
+            The decision strategy or None.
+        """
+        return self._registry.get_decision_strategy(project)
+
 
 def _print_materialization_log(
     start_date, end_date, num_feature_views: int, online_store: str

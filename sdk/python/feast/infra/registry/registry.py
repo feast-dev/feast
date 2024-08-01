@@ -28,6 +28,7 @@ from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
     DataSourceNotFoundException,
+    DecisionStrategyNotFound,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
@@ -987,3 +988,18 @@ class Registry(BaseRegistry):
             registry.project_metadata.append(project_metadata)
 
             self.commit()
+
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        registry_proto = self._get_registry_proto(project=project)
+
+        for idx, existing_project_metadata in enumerate(
+            registry_proto.project_metadata
+        ):
+            if existing_project_metadata.project == project:
+                return DecisionStrategy[
+                    ProjectMetadataProto.DecisionStrategy.Name(
+                        existing_project_metadata.decision_strategy
+                    )
+                ]
+
+        raise DecisionStrategyNotFound(project=project)
