@@ -15,6 +15,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
+    DecisionStrategyNotFound,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
@@ -1164,6 +1165,8 @@ class SnowflakeRegistry(BaseRegistry):
         pass
 
     def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
+        self._maybe_init_project_metadata(project)
+
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 UPDATE {self.registry_path}."FEAST_METADATA"
@@ -1177,3 +1180,23 @@ class SnowflakeRegistry(BaseRegistry):
                         AND metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}',
                     """
             execute_snowflake_statement(conn, query)
+
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                        SELECT
+                            metadata_value
+                        FROM
+                            {self.registry_path}."FEAST_METADATA"
+                        WHERE
+                            project_id = '{project}'
+                            AND metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}'
+                        LIMIT 1
+                    """
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+
+            if not df.empty:
+                for row in df.iterrows():
+                    return DecisionStrategy(row[1]["METADATA_VALUE"])
+
+            raise DecisionStrategyNotFound(project=project)

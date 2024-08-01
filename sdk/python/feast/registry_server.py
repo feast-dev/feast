@@ -629,6 +629,11 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         return Empty()
 
+    def GetDecisionStrategy(
+        self, request: RegistryServer_pb2.GetDecisionStrategyRequest, context
+    ):
+        return self.proxied_registry.get_decision_strategy(project=request.project)
+
 
 def start_server(store: FeatureStore, port: int, wait_for_termination: bool = True):
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)

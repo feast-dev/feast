@@ -59,9 +59,7 @@ class SecurityManager:
         Returns:
             DecisionStrategy: the DecisionStrategy configured in the Feast registry.
         """
-        return self._registry.list_project_metadata(project=self._project)[
-            0
-        ].decision_strategy
+        return self._registry.get_decision_strategy(project=self._project)
 
     def assert_permissions(
         self,

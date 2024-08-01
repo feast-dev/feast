@@ -27,6 +27,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
+    DecisionStrategyNotFound,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
@@ -1005,6 +1006,8 @@ class SqlRegistry(CachingRegistry):
                 raise PermissionNotFoundException(name, project)
 
     def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
+        self._maybe_init_project_metadata(project)
+
         with self.engine.begin() as conn:
             values = {
                 "metadata_key": FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value,
@@ -1024,3 +1027,16 @@ class SqlRegistry(CachingRegistry):
             )
 
             conn.execute(update_stmt)
+
+    def get_decision_strategy(self, project: str) -> DecisionStrategy:
+        with self.engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key
+                == FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value,
+                feast_metadata.c.project_id == project,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                return DecisionStrategy(row._mapping["metadata_value"])
+
+            raise DecisionStrategyNotFound(project=project)

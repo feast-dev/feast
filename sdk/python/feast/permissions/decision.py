@@ -31,7 +31,7 @@ class DecisionEvaluator:
         Create the instance and specify the strategy and number of decisions:
         `evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3)
 
-        For each vote that you receivem, add a decision grant: `evaluator.add_grant(vote, message)`
+        For each vote that you receive, add a decision grant: `evaluator.add_grant(vote, message)`
         and check if the decision process ended: `if evaluator.is_decided():`
         Once decided, get the result and the failure explanations using:
         `grant, explanations = evaluator.grant()`
