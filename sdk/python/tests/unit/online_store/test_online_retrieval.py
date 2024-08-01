@@ -431,6 +431,50 @@ def test_online_to_df():
     sys.version_info[0:2] == (3, 11) and platform.system() == "Darwin",
     reason="Doesn't work on Python 3.11 for MacOS",
 )
+def test_sqlite_vec_import() -> None:
+    SQLITE_VEC_VERSION = "v0.0.1-alpha.36"
+    db = sqlite3.connect(":memory:")
+    db.enable_load_extension(True)
+    sqlite_vec.load(db)
+
+    db.execute("""
+    create virtual table vec_examples using vec0(
+      sample_embedding float[8]
+    );
+    """)
+
+    db.execute("""
+    insert into vec_examples(rowid, sample_embedding)
+    values
+        (1, '[-0.200, 0.250, 0.341, -0.211, 0.645, 0.935, -0.316, -0.924]'),
+        (2, '[0.443, -0.501, 0.355, -0.771, 0.707, -0.708, -0.185, 0.362]'),
+        (3, '[0.716, -0.927, 0.134, 0.052, -0.669, 0.793, -0.634, -0.162]'),
+        (4, '[-0.710, 0.330, 0.656, 0.041, -0.990, 0.726, 0.385, -0.958]');
+    """)
+
+    sqlite_version, vec_version = db.execute(
+        "select sqlite_version(), vec_version()"
+    ).fetchone()
+    assert vec_version == SQLITE_VEC_VERSION
+    print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
+
+    result = db.execute("""
+        select
+            rowid,
+            distance
+        from vec_examples
+        where sample_embedding match '[0.890, 0.544, 0.825, 0.961, 0.358, 0.0196, 0.521, 0.175]'
+        and k = 2
+        order by distance;
+    """).fetchall()
+    result = [(rowid, round(distance, 2)) for rowid, distance in result]
+    assert result == [(2, 2.39), (1, 2.39)]
+
+
+@pytest.mark.skipif(
+    sys.version_info[0:2] == (3, 11) and platform.system() == "Darwin",
+    reason="Doesn't work on Python 3.11 for MacOS",
+)
 def test_sqlite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
@@ -520,46 +564,3 @@ def test_sqlite_get_online_documents() -> None:
         assert "distance" in result
         assert len(result["distance"]) == 3
 
-
-@pytest.mark.skipif(
-    sys.version_info[0:2] == (3, 11) and platform.system() == "Darwin",
-    reason="Doesn't work on Python 3.11 for MacOS",
-)
-def test_sqlite_vec_import() -> None:
-    SQLITE_VEC_VERSION = "v0.0.1-alpha.36"
-    db = sqlite3.connect(":memory:")
-    db.enable_load_extension(True)
-    sqlite_vec.load(db)
-
-    db.execute("""
-    create virtual table vec_examples using vec0(
-      sample_embedding float[8]
-    );
-    """)
-
-    db.execute("""
-    insert into vec_examples(rowid, sample_embedding)
-    values
-        (1, '[-0.200, 0.250, 0.341, -0.211, 0.645, 0.935, -0.316, -0.924]'),
-        (2, '[0.443, -0.501, 0.355, -0.771, 0.707, -0.708, -0.185, 0.362]'),
-        (3, '[0.716, -0.927, 0.134, 0.052, -0.669, 0.793, -0.634, -0.162]'),
-        (4, '[-0.710, 0.330, 0.656, 0.041, -0.990, 0.726, 0.385, -0.958]');
-    """)
-
-    sqlite_version, vec_version = db.execute(
-        "select sqlite_version(), vec_version()"
-    ).fetchone()
-    assert vec_version == SQLITE_VEC_VERSION
-    print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
-
-    result = db.execute("""
-        select
-            rowid,
-            distance
-        from vec_examples
-        where sample_embedding match '[0.890, 0.544, 0.825, 0.961, 0.358, 0.0196, 0.521, 0.175]'
-        and k = 2
-        order by distance;
-    """).fetchall()
-    result = [(rowid, round(distance, 2)) for rowid, distance in result]
-    assert result == [(2, 2.39), (1, 2.39)]
