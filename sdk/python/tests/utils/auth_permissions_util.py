@@ -119,7 +119,7 @@ def start_feature_server(repo_path: str, server_port: int):
         str(server_port),
     ]
     feast_server_process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE,  stderr=subprocess.PIPE
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     _time_out_sec: int = 60
     # Wait for server to start

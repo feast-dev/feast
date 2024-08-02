@@ -10,54 +10,76 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pandas as pd
 import pytest
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig, RegistryLocation)
-from tests.integration.feature_repos.universal.data_source_creator import \
-    DataSourceCreator
-from tests.integration.feature_repos.universal.data_sources.bigquery import \
-    BigQueryDataSourceCreator
-from tests.integration.feature_repos.universal.data_sources.file import (
-    DuckDBDataSourceCreator, DuckDBDeltaDataSourceCreator,
-    FileDataSourceCreator, RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator)
-from tests.integration.feature_repos.universal.data_sources.redshift import \
-    RedshiftDataSourceCreator
-from tests.integration.feature_repos.universal.data_sources.snowflake import \
-    SnowflakeDataSourceCreator
-from tests.integration.feature_repos.universal.feature_views import (
-    conv_rate_plus_100_feature_view, create_conv_rate_request_source,
-    create_customer_daily_profile_feature_view,
-    create_driver_hourly_stats_batch_feature_view,
-    create_driver_hourly_stats_feature_view, create_field_mapping_feature_view,
-    create_global_stats_feature_view, create_location_stats_feature_view,
-    create_order_feature_view, create_pushable_feature_view)
-from tests.integration.feature_repos.universal.online_store.bigtable import \
-    BigtableOnlineStoreCreator
-from tests.integration.feature_repos.universal.online_store.datastore import \
-    DatastoreOnlineStoreCreator
-from tests.integration.feature_repos.universal.online_store.dynamodb import \
-    DynamoDBOnlineStoreCreator
-from tests.integration.feature_repos.universal.online_store.redis import \
-    RedisOnlineStoreCreator
-from tests.integration.feature_repos.universal.online_store_creator import \
-    OnlineStoreCreator
-from tests.utils.auth_permissions_util import (list_entities_perm,
-                                               list_fv_perm, list_odfv_perm,
-                                               list_permissions_perm,
-                                               list_sfv_perm)
 
-from feast import (FeatureStore, FeatureView, OnDemandFeatureView,
-                   driver_test_data)
+from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_data
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
-from feast.infra.feature_servers.base_config import (BaseFeatureServerConfig,
-                                                     FeatureLoggingConfig)
-from feast.infra.feature_servers.local_process.config import \
-    LocalFeatureServerConfig
+from feast.infra.feature_servers.base_config import (
+    BaseFeatureServerConfig,
+    FeatureLoggingConfig,
+)
+from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.utils import _utc_now
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,
+    RegistryLocation,
+)
+from tests.integration.feature_repos.universal.data_source_creator import (
+    DataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.bigquery import (
+    BigQueryDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    DuckDBDataSourceCreator,
+    DuckDBDeltaDataSourceCreator,
+    FileDataSourceCreator,
+    RemoteOfflineOidcAuthStoreDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.redshift import (
+    RedshiftDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.snowflake import (
+    SnowflakeDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.feature_views import (
+    conv_rate_plus_100_feature_view,
+    create_conv_rate_request_source,
+    create_customer_daily_profile_feature_view,
+    create_driver_hourly_stats_batch_feature_view,
+    create_driver_hourly_stats_feature_view,
+    create_field_mapping_feature_view,
+    create_global_stats_feature_view,
+    create_location_stats_feature_view,
+    create_order_feature_view,
+    create_pushable_feature_view,
+)
+from tests.integration.feature_repos.universal.online_store.bigtable import (
+    BigtableOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store.datastore import (
+    DatastoreOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store.dynamodb import (
+    DynamoDBOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store.redis import (
+    RedisOnlineStoreCreator,
+)
+from tests.integration.feature_repos.universal.online_store_creator import (
+    OnlineStoreCreator,
+)
+from tests.utils.auth_permissions_util import (
+    list_entities_perm,
+    list_fv_perm,
+    list_odfv_perm,
+    list_permissions_perm,
+    list_sfv_perm,
+)
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
@@ -229,7 +251,7 @@ class UniversalDatasets:
 
 
 def construct_universal_datasets(
-        entities: UniversalEntities, start_time: datetime, end_time: datetime
+    entities: UniversalEntities, start_time: datetime, end_time: datetime
 ) -> UniversalDatasets:
     customer_df = driver_test_data.create_customer_daily_profile_df(
         entities.customer_vals, start_time, end_time
@@ -286,7 +308,7 @@ class UniversalDataSources:
 
 
 def construct_universal_data_sources(
-        datasets: UniversalDatasets, data_source_creator: DataSourceCreator
+    datasets: UniversalDatasets, data_source_creator: DataSourceCreator
 ) -> UniversalDataSources:
     customer_ds = data_source_creator.create_data_source(
         datasets.customer_df,
@@ -351,9 +373,9 @@ class UniversalFeatureViews:
 
 
 def construct_universal_feature_views(
-        data_sources: UniversalDataSources,
-        with_odfv: bool = True,
-        use_substrait_odfv: bool = False,
+    data_sources: UniversalDataSources,
+    with_odfv: bool = True,
+    use_substrait_odfv: bool = False,
 ) -> UniversalFeatureViews:
     driver_hourly_stats = create_driver_hourly_stats_feature_view(data_sources.driver)
     driver_hourly_stats_base_feature_view = (
@@ -430,17 +452,20 @@ class Environment:
 
 @dataclass
 class OfflineServerPermissionsEnvironment(Environment):
-
     def setup(self):
         self.data_source_creator.setup(self.registry)
         keycloak_url = self.data_source_creator.get_keycloak_url()
-        auth_config = OidcAuthConfig(client_id="feast-integration-client",
-                                     client_secret="feast-integration-client-secret",
-                                     username="reader_writer", password="password", realm="master",
-                                     type="oidc",
-                                     auth_server_url=self.data_source_creator.get_keycloak_url(),
-                                     auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
-                                                        f"/openid-configuration")
+        auth_config = OidcAuthConfig(
+            client_id="feast-integration-client",
+            client_secret="feast-integration-client-secret",
+            username="reader_writer",
+            password="password",
+            realm="master",
+            type="oidc",
+            auth_server_url=self.data_source_creator.get_keycloak_url(),
+            auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
+            f"/openid-configuration",
+        )
         self.config = RepoConfig(
             registry=self.registry,
             project=self.project,
@@ -453,7 +478,7 @@ class OfflineServerPermissionsEnvironment(Environment):
             repo_path=self.repo_dir_name,
             feature_server=self.feature_server,
             entity_key_serialization_version=self.entity_key_serialization_version,
-            auth=auth_config
+            auth=auth_config,
         )
 
         self.feature_store = FeatureStore(config=self.config)
@@ -476,11 +501,11 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
 
 
 def construct_test_environment(
-        test_repo_config: IntegrationTestRepoConfig,
-        fixture_request: Optional[pytest.FixtureRequest],
-        test_suite_name: str = "integration_test",
-        worker_id: str = "worker_id",
-        entity_key_serialization_version: int = 2,
+    test_repo_config: IntegrationTestRepoConfig,
+    fixture_request: Optional[pytest.FixtureRequest],
+    test_suite_name: str = "integration_test",
+    worker_id: str = "worker_id",
+    entity_key_serialization_version: int = 2,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -518,20 +543,20 @@ def construct_test_environment(
         )
 
     environment_params = {
-        'name': project,
-        'provider': test_repo_config.provider,
-        'data_source_creator': offline_creator,
-        'python_feature_server': test_repo_config.python_feature_server,
-        'worker_id': worker_id,
-        'online_store_creator': online_creator,
-        'fixture_request': fixture_request,
-        'project': project,
-        'registry': registry,
-        'feature_server': feature_server,
-        'entity_key_serialization_version': entity_key_serialization_version,
-        'repo_dir_name': repo_dir_name,
-        'batch_engine': test_repo_config.batch_engine,
-        'online_store': test_repo_config.online_store,
+        "name": project,
+        "provider": test_repo_config.provider,
+        "data_source_creator": offline_creator,
+        "python_feature_server": test_repo_config.python_feature_server,
+        "worker_id": worker_id,
+        "online_store_creator": online_creator,
+        "fixture_request": fixture_request,
+        "project": project,
+        "registry": registry,
+        "feature_server": feature_server,
+        "entity_key_serialization_version": entity_key_serialization_version,
+        "repo_dir_name": repo_dir_name,
+        "batch_engine": test_repo_config.batch_engine,
+        "online_store": test_repo_config.online_store,
     }
 
     if not isinstance(offline_creator, RemoteOfflineOidcAuthStoreDataSourceCreator):

@@ -3,16 +3,19 @@ import tempfile
 from textwrap import dedent
 
 import pytest
-from tests.utils.auth_permissions_util import (PROJECT_NAME, default_store,
-                                               start_feature_server)
-from tests.utils.cli_repo_creator import CliRunner
-from tests.utils.http_server import free_port
 
 from feast import Entity, FeatureView, OnDemandFeatureView, StreamFeatureView
 from feast.feature_store import FeatureStore
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from tests.utils.auth_permissions_util import (
+    PROJECT_NAME,
+    default_store,
+    start_feature_server,
+)
+from tests.utils.cli_repo_creator import CliRunner
+from tests.utils.http_server import free_port
 
 
 @pytest.mark.integration

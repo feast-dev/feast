@@ -5,30 +5,40 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import pytest
-from tests.integration.feature_repos.repo_configuration import (
-    construct_universal_feature_views, table_name_from_data_source)
-from tests.integration.feature_repos.universal.data_sources.file import (
-    RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator)
-from tests.integration.feature_repos.universal.data_sources.snowflake import \
-    SnowflakeDataSourceCreator
-from tests.integration.feature_repos.universal.entities import (customer,
-                                                                driver,
-                                                                location)
-from tests.utils.feature_records import (
-    assert_feature_service_correctness,
-    assert_feature_service_entity_mapping_correctness,
-    get_expected_training_df, get_response_feature_name, validate_dataframes)
 
 from feast.entity import Entity
 from feast.errors import RequestDataNotFoundInEntityDfException
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.infra.offline_stores.offline_utils import \
-    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.types import Float32, Int32
 from feast.utils import _utc_now
+from tests.integration.feature_repos.repo_configuration import (
+    construct_universal_feature_views,
+    table_name_from_data_source,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    RemoteOfflineOidcAuthStoreDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.data_sources.snowflake import (
+    SnowflakeDataSourceCreator,
+)
+from tests.integration.feature_repos.universal.entities import (
+    customer,
+    driver,
+    location,
+)
+from tests.utils.feature_records import (
+    assert_feature_service_correctness,
+    assert_feature_service_entity_mapping_correctness,
+    get_expected_training_df,
+    get_response_feature_name,
+    validate_dataframes,
+)
 
 np.random.seed(0)
 
@@ -153,7 +163,11 @@ def test_historical_features_main(
     )
 
     if not isinstance(
-        environment.data_source_creator, (RemoteOfflineStoreDataSourceCreator, RemoteOfflineOidcAuthStoreDataSourceCreator)
+        environment.data_source_creator,
+        (
+            RemoteOfflineStoreDataSourceCreator,
+            RemoteOfflineOidcAuthStoreDataSourceCreator,
+        ),
     ):
         assert_feature_service_correctness(
             store,
