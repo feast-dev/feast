@@ -14,15 +14,15 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
+                    Tuple)
 
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.permissions.client.http_auth_requests_wrapper import (
-    get_http_auth_requests_session,
-)
+from feast.permissions.client.http_auth_requests_wrapper import \
+    get_http_auth_requests_session
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel

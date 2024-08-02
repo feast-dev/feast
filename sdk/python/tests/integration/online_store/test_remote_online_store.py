@@ -3,31 +3,56 @@ import tempfile
 from textwrap import dedent
 
 import pytest
-
-from feast.feature_store import FeatureStore
-from tests.utils.auth_permissions_util import (
-    PROJECT_NAME,
-    default_store,
-    list_entities_perm,
-    list_fv_perm,
-    list_odfv_perm,
-    list_permissions_perm,
-    list_sfv_perm,
-    start_feature_server,
-)
+from tests.utils.auth_permissions_util import (PROJECT_NAME, default_store,
+                                               start_feature_server)
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import free_port
+
+from feast import Entity, FeatureView, OnDemandFeatureView, StreamFeatureView
+from feast.feature_store import FeatureStore
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 
 
 @pytest.mark.integration
 def test_remote_online_store_read(auth_config):
     with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
         permissions_list = [
-            list_entities_perm,
-            list_permissions_perm,
-            list_fv_perm,
-            list_odfv_perm,
-            list_sfv_perm,
+            Permission(
+                name="online_list_entities_perm",
+                types=Entity,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="online_list_permissions_perm",
+                types=Permission,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="online_list_fv_perm",
+                types=FeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="online_list_odfv_perm",
+                types=OnDemandFeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="online_list_sfv_perm",
+                types=StreamFeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
+            ),
         ]
         server_store, server_url, registry_path = (
             _create_server_store_spin_feature_server(
