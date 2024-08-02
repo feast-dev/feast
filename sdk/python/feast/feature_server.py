@@ -19,8 +19,7 @@ import feast
 from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
-from feast.errors import (FeatureViewNotFoundException,
-                          PushSourceNotFoundException)
+from feast.errors import FeatureViewNotFoundException, PushSourceNotFoundException
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
