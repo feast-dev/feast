@@ -11,7 +11,14 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import pandas as pd
 import pytest
 
-from feast import FeatureStore, FeatureView, OnDemandFeatureView, driver_test_data
+from feast import (
+    Entity,
+    FeatureStore,
+    FeatureView,
+    OnDemandFeatureView,
+    StreamFeatureView,
+    driver_test_data,
+)
 from feast.constants import FULL_REPO_CONFIGS_MODULE_ENV_NAME
 from feast.data_source import DataSource
 from feast.errors import FeastModuleImportError
@@ -20,7 +27,10 @@ from feast.infra.feature_servers.base_config import (
     FeatureLoggingConfig,
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
+from feast.permissions.action import AuthzedAction
 from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.utils import _utc_now
 from tests.integration.feature_repos.integration_test_repo_config import (
@@ -72,13 +82,6 @@ from tests.integration.feature_repos.universal.online_store.redis import (
 )
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
-)
-from tests.utils.auth_permissions_util import (
-    list_entities_perm,
-    list_fv_perm,
-    list_odfv_perm,
-    list_permissions_perm,
-    list_sfv_perm,
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
@@ -462,7 +465,7 @@ class OfflineServerPermissionsEnvironment(Environment):
             password="password",
             realm="master",
             type="oidc",
-            auth_server_url=self.data_source_creator.get_keycloak_url(),
+            auth_server_url=keycloak_url,
             auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
             f"/openid-configuration",
         )
@@ -483,11 +486,40 @@ class OfflineServerPermissionsEnvironment(Environment):
 
         self.feature_store = FeatureStore(config=self.config)
         permissions_list = [
-            list_entities_perm,
-            list_permissions_perm,
-            list_fv_perm,
-            list_odfv_perm,
-            list_sfv_perm,
+            Permission(
+                name="offline_permissions_perm",
+                types=Permission,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="offline_entities_perm",
+                types=Entity,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="offline_fv_perm",
+                types=FeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="offline_odfv_perm",
+                types=OnDemandFeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.QUERY_OFFLINE],
+            ),
+            Permission(
+                name="offline_sfv_perm",
+                types=StreamFeatureView,
+                with_subclasses=False,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.QUERY_OFFLINE],
+            ),
         ]
         self.feature_store.apply(permissions_list)
 

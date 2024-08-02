@@ -58,12 +58,6 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
 )
 from tests.utils.auth_permissions_util import (
     default_store,
-    invalid_list_entities_perm,
-    list_entities_perm,
-    list_fv_perm,
-    list_odfv_perm,
-    list_permissions_perm,
-    list_sfv_perm,
 )
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
@@ -489,21 +483,3 @@ def auth_config(request, is_integration_test):
             return auth_configuration.replace("KEYCLOAK_URL_PLACE_HOLDER", keycloak_url)
 
     return auth_configuration
-
-
-@pytest.fixture(
-    scope="module",
-    params=[
-        [],
-        [invalid_list_entities_perm],
-        [
-            list_entities_perm,
-            list_permissions_perm,
-            list_fv_perm,
-            list_odfv_perm,
-            list_sfv_perm,
-        ],
-    ],
-)
-def applied_permissions(request):
-    return request.param

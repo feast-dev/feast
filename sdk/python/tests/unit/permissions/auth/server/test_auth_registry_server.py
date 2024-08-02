@@ -5,20 +5,22 @@ import pandas as pd
 import pytest
 import yaml
 
-from feast import FeatureStore
+from feast import (
+    FeatureStore,
+)
 from feast.permissions.permission import Permission
 from feast.registry_server import start_server
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.unit.permissions.auth.server import mock_utils
-from tests.utils.auth_permissions_util import (
-    get_remote_registry_store,
+from tests.unit.permissions.auth.server.test_utils import (
     invalid_list_entities_perm,
-    list_entities_perm,
-    list_fv_perm,
-    list_odfv_perm,
-    list_permissions_perm,
-    list_sfv_perm,
+    read_entities_perm,
+    read_fv_perm,
+    read_odfv_perm,
+    read_permissions_perm,
+    read_sfv_perm,
 )
+from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
 
 
@@ -73,11 +75,11 @@ def test_registry_apis(
 
     if _permissions_exist_in_permission_list(
         [
-            list_entities_perm,
-            list_permissions_perm,
-            list_fv_perm,
-            list_odfv_perm,
-            list_sfv_perm,
+            read_entities_perm,
+            read_permissions_perm,
+            read_fv_perm,
+            read_odfv_perm,
+            read_sfv_perm,
         ],
         permissions,
     ):
@@ -120,7 +122,7 @@ def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):
     entities = client_fs.list_entities()
 
     if not _is_auth_enabled(client_fs) or _is_permission_enabled(
-        client_fs, permissions, list_entities_perm
+        client_fs, permissions, read_entities_perm
     ):
         assertpy.assert_that(entities).is_not_none()
         assertpy.assert_that(len(entities)).is_equal_to(1)
@@ -151,11 +153,11 @@ def _test_list_permissions(
         assertpy.assert_that(len(permissions)).is_equal_to(len(applied_permissions))
     elif _is_auth_enabled(client_fs) and _permissions_exist_in_permission_list(
         [
-            list_entities_perm,
-            list_permissions_perm,
-            list_fv_perm,
-            list_odfv_perm,
-            list_sfv_perm,
+            read_entities_perm,
+            read_permissions_perm,
+            read_fv_perm,
+            read_odfv_perm,
+            read_sfv_perm,
         ],
         permissions,
     ):
@@ -163,11 +165,11 @@ def _test_list_permissions(
         assertpy.assert_that(len(permissions)).is_equal_to(
             len(
                 [
-                    list_entities_perm,
-                    list_permissions_perm,
-                    list_fv_perm,
-                    list_odfv_perm,
-                    list_sfv_perm,
+                    read_entities_perm,
+                    read_permissions_perm,
+                    read_fv_perm,
+                    read_odfv_perm,
+                    read_sfv_perm,
                 ]
             )
         )
@@ -179,7 +181,7 @@ def _test_list_permissions(
 
 
 def _is_listing_permissions_allowed(permissions: list[Permission]) -> bool:
-    return list_permissions_perm in permissions
+    return read_permissions_perm in permissions
 
 
 def _is_auth_enabled(client_fs: FeatureStore) -> bool:
@@ -199,7 +201,7 @@ def _test_list_fvs(client_fs: FeatureStore, permissions: list[Permission]):
             print(f"{fv.name}, {type(fv).__name__}")
 
     if not _is_auth_enabled(client_fs) or _is_permission_enabled(
-        client_fs, permissions, list_fv_perm
+        client_fs, permissions, read_fv_perm
     ):
         assertpy.assert_that(fvs).is_not_none()
         assertpy.assert_that(len(fvs)).is_equal_to(2)
@@ -227,7 +229,7 @@ def _is_permission_enabled(
         _no_permission_retrieved(permissions)
         or (
             _permissions_exist_in_permission_list(
-                [list_permissions_perm, permission], permissions
+                [read_permissions_perm, permission], permissions
             )
         )
     )

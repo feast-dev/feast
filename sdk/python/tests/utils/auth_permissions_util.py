@@ -5,69 +5,16 @@ import yaml
 from keycloak import KeycloakAdmin
 
 from feast import (
-    Entity,
     FeatureStore,
-    FeatureView,
-    OnDemandFeatureView,
     RepoConfig,
-    StreamFeatureView,
 )
 from feast.infra.registry.remote import RemoteRegistryConfig
-from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
-from feast.permissions.policy import RoleBasedPolicy
 from feast.wait import wait_retry_backoff
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import check_port_open
 
 PROJECT_NAME = "feast_test_project"
-
-list_permissions_perm = Permission(
-    name="list_permissions_perm",
-    types=Permission,
-    policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
-
-list_entities_perm = Permission(
-    name="list_entities_perm",
-    types=Entity,
-    with_subclasses=False,
-    policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
-
-list_fv_perm = Permission(
-    name="list_fv_perm",
-    types=FeatureView,
-    with_subclasses=False,
-    policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
-
-list_odfv_perm = Permission(
-    name="list_odfv_perm",
-    types=OnDemandFeatureView,
-    with_subclasses=False,
-    policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
-
-list_sfv_perm = Permission(
-    name="list_sfv_perm",
-    types=StreamFeatureView,
-    with_subclasses=False,
-    policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
-
-invalid_list_entities_perm = Permission(
-    name="invalid_list_entity_perm",
-    types=Entity,
-    with_subclasses=False,
-    policy=RoleBasedPolicy(roles=["dancer"]),
-    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
-)
 
 
 def include_auth_config(file_path, auth_config: str):
