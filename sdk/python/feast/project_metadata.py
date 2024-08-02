@@ -17,7 +17,6 @@ from typing import Optional
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
 
-from feast.permissions.decision import DecisionStrategy
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 
 
@@ -33,14 +32,12 @@ class ProjectMetadata:
 
     project_name: str
     project_uuid: str
-    decision_strategy: DecisionStrategy
 
     def __init__(
         self,
         *args,
         project_name: Optional[str] = None,
         project_uuid: Optional[str] = None,
-        decision_strategy: Optional[DecisionStrategy] = None,
     ):
         """
         Creates an Project metadata object.
@@ -48,7 +45,6 @@ class ProjectMetadata:
         Args:
             project_name: The registry-scoped unique name of the project.
             project_uuid: The UUID for this project
-            decision_strategy: The projects decision strategy to be applied when multiple permissions match an execution request.
 
         Raises:
             ValueError: Parameters are specified incorrectly.
@@ -58,10 +54,9 @@ class ProjectMetadata:
 
         self.project_name = project_name
         self.project_uuid = project_uuid or f"{uuid.uuid4()}"
-        self.decision_strategy = decision_strategy or DecisionStrategy.UNANIMOUS
 
     def __hash__(self) -> int:
-        return hash((self.project_name, self.project_uuid, self.decision_strategy))
+        return hash((self.project_name, self.project_uuid))
 
     def __eq__(self, other):
         if not isinstance(other, ProjectMetadata):
@@ -72,7 +67,6 @@ class ProjectMetadata:
         if (
             self.project_name != other.project_name
             or self.project_uuid != other.project_uuid
-            or self.decision_strategy != other.decision_strategy
         ):
             return False
 
@@ -98,11 +92,6 @@ class ProjectMetadata:
         entity = cls(
             project_name=project_metadata_proto.project,
             project_uuid=project_metadata_proto.project_uuid,
-            decision_strategy=DecisionStrategy[
-                ProjectMetadataProto.DecisionStrategy.Name(
-                    project_metadata_proto.decision_strategy
-                )
-            ],
         )
 
         return entity
@@ -116,9 +105,5 @@ class ProjectMetadata:
         """
 
         return ProjectMetadataProto(
-            project=self.project_name,
-            project_uuid=self.project_uuid,
-            decision_strategy=ProjectMetadataProto.DecisionStrategy.Value(
-                self.decision_strategy.name
-            ),
+            project=self.project_name, project_uuid=self.project_uuid
         )

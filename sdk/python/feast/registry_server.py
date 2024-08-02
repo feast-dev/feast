@@ -17,7 +17,6 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import CRUD, AuthzedAction
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.permissions.security_manager import assert_permissions, permitted_resources
 from feast.permissions.server.grpc import grpc_interceptors
@@ -27,7 +26,6 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
-from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -617,22 +615,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
     def Proto(self, request, context):
         return self.proxied_registry.proto()
-
-    def SetDecisionStrategy(
-        self, request: RegistryServer_pb2.SetDecisionStrategyRequest, context
-    ):
-        self.proxied_registry.set_decision_strategy(
-            project=request.project,
-            decision_strategy=DecisionStrategy[
-                ProjectMetadataProto.DecisionStrategy.Name(request.decision_strategy)
-            ],
-        )
-        return Empty()
-
-    def GetDecisionStrategy(
-        self, request: RegistryServer_pb2.GetDecisionStrategyRequest, context
-    ):
-        return self.proxied_registry.get_decision_strategy(project=request.project)
 
 
 def start_server(store: FeatureStore, port: int, wait_for_termination: bool = True):

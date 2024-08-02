@@ -2,7 +2,14 @@ import assertpy
 import pytest
 
 from feast.permissions.action import QUERY, AuthzedAction
+from feast.permissions.decision import DecisionStrategy
+from feast.permissions.permission import Permission
 from feast.permissions.security_manager import assert_permissions, permitted_resources
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_module():
+    Permission.set_global_decision_strategy(DecisionStrategy.UNANIMOUS)
 
 
 @pytest.mark.parametrize(
