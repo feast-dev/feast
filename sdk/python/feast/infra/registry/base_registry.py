@@ -28,7 +28,6 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -813,26 +812,3 @@ class BaseRegistry(ABC):
         if feast_obj_type == FeatureService:
             return FeatureServiceProto.FromString(serialized_proto)
         return None
-
-    @abstractmethod
-    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
-        """
-        Set the project decision strategy.
-
-        Args:
-            project: Feast project to set the decision strategy for
-            decision_strategy: The decision strategy to set for the project
-        """
-        raise NotImplementedError
-
-    def get_decision_strategy(self, project: str) -> DecisionStrategy:
-        """
-        Get the project decision strategy.
-
-        Args:
-            project: The project to get the decision strategy for.
-
-        Returns:
-            The decision strategy or None.
-        """
-        raise NotImplementedError

@@ -12,11 +12,24 @@ from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.permission import (
+    DecisionStrategy,
     Permission,
 )
 from feast.permissions.policy import AllowAll, Policy
 from feast.saved_dataset import ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+
+
+def test_global_decision_strategy():
+    assertpy.assert_that(Permission.get_global_decision_strategy()).is_equal_to(
+        DecisionStrategy.UNANIMOUS
+    )
+
+    for value in DecisionStrategy.__members__.values():
+        Permission.set_global_decision_strategy(value)
+        assertpy.assert_that(Permission.get_global_decision_strategy()).is_equal_to(
+            value
+        )
 
 
 def test_defaults():

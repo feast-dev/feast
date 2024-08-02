@@ -23,10 +23,8 @@ from feast.permissions.auth_model import (
 from feast.permissions.client.utils import (
     create_auth_header,
 )
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
-from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.repo_config import RegistryConfig
@@ -683,29 +681,3 @@ class RemoteRegistry(BaseRegistry):
 
     def teardown(self):
         pass
-
-    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
-        decision_strategy_proto = ProjectMetadataProto.DecisionStrategy.Value(
-            decision_strategy.name
-        )
-
-        request = RegistryServer_pb2.SetDecisionStrategyRequest(
-            decision_strategy=decision_strategy_proto, project=project
-        )
-
-        if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_auth_header(self.auth_config)
-            self.stub.SetDecisionStrategy(request=request, metadata=metadata)
-        else:
-            self.stub.SetDecisionStrategy(request)
-
-    def get_decision_strategy(self, project: str) -> DecisionStrategy:
-        request = RegistryServer_pb2.GetDecisionStrategyRequest(project=project)
-
-        if self.auth_config.type is not AuthType.NONE.value:
-            metadata = create_auth_header(self.auth_config)
-            response = self.stub.GetDecisionStrategy(request=request, metadata=metadata)
-        else:
-            response = self.stub.GetDecisionStrategy(request)
-
-        return DecisionStrategy(response)

@@ -36,6 +36,7 @@ from feast.data_source import DataSource
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -998,7 +999,7 @@ def feast_permissions_list_command(ctx: click.Context, verbose: bool, tags: list
             )
         )
         print(
-            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {store.registry.list_project_metadata(project=store.project)[0].decision_strategy.value.upper()}"
+            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {Permission.get_global_decision_strategy().value.upper()}"
         )
     else:
         cli_utils.print_permission_verbose_example()
@@ -1119,7 +1120,7 @@ def feast_permissions_list_roles_command(ctx: click.Context, verbose: bool):
             store=store,
         )
         cli_utils.handler_list_all_permissions_roles_verbose(
-            store=store, objects=objects, permissions=permissions, table=table
+            objects=objects, permissions=permissions, table=table
         )
         print(
             tabulate(
@@ -1135,7 +1136,7 @@ def feast_permissions_list_roles_command(ctx: click.Context, verbose: bool):
         )
 
         print(
-            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {store.registry.list_project_metadata(project=store.project)[0].decision_strategy.value.upper()}"
+            f"{Style.BRIGHT}Note:{Style.RESET_ALL}The configured decision strategy is {Permission.get_global_decision_strategy().value.upper()}"
         )
 
 

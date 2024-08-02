@@ -7,6 +7,7 @@ from google.protobuf.json_format import MessageToJson
 
 from feast.importer import import_class
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
+from feast.permissions.decision import DecisionStrategy
 from feast.permissions.matcher import actions_match_config, resource_match_config
 from feast.permissions.policy import AllowAll, Policy
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
@@ -100,6 +101,22 @@ class Permission(ABC):
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
+
+    _global_decision_strategy: DecisionStrategy = DecisionStrategy.UNANIMOUS
+
+    @staticmethod
+    def get_global_decision_strategy() -> DecisionStrategy:
+        """
+        The global decision strategy to be applied when multiple permissions match an execution request.
+        """
+        return Permission._global_decision_strategy
+
+    @staticmethod
+    def set_global_decision_strategy(global_decision_strategy: DecisionStrategy):
+        """
+        Define the global decision strategy to be applied when multiple permissions match an execution request.
+        """
+        Permission._global_decision_strategy = global_decision_strategy
 
     @property
     def name(self) -> str:

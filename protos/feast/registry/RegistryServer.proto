@@ -74,8 +74,7 @@ service RegistryServer{
   rpc Commit (google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Refresh (RefreshRequest) returns (google.protobuf.Empty) {}
   rpc Proto (google.protobuf.Empty) returns (feast.core.Registry) {}
-  rpc SetDecisionStrategy (SetDecisionStrategyRequest) returns (google.protobuf.Empty) {}
-  rpc GetDecisionStrategy (GetDecisionStrategyRequest) returns (GetDecisionStrategyResponse) {}
+
 }
 
 message RefreshRequest {
@@ -356,18 +355,4 @@ message DeletePermissionRequest {
   string name = 1;
   string project = 2;
   bool commit = 3;
-}
-
-message SetDecisionStrategyRequest {
-  feast.core.ProjectMetadata.DecisionStrategy decision_strategy = 1;
-  string project = 2;
-  bool commit = 3;
-}
-
-message GetDecisionStrategyRequest {
-  string project = 1;
-}
-
-message GetDecisionStrategyResponse {
-  feast.core.ProjectMetadata.DecisionStrategy decision_strategy = 1;
 }

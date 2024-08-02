@@ -1,7 +1,7 @@
 import logging
 
 from feast.feast_object import FeastObject
-from feast.permissions.decision import DecisionEvaluator, DecisionStrategy
+from feast.permissions.decision import DecisionEvaluator
 from feast.permissions.permission import (
     AuthzedAction,
     Permission,
@@ -16,7 +16,6 @@ def enforce_policy(
     user: User,
     resources: list[FeastObject],
     actions: list[AuthzedAction],
-    decision_strategy: DecisionStrategy,
     filter_only: bool = False,
 ) -> list[FeastObject]:
     """
@@ -30,7 +29,6 @@ def enforce_policy(
         user: The current user.
         resources: The resources for which we need to enforce authorized permission.
         actions: The requested actions to be authorized.
-        decision_strategy: The decision strategy to be applied when multiple permissions match an execution request.
         filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
         first unauthorized resource. Defaults to `False`.
 
@@ -55,7 +53,9 @@ def enforce_policy(
         ]
 
         if matching_permissions:
-            evaluator = DecisionEvaluator(decision_strategy, len(matching_permissions))
+            evaluator = DecisionEvaluator(
+                Permission.get_global_decision_strategy(), len(matching_permissions)
+            )
             for p in matching_permissions:
                 permission_grant, permission_explanation = p.policy.validate_user(
                     user=user

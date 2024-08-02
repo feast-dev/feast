@@ -15,7 +15,6 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
-    DecisionStrategyNotFound,
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
@@ -33,7 +32,6 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -66,7 +64,6 @@ logger = logging.getLogger(__name__)
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
     PROJECT_UUID = "project_uuid"
-    PERMISSIONS_DECISION_STRATEGY = "permissions_decision_strategy"
 
 
 class SnowflakeRegistryConfig(RegistryConfig):
@@ -926,13 +923,7 @@ class SnowflakeRegistry(BaseRegistry):
                 for row in df.iterrows():
                     if row[1]["METADATA_KEY"] == FeastMetadataKeys.PROJECT_UUID.value:
                         project_metadata.project_uuid = row[1]["METADATA_VALUE"]
-                    elif (
-                        row[1]["METADATA_KEY"]
-                        == FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value
-                    ):
-                        project_metadata.decision_strategy = DecisionStrategy(
-                            row[1]["METADATA_VALUE"]
-                        )
+                        break
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -1119,8 +1110,7 @@ class SnowflakeRegistry(BaseRegistry):
                 query = f"""
                     INSERT INTO {self.registry_path}."FEAST_METADATA"
                         VALUES
-                        ('{project}', '{FeastMetadataKeys.PROJECT_UUID.value}', '{new_project_uuid}', CURRENT_TIMESTAMP()),
-                        ('{project}', '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}', '{DecisionStrategy.UNANIMOUS.value}', CURRENT_TIMESTAMP())
+                        ('{project}', '{FeastMetadataKeys.PROJECT_UUID.value}', '{new_project_uuid}', CURRENT_TIMESTAMP())
                 """
                 execute_snowflake_statement(conn, query)
 
@@ -1163,40 +1153,3 @@ class SnowflakeRegistry(BaseRegistry):
 
     def commit(self):
         pass
-
-    def set_decision_strategy(self, project: str, decision_strategy: DecisionStrategy):
-        self._maybe_init_project_metadata(project)
-
-        with GetSnowflakeConnection(self.registry_config) as conn:
-            query = f"""
-                UPDATE {self.registry_path}."FEAST_METADATA"
-                    SET
-                        project_id = '{project}',
-                        metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}',
-                        metadata_value = '{decision_strategy.value}',
-                        last_updated_timestamp = CURRENT_TIMESTAMP()
-                    WHERE
-                        project_id = '{project}'
-                        AND metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}',
-                    """
-            execute_snowflake_statement(conn, query)
-
-    def get_decision_strategy(self, project: str) -> DecisionStrategy:
-        with GetSnowflakeConnection(self.registry_config) as conn:
-            query = f"""
-                        SELECT
-                            metadata_value
-                        FROM
-                            {self.registry_path}."FEAST_METADATA"
-                        WHERE
-                            project_id = '{project}'
-                            AND metadata_key = '{FeastMetadataKeys.PERMISSIONS_DECISION_STRATEGY.value}'
-                        LIMIT 1
-                    """
-            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
-
-            if not df.empty:
-                for row in df.iterrows():
-                    return DecisionStrategy(row[1]["METADATA_VALUE"])
-
-            raise DecisionStrategyNotFound(project=project)

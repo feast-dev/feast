@@ -419,8 +419,3 @@ class ZeroRowsQueryResult(Exception):
 class ZeroColumnQueryResult(Exception):
     def __init__(self, query: str):
         super().__init__(f"This query returned zero columns:\n{query}")
-
-
-class DecisionStrategyNotFound(FeastObjectNotFoundException):
-    def __init__(self, project: str):
-        super().__init__(f"DecisionStrategy does not exist in project {project}")

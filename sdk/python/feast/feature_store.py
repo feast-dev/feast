@@ -76,7 +76,6 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -2007,27 +2006,6 @@ class FeatureStore:
         return self._registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
-
-    def set_decision_strategy(self, decision_strategy: DecisionStrategy):
-        """
-        Set the project decision strategy.
-
-        Args:
-            decision_strategy: The decision strategy to set to.
-        """
-        return self._registry.set_decision_strategy(self.project, decision_strategy)
-
-    def get_decision_strategy(self, project: str) -> DecisionStrategy:
-        """
-        Get the project decision strategy.
-
-        Args:
-            project: The project to get the decision strategy for.
-
-        Returns:
-            The decision strategy or None.
-        """
-        return self._registry.get_decision_strategy(project)
 
 
 def _print_materialization_log(
