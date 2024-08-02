@@ -1,7 +1,6 @@
 from feast import FeatureStore
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.permissions.action import QUERY, AuthzedAction, ALL_ACTIONS
-from feast.permissions.decision import DecisionStrategy
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 
@@ -27,9 +26,3 @@ admin_perm = Permission(
     policy=RoleBasedPolicy(roles=admin_roles + cluster_roles),
     actions=ALL_ACTIONS
 )
-
-
-#Permission.set_global_decision_strategy(DecisionStrategy.AFFIRMATIVE)
-#store.apply([user_perm, admin_perm])
-#store.refresh_registry()
-#print("Global decision strategy:", Permission.get_global_decision_strategy())
