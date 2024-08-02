@@ -421,7 +421,6 @@ class Environment:
     entity_key_serialization_version: int
     repo_dir_name: str
     fixture_request: Optional[pytest.FixtureRequest] = None
-    permissions: Optional[List] = None
 
     def __post_init__(self):
         self.end_date = _utc_now().replace(microsecond=0, second=0, minute=0)
