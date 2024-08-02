@@ -52,7 +52,7 @@ class GrpcClientAuthHeaderInterceptor(
             auth_client_manager = get_auth_client_manager(self._auth_type)
             access_token = auth_client_manager.get_token()
             metadata.append(
-                (b"Authorization", b"Bearer " + access_token.encode("utf-8"))
+                (b"authorization", b"Bearer " + access_token.encode("utf-8"))
             )
             client_call_details = client_call_details._replace(metadata=metadata)
         return client_call_details
