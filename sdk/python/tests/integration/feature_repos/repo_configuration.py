@@ -41,8 +41,7 @@ from tests.integration.feature_repos.universal.online_store.redis import \
     RedisOnlineStoreCreator
 from tests.integration.feature_repos.universal.online_store_creator import \
     OnlineStoreCreator
-from tests.utils.auth_permissions_util import (
-                                               list_entities_perm,
+from tests.utils.auth_permissions_util import (list_entities_perm,
                                                list_fv_perm, list_odfv_perm,
                                                list_permissions_perm,
                                                list_sfv_perm)
@@ -420,29 +419,7 @@ class Environment:
             entity_key_serialization_version=self.entity_key_serialization_version,
         )
 
-        if isinstance(
-                self.data_source_creator, RemoteOfflineOidcAuthStoreDataSourceCreator
-        ):
-            keycloak_url = self.data_source_creator.get_keycloak_url()
-            auth_config = OidcAuthConfig(client_id="feast-integration-client",
-                                         client_secret="feast-integration-client-secret",
-                                         username="reader_writer", password="password", realm="master",
-                                         type="oidc",
-                                         auth_server_url=self.data_source_creator.get_keycloak_url(),
-                                         auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
-                                                            f"/openid-configuration")
-            self.config.auth = auth_config
-            self.feature_store = FeatureStore(config=self.config)
-            permissions_list = [
-                list_entities_perm,
-                list_permissions_perm,
-                list_fv_perm,
-                list_odfv_perm,
-                list_sfv_perm,
-            ]
-            self.feature_store.apply(permissions_list)
-        else:
-            self.feature_store = FeatureStore(config=self.config)
+        self.feature_store = FeatureStore(config=self.config)
 
     def teardown(self):
         self.feature_store.teardown()
@@ -452,12 +429,42 @@ class Environment:
 
 
 @dataclass
-class PermissionsEnvironment(Environment):
+class OfflineServerPermissionsEnvironment(Environment):
+
     def setup(self):
-        super().setup()
+        self.data_source_creator.setup(self.registry)
+        keycloak_url = self.data_source_creator.get_keycloak_url()
+        auth_config = OidcAuthConfig(client_id="feast-integration-client",
+                                     client_secret="feast-integration-client-secret",
+                                     username="reader_writer", password="password", realm="master",
+                                     type="oidc",
+                                     auth_server_url=self.data_source_creator.get_keycloak_url(),
+                                     auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
+                                                        f"/openid-configuration")
+        self.config = RepoConfig(
+            registry=self.registry,
+            project=self.project,
+            provider=self.provider,
+            offline_store=self.data_source_creator.create_offline_store_config(),
+            online_store=self.online_store_creator.create_online_store()
+            if self.online_store_creator
+            else self.online_store,
+            batch_engine=self.batch_engine,
+            repo_path=self.repo_dir_name,
+            feature_server=self.feature_server,
+            entity_key_serialization_version=self.entity_key_serialization_version,
+            auth=auth_config
+        )
 
-
-
+        self.feature_store = FeatureStore(config=self.config)
+        permissions_list = [
+            list_entities_perm,
+            list_permissions_perm,
+            list_fv_perm,
+            list_odfv_perm,
+            list_sfv_perm,
+        ]
+        self.feature_store.apply(permissions_list)
 
 
 def table_name_from_data_source(ds: DataSource) -> Optional[str]:
@@ -471,7 +478,6 @@ def table_name_from_data_source(ds: DataSource) -> Optional[str]:
 def construct_test_environment(
         test_repo_config: IntegrationTestRepoConfig,
         fixture_request: Optional[pytest.FixtureRequest],
-        permissions: Optional[List] = None,
         test_suite_name: str = "integration_test",
         worker_id: str = "worker_id",
         entity_key_serialization_version: int = 2,
@@ -511,24 +517,27 @@ def construct_test_environment(
             cache_ttl_seconds=1,
         )
 
-    environment = Environment(
-        name=project,
-        provider=test_repo_config.provider,
-        data_source_creator=offline_creator,
-        python_feature_server=test_repo_config.python_feature_server,
-        worker_id=worker_id,
-        online_store_creator=online_creator,
-        fixture_request=fixture_request,
-        project=project,
-        registry=registry,
-        feature_server=feature_server,
-        entity_key_serialization_version=entity_key_serialization_version,
-        repo_dir_name=repo_dir_name,
-        batch_engine=test_repo_config.batch_engine,
-        online_store=test_repo_config.online_store,
-        permissions=permissions
-    )
+    environment_params = {
+        'name': project,
+        'provider': test_repo_config.provider,
+        'data_source_creator': offline_creator,
+        'python_feature_server': test_repo_config.python_feature_server,
+        'worker_id': worker_id,
+        'online_store_creator': online_creator,
+        'fixture_request': fixture_request,
+        'project': project,
+        'registry': registry,
+        'feature_server': feature_server,
+        'entity_key_serialization_version': entity_key_serialization_version,
+        'repo_dir_name': repo_dir_name,
+        'batch_engine': test_repo_config.batch_engine,
+        'online_store': test_repo_config.online_store,
+    }
 
+    if not isinstance(offline_creator, RemoteOfflineOidcAuthStoreDataSourceCreator):
+        environment = Environment(**environment_params)
+    else:
+        environment = OfflineServerPermissionsEnvironment(**environment_params)
     return environment
 
 
