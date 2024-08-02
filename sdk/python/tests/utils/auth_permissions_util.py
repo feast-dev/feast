@@ -26,7 +26,7 @@ list_permissions_perm = Permission(
     name="list_permissions_perm",
     types=Permission,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 list_entities_perm = Permission(
@@ -34,7 +34,7 @@ list_entities_perm = Permission(
     types=Entity,
     with_subclasses=False,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 list_fv_perm = Permission(
@@ -42,7 +42,7 @@ list_fv_perm = Permission(
     types=FeatureView,
     with_subclasses=False,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 list_odfv_perm = Permission(
@@ -50,7 +50,7 @@ list_odfv_perm = Permission(
     types=OnDemandFeatureView,
     with_subclasses=False,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 list_sfv_perm = Permission(
@@ -58,7 +58,7 @@ list_sfv_perm = Permission(
     types=StreamFeatureView,
     with_subclasses=False,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 invalid_list_entities_perm = Permission(
@@ -66,7 +66,7 @@ invalid_list_entities_perm = Permission(
     types=Entity,
     with_subclasses=False,
     policy=RoleBasedPolicy(roles=["dancer"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.READ, AuthzedAction.QUERY_OFFLINE],
 )
 
 

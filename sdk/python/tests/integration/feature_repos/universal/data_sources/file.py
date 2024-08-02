@@ -15,7 +15,13 @@ import yaml
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.keycloak import KeycloakContainer
 from testcontainers.minio import MinioContainer
+from tests.integration.feature_repos.universal.data_source_creator import \
+    DataSourceCreator
+from tests.utils.auth_permissions_util import (include_auth_config,
+                                               setup_permissions_on_keycloak)
+from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 from feast import FileSource, RepoConfig
 from feast.data_format import DeltaFormat, ParquetFormat
@@ -23,17 +29,11 @@ from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.duckdb import DuckDBOfflineStoreConfig
-from feast.infra.offline_stores.file_source import (
-    FileLoggingDestination,
-    SavedDatasetFileStorage,
-)
+from feast.infra.offline_stores.file_source import (FileLoggingDestination,
+                                                    SavedDatasetFileStorage)
 from feast.infra.offline_stores.remote import RemoteOfflineStoreConfig
 from feast.repo_config import FeastConfigBaseModel, RegistryConfig
 from feast.wait import wait_retry_backoff  # noqa: E402
-from tests.integration.feature_repos.universal.data_source_creator import (
-    DataSourceCreator,
-)
-from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,12 @@ class FileDataSourceCreator(DataSourceCreator):
         self.keep = []
 
     def create_data_source(
-        self,
-        df: pd.DataFrame,
-        destination_name: str,
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+            self,
+            df: pd.DataFrame,
+            destination_name: str,
+            created_timestamp_column="created_ts",
+            field_mapping: Optional[Dict[str, str]] = None,
+            timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -104,12 +104,12 @@ class FileDataSourceCreator(DataSourceCreator):
 
 class DeltaFileSourceCreator(FileDataSourceCreator):
     def create_data_source(
-        self,
-        df: pd.DataFrame,
-        destination_name: str,
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+            self,
+            df: pd.DataFrame,
+            destination_name: str,
+            created_timestamp_column="created_ts",
+            field_mapping: Optional[Dict[str, str]] = None,
+            timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         from deltalake.writer import write_deltalake
 
@@ -167,12 +167,12 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
         }
 
     def create_data_source(
-        self,
-        df: pd.DataFrame,
-        destination_name: str,
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+            self,
+            df: pd.DataFrame,
+            destination_name: str,
+            created_timestamp_column="created_ts",
+            field_mapping: Optional[Dict[str, str]] = None,
+            timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         from deltalake.writer import write_deltalake
 
@@ -216,12 +216,12 @@ class DeltaS3FileSourceCreator(FileDataSourceCreator):
 
 class FileParquetDatasetSourceCreator(FileDataSourceCreator):
     def create_data_source(
-        self,
-        df: pd.DataFrame,
-        destination_name: str,
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+            self,
+            df: pd.DataFrame,
+            destination_name: str,
+            created_timestamp_column="created_ts",
+            field_mapping: Optional[Dict[str, str]] = None,
+            timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         destination_name = self.get_prefixed_table_name(destination_name)
 
@@ -289,12 +289,12 @@ class S3FileDataSourceCreator(DataSourceCreator):
         )
 
     def create_data_source(
-        self,
-        df: pd.DataFrame,
-        destination_name: str,
-        created_timestamp_column="created_ts",
-        field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+            self,
+            df: pd.DataFrame,
+            destination_name: str,
+            created_timestamp_column="created_ts",
+            field_mapping: Optional[Dict[str, str]] = None,
+            timestamp_field: Optional[str] = "ts",
     ) -> DataSource:
         filename = f"{destination_name}.parquet"
         port = self.minio.get_exposed_port("9000")
@@ -417,6 +417,99 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 
     def teardown(self):
         super().teardown()
+        if self.proc is not None:
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
+
+
+class RemoteOfflineOidcAuthStoreDataSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        keycloak_url = self._setup_keycloak()
+        auth_config_template = """
+auth:
+  type: oidc
+  client_id: feast-integration-client
+  client_secret: feast-integration-client-secret
+  username: reader_writer
+  password: password
+  realm: master
+  auth_server_url: {keycloak_url}
+  auth_discovery_url: {keycloak_url}/realms/master/.well-known/openid-configuration
+"""
+        self.auth_config = auth_config_template.format(keycloak_url=keycloak_url)
+        self.server_port: int = 0
+        self.proc = None
+
+    def _setup_keycloak(self):
+        self.keycloak_container = KeycloakContainer("quay.io/keycloak/keycloak:24.0.1")
+        self.keycloak_container.start()
+        setup_permissions_on_keycloak(self.keycloak_container.get_client())
+        return self.keycloak_container.get_url()
+
+    def setup(self, registry: RegistryConfig):
+        parent_offline_config = super().create_offline_store_config()
+        config = RepoConfig(
+            project=self.project_name,
+            provider="local",
+            offline_store=parent_offline_config,
+            registry=registry.path,
+            entity_key_serialization_version=2,
+        )
+
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "w") as outfile:
+            yaml.dump(config.model_dump(by_alias=True), outfile)
+        repo_path = str(repo_path.resolve())
+
+        include_auth_config(
+            file_path=f"{repo_path}/feature_store.yaml", auth_config=self.auth_config
+        )
+
+        self.server_port = free_port()
+        host = "0.0.0.0"
+        cmd = [
+            "feast",
+            "-c" + repo_path,
+            "serve_offline",
+            "--host",
+            host,
+            "--port",
+            str(self.server_port),
+        ]
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
+
+        _time_out_sec: int = 60
+        # Wait for server to start
+        wait_retry_backoff(
+            lambda: (None, check_port_open(host, self.server_port)),
+            timeout_secs=_time_out_sec,
+            timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
+        )
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
+
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        self.remote_offline_store_config = RemoteOfflineStoreConfig(
+            type="remote", host="0.0.0.0", port=self.server_port
+        )
+        return self.remote_offline_store_config
+    
+    def get_keycloak_url(self):
+        return self.keycloak_container.get_url()
+
+    def teardown(self):
+        super().teardown()
+        self.keycloak_container.stop()
         if self.proc is not None:
             self.proc.kill()
 
