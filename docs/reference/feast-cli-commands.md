@@ -171,10 +171,10 @@ Options:
 ```
 
 ```text
-NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                             ROLES
-reader_permission1234  ['FeatureView']  True             transformed_conv_rate  ['READ]                             ['reader']
-writer_permission1234  ['FeatureView']  True             transformed_conv_rate  ['CREATE']                          ['writer']
-Note:The configured decision strategy is UNANIMOUS
+NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                         ROLES
+reader_permission1234  FeatureView      True             transformed_conv_rate  READ                            reader
+                       FeaduteService
+writer_permission1234  FeatureView      True             transformed_conv_rate  CREATE                          writer
 ```
 
 `verbose` option describes the resources matching each configured permission: 
@@ -240,16 +240,45 @@ feast permissions list-roles -v
 
 ```text            
 ROLE NAME          RESOURCE NAME               RESOURCE TYPE    PERMITTED ACTIONS
-admin              driver_hourly_stats_source  FileSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-admin              vals_to_add                 RequestSource    ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-admin              driver_stats_push_source    PushSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-admin              driver_hourly_stats_source  FileSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-admin              vals_to_add                 RequestSource    ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-admin              driver_stats_push_source    PushSource       ['CREATE', 'DELETE', 'QUERY_OFFLINE', 'QUERY_ONLINE', 'READ', 'UPDATE']
-reader             driver_hourly_stats         FeatureView      ['READ']
-reader             driver_hourly_stats_fresh   FeatureView      ['READ']
+admin              driver_hourly_stats_source  FileSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              vals_to_add                 RequestSource    CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_stats_push_source    PushSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_hourly_stats_source  FileSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              vals_to_add                 RequestSource    CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_stats_push_source    PushSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+reader             driver_hourly_stats         FeatureView      READ
+reader             driver_hourly_stats_fresh   FeatureView      READ
 ...
-Note:The configured decision strategy is UNANIMOUS
 ```
 
 

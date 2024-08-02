@@ -53,9 +53,7 @@ def enforce_policy(
         ]
 
         if matching_permissions:
-            evaluator = DecisionEvaluator(
-                Permission.get_global_decision_strategy(), len(matching_permissions)
-            )
+            evaluator = DecisionEvaluator(len(matching_permissions))
             for p in matching_permissions:
                 permission_grant, permission_explanation = p.policy.validate_user(
                     user=user

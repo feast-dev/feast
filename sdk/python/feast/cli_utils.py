@@ -195,11 +195,11 @@ def handle_not_verbose_permissions_command(
     table.append(
         [
             p.name,
-            [t.__name__ for t in p.types],  # type: ignore[union-attr, attr-defined]
+            _to_multi_line([t.__name__ for t in p.types]),  # type: ignore[union-attr, attr-defined]
             p.with_subclasses,
             p.name_pattern,
-            [a.value.upper() for a in p.actions],
-            sorted(roles),
+            _to_multi_line([a.value.upper() for a in p.actions]),
+            _to_multi_line(sorted(roles)),
         ]
     )
 
@@ -246,7 +246,7 @@ def handle_permissions_check_command_with_actions(
             [
                 object.name,
                 type(object).__name__,
-                [a.value.upper() for a in unmatched_actions],
+                _to_multi_line([a.value.upper() for a in unmatched_actions]),
             ]
         )
 
@@ -288,7 +288,6 @@ def handler_list_all_permissions_roles_verbose(
 
                 if matching_permissions:
                     evaluator = DecisionEvaluator(
-                        Permission.get_global_decision_strategy(),
                         len(matching_permissions),
                     )
                     for p in matching_permissions:
@@ -313,6 +312,12 @@ def handler_list_all_permissions_roles_verbose(
                     role,
                     o.name,
                     type(o).__name__,
-                    [a.value.upper() for a in permitted_actions],
+                    _to_multi_line([a.value.upper() for a in permitted_actions]),
                 ]
             )
+
+
+def _to_multi_line(values: list[str]) -> str:
+    if not values:
+        return "-"
+    return "\n".join(values)

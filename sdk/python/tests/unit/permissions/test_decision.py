@@ -1,7 +1,7 @@
 import assertpy
 import pytest
 
-from feast.permissions.decision import DecisionEvaluator, DecisionStrategy
+from feast.permissions.decision import DecisionEvaluator
 
 # Each vote is a tuple of `current_vote` and expected output of `is_decided`
 
@@ -9,57 +9,13 @@ from feast.permissions.decision import DecisionEvaluator, DecisionStrategy
 @pytest.mark.parametrize(
     "evaluator, votes, decision, no_of_explanations",
     [
-        (DecisionEvaluator(DecisionStrategy.AFFIRMATIVE, 3), [(True, True)], True, 0),
-        (DecisionEvaluator(DecisionStrategy.AFFIRMATIVE, 3), [(True, True)], True, 0),
+        (DecisionEvaluator(3), [(True, True)], True, 0),
+        (DecisionEvaluator(3), [(True, True)], True, 0),
         (
-            DecisionEvaluator(DecisionStrategy.AFFIRMATIVE, 3),
+            DecisionEvaluator(3),
             [(False, False), (False, False), (False, True)],
             False,
             3,
-        ),
-        (
-            DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3),
-            [(True, False), (True, False), (True, True)],
-            True,
-            0,
-        ),
-        (
-            DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3),
-            [(True, False), (False, True)],
-            False,
-            1,
-        ),
-        (DecisionEvaluator(DecisionStrategy.CONSENSUS, 1), [(True, True)], True, 0),
-        (DecisionEvaluator(DecisionStrategy.CONSENSUS, 1), [(False, True)], False, 1),
-        (
-            DecisionEvaluator(DecisionStrategy.CONSENSUS, 5),
-            [
-                (True, False),
-                (False, False),
-                (False, False),
-                (True, False),
-                (True, True),
-            ],
-            True,
-            2,
-        ),
-        (
-            DecisionEvaluator(DecisionStrategy.CONSENSUS, 5),
-            [(True, False), (False, False), (False, False), (False, True)],
-            False,
-            3,
-        ),
-        (
-            DecisionEvaluator(DecisionStrategy.UNANIMOUS, 2),
-            [(True, False), (True, True), (False, True), (False, True), (False, True)],
-            True,
-            0,
-        ),
-        (
-            DecisionEvaluator(DecisionStrategy.UNANIMOUS, 2),
-            [(False, True), (False, True), (False, True), (False, True), (False, True)],
-            False,
-            1,
         ),
     ],
 )

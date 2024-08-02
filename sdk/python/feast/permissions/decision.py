@@ -14,7 +14,9 @@ class DecisionStrategy(enum.Enum):
     AFFIRMATIVE = (
         "affirmative"  # At least one policy must evaluate to a positive decision
     )
-    CONSENSUS = "consensus"  # The number of positive decisions must be greater than the number of negative decisions.
+    # The number of positive decisions must be greater than the number of negative decisions.
+    # If the number of positive and negative decisions is the same, the final decision will be negative.
+    CONSENSUS = "consensus"
 
 
 class DecisionEvaluator:
@@ -37,9 +39,10 @@ class DecisionEvaluator:
 
     def __init__(
         self,
-        decision_strategy: DecisionStrategy,
         num_of_voters: int,
     ):
+        # Only AFFIRMATIVE strategy is managed available
+        decision_strategy = DecisionStrategy.AFFIRMATIVE
         self.num_of_voters = num_of_voters
 
         self.grant_count = 0
@@ -57,7 +60,7 @@ class DecisionEvaluator:
             if decision_strategy == DecisionStrategy.AFFIRMATIVE
             else 1
             if decision_strategy == DecisionStrategy.UNANIMOUS
-            else num_of_voters // 2 + 1
+            else num_of_voters // 2 + (num_of_voters % 2)
         )
         self.grant_decision: Optional[bool] = None
         self.explanations: list[str] = []
