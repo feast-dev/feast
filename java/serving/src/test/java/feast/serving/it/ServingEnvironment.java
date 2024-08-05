@@ -62,8 +62,7 @@ abstract class ServingEnvironment {
             .withExposedService("redis", 6379)
             .withExposedService(
                 "feast", 8080, Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(180)))
-            .withTailChildContainers(true)
-            .withLocalCompose(true);
+            .withTailChildContainers(true);
 
     environment.start();
   }
