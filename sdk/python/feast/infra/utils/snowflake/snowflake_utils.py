@@ -6,7 +6,7 @@ import string
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterator, List, Optional, Tuple, cast
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow
@@ -510,13 +510,25 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
         yield int(i / n), lst[i : i + n]
 
 
-def parse_private_key_path(key_path: str, private_key_passphrase: str) -> bytes:
-    with open(key_path, "rb") as key:
+def parse_private_key_path(
+    private_key: Union[bytes | str], private_key_passphrase: str
+) -> bytes:
+    """Returns snowflake pkb by parsing and reading either from private key path or as byte string."""
+    if isinstance(private_key, str):
+        with open(private_key, "rb") as key:
+            p_key = serialization.load_pem_private_key(
+                key.read(),
+                password=private_key_passphrase.encode(),
+                backend=default_backend(),
+            )
+    elif isinstance(private_key, bytes):
         p_key = serialization.load_pem_private_key(
-            key.read(),
+            private_key,
             password=private_key_passphrase.encode(),
             backend=default_backend(),
         )
+    else:
+        raise ValueError("private_key must be either type of str or bytes.")
 
     pkb = p_key.private_bytes(
         encoding=serialization.Encoding.DER,

@@ -67,8 +67,8 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
-    private_key: Optional[str] = None
-    """ Snowflake private key file path"""
+    private_key: Optional[str | bytes] = None
+    """ Snowflake private key stored as bytes or file path"""
 
     private_key_passphrase: Optional[str] = None
     """ Snowflake private key file passphrase"""
