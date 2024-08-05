@@ -228,7 +228,7 @@ class RepoConfig(FeastBaseModel):
 
         self._online_store = None
         if provider == "expedia":
-            self.online_config = "redis"
+            self.online_config = data.get("online_store", "redis")
         else:
             self.online_config = data.get("online_store", "sqlite")
 
