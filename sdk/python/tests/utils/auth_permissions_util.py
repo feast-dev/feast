@@ -54,7 +54,7 @@ def default_store(
     return fs
 
 
-def start_feature_server(repo_path: str, server_port: int):
+def start_feature_server(repo_path: str, server_port: int, metrics: bool = False):
     host = "0.0.0.0"
     cmd = [
         "feast",
@@ -75,6 +75,21 @@ def start_feature_server(repo_path: str, server_port: int):
         timeout_secs=_time_out_sec,
         timeout_msg=f"Unable to start the feast server in {_time_out_sec} seconds for remote online store type, port={server_port}",
     )
+
+    if metrics:
+        cmd.append("--metrics")
+
+    # Check if metrics are enabled and Prometheus server is running
+    if metrics:
+        wait_retry_backoff(
+            lambda: (None, check_port_open("localhost", 8000)),
+            timeout_secs=_time_out_sec,
+            timeout_msg="Unable to start the Prometheus server in 60 seconds.",
+        )
+    else:
+        assert not check_port_open(
+            "localhost", 8000
+        ), "Prometheus server is running when it should be disabled."
 
     yield f"http://localhost:{server_port}"
 
