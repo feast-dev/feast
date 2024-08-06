@@ -255,8 +255,6 @@ googleapis-common-protos[grpc]==1.63.2
     #   grpcio-status
 great-expectations==0.18.16
     # via feast (setup.py)
-greenlet==3.0.3
-    # via sqlalchemy
 grpc-google-iam-v1==0.13.1
     # via google-cloud-bigtable
 grpcio==1.64.1
@@ -867,7 +865,7 @@ sqlalchemy[mypy]==2.0.31
     # via feast (setup.py)
 sqlglot==23.12.2
     # via ibis-framework
-sqlite-vec==0.0.1a10
+sqlite-vec==0.1.1
     # via feast (setup.py)
 sqlparams==6.0.1
     # via singlestoredb
