@@ -8,10 +8,6 @@
 [overview.md](overview.md)
 {% endcontent-ref %}
 
-{% content-ref url="push-vs-pull-model.md" %}
-[push-vs-pull-model.md](push-vs-pull-model.md)
-{% endcontent-ref %}
-
 {% content-ref url="registry.md" %}
 [registry.md](registry.md)
 {% endcontent-ref %}
