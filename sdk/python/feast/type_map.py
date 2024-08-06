@@ -396,13 +396,18 @@ def _python_value_to_proto_value(
                         raise _type_err(item, valid_types[0])
 
             if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
-                int_timestamps_lists = (
-                    _python_datetime_to_int_timestamp(value) for value in values
-                )
                 return [
-                    # ProtoValue does actually accept `np.int_` but the typing complains.
-                    ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
-                    for ts in int_timestamps_lists
+                    (
+                        # ProtoValue does actually accept `np.int_` but the typing complains.
+                        ProtoValue(
+                            unix_timestamp_list_val=Int64List(
+                                val=_python_datetime_to_int_timestamp(value)  # type: ignore
+                            )
+                        )
+                        if value is not None
+                        else ProtoValue()
+                    )
+                    for value in values
                 ]
             if feast_value_type == ValueType.BOOL_LIST:
                 # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
