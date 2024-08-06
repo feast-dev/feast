@@ -62,6 +62,7 @@ REQUIRED = [
     "prometheus_client",
     "psutil",
     "bigtree>=0.19.2",
+    "pyjwt",
 ]
 
 GCP_REQUIRED = [
