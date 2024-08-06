@@ -548,7 +548,7 @@ def test_sqlite_vec_import() -> None:
     sqlite_version, vec_version = db.execute(
         "select sqlite_version(), vec_version()"
     ).fetchone()
-    assert vec_version == "v0.0.1-alpha.10"
+    assert vec_version == "v0.1.1"
     print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
 
     result = db.execute("""
