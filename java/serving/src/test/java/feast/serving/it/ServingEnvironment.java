@@ -39,13 +39,13 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.ComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 abstract class ServingEnvironment {
-  static DockerComposeContainer environment;
+  static ComposeContainer environment;
   static int serverPort = getFreePort();
   ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   Injector injector;
@@ -57,7 +57,7 @@ abstract class ServingEnvironment {
   @BeforeAll
   static void globalSetup() {
     environment =
-        new DockerComposeContainer(
+        new ComposeContainer(
                 new File("src/test/resources/docker-compose/docker-compose-redis-it.yml"))
             .withExposedService("redis", 6379)
             .withExposedService(
