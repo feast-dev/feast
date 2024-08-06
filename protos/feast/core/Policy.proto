@@ -2,7 +2,7 @@ syntax = "proto3";
 package feast.core;
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
-option java_outer_classname = "Policy";
+option java_outer_classname = "PolicyProto";
 option java_package = "feast.proto.core";
 
 message Policy {

@@ -206,7 +206,7 @@ class Permission(ABC):
             name=self.name,
             types=types,
             with_subclasses=self.with_subclasses,
-            name_pattern=self.name_pattern if self.name_pattern is not None else None,
+            name_pattern=self.name_pattern if self.name_pattern is not None else "",
             actions=actions,
             policy=self.policy.to_proto(),
             tags=self._tags if self._tags is not None else None,
