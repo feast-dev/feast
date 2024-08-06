@@ -21,4 +21,7 @@ Usage: `Fixes #<issue number>`, or `Fixes (paste link of issue)`.
 -->
 
 
-# Fixes
+# Misc
+<!--
+Feel free to leave additional thoughts or tag people as you see fit
+-->
