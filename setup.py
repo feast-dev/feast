@@ -59,6 +59,8 @@ REQUIRED = [
     "uvicorn[standard]>=0.14.0,<1",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
+    "prometheus_client",
+    "psutil",
 ]
 
 GCP_REQUIRED = [
@@ -97,6 +99,8 @@ TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
+
+OPENTELEMETRY = ["prometheus_client","psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -215,6 +219,7 @@ CI_REQUIRED = (
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
     + SINGLESTORE_REQUIRED
+    + OPENTELEMETRY
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -385,6 +390,7 @@ setup(
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
+        "opentelemetry": OPENTELEMETRY,
     },
     include_package_data=True,
     license="Apache",

@@ -15,6 +15,12 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+metrics:
+  enabled: false
+  otelCollector:
+    endpoint: ""  # sample endpoint: "otel-collector.default.svc.cluster.local:4317"
+    port: 4317
+
 # feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml
 feature_store_yaml_base64: ""
 

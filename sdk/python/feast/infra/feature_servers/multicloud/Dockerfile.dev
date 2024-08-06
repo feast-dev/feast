@@ -9,7 +9,7 @@ RUN apt update && \
 RUN pip install pip --upgrade
 COPY . .
 
-RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres]"
+RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry]"
 
 RUN apt update
 RUN apt install -y -V ca-certificates lsb-release wget
