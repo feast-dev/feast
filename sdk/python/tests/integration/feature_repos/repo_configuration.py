@@ -28,7 +28,6 @@ from feast.infra.feature_servers.base_config import (
     FeatureLoggingConfig,
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
-from feast.infra.offline_stores.file_source import FileSource
 from feast.permissions.action import AuthzedAction
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.permission import Permission
@@ -529,9 +528,9 @@ class OfflineServerPermissionsEnvironment(Environment):
                 actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
             Permission(
-                name="offline_filesource_perm",
-                types=FileSource,
-                with_subclasses=False,
+                name="offline_datasource_perm",
+                types=DataSource,
+                with_subclasses=True,
                 policy=RoleBasedPolicy(roles=["writer"]),
                 actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
