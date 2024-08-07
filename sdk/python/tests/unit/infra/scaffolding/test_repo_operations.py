@@ -1,3 +1,5 @@
+import os
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6,7 +8,13 @@ from typing import Optional
 
 import assertpy
 
-from feast.repo_operations import get_ignore_files, get_repo_files, read_feastignore
+from feast.repo_operations import (
+    get_ignore_files,
+    get_repo_files,
+    parse_repo,
+    read_feastignore,
+)
+from tests.utils.cli_repo_creator import CliRunner
 
 
 @contextmanager
@@ -140,3 +148,49 @@ def test_feastignore_with_stars2():
                 (repo_root / "foo1/c.py").resolve(),
             ]
         )
+
+
+def test_parse_repo():
+    "Test to ensure that the repo is parsed correctly"
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        # Make sure the path is absolute by resolving any symlinks
+        temp_path = Path(temp_dir).resolve()
+        result = runner.run(["init", "my_project"], cwd=temp_path)
+        repo_path = Path(temp_path / "my_project" / "feature_repo")
+        assert result.returncode == 0
+
+        repo_contents = parse_repo(repo_path)
+
+        assert len(repo_contents.data_sources) == 3
+        assert len(repo_contents.feature_views) == 2
+        assert len(repo_contents.on_demand_feature_views) == 2
+        assert len(repo_contents.stream_feature_views) == 0
+        assert len(repo_contents.entities) == 2
+        assert len(repo_contents.feature_services) == 3
+
+
+def test_parse_repo_with_future_annotations():
+    "Test to ensure that the repo is parsed correctly when using future annotations"
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+        # Make sure the path is absolute by resolving any symlinks
+        temp_path = Path(temp_dir).resolve()
+        result = runner.run(["init", "my_project"], cwd=temp_path)
+        repo_path = Path(temp_path / "my_project" / "feature_repo")
+        assert result.returncode == 0
+
+        with open(repo_path / "example_repo.py", "r") as f:
+            existing_content = f.read()
+
+        with open(repo_path / "example_repo.py", "w") as f:
+            f.write("from __future__ import annotations" + "\n" + existing_content)
+
+        repo_contents = parse_repo(repo_path)
+
+        assert len(repo_contents.data_sources) == 3
+        assert len(repo_contents.feature_views) == 2
+        assert len(repo_contents.on_demand_feature_views) == 2
+        assert len(repo_contents.stream_feature_views) == 0
+        assert len(repo_contents.entities) == 2
+        assert len(repo_contents.feature_services) == 3
