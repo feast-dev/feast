@@ -1,6 +1,6 @@
 from concurrent import futures
 from datetime import datetime
-from typing import cast
+from typing import Union, cast
 from datetime import datetime, timezone
 
 import grpc
@@ -9,6 +9,7 @@ from google.protobuf.empty_pb2 import Empty
 from feast import FeatureService, FeatureStore
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.errors import FeatureViewNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
@@ -203,10 +204,19 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def DeleteFeatureView(
         self, request: RegistryServer_pb2.DeleteFeatureViewRequest, context
     ):
+        feature_view: Union[StreamFeatureView, FeatureView]
+
+        try:
+            feature_view = self.proxied_registry.get_stream_feature_view(
+                name=request.name, project=request.project, allow_cache=False
+            )
+        except FeatureViewNotFoundException:
+            feature_view = self.proxied_registry.get_feature_view(
+                name=request.name, project=request.project, allow_cache=False
+            )
+
         assert_permissions(
-            resource=self.proxied_registry.get_feature_view(
-                name=request.name, project=request.project
-            ),
+            resource=feature_view,
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_feature_view(
