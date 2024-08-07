@@ -22,4 +22,4 @@ Pros:
 Cons:
 - **Consistency**: Data consistency can be a challenge in a push model, as the feature store must ensure that the feature values are pushed to the online store in a consistent manner. 
 - **Write Amplification**: The feature store must write feature values to the online store, which can result in write amplification.
-- 
+- **Data Producer Ownership**: Data Producers own the push/writes to the Feature Store. This means more work on their part when things go wrong.
