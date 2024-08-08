@@ -136,7 +136,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", DuckDBDataSourceCreator),
     ("local", DuckDBDeltaDataSourceCreator),
     ("local", RemoteOfflineStoreDataSourceCreator),
-    ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
+    #    ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
