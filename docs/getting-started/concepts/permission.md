@@ -52,7 +52,7 @@ The `feast` CLI includes a new `permissions` command to list the registered perm
 {% endhint %}
 
 ## Configuration examples
-This permission configuration allows to access the resource state and query all the stores for any feature view or feature service
+This permission configuration allows access to the resource state and the ability to query all the stores for any feature view or feature service
 to all users with role `super-reader`:
 ```py
 Permission(
@@ -64,12 +64,12 @@ Permission(
 ```
 Please note that all sub-classes of `FeatureView` are also included since the default for the `with_subclasses` parameter is `True`.
 
-This example grants permission to write on all the data sources with `risk_level` tag set to `hi` only to users with role `admin` or `data_team`:
+This example grants permission to write on all the data sources with `risk_level` tag set to `high` only to users with role `admin` or `data_team`:
 ```py
 Permission(
     name="ds-writer",
     types=[DataSource],
-    required_tags={"risk_level": "hi"},
+    required_tags={"risk_level": "high"},
     policy=RoleBasedPolicy(roles=["admin", "data_team"]),
     actions=[AuthzedAction.WRITE],
 )
@@ -111,7 +111,7 @@ auth:
 
 * Kubernetes rbac authentication/authorization example:
 {% hint style="info" %}
-**NOTE**: This configuration will only work if you deploy feast on Openshift or Kubernetes platform.
+**NOTE**: This configuration will only work if you deploy feast on Openshift or a Kubernetes platform.
 {% endhint %}
 ```yaml
 project: foo
