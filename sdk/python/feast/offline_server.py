@@ -127,6 +127,8 @@ class OfflineServer(fl.FlightServerBase):
                                 f"Found matching FeatureService {fs.name} with projection {p}"
                             )
                             fv = fv.with_projection(p)
+
+            assert isinstance(fv, FeatureView)
             return fv
         except Exception:
             try:

@@ -456,7 +456,7 @@ class FeatureStore:
 
     def get_feature_view(
         self, name: str, allow_registry_cache: bool = False
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         """
         Retrieves a feature view.
 
@@ -477,11 +477,15 @@ class FeatureStore:
         name: str,
         hide_dummy_entity: bool = True,
         allow_registry_cache: bool = False,
-    ) -> FeatureView:
+    ) -> BaseFeatureView:
         feature_view = self._registry.get_feature_view(
             name, self.project, allow_cache=allow_registry_cache
         )
-        if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
+        if (
+            isinstance(feature_view, FeatureView)
+            and hide_dummy_entity
+            and feature_view.entities[0] == DUMMY_ENTITY_NAME
+        ):
             feature_view.entities = []
         return feature_view
 
@@ -686,6 +690,7 @@ class FeatureStore:
                         name, hide_dummy_entity=False
                     )
 
+                assert isinstance(feature_view, FeatureView)
                 if not feature_view.online:
                     raise ValueError(
                         f"FeatureView {feature_view.name} is not configured to be served online."
@@ -1450,9 +1455,11 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
+            fv = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+            assert isinstance(fv, FeatureView)
+            feature_view = fv
         if df is not None and inputs is not None:
             raise ValueError("Both df and inputs cannot be provided at the same time.")
         if df is None and inputs is not None:
@@ -1487,9 +1494,11 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
+            fv = self.get_feature_view(
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
+            assert isinstance(fv, FeatureView)
+            feature_view = fv
 
         # Get columns of the batch source and the input dataframe.
         column_names_and_types = (

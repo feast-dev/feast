@@ -106,6 +106,21 @@ def get_feature_view(
             and feature_view_proto.spec.project == project
         ):
             return FeatureView.from_proto(feature_view_proto)
+
+    for feature_view_proto in registry_proto.stream_feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return StreamFeatureView.from_proto(feature_view_proto)
+
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if (
+            on_demand_feature_view.spec.project == project
+            and on_demand_feature_view.spec.name == name
+        ):
+            return OnDemandFeatureView.from_proto(on_demand_feature_view)
+
     raise FeatureViewNotFoundException(name, project)
 
 
