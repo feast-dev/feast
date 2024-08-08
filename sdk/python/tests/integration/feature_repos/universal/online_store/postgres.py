@@ -16,7 +16,7 @@ class PostgresOnlineStoreCreator(OnlineStoreCreator):
         self.container = PostgresContainer(
             "postgres:16",
             username="root",
-            password="test",
+            password="test!@#$%",
             dbname="test",
         ).with_exposed_ports(5432)
 
@@ -26,7 +26,7 @@ class PostgresOnlineStoreCreator(OnlineStoreCreator):
             "host": "localhost",
             "type": "postgres",
             "user": "root",
-            "password": "test",
+            "password": "test!@#$%",
             "database": "test",
             "port": self.container.get_exposed_port(5432),
         }
@@ -42,7 +42,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
         self.container = (
             DockerContainer("pgvector/pgvector:pg16")
             .with_env("POSTGRES_USER", "root")
-            .with_env("POSTGRES_PASSWORD", "test")
+            .with_env("POSTGRES_PASSWORD", "test!@#$%")
             .with_env("POSTGRES_DB", "test")
             .with_exposed_ports(5432)
             .with_volume_mapping(
@@ -65,7 +65,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             "host": "localhost",
             "type": "postgres",
             "user": "root",
-            "password": "test",
+            "password": "test!@#$%",
             "database": "test",
             "pgvector_enabled": True,
             "vector_len": 2,
