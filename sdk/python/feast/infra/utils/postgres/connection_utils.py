@@ -63,7 +63,7 @@ def _get_conninfo(config: PostgreSQLConfig) -> str:
         "port": int(config.port),
         "dbname": config.database,
     }
-    return make_conninfo(**psycopg_config)
+    return make_conninfo(conninfo="", **psycopg_config)
 
 
 def _get_conn_kwargs(config: PostgreSQLConfig) -> Dict[str, Any]:
