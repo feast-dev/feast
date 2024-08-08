@@ -3,7 +3,7 @@ import functools
 import inspect
 import warnings
 from types import FunctionType
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, get_type_hints
 
 import dill
 import pandas as pd
@@ -631,7 +631,7 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-        return_annotation = inspect.signature(user_function).return_annotation
+        return_annotation = get_type_hints(user_function).get("return", inspect._empty)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         if mode == "pandas":
