@@ -78,6 +78,7 @@ class OidcTokenParser(TokenParser):
                     "verify_signature": True,
                     "verify_exp": True,
                 },
+                leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
             )
 
             if "preferred_username" not in data:

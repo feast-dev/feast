@@ -44,7 +44,7 @@ def enforce_policy(
     _permitted_resources: list[FeastObject] = []
     for resource in resources:
         logger.debug(
-            f"Enforcing permission policies for {type(resource)}:{resource.name} to execute {actions}"
+            f"Enforcing permission policies for {type(resource).__name__}:{resource.name} to execute {actions}"
         )
         matching_permissions = [
             p
@@ -60,7 +60,7 @@ def enforce_policy(
                 )
                 evaluator.add_grant(
                     permission_grant,
-                    f"Permission {p.name} denied access: {permission_explanation}",
+                    f"Permission {p.name} denied execution of {[a.value.upper() for a in actions]} to {type(resource).__name__}:{resource.name}: {permission_explanation}",
                 )
 
                 if evaluator.is_decided():
