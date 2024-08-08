@@ -2,7 +2,7 @@ import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 from pydantic import ConfigDict, Field, StrictStr
@@ -50,7 +50,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
     authenticator: Optional[str] = None
     """ Snowflake authenticator name """
 
-    private_key: Optional[str | bytes] = None
+    private_key: Optional[Union[str,bytes]] = None
     """ Snowflake private key stored as bytes or file path"""
 
     private_key_passphrase: Optional[str] = None
