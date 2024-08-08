@@ -25,7 +25,7 @@ The permission model is based on the following components:
   - `delete`: Delete an instance.
   - `query`:  Query both online and offline stores.
   - `query_online`:  Query the online store.
-  - `query_offline`:  Query the o ffline store.
+  - `query_offline`:  Query the offline store.
   - `write`:  Query on any store.
   - `write_online`:  Write to the online store.
   - `write_offline`:  Write to the offline store.
